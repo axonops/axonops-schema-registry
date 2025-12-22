@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -50,14 +51,15 @@ func TestMain(m *testing.M) {
 	// Create registry
 	reg := registry.New(store, schemaRegistry, compatChecker, "BACKWARD")
 
-	// Create server
+	// Create server with logger
 	cfg := &config.Config{
 		Server: config.ServerConfig{
 			Host: "localhost",
 			Port: 8081,
 		},
 	}
-	server := api.NewServer(cfg, reg, nil)
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn}))
+	server := api.NewServer(cfg, reg, logger)
 	testServer = httptest.NewServer(server)
 
 	// Run tests
