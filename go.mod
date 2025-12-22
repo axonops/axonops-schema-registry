@@ -1,6 +1,6 @@
 module github.com/axonops/axonops-schema-registry
 
-go 1.24.8
+go 1.23
 
 require (
 	github.com/apache/cassandra-gocql-driver/v2 v2.0.0

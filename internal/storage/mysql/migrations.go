@@ -4,31 +4,31 @@ package mysql
 // migrations contains the database schema migrations.
 var migrations = []string{
 	// Migration 1: Initial schema
-	`CREATE TABLE IF NOT EXISTS schemas (
-		id BIGINT AUTO_INCREMENT PRIMARY KEY,
-		subject VARCHAR(255) NOT NULL,
-		version INT NOT NULL,
-		schema_type VARCHAR(50) NOT NULL DEFAULT 'AVRO',
-		schema_text MEDIUMTEXT NOT NULL,
-		fingerprint VARCHAR(64) NOT NULL,
-		deleted BOOLEAN NOT NULL DEFAULT FALSE,
-		created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-		UNIQUE KEY idx_subject_version (subject, version),
-		UNIQUE KEY idx_subject_fingerprint (subject, fingerprint)
-	) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+	"CREATE TABLE IF NOT EXISTS `schemas` (" +
+		"id BIGINT AUTO_INCREMENT PRIMARY KEY," +
+		"subject VARCHAR(255) NOT NULL," +
+		"version INT NOT NULL," +
+		"schema_type VARCHAR(50) NOT NULL DEFAULT 'AVRO'," +
+		"schema_text MEDIUMTEXT NOT NULL," +
+		"fingerprint VARCHAR(64) NOT NULL," +
+		"deleted BOOLEAN NOT NULL DEFAULT FALSE," +
+		"created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP," +
+		"UNIQUE KEY idx_subject_version (subject, version)," +
+		"UNIQUE KEY idx_subject_fingerprint (subject, fingerprint)" +
+		") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
 
-	`CREATE INDEX IF NOT EXISTS idx_schemas_subject ON schemas(subject)`,
-	`CREATE INDEX IF NOT EXISTS idx_schemas_deleted ON schemas(deleted)`,
+	"CREATE INDEX IF NOT EXISTS idx_schemas_subject ON `schemas`(subject)",
+	"CREATE INDEX IF NOT EXISTS idx_schemas_deleted ON `schemas`(deleted)",
 
 	// Migration 2: Schema references
-	`CREATE TABLE IF NOT EXISTS schema_references (
-		id BIGINT AUTO_INCREMENT PRIMARY KEY,
-		schema_id BIGINT NOT NULL,
-		name VARCHAR(255) NOT NULL,
-		ref_subject VARCHAR(255) NOT NULL,
-		ref_version INT NOT NULL,
-		FOREIGN KEY (schema_id) REFERENCES schemas(id) ON DELETE CASCADE
-	) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+	"CREATE TABLE IF NOT EXISTS schema_references (" +
+		"id BIGINT AUTO_INCREMENT PRIMARY KEY," +
+		"schema_id BIGINT NOT NULL," +
+		"name VARCHAR(255) NOT NULL," +
+		"ref_subject VARCHAR(255) NOT NULL," +
+		"ref_version INT NOT NULL," +
+		"FOREIGN KEY (schema_id) REFERENCES `schemas`(id) ON DELETE CASCADE" +
+		") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
 
 	`CREATE INDEX IF NOT EXISTS idx_schema_references_schema_id ON schema_references(schema_id)`,
 	`CREATE INDEX IF NOT EXISTS idx_schema_references_ref ON schema_references(ref_subject, ref_version)`,

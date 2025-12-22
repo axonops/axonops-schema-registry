@@ -120,7 +120,7 @@ func (s *Store) CreateSchema(ctx context.Context, record *storage.SchemaRecord) 
 	var existingVersion int
 	var existingDeleted bool
 	err = tx.QueryRowContext(ctx,
-		`SELECT id, version, deleted FROM schemas WHERE subject = ? AND fingerprint = ?`,
+		"SELECT id, version, deleted FROM `schemas` WHERE subject = ? AND fingerprint = ?",
 		record.Subject, record.Fingerprint,
 	).Scan(&existingID, &existingVersion, &existingDeleted)
 
@@ -133,7 +133,7 @@ func (s *Store) CreateSchema(ctx context.Context, record *storage.SchemaRecord) 
 	// Get next version for this subject
 	var nextVersion int
 	err = tx.QueryRowContext(ctx,
-		`SELECT COALESCE(MAX(version), 0) + 1 FROM schemas WHERE subject = ?`,
+		"SELECT COALESCE(MAX(version), 0) + 1 FROM `schemas` WHERE subject = ?",
 		record.Subject,
 	).Scan(&nextVersion)
 	if err != nil {
@@ -142,8 +142,7 @@ func (s *Store) CreateSchema(ctx context.Context, record *storage.SchemaRecord) 
 
 	// Insert schema
 	result, err := tx.ExecContext(ctx,
-		`INSERT INTO schemas (subject, version, schema_type, schema_text, fingerprint, created_at)
-		 VALUES (?, ?, ?, ?, ?, ?)`,
+		"INSERT INTO `schemas` (subject, version, schema_type, schema_text, fingerprint, created_at) VALUES (?, ?, ?, ?, ?, ?)",
 		record.Subject, nextVersion, record.SchemaType, record.Schema, record.Fingerprint, time.Now(),
 	)
 	if err != nil {
@@ -180,8 +179,7 @@ func (s *Store) GetSchemaByID(ctx context.Context, id int64) (*storage.SchemaRec
 	var schemaType string
 
 	err := s.db.QueryRowContext(ctx,
-		`SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at
-		 FROM schemas WHERE id = ?`,
+		"SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at FROM `schemas` WHERE id = ?",
 		id,
 	).Scan(&record.ID, &record.Subject, &record.Version, &schemaType,
 		&record.Schema, &record.Fingerprint, &record.Deleted, &record.CreatedAt)
@@ -216,8 +214,7 @@ func (s *Store) GetSchemaBySubjectVersion(ctx context.Context, subject string, v
 	var schemaType string
 
 	err := s.db.QueryRowContext(ctx,
-		`SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at
-		 FROM schemas WHERE subject = ? AND version = ?`,
+		"SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at FROM `schemas` WHERE subject = ? AND version = ?",
 		subject, version,
 	).Scan(&record.ID, &record.Subject, &record.Version, &schemaType,
 		&record.Schema, &record.Fingerprint, &record.Deleted, &record.CreatedAt)
@@ -225,7 +222,7 @@ func (s *Store) GetSchemaBySubjectVersion(ctx context.Context, subject string, v
 	if err == sql.ErrNoRows {
 		// Check if subject exists
 		var count int
-		s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM schemas WHERE subject = ?`, subject).Scan(&count)
+		s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM `schemas` WHERE subject = ?", subject).Scan(&count)
 		if count == 0 {
 			return nil, storage.ErrSubjectNotFound
 		}
@@ -253,12 +250,11 @@ func (s *Store) GetSchemaBySubjectVersion(ctx context.Context, subject string, v
 
 // GetSchemasBySubject retrieves all schemas for a subject.
 func (s *Store) GetSchemasBySubject(ctx context.Context, subject string, includeDeleted bool) ([]*storage.SchemaRecord, error) {
-	query := `SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at
-		      FROM schemas WHERE subject = ?`
+	query := "SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at FROM `schemas` WHERE subject = ?"
 	if !includeDeleted {
-		query += ` AND deleted = FALSE`
+		query += " AND deleted = FALSE"
 	}
-	query += ` ORDER BY version`
+	query += " ORDER BY version"
 
 	rows, err := s.db.QueryContext(ctx, query, subject)
 	if err != nil {
@@ -299,8 +295,7 @@ func (s *Store) GetSchemaByFingerprint(ctx context.Context, subject, fingerprint
 	var schemaType string
 
 	err := s.db.QueryRowContext(ctx,
-		`SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at
-		 FROM schemas WHERE subject = ? AND fingerprint = ? AND deleted = FALSE`,
+		"SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at FROM `schemas` WHERE subject = ? AND fingerprint = ? AND deleted = FALSE",
 		subject, fingerprint,
 	).Scan(&record.ID, &record.Subject, &record.Version, &schemaType,
 		&record.Schema, &record.Fingerprint, &record.Deleted, &record.CreatedAt)
@@ -330,9 +325,7 @@ func (s *Store) GetLatestSchema(ctx context.Context, subject string) (*storage.S
 	var schemaType string
 
 	err := s.db.QueryRowContext(ctx,
-		`SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at
-		 FROM schemas WHERE subject = ? AND deleted = FALSE
-		 ORDER BY version DESC LIMIT 1`,
+		"SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at FROM `schemas` WHERE subject = ? AND deleted = FALSE ORDER BY version DESC LIMIT 1",
 		subject,
 	).Scan(&record.ID, &record.Subject, &record.Version, &schemaType,
 		&record.Schema, &record.Fingerprint, &record.Deleted, &record.CreatedAt)
@@ -363,12 +356,12 @@ func (s *Store) DeleteSchema(ctx context.Context, subject string, version int, p
 
 	if permanent {
 		result, err = s.db.ExecContext(ctx,
-			`DELETE FROM schemas WHERE subject = ? AND version = ?`,
+			"DELETE FROM `schemas` WHERE subject = ? AND version = ?",
 			subject, version,
 		)
 	} else {
 		result, err = s.db.ExecContext(ctx,
-			`UPDATE schemas SET deleted = TRUE WHERE subject = ? AND version = ?`,
+			"UPDATE `schemas` SET deleted = TRUE WHERE subject = ? AND version = ?",
 			subject, version,
 		)
 	}
@@ -381,7 +374,7 @@ func (s *Store) DeleteSchema(ctx context.Context, subject string, version int, p
 	if rowsAffected == 0 {
 		// Check if subject exists
 		var count int
-		s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM schemas WHERE subject = ?`, subject).Scan(&count)
+		s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM `schemas` WHERE subject = ?", subject).Scan(&count)
 		if count == 0 {
 			return storage.ErrSubjectNotFound
 		}
@@ -393,11 +386,11 @@ func (s *Store) DeleteSchema(ctx context.Context, subject string, version int, p
 
 // ListSubjects returns all subject names.
 func (s *Store) ListSubjects(ctx context.Context, includeDeleted bool) ([]string, error) {
-	query := `SELECT DISTINCT subject FROM schemas`
+	query := "SELECT DISTINCT subject FROM `schemas`"
 	if !includeDeleted {
-		query += ` WHERE deleted = FALSE`
+		query += " WHERE deleted = FALSE"
 	}
-	query += ` ORDER BY subject`
+	query += " ORDER BY subject"
 
 	rows, err := s.db.QueryContext(ctx, query)
 	if err != nil {
@@ -421,7 +414,7 @@ func (s *Store) ListSubjects(ctx context.Context, includeDeleted bool) ([]string
 func (s *Store) DeleteSubject(ctx context.Context, subject string, permanent bool) ([]int, error) {
 	// First get all versions
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT version FROM schemas WHERE subject = ? AND (deleted = FALSE OR ?)`,
+		"SELECT version FROM `schemas` WHERE subject = ? AND (deleted = FALSE OR ?)",
 		subject, permanent,
 	)
 	if err != nil {
@@ -445,17 +438,17 @@ func (s *Store) DeleteSubject(ctx context.Context, subject string, permanent boo
 
 	// Delete or soft-delete
 	if permanent {
-		_, err = s.db.ExecContext(ctx, `DELETE FROM schemas WHERE subject = ?`, subject)
+		_, err = s.db.ExecContext(ctx, "DELETE FROM `schemas` WHERE subject = ?", subject)
 		if err != nil {
 			return nil, fmt.Errorf("failed to delete schemas: %w", err)
 		}
 
 		// Also delete configs and modes
-		s.db.ExecContext(ctx, `DELETE FROM configs WHERE subject = ?`, subject)
-		s.db.ExecContext(ctx, `DELETE FROM modes WHERE subject = ?`, subject)
+		s.db.ExecContext(ctx, "DELETE FROM configs WHERE subject = ?", subject)
+		s.db.ExecContext(ctx, "DELETE FROM modes WHERE subject = ?", subject)
 	} else {
 		_, err = s.db.ExecContext(ctx,
-			`UPDATE schemas SET deleted = TRUE WHERE subject = ?`,
+			"UPDATE `schemas` SET deleted = TRUE WHERE subject = ?",
 			subject,
 		)
 		if err != nil {
@@ -470,7 +463,7 @@ func (s *Store) DeleteSubject(ctx context.Context, subject string, permanent boo
 func (s *Store) SubjectExists(ctx context.Context, subject string) (bool, error) {
 	var count int
 	err := s.db.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM schemas WHERE subject = ? AND deleted = FALSE`,
+		"SELECT COUNT(*) FROM `schemas` WHERE subject = ? AND deleted = FALSE",
 		subject,
 	).Scan(&count)
 	if err != nil {
@@ -596,7 +589,7 @@ func (s *Store) NextID(ctx context.Context) (int64, error) {
 	// MySQL doesn't have sequences, so we use a dummy insert and get the auto_increment value
 	// This is a workaround and may not be ideal for high-concurrency scenarios
 	var id int64
-	err := s.db.QueryRowContext(ctx, `SELECT AUTO_INCREMENT FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'schemas'`).Scan(&id)
+	err := s.db.QueryRowContext(ctx, "SELECT AUTO_INCREMENT FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'schemas'").Scan(&id)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get next ID: %w", err)
 	}
@@ -606,10 +599,7 @@ func (s *Store) NextID(ctx context.Context) (int64, error) {
 // GetReferencedBy returns subjects/versions that reference the given schema.
 func (s *Store) GetReferencedBy(ctx context.Context, subject string, version int) ([]storage.SubjectVersion, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT s.subject, s.version
-		 FROM schemas s
-		 JOIN schema_references r ON r.schema_id = s.id
-		 WHERE r.ref_subject = ? AND r.ref_version = ? AND s.deleted = FALSE`,
+		"SELECT s.subject, s.version FROM `schemas` s JOIN schema_references r ON r.schema_id = s.id WHERE r.ref_subject = ? AND r.ref_version = ? AND s.deleted = FALSE",
 		subject, version,
 	)
 	if err != nil {
@@ -654,9 +644,9 @@ func (s *Store) loadReferences(ctx context.Context, schemaID int64) ([]storage.R
 
 // GetSubjectsBySchemaID returns all subjects where the given schema ID is registered.
 func (s *Store) GetSubjectsBySchemaID(ctx context.Context, id int64, includeDeleted bool) ([]string, error) {
-	query := `SELECT DISTINCT subject FROM schemas WHERE id = ?`
+	query := "SELECT DISTINCT subject FROM `schemas` WHERE id = ?"
 	if !includeDeleted {
-		query += ` AND deleted = FALSE`
+		query += " AND deleted = FALSE"
 	}
 
 	rows, err := s.db.QueryContext(ctx, query, id)
@@ -683,9 +673,9 @@ func (s *Store) GetSubjectsBySchemaID(ctx context.Context, id int64, includeDele
 
 // GetVersionsBySchemaID returns all subject-version pairs where the given schema ID is registered.
 func (s *Store) GetVersionsBySchemaID(ctx context.Context, id int64, includeDeleted bool) ([]storage.SubjectVersion, error) {
-	query := `SELECT subject, version FROM schemas WHERE id = ?`
+	query := "SELECT subject, version FROM `schemas` WHERE id = ?"
 	if !includeDeleted {
-		query += ` AND deleted = FALSE`
+		query += " AND deleted = FALSE"
 	}
 
 	rows, err := s.db.QueryContext(ctx, query, id)
@@ -712,48 +702,42 @@ func (s *Store) GetVersionsBySchemaID(ctx context.Context, id int64, includeDele
 
 // ListSchemas returns schemas matching the given filters.
 func (s *Store) ListSchemas(ctx context.Context, params *storage.ListSchemasParams) ([]*storage.SchemaRecord, error) {
-	query := `SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at FROM schemas WHERE 1=1`
+	query := "SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at FROM `schemas` WHERE 1=1"
 	args := []interface{}{}
 
 	if !params.Deleted {
-		query += ` AND deleted = ?`
+		query += " AND deleted = ?"
 		args = append(args, false)
 	}
 
 	if params.SubjectPrefix != "" {
-		query += ` AND subject LIKE ?`
+		query += " AND subject LIKE ?"
 		args = append(args, params.SubjectPrefix+"%")
 	}
 
 	if params.LatestOnly {
-		query = `SELECT s.id, s.subject, s.version, s.schema_type, s.schema_text, s.fingerprint, s.deleted, s.created_at
-		         FROM schemas s
-		         INNER JOIN (
-		             SELECT subject, MAX(version) as max_version
-		             FROM schemas
-		             WHERE 1=1`
+		query = "SELECT s.id, s.subject, s.version, s.schema_type, s.schema_text, s.fingerprint, s.deleted, s.created_at FROM `schemas` s INNER JOIN (SELECT subject, MAX(version) as max_version FROM `schemas` WHERE 1=1"
 		if !params.Deleted {
-			query += ` AND deleted = FALSE`
+			query += " AND deleted = FALSE"
 		}
 		if params.SubjectPrefix != "" {
-			query += ` AND subject LIKE ?`
+			query += " AND subject LIKE ?"
 		}
-		query += ` GROUP BY subject
-		         ) latest ON s.subject = latest.subject AND s.version = latest.max_version`
+		query += " GROUP BY subject) latest ON s.subject = latest.subject AND s.version = latest.max_version"
 		if !params.Deleted {
-			query += ` WHERE s.deleted = FALSE`
+			query += " WHERE s.deleted = FALSE"
 		}
 	}
 
-	query += ` ORDER BY id`
+	query += " ORDER BY id"
 
 	if params.Limit > 0 {
-		query += ` LIMIT ?`
+		query += " LIMIT ?"
 		args = append(args, params.Limit)
 	}
 
 	if params.Offset > 0 {
-		query += ` OFFSET ?`
+		query += " OFFSET ?"
 		args = append(args, params.Offset)
 	}
 
