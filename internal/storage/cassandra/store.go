@@ -1,0 +1,994 @@
+package cassandra
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"strconv"
+	"strings"
+	"sync/atomic"
+	"time"
+
+	gocql "github.com/apache/cassandra-gocql-driver/v2"
+
+	"github.com/axonops/axonops-schema-registry/internal/storage"
+)
+
+// Config holds Cassandra connection configuration.
+type Config struct {
+	Hosts              []string      `json:"hosts" yaml:"hosts"`
+	Port               int           `json:"port" yaml:"port"`
+	Keyspace           string        `json:"keyspace" yaml:"keyspace"`
+	Username           string        `json:"username" yaml:"username"`
+	Password           string        `json:"password" yaml:"password"`
+	Consistency        string        `json:"consistency" yaml:"consistency"`
+	LocalDC            string        `json:"local_dc" yaml:"local_dc"`
+	ReplicationStrategy string       `json:"replication_strategy" yaml:"replication_strategy"`
+	ReplicationFactor  int           `json:"replication_factor" yaml:"replication_factor"`
+	ConnectTimeout     time.Duration `json:"connect_timeout" yaml:"connect_timeout"`
+	Timeout            time.Duration `json:"timeout" yaml:"timeout"`
+	NumConns           int           `json:"num_conns" yaml:"num_conns"`
+	MaxPreparedStmts   int           `json:"max_prepared_stmts" yaml:"max_prepared_stmts"`
+	EnableTLS          bool          `json:"enable_tls" yaml:"enable_tls"`
+	TLSVerifyHost      bool          `json:"tls_verify_host" yaml:"tls_verify_host"`
+	SubjectBuckets     int           `json:"subject_buckets" yaml:"subject_buckets"`
+}
+
+// DefaultConfig returns a default configuration.
+func DefaultConfig() Config {
+	return Config{
+		Hosts:              []string{"localhost"},
+		Port:               9042,
+		Keyspace:           "schema_registry",
+		Consistency:        "LOCAL_QUORUM",
+		ReplicationStrategy: "SimpleStrategy",
+		ReplicationFactor:  1,
+		ConnectTimeout:     5 * time.Second,
+		Timeout:            10 * time.Second,
+		NumConns:           2,
+		MaxPreparedStmts:   1000,
+		SubjectBuckets:     16,
+	}
+}
+
+// Store implements the storage.Storage interface using Cassandra.
+type Store struct {
+	session  *gocql.Session
+	config   Config
+	idCache  int64 // Local cache of last known ID
+}
+
+// NewStore creates a new Cassandra store.
+func NewStore(config Config) (*Store, error) {
+	// Create cluster configuration
+	cluster := gocql.NewCluster(config.Hosts...)
+	cluster.Port = config.Port
+	cluster.Keyspace = config.Keyspace
+	cluster.Timeout = config.Timeout
+	cluster.ConnectTimeout = config.ConnectTimeout
+	cluster.NumConns = config.NumConns
+
+	// Set consistency level
+	consistency := parseConsistency(config.Consistency)
+	cluster.Consistency = consistency
+
+	// Authentication
+	if config.Username != "" {
+		cluster.Authenticator = gocql.PasswordAuthenticator{
+			Username: config.Username,
+			Password: config.Password,
+		}
+	}
+
+	// Datacenter-aware configuration
+	if config.LocalDC != "" {
+		cluster.PoolConfig.HostSelectionPolicy = gocql.DCAwareRoundRobinPolicy(config.LocalDC)
+	}
+
+	// TLS configuration
+	if config.EnableTLS {
+		cluster.SslOpts = &gocql.SslOptions{
+			EnableHostVerification: config.TLSVerifyHost,
+		}
+	}
+
+	// First, connect without keyspace to create it
+	clusterNoKS := *cluster
+	clusterNoKS.Keyspace = ""
+	sessionNoKS, err := clusterNoKS.CreateSession()
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to Cassandra: %w", err)
+	}
+
+	// Create keyspace
+	ksQuery := keyspaceCQL(config.Keyspace, config.ReplicationStrategy, config.ReplicationFactor)
+	if err := sessionNoKS.Query(ksQuery).Exec(); err != nil {
+		sessionNoKS.Close()
+		return nil, fmt.Errorf("failed to create keyspace: %w", err)
+	}
+	sessionNoKS.Close()
+
+	// Now connect with keyspace
+	session, err := cluster.CreateSession()
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to keyspace: %w", err)
+	}
+
+	store := &Store{
+		session: session,
+		config:  config,
+	}
+
+	// Run migrations
+	if err := store.migrate(); err != nil {
+		session.Close()
+		return nil, fmt.Errorf("failed to run migrations: %w", err)
+	}
+
+	return store, nil
+}
+
+// parseConsistency converts a string to gocql.Consistency.
+func parseConsistency(s string) gocql.Consistency {
+	switch strings.ToUpper(s) {
+	case "ANY":
+		return gocql.Any
+	case "ONE":
+		return gocql.One
+	case "TWO":
+		return gocql.Two
+	case "THREE":
+		return gocql.Three
+	case "QUORUM":
+		return gocql.Quorum
+	case "ALL":
+		return gocql.All
+	case "LOCAL_QUORUM":
+		return gocql.LocalQuorum
+	case "EACH_QUORUM":
+		return gocql.EachQuorum
+	case "LOCAL_ONE":
+		return gocql.LocalOne
+	default:
+		return gocql.LocalQuorum
+	}
+}
+
+// migrate runs CQL migrations.
+func (s *Store) migrate() error {
+	for i, migration := range migrations {
+		if err := s.session.Query(migration).Exec(); err != nil {
+			// Ignore "already exists" errors for IF NOT EXISTS statements
+			if !strings.Contains(err.Error(), "already exists") {
+				return fmt.Errorf("migration %d failed: %w", i+1, err)
+			}
+		}
+	}
+	return nil
+}
+
+// subjectBucket returns the bucket number for a subject (for distributed subject listing).
+func (s *Store) subjectBucket(subject string) int {
+	// Simple hash-based bucketing
+	var hash int
+	for _, c := range subject {
+		hash = hash*31 + int(c)
+	}
+	if hash < 0 {
+		hash = -hash
+	}
+	buckets := s.config.SubjectBuckets
+	if buckets <= 0 {
+		buckets = 16
+	}
+	return hash % buckets
+}
+
+// CreateSchema stores a new schema record.
+func (s *Store) CreateSchema(ctx context.Context, record *storage.SchemaRecord) error {
+	// Check for existing schema with same fingerprint
+	var existingID int64
+	var existingVersion int
+	err := s.session.Query(
+		`SELECT id, version FROM schemas_by_fingerprint WHERE subject = ? AND fingerprint = ?`,
+		record.Subject, record.Fingerprint,
+	).WithContext(ctx).Scan(&existingID, &existingVersion)
+
+	if err == nil {
+		// Check if it's deleted
+		var deleted bool
+		s.session.Query(
+			`SELECT deleted FROM schemas WHERE subject = ? AND version = ?`,
+			record.Subject, existingVersion,
+		).WithContext(ctx).Scan(&deleted)
+
+		if !deleted {
+			record.ID = existingID
+			record.Version = existingVersion
+			return storage.ErrSchemaExists
+		}
+	}
+
+	// Get next version for this subject
+	var maxVersion int
+	iter := s.session.Query(
+		`SELECT version FROM schemas WHERE subject = ? ORDER BY version DESC LIMIT 1`,
+		record.Subject,
+	).WithContext(ctx).Iter()
+	iter.Scan(&maxVersion)
+	iter.Close()
+	nextVersion := maxVersion + 1
+
+	// Generate new ID
+	newID, err := s.NextID(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to generate ID: %w", err)
+	}
+
+	record.ID = newID
+	record.Version = nextVersion
+	record.CreatedAt = time.Now()
+
+	// Use batch for atomic insert
+	batch := s.session.NewBatch(gocql.LoggedBatch).WithContext(ctx)
+
+	// Insert into schemas table
+	batch.Query(
+		`INSERT INTO schemas (subject, version, id, schema_type, schema_text, fingerprint, deleted, created_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		record.Subject, record.Version, record.ID, string(record.SchemaType),
+		record.Schema, record.Fingerprint, false, record.CreatedAt,
+	)
+
+	// Insert into schemas_by_id
+	batch.Query(
+		`INSERT INTO schemas_by_id (id, subject, version) VALUES (?, ?, ?)`,
+		record.ID, record.Subject, record.Version,
+	)
+
+	// Insert into schemas_by_fingerprint
+	batch.Query(
+		`INSERT INTO schemas_by_fingerprint (subject, fingerprint, id, version) VALUES (?, ?, ?, ?)`,
+		record.Subject, record.Fingerprint, record.ID, record.Version,
+	)
+
+	// Track subject in subjects table
+	bucket := s.subjectBucket(record.Subject)
+	batch.Query(
+		`INSERT INTO subjects (bucket, subject) VALUES (?, ?)`,
+		bucket, record.Subject,
+	)
+
+	if err := s.session.ExecuteBatch(batch); err != nil {
+		return fmt.Errorf("failed to insert schema: %w", err)
+	}
+
+	// Insert references
+	for _, ref := range record.References {
+		if err := s.session.Query(
+			`INSERT INTO schema_references (schema_id, name, ref_subject, ref_version) VALUES (?, ?, ?, ?)`,
+			record.ID, ref.Name, ref.Subject, ref.Version,
+		).WithContext(ctx).Exec(); err != nil {
+			return fmt.Errorf("failed to insert reference: %w", err)
+		}
+
+		// Insert reverse reference
+		if err := s.session.Query(
+			`INSERT INTO references_by_target (ref_subject, ref_version, schema_subject, schema_version) VALUES (?, ?, ?, ?)`,
+			ref.Subject, ref.Version, record.Subject, record.Version,
+		).WithContext(ctx).Exec(); err != nil {
+			return fmt.Errorf("failed to insert reverse reference: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// GetSchemaByID retrieves a schema by its global ID.
+func (s *Store) GetSchemaByID(ctx context.Context, id int64) (*storage.SchemaRecord, error) {
+	// First lookup subject and version from schemas_by_id
+	var subject string
+	var version int
+	if err := s.session.Query(
+		`SELECT subject, version FROM schemas_by_id WHERE id = ?`,
+		id,
+	).WithContext(ctx).Scan(&subject, &version); err != nil {
+		if err == gocql.ErrNotFound {
+			return nil, storage.ErrSchemaNotFound
+		}
+		return nil, fmt.Errorf("failed to lookup schema: %w", err)
+	}
+
+	return s.GetSchemaBySubjectVersion(ctx, subject, version)
+}
+
+// GetSchemaBySubjectVersion retrieves a schema by subject and version.
+func (s *Store) GetSchemaBySubjectVersion(ctx context.Context, subject string, version int) (*storage.SchemaRecord, error) {
+	// Handle "latest" version (-1)
+	if version == -1 {
+		return s.GetLatestSchema(ctx, subject)
+	}
+
+	record := &storage.SchemaRecord{}
+	var schemaType string
+
+	if err := s.session.Query(
+		`SELECT subject, version, id, schema_type, schema_text, fingerprint, deleted, created_at
+		 FROM schemas WHERE subject = ? AND version = ?`,
+		subject, version,
+	).WithContext(ctx).Scan(
+		&record.Subject, &record.Version, &record.ID, &schemaType,
+		&record.Schema, &record.Fingerprint, &record.Deleted, &record.CreatedAt,
+	); err != nil {
+		if err == gocql.ErrNotFound {
+			// Check if subject exists
+			var count int
+			s.session.Query(`SELECT COUNT(*) FROM schemas WHERE subject = ?`, subject).
+				WithContext(ctx).Scan(&count)
+			if count == 0 {
+				return nil, storage.ErrSubjectNotFound
+			}
+			return nil, storage.ErrVersionNotFound
+		}
+		return nil, fmt.Errorf("failed to get schema: %w", err)
+	}
+
+	if record.Deleted {
+		return nil, storage.ErrVersionNotFound
+	}
+
+	record.SchemaType = storage.SchemaType(schemaType)
+
+	// Load references
+	refs, err := s.loadReferences(ctx, record.ID)
+	if err != nil {
+		return nil, err
+	}
+	record.References = refs
+
+	return record, nil
+}
+
+// GetSchemasBySubject retrieves all schemas for a subject.
+func (s *Store) GetSchemasBySubject(ctx context.Context, subject string, includeDeleted bool) ([]*storage.SchemaRecord, error) {
+	query := `SELECT subject, version, id, schema_type, schema_text, fingerprint, deleted, created_at
+		      FROM schemas WHERE subject = ?`
+
+	iter := s.session.Query(query, subject).WithContext(ctx).Iter()
+
+	var schemas []*storage.SchemaRecord
+	for {
+		record := &storage.SchemaRecord{}
+		var schemaType string
+		if !iter.Scan(&record.Subject, &record.Version, &record.ID, &schemaType,
+			&record.Schema, &record.Fingerprint, &record.Deleted, &record.CreatedAt) {
+			break
+		}
+
+		if !includeDeleted && record.Deleted {
+			continue
+		}
+
+		record.SchemaType = storage.SchemaType(schemaType)
+
+		// Load references
+		refs, err := s.loadReferences(ctx, record.ID)
+		if err != nil {
+			iter.Close()
+			return nil, err
+		}
+		record.References = refs
+
+		schemas = append(schemas, record)
+	}
+
+	if err := iter.Close(); err != nil {
+		return nil, fmt.Errorf("failed to query schemas: %w", err)
+	}
+
+	if len(schemas) == 0 {
+		return nil, storage.ErrSubjectNotFound
+	}
+
+	return schemas, nil
+}
+
+// GetSchemaByFingerprint retrieves a schema by subject and fingerprint.
+func (s *Store) GetSchemaByFingerprint(ctx context.Context, subject, fingerprint string) (*storage.SchemaRecord, error) {
+	var id int64
+	var version int
+	if err := s.session.Query(
+		`SELECT id, version FROM schemas_by_fingerprint WHERE subject = ? AND fingerprint = ?`,
+		subject, fingerprint,
+	).WithContext(ctx).Scan(&id, &version); err != nil {
+		if err == gocql.ErrNotFound {
+			return nil, storage.ErrSchemaNotFound
+		}
+		return nil, fmt.Errorf("failed to lookup schema: %w", err)
+	}
+
+	record, err := s.GetSchemaBySubjectVersion(ctx, subject, version)
+	if err != nil {
+		return nil, err
+	}
+
+	if record.Deleted {
+		return nil, storage.ErrSchemaNotFound
+	}
+
+	return record, nil
+}
+
+// GetLatestSchema retrieves the latest schema for a subject.
+func (s *Store) GetLatestSchema(ctx context.Context, subject string) (*storage.SchemaRecord, error) {
+	// Query with descending order to get latest first
+	iter := s.session.Query(
+		`SELECT subject, version, id, schema_type, schema_text, fingerprint, deleted, created_at
+		 FROM schemas WHERE subject = ? ORDER BY version DESC`,
+		subject,
+	).WithContext(ctx).Iter()
+
+	for {
+		record := &storage.SchemaRecord{}
+		var schemaType string
+		if !iter.Scan(&record.Subject, &record.Version, &record.ID, &schemaType,
+			&record.Schema, &record.Fingerprint, &record.Deleted, &record.CreatedAt) {
+			break
+		}
+
+		if !record.Deleted {
+			iter.Close()
+			record.SchemaType = storage.SchemaType(schemaType)
+
+			// Load references
+			refs, err := s.loadReferences(ctx, record.ID)
+			if err != nil {
+				return nil, err
+			}
+			record.References = refs
+
+			return record, nil
+		}
+	}
+
+	if err := iter.Close(); err != nil {
+		return nil, fmt.Errorf("failed to query schemas: %w", err)
+	}
+
+	return nil, storage.ErrSubjectNotFound
+}
+
+// DeleteSchema soft-deletes or permanently deletes a schema version.
+func (s *Store) DeleteSchema(ctx context.Context, subject string, version int, permanent bool) error {
+	// First check if schema exists
+	var deleted bool
+	var fingerprint string
+	var id int64
+	if err := s.session.Query(
+		`SELECT deleted, fingerprint, id FROM schemas WHERE subject = ? AND version = ?`,
+		subject, version,
+	).WithContext(ctx).Scan(&deleted, &fingerprint, &id); err != nil {
+		if err == gocql.ErrNotFound {
+			// Check if subject exists
+			var count int
+			s.session.Query(`SELECT COUNT(*) FROM schemas WHERE subject = ?`, subject).
+				WithContext(ctx).Scan(&count)
+			if count == 0 {
+				return storage.ErrSubjectNotFound
+			}
+			return storage.ErrVersionNotFound
+		}
+		return fmt.Errorf("failed to get schema: %w", err)
+	}
+
+	if permanent {
+		// Hard delete from all tables
+		batch := s.session.NewBatch(gocql.LoggedBatch).WithContext(ctx)
+		batch.Query(`DELETE FROM schemas WHERE subject = ? AND version = ?`, subject, version)
+		batch.Query(`DELETE FROM schemas_by_id WHERE id = ?`, id)
+		batch.Query(`DELETE FROM schemas_by_fingerprint WHERE subject = ? AND fingerprint = ?`, subject, fingerprint)
+		batch.Query(`DELETE FROM schema_references WHERE schema_id = ?`, id)
+
+		if err := s.session.ExecuteBatch(batch); err != nil {
+			return fmt.Errorf("failed to delete schema: %w", err)
+		}
+	} else {
+		// Soft delete
+		if err := s.session.Query(
+			`UPDATE schemas SET deleted = true WHERE subject = ? AND version = ?`,
+			subject, version,
+		).WithContext(ctx).Exec(); err != nil {
+			return fmt.Errorf("failed to soft-delete schema: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// ListSubjects returns all subject names.
+func (s *Store) ListSubjects(ctx context.Context, includeDeleted bool) ([]string, error) {
+	// Query all buckets for subjects
+	subjectSet := make(map[string]bool)
+	buckets := s.config.SubjectBuckets
+	if buckets <= 0 {
+		buckets = 16
+	}
+
+	for bucket := 0; bucket < buckets; bucket++ {
+		iter := s.session.Query(
+			`SELECT subject FROM subjects WHERE bucket = ?`,
+			bucket,
+		).WithContext(ctx).Iter()
+
+		var subject string
+		for iter.Scan(&subject) {
+			subjectSet[subject] = true
+		}
+		iter.Close()
+	}
+
+	// Filter out subjects with no non-deleted schemas if needed
+	var subjects []string
+	for subject := range subjectSet {
+		if includeDeleted {
+			subjects = append(subjects, subject)
+			continue
+		}
+
+		// Check if subject has any non-deleted schemas
+		var deleted bool
+		iter := s.session.Query(
+			`SELECT deleted FROM schemas WHERE subject = ? LIMIT 1`,
+			subject,
+		).WithContext(ctx).Iter()
+
+		hasNonDeleted := false
+		for iter.Scan(&deleted) {
+			if !deleted {
+				hasNonDeleted = true
+				break
+			}
+		}
+		iter.Close()
+
+		if hasNonDeleted {
+			subjects = append(subjects, subject)
+		}
+	}
+
+	return subjects, nil
+}
+
+// DeleteSubject deletes all versions of a subject.
+func (s *Store) DeleteSubject(ctx context.Context, subject string, permanent bool) ([]int, error) {
+	// Get all versions
+	iter := s.session.Query(
+		`SELECT version, fingerprint, id, deleted FROM schemas WHERE subject = ?`,
+		subject,
+	).WithContext(ctx).Iter()
+
+	type schemaInfo struct {
+		version     int
+		fingerprint string
+		id          int64
+		deleted     bool
+	}
+
+	var schemas []schemaInfo
+	var info schemaInfo
+	for iter.Scan(&info.version, &info.fingerprint, &info.id, &info.deleted) {
+		schemas = append(schemas, info)
+	}
+	iter.Close()
+
+	if len(schemas) == 0 {
+		return nil, storage.ErrSubjectNotFound
+	}
+
+	var deletedVersions []int
+	for _, schema := range schemas {
+		if schema.deleted && !permanent {
+			continue
+		}
+		deletedVersions = append(deletedVersions, schema.version)
+
+		if permanent {
+			batch := s.session.NewBatch(gocql.LoggedBatch).WithContext(ctx)
+			batch.Query(`DELETE FROM schemas WHERE subject = ? AND version = ?`, subject, schema.version)
+			batch.Query(`DELETE FROM schemas_by_id WHERE id = ?`, schema.id)
+			batch.Query(`DELETE FROM schemas_by_fingerprint WHERE subject = ? AND fingerprint = ?`, subject, schema.fingerprint)
+			batch.Query(`DELETE FROM schema_references WHERE schema_id = ?`, schema.id)
+			s.session.ExecuteBatch(batch)
+		} else {
+			s.session.Query(
+				`UPDATE schemas SET deleted = true WHERE subject = ? AND version = ?`,
+				subject, schema.version,
+			).WithContext(ctx).Exec()
+		}
+	}
+
+	if permanent {
+		// Remove from subjects table
+		bucket := s.subjectBucket(subject)
+		s.session.Query(`DELETE FROM subjects WHERE bucket = ? AND subject = ?`, bucket, subject).
+			WithContext(ctx).Exec()
+
+		// Delete configs and modes
+		s.session.Query(`DELETE FROM configs WHERE subject = ?`, subject).WithContext(ctx).Exec()
+		s.session.Query(`DELETE FROM modes WHERE subject = ?`, subject).WithContext(ctx).Exec()
+	}
+
+	return deletedVersions, nil
+}
+
+// SubjectExists checks if a subject exists.
+func (s *Store) SubjectExists(ctx context.Context, subject string) (bool, error) {
+	var deleted bool
+	iter := s.session.Query(
+		`SELECT deleted FROM schemas WHERE subject = ?`,
+		subject,
+	).WithContext(ctx).Iter()
+
+	for iter.Scan(&deleted) {
+		if !deleted {
+			iter.Close()
+			return true, nil
+		}
+	}
+	iter.Close()
+
+	return false, nil
+}
+
+// GetConfig retrieves the compatibility configuration for a subject.
+func (s *Store) GetConfig(ctx context.Context, subject string) (*storage.ConfigRecord, error) {
+	config := &storage.ConfigRecord{Subject: subject}
+	if err := s.session.Query(
+		`SELECT compatibility_level FROM configs WHERE subject = ?`,
+		subject,
+	).WithContext(ctx).Scan(&config.CompatibilityLevel); err != nil {
+		if err == gocql.ErrNotFound {
+			return nil, storage.ErrNotFound
+		}
+		return nil, fmt.Errorf("failed to get config: %w", err)
+	}
+	return config, nil
+}
+
+// SetConfig sets the compatibility configuration for a subject.
+func (s *Store) SetConfig(ctx context.Context, subject string, config *storage.ConfigRecord) error {
+	if err := s.session.Query(
+		`INSERT INTO configs (subject, compatibility_level) VALUES (?, ?)`,
+		subject, config.CompatibilityLevel,
+	).WithContext(ctx).Exec(); err != nil {
+		return fmt.Errorf("failed to set config: %w", err)
+	}
+	return nil
+}
+
+// DeleteConfig deletes the compatibility configuration for a subject.
+func (s *Store) DeleteConfig(ctx context.Context, subject string) error {
+	// Check if exists first
+	var level string
+	if err := s.session.Query(
+		`SELECT compatibility_level FROM configs WHERE subject = ?`,
+		subject,
+	).WithContext(ctx).Scan(&level); err != nil {
+		if err == gocql.ErrNotFound {
+			return storage.ErrNotFound
+		}
+		return fmt.Errorf("failed to check config: %w", err)
+	}
+
+	if err := s.session.Query(
+		`DELETE FROM configs WHERE subject = ?`,
+		subject,
+	).WithContext(ctx).Exec(); err != nil {
+		return fmt.Errorf("failed to delete config: %w", err)
+	}
+	return nil
+}
+
+// GetGlobalConfig retrieves the global compatibility configuration.
+func (s *Store) GetGlobalConfig(ctx context.Context) (*storage.ConfigRecord, error) {
+	return s.GetConfig(ctx, "")
+}
+
+// SetGlobalConfig sets the global compatibility configuration.
+func (s *Store) SetGlobalConfig(ctx context.Context, config *storage.ConfigRecord) error {
+	return s.SetConfig(ctx, "", config)
+}
+
+// GetMode retrieves the mode for a subject.
+func (s *Store) GetMode(ctx context.Context, subject string) (*storage.ModeRecord, error) {
+	mode := &storage.ModeRecord{Subject: subject}
+	if err := s.session.Query(
+		`SELECT mode FROM modes WHERE subject = ?`,
+		subject,
+	).WithContext(ctx).Scan(&mode.Mode); err != nil {
+		if err == gocql.ErrNotFound {
+			return nil, storage.ErrNotFound
+		}
+		return nil, fmt.Errorf("failed to get mode: %w", err)
+	}
+	return mode, nil
+}
+
+// SetMode sets the mode for a subject.
+func (s *Store) SetMode(ctx context.Context, subject string, mode *storage.ModeRecord) error {
+	if err := s.session.Query(
+		`INSERT INTO modes (subject, mode) VALUES (?, ?)`,
+		subject, mode.Mode,
+	).WithContext(ctx).Exec(); err != nil {
+		return fmt.Errorf("failed to set mode: %w", err)
+	}
+	return nil
+}
+
+// DeleteMode deletes the mode for a subject.
+func (s *Store) DeleteMode(ctx context.Context, subject string) error {
+	// Check if exists first
+	var mode string
+	if err := s.session.Query(
+		`SELECT mode FROM modes WHERE subject = ?`,
+		subject,
+	).WithContext(ctx).Scan(&mode); err != nil {
+		if err == gocql.ErrNotFound {
+			return storage.ErrNotFound
+		}
+		return fmt.Errorf("failed to check mode: %w", err)
+	}
+
+	if err := s.session.Query(
+		`DELETE FROM modes WHERE subject = ?`,
+		subject,
+	).WithContext(ctx).Exec(); err != nil {
+		return fmt.Errorf("failed to delete mode: %w", err)
+	}
+	return nil
+}
+
+// GetGlobalMode retrieves the global mode.
+func (s *Store) GetGlobalMode(ctx context.Context) (*storage.ModeRecord, error) {
+	return s.GetMode(ctx, "")
+}
+
+// SetGlobalMode sets the global mode.
+func (s *Store) SetGlobalMode(ctx context.Context, mode *storage.ModeRecord) error {
+	return s.SetMode(ctx, "", mode)
+}
+
+// NextID returns the next available schema ID using counter table.
+func (s *Store) NextID(ctx context.Context) (int64, error) {
+	// Increment the counter
+	if err := s.session.Query(
+		`UPDATE id_counter SET value = value + 1 WHERE name = 'schema_id'`,
+	).WithContext(ctx).Exec(); err != nil {
+		return 0, fmt.Errorf("failed to increment counter: %w", err)
+	}
+
+	// Read the current value
+	var value int64
+	if err := s.session.Query(
+		`SELECT value FROM id_counter WHERE name = 'schema_id'`,
+	).WithContext(ctx).Scan(&value); err != nil {
+		// If counter doesn't exist yet, initialize it
+		if err == gocql.ErrNotFound {
+			// Use local atomic counter as fallback
+			return atomic.AddInt64(&s.idCache, 1), nil
+		}
+		return 0, fmt.Errorf("failed to read counter: %w", err)
+	}
+
+	return value, nil
+}
+
+// GetReferencedBy returns subjects/versions that reference the given schema.
+func (s *Store) GetReferencedBy(ctx context.Context, subject string, version int) ([]storage.SubjectVersion, error) {
+	iter := s.session.Query(
+		`SELECT schema_subject, schema_version FROM references_by_target
+		 WHERE ref_subject = ? AND ref_version = ?`,
+		subject, version,
+	).WithContext(ctx).Iter()
+
+	var refs []storage.SubjectVersion
+	var ref storage.SubjectVersion
+	for iter.Scan(&ref.Subject, &ref.Version) {
+		refs = append(refs, ref)
+	}
+
+	if err := iter.Close(); err != nil {
+		return nil, fmt.Errorf("failed to query references: %w", err)
+	}
+
+	return refs, nil
+}
+
+// loadReferences loads references for a schema.
+func (s *Store) loadReferences(ctx context.Context, schemaID int64) ([]storage.Reference, error) {
+	iter := s.session.Query(
+		`SELECT name, ref_subject, ref_version FROM schema_references WHERE schema_id = ?`,
+		schemaID,
+	).WithContext(ctx).Iter()
+
+	var refs []storage.Reference
+	var ref storage.Reference
+	for iter.Scan(&ref.Name, &ref.Subject, &ref.Version) {
+		refs = append(refs, ref)
+	}
+
+	if err := iter.Close(); err != nil {
+		return nil, fmt.Errorf("failed to query references: %w", err)
+	}
+
+	return refs, nil
+}
+
+// GetSubjectsBySchemaID returns all subjects where the given schema ID is registered.
+func (s *Store) GetSubjectsBySchemaID(ctx context.Context, id int64, includeDeleted bool) ([]string, error) {
+	// First lookup subject from schemas_by_id
+	var subject string
+	var version int
+	if err := s.session.Query(
+		`SELECT subject, version FROM schemas_by_id WHERE id = ?`,
+		id,
+	).WithContext(ctx).Scan(&subject, &version); err != nil {
+		if err == gocql.ErrNotFound {
+			return nil, storage.ErrSchemaNotFound
+		}
+		return nil, fmt.Errorf("failed to lookup schema: %w", err)
+	}
+
+	// Check if deleted
+	if !includeDeleted {
+		var deleted bool
+		if err := s.session.Query(
+			`SELECT deleted FROM schemas WHERE subject = ? AND version = ?`,
+			subject, version,
+		).WithContext(ctx).Scan(&deleted); err == nil && deleted {
+			return []string{}, nil
+		}
+	}
+
+	return []string{subject}, nil
+}
+
+// GetVersionsBySchemaID returns all subject-version pairs where the given schema ID is registered.
+func (s *Store) GetVersionsBySchemaID(ctx context.Context, id int64, includeDeleted bool) ([]storage.SubjectVersion, error) {
+	// First lookup subject from schemas_by_id
+	var subject string
+	var version int
+	if err := s.session.Query(
+		`SELECT subject, version FROM schemas_by_id WHERE id = ?`,
+		id,
+	).WithContext(ctx).Scan(&subject, &version); err != nil {
+		if err == gocql.ErrNotFound {
+			return nil, storage.ErrSchemaNotFound
+		}
+		return nil, fmt.Errorf("failed to lookup schema: %w", err)
+	}
+
+	// Check if deleted
+	if !includeDeleted {
+		var deleted bool
+		if err := s.session.Query(
+			`SELECT deleted FROM schemas WHERE subject = ? AND version = ?`,
+			subject, version,
+		).WithContext(ctx).Scan(&deleted); err == nil && deleted {
+			return []storage.SubjectVersion{}, nil
+		}
+	}
+
+	return []storage.SubjectVersion{{Subject: subject, Version: version}}, nil
+}
+
+// ListSchemas returns schemas matching the given filters.
+func (s *Store) ListSchemas(ctx context.Context, params *storage.ListSchemasParams) ([]*storage.SchemaRecord, error) {
+	// Get all subjects first
+	subjects, err := s.ListSubjects(ctx, params.Deleted)
+	if err != nil {
+		return nil, err
+	}
+
+	var results []*storage.SchemaRecord
+
+	for _, subject := range subjects {
+		// Apply subject prefix filter
+		if params.SubjectPrefix != "" {
+			if len(subject) < len(params.SubjectPrefix) ||
+				subject[:len(params.SubjectPrefix)] != params.SubjectPrefix {
+				continue
+			}
+		}
+
+		if params.LatestOnly {
+			// Get only latest schema for this subject
+			schema, err := s.GetLatestSchema(ctx, subject)
+			if err != nil {
+				continue
+			}
+			results = append(results, schema)
+		} else {
+			// Get all schemas for this subject
+			schemas, err := s.GetSchemasBySubject(ctx, subject, params.Deleted)
+			if err != nil {
+				continue
+			}
+			results = append(results, schemas...)
+		}
+	}
+
+	// Apply offset and limit
+	if params.Offset > 0 {
+		if params.Offset >= len(results) {
+			return []*storage.SchemaRecord{}, nil
+		}
+		results = results[params.Offset:]
+	}
+
+	if params.Limit > 0 && params.Limit < len(results) {
+		results = results[:params.Limit]
+	}
+
+	return results, nil
+}
+
+// DeleteGlobalConfig resets the global config to default.
+func (s *Store) DeleteGlobalConfig(ctx context.Context) error {
+	if err := s.session.Query(
+		`INSERT INTO configs (subject, compatibility_level) VALUES ('', 'BACKWARD')`,
+	).WithContext(ctx).Exec(); err != nil {
+		return fmt.Errorf("failed to reset global config: %w", err)
+	}
+	return nil
+}
+
+// Close closes the Cassandra session.
+func (s *Store) Close() error {
+	s.session.Close()
+	return nil
+}
+
+// IsHealthy returns true if the Cassandra connection is healthy.
+func (s *Store) IsHealthy(ctx context.Context) bool {
+	// Try a simple query
+	var now time.Time
+	err := s.session.Query(`SELECT now() FROM system.local`).WithContext(ctx).Scan(&now)
+	return err == nil
+}
+
+// Ensure Store implements storage.Storage
+var _ storage.Storage = (*Store)(nil)
+
+// MarshalJSON implements json.Marshaler for Config.
+func (c Config) MarshalJSON() ([]byte, error) {
+	type Alias Config
+	return json.Marshal(&struct {
+		Password string `json:"password,omitempty"`
+		*Alias
+	}{
+		Password: "***",
+		Alias:    (*Alias)(&c),
+	})
+}
+
+// keyspaceCQL generates the CQL for creating the keyspace.
+func keyspaceCQL(keyspace, replicationStrategy string, replicationFactor int) string {
+	if replicationStrategy == "" {
+		replicationStrategy = "SimpleStrategy"
+	}
+	if replicationFactor == 0 {
+		replicationFactor = 1
+	}
+
+	return fmt.Sprintf(
+		`CREATE KEYSPACE IF NOT EXISTS %s WITH replication = {'class': '%s', 'replication_factor': %d}`,
+		keyspace, replicationStrategy, replicationFactor,
+	)
+}
+
+// helper to convert int to string for keyspace CQL
+func init() {
+	// Ensure strconv is used
+	_ = strconv.Itoa(1)
+}

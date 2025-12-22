@@ -1,0 +1,729 @@
+openapi: 3.0.3
+info:
+  title: AxonOps Schema Registry
+  description: |
+    A high-performance Kafka Schema Registry compatible with Confluent Schema Registry API.
+    Supports Avro, Protobuf, and JSON Schema formats.
+  version: 1.0.0
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0
+
+servers:
+  - url: http://localhost:8081
+    description: Local development server
+
+tags:
+  - name: Schemas
+    description: Schema operations by ID
+  - name: Subjects
+    description: Subject and version operations
+  - name: Config
+    description: Compatibility configuration
+  - name: Mode
+    description: Registry mode configuration
+  - name: Compatibility
+    description: Compatibility checking
+
+paths:
+  /:
+    get:
+      summary: Health check
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /schemas/types:
+    get:
+      summary: Get supported schema types
+      operationId: getSchemaTypes
+      tags:
+        - Schemas
+      responses:
+        '200':
+          description: List of supported schema types
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+                example: ["AVRO", "PROTOBUF", "JSON"]
+
+  /schemas/ids/{id}:
+    get:
+      summary: Get schema by ID
+      operationId: getSchemaById
+      tags:
+        - Schemas
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Schema found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SchemaResponse'
+        '404':
+          description: Schema not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /subjects:
+    get:
+      summary: List all subjects
+      operationId: listSubjects
+      tags:
+        - Subjects
+      parameters:
+        - name: deleted
+          in: query
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: List of subject names
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+
+  /subjects/{subject}:
+    post:
+      summary: Look up schema under subject
+      operationId: lookupSchema
+      tags:
+        - Subjects
+      parameters:
+        - name: subject
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: deleted
+          in: query
+          schema:
+            type: boolean
+            default: false
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterSchemaRequest'
+      responses:
+        '200':
+          description: Schema found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubjectVersionResponse'
+        '404':
+          description: Schema not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      summary: Delete subject
+      operationId: deleteSubject
+      tags:
+        - Subjects
+      parameters:
+        - name: subject
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: permanent
+          in: query
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: List of deleted versions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: integer
+        '404':
+          description: Subject not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /subjects/{subject}/versions:
+    get:
+      summary: List versions for subject
+      operationId: listVersions
+      tags:
+        - Subjects
+      parameters:
+        - name: subject
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: deleted
+          in: query
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: List of version numbers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: integer
+        '404':
+          description: Subject not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      summary: Register new schema
+      operationId: registerSchema
+      tags:
+        - Subjects
+      parameters:
+        - name: subject
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterSchemaRequest'
+      responses:
+        '200':
+          description: Schema registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisterSchemaResponse'
+        '409':
+          description: Incompatible schema
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Invalid schema
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /subjects/{subject}/versions/{version}:
+    get:
+      summary: Get schema by version
+      operationId: getSchemaVersion
+      tags:
+        - Subjects
+      parameters:
+        - name: subject
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: version
+          in: path
+          required: true
+          schema:
+            oneOf:
+              - type: integer
+              - type: string
+                enum: [latest]
+      responses:
+        '200':
+          description: Schema version found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubjectVersionResponse'
+        '404':
+          description: Subject or version not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      summary: Delete schema version
+      operationId: deleteSchemaVersion
+      tags:
+        - Subjects
+      parameters:
+        - name: subject
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: version
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: permanent
+          in: query
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Deleted version number
+          content:
+            application/json:
+              schema:
+                type: integer
+        '404':
+          description: Subject or version not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /subjects/{subject}/versions/{version}/referencedby:
+    get:
+      summary: Get schemas that reference this schema
+      operationId: getReferencedBy
+      tags:
+        - Subjects
+      parameters:
+        - name: subject
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: version
+          in: path
+          required: true
+          schema:
+            oneOf:
+              - type: integer
+              - type: string
+                enum: [latest]
+      responses:
+        '200':
+          description: List of schema IDs that reference this schema
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: integer
+
+  /config:
+    get:
+      summary: Get global compatibility level
+      operationId: getGlobalConfig
+      tags:
+        - Config
+      responses:
+        '200':
+          description: Current compatibility level
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfigResponse'
+    put:
+      summary: Set global compatibility level
+      operationId: setGlobalConfig
+      tags:
+        - Config
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfigRequest'
+      responses:
+        '200':
+          description: Updated compatibility level
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfigResponse'
+        '422':
+          description: Invalid compatibility level
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /config/{subject}:
+    get:
+      summary: Get subject compatibility level
+      operationId: getSubjectConfig
+      tags:
+        - Config
+      parameters:
+        - name: subject
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Current compatibility level
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfigResponse'
+    put:
+      summary: Set subject compatibility level
+      operationId: setSubjectConfig
+      tags:
+        - Config
+      parameters:
+        - name: subject
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfigRequest'
+      responses:
+        '200':
+          description: Updated compatibility level
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfigResponse'
+        '422':
+          description: Invalid compatibility level
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      summary: Delete subject compatibility level
+      operationId: deleteSubjectConfig
+      tags:
+        - Config
+      parameters:
+        - name: subject
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Deleted compatibility level
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfigResponse'
+        '404':
+          description: Subject config not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /mode:
+    get:
+      summary: Get global mode
+      operationId: getGlobalMode
+      tags:
+        - Mode
+      responses:
+        '200':
+          description: Current mode
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModeResponse'
+    put:
+      summary: Set global mode
+      operationId: setGlobalMode
+      tags:
+        - Mode
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModeRequest'
+      responses:
+        '200':
+          description: Updated mode
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModeResponse'
+        '422':
+          description: Invalid mode
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /mode/{subject}:
+    get:
+      summary: Get subject mode
+      operationId: getSubjectMode
+      tags:
+        - Mode
+      parameters:
+        - name: subject
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Current mode
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModeResponse'
+    put:
+      summary: Set subject mode
+      operationId: setSubjectMode
+      tags:
+        - Mode
+      parameters:
+        - name: subject
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModeRequest'
+      responses:
+        '200':
+          description: Updated mode
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModeResponse'
+        '422':
+          description: Invalid mode
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /compatibility/subjects/{subject}/versions/{version}:
+    post:
+      summary: Check schema compatibility
+      operationId: checkCompatibility
+      tags:
+        - Compatibility
+      parameters:
+        - name: subject
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: version
+          in: path
+          required: true
+          schema:
+            oneOf:
+              - type: integer
+              - type: string
+                enum: [latest]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterSchemaRequest'
+      responses:
+        '200':
+          description: Compatibility check result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompatibilityResponse'
+        '404':
+          description: Subject not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Invalid schema
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /metrics:
+    get:
+      summary: Prometheus metrics endpoint
+      operationId: getMetrics
+      responses:
+        '200':
+          description: Prometheus metrics
+          content:
+            text/plain:
+              schema:
+                type: string
+
+components:
+  schemas:
+    SchemaResponse:
+      type: object
+      properties:
+        schema:
+          type: string
+          description: The schema string
+
+    RegisterSchemaRequest:
+      type: object
+      required:
+        - schema
+      properties:
+        schema:
+          type: string
+          description: The schema string
+        schemaType:
+          type: string
+          enum: [AVRO, PROTOBUF, JSON]
+          default: AVRO
+        references:
+          type: array
+          items:
+            $ref: '#/components/schemas/Reference'
+
+    RegisterSchemaResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Global unique schema ID
+
+    SubjectVersionResponse:
+      type: object
+      properties:
+        subject:
+          type: string
+        id:
+          type: integer
+          format: int64
+        version:
+          type: integer
+        schemaType:
+          type: string
+        schema:
+          type: string
+        references:
+          type: array
+          items:
+            $ref: '#/components/schemas/Reference'
+
+    Reference:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Name used in the schema to reference this schema
+        subject:
+          type: string
+          description: Subject name of the referenced schema
+        version:
+          type: integer
+          description: Version of the referenced schema
+
+    ConfigResponse:
+      type: object
+      properties:
+        compatibilityLevel:
+          type: string
+          enum: [NONE, BACKWARD, BACKWARD_TRANSITIVE, FORWARD, FORWARD_TRANSITIVE, FULL, FULL_TRANSITIVE]
+
+    ConfigRequest:
+      type: object
+      required:
+        - compatibility
+      properties:
+        compatibility:
+          type: string
+          enum: [NONE, BACKWARD, BACKWARD_TRANSITIVE, FORWARD, FORWARD_TRANSITIVE, FULL, FULL_TRANSITIVE]
+
+    ModeResponse:
+      type: object
+      properties:
+        mode:
+          type: string
+          enum: [READWRITE, READONLY, IMPORT]
+
+    ModeRequest:
+      type: object
+      required:
+        - mode
+      properties:
+        mode:
+          type: string
+          enum: [READWRITE, READONLY, IMPORT]
+
+    CompatibilityResponse:
+      type: object
+      properties:
+        is_compatible:
+          type: boolean
+        messages:
+          type: array
+          items:
+            type: string
+
+    ErrorResponse:
+      type: object
+      properties:
+        error_code:
+          type: integer
+          description: Error code
+        message:
+          type: string
+          description: Error message
+
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+    apiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key
+
+security:
+  - basicAuth: []
+  - apiKey: []
