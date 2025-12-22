@@ -96,11 +96,6 @@ func NewStore(config Config) (*Store, error) {
 func (s *Store) migrate(ctx context.Context) error {
 	for i, migration := range migrations {
 		if _, err := s.db.ExecContext(ctx, migration); err != nil {
-			// MySQL doesn't support IF NOT EXISTS for indexes in older versions
-			// so we ignore "duplicate key" errors for index creation
-			if i >= 1 && i <= 3 { // Index creation statements
-				continue
-			}
 			return fmt.Errorf("migration %d failed: %w", i+1, err)
 		}
 	}
