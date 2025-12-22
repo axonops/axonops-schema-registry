@@ -6,9 +6,13 @@ on:
   pull_request:
     branches: [main]
 
+env:
+  GO_VERSION: '1.23'
+
 jobs:
-  lint:
-    name: Lint
+  # Build and unit tests
+  build:
+    name: Build & Unit Tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -16,15 +20,55 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.23'
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Build
+        run: go build -v ./...
+
+      - name: Run unit tests
+        run: go test -v -race -coverprofile=coverage.out ./...
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage.out
+          fail_ci_if_error: false
+
+  # Static code analysis
+  lint:
+    name: Static Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
 
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v4
         with:
           version: latest
+          args: --timeout=5m
 
-  test:
-    name: Test
+      - name: go vet
+        run: go vet ./...
+
+      - name: Check formatting
+        run: |
+          if [ -n "$(gofmt -l .)" ]; then
+            echo "Code is not formatted. Run 'go fmt ./...'"
+            gofmt -d .
+            exit 1
+          fi
+
+  # Security analysis
+  security:
+    name: Security Analysis
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -32,42 +76,27 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.23'
+          go-version: ${{ env.GO_VERSION }}
 
-      - name: Run tests
-        run: go test -race -coverprofile=coverage.out -covermode=atomic ./...
+      - name: Install gosec
+        run: go install github.com/securego/gosec/v2/cmd/gosec@latest
 
-      - name: Upload coverage
-        uses: codecov/codecov-action@v4
+      - name: Run gosec
+        run: gosec -exclude-generated -severity medium ./...
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
         with:
-          files: coverage.out
-          fail_ci_if_error: false
+          scan-type: 'fs'
+          scan-ref: '.'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '1'
 
-  build:
-    name: Build
-    runs-on: ubuntu-latest
-    needs: [lint, test]
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.23'
-
-      - name: Build
-        run: make build
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: schema-registry
-          path: build/schema-registry
-
+  # Build Docker image
   docker:
     name: Docker Build
     runs-on: ubuntu-latest
-    needs: [lint, test]
+    needs: [build, lint]
     steps:
       - uses: actions/checkout@v4
 
@@ -79,6 +108,301 @@ jobs:
         with:
           context: .
           push: false
-          tags: axonops/schema-registry:${{ github.sha }}
+          tags: axonops/schema-registry:test
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  # Integration tests with PostgreSQL
+  integration-postgres:
+    name: Integration Tests (PostgreSQL)
+    runs-on: ubuntu-latest
+    needs: [build]
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: schemaregistry
+          POSTGRES_PASSWORD: schemaregistry
+          POSTGRES_DB: schemaregistry
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Wait for PostgreSQL
+        run: |
+          for i in {1..30}; do
+            pg_isready -h localhost -p 5432 -U schemaregistry && break
+            sleep 1
+          done
+
+      - name: Run integration tests
+        env:
+          STORAGE_TYPE: postgres
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: 5432
+          POSTGRES_USER: schemaregistry
+          POSTGRES_PASSWORD: schemaregistry
+          POSTGRES_DATABASE: schemaregistry
+        run: go test -v -tags=integration -timeout=10m ./tests/integration/...
+
+  # Integration tests with MySQL
+  integration-mysql:
+    name: Integration Tests (MySQL)
+    runs-on: ubuntu-latest
+    needs: [build]
+    services:
+      mysql:
+        image: mysql:8
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_USER: schemaregistry
+          MYSQL_PASSWORD: schemaregistry
+          MYSQL_DATABASE: schemaregistry
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping -h localhost"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Wait for MySQL
+        run: |
+          for i in {1..30}; do
+            mysqladmin ping -h 127.0.0.1 -u root -proot --silent && break
+            sleep 2
+          done
+
+      - name: Run integration tests
+        env:
+          STORAGE_TYPE: mysql
+          MYSQL_HOST: localhost
+          MYSQL_PORT: 3306
+          MYSQL_USER: schemaregistry
+          MYSQL_PASSWORD: schemaregistry
+          MYSQL_DATABASE: schemaregistry
+        run: go test -v -tags=integration -timeout=10m ./tests/integration/...
+
+  # Integration tests with Cassandra
+  integration-cassandra:
+    name: Integration Tests (Cassandra)
+    runs-on: ubuntu-latest
+    needs: [build]
+    services:
+      cassandra:
+        image: cassandra:4.1
+        ports:
+          - 9042:9042
+        options: >-
+          --health-cmd "cqlsh -e 'describe cluster'"
+          --health-interval 30s
+          --health-timeout 10s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Wait for Cassandra
+        run: |
+          for i in {1..60}; do
+            docker exec $(docker ps -q -f ancestor=cassandra:4.1) cqlsh -e "describe cluster" && break
+            echo "Waiting for Cassandra... ($i)"
+            sleep 5
+          done
+
+      - name: Create Cassandra keyspace
+        run: |
+          docker exec $(docker ps -q -f ancestor=cassandra:4.1) cqlsh -e "
+            CREATE KEYSPACE IF NOT EXISTS schemaregistry
+            WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1};
+          "
+
+      - name: Run integration tests
+        env:
+          STORAGE_TYPE: cassandra
+          CASSANDRA_HOSTS: localhost
+          CASSANDRA_PORT: 9042
+          CASSANDRA_KEYSPACE: schemaregistry
+        run: go test -v -tags=integration -timeout=15m ./tests/integration/...
+
+  # Concurrency tests with multiple instances
+  concurrency-postgres:
+    name: Concurrency Tests (PostgreSQL)
+    runs-on: ubuntu-latest
+    needs: [integration-postgres]
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: schemaregistry
+          POSTGRES_PASSWORD: schemaregistry
+          POSTGRES_DB: schemaregistry
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Build binary
+        run: go build -o schema-registry ./cmd/schema-registry
+
+      - name: Run concurrency tests
+        env:
+          STORAGE_TYPE: postgres
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: 5432
+          POSTGRES_USER: schemaregistry
+          POSTGRES_PASSWORD: schemaregistry
+          POSTGRES_DATABASE: schemaregistry
+        run: go test -v -tags=concurrency -timeout=15m ./tests/concurrency/...
+
+  concurrency-mysql:
+    name: Concurrency Tests (MySQL)
+    runs-on: ubuntu-latest
+    needs: [integration-mysql]
+    services:
+      mysql:
+        image: mysql:8
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_USER: schemaregistry
+          MYSQL_PASSWORD: schemaregistry
+          MYSQL_DATABASE: schemaregistry
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping -h localhost"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Build binary
+        run: go build -o schema-registry ./cmd/schema-registry
+
+      - name: Run concurrency tests
+        env:
+          STORAGE_TYPE: mysql
+          MYSQL_HOST: localhost
+          MYSQL_PORT: 3306
+          MYSQL_USER: schemaregistry
+          MYSQL_PASSWORD: schemaregistry
+          MYSQL_DATABASE: schemaregistry
+        run: go test -v -tags=concurrency -timeout=15m ./tests/concurrency/...
+
+  concurrency-cassandra:
+    name: Concurrency Tests (Cassandra)
+    runs-on: ubuntu-latest
+    needs: [integration-cassandra]
+    services:
+      cassandra:
+        image: cassandra:4.1
+        ports:
+          - 9042:9042
+        options: >-
+          --health-cmd "cqlsh -e 'describe cluster'"
+          --health-interval 30s
+          --health-timeout 10s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Wait for Cassandra
+        run: |
+          for i in {1..60}; do
+            docker exec $(docker ps -q -f ancestor=cassandra:4.1) cqlsh -e "describe cluster" && break
+            sleep 5
+          done
+
+      - name: Create Cassandra keyspace
+        run: |
+          docker exec $(docker ps -q -f ancestor=cassandra:4.1) cqlsh -e "
+            CREATE KEYSPACE IF NOT EXISTS schemaregistry
+            WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1};
+          "
+
+      - name: Build binary
+        run: go build -o schema-registry ./cmd/schema-registry
+
+      - name: Run concurrency tests
+        env:
+          STORAGE_TYPE: cassandra
+          CASSANDRA_HOSTS: localhost
+          CASSANDRA_PORT: 9042
+          CASSANDRA_KEYSPACE: schemaregistry
+        run: go test -v -tags=concurrency -timeout=20m ./tests/concurrency/...
+
+  # API endpoint tests
+  api-tests:
+    name: API Endpoint Tests
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Build binary
+        run: go build -o schema-registry ./cmd/schema-registry
+
+      - name: Start schema registry (memory backend)
+        run: |
+          ./schema-registry &
+          sleep 3
+
+      - name: Run API tests
+        run: go test -v -tags=api -timeout=10m ./tests/api/...
+
+      - name: Stop schema registry
+        run: pkill schema-registry || true
