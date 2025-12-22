@@ -223,13 +223,13 @@ func createStorage(cfg *config.Config, logger *slog.Logger) (storage.Storage, er
 			slog.String("keyspace", cfg.Storage.Cassandra.Keyspace),
 		)
 		cassCfg := cassandra.Config{
-			Hosts:              cfg.Storage.Cassandra.Hosts,
-			Keyspace:           cfg.Storage.Cassandra.Keyspace,
-			Username:           cfg.Storage.Cassandra.Username,
-			Password:           cfg.Storage.Cassandra.Password,
-			Consistency:        cfg.Storage.Cassandra.Consistency,
+			Hosts:               cfg.Storage.Cassandra.Hosts,
+			Keyspace:            cfg.Storage.Cassandra.Keyspace,
+			Username:            cfg.Storage.Cassandra.Username,
+			Password:            cfg.Storage.Cassandra.Password,
+			Consistency:         cfg.Storage.Cassandra.Consistency,
 			ReplicationStrategy: "SimpleStrategy",
-			ReplicationFactor:  1,
+			ReplicationFactor:   1,
 		}
 		if len(cassCfg.Hosts) == 0 {
 			cassCfg.Hosts = []string{"localhost"}

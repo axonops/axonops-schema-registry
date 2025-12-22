@@ -12,10 +12,10 @@ import (
 type RuleType string
 
 const (
-	RuleTypeValidation RuleType = "validation"  // Validates schema content
-	RuleTypePII        RuleType = "pii"         // PII detection
-	RuleTypeNaming     RuleType = "naming"      // Naming conventions
-	RuleTypeCustom     RuleType = "custom"      // Custom rules
+	RuleTypeValidation RuleType = "validation" // Validates schema content
+	RuleTypePII        RuleType = "pii"        // PII detection
+	RuleTypeNaming     RuleType = "naming"     // Naming conventions
+	RuleTypeCustom     RuleType = "custom"     // Custom rules
 )
 
 // RuleTrigger represents when a rule is triggered.
@@ -39,20 +39,20 @@ const (
 
 // Rule represents a validation rule.
 type Rule struct {
-	ID          string            `json:"id"`
-	Name        string            `json:"name"`
-	Description string            `json:"description,omitempty"`
-	Type        RuleType          `json:"type"`
-	Trigger     RuleTrigger       `json:"trigger"`
-	Severity    RuleSeverity      `json:"severity"`
-	Expression  string            `json:"expression"` // CEL or JSONata expression
-	ExprType    string            `json:"expr_type"`  // "cel" or "jsonata"
-	SubjectPattern string         `json:"subject_pattern,omitempty"` // Regex pattern for subjects
-	SchemaTypes []string          `json:"schema_types,omitempty"`    // AVRO, PROTOBUF, JSON
-	Enabled     bool              `json:"enabled"`
-	Metadata    map[string]string `json:"metadata,omitempty"`
-	CreatedAt   time.Time         `json:"created_at"`
-	UpdatedAt   time.Time         `json:"updated_at"`
+	ID             string            `json:"id"`
+	Name           string            `json:"name"`
+	Description    string            `json:"description,omitempty"`
+	Type           RuleType          `json:"type"`
+	Trigger        RuleTrigger       `json:"trigger"`
+	Severity       RuleSeverity      `json:"severity"`
+	Expression     string            `json:"expression"`                // CEL or JSONata expression
+	ExprType       string            `json:"expr_type"`                 // "cel" or "jsonata"
+	SubjectPattern string            `json:"subject_pattern,omitempty"` // Regex pattern for subjects
+	SchemaTypes    []string          `json:"schema_types,omitempty"`    // AVRO, PROTOBUF, JSON
+	Enabled        bool              `json:"enabled"`
+	Metadata       map[string]string `json:"metadata,omitempty"`
+	CreatedAt      time.Time         `json:"created_at"`
+	UpdatedAt      time.Time         `json:"updated_at"`
 }
 
 // RuleResult represents the result of rule execution.
@@ -95,12 +95,12 @@ type RulePlugin interface {
 
 // EvaluationContext provides context for rule evaluation.
 type EvaluationContext struct {
-	Subject     string            `json:"subject"`
-	Version     int               `json:"version"`
-	SchemaType  string            `json:"schema_type"`
-	Schema      string            `json:"schema"`
-	Trigger     RuleTrigger       `json:"trigger"`
-	Metadata    map[string]string `json:"metadata,omitempty"`
+	Subject    string            `json:"subject"`
+	Version    int               `json:"version"`
+	SchemaType string            `json:"schema_type"`
+	Schema     string            `json:"schema"`
+	Trigger    RuleTrigger       `json:"trigger"`
+	Metadata   map[string]string `json:"metadata,omitempty"`
 }
 
 // NewEngine creates a new rule engine.

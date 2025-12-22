@@ -268,11 +268,11 @@ func (am *AssociationManager) removeFromResourceIndex(key, id string) {
 
 // LifecyclePolicy defines retention and migration rules for associations.
 type LifecyclePolicy struct {
-	Name              string        `json:"name"`
-	RetentionDays     int           `json:"retention_days,omitempty"`
-	DeleteOnOrphan    bool          `json:"delete_on_orphan"` // Delete when schema is deleted
-	MigrateOnUpdate   bool          `json:"migrate_on_update"` // Update version when schema updated
-	VersionConstraint string        `json:"version_constraint,omitempty"` // e.g., "latest", ">=1"
+	Name              string `json:"name"`
+	RetentionDays     int    `json:"retention_days,omitempty"`
+	DeleteOnOrphan    bool   `json:"delete_on_orphan"`             // Delete when schema is deleted
+	MigrateOnUpdate   bool   `json:"migrate_on_update"`            // Update version when schema updated
+	VersionConstraint string `json:"version_constraint,omitempty"` // e.g., "latest", ">=1"
 }
 
 // PolicyManager manages lifecycle policies.

@@ -19,14 +19,14 @@ var (
 
 // Metadata holds cluster metadata information.
 type Metadata struct {
-	ClusterID   string         `json:"cluster_id"`
-	Version     string         `json:"version"`
-	GitCommit   string         `json:"commit,omitempty"`
-	BuildTime   string         `json:"build_time,omitempty"`
-	GoVersion   string         `json:"go_version"`
-	StartTime   time.Time      `json:"start_time"`
-	NodeID      string         `json:"node_id"`
-	Hostname    string         `json:"hostname"`
+	ClusterID string    `json:"cluster_id"`
+	Version   string    `json:"version"`
+	GitCommit string    `json:"commit,omitempty"`
+	BuildTime string    `json:"build_time,omitempty"`
+	GoVersion string    `json:"go_version"`
+	StartTime time.Time `json:"start_time"`
+	NodeID    string    `json:"node_id"`
+	Hostname  string    `json:"hostname"`
 }
 
 // Node represents a node in the cluster.
@@ -237,11 +237,11 @@ func (ci *ClusterInfo) SetSchemaCount(count int) {
 
 // HealthStatus returns a summary of cluster health.
 type HealthStatus struct {
-	Status       string         `json:"status"`
-	NodeCount    int            `json:"node_count"`
-	HealthyNodes int            `json:"healthy_nodes"`
-	Leader       string         `json:"leader,omitempty"`
-	Uptime       string         `json:"uptime"`
+	Status       string          `json:"status"`
+	NodeCount    int             `json:"node_count"`
+	HealthyNodes int             `json:"healthy_nodes"`
+	Leader       string          `json:"leader,omitempty"`
+	Uptime       string          `json:"uptime"`
 	Checks       map[string]bool `json:"checks"`
 }
 

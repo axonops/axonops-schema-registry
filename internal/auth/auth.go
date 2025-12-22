@@ -32,8 +32,8 @@ type User struct {
 
 // Authenticator handles authentication.
 type Authenticator struct {
-	config    config.AuthConfig
-	apiKeys   map[string]*APIKey // key -> APIKey
+	config  config.AuthConfig
+	apiKeys map[string]*APIKey // key -> APIKey
 }
 
 // APIKey represents an API key.

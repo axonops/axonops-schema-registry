@@ -15,12 +15,12 @@ import (
 type ExporterType string
 
 const (
-	ExporterTypeS3       ExporterType = "s3"
-	ExporterTypeGCS      ExporterType = "gcs"
-	ExporterTypeAzure    ExporterType = "azure"
-	ExporterTypeHTTP     ExporterType = "http"
-	ExporterTypeKafka    ExporterType = "kafka"
-	ExporterTypeFile     ExporterType = "file"
+	ExporterTypeS3    ExporterType = "s3"
+	ExporterTypeGCS   ExporterType = "gcs"
+	ExporterTypeAzure ExporterType = "azure"
+	ExporterTypeHTTP  ExporterType = "http"
+	ExporterTypeKafka ExporterType = "kafka"
+	ExporterTypeFile  ExporterType = "file"
 )
 
 // ExporterStatus represents the status of an exporter.
@@ -45,21 +45,21 @@ const (
 
 // Exporter represents a schema exporter configuration.
 type Exporter struct {
-	Name         string            `json:"name"`
-	Type         ExporterType      `json:"type"`
-	Status       ExporterStatus    `json:"status"`
-	Config       map[string]string `json:"config"`
-	Subjects     []string          `json:"subjects,omitempty"`     // Filter by subjects
-	SubjectPattern string          `json:"subject_pattern,omitempty"` // Regex pattern
-	SchemaTypes  []string          `json:"schema_types,omitempty"` // Filter by type
-	Format       ExportFormat      `json:"format"`
-	Transform    string            `json:"transform,omitempty"` // JSONata transform
-	CreatedAt    time.Time         `json:"created_at"`
-	UpdatedAt    time.Time         `json:"updated_at"`
-	LastExportAt time.Time         `json:"last_export_at,omitempty"`
-	ExportCount  int64             `json:"export_count"`
-	ErrorCount   int64             `json:"error_count"`
-	LastError    string            `json:"last_error,omitempty"`
+	Name           string            `json:"name"`
+	Type           ExporterType      `json:"type"`
+	Status         ExporterStatus    `json:"status"`
+	Config         map[string]string `json:"config"`
+	Subjects       []string          `json:"subjects,omitempty"`        // Filter by subjects
+	SubjectPattern string            `json:"subject_pattern,omitempty"` // Regex pattern
+	SchemaTypes    []string          `json:"schema_types,omitempty"`    // Filter by type
+	Format         ExportFormat      `json:"format"`
+	Transform      string            `json:"transform,omitempty"` // JSONata transform
+	CreatedAt      time.Time         `json:"created_at"`
+	UpdatedAt      time.Time         `json:"updated_at"`
+	LastExportAt   time.Time         `json:"last_export_at,omitempty"`
+	ExportCount    int64             `json:"export_count"`
+	ErrorCount     int64             `json:"error_count"`
+	LastError      string            `json:"last_error,omitempty"`
 }
 
 // ExportEvent represents a schema export event.
@@ -76,10 +76,10 @@ type ExportEvent struct {
 
 // ExportResult represents the result of an export operation.
 type ExportResult struct {
-	Success   bool      `json:"success"`
+	Success    bool      `json:"success"`
 	ExportedAt time.Time `json:"exported_at"`
-	Error     string    `json:"error,omitempty"`
-	Bytes     int64     `json:"bytes,omitempty"`
+	Error      string    `json:"error,omitempty"`
+	Bytes      int64     `json:"bytes,omitempty"`
 }
 
 // ExportHandler is the interface for export destinations.
@@ -96,7 +96,6 @@ type Manager struct {
 	exporters map[string]*Exporter
 	handlers  map[string]ExportHandler
 	storage   storage.Storage
-	running   bool
 }
 
 // NewManager creates a new exporter manager.

@@ -15,9 +15,6 @@ import (
 	"github.com/axonops/axonops-schema-registry/internal/storage"
 )
 
-// Error sentinel for compatibility checking
-var errIncompatible = errors.New("incompatible")
-
 // Handler provides HTTP handlers for the schema registry.
 type Handler struct {
 	registry  *registry.Registry
@@ -58,7 +55,7 @@ func NewWithConfig(reg *registry.Registry, cfg Config) *Handler {
 // HealthCheck handles GET /
 func (h *Handler) HealthCheck(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{})
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{})
 }
 
 // GetSchemaTypes handles GET /schemas/types
@@ -485,14 +482,14 @@ func parseVersion(s string) (int, error) {
 func writeJSON(w http.ResponseWriter, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/vnd.schemaregistry.v1+json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(data)
+	_ = json.NewEncoder(w).Encode(data)
 }
 
 // writeError writes an error response.
 func writeError(w http.ResponseWriter, status int, code int, message string) {
 	w.Header().Set("Content-Type", "application/vnd.schemaregistry.v1+json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(types.ErrorResponse{
+	_ = json.NewEncoder(w).Encode(types.ErrorResponse{
 		ErrorCode: code,
 		Message:   message,
 	})
@@ -520,7 +517,7 @@ func (h *Handler) GetRawSchemaByID(w http.ResponseWriter, r *http.Request) {
 	// Return raw schema as plain text
 	w.Header().Set("Content-Type", "application/vnd.schemaregistry.v1+json")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(schema))
+	_, _ = w.Write([]byte(schema))
 }
 
 // GetSubjectsBySchemaID handles GET /schemas/ids/{id}/subjects
@@ -650,7 +647,7 @@ func (h *Handler) GetRawSchemaByVersion(w http.ResponseWriter, r *http.Request) 
 	// Return raw schema as plain text
 	w.Header().Set("Content-Type", "application/vnd.schemaregistry.v1+json")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(schema))
+	_, _ = w.Write([]byte(schema))
 }
 
 // DeleteGlobalConfig handles DELETE /config

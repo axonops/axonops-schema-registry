@@ -27,10 +27,10 @@ import (
 )
 
 const (
-	numInstances    = 3
-	numConcurrent   = 10
-	numOperations   = 100
-	requestTimeout  = 30 * time.Second
+	numInstances   = 3
+	numConcurrent  = 10
+	numOperations  = 100
+	requestTimeout = 30 * time.Second
 )
 
 type instance struct {

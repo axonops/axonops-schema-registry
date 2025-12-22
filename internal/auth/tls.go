@@ -13,10 +13,10 @@ import (
 
 // TLSManager manages TLS configuration with optional certificate reloading.
 type TLSManager struct {
-	config     config.TLSConfig
-	mu         sync.RWMutex
-	cert       *tls.Certificate
-	clientCAs  *x509.CertPool
+	config    config.TLSConfig
+	mu        sync.RWMutex
+	cert      *tls.Certificate
+	clientCAs *x509.CertPool
 }
 
 // NewTLSManager creates a new TLS manager.

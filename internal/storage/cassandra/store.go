@@ -16,46 +16,46 @@ import (
 
 // Config holds Cassandra connection configuration.
 type Config struct {
-	Hosts              []string      `json:"hosts" yaml:"hosts"`
-	Port               int           `json:"port" yaml:"port"`
-	Keyspace           string        `json:"keyspace" yaml:"keyspace"`
-	Username           string        `json:"username" yaml:"username"`
-	Password           string        `json:"password" yaml:"password"`
-	Consistency        string        `json:"consistency" yaml:"consistency"`
-	LocalDC            string        `json:"local_dc" yaml:"local_dc"`
-	ReplicationStrategy string       `json:"replication_strategy" yaml:"replication_strategy"`
-	ReplicationFactor  int           `json:"replication_factor" yaml:"replication_factor"`
-	ConnectTimeout     time.Duration `json:"connect_timeout" yaml:"connect_timeout"`
-	Timeout            time.Duration `json:"timeout" yaml:"timeout"`
-	NumConns           int           `json:"num_conns" yaml:"num_conns"`
-	MaxPreparedStmts   int           `json:"max_prepared_stmts" yaml:"max_prepared_stmts"`
-	EnableTLS          bool          `json:"enable_tls" yaml:"enable_tls"`
-	TLSVerifyHost      bool          `json:"tls_verify_host" yaml:"tls_verify_host"`
-	SubjectBuckets     int           `json:"subject_buckets" yaml:"subject_buckets"`
+	Hosts               []string      `json:"hosts" yaml:"hosts"`
+	Port                int           `json:"port" yaml:"port"`
+	Keyspace            string        `json:"keyspace" yaml:"keyspace"`
+	Username            string        `json:"username" yaml:"username"`
+	Password            string        `json:"password" yaml:"password"`
+	Consistency         string        `json:"consistency" yaml:"consistency"`
+	LocalDC             string        `json:"local_dc" yaml:"local_dc"`
+	ReplicationStrategy string        `json:"replication_strategy" yaml:"replication_strategy"`
+	ReplicationFactor   int           `json:"replication_factor" yaml:"replication_factor"`
+	ConnectTimeout      time.Duration `json:"connect_timeout" yaml:"connect_timeout"`
+	Timeout             time.Duration `json:"timeout" yaml:"timeout"`
+	NumConns            int           `json:"num_conns" yaml:"num_conns"`
+	MaxPreparedStmts    int           `json:"max_prepared_stmts" yaml:"max_prepared_stmts"`
+	EnableTLS           bool          `json:"enable_tls" yaml:"enable_tls"`
+	TLSVerifyHost       bool          `json:"tls_verify_host" yaml:"tls_verify_host"`
+	SubjectBuckets      int           `json:"subject_buckets" yaml:"subject_buckets"`
 }
 
 // DefaultConfig returns a default configuration.
 func DefaultConfig() Config {
 	return Config{
-		Hosts:              []string{"localhost"},
-		Port:               9042,
-		Keyspace:           "schema_registry",
-		Consistency:        "LOCAL_QUORUM",
+		Hosts:               []string{"localhost"},
+		Port:                9042,
+		Keyspace:            "schema_registry",
+		Consistency:         "LOCAL_QUORUM",
 		ReplicationStrategy: "SimpleStrategy",
-		ReplicationFactor:  1,
-		ConnectTimeout:     5 * time.Second,
-		Timeout:            10 * time.Second,
-		NumConns:           2,
-		MaxPreparedStmts:   1000,
-		SubjectBuckets:     16,
+		ReplicationFactor:   1,
+		ConnectTimeout:      5 * time.Second,
+		Timeout:             10 * time.Second,
+		NumConns:            2,
+		MaxPreparedStmts:    1000,
+		SubjectBuckets:      16,
 	}
 }
 
 // Store implements the storage.Storage interface using Cassandra.
 type Store struct {
-	session  *gocql.Session
-	config   Config
-	idCache  int64 // Local cache of last known ID
+	session *gocql.Session
+	config  Config
+	idCache int64 // Local cache of last known ID
 }
 
 // NewStore creates a new Cassandra store.

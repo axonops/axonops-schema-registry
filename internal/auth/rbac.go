@@ -27,21 +27,21 @@ type Permission string
 
 const (
 	// Schema permissions
-	PermissionSchemaRead     Permission = "schema:read"
-	PermissionSchemaWrite    Permission = "schema:write"
-	PermissionSchemaDelete   Permission = "schema:delete"
+	PermissionSchemaRead   Permission = "schema:read"
+	PermissionSchemaWrite  Permission = "schema:write"
+	PermissionSchemaDelete Permission = "schema:delete"
 
 	// Config permissions
-	PermissionConfigRead     Permission = "config:read"
-	PermissionConfigWrite    Permission = "config:write"
+	PermissionConfigRead  Permission = "config:read"
+	PermissionConfigWrite Permission = "config:write"
 
 	// Mode permissions
-	PermissionModeRead       Permission = "mode:read"
-	PermissionModeWrite      Permission = "mode:write"
+	PermissionModeRead  Permission = "mode:read"
+	PermissionModeWrite Permission = "mode:write"
 
 	// Admin permissions
-	PermissionAdminRead      Permission = "admin:read"
-	PermissionAdminWrite     Permission = "admin:write"
+	PermissionAdminRead  Permission = "admin:read"
+	PermissionAdminWrite Permission = "admin:write"
 )
 
 // rolePermissions defines permissions for each role.
@@ -72,7 +72,7 @@ var rolePermissions = map[Role][]Permission{
 
 // Authorizer handles authorization.
 type Authorizer struct {
-	config     config.RBACConfig
+	config      config.RBACConfig
 	superAdmins map[string]bool
 }
 
@@ -84,7 +84,7 @@ func NewAuthorizer(cfg config.RBACConfig) *Authorizer {
 	}
 
 	return &Authorizer{
-		config:     cfg,
+		config:      cfg,
 		superAdmins: superAdmins,
 	}
 }

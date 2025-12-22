@@ -28,15 +28,15 @@ const (
 
 // SchemaRecord represents a stored schema.
 type SchemaRecord struct {
-	ID          int64      `json:"id"`
-	Subject     string     `json:"subject"`
-	Version     int        `json:"version"`
-	SchemaType  SchemaType `json:"schemaType"`
-	Schema      string     `json:"schema"`
+	ID          int64       `json:"id"`
+	Subject     string      `json:"subject"`
+	Version     int         `json:"version"`
+	SchemaType  SchemaType  `json:"schemaType"`
+	Schema      string      `json:"schema"`
 	References  []Reference `json:"references,omitempty"`
-	Fingerprint string     `json:"-"`
-	Deleted     bool       `json:"-"`
-	CreatedAt   time.Time  `json:"-"`
+	Fingerprint string      `json:"-"`
+	Deleted     bool        `json:"-"`
+	CreatedAt   time.Time   `json:"-"`
 }
 
 // Reference represents a schema reference.
@@ -54,7 +54,7 @@ type SubjectVersion struct {
 
 // ConfigRecord represents a compatibility configuration.
 type ConfigRecord struct {
-	Subject           string `json:"subject,omitempty"` // Empty for global config
+	Subject            string `json:"subject,omitempty"` // Empty for global config
 	CompatibilityLevel string `json:"compatibilityLevel"`
 }
 

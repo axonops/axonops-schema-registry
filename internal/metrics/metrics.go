@@ -18,9 +18,9 @@ type Metrics struct {
 	RequestsInFlight prometheus.Gauge
 
 	// Schema metrics
-	SchemasTotal      *prometheus.GaugeVec
-	SubjectsTotal     prometheus.Gauge
-	SchemaVersions    *prometheus.GaugeVec
+	SchemasTotal       *prometheus.GaugeVec
+	SubjectsTotal      prometheus.Gauge
+	SchemaVersions     *prometheus.GaugeVec
 	RegistrationsTotal *prometheus.CounterVec
 
 	// Compatibility metrics

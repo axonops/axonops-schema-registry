@@ -19,28 +19,28 @@ type AuditEventType string
 
 const (
 	// Schema events
-	AuditEventSchemaRegister    AuditEventType = "schema_register"
-	AuditEventSchemaDelete      AuditEventType = "schema_delete"
-	AuditEventSchemaGet         AuditEventType = "schema_get"
-	AuditEventSchemaLookup      AuditEventType = "schema_lookup"
+	AuditEventSchemaRegister AuditEventType = "schema_register"
+	AuditEventSchemaDelete   AuditEventType = "schema_delete"
+	AuditEventSchemaGet      AuditEventType = "schema_get"
+	AuditEventSchemaLookup   AuditEventType = "schema_lookup"
 
 	// Config events
-	AuditEventConfigGet         AuditEventType = "config_get"
-	AuditEventConfigUpdate      AuditEventType = "config_update"
-	AuditEventConfigDelete      AuditEventType = "config_delete"
+	AuditEventConfigGet    AuditEventType = "config_get"
+	AuditEventConfigUpdate AuditEventType = "config_update"
+	AuditEventConfigDelete AuditEventType = "config_delete"
 
 	// Mode events
-	AuditEventModeGet           AuditEventType = "mode_get"
-	AuditEventModeUpdate        AuditEventType = "mode_update"
+	AuditEventModeGet    AuditEventType = "mode_get"
+	AuditEventModeUpdate AuditEventType = "mode_update"
 
 	// Auth events
-	AuditEventAuthSuccess       AuditEventType = "auth_success"
-	AuditEventAuthFailure       AuditEventType = "auth_failure"
-	AuditEventAuthForbidden     AuditEventType = "auth_forbidden"
+	AuditEventAuthSuccess   AuditEventType = "auth_success"
+	AuditEventAuthFailure   AuditEventType = "auth_failure"
+	AuditEventAuthForbidden AuditEventType = "auth_forbidden"
 
 	// Subject events
-	AuditEventSubjectDelete     AuditEventType = "subject_delete"
-	AuditEventSubjectList       AuditEventType = "subject_list"
+	AuditEventSubjectDelete AuditEventType = "subject_delete"
+	AuditEventSubjectList   AuditEventType = "subject_list"
 )
 
 // AuditEvent represents an audit log entry.
@@ -64,10 +64,10 @@ type AuditEvent struct {
 
 // AuditLogger handles audit logging.
 type AuditLogger struct {
-	config       config.AuditConfig
-	logger       *slog.Logger
-	file         *os.File
-	mu           sync.Mutex
+	config        config.AuditConfig
+	logger        *slog.Logger
+	file          *os.File
+	mu            sync.Mutex
 	enabledEvents map[AuditEventType]bool
 }
 

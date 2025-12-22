@@ -4,6 +4,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -82,31 +83,31 @@ type LoggingConfig struct {
 
 // SecurityConfig represents security configuration.
 type SecurityConfig struct {
-	TLS         TLSConfig         `yaml:"tls"`
-	Auth        AuthConfig        `yaml:"auth"`
-	RateLimiting RateLimitConfig  `yaml:"rate_limiting"`
-	Audit       AuditConfig       `yaml:"audit"`
+	TLS          TLSConfig       `yaml:"tls"`
+	Auth         AuthConfig      `yaml:"auth"`
+	RateLimiting RateLimitConfig `yaml:"rate_limiting"`
+	Audit        AuditConfig     `yaml:"audit"`
 }
 
 // TLSConfig represents TLS configuration.
 type TLSConfig struct {
-	Enabled     bool   `yaml:"enabled"`
-	CertFile    string `yaml:"cert_file"`
-	KeyFile     string `yaml:"key_file"`
-	CAFile      string `yaml:"ca_file"`      // For client cert verification
-	MinVersion  string `yaml:"min_version"`  // TLS1.2, TLS1.3
-	ClientAuth  string `yaml:"client_auth"`  // none, request, require, verify
-	AutoReload  bool   `yaml:"auto_reload"`  // Reload certs without restart
+	Enabled    bool   `yaml:"enabled"`
+	CertFile   string `yaml:"cert_file"`
+	KeyFile    string `yaml:"key_file"`
+	CAFile     string `yaml:"ca_file"`     // For client cert verification
+	MinVersion string `yaml:"min_version"` // TLS1.2, TLS1.3
+	ClientAuth string `yaml:"client_auth"` // none, request, require, verify
+	AutoReload bool   `yaml:"auto_reload"` // Reload certs without restart
 }
 
 // AuthConfig represents authentication configuration.
 type AuthConfig struct {
-	Enabled     bool            `yaml:"enabled"`
-	Methods     []string        `yaml:"methods"` // basic, api_key, jwt, mtls
-	Basic       BasicAuthConfig `yaml:"basic"`
-	APIKey      APIKeyConfig    `yaml:"api_key"`
-	JWT         JWTConfig       `yaml:"jwt"`
-	RBAC        RBACConfig      `yaml:"rbac"`
+	Enabled bool            `yaml:"enabled"`
+	Methods []string        `yaml:"methods"` // basic, api_key, jwt, mtls
+	Basic   BasicAuthConfig `yaml:"basic"`
+	APIKey  APIKeyConfig    `yaml:"api_key"`
+	JWT     JWTConfig       `yaml:"jwt"`
+	RBAC    RBACConfig      `yaml:"rbac"`
 }
 
 // BasicAuthConfig represents basic authentication configuration.
@@ -125,28 +126,28 @@ type APIKeyConfig struct {
 
 // JWTConfig represents JWT authentication configuration.
 type JWTConfig struct {
-	Issuer          string   `yaml:"issuer"`
-	Audience        string   `yaml:"audience"`
-	JWKSURL         string   `yaml:"jwks_url"`
-	PublicKeyFile   string   `yaml:"public_key_file"`
-	Algorithm       string   `yaml:"algorithm"` // RS256, ES256
-	ClaimsMapping   map[string]string `yaml:"claims_mapping"`
+	Issuer        string            `yaml:"issuer"`
+	Audience      string            `yaml:"audience"`
+	JWKSURL       string            `yaml:"jwks_url"`
+	PublicKeyFile string            `yaml:"public_key_file"`
+	Algorithm     string            `yaml:"algorithm"` // RS256, ES256
+	ClaimsMapping map[string]string `yaml:"claims_mapping"`
 }
 
 // RBACConfig represents RBAC configuration.
 type RBACConfig struct {
-	Enabled      bool     `yaml:"enabled"`
-	DefaultRole  string   `yaml:"default_role"`
-	SuperAdmins  []string `yaml:"super_admins"` // Users with full access
+	Enabled     bool     `yaml:"enabled"`
+	DefaultRole string   `yaml:"default_role"`
+	SuperAdmins []string `yaml:"super_admins"` // Users with full access
 }
 
 // RateLimitConfig represents rate limiting configuration.
 type RateLimitConfig struct {
-	Enabled       bool `yaml:"enabled"`
-	RequestsPerSecond int `yaml:"requests_per_second"`
-	BurstSize     int  `yaml:"burst_size"`
-	PerClient     bool `yaml:"per_client"`
-	PerEndpoint   bool `yaml:"per_endpoint"`
+	Enabled           bool `yaml:"enabled"`
+	RequestsPerSecond int  `yaml:"requests_per_second"`
+	BurstSize         int  `yaml:"burst_size"`
+	PerClient         bool `yaml:"per_client"`
+	PerEndpoint       bool `yaml:"per_endpoint"`
 }
 
 // AuditConfig represents audit logging configuration.
@@ -216,7 +217,9 @@ func (c *Config) applyEnvOverrides() {
 		c.Server.Host = v
 	}
 	if v := os.Getenv("SCHEMA_REGISTRY_PORT"); v != "" {
-		fmt.Sscanf(v, "%d", &c.Server.Port)
+		if port, err := strconv.Atoi(v); err == nil {
+			c.Server.Port = port
+		}
 	}
 	if v := os.Getenv("SCHEMA_REGISTRY_STORAGE_TYPE"); v != "" {
 		c.Storage.Type = v
@@ -233,7 +236,9 @@ func (c *Config) applyEnvOverrides() {
 		c.Storage.PostgreSQL.Host = v
 	}
 	if v := os.Getenv("SCHEMA_REGISTRY_PG_PORT"); v != "" {
-		fmt.Sscanf(v, "%d", &c.Storage.PostgreSQL.Port)
+		if port, err := strconv.Atoi(v); err == nil {
+			c.Storage.PostgreSQL.Port = port
+		}
 	}
 	if v := os.Getenv("SCHEMA_REGISTRY_PG_DATABASE"); v != "" {
 		c.Storage.PostgreSQL.Database = v
@@ -253,7 +258,9 @@ func (c *Config) applyEnvOverrides() {
 		c.Storage.MySQL.Host = v
 	}
 	if v := os.Getenv("SCHEMA_REGISTRY_MYSQL_PORT"); v != "" {
-		fmt.Sscanf(v, "%d", &c.Storage.MySQL.Port)
+		if port, err := strconv.Atoi(v); err == nil {
+			c.Storage.MySQL.Port = port
+		}
 	}
 	if v := os.Getenv("SCHEMA_REGISTRY_MYSQL_DATABASE"); v != "" {
 		c.Storage.MySQL.Database = v
@@ -286,13 +293,13 @@ func (c *Config) Validate() error {
 	}
 
 	validCompatibility := map[string]bool{
-		"NONE":            true,
-		"BACKWARD":        true,
+		"NONE":                true,
+		"BACKWARD":            true,
 		"BACKWARD_TRANSITIVE": true,
-		"FORWARD":         true,
+		"FORWARD":             true,
 		"FORWARD_TRANSITIVE":  true,
-		"FULL":            true,
-		"FULL_TRANSITIVE": true,
+		"FULL":                true,
+		"FULL_TRANSITIVE":     true,
 	}
 	level := strings.ToUpper(c.Compatibility.DefaultLevel)
 	if !validCompatibility[level] {

@@ -11,8 +11,8 @@ import (
 
 // referenceResolver resolves protobuf imports from schema references.
 type referenceResolver struct {
-	refs       map[string]string // name -> schema content
-	wellKnown  map[string]string // well-known type imports
+	refs      map[string]string // name -> schema content
+	wellKnown map[string]string // well-known type imports
 }
 
 // newReferenceResolver creates a new reference resolver.

@@ -26,10 +26,10 @@ type ContextConfig struct {
 
 // ContextManager manages contexts for multi-tenancy.
 type ContextManager struct {
-	mu           sync.RWMutex
-	contexts     map[string]*Context
-	defaultCtx   *Context
-	storage      storage.Storage
+	mu         sync.RWMutex
+	contexts   map[string]*Context
+	defaultCtx *Context
+	storage    storage.Storage
 }
 
 // NewContextManager creates a new context manager.

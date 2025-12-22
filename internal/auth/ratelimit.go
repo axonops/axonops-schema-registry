@@ -12,11 +12,11 @@ import (
 
 // RateLimiter implements token bucket rate limiting.
 type RateLimiter struct {
-	config     config.RateLimitConfig
-	mu         sync.Mutex
-	global     *tokenBucket
-	clients    map[string]*tokenBucket
-	endpoints  map[string]*tokenBucket
+	config    config.RateLimitConfig
+	mu        sync.Mutex
+	global    *tokenBucket
+	clients   map[string]*tokenBucket
+	endpoints map[string]*tokenBucket
 }
 
 // tokenBucket implements the token bucket algorithm.
