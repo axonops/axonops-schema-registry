@@ -45,7 +45,7 @@ func TestMain(m *testing.M) {
 
 	// Create schema parser and compatibility checker
 	schemaRegistry := schema.NewRegistry()
-	compatChecker := compatibility.NewChecker(schemaRegistry)
+	compatChecker := compatibility.NewChecker()
 
 	// Create registry
 	reg := registry.New(store, schemaRegistry, compatChecker, "BACKWARD")

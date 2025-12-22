@@ -74,6 +74,7 @@ func (tm *TLSManager) GetCertificate(*tls.ClientHelloInfo) (*tls.Certificate, er
 
 // TLSConfig returns the TLS configuration.
 func (tm *TLSManager) TLSConfig() *tls.Config {
+	// #nosec G402 -- MinVersion is configurable, defaults to TLS 1.2
 	tlsConfig := &tls.Config{
 		GetCertificate: tm.GetCertificate,
 		MinVersion:     tm.getMinVersion(),
@@ -129,6 +130,7 @@ func CreateServerTLSConfig(cfg config.TLSConfig) (*tls.Config, error) {
 
 // CreateClientTLSConfig creates a TLS config for client connections.
 func CreateClientTLSConfig(certFile, keyFile, caFile string, insecureSkipVerify bool) (*tls.Config, error) {
+	// #nosec G402 -- InsecureSkipVerify is intentionally configurable for development/testing
 	tlsConfig := &tls.Config{
 		InsecureSkipVerify: insecureSkipVerify,
 		MinVersion:         tls.VersionTLS12,
@@ -145,6 +147,7 @@ func CreateClientTLSConfig(certFile, keyFile, caFile string, insecureSkipVerify 
 
 	// Load CA certificate
 	if caFile != "" {
+		// #nosec G304 -- caFile is from trusted configuration
 		caCert, err := os.ReadFile(caFile)
 		if err != nil {
 			return nil, fmt.Errorf("failed to load CA certificate: %w", err)

@@ -17,7 +17,7 @@ formatters:
     - gofmt
     - goimports
 
-linters-settings:
+settings:
   govet:
     enable-all: true
     disable:

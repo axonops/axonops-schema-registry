@@ -187,6 +187,7 @@ func Load(path string) (*Config, error) {
 
 	// Load from file if provided
 	if path != "" {
+		// #nosec G304 -- path is from command-line argument, user-controlled input is expected
 		data, err := os.ReadFile(path)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read config file: %w", err)

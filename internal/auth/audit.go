@@ -96,7 +96,7 @@ func NewAuditLogger(cfg config.AuditConfig) (*AuditLogger, error) {
 
 	// Open log file if specified
 	if cfg.LogFile != "" {
-		file, err := os.OpenFile(cfg.LogFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		file, err := os.OpenFile(cfg.LogFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 		if err != nil {
 			return nil, err
 		}
