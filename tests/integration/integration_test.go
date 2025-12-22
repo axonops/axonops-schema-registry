@@ -19,9 +19,15 @@ import (
 
 	"github.com/axonops/axonops-schema-registry/internal/api"
 	"github.com/axonops/axonops-schema-registry/internal/compatibility"
+	avrocompat "github.com/axonops/axonops-schema-registry/internal/compatibility/avro"
+	jsoncompat "github.com/axonops/axonops-schema-registry/internal/compatibility/jsonschema"
+	protocompat "github.com/axonops/axonops-schema-registry/internal/compatibility/protobuf"
 	"github.com/axonops/axonops-schema-registry/internal/config"
 	"github.com/axonops/axonops-schema-registry/internal/registry"
 	"github.com/axonops/axonops-schema-registry/internal/schema"
+	"github.com/axonops/axonops-schema-registry/internal/schema/avro"
+	"github.com/axonops/axonops-schema-registry/internal/schema/jsonschema"
+	"github.com/axonops/axonops-schema-registry/internal/schema/protobuf"
 	"github.com/axonops/axonops-schema-registry/internal/storage"
 	"github.com/axonops/axonops-schema-registry/internal/storage/cassandra"
 	"github.com/axonops/axonops-schema-registry/internal/storage/mysql"
@@ -44,9 +50,17 @@ func TestMain(m *testing.M) {
 	}
 	testStore = store
 
-	// Create schema parser and compatibility checker
+	// Create schema parser registry and register parsers
 	schemaRegistry := schema.NewRegistry()
+	schemaRegistry.Register(avro.NewParser())
+	schemaRegistry.Register(protobuf.NewParser())
+	schemaRegistry.Register(jsonschema.NewParser())
+
+	// Create compatibility checker and register type-specific checkers
 	compatChecker := compatibility.NewChecker()
+	compatChecker.Register(storage.SchemaTypeAvro, avrocompat.NewChecker())
+	compatChecker.Register(storage.SchemaTypeProtobuf, protocompat.NewChecker())
+	compatChecker.Register(storage.SchemaTypeJSON, jsoncompat.NewChecker())
 
 	// Create registry
 	reg := registry.New(store, schemaRegistry, compatChecker, "BACKWARD")
