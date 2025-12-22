@@ -60,6 +60,11 @@ type Store struct {
 
 // NewStore creates a new Cassandra store.
 func NewStore(config Config) (*Store, error) {
+	return NewStoreWithRetry(config, 5, 2*time.Second)
+}
+
+// NewStoreWithRetry creates a new Cassandra store with retry logic.
+func NewStoreWithRetry(config Config, maxRetries int, retryDelay time.Duration) (*Store, error) {
 	// Create cluster configuration
 	cluster := gocql.NewCluster(config.Hosts...)
 	cluster.Port = config.Port
@@ -92,12 +97,24 @@ func NewStore(config Config) (*Store, error) {
 		}
 	}
 
-	// First, connect without keyspace to create it
+	// First, connect without keyspace to create it (with retry)
 	clusterNoKS := *cluster
 	clusterNoKS.Keyspace = ""
-	sessionNoKS, err := clusterNoKS.CreateSession()
+
+	var sessionNoKS *gocql.Session
+	var err error
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		sessionNoKS, err = clusterNoKS.CreateSession()
+		if err == nil {
+			break
+		}
+		if attempt < maxRetries {
+			time.Sleep(retryDelay)
+			retryDelay *= 2 // Exponential backoff
+		}
+	}
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to Cassandra: %w", err)
+		return nil, fmt.Errorf("failed to connect to Cassandra after %d attempts: %w", maxRetries, err)
 	}
 
 	// Create keyspace

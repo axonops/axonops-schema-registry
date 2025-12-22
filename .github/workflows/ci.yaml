@@ -242,14 +242,30 @@ jobs:
       - name: Wait for Cassandra to be fully ready
         run: |
           echo "Waiting for Cassandra to accept external connections..."
-          for i in {1..30}; do
+          # Wait for port and then add extra delay for Cassandra to fully initialize
+          for i in {1..60}; do
             if nc -z localhost 9042 2>/dev/null; then
               echo "Cassandra port 9042 is open"
-              sleep 5
               break
             fi
             echo "Waiting for Cassandra port... ($i)"
             sleep 2
+          done
+          # Extra wait for Cassandra native protocol to fully initialize
+          echo "Waiting additional time for Cassandra to fully initialize..."
+          sleep 30
+
+      - name: Verify Cassandra connectivity
+        run: |
+          # Install cqlsh via pip to test from host
+          pip install --quiet cqlsh
+          for i in {1..10}; do
+            if cqlsh localhost 9042 -e "DESCRIBE KEYSPACES;" 2>/dev/null; then
+              echo "Successfully connected to Cassandra from host"
+              break
+            fi
+            echo "Retry connecting to Cassandra... ($i)"
+            sleep 5
           done
 
       - name: Run integration tests
@@ -379,14 +395,30 @@ jobs:
       - name: Wait for Cassandra to be fully ready
         run: |
           echo "Waiting for Cassandra to accept external connections..."
-          for i in {1..30}; do
+          # Wait for port and then add extra delay for Cassandra to fully initialize
+          for i in {1..60}; do
             if nc -z localhost 9042 2>/dev/null; then
               echo "Cassandra port 9042 is open"
-              sleep 5
               break
             fi
             echo "Waiting for Cassandra port... ($i)"
             sleep 2
+          done
+          # Extra wait for Cassandra native protocol to fully initialize
+          echo "Waiting additional time for Cassandra to fully initialize..."
+          sleep 30
+
+      - name: Verify Cassandra connectivity
+        run: |
+          # Install cqlsh via pip to test from host
+          pip install --quiet cqlsh
+          for i in {1..10}; do
+            if cqlsh localhost 9042 -e "DESCRIBE KEYSPACES;" 2>/dev/null; then
+              echo "Successfully connected to Cassandra from host"
+              break
+            fi
+            echo "Retry connecting to Cassandra... ($i)"
+            sleep 5
           done
 
       - name: Build binary
