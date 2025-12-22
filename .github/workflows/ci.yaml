@@ -239,6 +239,19 @@ jobs:
         run: |
           docker exec $(docker ps -q -f ancestor=cassandra:4.1) cqlsh -e "CREATE KEYSPACE IF NOT EXISTS schemaregistry WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1};"
 
+      - name: Wait for Cassandra to be fully ready
+        run: |
+          echo "Waiting for Cassandra to accept external connections..."
+          for i in {1..30}; do
+            if nc -z localhost 9042 2>/dev/null; then
+              echo "Cassandra port 9042 is open"
+              sleep 5
+              break
+            fi
+            echo "Waiting for Cassandra port... ($i)"
+            sleep 2
+          done
+
       - name: Run integration tests
         env:
           STORAGE_TYPE: cassandra
@@ -362,6 +375,19 @@ jobs:
       - name: Create Cassandra keyspace
         run: |
           docker exec $(docker ps -q -f ancestor=cassandra:4.1) cqlsh -e "CREATE KEYSPACE IF NOT EXISTS schemaregistry WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1};"
+
+      - name: Wait for Cassandra to be fully ready
+        run: |
+          echo "Waiting for Cassandra to accept external connections..."
+          for i in {1..30}; do
+            if nc -z localhost 9042 2>/dev/null; then
+              echo "Cassandra port 9042 is open"
+              sleep 5
+              break
+            fi
+            echo "Waiting for Cassandra port... ($i)"
+            sleep 2
+          done
 
       - name: Build binary
         run: go build -o schema-registry ./cmd/schema-registry
