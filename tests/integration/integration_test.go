@@ -12,12 +12,15 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strconv"
 	"testing"
 	"time"
 
 	"github.com/axonops/axonops-schema-registry/internal/api"
+	"github.com/axonops/axonops-schema-registry/internal/compatibility"
 	"github.com/axonops/axonops-schema-registry/internal/config"
 	"github.com/axonops/axonops-schema-registry/internal/registry"
+	"github.com/axonops/axonops-schema-registry/internal/schema"
 	"github.com/axonops/axonops-schema-registry/internal/storage"
 	"github.com/axonops/axonops-schema-registry/internal/storage/cassandra"
 	"github.com/axonops/axonops-schema-registry/internal/storage/mysql"
@@ -40,8 +43,12 @@ func TestMain(m *testing.M) {
 	}
 	testStore = store
 
+	// Create schema parser and compatibility checker
+	schemaRegistry := schema.NewRegistry()
+	compatChecker := compatibility.NewChecker(schemaRegistry)
+
 	// Create registry
-	reg := registry.New(store)
+	reg := registry.New(store, schemaRegistry, compatChecker, "BACKWARD")
 
 	// Create server
 	cfg := &config.Config{
@@ -63,38 +70,38 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-func createStorage(ctx context.Context) (storage.Storage, error) {
+func createStorage(_ context.Context) (storage.Storage, error) {
 	storageType := os.Getenv("STORAGE_TYPE")
 
 	switch storageType {
 	case "postgres":
-		cfg := &postgres.Config{
+		cfg := postgres.Config{
 			Host:     getEnvOrDefault("POSTGRES_HOST", "localhost"),
 			Port:     getEnvOrDefaultInt("POSTGRES_PORT", 5432),
-			User:     getEnvOrDefault("POSTGRES_USER", "schemaregistry"),
+			Username: getEnvOrDefault("POSTGRES_USER", "schemaregistry"),
 			Password: getEnvOrDefault("POSTGRES_PASSWORD", "schemaregistry"),
 			Database: getEnvOrDefault("POSTGRES_DATABASE", "schemaregistry"),
 			SSLMode:  "disable",
 		}
-		return postgres.New(ctx, cfg)
+		return postgres.NewStore(cfg)
 
 	case "mysql":
-		cfg := &mysql.Config{
+		cfg := mysql.Config{
 			Host:     getEnvOrDefault("MYSQL_HOST", "localhost"),
 			Port:     getEnvOrDefaultInt("MYSQL_PORT", 3306),
-			User:     getEnvOrDefault("MYSQL_USER", "schemaregistry"),
+			Username: getEnvOrDefault("MYSQL_USER", "schemaregistry"),
 			Password: getEnvOrDefault("MYSQL_PASSWORD", "schemaregistry"),
 			Database: getEnvOrDefault("MYSQL_DATABASE", "schemaregistry"),
 		}
-		return mysql.New(ctx, cfg)
+		return mysql.NewStore(cfg)
 
 	case "cassandra":
-		cfg := &cassandra.Config{
+		cfg := cassandra.Config{
 			Hosts:    []string{getEnvOrDefault("CASSANDRA_HOSTS", "localhost")},
 			Port:     getEnvOrDefaultInt("CASSANDRA_PORT", 9042),
 			Keyspace: getEnvOrDefault("CASSANDRA_KEYSPACE", "schemaregistry"),
 		}
-		return cassandra.New(ctx, cfg)
+		return cassandra.NewStore(cfg)
 
 	default:
 		return nil, fmt.Errorf("unsupported storage type: %s", storageType)
@@ -110,9 +117,9 @@ func getEnvOrDefault(key, defaultValue string) string {
 
 func getEnvOrDefaultInt(key string, defaultValue int) int {
 	if value := os.Getenv(key); value != "" {
-		var intValue int
-		fmt.Sscanf(value, "%d", &intValue)
-		return intValue
+		if intValue, err := strconv.Atoi(value); err == nil {
+			return intValue
+		}
 	}
 	return defaultValue
 }
