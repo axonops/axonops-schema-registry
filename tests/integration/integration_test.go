@@ -703,3 +703,335 @@ func TestReferencedBy(t *testing.T) {
 		t.Errorf("Expected status 200, got %d", resp.StatusCode)
 	}
 }
+
+// Database validation tests - verify data is stored correctly in the database
+
+func TestDatabaseValidation_SchemaStorage(t *testing.T) {
+	ctx := context.Background()
+	subject := fmt.Sprintf("db-validate-schema-%d", time.Now().UnixNano())
+	schemaStr := `{"type":"record","name":"DBValidate","fields":[{"name":"id","type":"int"},{"name":"name","type":"string"}]}`
+
+	// Register schema via API
+	schemaReq := map[string]interface{}{
+		"schema": schemaStr,
+	}
+	resp := doRequest(t, "POST", "/subjects/"+subject+"/versions", schemaReq)
+	var registerResult map[string]interface{}
+	parseResponse(t, resp, &registerResult)
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("Failed to register schema: status %d", resp.StatusCode)
+	}
+
+	schemaID := int64(registerResult["id"].(float64))
+
+	// Validate: Query database directly to verify schema is stored correctly
+	dbSchema, err := testStore.GetSchemaByID(ctx, schemaID)
+	if err != nil {
+		t.Fatalf("Database query failed - GetSchemaByID: %v", err)
+	}
+
+	// Verify schema ID matches
+	if dbSchema.ID != schemaID {
+		t.Errorf("Database validation failed: schema ID mismatch - expected %d, got %d", schemaID, dbSchema.ID)
+	}
+
+	// Verify subject matches
+	if dbSchema.Subject != subject {
+		t.Errorf("Database validation failed: subject mismatch - expected %s, got %s", subject, dbSchema.Subject)
+	}
+
+	// Verify version is 1
+	if dbSchema.Version != 1 {
+		t.Errorf("Database validation failed: version mismatch - expected 1, got %d", dbSchema.Version)
+	}
+
+	// Verify schema type is AVRO
+	if dbSchema.SchemaType != storage.SchemaTypeAvro {
+		t.Errorf("Database validation failed: schema type mismatch - expected AVRO, got %s", dbSchema.SchemaType)
+	}
+
+	// Verify schema content is not empty
+	if dbSchema.Schema == "" {
+		t.Error("Database validation failed: schema content is empty")
+	}
+
+	// Verify schema is not deleted
+	if dbSchema.Deleted {
+		t.Error("Database validation failed: schema should not be marked as deleted")
+	}
+
+	t.Logf("Database validation passed: Schema ID=%d, Subject=%s, Version=%d, Type=%s",
+		dbSchema.ID, dbSchema.Subject, dbSchema.Version, dbSchema.SchemaType)
+}
+
+func TestDatabaseValidation_SubjectListing(t *testing.T) {
+	ctx := context.Background()
+	subject := fmt.Sprintf("db-validate-subject-%d", time.Now().UnixNano())
+
+	// Register schema via API
+	schemaReq := map[string]interface{}{
+		"schema": `{"type":"record","name":"DBSubject","fields":[{"name":"value","type":"long"}]}`,
+	}
+	resp := doRequest(t, "POST", "/subjects/"+subject+"/versions", schemaReq)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("Failed to register schema: status %d", resp.StatusCode)
+	}
+	resp.Body.Close()
+
+	// Validate: Query database directly to verify subject exists
+	subjects, err := testStore.ListSubjects(ctx, false)
+	if err != nil {
+		t.Fatalf("Database query failed - ListSubjects: %v", err)
+	}
+
+	found := false
+	for _, s := range subjects {
+		if s == subject {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		t.Errorf("Database validation failed: subject %s not found in database. Found subjects: %v", subject, subjects)
+	}
+
+	// Validate: SubjectExists returns true
+	exists, err := testStore.SubjectExists(ctx, subject)
+	if err != nil {
+		t.Fatalf("Database query failed - SubjectExists: %v", err)
+	}
+	if !exists {
+		t.Error("Database validation failed: SubjectExists returned false for registered subject")
+	}
+
+	t.Logf("Database validation passed: Subject %s exists in database", subject)
+}
+
+func TestDatabaseValidation_ConfigPersistence(t *testing.T) {
+	ctx := context.Background()
+	subject := fmt.Sprintf("db-validate-config-%d", time.Now().UnixNano())
+
+	// Register schema first
+	schemaReq := map[string]interface{}{
+		"schema": `{"type":"record","name":"DBConfig","fields":[{"name":"x","type":"int"}]}`,
+	}
+	resp := doRequest(t, "POST", "/subjects/"+subject+"/versions", schemaReq)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("Failed to register schema: status %d", resp.StatusCode)
+	}
+	resp.Body.Close()
+
+	// Set config via API
+	configReq := map[string]string{"compatibility": "FULL"}
+	resp = doRequest(t, "PUT", "/config/"+subject, configReq)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("Failed to set config: status %d", resp.StatusCode)
+	}
+	resp.Body.Close()
+
+	// Validate: Query database directly to verify config is stored
+	config, err := testStore.GetConfig(ctx, subject)
+	if err != nil {
+		t.Fatalf("Database query failed - GetConfig: %v", err)
+	}
+
+	if config.CompatibilityLevel != "FULL" {
+		t.Errorf("Database validation failed: config mismatch - expected FULL, got %s", config.CompatibilityLevel)
+	}
+
+	t.Logf("Database validation passed: Config for %s is %s", subject, config.CompatibilityLevel)
+}
+
+func TestDatabaseValidation_SchemaVersions(t *testing.T) {
+	ctx := context.Background()
+	subject := fmt.Sprintf("db-validate-versions-%d", time.Now().UnixNano())
+
+	// Register first version
+	schema1 := map[string]interface{}{
+		"schema": `{"type":"record","name":"DBVersions","fields":[{"name":"id","type":"int"}]}`,
+	}
+	resp := doRequest(t, "POST", "/subjects/"+subject+"/versions", schema1)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("Failed to register schema v1: status %d", resp.StatusCode)
+	}
+	resp.Body.Close()
+
+	// Register second version (compatible)
+	schema2 := map[string]interface{}{
+		"schema": `{"type":"record","name":"DBVersions","fields":[{"name":"id","type":"int"},{"name":"extra","type":["null","string"],"default":null}]}`,
+	}
+	resp = doRequest(t, "POST", "/subjects/"+subject+"/versions", schema2)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("Failed to register schema v2: status %d", resp.StatusCode)
+	}
+	resp.Body.Close()
+
+	// Validate: Query database directly to verify both versions exist
+	schemas, err := testStore.GetSchemasBySubject(ctx, subject, false)
+	if err != nil {
+		t.Fatalf("Database query failed - GetSchemasBySubject: %v", err)
+	}
+
+	if len(schemas) != 2 {
+		t.Errorf("Database validation failed: expected 2 versions, got %d", len(schemas))
+	}
+
+	// Verify versions are 1 and 2
+	versionMap := make(map[int]bool)
+	for _, s := range schemas {
+		versionMap[s.Version] = true
+	}
+
+	if !versionMap[1] || !versionMap[2] {
+		t.Errorf("Database validation failed: expected versions 1 and 2, got %v", versionMap)
+	}
+
+	// Validate: GetLatestSchema returns version 2
+	latest, err := testStore.GetLatestSchema(ctx, subject)
+	if err != nil {
+		t.Fatalf("Database query failed - GetLatestSchema: %v", err)
+	}
+
+	if latest.Version != 2 {
+		t.Errorf("Database validation failed: expected latest version 2, got %d", latest.Version)
+	}
+
+	t.Logf("Database validation passed: Subject %s has %d versions, latest is v%d", subject, len(schemas), latest.Version)
+}
+
+func TestDatabaseValidation_SoftDelete(t *testing.T) {
+	ctx := context.Background()
+	subject := fmt.Sprintf("db-validate-delete-%d", time.Now().UnixNano())
+
+	// Register schema
+	schemaReq := map[string]interface{}{
+		"schema": `{"type":"record","name":"DBDelete","fields":[{"name":"y","type":"double"}]}`,
+	}
+	resp := doRequest(t, "POST", "/subjects/"+subject+"/versions", schemaReq)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("Failed to register schema: status %d", resp.StatusCode)
+	}
+	resp.Body.Close()
+
+	// Verify subject exists before delete
+	existsBefore, err := testStore.SubjectExists(ctx, subject)
+	if err != nil {
+		t.Fatalf("Database query failed - SubjectExists (before): %v", err)
+	}
+	if !existsBefore {
+		t.Fatal("Database validation failed: subject should exist before delete")
+	}
+
+	// Delete subject via API (soft delete)
+	resp = doRequest(t, "DELETE", "/subjects/"+subject, nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("Failed to delete subject: status %d", resp.StatusCode)
+	}
+	resp.Body.Close()
+
+	// Validate: Subject should not appear in non-deleted list
+	subjects, err := testStore.ListSubjects(ctx, false)
+	if err != nil {
+		t.Fatalf("Database query failed - ListSubjects: %v", err)
+	}
+
+	for _, s := range subjects {
+		if s == subject {
+			t.Errorf("Database validation failed: deleted subject %s still appears in non-deleted list", subject)
+		}
+	}
+
+	// Validate: Subject should appear in deleted list
+	subjectsWithDeleted, err := testStore.ListSubjects(ctx, true)
+	if err != nil {
+		t.Fatalf("Database query failed - ListSubjects (with deleted): %v", err)
+	}
+
+	found := false
+	for _, s := range subjectsWithDeleted {
+		if s == subject {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		t.Errorf("Database validation failed: deleted subject %s not found in includeDeleted list", subject)
+	}
+
+	t.Logf("Database validation passed: Subject %s correctly soft-deleted", subject)
+}
+
+func TestDatabaseValidation_GlobalConfig(t *testing.T) {
+	ctx := context.Background()
+
+	// Set global config via API
+	configReq := map[string]string{"compatibility": "FULL_TRANSITIVE"}
+	resp := doRequest(t, "PUT", "/config", configReq)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("Failed to set global config: status %d", resp.StatusCode)
+	}
+	resp.Body.Close()
+
+	// Validate: Query database directly
+	config, err := testStore.GetGlobalConfig(ctx)
+	if err != nil {
+		t.Fatalf("Database query failed - GetGlobalConfig: %v", err)
+	}
+
+	if config.CompatibilityLevel != "FULL_TRANSITIVE" {
+		t.Errorf("Database validation failed: global config mismatch - expected FULL_TRANSITIVE, got %s", config.CompatibilityLevel)
+	}
+
+	t.Logf("Database validation passed: Global config is %s", config.CompatibilityLevel)
+
+	// Reset to default
+	resetReq := map[string]string{"compatibility": "BACKWARD"}
+	resp = doRequest(t, "PUT", "/config", resetReq)
+	resp.Body.Close()
+}
+
+func TestDatabaseValidation_SchemaByFingerprint(t *testing.T) {
+	ctx := context.Background()
+	subject := fmt.Sprintf("db-validate-fingerprint-%d", time.Now().UnixNano())
+	schemaStr := `{"type":"record","name":"DBFingerprint","fields":[{"name":"fp","type":"bytes"}]}`
+
+	// Register schema via API
+	schemaReq := map[string]interface{}{
+		"schema": schemaStr,
+	}
+	resp := doRequest(t, "POST", "/subjects/"+subject+"/versions", schemaReq)
+	var registerResult map[string]interface{}
+	parseResponse(t, resp, &registerResult)
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("Failed to register schema: status %d", resp.StatusCode)
+	}
+
+	schemaID := int64(registerResult["id"].(float64))
+
+	// Get the schema to find its fingerprint
+	dbSchema, err := testStore.GetSchemaByID(ctx, schemaID)
+	if err != nil {
+		t.Fatalf("Database query failed - GetSchemaByID: %v", err)
+	}
+
+	if dbSchema.Fingerprint == "" {
+		t.Log("Note: Fingerprint is empty, skipping fingerprint lookup test")
+		return
+	}
+
+	// Validate: Query by fingerprint
+	schemaByFP, err := testStore.GetSchemaByFingerprint(ctx, subject, dbSchema.Fingerprint)
+	if err != nil {
+		t.Fatalf("Database query failed - GetSchemaByFingerprint: %v", err)
+	}
+
+	if schemaByFP.ID != schemaID {
+		t.Errorf("Database validation failed: fingerprint lookup returned wrong schema - expected ID %d, got %d", schemaID, schemaByFP.ID)
+	}
+
+	t.Logf("Database validation passed: Schema ID=%d found by fingerprint %s", schemaID, dbSchema.Fingerprint)
+}
