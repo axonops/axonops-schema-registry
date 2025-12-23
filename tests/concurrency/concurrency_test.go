@@ -98,6 +98,23 @@ func TestMain(m *testing.M) {
 	// Wait for servers to start
 	time.Sleep(2 * time.Second)
 
+	// For Cassandra, do warmup requests to establish connections
+	if os.Getenv("STORAGE_TYPE") == "cassandra" {
+		fmt.Println("Warming up Cassandra connections...")
+		for i := 0; i < 5; i++ {
+			for _, inst := range instances {
+				resp, err := doRequest("GET", inst.addr+"/subjects", nil)
+				if err != nil {
+					fmt.Printf("Warmup request failed: %v\n", err)
+					continue
+				}
+				resp.Body.Close()
+			}
+			time.Sleep(500 * time.Millisecond)
+		}
+		fmt.Println("Warmup complete")
+	}
+
 	// Run tests
 	code := m.Run()
 
@@ -140,7 +157,7 @@ func createStorage(_ context.Context) (storage.Storage, error) {
 			ReplicationFactor:   1,
 			ConnectTimeout:      60 * time.Second, // Longer timeout for CI
 			Timeout:             60 * time.Second,
-			NumConns:            50, // Higher connection pool for concurrency tests
+			NumConns:            5, // Conservative for single-node Cassandra in CI
 		}
 		return cassandra.NewStore(cfg)
 
