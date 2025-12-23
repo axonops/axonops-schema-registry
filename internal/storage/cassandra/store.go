@@ -442,41 +442,25 @@ func (s *Store) GetSchemaByFingerprint(ctx context.Context, subject, fingerprint
 
 // GetLatestSchema retrieves the latest schema for a subject.
 func (s *Store) GetLatestSchema(ctx context.Context, subject string) (*storage.SchemaRecord, error) {
-	// Query with descending order to get latest first
-	iter := s.session.Query(
-		`SELECT subject, version, id, schema_type, schema_text, fingerprint, deleted, created_at
-		 FROM schemas WHERE subject = ? ORDER BY version DESC`,
-		subject,
-	).WithContext(ctx).Iter()
+	// Get all schemas for subject, ordered by version descending
+	schemas, err := s.GetSchemasBySubject(ctx, subject, false)
+	if err != nil {
+		return nil, err
+	}
 
-	for {
-		record := &storage.SchemaRecord{}
-		var schemaType string
-		if !iter.Scan(&record.Subject, &record.Version, &record.ID, &schemaType,
-			&record.Schema, &record.Fingerprint, &record.Deleted, &record.CreatedAt) {
-			break
-		}
+	if len(schemas) == 0 {
+		return nil, storage.ErrSubjectNotFound
+	}
 
-		if !record.Deleted {
-			iter.Close()
-			record.SchemaType = storage.SchemaType(schemaType)
-
-			// Load references
-			refs, err := s.loadReferences(ctx, record.ID)
-			if err != nil {
-				return nil, err
-			}
-			record.References = refs
-
-			return record, nil
+	// Find the highest version (schemas are not guaranteed to be sorted)
+	var latest *storage.SchemaRecord
+	for _, schema := range schemas {
+		if latest == nil || schema.Version > latest.Version {
+			latest = schema
 		}
 	}
 
-	if err := iter.Close(); err != nil {
-		return nil, fmt.Errorf("failed to query schemas: %w", err)
-	}
-
-	return nil, storage.ErrSubjectNotFound
+	return latest, nil
 }
 
 // DeleteSchema soft-deletes or permanently deletes a schema version.
