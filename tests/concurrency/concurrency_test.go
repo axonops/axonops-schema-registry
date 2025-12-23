@@ -108,24 +108,35 @@ func TestMain(m *testing.M) {
 	// Wait for servers to start
 	time.Sleep(2 * time.Second)
 
-	// Verify servers are ready before running tests
+	// Verify servers are ready before running tests by actually querying the database
 	for _, inst := range instances {
 		ready := false
 		for attempt := 0; attempt < 10; attempt++ {
-			resp, err := http.Get(inst.addr + "/")
+			// Test actual database connectivity by registering and then getting a test schema
+			testSubject := fmt.Sprintf("healthcheck-%d-%d", time.Now().UnixNano(), attempt)
+			testSchema := map[string]interface{}{
+				"schema": `{"type":"record","name":"HealthCheck","fields":[{"name":"id","type":"int"}]}`,
+			}
+			body, _ := json.Marshal(testSchema)
+			resp, err := http.Post(inst.addr+"/subjects/"+testSubject+"/versions", "application/json", bytes.NewReader(body))
 			if err == nil && resp.StatusCode == http.StatusOK {
 				resp.Body.Close()
 				ready = true
+				fmt.Fprintf(os.Stderr, "Server %s is ready (database connectivity verified)\n", inst.addr)
 				break
 			}
 			if resp != nil {
+				respBody, _ := io.ReadAll(resp.Body)
 				resp.Body.Close()
+				fmt.Fprintf(os.Stderr, "Server %s health check failed (attempt %d): status=%d, body=%s\n",
+					inst.addr, attempt+1, resp.StatusCode, string(respBody))
+			} else if err != nil {
+				fmt.Fprintf(os.Stderr, "Server %s health check failed (attempt %d): %v\n", inst.addr, attempt+1, err)
 			}
-			fmt.Fprintf(os.Stderr, "Waiting for %s to be ready (attempt %d)...\n", inst.addr, attempt+1)
-			time.Sleep(time.Second)
+			time.Sleep(2 * time.Second)
 		}
 		if !ready {
-			fmt.Fprintf(os.Stderr, "Server %s failed to become ready\n", inst.addr)
+			fmt.Fprintf(os.Stderr, "Server %s failed to become ready after database health checks\n", inst.addr)
 			os.Exit(1)
 		}
 	}
@@ -642,11 +653,21 @@ func TestDataConsistency(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to write: %v", err)
 	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		t.Fatalf("Failed to write schema: status %d, body: %s", resp.StatusCode, body)
+	}
+
 	var writeResult map[string]interface{}
 	json.NewDecoder(resp.Body).Decode(&writeResult)
-	resp.Body.Close()
 
-	schemaID := int(writeResult["id"].(float64))
+	idVal, ok := writeResult["id"]
+	if !ok || idVal == nil {
+		t.Fatalf("Expected 'id' in write response, got: %v", writeResult)
+	}
+	schemaID := int(idVal.(float64))
 
 	// Small delay for replication
 	time.Sleep(100 * time.Millisecond)
