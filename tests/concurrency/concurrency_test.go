@@ -140,7 +140,7 @@ func createStorage(_ context.Context) (storage.Storage, error) {
 			ReplicationFactor:   1,
 			ConnectTimeout:      30 * time.Second, // Longer timeout for CI
 			Timeout:             30 * time.Second,
-			NumConns:            2,
+			NumConns:            10, // Higher connection pool for concurrency tests
 		}
 		return cassandra.NewStore(cfg)
 

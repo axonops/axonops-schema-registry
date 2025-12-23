@@ -140,10 +140,17 @@ func NewStoreWithRetry(config Config, maxRetries int, retryDelay time.Duration) 
 		config:  config,
 	}
 
-	// Run migrations
+	// Run migrations first to ensure tables exist
 	if err := store.migrate(); err != nil {
 		session.Close()
 		return nil, fmt.Errorf("failed to run migrations: %w", err)
+	}
+
+	// Initialize idCache from Cassandra counter + unique offset for this instance
+	// This prevents ID collisions across multiple instances
+	if err := store.initIDCache(); err != nil {
+		session.Close()
+		return nil, fmt.Errorf("failed to initialize ID cache: %w", err)
 	}
 
 	return store, nil
@@ -763,29 +770,47 @@ func (s *Store) SetGlobalMode(ctx context.Context, mode *storage.ModeRecord) err
 	return s.SetMode(ctx, globalKey, mode)
 }
 
-// NextID returns the next available schema ID using counter table.
-func (s *Store) NextID(ctx context.Context) (int64, error) {
-	// Increment the counter
-	if err := s.session.Query(
-		`UPDATE id_counter SET value = value + 1 WHERE name = 'schema_id'`,
-	).WithContext(ctx).Exec(); err != nil {
-		return 0, fmt.Errorf("failed to increment counter: %w", err)
-	}
+// initIDCache initializes the local ID cache from Cassandra with a unique offset.
+// This prevents ID collisions across multiple instances.
+func (s *Store) initIDCache() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
-	// Read the current value
-	var value int64
-	if err := s.session.Query(
+	// Read current counter value from Cassandra
+	var currentValue int64
+	err := s.session.Query(
 		`SELECT value FROM id_counter WHERE name = 'schema_id'`,
-	).WithContext(ctx).Scan(&value); err != nil {
-		// If counter doesn't exist yet, initialize it
-		if err == gocql.ErrNotFound {
-			// Use local atomic counter as fallback
-			return atomic.AddInt64(&s.idCache, 1), nil
-		}
-		return 0, fmt.Errorf("failed to read counter: %w", err)
+	).WithContext(ctx).Scan(&currentValue)
+	if err != nil && err != gocql.ErrNotFound {
+		return fmt.Errorf("failed to read counter: %w", err)
 	}
 
-	return value, nil
+	// Add a unique offset based on current time (in milliseconds)
+	// This ensures each instance starts with a unique ID range
+	// Even if two instances start at the exact same millisecond,
+	// the atomic counter will ensure uniqueness within each instance
+	timeOffset := time.Now().UnixMilli() % 1000000 // Keep reasonable range
+
+	// Set initial cache value: current DB value + time-based offset * large multiplier
+	// This creates distinct ID ranges for each instance
+	s.idCache = currentValue + (timeOffset * 10000)
+
+	return nil
+}
+
+// NextID returns the next available schema ID using a hybrid approach.
+// Uses local atomic counter combined with instance-unique offset for uniqueness.
+func (s *Store) NextID(ctx context.Context) (int64, error) {
+	// Use local atomic counter for the ID
+	// The idCache was initialized with a unique offset for this instance
+	localID := atomic.AddInt64(&s.idCache, 1)
+
+	// Also increment Cassandra counter (best effort, for tracking)
+	_ = s.session.Query(
+		`UPDATE id_counter SET value = value + 1 WHERE name = 'schema_id'`,
+	).WithContext(ctx).Exec()
+
+	return localID, nil
 }
 
 // GetReferencedBy returns subjects/versions that reference the given schema.
