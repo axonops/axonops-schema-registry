@@ -340,7 +340,11 @@ func TestGetVersion(t *testing.T) {
 	schema := map[string]interface{}{
 		"schema": `{"type":"record","name":"TestGetVersion","fields":[{"name":"data","type":"bytes"}]}`,
 	}
-	doRequest(t, "POST", "/subjects/"+subject+"/versions", schema)
+	registerResp := doRequest(t, "POST", "/subjects/"+subject+"/versions", schema)
+	if registerResp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(registerResp.Body)
+		t.Fatalf("Failed to register schema: status %d, body: %s", registerResp.StatusCode, body)
+	}
 
 	// Get version 1
 	resp := doRequest(t, "GET", "/subjects/"+subject+"/versions/1", nil)
@@ -349,7 +353,7 @@ func TestGetVersion(t *testing.T) {
 	parseResponse(t, resp, &result)
 
 	if resp.StatusCode != http.StatusOK {
-		t.Errorf("Expected status 200, got %d", resp.StatusCode)
+		t.Fatalf("Expected status 200, got %d, response: %v", resp.StatusCode, result)
 	}
 
 	if result["version"].(float64) != 1 {

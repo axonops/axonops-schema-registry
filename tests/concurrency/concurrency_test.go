@@ -46,9 +46,9 @@ var (
 func init() {
 	// Reduce load for Cassandra in CI (single-node with limited resources)
 	if os.Getenv("STORAGE_TYPE") == "cassandra" {
-		numInstances = 1  // Single instance to avoid connection conflicts
-		numConcurrent = 5 // Fewer concurrent workers
-		numOperations = 20 // Fewer operations per worker
+		numInstances = 1
+		numConcurrent = 5
+		numOperations = 20
 	}
 }
 
