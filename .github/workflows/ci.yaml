@@ -10,7 +10,7 @@ env:
   GO_VERSION: '1.23'
 
 jobs:
-  # Build binary and run unit tests
+  # Build binaries and run unit tests
   build:
     name: Build & Unit Tests
     runs-on: ubuntu-latest
@@ -25,7 +25,7 @@ jobs:
       - name: Download dependencies
         run: go mod download
 
-      - name: Build binary
+      - name: Build server binary
         run: go build -o schema-registry ./cmd/schema-registry
 
       - name: Build all packages
@@ -34,17 +34,30 @@ jobs:
       - name: Run unit tests
         run: go test -v -race -coverprofile=coverage.out ./...
 
+      - name: Build integration test binary
+        run: go test -c -tags=integration -o integration.test ./tests/integration/...
+
+      - name: Build concurrency test binary
+        run: go test -c -tags=concurrency -o concurrency.test ./tests/concurrency/...
+
+      - name: Build API test binary
+        run: go test -c -tags=api -o api.test ./tests/api/...
+
       - name: Upload coverage
         uses: codecov/codecov-action@v4
         with:
           files: ./coverage.out
           fail_ci_if_error: false
 
-      - name: Upload binary artifact
+      - name: Upload binaries
         uses: actions/upload-artifact@v4
         with:
-          name: schema-registry-binary
-          path: schema-registry
+          name: test-binaries
+          path: |
+            schema-registry
+            integration.test
+            concurrency.test
+            api.test
           retention-days: 1
 
   # Static code analysis
@@ -143,12 +156,13 @@ jobs:
           --health-retries 5
 
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
+      - name: Download test binaries
+        uses: actions/download-artifact@v4
         with:
-          go-version: ${{ env.GO_VERSION }}
+          name: test-binaries
+
+      - name: Make binaries executable
+        run: chmod +x integration.test concurrency.test
 
       - name: Wait for PostgreSQL
         run: |
@@ -165,7 +179,7 @@ jobs:
           POSTGRES_USER: schemaregistry
           POSTGRES_PASSWORD: schemaregistry
           POSTGRES_DATABASE: schemaregistry
-        run: go test -v -tags=integration -timeout=10m ./tests/integration/...
+        run: ./integration.test -test.v -test.timeout=10m
 
       - name: Run concurrency tests
         env:
@@ -175,7 +189,7 @@ jobs:
           POSTGRES_USER: schemaregistry
           POSTGRES_PASSWORD: schemaregistry
           POSTGRES_DATABASE: schemaregistry
-        run: go test -v -tags=concurrency -timeout=15m ./tests/concurrency/...
+        run: ./concurrency.test -test.v -test.timeout=15m
 
   # MySQL tests (integration + concurrency)
   mysql-tests:
@@ -199,12 +213,13 @@ jobs:
           --health-retries 10
 
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
+      - name: Download test binaries
+        uses: actions/download-artifact@v4
         with:
-          go-version: ${{ env.GO_VERSION }}
+          name: test-binaries
+
+      - name: Make binaries executable
+        run: chmod +x integration.test concurrency.test
 
       - name: Wait for MySQL
         run: |
@@ -221,7 +236,7 @@ jobs:
           MYSQL_USER: schemaregistry
           MYSQL_PASSWORD: schemaregistry
           MYSQL_DATABASE: schemaregistry
-        run: go test -v -tags=integration -timeout=10m ./tests/integration/...
+        run: ./integration.test -test.v -test.timeout=10m
 
       - name: Run concurrency tests
         env:
@@ -231,7 +246,7 @@ jobs:
           MYSQL_USER: schemaregistry
           MYSQL_PASSWORD: schemaregistry
           MYSQL_DATABASE: schemaregistry
-        run: go test -v -tags=concurrency -timeout=15m ./tests/concurrency/...
+        run: ./concurrency.test -test.v -test.timeout=15m
 
   # Cassandra tests (integration + concurrency)
   cassandra-tests:
@@ -239,12 +254,13 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build]
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
+      - name: Download test binaries
+        uses: actions/download-artifact@v4
         with:
-          go-version: ${{ env.GO_VERSION }}
+          name: test-binaries
+
+      - name: Make binaries executable
+        run: chmod +x integration.test concurrency.test
 
       - name: Start Cassandra
         run: |
@@ -297,7 +313,7 @@ jobs:
           CASSANDRA_HOSTS: 127.0.0.1
           CASSANDRA_PORT: 9042
           CASSANDRA_KEYSPACE: schemaregistry
-        run: go test -v -tags=integration -timeout=15m ./tests/integration/...
+        run: ./integration.test -test.v -test.timeout=15m
 
       - name: Restart Cassandra for concurrency tests
         run: |
@@ -321,7 +337,7 @@ jobs:
           CASSANDRA_HOSTS: 127.0.0.1
           CASSANDRA_PORT: 9042
           CASSANDRA_KEYSPACE: schemaregistry
-        run: go test -v -tags=concurrency -timeout=20m ./tests/concurrency/...
+        run: ./concurrency.test -test.v -test.timeout=20m
 
       - name: Cleanup Cassandra
         if: always()
@@ -333,20 +349,13 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build]
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ env.GO_VERSION }}
-
-      - name: Download binary artifact
+      - name: Download test binaries
         uses: actions/download-artifact@v4
         with:
-          name: schema-registry-binary
+          name: test-binaries
 
-      - name: Make binary executable
-        run: chmod +x schema-registry
+      - name: Make binaries executable
+        run: chmod +x schema-registry api.test
 
       - name: Start schema registry (memory backend)
         run: |
@@ -354,7 +363,7 @@ jobs:
           sleep 3
 
       - name: Run API tests
-        run: go test -v -tags=api -timeout=10m ./tests/api/...
+        run: ./api.test -test.v -test.timeout=10m
 
       - name: Stop schema registry
         run: pkill schema-registry || true
