@@ -113,9 +113,16 @@ func createStorage(_ context.Context) (storage.Storage, error) {
 
 	case "cassandra":
 		cfg := cassandra.Config{
-			Hosts:    []string{getEnvOrDefault("CASSANDRA_HOSTS", "localhost")},
-			Port:     getEnvOrDefaultInt("CASSANDRA_PORT", 9042),
-			Keyspace: getEnvOrDefault("CASSANDRA_KEYSPACE", "schemaregistry"),
+			Hosts:               []string{getEnvOrDefault("CASSANDRA_HOSTS", "localhost")},
+			Port:                getEnvOrDefaultInt("CASSANDRA_PORT", 9042),
+			Keyspace:            getEnvOrDefault("CASSANDRA_KEYSPACE", "schemaregistry"),
+			Consistency:         "LOCAL_ONE", // Use LOCAL_ONE for single-node test cluster
+			LocalDC:             "dc1",       // Match the DC configured in the test container
+			ReplicationStrategy: "SimpleStrategy",
+			ReplicationFactor:   1,
+			ConnectTimeout:      30 * time.Second, // Longer timeout for CI
+			Timeout:             30 * time.Second,
+			NumConns:            2,
 		}
 		return cassandra.NewStore(cfg)
 
