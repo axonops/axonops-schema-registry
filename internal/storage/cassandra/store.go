@@ -237,58 +237,76 @@ func (s *Store) CreateSchema(ctx context.Context, record *storage.SchemaRecord) 
 		}
 	}
 
-	// Get next version for this subject
-	var maxVersion int
-	iter := s.session.Query(
-		`SELECT version FROM schemas WHERE subject = ? ORDER BY version DESC LIMIT 1`,
-		record.Subject,
-	).WithContext(ctx).Iter()
-	iter.Scan(&maxVersion)
-	iter.Close()
-	nextVersion := maxVersion + 1
-
-	// Generate new ID
+	// Generate new ID first
 	newID, err := s.NextID(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to generate ID: %w", err)
 	}
-
 	record.ID = newID
-	record.Version = nextVersion
 	record.CreatedAt = time.Now()
 
-	// Use batch for atomic insert
-	batch := s.session.NewBatch(gocql.LoggedBatch).WithContext(ctx)
+	// Use LWT (Lightweight Transaction) with retry to handle concurrent version assignment
+	// This ensures no two schemas get the same version for the same subject
+	maxRetries := 5
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		// Get current max version
+		var maxVersion int
+		iter := s.session.Query(
+			`SELECT version FROM schemas WHERE subject = ? ORDER BY version DESC LIMIT 1`,
+			record.Subject,
+		).WithContext(ctx).Iter()
+		iter.Scan(&maxVersion)
+		iter.Close()
+		nextVersion := maxVersion + 1
+		record.Version = nextVersion
 
-	// Insert into schemas table
-	batch.Query(
-		`INSERT INTO schemas (subject, version, id, schema_type, schema_text, fingerprint, deleted, created_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		record.Subject, record.Version, record.ID, string(record.SchemaType),
-		record.Schema, record.Fingerprint, false, record.CreatedAt,
-	)
+		// Use LWT INSERT with IF NOT EXISTS for the main schemas table
+		// This ensures atomic version assignment
+		var applied bool
+		err := s.session.Query(
+			`INSERT INTO schemas (subject, version, id, schema_type, schema_text, fingerprint, deleted, created_at)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?) IF NOT EXISTS`,
+			record.Subject, record.Version, record.ID, string(record.SchemaType),
+			record.Schema, record.Fingerprint, false, record.CreatedAt,
+		).WithContext(ctx).Scan(&applied, nil, nil, nil, nil, nil, nil, nil, nil)
 
-	// Insert into schemas_by_id
-	batch.Query(
-		`INSERT INTO schemas_by_id (id, subject, version) VALUES (?, ?, ?)`,
-		record.ID, record.Subject, record.Version,
-	)
+		if err != nil {
+			return fmt.Errorf("failed to insert schema: %w", err)
+		}
 
-	// Insert into schemas_by_fingerprint
-	batch.Query(
-		`INSERT INTO schemas_by_fingerprint (subject, fingerprint, id, version) VALUES (?, ?, ?, ?)`,
-		record.Subject, record.Fingerprint, record.ID, record.Version,
-	)
+		if applied {
+			// LWT succeeded, now insert into lookup tables
+			// These don't need LWT since the primary table insert succeeded
+			if err := s.session.Query(
+				`INSERT INTO schemas_by_id (id, subject, version) VALUES (?, ?, ?)`,
+				record.ID, record.Subject, record.Version,
+			).WithContext(ctx).Exec(); err != nil {
+				return fmt.Errorf("failed to insert schema_by_id: %w", err)
+			}
 
-	// Track subject in subjects table
-	bucket := s.subjectBucket(record.Subject)
-	batch.Query(
-		`INSERT INTO subjects (bucket, subject) VALUES (?, ?)`,
-		bucket, record.Subject,
-	)
+			if err := s.session.Query(
+				`INSERT INTO schemas_by_fingerprint (subject, fingerprint, id, version) VALUES (?, ?, ?, ?)`,
+				record.Subject, record.Fingerprint, record.ID, record.Version,
+			).WithContext(ctx).Exec(); err != nil {
+				return fmt.Errorf("failed to insert schema_by_fingerprint: %w", err)
+			}
 
-	if err := s.session.ExecuteBatch(batch); err != nil {
-		return fmt.Errorf("failed to insert schema: %w", err)
+			// Track subject in subjects table
+			bucket := s.subjectBucket(record.Subject)
+			if err := s.session.Query(
+				`INSERT INTO subjects (bucket, subject) VALUES (?, ?)`,
+				bucket, record.Subject,
+			).WithContext(ctx).Exec(); err != nil {
+				return fmt.Errorf("failed to insert subject: %w", err)
+			}
+
+			break // Success, exit retry loop
+		}
+
+		// LWT failed (version already exists), retry with next version
+		if attempt == maxRetries-1 {
+			return fmt.Errorf("failed to insert schema after %d retries: version conflict", maxRetries)
+		}
 	}
 
 	// Insert references
