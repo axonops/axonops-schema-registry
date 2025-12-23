@@ -255,6 +255,20 @@ jobs:
           CASSANDRA_KEYSPACE: schemaregistry
         run: go test -v -tags=integration -timeout=15m ./tests/integration/...
 
+      - name: Wait for Cassandra to recover
+        run: |
+          echo "Waiting for Cassandra connection pool to reset..."
+          sleep 10
+          # Verify Cassandra is still accepting connections
+          for i in {1..10}; do
+            if docker exec cassandra-test cqlsh -e "SELECT now() FROM system.local" 2>/dev/null; then
+              echo "Cassandra is ready"
+              break
+            fi
+            echo "Waiting for Cassandra... ($i)"
+            sleep 2
+          done
+
       - name: Run concurrency tests
         env:
           STORAGE_TYPE: cassandra

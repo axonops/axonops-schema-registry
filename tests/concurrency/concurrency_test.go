@@ -108,6 +108,30 @@ func TestMain(m *testing.M) {
 	// Wait for servers to start
 	time.Sleep(2 * time.Second)
 
+	// Verify servers are ready before running tests
+	for _, inst := range instances {
+		ready := false
+		for attempt := 0; attempt < 10; attempt++ {
+			resp, err := http.Get(inst.addr + "/")
+			if err == nil && resp.StatusCode == http.StatusOK {
+				resp.Body.Close()
+				ready = true
+				break
+			}
+			if resp != nil {
+				resp.Body.Close()
+			}
+			fmt.Fprintf(os.Stderr, "Waiting for %s to be ready (attempt %d)...\n", inst.addr, attempt+1)
+			time.Sleep(time.Second)
+		}
+		if !ready {
+			fmt.Fprintf(os.Stderr, "Server %s failed to become ready\n", inst.addr)
+			os.Exit(1)
+		}
+	}
+
+	fmt.Fprintf(os.Stderr, "All %d server instances are ready\n", len(instances))
+
 	// Run tests
 	code := m.Run()
 
@@ -150,9 +174,10 @@ func createStorage(_ context.Context) (storage.Storage, error) {
 			ReplicationFactor:   1,
 			ConnectTimeout:      30 * time.Second,
 			Timeout:             30 * time.Second,
-			NumConns:            2, // Conservative for single-node Cassandra in CI
+			NumConns:            5, // Slightly more connections for concurrency test
 		}
-		return cassandra.NewStore(cfg)
+		// Use retry logic for connection establishment
+		return cassandra.NewStoreWithRetry(cfg, 5, 3*time.Second)
 
 	default:
 		return nil, fmt.Errorf("unsupported storage type: %s", storageType)
@@ -348,11 +373,21 @@ func TestConcurrentReads(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to register schema: %v", err)
 	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		t.Fatalf("Failed to register schema: status %d, body: %s", resp.StatusCode, body)
+	}
+
 	var result map[string]interface{}
 	json.NewDecoder(resp.Body).Decode(&result)
-	resp.Body.Close()
 
-	schemaID := int(result["id"].(float64))
+	idVal, ok := result["id"]
+	if !ok || idVal == nil {
+		t.Fatalf("Expected 'id' in registration response, got: %v", result)
+	}
+	schemaID := int(idVal.(float64))
 
 	var wg sync.WaitGroup
 	var successCount, errorCount int64
