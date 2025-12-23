@@ -406,7 +406,13 @@ func TestLookupSchema(t *testing.T) {
 	}
 
 	// Register
-	doRequest(t, "POST", "/subjects/"+subject+"/versions", schema)
+	registerResp := doRequest(t, "POST", "/subjects/"+subject+"/versions", schema)
+	if registerResp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(registerResp.Body)
+		registerResp.Body.Close()
+		t.Fatalf("Failed to register schema: status %d, body: %s", registerResp.StatusCode, body)
+	}
+	registerResp.Body.Close()
 
 	// Lookup
 	resp := doRequest(t, "POST", "/subjects/"+subject, schema)
@@ -415,7 +421,7 @@ func TestLookupSchema(t *testing.T) {
 	parseResponse(t, resp, &result)
 
 	if resp.StatusCode != http.StatusOK {
-		t.Errorf("Expected status 200, got %d", resp.StatusCode)
+		t.Fatalf("Expected status 200, got %d, body: %v", resp.StatusCode, result)
 	}
 
 	if _, ok := result["id"]; !ok {
@@ -429,17 +435,25 @@ func TestDeleteSubject(t *testing.T) {
 	schema := map[string]interface{}{
 		"schema": `{"type":"record","name":"TestDelete","fields":[{"name":"x","type":"double"}]}`,
 	}
-	doRequest(t, "POST", "/subjects/"+subject+"/versions", schema)
+	registerResp := doRequest(t, "POST", "/subjects/"+subject+"/versions", schema)
+	if registerResp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(registerResp.Body)
+		registerResp.Body.Close()
+		t.Fatalf("Failed to register schema: status %d, body: %s", registerResp.StatusCode, body)
+	}
+	registerResp.Body.Close()
 
 	// Delete
 	resp := doRequest(t, "DELETE", "/subjects/"+subject, nil)
 
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		t.Fatalf("Expected status 200, got %d, body: %s", resp.StatusCode, body)
+	}
+
 	var versions []int
 	parseResponse(t, resp, &versions)
-
-	if resp.StatusCode != http.StatusOK {
-		t.Errorf("Expected status 200, got %d", resp.StatusCode)
-	}
 
 	if len(versions) == 0 {
 		t.Error("Expected deleted versions in response")
@@ -450,12 +464,14 @@ func TestConfig(t *testing.T) {
 	// Get global config
 	resp := doRequest(t, "GET", "/config", nil)
 
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		t.Fatalf("Expected status 200 for GET /config, got %d, body: %s", resp.StatusCode, body)
+	}
+
 	var config map[string]interface{}
 	parseResponse(t, resp, &config)
-
-	if resp.StatusCode != http.StatusOK {
-		t.Errorf("Expected status 200, got %d", resp.StatusCode)
-	}
 
 	// Set config
 	newConfig := map[string]string{
@@ -463,11 +479,13 @@ func TestConfig(t *testing.T) {
 	}
 	resp = doRequest(t, "PUT", "/config", newConfig)
 
-	parseResponse(t, resp, &config)
-
 	if resp.StatusCode != http.StatusOK {
-		t.Errorf("Expected status 200, got %d", resp.StatusCode)
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		t.Fatalf("Expected status 200 for PUT /config, got %d, body: %s", resp.StatusCode, body)
 	}
+
+	parseResponse(t, resp, &config)
 }
 
 func TestSubjectConfig(t *testing.T) {
@@ -477,7 +495,13 @@ func TestSubjectConfig(t *testing.T) {
 	schema := map[string]interface{}{
 		"schema": `{"type":"record","name":"TestConfig","fields":[{"name":"y","type":"int"}]}`,
 	}
-	doRequest(t, "POST", "/subjects/"+subject+"/versions", schema)
+	registerResp := doRequest(t, "POST", "/subjects/"+subject+"/versions", schema)
+	if registerResp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(registerResp.Body)
+		registerResp.Body.Close()
+		t.Fatalf("Failed to register schema: status %d, body: %s", registerResp.StatusCode, body)
+	}
+	registerResp.Body.Close()
 
 	// Set subject config
 	newConfig := map[string]string{
@@ -485,12 +509,14 @@ func TestSubjectConfig(t *testing.T) {
 	}
 	resp := doRequest(t, "PUT", "/config/"+subject, newConfig)
 
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		t.Fatalf("Expected status 200, got %d, body: %s", resp.StatusCode, body)
+	}
+
 	var config map[string]interface{}
 	parseResponse(t, resp, &config)
-
-	if resp.StatusCode != http.StatusOK {
-		t.Errorf("Expected status 200, got %d", resp.StatusCode)
-	}
 }
 
 func TestCompatibilityCheck(t *testing.T) {
@@ -500,7 +526,13 @@ func TestCompatibilityCheck(t *testing.T) {
 	schema1 := map[string]interface{}{
 		"schema": `{"type":"record","name":"TestCompat","fields":[{"name":"id","type":"int"}]}`,
 	}
-	doRequest(t, "POST", "/subjects/"+subject+"/versions", schema1)
+	registerResp := doRequest(t, "POST", "/subjects/"+subject+"/versions", schema1)
+	if registerResp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(registerResp.Body)
+		registerResp.Body.Close()
+		t.Fatalf("Failed to register schema: status %d, body: %s", registerResp.StatusCode, body)
+	}
+	registerResp.Body.Close()
 
 	// Check compatible schema
 	compatSchema := map[string]interface{}{
@@ -508,12 +540,14 @@ func TestCompatibilityCheck(t *testing.T) {
 	}
 	resp := doRequest(t, "POST", "/compatibility/subjects/"+subject+"/versions/latest", compatSchema)
 
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		t.Fatalf("Expected status 200, got %d, body: %s", resp.StatusCode, body)
+	}
+
 	var result map[string]interface{}
 	parseResponse(t, resp, &result)
-
-	if resp.StatusCode != http.StatusOK {
-		t.Errorf("Expected status 200, got %d", resp.StatusCode)
-	}
 
 	if isCompat, ok := result["is_compatible"].(bool); !ok || !isCompat {
 		t.Error("Expected schema to be compatible")
@@ -540,17 +574,28 @@ func TestGetSchemaByIDSchema(t *testing.T) {
 	}
 
 	resp := doRequest(t, "POST", "/subjects/"+subject+"/versions", schema)
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		t.Fatalf("Failed to register schema: status %d, body: %s", resp.StatusCode, body)
+	}
+
 	var registerResult map[string]interface{}
 	parseResponse(t, resp, &registerResult)
 
-	schemaID := int(registerResult["id"].(float64))
+	idVal, ok := registerResult["id"]
+	if !ok || idVal == nil {
+		t.Fatalf("Expected 'id' in registration response, got: %v", registerResult)
+	}
+	schemaID := int(idVal.(float64))
 
 	// Get raw schema
 	resp = doRequest(t, "GET", fmt.Sprintf("/schemas/ids/%d/schema", schemaID), nil)
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		t.Errorf("Expected status 200, got %d", resp.StatusCode)
+		body, _ := io.ReadAll(resp.Body)
+		t.Fatalf("Expected status 200, got %d, body: %s", resp.StatusCode, body)
 	}
 }
 
