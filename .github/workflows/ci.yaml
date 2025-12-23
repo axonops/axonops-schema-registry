@@ -10,7 +10,7 @@ env:
   GO_VERSION: '1.23'
 
 jobs:
-  # Build and unit tests
+  # Build binary and run unit tests
   build:
     name: Build & Unit Tests
     runs-on: ubuntu-latest
@@ -25,7 +25,10 @@ jobs:
       - name: Download dependencies
         run: go mod download
 
-      - name: Build
+      - name: Build binary
+        run: go build -o schema-registry ./cmd/schema-registry
+
+      - name: Build all packages
         run: go build -v ./...
 
       - name: Run unit tests
@@ -36,6 +39,13 @@ jobs:
         with:
           files: ./coverage.out
           fail_ci_if_error: false
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: schema-registry-binary
+          path: schema-registry
+          retention-days: 1
 
   # Static code analysis
   lint:
@@ -112,9 +122,9 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # Integration tests with PostgreSQL
-  integration-postgres:
-    name: Integration Tests (PostgreSQL)
+  # PostgreSQL tests (integration + concurrency)
+  postgres-tests:
+    name: PostgreSQL Tests
     runs-on: ubuntu-latest
     needs: [build]
     services:
@@ -157,9 +167,19 @@ jobs:
           POSTGRES_DATABASE: schemaregistry
         run: go test -v -tags=integration -timeout=10m ./tests/integration/...
 
-  # Integration tests with MySQL
-  integration-mysql:
-    name: Integration Tests (MySQL)
+      - name: Run concurrency tests
+        env:
+          STORAGE_TYPE: postgres
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: 5432
+          POSTGRES_USER: schemaregistry
+          POSTGRES_PASSWORD: schemaregistry
+          POSTGRES_DATABASE: schemaregistry
+        run: go test -v -tags=concurrency -timeout=15m ./tests/concurrency/...
+
+  # MySQL tests (integration + concurrency)
+  mysql-tests:
+    name: MySQL Tests
     runs-on: ubuntu-latest
     needs: [build]
     services:
@@ -203,7 +223,17 @@ jobs:
           MYSQL_DATABASE: schemaregistry
         run: go test -v -tags=integration -timeout=10m ./tests/integration/...
 
-  # All Cassandra tests (integration + concurrency) in a single job
+      - name: Run concurrency tests
+        env:
+          STORAGE_TYPE: mysql
+          MYSQL_HOST: localhost
+          MYSQL_PORT: 3306
+          MYSQL_USER: schemaregistry
+          MYSQL_PASSWORD: schemaregistry
+          MYSQL_DATABASE: schemaregistry
+        run: go test -v -tags=concurrency -timeout=15m ./tests/concurrency/...
+
+  # Cassandra tests (integration + concurrency)
   cassandra-tests:
     name: Cassandra Tests
     runs-on: ubuntu-latest
@@ -283,88 +313,6 @@ jobs:
         if: always()
         run: docker stop cassandra-test && docker rm cassandra-test || true
 
-  # Concurrency tests with multiple instances
-  concurrency-postgres:
-    name: Concurrency Tests (PostgreSQL)
-    runs-on: ubuntu-latest
-    needs: [integration-postgres]
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_USER: schemaregistry
-          POSTGRES_PASSWORD: schemaregistry
-          POSTGRES_DB: schemaregistry
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ env.GO_VERSION }}
-
-      - name: Build binary
-        run: go build -o schema-registry ./cmd/schema-registry
-
-      - name: Run concurrency tests
-        env:
-          STORAGE_TYPE: postgres
-          POSTGRES_HOST: localhost
-          POSTGRES_PORT: 5432
-          POSTGRES_USER: schemaregistry
-          POSTGRES_PASSWORD: schemaregistry
-          POSTGRES_DATABASE: schemaregistry
-        run: go test -v -tags=concurrency -timeout=15m ./tests/concurrency/...
-
-  concurrency-mysql:
-    name: Concurrency Tests (MySQL)
-    runs-on: ubuntu-latest
-    needs: [integration-mysql]
-    services:
-      mysql:
-        image: mysql:8
-        env:
-          MYSQL_ROOT_PASSWORD: root
-          MYSQL_USER: schemaregistry
-          MYSQL_PASSWORD: schemaregistry
-          MYSQL_DATABASE: schemaregistry
-        ports:
-          - 3306:3306
-        options: >-
-          --health-cmd "mysqladmin ping -h localhost"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 10
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ env.GO_VERSION }}
-
-      - name: Build binary
-        run: go build -o schema-registry ./cmd/schema-registry
-
-      - name: Run concurrency tests
-        env:
-          STORAGE_TYPE: mysql
-          MYSQL_HOST: localhost
-          MYSQL_PORT: 3306
-          MYSQL_USER: schemaregistry
-          MYSQL_PASSWORD: schemaregistry
-          MYSQL_DATABASE: schemaregistry
-        run: go test -v -tags=concurrency -timeout=15m ./tests/concurrency/...
-
   # API endpoint tests
   api-tests:
     name: API Endpoint Tests
@@ -378,8 +326,13 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
 
-      - name: Build binary
-        run: go build -o schema-registry ./cmd/schema-registry
+      - name: Download binary artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: schema-registry-binary
+
+      - name: Make binary executable
+        run: chmod +x schema-registry
 
       - name: Start schema registry (memory backend)
         run: |
