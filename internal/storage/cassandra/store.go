@@ -81,16 +81,6 @@ func NewStoreWithRetry(config Config, maxRetries int, retryDelay time.Duration) 
 	consistency := parseConsistency(config.Consistency)
 	cluster.Consistency = consistency
 
-	// Configure retry policy for resilience under load
-	cluster.RetryPolicy = &gocql.ExponentialBackoffRetryPolicy{
-		NumRetries: 3,
-		Min:        100 * time.Millisecond,
-		Max:        2 * time.Second,
-	}
-
-	// Configure reconnection for failed hosts
-	cluster.ReconnectInterval = time.Second
-
 	// Authentication
 	if config.Username != "" {
 		cluster.Authenticator = gocql.PasswordAuthenticator{

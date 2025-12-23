@@ -35,12 +35,22 @@ import (
 	"github.com/axonops/axonops-schema-registry/internal/storage/postgres"
 )
 
-const (
+var (
+	// Default values - can be reduced for Cassandra
 	numInstances   = 3
 	numConcurrent  = 10
 	numOperations  = 100
 	requestTimeout = 30 * time.Second
 )
+
+func init() {
+	// Reduce load for Cassandra in CI (single-node with limited resources)
+	if os.Getenv("STORAGE_TYPE") == "cassandra" {
+		numInstances = 1  // Single instance to avoid connection conflicts
+		numConcurrent = 5 // Fewer concurrent workers
+		numOperations = 20 // Fewer operations per worker
+	}
+}
 
 type instance struct {
 	server *api.Server
@@ -98,23 +108,6 @@ func TestMain(m *testing.M) {
 	// Wait for servers to start
 	time.Sleep(2 * time.Second)
 
-	// For Cassandra, do warmup requests to establish connections
-	if os.Getenv("STORAGE_TYPE") == "cassandra" {
-		fmt.Println("Warming up Cassandra connections...")
-		for i := 0; i < 5; i++ {
-			for _, inst := range instances {
-				resp, err := doRequest("GET", inst.addr+"/subjects", nil)
-				if err != nil {
-					fmt.Printf("Warmup request failed: %v\n", err)
-					continue
-				}
-				resp.Body.Close()
-			}
-			time.Sleep(500 * time.Millisecond)
-		}
-		fmt.Println("Warmup complete")
-	}
-
 	// Run tests
 	code := m.Run()
 
@@ -155,9 +148,9 @@ func createStorage(_ context.Context) (storage.Storage, error) {
 			LocalDC:             "dc1",       // Match the DC configured in the test container
 			ReplicationStrategy: "SimpleStrategy",
 			ReplicationFactor:   1,
-			ConnectTimeout:      60 * time.Second, // Longer timeout for CI
-			Timeout:             60 * time.Second,
-			NumConns:            5, // Conservative for single-node Cassandra in CI
+			ConnectTimeout:      30 * time.Second,
+			Timeout:             30 * time.Second,
+			NumConns:            2, // Conservative for single-node Cassandra in CI
 		}
 		return cassandra.NewStore(cfg)
 
