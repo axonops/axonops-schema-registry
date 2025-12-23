@@ -218,64 +218,30 @@ jobs:
 
       - name: Start Cassandra
         run: |
+          # Use host network mode so Cassandra binds to localhost properly
           docker run -d --name cassandra-test \
-            -p 9042:9042 \
+            --network host \
             -e CASSANDRA_CLUSTER_NAME=TestCluster \
             -e CASSANDRA_DC=dc1 \
             -e CASSANDRA_ENDPOINT_SNITCH=SimpleSnitch \
+            -e MAX_HEAP_SIZE=512M \
+            -e HEAP_NEWSIZE=100M \
             cassandra:4.1
 
-          # Wait for Cassandra to be ready
+          # Wait for Cassandra to be ready (up to 5 minutes)
           echo "Waiting for Cassandra to start..."
-          for i in {1..60}; do
+          for i in {1..90}; do
             if docker exec cassandra-test cqlsh -e "describe cluster" 2>/dev/null; then
-              echo "Cassandra is ready inside container"
+              echo "Cassandra is ready"
               break
             fi
             echo "Waiting for Cassandra... ($i)"
-            sleep 5
-          done
-
-      - name: Configure Cassandra for external connections
-        run: |
-          # Update Cassandra config to listen on all interfaces
-          docker exec cassandra-test bash -c "sed -i 's/^rpc_address:.*/rpc_address: 0.0.0.0/' /etc/cassandra/cassandra.yaml"
-          docker exec cassandra-test bash -c "sed -i 's/^# broadcast_rpc_address:.*/broadcast_rpc_address: 127.0.0.1/' /etc/cassandra/cassandra.yaml"
-          docker exec cassandra-test bash -c "echo 'native_transport_broadcast_address: 127.0.0.1' >> /etc/cassandra/cassandra.yaml"
-
-          # Restart Cassandra to apply config
-          docker exec cassandra-test nodetool drain
-          docker restart cassandra-test
-
-          # Wait for restart
-          echo "Waiting for Cassandra to restart..."
-          sleep 30
-          for i in {1..60}; do
-            if docker exec cassandra-test cqlsh -e "describe cluster" 2>/dev/null; then
-              echo "Cassandra restarted successfully"
-              break
-            fi
-            echo "Waiting for Cassandra restart... ($i)"
-            sleep 5
+            sleep 4
           done
 
       - name: Create Cassandra keyspace
         run: |
           docker exec cassandra-test cqlsh -e "CREATE KEYSPACE IF NOT EXISTS schemaregistry WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1};"
-
-      - name: Verify Cassandra connectivity from host
-        run: |
-          # Test with Python driver (more similar to gocql behavior)
-          pip install --quiet cassandra-driver
-          python3 -c "
-          from cassandra.cluster import Cluster
-          cluster = Cluster(['127.0.0.1'], port=9042)
-          session = cluster.connect()
-          print('Successfully connected to Cassandra from host!')
-          session.execute('USE schemaregistry')
-          print('Keyspace accessible!')
-          cluster.shutdown()
-          "
 
       - name: Run integration tests
         env:
@@ -385,64 +351,30 @@ jobs:
 
       - name: Start Cassandra
         run: |
+          # Use host network mode so Cassandra binds to localhost properly
           docker run -d --name cassandra-test \
-            -p 9042:9042 \
+            --network host \
             -e CASSANDRA_CLUSTER_NAME=TestCluster \
             -e CASSANDRA_DC=dc1 \
             -e CASSANDRA_ENDPOINT_SNITCH=SimpleSnitch \
+            -e MAX_HEAP_SIZE=512M \
+            -e HEAP_NEWSIZE=100M \
             cassandra:4.1
 
-          # Wait for Cassandra to be ready
+          # Wait for Cassandra to be ready (up to 5 minutes)
           echo "Waiting for Cassandra to start..."
-          for i in {1..60}; do
+          for i in {1..90}; do
             if docker exec cassandra-test cqlsh -e "describe cluster" 2>/dev/null; then
-              echo "Cassandra is ready inside container"
+              echo "Cassandra is ready"
               break
             fi
             echo "Waiting for Cassandra... ($i)"
-            sleep 5
-          done
-
-      - name: Configure Cassandra for external connections
-        run: |
-          # Update Cassandra config to listen on all interfaces
-          docker exec cassandra-test bash -c "sed -i 's/^rpc_address:.*/rpc_address: 0.0.0.0/' /etc/cassandra/cassandra.yaml"
-          docker exec cassandra-test bash -c "sed -i 's/^# broadcast_rpc_address:.*/broadcast_rpc_address: 127.0.0.1/' /etc/cassandra/cassandra.yaml"
-          docker exec cassandra-test bash -c "echo 'native_transport_broadcast_address: 127.0.0.1' >> /etc/cassandra/cassandra.yaml"
-
-          # Restart Cassandra to apply config
-          docker exec cassandra-test nodetool drain
-          docker restart cassandra-test
-
-          # Wait for restart
-          echo "Waiting for Cassandra to restart..."
-          sleep 30
-          for i in {1..60}; do
-            if docker exec cassandra-test cqlsh -e "describe cluster" 2>/dev/null; then
-              echo "Cassandra restarted successfully"
-              break
-            fi
-            echo "Waiting for Cassandra restart... ($i)"
-            sleep 5
+            sleep 4
           done
 
       - name: Create Cassandra keyspace
         run: |
           docker exec cassandra-test cqlsh -e "CREATE KEYSPACE IF NOT EXISTS schemaregistry WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1};"
-
-      - name: Verify Cassandra connectivity from host
-        run: |
-          # Test with Python driver (more similar to gocql behavior)
-          pip install --quiet cassandra-driver
-          python3 -c "
-          from cassandra.cluster import Cluster
-          cluster = Cluster(['127.0.0.1'], port=9042)
-          session = cluster.connect()
-          print('Successfully connected to Cassandra from host!')
-          session.execute('USE schemaregistry')
-          print('Keyspace accessible!')
-          cluster.shutdown()
-          "
 
       - name: Build binary
         run: go build -o schema-registry ./cmd/schema-registry
