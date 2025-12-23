@@ -81,6 +81,15 @@ func NewStoreWithRetry(config Config, maxRetries int, retryDelay time.Duration) 
 	consistency := parseConsistency(config.Consistency)
 	cluster.Consistency = consistency
 
+	// Configure reconnection policy for better resilience
+	cluster.ReconnectionPolicy = &gocql.ConstantReconnectionPolicy{
+		MaxRetries: 10,
+		Interval:   time.Second,
+	}
+
+	// Configure retry policy
+	cluster.RetryPolicy = &gocql.SimpleRetryPolicy{NumRetries: 3}
+
 	// Authentication
 	if config.Username != "" {
 		cluster.Authenticator = gocql.PasswordAuthenticator{
@@ -89,8 +98,9 @@ func NewStoreWithRetry(config Config, maxRetries int, retryDelay time.Duration) 
 		}
 	}
 
-	// Datacenter-aware configuration
-	if config.LocalDC != "" {
+	// Datacenter-aware configuration - only use for multi-DC setups
+	// For single-node/test setups, use simple round-robin
+	if config.LocalDC != "" && len(config.Hosts) > 1 {
 		cluster.PoolConfig.HostSelectionPolicy = gocql.DCAwareRoundRobinPolicy(config.LocalDC)
 	}
 
