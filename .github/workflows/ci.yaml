@@ -243,6 +243,37 @@ jobs:
         run: |
           docker exec cassandra-test cqlsh -e "CREATE KEYSPACE IF NOT EXISTS schemaregistry WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1};"
 
+      - name: Debug network - check where port 9042 is listening
+        run: |
+          echo "=== Port 9042 listeners on host (ss) ==="
+          ss -tlnp | grep 9042 || echo "Not found via ss"
+
+          echo ""
+          echo "=== Port 9042 listeners on host (netstat) ==="
+          netstat -tlnp 2>/dev/null | grep 9042 || echo "Not found via netstat"
+
+          echo ""
+          echo "=== Port 9042 inside Cassandra container ==="
+          docker exec cassandra-test sh -c "ss -tlnp 2>/dev/null | grep 9042 || netstat -tlnp 2>/dev/null | grep 9042" || echo "Could not check inside container"
+
+          echo ""
+          echo "=== Cassandra listen configuration ==="
+          docker exec cassandra-test grep -E "^(listen_address|rpc_address|native_transport|broadcast)" /etc/cassandra/cassandra.yaml 2>/dev/null || true
+
+          echo ""
+          echo "=== Testing TCP connectivity to 127.0.0.1:9042 ==="
+          nc -zv 127.0.0.1 9042 2>&1 || echo "nc failed"
+          timeout 5 bash -c 'cat < /dev/null > /dev/tcp/127.0.0.1/9042' 2>&1 && echo "TCP connect succeeded" || echo "TCP connect failed"
+
+          echo ""
+          echo "=== Testing TCP connectivity to localhost:9042 ==="
+          nc -zv localhost 9042 2>&1 || echo "nc failed"
+
+          echo ""
+          echo "=== Docker container info ==="
+          docker inspect cassandra-test --format '{{.NetworkSettings.NetworkMode}}' || true
+          docker inspect cassandra-test --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' || true
+
       - name: Run integration tests
         env:
           STORAGE_TYPE: cassandra
