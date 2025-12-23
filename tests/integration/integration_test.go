@@ -364,12 +364,20 @@ func TestGetLatestVersion(t *testing.T) {
 	schema1 := map[string]interface{}{
 		"schema": `{"type":"record","name":"TestLatest","fields":[{"name":"id","type":"int"}]}`,
 	}
-	doRequest(t, "POST", "/subjects/"+subject+"/versions", schema1)
+	resp1 := doRequest(t, "POST", "/subjects/"+subject+"/versions", schema1)
+	if resp1.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp1.Body)
+		t.Fatalf("Failed to register schema1: status %d, body: %s", resp1.StatusCode, body)
+	}
 
 	schema2 := map[string]interface{}{
 		"schema": `{"type":"record","name":"TestLatest","fields":[{"name":"id","type":"int"},{"name":"extra","type":["null","string"],"default":null}]}`,
 	}
-	doRequest(t, "POST", "/subjects/"+subject+"/versions", schema2)
+	resp2 := doRequest(t, "POST", "/subjects/"+subject+"/versions", schema2)
+	if resp2.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp2.Body)
+		t.Fatalf("Failed to register schema2: status %d, body: %s", resp2.StatusCode, body)
+	}
 
 	// Get latest
 	resp := doRequest(t, "GET", "/subjects/"+subject+"/versions/latest", nil)
@@ -378,7 +386,7 @@ func TestGetLatestVersion(t *testing.T) {
 	parseResponse(t, resp, &result)
 
 	if resp.StatusCode != http.StatusOK {
-		t.Errorf("Expected status 200, got %d", resp.StatusCode)
+		t.Fatalf("Expected status 200, got %d, response: %v", resp.StatusCode, result)
 	}
 
 	if result["version"].(float64) != 2 {
