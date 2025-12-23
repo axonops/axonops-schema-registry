@@ -138,9 +138,9 @@ func createStorage(_ context.Context) (storage.Storage, error) {
 			LocalDC:             "dc1",       // Match the DC configured in the test container
 			ReplicationStrategy: "SimpleStrategy",
 			ReplicationFactor:   1,
-			ConnectTimeout:      30 * time.Second, // Longer timeout for CI
-			Timeout:             30 * time.Second,
-			NumConns:            10, // Higher connection pool for concurrency tests
+			ConnectTimeout:      60 * time.Second, // Longer timeout for CI
+			Timeout:             60 * time.Second,
+			NumConns:            50, // Higher connection pool for concurrency tests
 		}
 		return cassandra.NewStore(cfg)
 
