@@ -219,11 +219,15 @@ jobs:
       - name: Start Cassandra
         run: |
           # Use host network mode so Cassandra binds to localhost properly
+          # Set broadcast addresses to 127.0.0.1 so gocql driver can reconnect
           docker run -d --name cassandra-test \
             --network host \
             -e CASSANDRA_CLUSTER_NAME=TestCluster \
             -e CASSANDRA_DC=dc1 \
             -e CASSANDRA_ENDPOINT_SNITCH=SimpleSnitch \
+            -e CASSANDRA_BROADCAST_RPC_ADDRESS=127.0.0.1 \
+            -e CASSANDRA_BROADCAST_ADDRESS=127.0.0.1 \
+            -e CASSANDRA_LISTEN_ADDRESS=127.0.0.1 \
             -e MAX_HEAP_SIZE=512M \
             -e HEAP_NEWSIZE=100M \
             cassandra:4.1
@@ -383,11 +387,15 @@ jobs:
       - name: Start Cassandra
         run: |
           # Use host network mode so Cassandra binds to localhost properly
+          # Set broadcast addresses to 127.0.0.1 so gocql driver can reconnect
           docker run -d --name cassandra-test \
             --network host \
             -e CASSANDRA_CLUSTER_NAME=TestCluster \
             -e CASSANDRA_DC=dc1 \
             -e CASSANDRA_ENDPOINT_SNITCH=SimpleSnitch \
+            -e CASSANDRA_BROADCAST_RPC_ADDRESS=127.0.0.1 \
+            -e CASSANDRA_BROADCAST_ADDRESS=127.0.0.1 \
+            -e CASSANDRA_LISTEN_ADDRESS=127.0.0.1 \
             -e MAX_HEAP_SIZE=512M \
             -e HEAP_NEWSIZE=100M \
             cassandra:4.1
