@@ -262,13 +262,13 @@ func (s *Store) CreateSchema(ctx context.Context, record *storage.SchemaRecord) 
 
 		// Use LWT INSERT with IF NOT EXISTS for the main schemas table
 		// This ensures atomic version assignment
-		var applied bool
-		err := s.session.Query(
+		result := make(map[string]interface{})
+		applied, err := s.session.Query(
 			`INSERT INTO schemas (subject, version, id, schema_type, schema_text, fingerprint, deleted, created_at)
 			 VALUES (?, ?, ?, ?, ?, ?, ?, ?) IF NOT EXISTS`,
 			record.Subject, record.Version, record.ID, string(record.SchemaType),
 			record.Schema, record.Fingerprint, false, record.CreatedAt,
-		).WithContext(ctx).Scan(&applied, nil, nil, nil, nil, nil, nil, nil, nil)
+		).WithContext(ctx).MapScanCAS(result)
 
 		if err != nil {
 			return fmt.Errorf("failed to insert schema: %w", err)

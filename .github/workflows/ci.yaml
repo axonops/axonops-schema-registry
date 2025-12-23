@@ -203,9 +203,9 @@ jobs:
           MYSQL_DATABASE: schemaregistry
         run: go test -v -tags=integration -timeout=10m ./tests/integration/...
 
-  # Integration tests with Cassandra
-  integration-cassandra:
-    name: Integration Tests (Cassandra)
+  # All Cassandra tests (integration + concurrency) in a single job
+  cassandra-tests:
+    name: Cassandra Tests
     runs-on: ubuntu-latest
     needs: [build]
     steps:
@@ -247,37 +247,6 @@ jobs:
         run: |
           docker exec cassandra-test cqlsh -e "CREATE KEYSPACE IF NOT EXISTS schemaregistry WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1};"
 
-      - name: Debug network - check where port 9042 is listening
-        run: |
-          echo "=== Port 9042 listeners on host (ss) ==="
-          ss -tlnp | grep 9042 || echo "Not found via ss"
-
-          echo ""
-          echo "=== Port 9042 listeners on host (netstat) ==="
-          netstat -tlnp 2>/dev/null | grep 9042 || echo "Not found via netstat"
-
-          echo ""
-          echo "=== Port 9042 inside Cassandra container ==="
-          docker exec cassandra-test sh -c "ss -tlnp 2>/dev/null | grep 9042 || netstat -tlnp 2>/dev/null | grep 9042" || echo "Could not check inside container"
-
-          echo ""
-          echo "=== Cassandra listen configuration ==="
-          docker exec cassandra-test grep -E "^(listen_address|rpc_address|native_transport|broadcast)" /etc/cassandra/cassandra.yaml 2>/dev/null || true
-
-          echo ""
-          echo "=== Testing TCP connectivity to 127.0.0.1:9042 ==="
-          nc -zv 127.0.0.1 9042 2>&1 || echo "nc failed"
-          timeout 5 bash -c 'cat < /dev/null > /dev/tcp/127.0.0.1/9042' 2>&1 && echo "TCP connect succeeded" || echo "TCP connect failed"
-
-          echo ""
-          echo "=== Testing TCP connectivity to localhost:9042 ==="
-          nc -zv localhost 9042 2>&1 || echo "nc failed"
-
-          echo ""
-          echo "=== Docker container info ==="
-          docker inspect cassandra-test --format '{{.NetworkSettings.NetworkMode}}' || true
-          docker inspect cassandra-test --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' || true
-
       - name: Run integration tests
         env:
           STORAGE_TYPE: cassandra
@@ -285,6 +254,14 @@ jobs:
           CASSANDRA_PORT: 9042
           CASSANDRA_KEYSPACE: schemaregistry
         run: go test -v -tags=integration -timeout=15m ./tests/integration/...
+
+      - name: Run concurrency tests
+        env:
+          STORAGE_TYPE: cassandra
+          CASSANDRA_HOSTS: 127.0.0.1
+          CASSANDRA_PORT: 9042
+          CASSANDRA_KEYSPACE: schemaregistry
+        run: go test -v -tags=concurrency -timeout=20m ./tests/concurrency/...
 
       - name: Cleanup Cassandra
         if: always()
@@ -371,64 +348,6 @@ jobs:
           MYSQL_PASSWORD: schemaregistry
           MYSQL_DATABASE: schemaregistry
         run: go test -v -tags=concurrency -timeout=15m ./tests/concurrency/...
-
-  concurrency-cassandra:
-    name: Concurrency Tests (Cassandra)
-    runs-on: ubuntu-latest
-    needs: [integration-cassandra]
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ env.GO_VERSION }}
-
-      - name: Start Cassandra
-        run: |
-          # Use host network mode so Cassandra binds to localhost properly
-          # Set broadcast addresses to 127.0.0.1 so gocql driver can reconnect
-          docker run -d --name cassandra-test \
-            --network host \
-            -e CASSANDRA_CLUSTER_NAME=TestCluster \
-            -e CASSANDRA_DC=dc1 \
-            -e CASSANDRA_ENDPOINT_SNITCH=SimpleSnitch \
-            -e CASSANDRA_BROADCAST_RPC_ADDRESS=127.0.0.1 \
-            -e CASSANDRA_BROADCAST_ADDRESS=127.0.0.1 \
-            -e CASSANDRA_LISTEN_ADDRESS=127.0.0.1 \
-            -e MAX_HEAP_SIZE=512M \
-            -e HEAP_NEWSIZE=100M \
-            cassandra:4.1
-
-          # Wait for Cassandra to be ready (up to 5 minutes)
-          echo "Waiting for Cassandra to start..."
-          for i in {1..90}; do
-            if docker exec cassandra-test cqlsh -e "describe cluster" 2>/dev/null; then
-              echo "Cassandra is ready"
-              break
-            fi
-            echo "Waiting for Cassandra... ($i)"
-            sleep 4
-          done
-
-      - name: Create Cassandra keyspace
-        run: |
-          docker exec cassandra-test cqlsh -e "CREATE KEYSPACE IF NOT EXISTS schemaregistry WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1};"
-
-      - name: Build binary
-        run: go build -o schema-registry ./cmd/schema-registry
-
-      - name: Run concurrency tests
-        env:
-          STORAGE_TYPE: cassandra
-          CASSANDRA_HOSTS: 127.0.0.1
-          CASSANDRA_PORT: 9042
-          CASSANDRA_KEYSPACE: schemaregistry
-        run: go test -v -tags=concurrency -timeout=20m ./tests/concurrency/...
-
-      - name: Cleanup Cassandra
-        if: always()
-        run: docker stop cassandra-test && docker rm cassandra-test || true
 
   # API endpoint tests
   api-tests:
