@@ -214,13 +214,15 @@ func TestConcurrentSchemaRegistration(t *testing.T) {
 					errors <- fmt.Errorf("worker %d op %d: %v", workerID, j, err)
 					continue
 				}
-				resp.Body.Close()
 
 				if resp.StatusCode == http.StatusOK {
 					atomic.AddInt64(&successCount, 1)
+					resp.Body.Close()
 				} else {
+					body, _ := io.ReadAll(resp.Body)
+					resp.Body.Close()
 					atomic.AddInt64(&errorCount, 1)
-					errors <- fmt.Errorf("worker %d op %d: status %d", workerID, j, resp.StatusCode)
+					errors <- fmt.Errorf("worker %d op %d: status %d, body: %s", workerID, j, resp.StatusCode, string(body))
 				}
 			}
 		}(i)
