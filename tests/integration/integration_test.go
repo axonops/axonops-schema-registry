@@ -122,9 +122,10 @@ func createStorage(_ context.Context) (storage.Storage, error) {
 			ReplicationFactor:   1,
 			ConnectTimeout:      30 * time.Second, // Longer timeout for CI
 			Timeout:             30 * time.Second,
-			NumConns:            2,
+			NumConns:            5,                // More connections for integration tests
 		}
-		return cassandra.NewStore(cfg)
+		// Use retry logic for connection establishment
+		return cassandra.NewStoreWithRetry(cfg, 5, 3*time.Second)
 
 	default:
 		return nil, fmt.Errorf("unsupported storage type: %s", storageType)
@@ -607,10 +608,20 @@ func TestGetSchemaByIDSubjects(t *testing.T) {
 	}
 
 	resp := doRequest(t, "POST", "/subjects/"+subject+"/versions", schema)
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		t.Fatalf("Failed to register schema: status %d, body: %s", resp.StatusCode, body)
+	}
+
 	var registerResult map[string]interface{}
 	parseResponse(t, resp, &registerResult)
 
-	schemaID := int(registerResult["id"].(float64))
+	idVal, ok := registerResult["id"]
+	if !ok || idVal == nil {
+		t.Fatalf("Expected 'id' in registration response, got: %v", registerResult)
+	}
+	schemaID := int(idVal.(float64))
 
 	// Get subjects for schema ID
 	resp = doRequest(t, "GET", fmt.Sprintf("/schemas/ids/%d/subjects", schemaID), nil)
@@ -631,10 +642,20 @@ func TestGetSchemaByIDVersions(t *testing.T) {
 	}
 
 	resp := doRequest(t, "POST", "/subjects/"+subject+"/versions", schema)
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		t.Fatalf("Failed to register schema: status %d, body: %s", resp.StatusCode, body)
+	}
+
 	var registerResult map[string]interface{}
 	parseResponse(t, resp, &registerResult)
 
-	schemaID := int(registerResult["id"].(float64))
+	idVal, ok := registerResult["id"]
+	if !ok || idVal == nil {
+		t.Fatalf("Expected 'id' in registration response, got: %v", registerResult)
+	}
+	schemaID := int(idVal.(float64))
 
 	// Get versions for schema ID
 	resp = doRequest(t, "GET", fmt.Sprintf("/schemas/ids/%d/versions", schemaID), nil)

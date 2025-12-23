@@ -277,6 +277,20 @@ jobs:
         run: |
           docker exec cassandra-test cqlsh -e "CREATE KEYSPACE IF NOT EXISTS schemaregistry WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1};"
 
+      - name: Wait for Cassandra external connections
+        run: |
+          echo "Waiting for Cassandra to accept external connections..."
+          for i in {1..30}; do
+            if timeout 5 bash -c "echo > /dev/tcp/127.0.0.1/9042" 2>/dev/null; then
+              echo "Cassandra port 9042 is open"
+              # Additional wait for native protocol to be fully ready
+              sleep 5
+              break
+            fi
+            echo "Waiting for port 9042... ($i)"
+            sleep 2
+          done
+
       - name: Run integration tests
         env:
           STORAGE_TYPE: cassandra
