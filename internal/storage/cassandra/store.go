@@ -14,6 +14,10 @@ import (
 	"github.com/axonops/axonops-schema-registry/internal/storage"
 )
 
+// globalKey is the sentinel value for global config/mode in Cassandra.
+// Cassandra doesn't allow empty partition keys, so we use this instead.
+const globalKey = "__global__"
+
 // Config holds Cassandra connection configuration.
 type Config struct {
 	Hosts               []string      `json:"hosts" yaml:"hosts"`
@@ -708,12 +712,12 @@ func (s *Store) DeleteConfig(ctx context.Context, subject string) error {
 
 // GetGlobalConfig retrieves the global compatibility configuration.
 func (s *Store) GetGlobalConfig(ctx context.Context) (*storage.ConfigRecord, error) {
-	return s.GetConfig(ctx, "")
+	return s.GetConfig(ctx, globalKey)
 }
 
 // SetGlobalConfig sets the global compatibility configuration.
 func (s *Store) SetGlobalConfig(ctx context.Context, config *storage.ConfigRecord) error {
-	return s.SetConfig(ctx, "", config)
+	return s.SetConfig(ctx, globalKey, config)
 }
 
 // GetMode retrieves the mode for a subject.
@@ -767,12 +771,12 @@ func (s *Store) DeleteMode(ctx context.Context, subject string) error {
 
 // GetGlobalMode retrieves the global mode.
 func (s *Store) GetGlobalMode(ctx context.Context) (*storage.ModeRecord, error) {
-	return s.GetMode(ctx, "")
+	return s.GetMode(ctx, globalKey)
 }
 
 // SetGlobalMode sets the global mode.
 func (s *Store) SetGlobalMode(ctx context.Context, mode *storage.ModeRecord) error {
-	return s.SetMode(ctx, "", mode)
+	return s.SetMode(ctx, globalKey, mode)
 }
 
 // NextID returns the next available schema ID using counter table.
@@ -953,7 +957,8 @@ func (s *Store) ListSchemas(ctx context.Context, params *storage.ListSchemasPara
 // DeleteGlobalConfig resets the global config to default.
 func (s *Store) DeleteGlobalConfig(ctx context.Context) error {
 	if err := s.session.Query(
-		`INSERT INTO configs (subject, compatibility_level) VALUES ('', 'BACKWARD')`,
+		`INSERT INTO configs (subject, compatibility_level) VALUES (?, 'BACKWARD')`,
+		globalKey,
 	).WithContext(ctx).Exec(); err != nil {
 		return fmt.Errorf("failed to reset global config: %w", err)
 	}

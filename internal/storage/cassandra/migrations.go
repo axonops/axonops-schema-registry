@@ -79,8 +79,9 @@ var migrations = []string{
 	)`,
 
 	// Initialize global config with default value
-	`INSERT INTO configs (subject, compatibility_level) VALUES ('', 'BACKWARD') IF NOT EXISTS`,
+	// Use __global__ as sentinel since Cassandra doesn't allow empty partition keys
+	`INSERT INTO configs (subject, compatibility_level) VALUES ('__global__', 'BACKWARD') IF NOT EXISTS`,
 
 	// Initialize global mode with default value
-	`INSERT INTO modes (subject, mode) VALUES ('', 'READWRITE') IF NOT EXISTS`,
+	`INSERT INTO modes (subject, mode) VALUES ('__global__', 'READWRITE') IF NOT EXISTS`,
 }
