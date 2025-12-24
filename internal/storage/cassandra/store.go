@@ -235,7 +235,7 @@ func (s *Store) CreateSchema(ctx context.Context, record *storage.SchemaRecord) 
 	if err == nil {
 		// Check if it's deleted
 		var deleted bool
-		s.session.Query(
+		_ = s.session.Query(
 			`SELECT deleted FROM schemas WHERE subject = ? AND version = ?`,
 			record.Subject, existingVersion,
 		).WithContext(ctx).Scan(&deleted)
@@ -265,7 +265,7 @@ func (s *Store) CreateSchema(ctx context.Context, record *storage.SchemaRecord) 
 			`SELECT version FROM schemas WHERE subject = ? ORDER BY version DESC LIMIT 1`,
 			record.Subject,
 		).WithContext(ctx).Iter()
-		iter.Scan(&maxVersion)
+		_ = iter.Scan(&maxVersion)
 		iter.Close()
 		nextVersion := maxVersion + 1
 		record.Version = nextVersion
@@ -379,7 +379,7 @@ func (s *Store) GetSchemaBySubjectVersion(ctx context.Context, subject string, v
 		if err == gocql.ErrNotFound {
 			// Check if subject exists
 			var count int
-			s.session.Query(`SELECT COUNT(*) FROM schemas WHERE subject = ?`, subject).
+			_ = s.session.Query(`SELECT COUNT(*) FROM schemas WHERE subject = ?`, subject).
 				WithContext(ctx).Scan(&count)
 			if count == 0 {
 				return nil, storage.ErrSubjectNotFound
@@ -511,7 +511,7 @@ func (s *Store) DeleteSchema(ctx context.Context, subject string, version int, p
 		if err == gocql.ErrNotFound {
 			// Check if subject exists
 			var count int
-			s.session.Query(`SELECT COUNT(*) FROM schemas WHERE subject = ?`, subject).
+			_ = s.session.Query(`SELECT COUNT(*) FROM schemas WHERE subject = ?`, subject).
 				WithContext(ctx).Scan(&count)
 			if count == 0 {
 				return storage.ErrSubjectNotFound
@@ -638,9 +638,9 @@ func (s *Store) DeleteSubject(ctx context.Context, subject string, permanent boo
 			batch.Query(`DELETE FROM schemas_by_id WHERE id = ?`, schema.id)
 			batch.Query(`DELETE FROM schemas_by_fingerprint WHERE subject = ? AND fingerprint = ?`, subject, schema.fingerprint)
 			batch.Query(`DELETE FROM schema_references WHERE schema_id = ?`, schema.id)
-			s.session.ExecuteBatch(batch)
+			_ = s.session.ExecuteBatch(batch)
 		} else {
-			s.session.Query(
+			_ = s.session.Query(
 				`UPDATE schemas SET deleted = true WHERE subject = ? AND version = ?`,
 				subject, schema.version,
 			).WithContext(ctx).Exec()
@@ -650,12 +650,12 @@ func (s *Store) DeleteSubject(ctx context.Context, subject string, permanent boo
 	if permanent {
 		// Remove from subjects table
 		bucket := s.subjectBucket(subject)
-		s.session.Query(`DELETE FROM subjects WHERE bucket = ? AND subject = ?`, bucket, subject).
+		_ = s.session.Query(`DELETE FROM subjects WHERE bucket = ? AND subject = ?`, bucket, subject).
 			WithContext(ctx).Exec()
 
 		// Delete configs and modes
-		s.session.Query(`DELETE FROM configs WHERE subject = ?`, subject).WithContext(ctx).Exec()
-		s.session.Query(`DELETE FROM modes WHERE subject = ?`, subject).WithContext(ctx).Exec()
+		_ = s.session.Query(`DELETE FROM configs WHERE subject = ?`, subject).WithContext(ctx).Exec()
+		_ = s.session.Query(`DELETE FROM modes WHERE subject = ?`, subject).WithContext(ctx).Exec()
 	}
 
 	return deletedVersions, nil

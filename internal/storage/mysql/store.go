@@ -380,7 +380,7 @@ func (s *Store) CreateSchema(ctx context.Context, record *storage.SchemaRecord) 
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	// Check for existing schema with same fingerprint
 	var existingID int64
@@ -485,7 +485,7 @@ func (s *Store) GetSchemaBySubjectVersion(ctx context.Context, subject string, v
 	if err == sql.ErrNoRows {
 		// Check if subject exists
 		var count int
-		s.stmts.countSchemasBySubject.QueryRowContext(ctx, subject).Scan(&count)
+		_ = s.stmts.countSchemasBySubject.QueryRowContext(ctx, subject).Scan(&count)
 		if count == 0 {
 			return nil, storage.ErrSubjectNotFound
 		}
@@ -627,7 +627,7 @@ func (s *Store) DeleteSchema(ctx context.Context, subject string, version int, p
 	if rowsAffected == 0 {
 		// Check if subject exists
 		var count int
-		s.stmts.countSchemasBySubject.QueryRowContext(ctx, subject).Scan(&count)
+		_ = s.stmts.countSchemasBySubject.QueryRowContext(ctx, subject).Scan(&count)
 		if count == 0 {
 			return storage.ErrSubjectNotFound
 		}
@@ -697,8 +697,8 @@ func (s *Store) DeleteSubject(ctx context.Context, subject string, permanent boo
 		}
 
 		// Also delete configs and modes
-		s.db.ExecContext(ctx, "DELETE FROM configs WHERE subject = ?", subject)
-		s.db.ExecContext(ctx, "DELETE FROM modes WHERE subject = ?", subject)
+		_, _ = s.db.ExecContext(ctx, "DELETE FROM configs WHERE subject = ?", subject)
+		_, _ = s.db.ExecContext(ctx, "DELETE FROM modes WHERE subject = ?", subject)
 	} else {
 		_, err = s.db.ExecContext(ctx,
 			"UPDATE `schemas` SET deleted = TRUE WHERE subject = ?",

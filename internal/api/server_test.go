@@ -366,7 +366,7 @@ func TestServer_Config(t *testing.T) {
 	w = httptest.NewRecorder()
 	server.ServeHTTP(w, req)
 
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 	if resp.CompatibilityLevel != "FULL" {
 		t.Errorf("Expected FULL, got %s", resp.CompatibilityLevel)
 	}
@@ -443,7 +443,7 @@ func TestServer_CompatibilityCheck(t *testing.T) {
 	}
 
 	var resp types.CompatibilityCheckResponse
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 
 	if !resp.IsCompatible {
 		t.Errorf("Expected compatible, got incompatible: %v", resp.Messages)
@@ -479,7 +479,7 @@ func TestServer_CompatibilityCheckIncompatible(t *testing.T) {
 	}
 
 	var resp types.CompatibilityCheckResponse
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 
 	if resp.IsCompatible {
 		t.Error("Expected incompatible, got compatible")
@@ -551,7 +551,7 @@ func TestServer_RegisterCompatibleSchema(t *testing.T) {
 	}
 
 	var resp types.RegisterSchemaResponse
-	json.NewDecoder(w.Body).Decode(&resp)
+	_ = json.NewDecoder(w.Body).Decode(&resp)
 
 	if resp.ID != 2 {
 		t.Errorf("Expected schema ID 2, got %d", resp.ID)
