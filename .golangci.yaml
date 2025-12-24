@@ -1,9 +1,10 @@
+version: "2"
+
 run:
   timeout: 5m
-  go: '1.23'
 
 linters:
-  disable-all: true
+  default: none
   enable:
     - govet
     - ineffassign

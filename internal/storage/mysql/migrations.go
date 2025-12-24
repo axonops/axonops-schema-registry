@@ -48,4 +48,37 @@ var migrations = []string{
 
 	// Migration 6: Global mode
 	"INSERT IGNORE INTO modes (subject, mode) VALUES ('', 'READWRITE')",
+
+	// Migration 7: Users table for authentication
+	"CREATE TABLE IF NOT EXISTS users (" +
+		"id BIGINT AUTO_INCREMENT PRIMARY KEY," +
+		"username VARCHAR(255) NOT NULL," +
+		"email VARCHAR(255)," +
+		"password_hash VARCHAR(255) NOT NULL," +
+		"role VARCHAR(50) NOT NULL DEFAULT 'readonly'," +
+		"enabled BOOLEAN NOT NULL DEFAULT TRUE," +
+		"created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP," +
+		"updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP," +
+		"UNIQUE KEY idx_users_username (username)," +
+		"UNIQUE KEY idx_users_email (email)," +
+		"INDEX idx_users_role (role)" +
+		") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+
+	// Migration 8: API Keys table for authentication
+	"CREATE TABLE IF NOT EXISTS api_keys (" +
+		"id BIGINT AUTO_INCREMENT PRIMARY KEY," +
+		"user_id BIGINT," +
+		"key_hash VARCHAR(255) NOT NULL," +
+		"key_prefix VARCHAR(16) NOT NULL," +
+		"name VARCHAR(255) NOT NULL," +
+		"role VARCHAR(50) NOT NULL DEFAULT 'readonly'," +
+		"enabled BOOLEAN NOT NULL DEFAULT TRUE," +
+		"created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP," +
+		"expires_at TIMESTAMP NULL," +
+		"last_used TIMESTAMP NULL," +
+		"UNIQUE KEY idx_api_keys_key_hash (key_hash)," +
+		"INDEX idx_api_keys_user_id (user_id)," +
+		"INDEX idx_api_keys_role (role)," +
+		"FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL" +
+		") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
 }

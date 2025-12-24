@@ -12,6 +12,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 
 	"github.com/axonops/axonops-schema-registry/internal/api/handlers"
+	"github.com/axonops/axonops-schema-registry/internal/auth"
 	"github.com/axonops/axonops-schema-registry/internal/config"
 	"github.com/axonops/axonops-schema-registry/internal/metrics"
 	"github.com/axonops/axonops-schema-registry/internal/registry"
@@ -19,21 +20,41 @@ import (
 
 // Server represents the HTTP server.
 type Server struct {
-	config   *config.Config
-	registry *registry.Registry
-	router   chi.Router
-	server   *http.Server
-	logger   *slog.Logger
-	metrics  *metrics.Metrics
+	config        *config.Config
+	registry      *registry.Registry
+	router        chi.Router
+	server        *http.Server
+	logger        *slog.Logger
+	metrics       *metrics.Metrics
+	authenticator *auth.Authenticator
+	authorizer    *auth.Authorizer
+	authService   *auth.Service
+}
+
+// ServerOption is a function that configures the server.
+type ServerOption func(*Server)
+
+// WithAuth configures authentication and authorization for the server.
+func WithAuth(authenticator *auth.Authenticator, authorizer *auth.Authorizer, authService *auth.Service) ServerOption {
+	return func(s *Server) {
+		s.authenticator = authenticator
+		s.authorizer = authorizer
+		s.authService = authService
+	}
 }
 
 // NewServer creates a new HTTP server.
-func NewServer(cfg *config.Config, reg *registry.Registry, logger *slog.Logger) *Server {
+func NewServer(cfg *config.Config, reg *registry.Registry, logger *slog.Logger, opts ...ServerOption) *Server {
 	s := &Server{
 		config:   cfg,
 		registry: reg,
 		logger:   logger,
 		metrics:  metrics.New(),
+	}
+
+	// Apply options
+	for _, opt := range opts {
+		opt(s)
 	}
 
 	s.setupRouter()
@@ -57,13 +78,18 @@ func (s *Server) setupRouter() {
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(30 * time.Second))
 
+	// Add auth middleware if configured
+	if s.authenticator != nil {
+		r.Use(s.authenticator.Middleware)
+	}
+
 	// Create handlers
 	h := handlers.New(s.registry)
 
-	// Health check
+	// Health check (no auth required)
 	r.Get("/", h.HealthCheck)
 
-	// Metrics endpoint
+	// Metrics endpoint (no auth required)
 	r.Get("/metrics", func(w http.ResponseWriter, r *http.Request) {
 		s.metrics.Handler().ServeHTTP(w, r)
 	})
@@ -116,6 +142,40 @@ func (s *Server) setupRouter() {
 	// Metadata (v1 API)
 	r.Get("/v1/metadata/id", h.GetClusterID)
 	r.Get("/v1/metadata/version", h.GetServerVersion)
+
+	// Account endpoints (self-service, requires auth)
+	if s.authService != nil {
+		accountHandler := handlers.NewAccountHandler(s.authService)
+		r.Route("/me", func(r chi.Router) {
+			r.Get("/", accountHandler.GetCurrentUser)
+			r.Post("/password", accountHandler.ChangePassword)
+		})
+	}
+
+	// Admin endpoints (requires auth)
+	if s.authService != nil && s.authorizer != nil {
+		adminHandler := handlers.NewAdminHandler(s.authService, s.authorizer)
+		r.Route("/admin", func(r chi.Router) {
+			// User management
+			r.Get("/users", adminHandler.ListUsers)
+			r.Post("/users", adminHandler.CreateUser)
+			r.Get("/users/{id}", adminHandler.GetUser)
+			r.Put("/users/{id}", adminHandler.UpdateUser)
+			r.Delete("/users/{id}", adminHandler.DeleteUser)
+
+			// API Key management
+			r.Get("/apikeys", adminHandler.ListAPIKeys)
+			r.Post("/apikeys", adminHandler.CreateAPIKey)
+			r.Get("/apikeys/{id}", adminHandler.GetAPIKey)
+			r.Put("/apikeys/{id}", adminHandler.UpdateAPIKey)
+			r.Delete("/apikeys/{id}", adminHandler.DeleteAPIKey)
+			r.Post("/apikeys/{id}/revoke", adminHandler.RevokeAPIKey)
+			r.Post("/apikeys/{id}/rotate", adminHandler.RotateAPIKey)
+
+			// Roles
+			r.Get("/roles", adminHandler.ListRoles)
+		})
+	}
 
 	s.router = r
 }

@@ -57,4 +57,38 @@ var migrations = []string{
 	FROM schemas
 	WHERE deleted = FALSE
 	GROUP BY subject`,
+
+	// Migration 8: Users table for authentication
+	`CREATE TABLE IF NOT EXISTS users (
+		id BIGSERIAL PRIMARY KEY,
+		username VARCHAR(255) NOT NULL UNIQUE,
+		email VARCHAR(255) UNIQUE,
+		password_hash VARCHAR(255) NOT NULL,
+		role VARCHAR(50) NOT NULL DEFAULT 'readonly',
+		enabled BOOLEAN NOT NULL DEFAULT TRUE,
+		created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+		updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+	)`,
+
+	`CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)`,
+	`CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)`,
+	`CREATE INDEX IF NOT EXISTS idx_users_role ON users(role)`,
+
+	// Migration 9: API Keys table for authentication
+	`CREATE TABLE IF NOT EXISTS api_keys (
+		id BIGSERIAL PRIMARY KEY,
+		user_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
+		key_hash VARCHAR(255) NOT NULL UNIQUE,
+		key_prefix VARCHAR(16) NOT NULL,
+		name VARCHAR(255) NOT NULL,
+		role VARCHAR(50) NOT NULL DEFAULT 'readonly',
+		enabled BOOLEAN NOT NULL DEFAULT TRUE,
+		created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+		expires_at TIMESTAMP WITH TIME ZONE,
+		last_used TIMESTAMP WITH TIME ZONE
+	)`,
+
+	`CREATE INDEX IF NOT EXISTS idx_api_keys_user_id ON api_keys(user_id)`,
+	`CREATE INDEX IF NOT EXISTS idx_api_keys_key_hash ON api_keys(key_hash)`,
+	`CREATE INDEX IF NOT EXISTS idx_api_keys_role ON api_keys(role)`,
 }

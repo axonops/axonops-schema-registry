@@ -21,19 +21,25 @@ const (
 	UserContextKey ContextKey = "auth_user"
 	// RoleContextKey is the context key for the user's role.
 	RoleContextKey ContextKey = "auth_role"
+	// UserIDContextKey is the context key for the user's database ID.
+	UserIDContextKey ContextKey = "auth_user_id"
 )
 
 // User represents an authenticated user.
 type User struct {
+	ID       int64
 	Username string
 	Role     string
-	Method   string // basic, api_key, jwt, mtls
+	Method   string // basic, api_key, jwt, oidc, mtls
 }
 
 // Authenticator handles authentication.
 type Authenticator struct {
-	config  config.AuthConfig
-	apiKeys map[string]*APIKey // key -> APIKey
+	config       config.AuthConfig
+	service      *Service           // Database-backed auth service
+	ldapProvider *LDAPProvider      // LDAP authentication provider
+	oidcProvider *OIDCProvider      // OIDC authentication provider
+	apiKeys      map[string]*APIKey // key -> APIKey (for legacy/config-based auth)
 }
 
 // APIKey represents an API key.
@@ -53,7 +59,22 @@ func NewAuthenticator(cfg config.AuthConfig) *Authenticator {
 	}
 }
 
-// AddAPIKey adds an API key.
+// SetService sets the database-backed auth service.
+func (a *Authenticator) SetService(svc *Service) {
+	a.service = svc
+}
+
+// SetLDAPProvider sets the LDAP authentication provider.
+func (a *Authenticator) SetLDAPProvider(p *LDAPProvider) {
+	a.ldapProvider = p
+}
+
+// SetOIDCProvider sets the OIDC authentication provider.
+func (a *Authenticator) SetOIDCProvider(p *OIDCProvider) {
+	a.oidcProvider = p
+}
+
+// AddAPIKey adds an API key (for legacy/config-based auth).
 func (a *Authenticator) AddAPIKey(key *APIKey) {
 	a.apiKeys[key.Key] = key
 }
@@ -73,6 +94,9 @@ func (a *Authenticator) Middleware(next http.Handler) http.Handler {
 				// Store user in context
 				ctx := context.WithValue(r.Context(), UserContextKey, user)
 				ctx = context.WithValue(ctx, RoleContextKey, user.Role)
+				if user.ID > 0 {
+					ctx = context.WithValue(ctx, UserIDContextKey, user.ID)
+				}
 				next.ServeHTTP(w, r.WithContext(ctx))
 				return
 			}
@@ -92,6 +116,8 @@ func (a *Authenticator) authenticate(r *http.Request, method string) (*User, boo
 		return a.authenticateAPIKey(r)
 	case "jwt":
 		return a.authenticateJWT(r)
+	case "oidc":
+		return a.authenticateOIDC(r)
 	case "mtls":
 		return a.authenticateMTLS(r)
 	default:
@@ -100,6 +126,9 @@ func (a *Authenticator) authenticate(r *http.Request, method string) (*User, boo
 }
 
 // authenticateBasic handles HTTP Basic authentication.
+// It also supports API key authentication via Basic Auth format (key as username, empty password)
+// which is compatible with Kafka producers/consumers.
+// Authentication order: API key (empty password) -> LDAP -> Database -> Config-based users
 func (a *Authenticator) authenticateBasic(r *http.Request) (*User, bool) {
 	auth := r.Header.Get("Authorization")
 	if !strings.HasPrefix(auth, "Basic ") {
@@ -118,7 +147,39 @@ func (a *Authenticator) authenticateBasic(r *http.Request) (*User, bool) {
 
 	username, password := parts[0], parts[1]
 
-	// Check against configured users
+	// If password is empty, treat username as an API key
+	// This is compatible with Kafka producers/consumers that use Basic Auth for API keys
+	if password == "" && username != "" {
+		if user, ok := a.authenticateAPIKeyValue(r, username); ok {
+			return user, true
+		}
+		// If API key auth fails, don't fall through to password auth with empty password
+		return nil, false
+	}
+
+	// Try LDAP authentication first if enabled
+	if a.ldapProvider != nil {
+		user, err := a.ldapProvider.Authenticate(r.Context(), username, password)
+		if err == nil && user != nil {
+			return user, true
+		}
+		// LDAP failed, continue to other auth methods
+	}
+
+	// Try database-backed authentication
+	if a.service != nil {
+		user, err := a.service.ValidateCredentials(r.Context(), username, password)
+		if err == nil && user != nil {
+			return &User{
+				ID:       user.ID,
+				Username: user.Username,
+				Role:     user.Role,
+				Method:   "basic",
+			}, true
+		}
+	}
+
+	// Fallback to configured users (legacy/config-based auth)
 	if storedHash, ok := a.config.Basic.Users[username]; ok {
 		if err := bcrypt.CompareHashAndPassword([]byte(storedHash), []byte(password)); err == nil {
 			return &User{
@@ -132,7 +193,7 @@ func (a *Authenticator) authenticateBasic(r *http.Request) (*User, bool) {
 	return nil, false
 }
 
-// authenticateAPIKey handles API key authentication.
+// authenticateAPIKey handles API key authentication via header or query param.
 func (a *Authenticator) authenticateAPIKey(r *http.Request) (*User, bool) {
 	var key string
 
@@ -150,7 +211,34 @@ func (a *Authenticator) authenticateAPIKey(r *http.Request) (*User, bool) {
 		return nil, false
 	}
 
-	// Look up API key
+	return a.authenticateAPIKeyValue(r, key)
+}
+
+// authenticateAPIKeyValue validates an API key value and returns the user.
+// This is used by both authenticateAPIKey and authenticateBasic (for Kafka client compatibility).
+func (a *Authenticator) authenticateAPIKeyValue(r *http.Request, key string) (*User, bool) {
+	// Try database-backed authentication first
+	if a.service != nil {
+		apiKey, err := a.service.ValidateAPIKey(r.Context(), key)
+		if err == nil && apiKey != nil {
+			// If API key is associated with a user, get the username
+			username := apiKey.Name
+			if apiKey.UserID > 0 {
+				user, err := a.service.GetUserByID(r.Context(), apiKey.UserID)
+				if err == nil && user != nil {
+					username = user.Username
+				}
+			}
+			return &User{
+				ID:       apiKey.ID,
+				Username: username,
+				Role:     apiKey.Role,
+				Method:   "api_key",
+			}, true
+		}
+	}
+
+	// Fallback to in-memory API keys (legacy/config-based auth)
 	if apiKey, ok := a.apiKeys[key]; ok {
 		return &User{
 			Username: apiKey.Username,
@@ -178,6 +266,25 @@ func (a *Authenticator) authenticateJWT(r *http.Request) (*User, bool) {
 	// For now, return false as placeholder
 	_ = token
 	return nil, false
+}
+
+// authenticateOIDC handles OpenID Connect authentication.
+func (a *Authenticator) authenticateOIDC(r *http.Request) (*User, bool) {
+	auth := r.Header.Get("Authorization")
+	if !strings.HasPrefix(auth, "Bearer ") {
+		return nil, false
+	}
+
+	token := auth[7:]
+	if token == "" {
+		return nil, false
+	}
+
+	if a.oidcProvider == nil {
+		return nil, false
+	}
+
+	return a.oidcProvider.VerifyToken(r.Context(), token)
 }
 
 // authenticateMTLS handles mutual TLS authentication.
@@ -213,7 +320,7 @@ func (a *Authenticator) unauthorized(w http.ResponseWriter, r *http.Request) {
 			w.Header().Add("WWW-Authenticate", `Basic realm="`+realm+`"`)
 		case "api_key":
 			w.Header().Add("WWW-Authenticate", "API-Key")
-		case "jwt":
+		case "jwt", "oidc":
 			w.Header().Add("WWW-Authenticate", "Bearer")
 		}
 	}
@@ -235,6 +342,14 @@ func GetRole(ctx context.Context) string {
 		return role
 	}
 	return ""
+}
+
+// GetUserID retrieves the user ID from context.
+func GetUserID(ctx context.Context) int64 {
+	if id, ok := ctx.Value(UserIDContextKey).(int64); ok {
+		return id
+	}
+	return 0
 }
 
 // HashPassword creates a bcrypt hash of a password.

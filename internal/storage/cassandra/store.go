@@ -1002,6 +1002,494 @@ func (s *Store) DeleteGlobalConfig(ctx context.Context) error {
 	return nil
 }
 
+// nextUserID returns the next available user ID.
+func (s *Store) nextUserID(ctx context.Context) (int64, error) {
+	// Increment counter first
+	if err := s.session.Query(
+		`UPDATE user_id_counter SET value = value + 1 WHERE name = 'user_id'`,
+	).WithContext(ctx).Exec(); err != nil {
+		return 0, fmt.Errorf("failed to increment user counter: %w", err)
+	}
+
+	// Read the counter value
+	var value int64
+	if err := s.session.Query(
+		`SELECT value FROM user_id_counter WHERE name = 'user_id'`,
+	).WithContext(ctx).Scan(&value); err != nil {
+		return 0, fmt.Errorf("failed to read user counter: %w", err)
+	}
+
+	return value, nil
+}
+
+// nextAPIKeyID returns the next available API key ID.
+func (s *Store) nextAPIKeyID(ctx context.Context) (int64, error) {
+	// Increment counter first
+	if err := s.session.Query(
+		`UPDATE api_key_id_counter SET value = value + 1 WHERE name = 'api_key_id'`,
+	).WithContext(ctx).Exec(); err != nil {
+		return 0, fmt.Errorf("failed to increment API key counter: %w", err)
+	}
+
+	// Read the counter value
+	var value int64
+	if err := s.session.Query(
+		`SELECT value FROM api_key_id_counter WHERE name = 'api_key_id'`,
+	).WithContext(ctx).Scan(&value); err != nil {
+		return 0, fmt.Errorf("failed to read API key counter: %w", err)
+	}
+
+	return value, nil
+}
+
+// CreateUser creates a new user record.
+func (s *Store) CreateUser(ctx context.Context, user *storage.UserRecord) error {
+	now := time.Now()
+	user.CreatedAt = now
+	user.UpdatedAt = now
+
+	// Check for existing username
+	var existingID int64
+	err := s.session.Query(
+		`SELECT id FROM users_by_username WHERE username = ?`,
+		user.Username,
+	).WithContext(ctx).Scan(&existingID)
+	if err == nil {
+		return storage.ErrUserExists
+	}
+	if err != gocql.ErrNotFound {
+		return fmt.Errorf("failed to check username: %w", err)
+	}
+
+	// Check for existing email if provided
+	if user.Email != "" {
+		err = s.session.Query(
+			`SELECT id FROM users_by_email WHERE email = ?`,
+			user.Email,
+		).WithContext(ctx).Scan(&existingID)
+		if err == nil {
+			return storage.ErrUserExists
+		}
+		if err != gocql.ErrNotFound {
+			return fmt.Errorf("failed to check email: %w", err)
+		}
+	}
+
+	// Get next ID
+	id, err := s.nextUserID(ctx)
+	if err != nil {
+		return err
+	}
+	user.ID = id
+
+	// Insert into all tables using batch
+	batch := s.session.NewBatch(gocql.LoggedBatch).WithContext(ctx)
+
+	batch.Query(
+		`INSERT INTO users (id, username, email, password_hash, role, enabled, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		user.ID, user.Username, user.Email, user.PasswordHash, user.Role, user.Enabled, user.CreatedAt, user.UpdatedAt,
+	)
+
+	batch.Query(
+		`INSERT INTO users_by_username (username, id) VALUES (?, ?)`,
+		user.Username, user.ID,
+	)
+
+	if user.Email != "" {
+		batch.Query(
+			`INSERT INTO users_by_email (email, id) VALUES (?, ?)`,
+			user.Email, user.ID,
+		)
+	}
+
+	if err := s.session.ExecuteBatch(batch); err != nil {
+		return fmt.Errorf("failed to create user: %w", err)
+	}
+
+	return nil
+}
+
+// GetUserByID retrieves a user by ID.
+func (s *Store) GetUserByID(ctx context.Context, id int64) (*storage.UserRecord, error) {
+	user := &storage.UserRecord{}
+	var email *string
+
+	err := s.session.Query(
+		`SELECT id, username, email, password_hash, role, enabled, created_at, updated_at
+		 FROM users WHERE id = ?`,
+		id,
+	).WithContext(ctx).Scan(&user.ID, &user.Username, &email, &user.PasswordHash,
+		&user.Role, &user.Enabled, &user.CreatedAt, &user.UpdatedAt)
+
+	if err == gocql.ErrNotFound {
+		return nil, storage.ErrUserNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user: %w", err)
+	}
+
+	if email != nil {
+		user.Email = *email
+	}
+
+	return user, nil
+}
+
+// GetUserByUsername retrieves a user by username.
+func (s *Store) GetUserByUsername(ctx context.Context, username string) (*storage.UserRecord, error) {
+	// Look up ID from username index
+	var id int64
+	err := s.session.Query(
+		`SELECT id FROM users_by_username WHERE username = ?`,
+		username,
+	).WithContext(ctx).Scan(&id)
+
+	if err == gocql.ErrNotFound {
+		return nil, storage.ErrUserNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to lookup user: %w", err)
+	}
+
+	return s.GetUserByID(ctx, id)
+}
+
+// UpdateUser updates an existing user record.
+func (s *Store) UpdateUser(ctx context.Context, user *storage.UserRecord) error {
+	user.UpdatedAt = time.Now()
+
+	// Get current user to check for username/email changes
+	current, err := s.GetUserByID(ctx, user.ID)
+	if err != nil {
+		return err
+	}
+
+	// Check if new username is taken (if changed)
+	if user.Username != current.Username {
+		var existingID int64
+		err := s.session.Query(
+			`SELECT id FROM users_by_username WHERE username = ?`,
+			user.Username,
+		).WithContext(ctx).Scan(&existingID)
+		if err == nil {
+			return storage.ErrUserExists
+		}
+		if err != gocql.ErrNotFound {
+			return fmt.Errorf("failed to check username: %w", err)
+		}
+	}
+
+	// Check if new email is taken (if changed)
+	if user.Email != "" && user.Email != current.Email {
+		var existingID int64
+		err := s.session.Query(
+			`SELECT id FROM users_by_email WHERE email = ?`,
+			user.Email,
+		).WithContext(ctx).Scan(&existingID)
+		if err == nil {
+			return storage.ErrUserExists
+		}
+		if err != gocql.ErrNotFound {
+			return fmt.Errorf("failed to check email: %w", err)
+		}
+	}
+
+	batch := s.session.NewBatch(gocql.LoggedBatch).WithContext(ctx)
+
+	// Update main record
+	batch.Query(
+		`INSERT INTO users (id, username, email, password_hash, role, enabled, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		user.ID, user.Username, user.Email, user.PasswordHash, user.Role, user.Enabled, user.CreatedAt, user.UpdatedAt,
+	)
+
+	// Update username index if changed
+	if user.Username != current.Username {
+		batch.Query(`DELETE FROM users_by_username WHERE username = ?`, current.Username)
+		batch.Query(`INSERT INTO users_by_username (username, id) VALUES (?, ?)`, user.Username, user.ID)
+	}
+
+	// Update email index if changed
+	if user.Email != current.Email {
+		if current.Email != "" {
+			batch.Query(`DELETE FROM users_by_email WHERE email = ?`, current.Email)
+		}
+		if user.Email != "" {
+			batch.Query(`INSERT INTO users_by_email (email, id) VALUES (?, ?)`, user.Email, user.ID)
+		}
+	}
+
+	if err := s.session.ExecuteBatch(batch); err != nil {
+		return fmt.Errorf("failed to update user: %w", err)
+	}
+
+	return nil
+}
+
+// DeleteUser deletes a user by ID.
+func (s *Store) DeleteUser(ctx context.Context, id int64) error {
+	// Get current user for index cleanup
+	current, err := s.GetUserByID(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	batch := s.session.NewBatch(gocql.LoggedBatch).WithContext(ctx)
+
+	batch.Query(`DELETE FROM users WHERE id = ?`, id)
+	batch.Query(`DELETE FROM users_by_username WHERE username = ?`, current.Username)
+	if current.Email != "" {
+		batch.Query(`DELETE FROM users_by_email WHERE email = ?`, current.Email)
+	}
+
+	if err := s.session.ExecuteBatch(batch); err != nil {
+		return fmt.Errorf("failed to delete user: %w", err)
+	}
+
+	return nil
+}
+
+// ListUsers returns all users.
+func (s *Store) ListUsers(ctx context.Context) ([]*storage.UserRecord, error) {
+	iter := s.session.Query(
+		`SELECT id, username, email, password_hash, role, enabled, created_at, updated_at FROM users`,
+	).WithContext(ctx).Iter()
+
+	var users []*storage.UserRecord
+	for {
+		user := &storage.UserRecord{}
+		var email *string
+		if !iter.Scan(&user.ID, &user.Username, &email, &user.PasswordHash,
+			&user.Role, &user.Enabled, &user.CreatedAt, &user.UpdatedAt) {
+			break
+		}
+		if email != nil {
+			user.Email = *email
+		}
+		users = append(users, user)
+	}
+
+	if err := iter.Close(); err != nil {
+		return nil, fmt.Errorf("failed to list users: %w", err)
+	}
+
+	return users, nil
+}
+
+// CreateAPIKey creates a new API key record.
+func (s *Store) CreateAPIKey(ctx context.Context, key *storage.APIKeyRecord) error {
+	key.CreatedAt = time.Now()
+
+	// Check for existing key hash
+	var existingID int64
+	err := s.session.Query(
+		`SELECT id FROM api_keys_by_hash WHERE key_hash = ?`,
+		key.KeyHash,
+	).WithContext(ctx).Scan(&existingID)
+	if err == nil {
+		return storage.ErrAPIKeyExists
+	}
+	if err != gocql.ErrNotFound {
+		return fmt.Errorf("failed to check key hash: %w", err)
+	}
+
+	// Get next ID
+	id, err := s.nextAPIKeyID(ctx)
+	if err != nil {
+		return err
+	}
+	key.ID = id
+
+	batch := s.session.NewBatch(gocql.LoggedBatch).WithContext(ctx)
+
+	batch.Query(
+		`INSERT INTO api_keys (id, user_id, key_hash, key_prefix, name, role, enabled, created_at, expires_at, last_used)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		key.ID, key.UserID, key.KeyHash, key.KeyPrefix, key.Name, key.Role, key.Enabled, key.CreatedAt, key.ExpiresAt, key.LastUsed,
+	)
+
+	batch.Query(
+		`INSERT INTO api_keys_by_hash (key_hash, id) VALUES (?, ?)`,
+		key.KeyHash, key.ID,
+	)
+
+	// UserID is now required, always insert into api_keys_by_user
+	batch.Query(
+		`INSERT INTO api_keys_by_user (user_id, id, created_at) VALUES (?, ?, ?)`,
+		key.UserID, key.ID, key.CreatedAt,
+	)
+
+	if err := s.session.ExecuteBatch(batch); err != nil {
+		return fmt.Errorf("failed to create API key: %w", err)
+	}
+
+	return nil
+}
+
+// GetAPIKeyByID retrieves an API key by ID.
+func (s *Store) GetAPIKeyByID(ctx context.Context, id int64) (*storage.APIKeyRecord, error) {
+	key := &storage.APIKeyRecord{}
+	var lastUsed *time.Time
+
+	err := s.session.Query(
+		`SELECT id, user_id, key_hash, key_prefix, name, role, enabled, created_at, expires_at, last_used
+		 FROM api_keys WHERE id = ?`,
+		id,
+	).WithContext(ctx).Scan(&key.ID, &key.UserID, &key.KeyHash, &key.KeyPrefix, &key.Name, &key.Role,
+		&key.Enabled, &key.CreatedAt, &key.ExpiresAt, &lastUsed)
+
+	if err == gocql.ErrNotFound {
+		return nil, storage.ErrAPIKeyNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get API key: %w", err)
+	}
+
+	key.LastUsed = lastUsed
+
+	return key, nil
+}
+
+// GetAPIKeyByHash retrieves an API key by its hash.
+func (s *Store) GetAPIKeyByHash(ctx context.Context, keyHash string) (*storage.APIKeyRecord, error) {
+	// Look up ID from hash index
+	var id int64
+	err := s.session.Query(
+		`SELECT id FROM api_keys_by_hash WHERE key_hash = ?`,
+		keyHash,
+	).WithContext(ctx).Scan(&id)
+
+	if err == gocql.ErrNotFound {
+		return nil, storage.ErrAPIKeyNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to lookup API key: %w", err)
+	}
+
+	return s.GetAPIKeyByID(ctx, id)
+}
+
+// UpdateAPIKey updates an existing API key record.
+func (s *Store) UpdateAPIKey(ctx context.Context, key *storage.APIKeyRecord) error {
+	// Get current key for reference
+	current, err := s.GetAPIKeyByID(ctx, key.ID)
+	if err != nil {
+		return err
+	}
+
+	// Update main record (key_hash is immutable)
+	if err := s.session.Query(
+		`INSERT INTO api_keys (id, user_id, key_hash, key_prefix, name, role, enabled, created_at, expires_at, last_used)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		key.ID, key.UserID, current.KeyHash, current.KeyPrefix, key.Name, key.Role, key.Enabled, current.CreatedAt, key.ExpiresAt, key.LastUsed,
+	).WithContext(ctx).Exec(); err != nil {
+		return fmt.Errorf("failed to update API key: %w", err)
+	}
+
+	return nil
+}
+
+// DeleteAPIKey deletes an API key by ID.
+func (s *Store) DeleteAPIKey(ctx context.Context, id int64) error {
+	// Get current key for index cleanup
+	current, err := s.GetAPIKeyByID(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	batch := s.session.NewBatch(gocql.LoggedBatch).WithContext(ctx)
+
+	batch.Query(`DELETE FROM api_keys WHERE id = ?`, id)
+	batch.Query(`DELETE FROM api_keys_by_hash WHERE key_hash = ?`, current.KeyHash)
+	// UserID is now required, always delete from api_keys_by_user
+	batch.Query(`DELETE FROM api_keys_by_user WHERE user_id = ? AND created_at = ? AND id = ?`,
+		current.UserID, current.CreatedAt, id)
+
+	if err := s.session.ExecuteBatch(batch); err != nil {
+		return fmt.Errorf("failed to delete API key: %w", err)
+	}
+
+	return nil
+}
+
+// ListAPIKeys returns all API keys.
+func (s *Store) ListAPIKeys(ctx context.Context) ([]*storage.APIKeyRecord, error) {
+	iter := s.session.Query(
+		`SELECT id, user_id, key_hash, key_prefix, name, role, enabled, created_at, expires_at, last_used FROM api_keys`,
+	).WithContext(ctx).Iter()
+
+	var keys []*storage.APIKeyRecord
+	for {
+		key := &storage.APIKeyRecord{}
+		var lastUsed *time.Time
+		if !iter.Scan(&key.ID, &key.UserID, &key.KeyHash, &key.KeyPrefix, &key.Name, &key.Role,
+			&key.Enabled, &key.CreatedAt, &key.ExpiresAt, &lastUsed) {
+			break
+		}
+		key.LastUsed = lastUsed
+		keys = append(keys, key)
+	}
+
+	if err := iter.Close(); err != nil {
+		return nil, fmt.Errorf("failed to list API keys: %w", err)
+	}
+
+	return keys, nil
+}
+
+// ListAPIKeysByUserID returns all API keys for a user.
+func (s *Store) ListAPIKeysByUserID(ctx context.Context, userID int64) ([]*storage.APIKeyRecord, error) {
+	iter := s.session.Query(
+		`SELECT id FROM api_keys_by_user WHERE user_id = ?`,
+		userID,
+	).WithContext(ctx).Iter()
+
+	var keys []*storage.APIKeyRecord
+	var keyID int64
+	for iter.Scan(&keyID) {
+		key, err := s.GetAPIKeyByID(ctx, keyID)
+		if err == nil {
+			keys = append(keys, key)
+		}
+	}
+
+	if err := iter.Close(); err != nil {
+		return nil, fmt.Errorf("failed to list API keys: %w", err)
+	}
+
+	return keys, nil
+}
+
+// GetAPIKeyByUserAndName retrieves an API key by user ID and name.
+func (s *Store) GetAPIKeyByUserAndName(ctx context.Context, userID int64, name string) (*storage.APIKeyRecord, error) {
+	// Get all keys for the user and find the one with matching name
+	keys, err := s.ListAPIKeysByUserID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, key := range keys {
+		if key.Name == name {
+			return key, nil
+		}
+	}
+
+	return nil, storage.ErrAPIKeyNotFound
+}
+
+// UpdateAPIKeyLastUsed updates the last_used timestamp for an API key.
+func (s *Store) UpdateAPIKeyLastUsed(ctx context.Context, id int64) error {
+	now := time.Now()
+	if err := s.session.Query(
+		`UPDATE api_keys SET last_used = ? WHERE id = ?`,
+		now, id,
+	).WithContext(ctx).Exec(); err != nil {
+		return fmt.Errorf("failed to update API key last used: %w", err)
+	}
+	return nil
+}
+
 // Close closes the Cassandra session.
 func (s *Store) Close() error {
 	s.session.Close()

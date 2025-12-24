@@ -29,10 +29,12 @@ type ServerConfig struct {
 
 // StorageConfig represents storage backend configuration.
 type StorageConfig struct {
-	Type       string           `yaml:"type"` // memory, postgresql, mysql, cassandra
+	Type       string           `yaml:"type"`      // memory, postgresql, mysql, cassandra
+	AuthType   string           `yaml:"auth_type"` // Optional: vault, or same as Type if not set
 	PostgreSQL PostgreSQLConfig `yaml:"postgresql"`
 	MySQL      MySQLConfig      `yaml:"mysql"`
 	Cassandra  CassandraConfig  `yaml:"cassandra"`
+	Vault      VaultConfig      `yaml:"vault"`
 }
 
 // PostgreSQLConfig represents PostgreSQL connection configuration.
@@ -70,6 +72,19 @@ type CassandraConfig struct {
 	Password    string   `yaml:"password"`
 }
 
+// VaultConfig represents HashiCorp Vault connection configuration.
+type VaultConfig struct {
+	Address       string `yaml:"address"`         // Vault server address (e.g., http://localhost:8200)
+	Token         string `yaml:"token"`           // Vault token (or use VAULT_TOKEN env var)
+	Namespace     string `yaml:"namespace"`       // Vault namespace (enterprise feature)
+	MountPath     string `yaml:"mount_path"`      // KV secrets engine mount path (default: "secret")
+	BasePath      string `yaml:"base_path"`       // Base path for schema registry data (default: "schema-registry")
+	TLSCertFile   string `yaml:"tls_cert_file"`   // Path to client certificate for TLS auth
+	TLSKeyFile    string `yaml:"tls_key_file"`    // Path to client key for TLS auth
+	TLSCAFile     string `yaml:"tls_ca_file"`     // Path to CA certificate
+	TLSSkipVerify bool   `yaml:"tls_skip_verify"` // Skip TLS verification (not recommended)
+}
+
 // CompatibilityConfig represents compatibility checking configuration.
 type CompatibilityConfig struct {
 	DefaultLevel string `yaml:"default_level"`
@@ -102,12 +117,34 @@ type TLSConfig struct {
 
 // AuthConfig represents authentication configuration.
 type AuthConfig struct {
-	Enabled bool            `yaml:"enabled"`
-	Methods []string        `yaml:"methods"` // basic, api_key, jwt, mtls
-	Basic   BasicAuthConfig `yaml:"basic"`
-	APIKey  APIKeyConfig    `yaml:"api_key"`
-	JWT     JWTConfig       `yaml:"jwt"`
-	RBAC    RBACConfig      `yaml:"rbac"`
+	Enabled   bool            `yaml:"enabled"`
+	Methods   []string        `yaml:"methods"` // basic, api_key, jwt, oidc, mtls
+	Bootstrap BootstrapConfig `yaml:"bootstrap"`
+	Basic     BasicAuthConfig `yaml:"basic"`
+	LDAP      LDAPConfig      `yaml:"ldap"`
+	OIDC      OIDCConfig      `yaml:"oidc"`
+	APIKey    APIKeyConfig    `yaml:"api_key"`
+	JWT       JWTConfig       `yaml:"jwt"`
+	RBAC      RBACConfig      `yaml:"rbac"`
+}
+
+// BootstrapConfig represents initial admin user bootstrap configuration.
+// This allows creating an initial admin user when the users table is empty.
+// Credentials should be set via environment variables for security.
+type BootstrapConfig struct {
+	// Enabled controls whether bootstrap is attempted on startup.
+	// If true and the users table is empty, an admin user will be created
+	// using the provided credentials.
+	Enabled bool `yaml:"enabled"`
+	// Username for the bootstrap admin user.
+	// Recommended to set via SCHEMA_REGISTRY_BOOTSTRAP_USERNAME env var.
+	Username string `yaml:"username"`
+	// Password for the bootstrap admin user.
+	// MUST be set via SCHEMA_REGISTRY_BOOTSTRAP_PASSWORD env var for security.
+	// The password in the config file will be ignored if the env var is set.
+	Password string `yaml:"password"`
+	// Email for the bootstrap admin user (optional).
+	Email string `yaml:"email"`
 }
 
 // BasicAuthConfig represents basic authentication configuration.
@@ -117,11 +154,64 @@ type BasicAuthConfig struct {
 	HTPasswd string            `yaml:"htpasswd_file"`
 }
 
+// LDAPConfig represents LDAP authentication configuration.
+type LDAPConfig struct {
+	Enabled            bool              `yaml:"enabled"`
+	URL                string            `yaml:"url"`                  // ldap://host:389 or ldaps://host:636
+	BindDN             string            `yaml:"bind_dn"`              // Service account DN
+	BindPassword       string            `yaml:"bind_password"`        // Service account password
+	BaseDN             string            `yaml:"base_dn"`              // Base DN for searches
+	UserSearchFilter   string            `yaml:"user_search_filter"`   // e.g., (sAMAccountName=%s)
+	UserSearchBase     string            `yaml:"user_search_base"`     // e.g., OU=Users,DC=example,DC=com
+	GroupSearchFilter  string            `yaml:"group_search_filter"`  // e.g., (member=%s)
+	GroupSearchBase    string            `yaml:"group_search_base"`    // e.g., OU=Groups,DC=example,DC=com
+	UsernameAttribute  string            `yaml:"username_attribute"`   // sAMAccountName, uid, userPrincipalName
+	EmailAttribute     string            `yaml:"email_attribute"`      // mail
+	GroupAttribute     string            `yaml:"group_attribute"`      // memberOf
+	RoleMapping        map[string]string `yaml:"role_mapping"`         // LDAP group -> role
+	DefaultRole        string            `yaml:"default_role"`         // Role if no group matches
+	StartTLS           bool              `yaml:"start_tls"`            // Use STARTTLS
+	InsecureSkipVerify bool              `yaml:"insecure_skip_verify"` // Skip TLS verification
+	CACertFile         string            `yaml:"ca_cert_file"`         // CA cert for TLS
+	ConnectionTimeout  int               `yaml:"connection_timeout"`   // Seconds, default 10
+	RequestTimeout     int               `yaml:"request_timeout"`      // Seconds, default 30
+}
+
+// OIDCConfig represents OpenID Connect authentication configuration.
+type OIDCConfig struct {
+	Enabled           bool              `yaml:"enabled"`
+	IssuerURL         string            `yaml:"issuer_url"`         // https://auth.example.com
+	ClientID          string            `yaml:"client_id"`          // For token validation
+	ClientSecret      string            `yaml:"client_secret"`      // Optional, for code flow
+	RedirectURL       string            `yaml:"redirect_url"`       // Callback URL
+	Scopes            []string          `yaml:"scopes"`             // openid, profile, email
+	UsernameClaim     string            `yaml:"username_claim"`     // sub, preferred_username, email
+	RolesClaim        string            `yaml:"roles_claim"`        // roles, groups
+	RoleMapping       map[string]string `yaml:"role_mapping"`       // OIDC role -> registry role
+	DefaultRole       string            `yaml:"default_role"`       // Role if no mapping
+	RequiredAudience  string            `yaml:"required_audience"`  // aud claim validation
+	AllowedAlgorithms []string          `yaml:"allowed_algorithms"` // RS256, ES256
+	SkipIssuerCheck   bool              `yaml:"skip_issuer_check"`  // For testing only
+	SkipExpiryCheck   bool              `yaml:"skip_expiry_check"`  // For testing only
+}
+
 // APIKeyConfig represents API key authentication configuration.
 type APIKeyConfig struct {
 	Header      string `yaml:"header"`       // X-API-Key
 	QueryParam  string `yaml:"query_param"`  // api_key
 	StorageType string `yaml:"storage_type"` // memory, database
+	// Secret is used as a pepper for HMAC-SHA256 hashing of API keys.
+	// This provides defense-in-depth: even if the database is compromised,
+	// the attacker cannot verify API keys without this secret.
+	// CRITICAL: This must be kept secret and should be loaded from environment
+	// variable or secrets manager. Use at least 32 bytes of random data.
+	// If not set, falls back to plain SHA-256 (less secure but backward compatible).
+	Secret string `yaml:"secret"`
+	// KeyPrefix is prepended to generated API keys for identification (e.g., "sr_live_")
+	KeyPrefix string `yaml:"key_prefix"`
+	// CacheRefreshSeconds is how often (in seconds) the API key cache is refreshed
+	// from the database. This ensures cluster consistency. Default is 60 seconds.
+	CacheRefreshSeconds int `yaml:"cache_refresh_seconds"`
 }
 
 // JWTConfig represents JWT authentication configuration.
@@ -275,6 +365,50 @@ func (c *Config) applyEnvOverrides() {
 	if v := os.Getenv("SCHEMA_REGISTRY_MYSQL_TLS"); v != "" {
 		c.Storage.MySQL.TLS = v
 	}
+
+	// Auth type override
+	if v := os.Getenv("SCHEMA_REGISTRY_AUTH_TYPE"); v != "" {
+		c.Storage.AuthType = v
+	}
+
+	// Bootstrap admin user overrides
+	if v := os.Getenv("SCHEMA_REGISTRY_BOOTSTRAP_ENABLED"); v != "" {
+		c.Security.Auth.Bootstrap.Enabled = strings.ToLower(v) == "true" || v == "1"
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_BOOTSTRAP_USERNAME"); v != "" {
+		c.Security.Auth.Bootstrap.Username = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_BOOTSTRAP_PASSWORD"); v != "" {
+		c.Security.Auth.Bootstrap.Password = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_BOOTSTRAP_EMAIL"); v != "" {
+		c.Security.Auth.Bootstrap.Email = v
+	}
+
+	// Vault overrides
+	if v := os.Getenv("SCHEMA_REGISTRY_VAULT_ADDRESS"); v != "" {
+		c.Storage.Vault.Address = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_VAULT_TOKEN"); v != "" {
+		c.Storage.Vault.Token = v
+	}
+	if v := os.Getenv("VAULT_TOKEN"); v != "" && c.Storage.Vault.Token == "" {
+		// Also support standard VAULT_TOKEN env var
+		c.Storage.Vault.Token = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_VAULT_NAMESPACE"); v != "" {
+		c.Storage.Vault.Namespace = v
+	}
+	if v := os.Getenv("VAULT_NAMESPACE"); v != "" && c.Storage.Vault.Namespace == "" {
+		// Also support standard VAULT_NAMESPACE env var
+		c.Storage.Vault.Namespace = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_VAULT_MOUNT_PATH"); v != "" {
+		c.Storage.Vault.MountPath = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_VAULT_BASE_PATH"); v != "" {
+		c.Storage.Vault.BasePath = v
+	}
 }
 
 // Validate validates the configuration.
@@ -291,6 +425,27 @@ func (c *Config) Validate() error {
 	}
 	if !validStorageTypes[c.Storage.Type] {
 		return fmt.Errorf("invalid storage type: %s", c.Storage.Type)
+	}
+
+	// Validate auth_type if set
+	if c.Storage.AuthType != "" {
+		validAuthTypes := map[string]bool{
+			"vault":      true,
+			"postgresql": true,
+			"mysql":      true,
+			"cassandra":  true,
+			"memory":     true,
+		}
+		if !validAuthTypes[c.Storage.AuthType] {
+			return fmt.Errorf("invalid auth type: %s", c.Storage.AuthType)
+		}
+	}
+
+	// Validate Vault config if auth_type is vault
+	if c.Storage.AuthType == "vault" {
+		if c.Storage.Vault.Address == "" {
+			return fmt.Errorf("vault address is required when auth_type is vault")
+		}
 	}
 
 	validCompatibility := map[string]bool{

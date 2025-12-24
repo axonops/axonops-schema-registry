@@ -24,6 +24,10 @@ tags:
     description: Registry mode configuration
   - name: Compatibility
     description: Compatibility checking
+  - name: Account
+    description: Self-service account management
+  - name: Admin
+    description: User and API key management (requires admin permissions)
 
 paths:
   /:
@@ -597,6 +601,611 @@ paths:
               schema:
                 type: string
 
+  # Account endpoints - Self-service
+  /me:
+    get:
+      summary: Get current user info
+      operationId: getCurrentUser
+      tags:
+        - Account
+      security:
+        - basicAuth: []
+        - apiKey: []
+      responses:
+        '200':
+          description: Current user info
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /me/password:
+    post:
+      summary: Change own password
+      description: Change the password for the currently authenticated user. Requires the current password for verification.
+      operationId: changePassword
+      tags:
+        - Account
+      security:
+        - basicAuth: []
+        - apiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+      responses:
+        '204':
+          description: Password changed successfully
+        '400':
+          description: Invalid request (e.g., password too weak)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Current password is incorrect
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # Admin endpoints - User Management
+  /admin/users:
+    get:
+      summary: List all users
+      operationId: listUsers
+      tags:
+        - Admin
+      security:
+        - basicAuth: []
+        - apiKey: []
+      responses:
+        '200':
+          description: List of users
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsersListResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      summary: Create a new user
+      operationId: createUser
+      tags:
+        - Admin
+      security:
+        - basicAuth: []
+        - apiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: User already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /admin/users/{id}:
+    get:
+      summary: Get user by ID
+      operationId: getUser
+      tags:
+        - Admin
+      security:
+        - basicAuth: []
+        - apiKey: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: User found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      summary: Update user
+      operationId: updateUser
+      tags:
+        - Admin
+      security:
+        - basicAuth: []
+        - apiKey: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+      responses:
+        '200':
+          description: User updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      summary: Delete user
+      operationId: deleteUser
+      tags:
+        - Admin
+      security:
+        - basicAuth: []
+        - apiKey: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: User deleted
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # Admin endpoints - API Key Management
+  /admin/apikeys:
+    get:
+      summary: List all API keys
+      operationId: listAPIKeys
+      tags:
+        - Admin
+      security:
+        - basicAuth: []
+        - apiKey: []
+      parameters:
+        - name: user_id
+          in: query
+          description: Filter by user ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: List of API keys
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIKeysListResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      summary: Create a new API key
+      operationId: createAPIKey
+      tags:
+        - Admin
+      security:
+        - basicAuth: []
+        - apiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAPIKeyRequest'
+      responses:
+        '201':
+          description: API key created (key is only shown once)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateAPIKeyResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: API key name already exists for user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /admin/apikeys/{id}:
+    get:
+      summary: Get API key by ID
+      operationId: getAPIKey
+      tags:
+        - Admin
+      security:
+        - basicAuth: []
+        - apiKey: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: API key found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIKeyResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: API key not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      summary: Update API key
+      operationId: updateAPIKey
+      tags:
+        - Admin
+      security:
+        - basicAuth: []
+        - apiKey: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAPIKeyRequest'
+      responses:
+        '200':
+          description: API key updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIKeyResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: API key not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      summary: Delete API key
+      operationId: deleteAPIKey
+      tags:
+        - Admin
+      security:
+        - basicAuth: []
+        - apiKey: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: API key deleted
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: API key not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /admin/apikeys/{id}/revoke:
+    post:
+      summary: Revoke an API key (disable it)
+      operationId: revokeAPIKey
+      tags:
+        - Admin
+      security:
+        - basicAuth: []
+        - apiKey: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: API key revoked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIKeyResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: API key not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /admin/apikeys/{id}/rotate:
+    post:
+      summary: Rotate an API key (revoke old, create new)
+      operationId: rotateAPIKey
+      tags:
+        - Admin
+      security:
+        - basicAuth: []
+        - apiKey: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RotateAPIKeyRequest'
+      responses:
+        '200':
+          description: API key rotated (new key is only shown once)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RotateAPIKeyResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: API key not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # Admin endpoints - Roles
+  /admin/roles:
+    get:
+      summary: List available roles and their permissions
+      operationId: listRoles
+      tags:
+        - Admin
+      security:
+        - basicAuth: []
+        - apiKey: []
+      responses:
+        '200':
+          description: List of roles
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RolesListResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 components:
   schemas:
     SchemaResponse:
@@ -715,14 +1324,286 @@ components:
           type: string
           description: Error message
 
+    # Admin schemas - Users
+    CreateUserRequest:
+      type: object
+      required:
+        - username
+        - password
+        - role
+      properties:
+        username:
+          type: string
+          description: Unique username
+        email:
+          type: string
+          format: email
+          description: User email address
+        password:
+          type: string
+          format: password
+          description: User password
+        role:
+          type: string
+          enum: [super_admin, admin, developer, readonly]
+          description: User role
+        enabled:
+          type: boolean
+          default: true
+          description: Whether the user is enabled
+
+    UpdateUserRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          description: User email address
+        password:
+          type: string
+          format: password
+          description: New password
+        role:
+          type: string
+          enum: [super_admin, admin, developer, readonly]
+          description: User role
+        enabled:
+          type: boolean
+          description: Whether the user is enabled
+
+    UserResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: User ID
+        username:
+          type: string
+          description: Username
+        email:
+          type: string
+          description: Email address
+        role:
+          type: string
+          description: User role
+        enabled:
+          type: boolean
+          description: Whether the user is enabled
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+
+    UsersListResponse:
+      type: object
+      properties:
+        users:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserResponse'
+
+    ChangePasswordRequest:
+      type: object
+      required:
+        - old_password
+        - new_password
+      properties:
+        old_password:
+          type: string
+          format: password
+          description: Current password for verification
+        new_password:
+          type: string
+          format: password
+          description: New password to set
+
+    # Admin schemas - API Keys
+    CreateAPIKeyRequest:
+      type: object
+      required:
+        - name
+        - role
+        - expires_in
+      properties:
+        name:
+          type: string
+          description: Unique name for this API key (per user)
+        role:
+          type: string
+          enum: [super_admin, admin, developer, readonly]
+          description: Role for this API key
+        expires_in:
+          type: integer
+          format: int64
+          description: Expiry duration in seconds (e.g., 2592000 for 30 days)
+        for_user_id:
+          type: integer
+          format: int64
+          description: Create API key for another user (super_admin only)
+
+    UpdateAPIKeyRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: New name for the API key
+        role:
+          type: string
+          enum: [super_admin, admin, developer, readonly]
+          description: New role
+        enabled:
+          type: boolean
+          description: Whether the API key is enabled
+
+    APIKeyResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: API key ID
+        key_prefix:
+          type: string
+          description: Prefix of the key (for identification)
+        name:
+          type: string
+          description: API key name
+        role:
+          type: string
+          description: API key role
+        user_id:
+          type: integer
+          format: int64
+          description: Owner user ID
+        username:
+          type: string
+          description: Owner username
+        enabled:
+          type: boolean
+          description: Whether the API key is enabled
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        expires_at:
+          type: string
+          format: date-time
+          description: Expiry timestamp
+        last_used:
+          type: string
+          format: date-time
+          description: Last usage timestamp
+
+    CreateAPIKeyResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: API key ID
+        key:
+          type: string
+          description: The raw API key (only shown once!)
+        key_prefix:
+          type: string
+          description: Prefix of the key (for identification)
+        name:
+          type: string
+          description: API key name
+        role:
+          type: string
+          description: API key role
+        user_id:
+          type: integer
+          format: int64
+          description: Owner user ID
+        username:
+          type: string
+          description: Owner username
+        enabled:
+          type: boolean
+          description: Whether the API key is enabled
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        expires_at:
+          type: string
+          format: date-time
+          description: Expiry timestamp
+
+    APIKeysListResponse:
+      type: object
+      properties:
+        api_keys:
+          type: array
+          items:
+            $ref: '#/components/schemas/APIKeyResponse'
+
+    RotateAPIKeyRequest:
+      type: object
+      required:
+        - expires_in
+      properties:
+        expires_in:
+          type: integer
+          format: int64
+          description: Expiry duration in seconds for the new key
+
+    RotateAPIKeyResponse:
+      type: object
+      properties:
+        new_key:
+          $ref: '#/components/schemas/CreateAPIKeyResponse'
+        revoked_id:
+          type: integer
+          format: int64
+          description: ID of the revoked key
+
+    # Admin schemas - Roles
+    RoleInfo:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Role name
+        description:
+          type: string
+          description: Role description
+        permissions:
+          type: array
+          items:
+            type: string
+          description: List of permissions
+
+    RolesListResponse:
+      type: object
+      properties:
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/RoleInfo'
+
   securitySchemes:
     basicAuth:
       type: http
       scheme: basic
+      description: |
+        HTTP Basic Authentication. Supports two modes:
+        1. Username/password: Standard basic auth with username and password
+        2. API key via Basic Auth: Use API key as username with empty password
+           (compatible with Kafka producers/consumers)
+           Example: Authorization: Basic <base64(api_key:)>
     apiKey:
       type: apiKey
       in: header
       name: X-API-Key
+      description: API key passed via X-API-Key header
 
 security:
   - basicAuth: []

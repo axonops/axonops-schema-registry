@@ -1,0 +1,124 @@
+# AxonOps Schema Registry Configuration Example
+# Copy this file to config.yaml and customize as needed
+
+server:
+  host: "0.0.0.0"
+  port: 8081
+  read_timeout: 30
+  write_timeout: 30
+
+# Storage backend configuration
+# Options: memory, postgresql, mysql, cassandra
+storage:
+  type: postgresql
+
+  postgresql:
+    host: localhost
+    port: 5432
+    database: schemaregistry
+    user: schemaregistry
+    password: schemaregistry
+    ssl_mode: disable
+    max_open_conns: 25
+    max_idle_conns: 5
+    conn_max_lifetime: 300  # seconds
+
+  # mysql:
+  #   host: localhost
+  #   port: 3306
+  #   database: schemaregistry
+  #   user: schemaregistry
+  #   password: schemaregistry
+  #   tls: "false"
+  #   max_open_conns: 25
+  #   max_idle_conns: 5
+  #   conn_max_lifetime: 300
+
+  # cassandra:
+  #   hosts:
+  #     - localhost
+  #   keyspace: schemaregistry
+  #   consistency: LOCAL_QUORUM
+  #   username: ""
+  #   password: ""
+
+# Default compatibility level for schemas
+compatibility:
+  default_level: BACKWARD
+
+# Logging configuration
+logging:
+  level: info
+  format: json
+
+# Security configuration
+security:
+  # TLS configuration
+  tls:
+    enabled: false
+    cert_file: ""
+    key_file: ""
+    ca_file: ""
+    min_version: "TLS1.2"
+    client_auth: none  # none, request, require, verify
+    auto_reload: false
+
+  # Authentication configuration
+  auth:
+    enabled: true
+    # Authentication methods to try in order
+    # Options: basic, api_key, jwt, mtls
+    methods:
+      - api_key
+      - basic
+
+    # Basic authentication settings
+    basic:
+      realm: "Schema Registry"
+      # Users with bcrypt-hashed passwords (legacy config-based auth)
+      # Use the CLI tool to manage users in the database instead
+      users: {}
+      htpasswd_file: ""
+
+    # API Key authentication settings
+    api_key:
+      header: "X-API-Key"
+      query_param: "api_key"
+      storage_type: database  # memory or database
+
+    # JWT authentication settings (for external IdP)
+    jwt:
+      issuer: ""
+      audience: ""
+      jwks_url: ""
+      public_key_file: ""
+      algorithm: RS256
+      claims_mapping:
+        username: sub
+        role: role
+
+    # RBAC settings
+    rbac:
+      enabled: true
+      default_role: readonly
+      # Super admins have full access to everything including user management
+      super_admins:
+        - admin
+
+  # Rate limiting
+  rate_limiting:
+    enabled: false
+    requests_per_second: 100
+    burst_size: 200
+    per_client: true
+    per_endpoint: false
+
+  # Audit logging
+  audit:
+    enabled: false
+    log_file: "/var/log/schema-registry/audit.log"
+    events:
+      - schema_register
+      - schema_delete
+      - config_change
+    include_body: false

@@ -138,4 +138,122 @@ const (
 	ErrorCodeReferenceExists           = 42206
 	ErrorCodeInternalServerError       = 50001
 	ErrorCodeStorageError              = 50002
+
+	// Admin error codes
+	ErrorCodeUnauthorized     = 40101
+	ErrorCodeForbidden        = 40301
+	ErrorCodeUserNotFound     = 40404
+	ErrorCodeUserExists       = 40901
+	ErrorCodeAPIKeyNotFound   = 40405
+	ErrorCodeAPIKeyExists     = 40902
+	ErrorCodeInvalidRole      = 42207
+	ErrorCodeInvalidPassword  = 42208
+	ErrorCodeAPIKeyExpired    = 40103
+	ErrorCodeAPIKeyDisabled   = 40104
+	ErrorCodeUserDisabled     = 40105
 )
+
+// CreateUserRequest is the request body for creating a user.
+type CreateUserRequest struct {
+	Username string `json:"username"`
+	Email    string `json:"email,omitempty"`
+	Password string `json:"password"`
+	Role     string `json:"role"`
+	Enabled  *bool  `json:"enabled,omitempty"`
+}
+
+// UpdateUserRequest is the request body for updating a user.
+type UpdateUserRequest struct {
+	Email    *string `json:"email,omitempty"`
+	Password *string `json:"password,omitempty"`
+	Role     *string `json:"role,omitempty"`
+	Enabled  *bool   `json:"enabled,omitempty"`
+}
+
+// UserResponse is the response for user operations.
+type UserResponse struct {
+	ID        int64  `json:"id"`
+	Username  string `json:"username"`
+	Email     string `json:"email,omitempty"`
+	Role      string `json:"role"`
+	Enabled   bool   `json:"enabled"`
+	CreatedAt string `json:"created_at"`
+	UpdatedAt string `json:"updated_at"`
+}
+
+// UsersListResponse is the response for listing users.
+type UsersListResponse struct {
+	Users []UserResponse `json:"users"`
+}
+
+// ChangePasswordRequest is the request body for changing password.
+type ChangePasswordRequest struct {
+	OldPassword string `json:"old_password"`
+	NewPassword string `json:"new_password"`
+}
+
+// CreateAPIKeyRequest is the request body for creating an API key.
+type CreateAPIKeyRequest struct {
+	Name      string `json:"name"`                       // Required, must be unique per user
+	Role      string `json:"role"`                       // Required: super_admin, admin, developer, readonly
+	ExpiresIn int64  `json:"expires_in"`                 // Required, duration in seconds (e.g., 2592000 for 30 days)
+	ForUserID *int64 `json:"for_user_id,omitempty"`      // Optional: super_admin can create keys for other users
+}
+
+// UpdateAPIKeyRequest is the request body for updating an API key.
+type UpdateAPIKeyRequest struct {
+	Name    *string `json:"name,omitempty"`
+	Role    *string `json:"role,omitempty"`
+	Enabled *bool   `json:"enabled,omitempty"`
+}
+
+// APIKeyResponse is the response for API key operations (without the raw key).
+type APIKeyResponse struct {
+	ID        int64   `json:"id"`
+	KeyPrefix string  `json:"key_prefix"`
+	Name      string  `json:"name"`
+	Role      string  `json:"role"`
+	UserID    int64   `json:"user_id"`           // User who owns this API key
+	Username  string  `json:"username"`          // Username of the owner
+	Enabled   bool    `json:"enabled"`
+	CreatedAt string  `json:"created_at"`
+	ExpiresAt string  `json:"expires_at"`
+	LastUsed  *string `json:"last_used,omitempty"`
+}
+
+// CreateAPIKeyResponse is the response for creating an API key (includes raw key).
+type CreateAPIKeyResponse struct {
+	ID        int64  `json:"id"`
+	Key       string `json:"key"` // Raw key, only shown once
+	KeyPrefix string `json:"key_prefix"`
+	Name      string `json:"name"`
+	Role      string `json:"role"`
+	UserID    int64  `json:"user_id"`  // User who owns this API key
+	Username  string `json:"username"` // Username of the owner
+	Enabled   bool   `json:"enabled"`
+	CreatedAt string `json:"created_at"`
+	ExpiresAt string `json:"expires_at"`
+}
+
+// APIKeysListResponse is the response for listing API keys.
+type APIKeysListResponse struct {
+	APIKeys []APIKeyResponse `json:"api_keys"`
+}
+
+// RotateAPIKeyResponse is the response for rotating an API key.
+type RotateAPIKeyResponse struct {
+	NewKey    CreateAPIKeyResponse `json:"new_key"`
+	RevokedID int64                `json:"revoked_id"`
+}
+
+// RolesListResponse is the response for listing available roles.
+type RolesListResponse struct {
+	Roles []RoleInfo `json:"roles"`
+}
+
+// RoleInfo describes a role and its permissions.
+type RoleInfo struct {
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
+	Permissions []string `json:"permissions"`
+}

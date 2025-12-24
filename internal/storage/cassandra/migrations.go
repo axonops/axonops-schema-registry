@@ -84,4 +84,68 @@ var migrations = []string{
 
 	// Initialize global mode with default value
 	`INSERT INTO modes (subject, mode) VALUES ('__global__', 'READWRITE') IF NOT EXISTS`,
+
+	// Table 10: users - stores user records
+	`CREATE TABLE IF NOT EXISTS users (
+		id bigint PRIMARY KEY,
+		username text,
+		email text,
+		password_hash text,
+		role text,
+		enabled boolean,
+		created_at timestamp,
+		updated_at timestamp
+	)`,
+
+	// Table 11: users_by_username - lookup by username
+	`CREATE TABLE IF NOT EXISTS users_by_username (
+		username text PRIMARY KEY,
+		id bigint
+	)`,
+
+	// Table 12: users_by_email - lookup by email (for uniqueness check)
+	`CREATE TABLE IF NOT EXISTS users_by_email (
+		email text PRIMARY KEY,
+		id bigint
+	)`,
+
+	// Table 13: api_keys - stores API key records
+	`CREATE TABLE IF NOT EXISTS api_keys (
+		id bigint PRIMARY KEY,
+		user_id bigint,
+		key_hash text,
+		key_prefix text,
+		name text,
+		role text,
+		enabled boolean,
+		created_at timestamp,
+		expires_at timestamp,
+		last_used timestamp
+	)`,
+
+	// Table 14: api_keys_by_hash - lookup by key hash
+	`CREATE TABLE IF NOT EXISTS api_keys_by_hash (
+		key_hash text PRIMARY KEY,
+		id bigint
+	)`,
+
+	// Table 15: api_keys_by_user - lookup by user ID
+	`CREATE TABLE IF NOT EXISTS api_keys_by_user (
+		user_id bigint,
+		id bigint,
+		created_at timestamp,
+		PRIMARY KEY (user_id, created_at, id)
+	) WITH CLUSTERING ORDER BY (created_at DESC, id ASC)`,
+
+	// Table 16: user_id_counter - counter for generating unique user IDs
+	`CREATE TABLE IF NOT EXISTS user_id_counter (
+		name text PRIMARY KEY,
+		value counter
+	)`,
+
+	// Table 17: api_key_id_counter - counter for generating unique API key IDs
+	`CREATE TABLE IF NOT EXISTS api_key_id_counter (
+		name text PRIMARY KEY,
+		value counter
+	)`,
 }

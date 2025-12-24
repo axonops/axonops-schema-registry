@@ -9,12 +9,23 @@ import (
 
 // Common errors
 var (
-	ErrNotFound        = errors.New("not found")
-	ErrSubjectNotFound = errors.New("subject not found")
-	ErrSchemaNotFound  = errors.New("schema not found")
-	ErrVersionNotFound = errors.New("version not found")
-	ErrSubjectDeleted  = errors.New("subject has been deleted")
-	ErrSchemaExists    = errors.New("schema already exists")
+	ErrNotFound         = errors.New("not found")
+	ErrSubjectNotFound  = errors.New("subject not found")
+	ErrSchemaNotFound   = errors.New("schema not found")
+	ErrVersionNotFound  = errors.New("version not found")
+	ErrSubjectDeleted   = errors.New("subject has been deleted")
+	ErrSchemaExists     = errors.New("schema already exists")
+	ErrUserNotFound     = errors.New("user not found")
+	ErrUserExists       = errors.New("user already exists")
+	ErrAPIKeyNotFound      = errors.New("API key not found")
+	ErrAPIKeyExists        = errors.New("API key already exists")
+	ErrAPIKeyNameExists    = errors.New("API key name already exists for this user")
+	ErrInvalidAPIKey       = errors.New("invalid API key")
+	ErrAPIKeyExpired    = errors.New("API key has expired")
+	ErrAPIKeyDisabled   = errors.New("API key is disabled")
+	ErrUserDisabled     = errors.New("user is disabled")
+	ErrInvalidRole      = errors.New("invalid role")
+	ErrPermissionDenied = errors.New("permission denied")
 )
 
 // SchemaType represents the type of schema.
@@ -64,8 +75,60 @@ type ModeRecord struct {
 	Mode    string `json:"mode"`
 }
 
+// UserRecord represents a stored user.
+type UserRecord struct {
+	ID           int64     `json:"id"`
+	Username     string    `json:"username"`
+	Email        string    `json:"email,omitempty"`
+	PasswordHash string    `json:"-"` // Never exposed in JSON
+	Role         string    `json:"role"`
+	Enabled      bool      `json:"enabled"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+}
+
+// APIKeyRecord represents a stored API key.
+type APIKeyRecord struct {
+	ID        int64      `json:"id"`
+	UserID    int64      `json:"user_id"`    // User who owns this API key (required)
+	KeyHash   string     `json:"-"`          // SHA-256 hash of the key, never exposed
+	KeyPrefix string     `json:"key_prefix"` // First 8 chars for display/identification
+	Name      string     `json:"name"`       // Unique per user
+	Role      string     `json:"role"`
+	Enabled   bool       `json:"enabled"`
+	CreatedAt time.Time  `json:"created_at"`
+	ExpiresAt time.Time  `json:"expires_at"` // Required expiration time
+	LastUsed  *time.Time `json:"last_used,omitempty"`
+}
+
+// AuthStorage defines the interface for authentication storage backends.
+// This can be implemented by database backends or secrets managers like Vault.
+type AuthStorage interface {
+	// User management
+	CreateUser(ctx context.Context, user *UserRecord) error
+	GetUserByID(ctx context.Context, id int64) (*UserRecord, error)
+	GetUserByUsername(ctx context.Context, username string) (*UserRecord, error)
+	UpdateUser(ctx context.Context, user *UserRecord) error
+	DeleteUser(ctx context.Context, id int64) error
+	ListUsers(ctx context.Context) ([]*UserRecord, error)
+
+	// API Key management
+	CreateAPIKey(ctx context.Context, key *APIKeyRecord) error
+	GetAPIKeyByID(ctx context.Context, id int64) (*APIKeyRecord, error)
+	GetAPIKeyByHash(ctx context.Context, keyHash string) (*APIKeyRecord, error)
+	GetAPIKeyByUserAndName(ctx context.Context, userID int64, name string) (*APIKeyRecord, error)
+	UpdateAPIKey(ctx context.Context, key *APIKeyRecord) error
+	DeleteAPIKey(ctx context.Context, id int64) error
+	ListAPIKeys(ctx context.Context) ([]*APIKeyRecord, error)
+	ListAPIKeysByUserID(ctx context.Context, userID int64) ([]*APIKeyRecord, error)
+	UpdateAPIKeyLastUsed(ctx context.Context, id int64) error
+}
+
 // Storage defines the interface for schema storage backends.
+// It embeds AuthStorage so database backends can implement both.
 type Storage interface {
+	AuthStorage
+
 	// Schema operations
 	CreateSchema(ctx context.Context, record *SchemaRecord) error
 	GetSchemaByID(ctx context.Context, id int64) (*SchemaRecord, error)

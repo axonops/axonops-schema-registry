@@ -54,6 +54,54 @@ func (c Config) DSN() string {
 type Store struct {
 	db     *sql.DB
 	config Config
+
+	// Prepared statements for better performance
+	stmts *preparedStatements
+}
+
+// preparedStatements holds all prepared SQL statements.
+type preparedStatements struct {
+	// Schema statements
+	getSchemaByID            *sql.Stmt
+	getSchemaBySubjectVer    *sql.Stmt
+	getSchemaByFingerprint   *sql.Stmt
+	getLatestSchema          *sql.Stmt
+	softDeleteSchema         *sql.Stmt
+	hardDeleteSchema         *sql.Stmt
+	countSchemasBySubject    *sql.Stmt
+	loadReferences           *sql.Stmt
+	getSubjectsBySchemaID    *sql.Stmt
+	getVersionsBySchemaID    *sql.Stmt
+	getReferencedBy          *sql.Stmt
+
+	// Config statements
+	getConfig    *sql.Stmt
+	setConfig    *sql.Stmt
+	deleteConfig *sql.Stmt
+
+	// Mode statements
+	getMode    *sql.Stmt
+	setMode    *sql.Stmt
+	deleteMode *sql.Stmt
+
+	// User statements
+	createUser        *sql.Stmt
+	getUserByID       *sql.Stmt
+	getUserByUsername *sql.Stmt
+	updateUser        *sql.Stmt
+	deleteUser        *sql.Stmt
+	listUsers         *sql.Stmt
+
+	// API Key statements
+	createAPIKey          *sql.Stmt
+	getAPIKeyByID         *sql.Stmt
+	getAPIKeyByHash       *sql.Stmt
+	updateAPIKey          *sql.Stmt
+	deleteAPIKey          *sql.Stmt
+	listAPIKeys           *sql.Stmt
+	listAPIKeysByUserID   *sql.Stmt
+	getAPIKeyByUserAndName *sql.Stmt
+	updateAPIKeyLastUsed  *sql.Stmt
 }
 
 // NewStore creates a new PostgreSQL store.
@@ -89,7 +137,271 @@ func NewStore(config Config) (*Store, error) {
 		return nil, fmt.Errorf("failed to run migrations: %w", err)
 	}
 
+	// Prepare statements
+	if err := store.prepareStatements(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("failed to prepare statements: %w", err)
+	}
+
 	return store, nil
+}
+
+// prepareStatements prepares all SQL statements for better performance.
+func (s *Store) prepareStatements() error {
+	var err error
+	stmts := &preparedStatements{}
+
+	// Schema statements
+	stmts.getSchemaByID, err = s.db.Prepare(
+		`SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at
+		 FROM schemas WHERE id = $1`)
+	if err != nil {
+		return fmt.Errorf("prepare getSchemaByID: %w", err)
+	}
+
+	stmts.getSchemaBySubjectVer, err = s.db.Prepare(
+		`SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at
+		 FROM schemas WHERE subject = $1 AND version = $2`)
+	if err != nil {
+		return fmt.Errorf("prepare getSchemaBySubjectVer: %w", err)
+	}
+
+	stmts.getSchemaByFingerprint, err = s.db.Prepare(
+		`SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at
+		 FROM schemas WHERE subject = $1 AND fingerprint = $2 AND deleted = FALSE`)
+	if err != nil {
+		return fmt.Errorf("prepare getSchemaByFingerprint: %w", err)
+	}
+
+	stmts.getLatestSchema, err = s.db.Prepare(
+		`SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at
+		 FROM schemas WHERE subject = $1 AND deleted = FALSE
+		 ORDER BY version DESC LIMIT 1`)
+	if err != nil {
+		return fmt.Errorf("prepare getLatestSchema: %w", err)
+	}
+
+	stmts.softDeleteSchema, err = s.db.Prepare(
+		`UPDATE schemas SET deleted = TRUE WHERE subject = $1 AND version = $2`)
+	if err != nil {
+		return fmt.Errorf("prepare softDeleteSchema: %w", err)
+	}
+
+	stmts.hardDeleteSchema, err = s.db.Prepare(
+		`DELETE FROM schemas WHERE subject = $1 AND version = $2`)
+	if err != nil {
+		return fmt.Errorf("prepare hardDeleteSchema: %w", err)
+	}
+
+	stmts.countSchemasBySubject, err = s.db.Prepare(
+		`SELECT COUNT(*) FROM schemas WHERE subject = $1`)
+	if err != nil {
+		return fmt.Errorf("prepare countSchemasBySubject: %w", err)
+	}
+
+	stmts.loadReferences, err = s.db.Prepare(
+		`SELECT name, ref_subject, ref_version FROM schema_references WHERE schema_id = $1`)
+	if err != nil {
+		return fmt.Errorf("prepare loadReferences: %w", err)
+	}
+
+	stmts.getSubjectsBySchemaID, err = s.db.Prepare(
+		`SELECT DISTINCT subject FROM schemas WHERE id = $1 AND deleted = FALSE`)
+	if err != nil {
+		return fmt.Errorf("prepare getSubjectsBySchemaID: %w", err)
+	}
+
+	stmts.getVersionsBySchemaID, err = s.db.Prepare(
+		`SELECT subject, version FROM schemas WHERE id = $1 AND deleted = FALSE`)
+	if err != nil {
+		return fmt.Errorf("prepare getVersionsBySchemaID: %w", err)
+	}
+
+	stmts.getReferencedBy, err = s.db.Prepare(
+		`SELECT s.subject, s.version
+		 FROM schemas s
+		 JOIN schema_references r ON r.schema_id = s.id
+		 WHERE r.ref_subject = $1 AND r.ref_version = $2 AND s.deleted = FALSE`)
+	if err != nil {
+		return fmt.Errorf("prepare getReferencedBy: %w", err)
+	}
+
+	// Config statements
+	stmts.getConfig, err = s.db.Prepare(
+		`SELECT subject, compatibility_level FROM configs WHERE subject = $1`)
+	if err != nil {
+		return fmt.Errorf("prepare getConfig: %w", err)
+	}
+
+	stmts.setConfig, err = s.db.Prepare(
+		`INSERT INTO configs (subject, compatibility_level) VALUES ($1, $2)
+		 ON CONFLICT (subject) DO UPDATE SET compatibility_level = EXCLUDED.compatibility_level`)
+	if err != nil {
+		return fmt.Errorf("prepare setConfig: %w", err)
+	}
+
+	stmts.deleteConfig, err = s.db.Prepare(
+		`DELETE FROM configs WHERE subject = $1`)
+	if err != nil {
+		return fmt.Errorf("prepare deleteConfig: %w", err)
+	}
+
+	// Mode statements
+	stmts.getMode, err = s.db.Prepare(
+		`SELECT subject, mode FROM modes WHERE subject = $1`)
+	if err != nil {
+		return fmt.Errorf("prepare getMode: %w", err)
+	}
+
+	stmts.setMode, err = s.db.Prepare(
+		`INSERT INTO modes (subject, mode) VALUES ($1, $2)
+		 ON CONFLICT (subject) DO UPDATE SET mode = EXCLUDED.mode`)
+	if err != nil {
+		return fmt.Errorf("prepare setMode: %w", err)
+	}
+
+	stmts.deleteMode, err = s.db.Prepare(
+		`DELETE FROM modes WHERE subject = $1`)
+	if err != nil {
+		return fmt.Errorf("prepare deleteMode: %w", err)
+	}
+
+	// User statements
+	stmts.createUser, err = s.db.Prepare(
+		`INSERT INTO users (username, email, password_hash, role, enabled, created_at, updated_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7)
+		 RETURNING id`)
+	if err != nil {
+		return fmt.Errorf("prepare createUser: %w", err)
+	}
+
+	stmts.getUserByID, err = s.db.Prepare(
+		`SELECT id, username, email, password_hash, role, enabled, created_at, updated_at
+		 FROM users WHERE id = $1`)
+	if err != nil {
+		return fmt.Errorf("prepare getUserByID: %w", err)
+	}
+
+	stmts.getUserByUsername, err = s.db.Prepare(
+		`SELECT id, username, email, password_hash, role, enabled, created_at, updated_at
+		 FROM users WHERE username = $1`)
+	if err != nil {
+		return fmt.Errorf("prepare getUserByUsername: %w", err)
+	}
+
+	stmts.updateUser, err = s.db.Prepare(
+		`UPDATE users SET username = $1, email = $2, password_hash = $3, role = $4,
+		 enabled = $5, updated_at = $6 WHERE id = $7`)
+	if err != nil {
+		return fmt.Errorf("prepare updateUser: %w", err)
+	}
+
+	stmts.deleteUser, err = s.db.Prepare(
+		`DELETE FROM users WHERE id = $1`)
+	if err != nil {
+		return fmt.Errorf("prepare deleteUser: %w", err)
+	}
+
+	stmts.listUsers, err = s.db.Prepare(
+		`SELECT id, username, email, password_hash, role, enabled, created_at, updated_at
+		 FROM users ORDER BY username`)
+	if err != nil {
+		return fmt.Errorf("prepare listUsers: %w", err)
+	}
+
+	// API Key statements
+	stmts.createAPIKey, err = s.db.Prepare(
+		`INSERT INTO api_keys (user_id, key_hash, key_prefix, name, role, enabled, created_at, expires_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		 RETURNING id`)
+	if err != nil {
+		return fmt.Errorf("prepare createAPIKey: %w", err)
+	}
+
+	stmts.getAPIKeyByID, err = s.db.Prepare(
+		`SELECT id, user_id, key_hash, key_prefix, name, role, enabled, created_at, expires_at, last_used
+		 FROM api_keys WHERE id = $1`)
+	if err != nil {
+		return fmt.Errorf("prepare getAPIKeyByID: %w", err)
+	}
+
+	stmts.getAPIKeyByHash, err = s.db.Prepare(
+		`SELECT id, user_id, key_hash, key_prefix, name, role, enabled, created_at, expires_at, last_used
+		 FROM api_keys WHERE key_hash = $1`)
+	if err != nil {
+		return fmt.Errorf("prepare getAPIKeyByHash: %w", err)
+	}
+
+	stmts.updateAPIKey, err = s.db.Prepare(
+		`UPDATE api_keys SET user_id = $1, name = $2, role = $3, enabled = $4, expires_at = $5
+		 WHERE id = $6`)
+	if err != nil {
+		return fmt.Errorf("prepare updateAPIKey: %w", err)
+	}
+
+	stmts.deleteAPIKey, err = s.db.Prepare(
+		`DELETE FROM api_keys WHERE id = $1`)
+	if err != nil {
+		return fmt.Errorf("prepare deleteAPIKey: %w", err)
+	}
+
+	stmts.listAPIKeys, err = s.db.Prepare(
+		`SELECT id, user_id, key_hash, key_prefix, name, role, enabled, created_at, expires_at, last_used
+		 FROM api_keys ORDER BY created_at DESC`)
+	if err != nil {
+		return fmt.Errorf("prepare listAPIKeys: %w", err)
+	}
+
+	stmts.listAPIKeysByUserID, err = s.db.Prepare(
+		`SELECT id, user_id, key_hash, key_prefix, name, role, enabled, created_at, expires_at, last_used
+		 FROM api_keys WHERE user_id = $1 ORDER BY created_at DESC`)
+	if err != nil {
+		return fmt.Errorf("prepare listAPIKeysByUserID: %w", err)
+	}
+
+	stmts.getAPIKeyByUserAndName, err = s.db.Prepare(
+		`SELECT id, user_id, key_hash, key_prefix, name, role, enabled, created_at, expires_at, last_used
+		 FROM api_keys WHERE user_id = $1 AND name = $2`)
+	if err != nil {
+		return fmt.Errorf("prepare getAPIKeyByUserAndName: %w", err)
+	}
+
+	stmts.updateAPIKeyLastUsed, err = s.db.Prepare(
+		`UPDATE api_keys SET last_used = $1 WHERE id = $2`)
+	if err != nil {
+		return fmt.Errorf("prepare updateAPIKeyLastUsed: %w", err)
+	}
+
+	s.stmts = stmts
+	return nil
+}
+
+// closeStatements closes all prepared statements.
+func (s *Store) closeStatements() {
+	if s.stmts == nil {
+		return
+	}
+
+	// Close all statements (ignore errors on close)
+	stmts := []*sql.Stmt{
+		s.stmts.getSchemaByID, s.stmts.getSchemaBySubjectVer, s.stmts.getSchemaByFingerprint,
+		s.stmts.getLatestSchema, s.stmts.softDeleteSchema, s.stmts.hardDeleteSchema,
+		s.stmts.countSchemasBySubject, s.stmts.loadReferences, s.stmts.getSubjectsBySchemaID,
+		s.stmts.getVersionsBySchemaID, s.stmts.getReferencedBy,
+		s.stmts.getConfig, s.stmts.setConfig, s.stmts.deleteConfig,
+		s.stmts.getMode, s.stmts.setMode, s.stmts.deleteMode,
+		s.stmts.createUser, s.stmts.getUserByID, s.stmts.getUserByUsername,
+		s.stmts.updateUser, s.stmts.deleteUser, s.stmts.listUsers,
+		s.stmts.createAPIKey, s.stmts.getAPIKeyByID, s.stmts.getAPIKeyByHash,
+		s.stmts.updateAPIKey, s.stmts.deleteAPIKey, s.stmts.listAPIKeys,
+		s.stmts.listAPIKeysByUserID, s.stmts.getAPIKeyByUserAndName, s.stmts.updateAPIKeyLastUsed,
+	}
+
+	for _, stmt := range stmts {
+		if stmt != nil {
+			stmt.Close()
+		}
+	}
 }
 
 // migrate runs database migrations.
@@ -169,11 +481,8 @@ func (s *Store) GetSchemaByID(ctx context.Context, id int64) (*storage.SchemaRec
 	record := &storage.SchemaRecord{}
 	var schemaType string
 
-	err := s.db.QueryRowContext(ctx,
-		`SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at
-		 FROM schemas WHERE id = $1`,
-		id,
-	).Scan(&record.ID, &record.Subject, &record.Version, &schemaType,
+	err := s.stmts.getSchemaByID.QueryRowContext(ctx, id).Scan(
+		&record.ID, &record.Subject, &record.Version, &schemaType,
 		&record.Schema, &record.Fingerprint, &record.Deleted, &record.CreatedAt)
 
 	if err == sql.ErrNoRows {
@@ -205,17 +514,14 @@ func (s *Store) GetSchemaBySubjectVersion(ctx context.Context, subject string, v
 	record := &storage.SchemaRecord{}
 	var schemaType string
 
-	err := s.db.QueryRowContext(ctx,
-		`SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at
-		 FROM schemas WHERE subject = $1 AND version = $2`,
-		subject, version,
-	).Scan(&record.ID, &record.Subject, &record.Version, &schemaType,
+	err := s.stmts.getSchemaBySubjectVer.QueryRowContext(ctx, subject, version).Scan(
+		&record.ID, &record.Subject, &record.Version, &schemaType,
 		&record.Schema, &record.Fingerprint, &record.Deleted, &record.CreatedAt)
 
 	if err == sql.ErrNoRows {
 		// Check if subject exists
 		var count int
-		s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM schemas WHERE subject = $1`, subject).Scan(&count)
+		s.stmts.countSchemasBySubject.QueryRowContext(ctx, subject).Scan(&count)
 		if count == 0 {
 			return nil, storage.ErrSubjectNotFound
 		}
@@ -288,11 +594,8 @@ func (s *Store) GetSchemaByFingerprint(ctx context.Context, subject, fingerprint
 	record := &storage.SchemaRecord{}
 	var schemaType string
 
-	err := s.db.QueryRowContext(ctx,
-		`SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at
-		 FROM schemas WHERE subject = $1 AND fingerprint = $2 AND deleted = FALSE`,
-		subject, fingerprint,
-	).Scan(&record.ID, &record.Subject, &record.Version, &schemaType,
+	err := s.stmts.getSchemaByFingerprint.QueryRowContext(ctx, subject, fingerprint).Scan(
+		&record.ID, &record.Subject, &record.Version, &schemaType,
 		&record.Schema, &record.Fingerprint, &record.Deleted, &record.CreatedAt)
 
 	if err == sql.ErrNoRows {
@@ -319,12 +622,8 @@ func (s *Store) GetLatestSchema(ctx context.Context, subject string) (*storage.S
 	record := &storage.SchemaRecord{}
 	var schemaType string
 
-	err := s.db.QueryRowContext(ctx,
-		`SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at
-		 FROM schemas WHERE subject = $1 AND deleted = FALSE
-		 ORDER BY version DESC LIMIT 1`,
-		subject,
-	).Scan(&record.ID, &record.Subject, &record.Version, &schemaType,
+	err := s.stmts.getLatestSchema.QueryRowContext(ctx, subject).Scan(
+		&record.ID, &record.Subject, &record.Version, &schemaType,
 		&record.Schema, &record.Fingerprint, &record.Deleted, &record.CreatedAt)
 
 	if err == sql.ErrNoRows {
@@ -352,15 +651,9 @@ func (s *Store) DeleteSchema(ctx context.Context, subject string, version int, p
 	var err error
 
 	if permanent {
-		result, err = s.db.ExecContext(ctx,
-			`DELETE FROM schemas WHERE subject = $1 AND version = $2`,
-			subject, version,
-		)
+		result, err = s.stmts.hardDeleteSchema.ExecContext(ctx, subject, version)
 	} else {
-		result, err = s.db.ExecContext(ctx,
-			`UPDATE schemas SET deleted = TRUE WHERE subject = $1 AND version = $2`,
-			subject, version,
-		)
+		result, err = s.stmts.softDeleteSchema.ExecContext(ctx, subject, version)
 	}
 
 	if err != nil {
@@ -371,7 +664,7 @@ func (s *Store) DeleteSchema(ctx context.Context, subject string, version int, p
 	if rowsAffected == 0 {
 		// Check if subject exists
 		var count int
-		s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM schemas WHERE subject = $1`, subject).Scan(&count)
+		s.stmts.countSchemasBySubject.QueryRowContext(ctx, subject).Scan(&count)
 		if count == 0 {
 			return storage.ErrSubjectNotFound
 		}
@@ -459,10 +752,7 @@ func (s *Store) DeleteSubject(ctx context.Context, subject string, permanent boo
 // SubjectExists checks if a subject exists.
 func (s *Store) SubjectExists(ctx context.Context, subject string) (bool, error) {
 	var count int
-	err := s.db.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM schemas WHERE subject = $1 AND deleted = FALSE`,
-		subject,
-	).Scan(&count)
+	err := s.stmts.countSchemasBySubject.QueryRowContext(ctx, subject).Scan(&count)
 	if err != nil {
 		return false, fmt.Errorf("failed to check subject: %w", err)
 	}
@@ -472,10 +762,8 @@ func (s *Store) SubjectExists(ctx context.Context, subject string) (bool, error)
 // GetConfig retrieves the compatibility configuration for a subject.
 func (s *Store) GetConfig(ctx context.Context, subject string) (*storage.ConfigRecord, error) {
 	config := &storage.ConfigRecord{}
-	err := s.db.QueryRowContext(ctx,
-		`SELECT subject, compatibility_level FROM configs WHERE subject = $1`,
-		subject,
-	).Scan(&config.Subject, &config.CompatibilityLevel)
+	err := s.stmts.getConfig.QueryRowContext(ctx, subject).Scan(
+		&config.Subject, &config.CompatibilityLevel)
 
 	if err == sql.ErrNoRows {
 		return nil, storage.ErrNotFound
@@ -489,11 +777,7 @@ func (s *Store) GetConfig(ctx context.Context, subject string) (*storage.ConfigR
 
 // SetConfig sets the compatibility configuration for a subject.
 func (s *Store) SetConfig(ctx context.Context, subject string, config *storage.ConfigRecord) error {
-	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO configs (subject, compatibility_level) VALUES ($1, $2)
-		 ON CONFLICT (subject) DO UPDATE SET compatibility_level = EXCLUDED.compatibility_level`,
-		subject, config.CompatibilityLevel,
-	)
+	_, err := s.stmts.setConfig.ExecContext(ctx, subject, config.CompatibilityLevel)
 	if err != nil {
 		return fmt.Errorf("failed to set config: %w", err)
 	}
@@ -502,7 +786,7 @@ func (s *Store) SetConfig(ctx context.Context, subject string, config *storage.C
 
 // DeleteConfig deletes the compatibility configuration for a subject.
 func (s *Store) DeleteConfig(ctx context.Context, subject string) error {
-	result, err := s.db.ExecContext(ctx, `DELETE FROM configs WHERE subject = $1`, subject)
+	result, err := s.stmts.deleteConfig.ExecContext(ctx, subject)
 	if err != nil {
 		return fmt.Errorf("failed to delete config: %w", err)
 	}
@@ -528,10 +812,7 @@ func (s *Store) SetGlobalConfig(ctx context.Context, config *storage.ConfigRecor
 // GetMode retrieves the mode for a subject.
 func (s *Store) GetMode(ctx context.Context, subject string) (*storage.ModeRecord, error) {
 	mode := &storage.ModeRecord{}
-	err := s.db.QueryRowContext(ctx,
-		`SELECT subject, mode FROM modes WHERE subject = $1`,
-		subject,
-	).Scan(&mode.Subject, &mode.Mode)
+	err := s.stmts.getMode.QueryRowContext(ctx, subject).Scan(&mode.Subject, &mode.Mode)
 
 	if err == sql.ErrNoRows {
 		return nil, storage.ErrNotFound
@@ -545,11 +826,7 @@ func (s *Store) GetMode(ctx context.Context, subject string) (*storage.ModeRecor
 
 // SetMode sets the mode for a subject.
 func (s *Store) SetMode(ctx context.Context, subject string, mode *storage.ModeRecord) error {
-	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO modes (subject, mode) VALUES ($1, $2)
-		 ON CONFLICT (subject) DO UPDATE SET mode = EXCLUDED.mode`,
-		subject, mode.Mode,
-	)
+	_, err := s.stmts.setMode.ExecContext(ctx, subject, mode.Mode)
 	if err != nil {
 		return fmt.Errorf("failed to set mode: %w", err)
 	}
@@ -558,7 +835,7 @@ func (s *Store) SetMode(ctx context.Context, subject string, mode *storage.ModeR
 
 // DeleteMode deletes the mode for a subject.
 func (s *Store) DeleteMode(ctx context.Context, subject string) error {
-	result, err := s.db.ExecContext(ctx, `DELETE FROM modes WHERE subject = $1`, subject)
+	result, err := s.stmts.deleteMode.ExecContext(ctx, subject)
 	if err != nil {
 		return fmt.Errorf("failed to delete mode: %w", err)
 	}
@@ -593,13 +870,7 @@ func (s *Store) NextID(ctx context.Context) (int64, error) {
 
 // GetReferencedBy returns subjects/versions that reference the given schema.
 func (s *Store) GetReferencedBy(ctx context.Context, subject string, version int) ([]storage.SubjectVersion, error) {
-	rows, err := s.db.QueryContext(ctx,
-		`SELECT s.subject, s.version
-		 FROM schemas s
-		 JOIN schema_references r ON r.schema_id = s.id
-		 WHERE r.ref_subject = $1 AND r.ref_version = $2 AND s.deleted = FALSE`,
-		subject, version,
-	)
+	rows, err := s.stmts.getReferencedBy.QueryContext(ctx, subject, version)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query references: %w", err)
 	}
@@ -619,10 +890,7 @@ func (s *Store) GetReferencedBy(ctx context.Context, subject string, version int
 
 // loadReferences loads references for a schema.
 func (s *Store) loadReferences(ctx context.Context, schemaID int64) ([]storage.Reference, error) {
-	rows, err := s.db.QueryContext(ctx,
-		`SELECT name, ref_subject, ref_version FROM schema_references WHERE schema_id = $1`,
-		schemaID,
-	)
+	rows, err := s.stmts.loadReferences.QueryContext(ctx, schemaID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query references: %w", err)
 	}
@@ -782,8 +1050,361 @@ func (s *Store) DeleteGlobalConfig(ctx context.Context) error {
 	return nil
 }
 
-// Close closes the database connection.
+// CreateUser creates a new user record.
+func (s *Store) CreateUser(ctx context.Context, user *storage.UserRecord) error {
+	now := time.Now()
+	user.CreatedAt = now
+	user.UpdatedAt = now
+
+	err := s.stmts.createUser.QueryRowContext(ctx,
+		user.Username, sql.NullString{String: user.Email, Valid: user.Email != ""},
+		user.PasswordHash, user.Role, user.Enabled, user.CreatedAt, user.UpdatedAt,
+	).Scan(&user.ID)
+
+	if err != nil {
+		// Check for unique constraint violation
+		if isUniqueViolation(err) {
+			return storage.ErrUserExists
+		}
+		return fmt.Errorf("failed to create user: %w", err)
+	}
+
+	return nil
+}
+
+// GetUserByID retrieves a user by ID.
+func (s *Store) GetUserByID(ctx context.Context, id int64) (*storage.UserRecord, error) {
+	user := &storage.UserRecord{}
+	var email sql.NullString
+
+	err := s.stmts.getUserByID.QueryRowContext(ctx, id).Scan(
+		&user.ID, &user.Username, &email, &user.PasswordHash,
+		&user.Role, &user.Enabled, &user.CreatedAt, &user.UpdatedAt)
+
+	if err == sql.ErrNoRows {
+		return nil, storage.ErrUserNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user: %w", err)
+	}
+
+	if email.Valid {
+		user.Email = email.String
+	}
+
+	return user, nil
+}
+
+// GetUserByUsername retrieves a user by username.
+func (s *Store) GetUserByUsername(ctx context.Context, username string) (*storage.UserRecord, error) {
+	user := &storage.UserRecord{}
+	var email sql.NullString
+
+	err := s.stmts.getUserByUsername.QueryRowContext(ctx, username).Scan(
+		&user.ID, &user.Username, &email, &user.PasswordHash,
+		&user.Role, &user.Enabled, &user.CreatedAt, &user.UpdatedAt)
+
+	if err == sql.ErrNoRows {
+		return nil, storage.ErrUserNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user: %w", err)
+	}
+
+	if email.Valid {
+		user.Email = email.String
+	}
+
+	return user, nil
+}
+
+// UpdateUser updates an existing user record.
+func (s *Store) UpdateUser(ctx context.Context, user *storage.UserRecord) error {
+	user.UpdatedAt = time.Now()
+
+	result, err := s.stmts.updateUser.ExecContext(ctx,
+		user.Username, sql.NullString{String: user.Email, Valid: user.Email != ""},
+		user.PasswordHash, user.Role, user.Enabled, user.UpdatedAt, user.ID,
+	)
+
+	if err != nil {
+		if isUniqueViolation(err) {
+			return storage.ErrUserExists
+		}
+		return fmt.Errorf("failed to update user: %w", err)
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return storage.ErrUserNotFound
+	}
+
+	return nil
+}
+
+// DeleteUser deletes a user by ID.
+func (s *Store) DeleteUser(ctx context.Context, id int64) error {
+	result, err := s.stmts.deleteUser.ExecContext(ctx, id)
+	if err != nil {
+		return fmt.Errorf("failed to delete user: %w", err)
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return storage.ErrUserNotFound
+	}
+
+	return nil
+}
+
+// ListUsers returns all users.
+func (s *Store) ListUsers(ctx context.Context) ([]*storage.UserRecord, error) {
+	rows, err := s.stmts.listUsers.QueryContext(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query users: %w", err)
+	}
+	defer rows.Close()
+
+	var users []*storage.UserRecord
+	for rows.Next() {
+		user := &storage.UserRecord{}
+		var email sql.NullString
+		if err := rows.Scan(&user.ID, &user.Username, &email, &user.PasswordHash,
+			&user.Role, &user.Enabled, &user.CreatedAt, &user.UpdatedAt); err != nil {
+			return nil, fmt.Errorf("failed to scan row: %w", err)
+		}
+		if email.Valid {
+			user.Email = email.String
+		}
+		users = append(users, user)
+	}
+
+	return users, nil
+}
+
+// CreateAPIKey creates a new API key record.
+func (s *Store) CreateAPIKey(ctx context.Context, key *storage.APIKeyRecord) error {
+	key.CreatedAt = time.Now()
+
+	err := s.stmts.createAPIKey.QueryRowContext(ctx,
+		key.UserID, key.KeyHash, key.KeyPrefix, key.Name, key.Role, key.Enabled, key.CreatedAt, key.ExpiresAt,
+	).Scan(&key.ID)
+
+	if err != nil {
+		if isUniqueViolation(err) {
+			return storage.ErrAPIKeyExists
+		}
+		return fmt.Errorf("failed to create API key: %w", err)
+	}
+
+	return nil
+}
+
+// GetAPIKeyByID retrieves an API key by ID.
+func (s *Store) GetAPIKeyByID(ctx context.Context, id int64) (*storage.APIKeyRecord, error) {
+	key := &storage.APIKeyRecord{}
+	var userID sql.NullInt64
+	var expiresAt, lastUsed sql.NullTime
+
+	err := s.stmts.getAPIKeyByID.QueryRowContext(ctx, id).Scan(
+		&key.ID, &userID, &key.KeyHash, &key.KeyPrefix, &key.Name, &key.Role,
+		&key.Enabled, &key.CreatedAt, &expiresAt, &lastUsed)
+
+	if err == sql.ErrNoRows {
+		return nil, storage.ErrAPIKeyNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get API key: %w", err)
+	}
+
+	if userID.Valid {
+		key.UserID = userID.Int64
+	}
+	if expiresAt.Valid {
+		key.ExpiresAt = expiresAt.Time
+	}
+	if lastUsed.Valid {
+		key.LastUsed = &lastUsed.Time
+	}
+
+	return key, nil
+}
+
+// GetAPIKeyByHash retrieves an API key by its hash.
+func (s *Store) GetAPIKeyByHash(ctx context.Context, keyHash string) (*storage.APIKeyRecord, error) {
+	key := &storage.APIKeyRecord{}
+	var userID sql.NullInt64
+	var expiresAt, lastUsed sql.NullTime
+
+	err := s.stmts.getAPIKeyByHash.QueryRowContext(ctx, keyHash).Scan(
+		&key.ID, &userID, &key.KeyHash, &key.KeyPrefix, &key.Name, &key.Role,
+		&key.Enabled, &key.CreatedAt, &expiresAt, &lastUsed)
+
+	if err == sql.ErrNoRows {
+		return nil, storage.ErrAPIKeyNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get API key: %w", err)
+	}
+
+	if userID.Valid {
+		key.UserID = userID.Int64
+	}
+	if expiresAt.Valid {
+		key.ExpiresAt = expiresAt.Time
+	}
+	if lastUsed.Valid {
+		key.LastUsed = &lastUsed.Time
+	}
+
+	return key, nil
+}
+
+// UpdateAPIKey updates an existing API key record.
+func (s *Store) UpdateAPIKey(ctx context.Context, key *storage.APIKeyRecord) error {
+	result, err := s.stmts.updateAPIKey.ExecContext(ctx,
+		key.UserID, key.Name, key.Role, key.Enabled, key.ExpiresAt, key.ID,
+	)
+
+	if err != nil {
+		return fmt.Errorf("failed to update API key: %w", err)
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return storage.ErrAPIKeyNotFound
+	}
+
+	return nil
+}
+
+// DeleteAPIKey deletes an API key by ID.
+func (s *Store) DeleteAPIKey(ctx context.Context, id int64) error {
+	result, err := s.stmts.deleteAPIKey.ExecContext(ctx, id)
+	if err != nil {
+		return fmt.Errorf("failed to delete API key: %w", err)
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return storage.ErrAPIKeyNotFound
+	}
+
+	return nil
+}
+
+// ListAPIKeys returns all API keys.
+func (s *Store) ListAPIKeys(ctx context.Context) ([]*storage.APIKeyRecord, error) {
+	rows, err := s.stmts.listAPIKeys.QueryContext(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query API keys: %w", err)
+	}
+	defer rows.Close()
+
+	return s.scanAPIKeys(rows)
+}
+
+// ListAPIKeysByUserID returns all API keys for a user.
+func (s *Store) ListAPIKeysByUserID(ctx context.Context, userID int64) ([]*storage.APIKeyRecord, error) {
+	rows, err := s.stmts.listAPIKeysByUserID.QueryContext(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query API keys: %w", err)
+	}
+	defer rows.Close()
+
+	return s.scanAPIKeys(rows)
+}
+
+// GetAPIKeyByUserAndName retrieves an API key by user ID and name.
+func (s *Store) GetAPIKeyByUserAndName(ctx context.Context, userID int64, name string) (*storage.APIKeyRecord, error) {
+	key := &storage.APIKeyRecord{}
+	var keyUserID sql.NullInt64
+	var expiresAt, lastUsed sql.NullTime
+
+	err := s.stmts.getAPIKeyByUserAndName.QueryRowContext(ctx, userID, name).Scan(
+		&key.ID, &keyUserID, &key.KeyHash, &key.KeyPrefix, &key.Name, &key.Role,
+		&key.Enabled, &key.CreatedAt, &expiresAt, &lastUsed)
+
+	if err == sql.ErrNoRows {
+		return nil, storage.ErrAPIKeyNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get API key: %w", err)
+	}
+
+	if keyUserID.Valid {
+		key.UserID = keyUserID.Int64
+	}
+	if expiresAt.Valid {
+		key.ExpiresAt = expiresAt.Time
+	}
+	if lastUsed.Valid {
+		key.LastUsed = &lastUsed.Time
+	}
+
+	return key, nil
+}
+
+// UpdateAPIKeyLastUsed updates the last_used timestamp for an API key.
+func (s *Store) UpdateAPIKeyLastUsed(ctx context.Context, id int64) error {
+	_, err := s.stmts.updateAPIKeyLastUsed.ExecContext(ctx, time.Now(), id)
+	if err != nil {
+		return fmt.Errorf("failed to update API key last used: %w", err)
+	}
+	return nil
+}
+
+// scanAPIKeys scans rows into API key records.
+func (s *Store) scanAPIKeys(rows *sql.Rows) ([]*storage.APIKeyRecord, error) {
+	var keys []*storage.APIKeyRecord
+	for rows.Next() {
+		key := &storage.APIKeyRecord{}
+		var userID sql.NullInt64
+		var expiresAt, lastUsed sql.NullTime
+		if err := rows.Scan(&key.ID, &userID, &key.KeyHash, &key.KeyPrefix, &key.Name,
+			&key.Role, &key.Enabled, &key.CreatedAt, &expiresAt, &lastUsed); err != nil {
+			return nil, fmt.Errorf("failed to scan row: %w", err)
+		}
+		if userID.Valid {
+			key.UserID = userID.Int64
+		}
+		if expiresAt.Valid {
+			key.ExpiresAt = expiresAt.Time
+		}
+		if lastUsed.Valid {
+			key.LastUsed = &lastUsed.Time
+		}
+		keys = append(keys, key)
+	}
+	return keys, nil
+}
+
+// isUniqueViolation checks if the error is a unique constraint violation.
+func isUniqueViolation(err error) bool {
+	if err == nil {
+		return false
+	}
+	// PostgreSQL error code for unique_violation is 23505
+	return err.Error() != "" && (contains(err.Error(), "duplicate key") || contains(err.Error(), "23505"))
+}
+
+// contains checks if s contains substr (case-insensitive).
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsAt(s, substr, 0))
+}
+
+func containsAt(s, substr string, start int) bool {
+	for i := start; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
+}
+
+// Close closes all prepared statements and the database connection.
 func (s *Store) Close() error {
+	s.closeStatements()
 	return s.db.Close()
 }
 
