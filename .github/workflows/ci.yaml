@@ -46,6 +46,9 @@ jobs:
       - name: Build LDAP test binary
         run: go test -c -tags=ldap -o ldap.test ./tests/integration/...
 
+      - name: Build Vault test binary
+        run: go test -c -tags=vault -o vault.test ./tests/integration/...
+
       - name: Upload coverage
         uses: codecov/codecov-action@v4
         with:
@@ -62,6 +65,7 @@ jobs:
             concurrency.test
             api.test
             ldap.test
+            vault.test
             tests/integration/testdata/ldap/
           retention-days: 1
 
@@ -563,3 +567,53 @@ jobs:
       - name: Cleanup OpenLDAP
         if: always()
         run: docker stop openldap-test && docker rm openldap-test || true
+
+  # Vault authentication tests (uses in-memory storage for schemas)
+  vault-tests:
+    name: Vault Auth Tests
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - name: Download test binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: test-binaries
+
+      - name: Make binaries executable
+        run: chmod +x vault.test
+
+      - name: Start Vault
+        run: |
+          # Start Vault in dev mode
+          docker run -d --name vault-test \
+            --network host \
+            -e VAULT_DEV_ROOT_TOKEN_ID=root \
+            -e VAULT_DEV_LISTEN_ADDRESS=0.0.0.0:8200 \
+            hashicorp/vault:1.15
+
+          # Wait for Vault to be ready
+          echo "Waiting for Vault to start..."
+          for i in {1..30}; do
+            if curl -s http://localhost:8200/v1/sys/health | grep -q '"initialized":true'; then
+              echo "Vault is ready"
+              break
+            fi
+            echo "Waiting for Vault... ($i)"
+            sleep 2
+          done
+
+      - name: Configure Vault
+        run: |
+          # Enable KV v2 secrets engine (already enabled in dev mode as 'secret/')
+          # Verify it's working
+          curl -s -H "X-Vault-Token: root" http://localhost:8200/v1/sys/mounts | grep -q 'secret/' && echo "KV v2 secrets engine is available"
+
+      - name: Run Vault tests
+        env:
+          VAULT_ADDR: http://localhost:8200
+          VAULT_TOKEN: root
+        run: ./vault.test -test.v -test.timeout=10m
+
+      - name: Cleanup Vault
+        if: always()
+        run: docker stop vault-test && docker rm vault-test || true
