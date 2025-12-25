@@ -1,0 +1,95 @@
+# Schema Registry LDAP Test Data
+# This file is used to bootstrap the OpenLDAP server for integration tests.
+
+# Create organizational units
+dn: ou=Users,dc=example,dc=org
+objectClass: organizationalUnit
+ou: Users
+
+dn: ou=Groups,dc=example,dc=org
+objectClass: organizationalUnit
+ou: Groups
+
+# Create groups first (referenced by users via memberOf)
+dn: cn=SchemaRegistryAdmins,ou=Groups,dc=example,dc=org
+objectClass: groupOfNames
+cn: SchemaRegistryAdmins
+description: Schema Registry Administrators
+member: uid=admin,ou=Users,dc=example,dc=org
+
+dn: cn=Developers,ou=Groups,dc=example,dc=org
+objectClass: groupOfNames
+cn: Developers
+description: Schema Registry Developers
+member: uid=developer,ou=Users,dc=example,dc=org
+
+dn: cn=ReadonlyUsers,ou=Groups,dc=example,dc=org
+objectClass: groupOfNames
+cn: ReadonlyUsers
+description: Schema Registry Readonly Users
+member: uid=readonly,ou=Users,dc=example,dc=org
+
+# Create users
+# Admin user - member of SchemaRegistryAdmins
+dn: uid=admin,ou=Users,dc=example,dc=org
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: admin
+cn: Admin User
+sn: User
+givenName: Admin
+mail: admin@example.org
+userPassword: adminpass
+uidNumber: 1000
+gidNumber: 1000
+homeDirectory: /home/admin
+loginShell: /bin/bash
+
+# Developer user - member of Developers
+dn: uid=developer,ou=Users,dc=example,dc=org
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: developer
+cn: Developer User
+sn: User
+givenName: Developer
+mail: developer@example.org
+userPassword: devpass
+uidNumber: 1001
+gidNumber: 1000
+homeDirectory: /home/developer
+loginShell: /bin/bash
+
+# Readonly user - member of ReadonlyUsers
+dn: uid=readonly,ou=Users,dc=example,dc=org
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: readonly
+cn: Readonly User
+sn: User
+givenName: Readonly
+mail: readonly@example.org
+userPassword: readonlypass
+uidNumber: 1002
+gidNumber: 1000
+homeDirectory: /home/readonly
+loginShell: /bin/bash
+
+# User with no group membership - should get default role
+dn: uid=nogroup,ou=Users,dc=example,dc=org
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: nogroup
+cn: NoGroup User
+sn: User
+givenName: NoGroup
+mail: nogroup@example.org
+userPassword: nogrouppass
+uidNumber: 1003
+gidNumber: 1000
+homeDirectory: /home/nogroup
+loginShell: /bin/bash

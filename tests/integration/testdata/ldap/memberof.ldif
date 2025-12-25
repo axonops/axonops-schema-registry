@@ -1,0 +1,32 @@
+# Enable memberOf overlay for OpenLDAP
+# This allows users to have memberOf attributes auto-populated
+dn: cn=module,cn=config
+objectClass: olcModuleList
+cn: module
+olcModulePath: /usr/lib/ldap
+olcModuleLoad: memberof.la
+
+dn: olcOverlay=memberof,olcDatabase={1}mdb,cn=config
+objectClass: olcConfig
+objectClass: olcMemberOf
+objectClass: olcOverlayConfig
+olcOverlay: memberof
+olcMemberOfRefint: TRUE
+olcMemberOfDangling: ignore
+olcMemberOfGroupOC: groupOfNames
+olcMemberOfMemberAD: member
+olcMemberOfMemberOfAD: memberOf
+
+# Enable refint overlay to maintain referential integrity
+dn: cn=module,cn=config
+objectClass: olcModuleList
+cn: module
+olcModulePath: /usr/lib/ldap
+olcModuleLoad: refint.la
+
+dn: olcOverlay=refint,olcDatabase={1}mdb,cn=config
+objectClass: olcConfig
+objectClass: olcRefintConfig
+objectClass: olcOverlayConfig
+olcOverlay: refint
+olcRefintAttribute: member memberOf

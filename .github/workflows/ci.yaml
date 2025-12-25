@@ -43,6 +43,9 @@ jobs:
       - name: Build API test binary
         run: go test -c -tags=api -o api.test ./tests/api/...
 
+      - name: Build LDAP test binary
+        run: go test -c -tags=ldap -o ldap.test ./tests/integration/...
+
       - name: Upload coverage
         uses: codecov/codecov-action@v4
         with:
@@ -58,6 +61,8 @@ jobs:
             integration.test
             concurrency.test
             api.test
+            ldap.test
+            tests/integration/testdata/ldap/
           retention-days: 1
 
   # Static code analysis
@@ -367,3 +372,194 @@ jobs:
 
       - name: Stop schema registry
         run: pkill schema-registry || true
+
+  # LDAP authentication tests (uses in-memory storage)
+  ldap-tests:
+    name: LDAP Auth Tests
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - name: Download test binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: test-binaries
+
+      - name: Make binaries executable
+        run: chmod +x ldap.test
+
+      - name: Start OpenLDAP
+        run: |
+          # Start OpenLDAP container with test configuration
+          docker run -d --name openldap-test \
+            --network host \
+            -e LDAP_ORGANISATION="Example Org" \
+            -e LDAP_DOMAIN="example.org" \
+            -e LDAP_BASE_DN="dc=example,dc=org" \
+            -e LDAP_ADMIN_PASSWORD="adminpassword" \
+            -e LDAP_CONFIG_PASSWORD="configpassword" \
+            osixia/openldap:1.5.0
+
+          # Wait for OpenLDAP to be ready
+          echo "Waiting for OpenLDAP to start..."
+          for i in {1..30}; do
+            if docker exec openldap-test ldapsearch -x -H ldap://localhost:389 -b "dc=example,dc=org" -D "cn=admin,dc=example,dc=org" -w adminpassword "(objectClass=organization)" 2>/dev/null | grep -q "example"; then
+              echo "OpenLDAP is ready"
+              break
+            fi
+            echo "Waiting for OpenLDAP... ($i)"
+            sleep 2
+          done
+
+      - name: Configure memberOf overlay
+        run: |
+          # Load memberOf module and configure overlay
+          docker exec openldap-test ldapadd -Y EXTERNAL -H ldapi:/// -f /etc/ldap/schema/cosine.ldif 2>/dev/null || true
+          docker exec openldap-test ldapadd -Y EXTERNAL -H ldapi:/// -f /etc/ldap/schema/nis.ldif 2>/dev/null || true
+          docker exec openldap-test ldapadd -Y EXTERNAL -H ldapi:/// -f /etc/ldap/schema/inetorgperson.ldif 2>/dev/null || true
+
+          # Enable memberOf overlay
+          cat > /tmp/memberof.ldif << 'LDIF'
+          dn: cn=module,cn=config
+          objectClass: olcModuleList
+          cn: module
+          olcModulePath: /usr/lib/ldap
+          olcModuleLoad: memberof.la
+
+          dn: olcOverlay=memberof,olcDatabase={1}mdb,cn=config
+          objectClass: olcConfig
+          objectClass: olcMemberOf
+          objectClass: olcOverlayConfig
+          olcOverlay: memberof
+          olcMemberOfRefint: TRUE
+          olcMemberOfDangling: ignore
+          olcMemberOfGroupOC: groupOfNames
+          olcMemberOfMemberAD: member
+          olcMemberOfMemberOfAD: memberOf
+          LDIF
+
+          docker cp /tmp/memberof.ldif openldap-test:/tmp/memberof.ldif
+          docker exec openldap-test ldapadd -Y EXTERNAL -H ldapi:/// -f /tmp/memberof.ldif 2>/dev/null || true
+
+      - name: Load test data
+        run: |
+          # Create organizational units
+          cat > /tmp/base.ldif << 'LDIF'
+          dn: ou=Users,dc=example,dc=org
+          objectClass: organizationalUnit
+          ou: Users
+
+          dn: ou=Groups,dc=example,dc=org
+          objectClass: organizationalUnit
+          ou: Groups
+          LDIF
+
+          docker cp /tmp/base.ldif openldap-test:/tmp/base.ldif
+          docker exec openldap-test ldapadd -x -H ldap://localhost:389 -D "cn=admin,dc=example,dc=org" -w adminpassword -f /tmp/base.ldif
+
+          # Create users
+          cat > /tmp/users.ldif << 'LDIF'
+          dn: uid=admin,ou=Users,dc=example,dc=org
+          objectClass: inetOrgPerson
+          objectClass: posixAccount
+          objectClass: shadowAccount
+          uid: admin
+          cn: Admin User
+          sn: User
+          givenName: Admin
+          mail: admin@example.org
+          userPassword: adminpass
+          uidNumber: 1000
+          gidNumber: 1000
+          homeDirectory: /home/admin
+          loginShell: /bin/bash
+
+          dn: uid=developer,ou=Users,dc=example,dc=org
+          objectClass: inetOrgPerson
+          objectClass: posixAccount
+          objectClass: shadowAccount
+          uid: developer
+          cn: Developer User
+          sn: User
+          givenName: Developer
+          mail: developer@example.org
+          userPassword: devpass
+          uidNumber: 1001
+          gidNumber: 1000
+          homeDirectory: /home/developer
+          loginShell: /bin/bash
+
+          dn: uid=readonly,ou=Users,dc=example,dc=org
+          objectClass: inetOrgPerson
+          objectClass: posixAccount
+          objectClass: shadowAccount
+          uid: readonly
+          cn: Readonly User
+          sn: User
+          givenName: Readonly
+          mail: readonly@example.org
+          userPassword: readonlypass
+          uidNumber: 1002
+          gidNumber: 1000
+          homeDirectory: /home/readonly
+          loginShell: /bin/bash
+
+          dn: uid=nogroup,ou=Users,dc=example,dc=org
+          objectClass: inetOrgPerson
+          objectClass: posixAccount
+          objectClass: shadowAccount
+          uid: nogroup
+          cn: NoGroup User
+          sn: User
+          givenName: NoGroup
+          mail: nogroup@example.org
+          userPassword: nogrouppass
+          uidNumber: 1003
+          gidNumber: 1000
+          homeDirectory: /home/nogroup
+          loginShell: /bin/bash
+          LDIF
+
+          docker cp /tmp/users.ldif openldap-test:/tmp/users.ldif
+          docker exec openldap-test ldapadd -x -H ldap://localhost:389 -D "cn=admin,dc=example,dc=org" -w adminpassword -f /tmp/users.ldif
+
+          # Create groups (with memberOf overlay, users will auto-get memberOf attribute)
+          cat > /tmp/groups.ldif << 'LDIF'
+          dn: cn=SchemaRegistryAdmins,ou=Groups,dc=example,dc=org
+          objectClass: groupOfNames
+          cn: SchemaRegistryAdmins
+          description: Schema Registry Administrators
+          member: uid=admin,ou=Users,dc=example,dc=org
+
+          dn: cn=Developers,ou=Groups,dc=example,dc=org
+          objectClass: groupOfNames
+          cn: Developers
+          description: Schema Registry Developers
+          member: uid=developer,ou=Users,dc=example,dc=org
+
+          dn: cn=ReadonlyUsers,ou=Groups,dc=example,dc=org
+          objectClass: groupOfNames
+          cn: ReadonlyUsers
+          description: Schema Registry Readonly Users
+          member: uid=readonly,ou=Users,dc=example,dc=org
+          LDIF
+
+          docker cp /tmp/groups.ldif openldap-test:/tmp/groups.ldif
+          docker exec openldap-test ldapadd -x -H ldap://localhost:389 -D "cn=admin,dc=example,dc=org" -w adminpassword -f /tmp/groups.ldif
+
+      - name: Verify LDAP setup
+        run: |
+          echo "Verifying LDAP users..."
+          docker exec openldap-test ldapsearch -x -H ldap://localhost:389 -b "ou=Users,dc=example,dc=org" -D "cn=admin,dc=example,dc=org" -w adminpassword "(objectClass=inetOrgPerson)" uid
+          echo "Verifying LDAP groups..."
+          docker exec openldap-test ldapsearch -x -H ldap://localhost:389 -b "ou=Groups,dc=example,dc=org" -D "cn=admin,dc=example,dc=org" -w adminpassword "(objectClass=groupOfNames)" cn member
+          echo "Verifying memberOf for admin user..."
+          docker exec openldap-test ldapsearch -x -H ldap://localhost:389 -b "uid=admin,ou=Users,dc=example,dc=org" -D "cn=admin,dc=example,dc=org" -w adminpassword "(uid=admin)" memberOf || echo "memberOf not available (overlay may not be enabled)"
+
+      - name: Run LDAP tests
+        env:
+          LDAP_URL: ldap://localhost:389
+        run: ./ldap.test -test.v -test.timeout=10m
+
+      - name: Cleanup OpenLDAP
+        if: always()
+        run: docker stop openldap-test && docker rm openldap-test || true
