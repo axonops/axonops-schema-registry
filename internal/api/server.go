@@ -83,6 +83,11 @@ func (s *Server) setupRouter() {
 		r.Use(s.authenticator.Middleware)
 	}
 
+	// Add authorization middleware if configured
+	if s.authorizer != nil {
+		r.Use(s.authorizer.AuthorizeEndpoint(auth.DefaultEndpointPermissions()))
+	}
+
 	// Create handlers
 	h := handlers.New(s.registry)
 
