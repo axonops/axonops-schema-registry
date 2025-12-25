@@ -770,6 +770,7 @@ jobs:
               "email": "admin@example.org",
               "enabled": true,
               "emailVerified": true,
+              "requiredActions": [],
               "credentials": [{"type": "password", "value": "adminpass", "temporary": false}]
             }'
 
@@ -781,6 +782,7 @@ jobs:
               "email": "developer@example.org",
               "enabled": true,
               "emailVerified": true,
+              "requiredActions": [],
               "credentials": [{"type": "password", "value": "devpass", "temporary": false}]
             }'
 
@@ -792,6 +794,7 @@ jobs:
               "email": "readonly@example.org",
               "enabled": true,
               "emailVerified": true,
+              "requiredActions": [],
               "credentials": [{"type": "password", "value": "readonlypass", "temporary": false}]
             }'
 
