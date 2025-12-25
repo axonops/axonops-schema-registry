@@ -262,6 +262,11 @@ func (s *Store) GetUserByID(ctx context.Context, id int64) (*storage.UserRecord,
 		return nil, fmt.Errorf("failed to get user: %w", err)
 	}
 
+	// Check for deleted or empty secret
+	if secret == nil || secret.Data == nil || len(secret.Data) == 0 {
+		return nil, storage.ErrUserNotFound
+	}
+
 	return parseUserRecord(secret.Data)
 }
 
@@ -458,6 +463,11 @@ func (s *Store) GetAPIKeyByID(ctx context.Context, id int64) (*storage.APIKeyRec
 			return nil, storage.ErrAPIKeyNotFound
 		}
 		return nil, fmt.Errorf("failed to get API key: %w", err)
+	}
+
+	// Check for deleted or empty secret
+	if secret == nil || secret.Data == nil || len(secret.Data) == 0 {
+		return nil, storage.ErrAPIKeyNotFound
 	}
 
 	return parseAPIKeyRecord(secret.Data)
