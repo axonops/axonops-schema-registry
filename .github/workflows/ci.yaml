@@ -807,12 +807,28 @@ jobs:
           RO_USER_ID=$(curl -s "http://localhost:8080/admin/realms/schema-registry/users?username=readonly" \
             -H "Authorization: Bearer $ADMIN_TOKEN" | jq -r '.[0].id')
 
+          # Add users to groups
           curl -s -X PUT "http://localhost:8080/admin/realms/schema-registry/users/$ADMIN_USER_ID/groups/$ADMIN_GROUP_ID" \
             -H "Authorization: Bearer $ADMIN_TOKEN"
           curl -s -X PUT "http://localhost:8080/admin/realms/schema-registry/users/$DEV_USER_ID/groups/$DEV_GROUP_ID" \
             -H "Authorization: Bearer $ADMIN_TOKEN"
           curl -s -X PUT "http://localhost:8080/admin/realms/schema-registry/users/$RO_USER_ID/groups/$RO_GROUP_ID" \
             -H "Authorization: Bearer $ADMIN_TOKEN"
+
+          # Clear any required actions by updating users
+          echo "Clearing required actions..."
+          curl -s -X PUT "http://localhost:8080/admin/realms/schema-registry/users/$ADMIN_USER_ID" \
+            -H "Authorization: Bearer $ADMIN_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"requiredActions": []}'
+          curl -s -X PUT "http://localhost:8080/admin/realms/schema-registry/users/$DEV_USER_ID" \
+            -H "Authorization: Bearer $ADMIN_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"requiredActions": []}'
+          curl -s -X PUT "http://localhost:8080/admin/realms/schema-registry/users/$RO_USER_ID" \
+            -H "Authorization: Bearer $ADMIN_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"requiredActions": []}'
 
           echo "Keycloak configuration complete"
 
