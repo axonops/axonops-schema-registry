@@ -1,0 +1,101 @@
+{
+  "realm": "schema-registry",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": false,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": false,
+  "accessTokenLifespan": 3600,
+  "clients": [
+    {
+      "clientId": "schema-registry",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "schema-registry-secret",
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "redirectUris": ["http://localhost:8081/*"],
+      "webOrigins": ["*"],
+      "protocol": "openid-connect",
+      "fullScopeAllowed": true,
+      "protocolMappers": [
+        {
+          "name": "groups",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-group-membership-mapper",
+          "consentRequired": false,
+          "config": {
+            "full.path": "false",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "groups",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "groups": [
+    {
+      "name": "schema-registry-admins",
+      "path": "/schema-registry-admins"
+    },
+    {
+      "name": "developers",
+      "path": "/developers"
+    },
+    {
+      "name": "readonly-users",
+      "path": "/readonly-users"
+    }
+  ],
+  "users": [
+    {
+      "username": "admin",
+      "email": "admin@example.org",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "adminpass",
+          "temporary": false
+        }
+      ],
+      "groups": ["schema-registry-admins"]
+    },
+    {
+      "username": "developer",
+      "email": "developer@example.org",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "devpass",
+          "temporary": false
+        }
+      ],
+      "groups": ["developers"]
+    },
+    {
+      "username": "readonly",
+      "email": "readonly@example.org",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "readonlypass",
+          "temporary": false
+        }
+      ],
+      "groups": ["readonly-users"]
+    }
+  ]
+}

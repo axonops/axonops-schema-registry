@@ -49,6 +49,9 @@ jobs:
       - name: Build Vault test binary
         run: go test -c -tags=vault -o vault.test ./tests/integration/...
 
+      - name: Build OIDC test binary
+        run: go test -c -tags=oidc -o oidc.test ./tests/integration/...
+
       - name: Upload coverage
         uses: codecov/codecov-action@v4
         with:
@@ -66,7 +69,9 @@ jobs:
             api.test
             ldap.test
             vault.test
+            oidc.test
             tests/integration/testdata/ldap/
+            tests/integration/testdata/oidc/
           retention-days: 1
 
   # Static code analysis
@@ -617,3 +622,223 @@ jobs:
       - name: Cleanup Vault
         if: always()
         run: docker stop vault-test && docker rm vault-test || true
+
+  # OIDC authentication tests (uses in-memory storage for schemas)
+  oidc-tests:
+    name: OIDC Auth Tests
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - name: Download test binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: test-binaries
+
+      - name: Make binaries executable
+        run: chmod +x oidc.test
+
+      - name: Start Keycloak
+        run: |
+          # Start Keycloak with the test realm
+          docker run -d --name keycloak-test \
+            --network host \
+            -e KEYCLOAK_ADMIN=admin \
+            -e KEYCLOAK_ADMIN_PASSWORD=admin \
+            -e KC_HTTP_PORT=8080 \
+            -e KC_HEALTH_ENABLED=true \
+            quay.io/keycloak/keycloak:24.0 start-dev
+
+          # Wait for Keycloak to be ready
+          echo "Waiting for Keycloak to start..."
+          for i in {1..60}; do
+            if curl -s http://localhost:8080/health/ready | grep -q '"status": "UP"'; then
+              echo "Keycloak is ready"
+              break
+            fi
+            echo "Waiting for Keycloak... ($i)"
+            sleep 3
+          done
+
+      - name: Configure Keycloak realm
+        run: |
+          # Get admin token
+          echo "Getting admin token..."
+          ADMIN_TOKEN=$(curl -s -X POST http://localhost:8080/realms/master/protocol/openid-connect/token \
+            -H "Content-Type: application/x-www-form-urlencoded" \
+            -d "username=admin" \
+            -d "password=admin" \
+            -d "grant_type=password" \
+            -d "client_id=admin-cli" | jq -r '.access_token')
+
+          if [ "$ADMIN_TOKEN" = "null" ] || [ -z "$ADMIN_TOKEN" ]; then
+            echo "Failed to get admin token"
+            exit 1
+          fi
+
+          # Create the schema-registry realm
+          echo "Creating schema-registry realm..."
+          curl -s -X POST http://localhost:8080/admin/realms \
+            -H "Authorization: Bearer $ADMIN_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "realm": "schema-registry",
+              "enabled": true,
+              "sslRequired": "none",
+              "registrationAllowed": false,
+              "loginWithEmailAllowed": true,
+              "duplicateEmailsAllowed": false,
+              "resetPasswordAllowed": false,
+              "editUsernameAllowed": false,
+              "bruteForceProtected": false
+            }'
+
+          # Create the client
+          echo "Creating schema-registry client..."
+          curl -s -X POST http://localhost:8080/admin/realms/schema-registry/clients \
+            -H "Authorization: Bearer $ADMIN_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "clientId": "schema-registry",
+              "enabled": true,
+              "publicClient": false,
+              "secret": "schema-registry-secret",
+              "directAccessGrantsEnabled": true,
+              "serviceAccountsEnabled": false,
+              "standardFlowEnabled": true,
+              "implicitFlowEnabled": false,
+              "redirectUris": ["http://localhost:8081/*"],
+              "webOrigins": ["*"],
+              "protocol": "openid-connect",
+              "fullScopeAllowed": true
+            }'
+
+          # Get the client ID
+          CLIENT_UUID=$(curl -s http://localhost:8080/admin/realms/schema-registry/clients \
+            -H "Authorization: Bearer $ADMIN_TOKEN" | jq -r '.[] | select(.clientId=="schema-registry") | .id')
+
+          # Add groups mapper to the client
+          echo "Adding groups mapper..."
+          curl -s -X POST "http://localhost:8080/admin/realms/schema-registry/clients/$CLIENT_UUID/protocol-mappers/models" \
+            -H "Authorization: Bearer $ADMIN_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "name": "groups",
+              "protocol": "openid-connect",
+              "protocolMapper": "oidc-group-membership-mapper",
+              "consentRequired": false,
+              "config": {
+                "full.path": "true",
+                "id.token.claim": "true",
+                "access.token.claim": "true",
+                "claim.name": "groups",
+                "userinfo.token.claim": "true"
+              }
+            }'
+
+          # Create groups
+          echo "Creating groups..."
+          curl -s -X POST http://localhost:8080/admin/realms/schema-registry/groups \
+            -H "Authorization: Bearer $ADMIN_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"name": "schema-registry-admins"}'
+
+          curl -s -X POST http://localhost:8080/admin/realms/schema-registry/groups \
+            -H "Authorization: Bearer $ADMIN_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"name": "developers"}'
+
+          curl -s -X POST http://localhost:8080/admin/realms/schema-registry/groups \
+            -H "Authorization: Bearer $ADMIN_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"name": "readonly-users"}'
+
+          # Get group IDs
+          ADMIN_GROUP_ID=$(curl -s http://localhost:8080/admin/realms/schema-registry/groups \
+            -H "Authorization: Bearer $ADMIN_TOKEN" | jq -r '.[] | select(.name=="schema-registry-admins") | .id')
+          DEV_GROUP_ID=$(curl -s http://localhost:8080/admin/realms/schema-registry/groups \
+            -H "Authorization: Bearer $ADMIN_TOKEN" | jq -r '.[] | select(.name=="developers") | .id')
+          RO_GROUP_ID=$(curl -s http://localhost:8080/admin/realms/schema-registry/groups \
+            -H "Authorization: Bearer $ADMIN_TOKEN" | jq -r '.[] | select(.name=="readonly-users") | .id')
+
+          # Create users
+          echo "Creating users..."
+          curl -s -X POST http://localhost:8080/admin/realms/schema-registry/users \
+            -H "Authorization: Bearer $ADMIN_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "username": "admin",
+              "email": "admin@example.org",
+              "enabled": true,
+              "emailVerified": true,
+              "credentials": [{"type": "password", "value": "adminpass", "temporary": false}]
+            }'
+
+          curl -s -X POST http://localhost:8080/admin/realms/schema-registry/users \
+            -H "Authorization: Bearer $ADMIN_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "username": "developer",
+              "email": "developer@example.org",
+              "enabled": true,
+              "emailVerified": true,
+              "credentials": [{"type": "password", "value": "devpass", "temporary": false}]
+            }'
+
+          curl -s -X POST http://localhost:8080/admin/realms/schema-registry/users \
+            -H "Authorization: Bearer $ADMIN_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "username": "readonly",
+              "email": "readonly@example.org",
+              "enabled": true,
+              "emailVerified": true,
+              "credentials": [{"type": "password", "value": "readonlypass", "temporary": false}]
+            }'
+
+          # Get user IDs and add to groups
+          echo "Adding users to groups..."
+          ADMIN_USER_ID=$(curl -s "http://localhost:8080/admin/realms/schema-registry/users?username=admin" \
+            -H "Authorization: Bearer $ADMIN_TOKEN" | jq -r '.[0].id')
+          DEV_USER_ID=$(curl -s "http://localhost:8080/admin/realms/schema-registry/users?username=developer" \
+            -H "Authorization: Bearer $ADMIN_TOKEN" | jq -r '.[0].id')
+          RO_USER_ID=$(curl -s "http://localhost:8080/admin/realms/schema-registry/users?username=readonly" \
+            -H "Authorization: Bearer $ADMIN_TOKEN" | jq -r '.[0].id')
+
+          curl -s -X PUT "http://localhost:8080/admin/realms/schema-registry/users/$ADMIN_USER_ID/groups/$ADMIN_GROUP_ID" \
+            -H "Authorization: Bearer $ADMIN_TOKEN"
+          curl -s -X PUT "http://localhost:8080/admin/realms/schema-registry/users/$DEV_USER_ID/groups/$DEV_GROUP_ID" \
+            -H "Authorization: Bearer $ADMIN_TOKEN"
+          curl -s -X PUT "http://localhost:8080/admin/realms/schema-registry/users/$RO_USER_ID/groups/$RO_GROUP_ID" \
+            -H "Authorization: Bearer $ADMIN_TOKEN"
+
+          echo "Keycloak configuration complete"
+
+      - name: Verify Keycloak setup
+        run: |
+          echo "Testing token retrieval for admin user..."
+          TOKEN_RESPONSE=$(curl -s -X POST http://localhost:8080/realms/schema-registry/protocol/openid-connect/token \
+            -H "Content-Type: application/x-www-form-urlencoded" \
+            -d "username=admin" \
+            -d "password=adminpass" \
+            -d "grant_type=password" \
+            -d "client_id=schema-registry" \
+            -d "client_secret=schema-registry-secret" \
+            -d "scope=openid")
+
+          if echo "$TOKEN_RESPONSE" | jq -e '.access_token' > /dev/null; then
+            echo "Successfully retrieved token for admin user"
+            # Decode and show the groups claim
+            echo "$TOKEN_RESPONSE" | jq -r '.id_token' | cut -d. -f2 | base64 -d 2>/dev/null | jq '.groups' || echo "Could not decode groups"
+          else
+            echo "Failed to get token: $TOKEN_RESPONSE"
+            exit 1
+          fi
+
+      - name: Run OIDC tests
+        env:
+          OIDC_ISSUER_URL: http://localhost:8080/realms/schema-registry
+        run: ./oidc.test -test.v -test.timeout=10m
+
+      - name: Cleanup Keycloak
+        if: always()
+        run: docker stop keycloak-test && docker rm keycloak-test || true
