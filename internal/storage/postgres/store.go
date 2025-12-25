@@ -62,17 +62,17 @@ type Store struct {
 // preparedStatements holds all prepared SQL statements.
 type preparedStatements struct {
 	// Schema statements
-	getSchemaByID            *sql.Stmt
-	getSchemaBySubjectVer    *sql.Stmt
-	getSchemaByFingerprint   *sql.Stmt
-	getLatestSchema          *sql.Stmt
-	softDeleteSchema         *sql.Stmt
-	hardDeleteSchema         *sql.Stmt
-	countSchemasBySubject    *sql.Stmt
-	loadReferences           *sql.Stmt
-	getSubjectsBySchemaID    *sql.Stmt
-	getVersionsBySchemaID    *sql.Stmt
-	getReferencedBy          *sql.Stmt
+	getSchemaByID          *sql.Stmt
+	getSchemaBySubjectVer  *sql.Stmt
+	getSchemaByFingerprint *sql.Stmt
+	getLatestSchema        *sql.Stmt
+	softDeleteSchema       *sql.Stmt
+	hardDeleteSchema       *sql.Stmt
+	countSchemasBySubject  *sql.Stmt
+	loadReferences         *sql.Stmt
+	getSubjectsBySchemaID  *sql.Stmt
+	getVersionsBySchemaID  *sql.Stmt
+	getReferencedBy        *sql.Stmt
 
 	// Config statements
 	getConfig    *sql.Stmt
@@ -93,15 +93,15 @@ type preparedStatements struct {
 	listUsers         *sql.Stmt
 
 	// API Key statements
-	createAPIKey          *sql.Stmt
-	getAPIKeyByID         *sql.Stmt
-	getAPIKeyByHash       *sql.Stmt
-	updateAPIKey          *sql.Stmt
-	deleteAPIKey          *sql.Stmt
-	listAPIKeys           *sql.Stmt
-	listAPIKeysByUserID   *sql.Stmt
+	createAPIKey           *sql.Stmt
+	getAPIKeyByID          *sql.Stmt
+	getAPIKeyByHash        *sql.Stmt
+	updateAPIKey           *sql.Stmt
+	deleteAPIKey           *sql.Stmt
+	listAPIKeys            *sql.Stmt
+	listAPIKeysByUserID    *sql.Stmt
 	getAPIKeyByUserAndName *sql.Stmt
-	updateAPIKeyLastUsed  *sql.Stmt
+	updateAPIKeyLastUsed   *sql.Stmt
 }
 
 // NewStore creates a new PostgreSQL store.

@@ -149,7 +149,7 @@ func (p *LDAPProvider) connect() (*ldap.Conn, error) {
 // getTLSConfig returns TLS configuration for LDAP connection.
 func (p *LDAPProvider) getTLSConfig() (*tls.Config, error) {
 	tlsConfig := &tls.Config{
-		InsecureSkipVerify: p.config.InsecureSkipVerify,
+		InsecureSkipVerify: p.config.InsecureSkipVerify, // #nosec G402 -- user-configurable option for dev/test environments
 		MinVersion:         tls.VersionTLS12,
 	}
 
@@ -192,7 +192,7 @@ func (p *LDAPProvider) searchUser(conn *ldap.Conn, username string) (*ldap.Entry
 		searchBase,
 		ldap.ScopeWholeSubtree,
 		ldap.NeverDerefAliases,
-		1,    // Size limit: 1 result
+		1, // Size limit: 1 result
 		p.config.RequestTimeout,
 		false, // TypesOnly
 		filter,

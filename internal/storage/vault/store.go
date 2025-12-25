@@ -65,7 +65,7 @@ func NewStore(config Config) (*Store, error) {
 	// Configure TLS if needed
 	if config.TLSCertFile != "" || config.TLSCAFile != "" || config.TLSSkipVerify {
 		tlsConfig := &tls.Config{
-			InsecureSkipVerify: config.TLSSkipVerify,
+			InsecureSkipVerify: config.TLSSkipVerify, // #nosec G402 -- user-configurable option for dev/test environments
 		}
 
 		transport := &http.Transport{

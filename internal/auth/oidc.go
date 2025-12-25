@@ -43,9 +43,9 @@ func NewOIDCProvider(ctx context.Context, cfg config.OIDCConfig) (*OIDCProvider,
 
 	// Configure ID token verifier
 	verifierConfig := &oidc.Config{
-		ClientID:          cfg.ClientID,
-		SkipIssuerCheck:   cfg.SkipIssuerCheck,
-		SkipExpiryCheck:   cfg.SkipExpiryCheck,
+		ClientID:        cfg.ClientID,
+		SkipIssuerCheck: cfg.SkipIssuerCheck,
+		SkipExpiryCheck: cfg.SkipExpiryCheck,
 	}
 
 	// Set supported algorithms if specified

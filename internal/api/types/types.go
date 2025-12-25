@@ -140,17 +140,17 @@ const (
 	ErrorCodeStorageError              = 50002
 
 	// Admin error codes
-	ErrorCodeUnauthorized     = 40101
-	ErrorCodeForbidden        = 40301
-	ErrorCodeUserNotFound     = 40404
-	ErrorCodeUserExists       = 40901
-	ErrorCodeAPIKeyNotFound   = 40405
-	ErrorCodeAPIKeyExists     = 40902
-	ErrorCodeInvalidRole      = 42207
-	ErrorCodeInvalidPassword  = 42208
-	ErrorCodeAPIKeyExpired    = 40103
-	ErrorCodeAPIKeyDisabled   = 40104
-	ErrorCodeUserDisabled     = 40105
+	ErrorCodeUnauthorized    = 40101
+	ErrorCodeForbidden       = 40301
+	ErrorCodeUserNotFound    = 40404
+	ErrorCodeUserExists      = 40901
+	ErrorCodeAPIKeyNotFound  = 40405
+	ErrorCodeAPIKeyExists    = 40902
+	ErrorCodeInvalidRole     = 42207
+	ErrorCodeInvalidPassword = 42208
+	ErrorCodeAPIKeyExpired   = 40103
+	ErrorCodeAPIKeyDisabled  = 40104
+	ErrorCodeUserDisabled    = 40105
 )
 
 // CreateUserRequest is the request body for creating a user.
@@ -194,10 +194,10 @@ type ChangePasswordRequest struct {
 
 // CreateAPIKeyRequest is the request body for creating an API key.
 type CreateAPIKeyRequest struct {
-	Name      string `json:"name"`                       // Required, must be unique per user
-	Role      string `json:"role"`                       // Required: super_admin, admin, developer, readonly
-	ExpiresIn int64  `json:"expires_in"`                 // Required, duration in seconds (e.g., 2592000 for 30 days)
-	ForUserID *int64 `json:"for_user_id,omitempty"`      // Optional: super_admin can create keys for other users
+	Name      string `json:"name"`                  // Required, must be unique per user
+	Role      string `json:"role"`                  // Required: super_admin, admin, developer, readonly
+	ExpiresIn int64  `json:"expires_in"`            // Required, duration in seconds (e.g., 2592000 for 30 days)
+	ForUserID *int64 `json:"for_user_id,omitempty"` // Optional: super_admin can create keys for other users
 }
 
 // UpdateAPIKeyRequest is the request body for updating an API key.
@@ -213,8 +213,8 @@ type APIKeyResponse struct {
 	KeyPrefix string  `json:"key_prefix"`
 	Name      string  `json:"name"`
 	Role      string  `json:"role"`
-	UserID    int64   `json:"user_id"`           // User who owns this API key
-	Username  string  `json:"username"`          // Username of the owner
+	UserID    int64   `json:"user_id"`  // User who owns this API key
+	Username  string  `json:"username"` // Username of the owner
 	Enabled   bool    `json:"enabled"`
 	CreatedAt string  `json:"created_at"`
 	ExpiresAt string  `json:"expires_at"`

@@ -62,15 +62,15 @@ type Store struct {
 // preparedStatements holds all prepared SQL statements.
 type preparedStatements struct {
 	// Schema statements
-	getSchemaByID            *sql.Stmt
-	getSchemaBySubjectVer    *sql.Stmt
-	getSchemaByFingerprint   *sql.Stmt
-	getLatestSchema          *sql.Stmt
-	softDeleteSchema         *sql.Stmt
-	hardDeleteSchema         *sql.Stmt
-	countSchemasBySubject    *sql.Stmt
-	loadReferences           *sql.Stmt
-	getReferencedBy          *sql.Stmt
+	getSchemaByID          *sql.Stmt
+	getSchemaBySubjectVer  *sql.Stmt
+	getSchemaByFingerprint *sql.Stmt
+	getLatestSchema        *sql.Stmt
+	softDeleteSchema       *sql.Stmt
+	hardDeleteSchema       *sql.Stmt
+	countSchemasBySubject  *sql.Stmt
+	loadReferences         *sql.Stmt
+	getReferencedBy        *sql.Stmt
 
 	// Config statements
 	getConfig    *sql.Stmt
