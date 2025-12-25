@@ -760,7 +760,8 @@ jobs:
           RO_GROUP_ID=$(curl -s http://localhost:8080/admin/realms/schema-registry/groups \
             -H "Authorization: Bearer $ADMIN_TOKEN" | jq -r '.[] | select(.name=="readonly-users") | .id')
 
-          # Create users
+          # Create users with firstName and lastName (required by Keycloak 24 user profile)
+          # Also include credentials directly to avoid additional API calls
           echo "Creating users..."
           curl -s -X POST http://localhost:8080/admin/realms/schema-registry/users \
             -H "Authorization: Bearer $ADMIN_TOKEN" \
@@ -768,9 +769,10 @@ jobs:
             -d '{
               "username": "admin",
               "email": "admin@example.org",
+              "firstName": "Admin",
+              "lastName": "User",
               "enabled": true,
               "emailVerified": true,
-              "requiredActions": [],
               "credentials": [{"type": "password", "value": "adminpass", "temporary": false}]
             }'
 
@@ -780,9 +782,10 @@ jobs:
             -d '{
               "username": "developer",
               "email": "developer@example.org",
+              "firstName": "Developer",
+              "lastName": "User",
               "enabled": true,
               "emailVerified": true,
-              "requiredActions": [],
               "credentials": [{"type": "password", "value": "devpass", "temporary": false}]
             }'
 
@@ -792,14 +795,15 @@ jobs:
             -d '{
               "username": "readonly",
               "email": "readonly@example.org",
+              "firstName": "ReadOnly",
+              "lastName": "User",
               "enabled": true,
               "emailVerified": true,
-              "requiredActions": [],
               "credentials": [{"type": "password", "value": "readonlypass", "temporary": false}]
             }'
 
-          # Get user IDs and add to groups
-          echo "Adding users to groups..."
+          # Get user IDs
+          echo "Getting user IDs..."
           ADMIN_USER_ID=$(curl -s "http://localhost:8080/admin/realms/schema-registry/users?username=admin" \
             -H "Authorization: Bearer $ADMIN_TOKEN" | jq -r '.[0].id')
           DEV_USER_ID=$(curl -s "http://localhost:8080/admin/realms/schema-registry/users?username=developer" \
@@ -807,28 +811,18 @@ jobs:
           RO_USER_ID=$(curl -s "http://localhost:8080/admin/realms/schema-registry/users?username=readonly" \
             -H "Authorization: Bearer $ADMIN_TOKEN" | jq -r '.[0].id')
 
+          echo "Admin user ID: $ADMIN_USER_ID"
+          echo "Developer user ID: $DEV_USER_ID"
+          echo "Readonly user ID: $RO_USER_ID"
+
           # Add users to groups
+          echo "Adding users to groups..."
           curl -s -X PUT "http://localhost:8080/admin/realms/schema-registry/users/$ADMIN_USER_ID/groups/$ADMIN_GROUP_ID" \
             -H "Authorization: Bearer $ADMIN_TOKEN"
           curl -s -X PUT "http://localhost:8080/admin/realms/schema-registry/users/$DEV_USER_ID/groups/$DEV_GROUP_ID" \
             -H "Authorization: Bearer $ADMIN_TOKEN"
           curl -s -X PUT "http://localhost:8080/admin/realms/schema-registry/users/$RO_USER_ID/groups/$RO_GROUP_ID" \
             -H "Authorization: Bearer $ADMIN_TOKEN"
-
-          # Clear any required actions by updating users
-          echo "Clearing required actions..."
-          curl -s -X PUT "http://localhost:8080/admin/realms/schema-registry/users/$ADMIN_USER_ID" \
-            -H "Authorization: Bearer $ADMIN_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d '{"requiredActions": []}'
-          curl -s -X PUT "http://localhost:8080/admin/realms/schema-registry/users/$DEV_USER_ID" \
-            -H "Authorization: Bearer $ADMIN_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d '{"requiredActions": []}'
-          curl -s -X PUT "http://localhost:8080/admin/realms/schema-registry/users/$RO_USER_ID" \
-            -H "Authorization: Bearer $ADMIN_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d '{"requiredActions": []}'
 
           echo "Keycloak configuration complete"
 
