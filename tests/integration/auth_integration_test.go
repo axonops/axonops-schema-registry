@@ -1053,6 +1053,318 @@ func TestBootstrapAdminWorkflow(t *testing.T) {
 	})
 }
 
+// TestAPIKeyRoleBasedSchemaAccess tests that API keys with different roles
+// can perform schema operations according to their permissions.
+func TestAPIKeyRoleBasedSchemaAccess(t *testing.T) {
+	if testStore == nil {
+		t.Skip("No storage backend available")
+	}
+
+	ctx := context.Background()
+
+	// Create auth service with API key config
+	authService := auth.NewServiceWithConfig(testStore, auth.ServiceConfig{
+		APIKeySecret: "testsecret1234567890123456789012",
+		APIKeyPrefix: "sr_apikey_",
+	})
+	defer authService.Close()
+
+	// Create users for API keys
+	apiKeyUsers := map[string]*storage.UserRecord{}
+	roles := []string{"admin", "developer", "readonly"}
+
+	for _, role := range roles {
+		username := fmt.Sprintf("apikey_%s_user", role)
+		user, err := authService.GetUserByUsername(ctx, username)
+		if err != nil {
+			user, err = authService.CreateUser(ctx, auth.CreateUserRequest{
+				Username: username,
+				Email:    fmt.Sprintf("apikey_%s@example.com", role),
+				Password: "TestPassword123!",
+				Role:     role,
+				Enabled:  true,
+			})
+			if err != nil {
+				t.Fatalf("Failed to create user for role %s: %v", role, err)
+			}
+		}
+		apiKeyUsers[role] = user
+	}
+
+	// Create API keys for each role
+	apiKeys := map[string]string{}
+	for role, user := range apiKeyUsers {
+		response, err := authService.CreateAPIKey(ctx, auth.CreateAPIKeyRequest{
+			UserID:    user.ID,
+			Name:      fmt.Sprintf("test-key-%s", role),
+			Role:      role,
+			ExpiresAt: time.Now().Add(24 * time.Hour),
+		})
+		if err != nil {
+			t.Fatalf("Failed to create API key for role %s: %v", role, err)
+		}
+		apiKeys[role] = response.Key
+		t.Logf("Created API key for role %s: %s...", role, response.Key[:20])
+	}
+
+	// Create schema parser registry
+	schemaRegistry := schema.NewRegistry()
+	schemaRegistry.Register(avro.NewParser())
+	schemaRegistry.Register(protobuf.NewParser())
+	schemaRegistry.Register(jsonschema.NewParser())
+
+	// Create compatibility checker
+	compatChecker := compatibility.NewChecker()
+	compatChecker.Register(storage.SchemaTypeAvro, avrocompat.NewChecker())
+	compatChecker.Register(storage.SchemaTypeProtobuf, protocompat.NewChecker())
+	compatChecker.Register(storage.SchemaTypeJSON, jsoncompat.NewChecker())
+
+	// Create registry
+	reg := registry.New(testStore, schemaRegistry, compatChecker, "BACKWARD")
+
+	// Create server with API key auth enabled
+	cfg := &config.Config{
+		Server: config.ServerConfig{
+			Host: "localhost",
+			Port: 8083,
+		},
+		Security: config.SecurityConfig{
+			Auth: config.AuthConfig{
+				Enabled: true,
+				Methods: []string{"api_key"},
+				APIKey: config.APIKeyConfig{
+					Header:      "X-API-Key",
+					StorageType: "database",
+					Secret:      "testsecret1234567890123456789012",
+					KeyPrefix:   "sr_apikey_",
+				},
+				RBAC: config.RBACConfig{
+					Enabled:     true,
+					DefaultRole: "readonly",
+				},
+			},
+		},
+	}
+
+	authenticator := auth.NewAuthenticator(cfg.Security.Auth)
+	authenticator.SetService(authService)
+	authorizer := auth.NewAuthorizer(cfg.Security.Auth.RBAC)
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	server := api.NewServer(cfg, reg, logger, api.WithAuth(authenticator, authorizer, authService))
+	ts := httptest.NewServer(server)
+	defer ts.Close()
+
+	// Helper function to make API key authenticated requests
+	makeAPIKeyRequest := func(method, path string, body interface{}, apiKey string) *http.Response {
+		var bodyReader io.Reader
+		if body != nil {
+			bodyBytes, _ := json.Marshal(body)
+			bodyReader = bytes.NewReader(bodyBytes)
+		}
+
+		req, _ := http.NewRequest(method, ts.URL+path, bodyReader)
+		if body != nil {
+			req.Header.Set("Content-Type", "application/json")
+		}
+		if apiKey != "" {
+			req.Header.Set("X-API-Key", apiKey)
+		}
+
+		resp, _ := http.DefaultClient.Do(req)
+		return resp
+	}
+
+	testSchema := `{"type":"record","name":"APIKeyRBACTest","fields":[{"name":"id","type":"int"}]}`
+
+	// Test schema registration with different API key roles
+	t.Run("AdminAPIKeyCanRegisterSchema", func(t *testing.T) {
+		resp := makeAPIKeyRequest("POST", "/subjects/apikey-admin-subject/versions",
+			map[string]string{"schema": testSchema}, apiKeys["admin"])
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			t.Errorf("Expected admin API key to register schema, got status %d: %s", resp.StatusCode, body)
+		}
+		resp.Body.Close()
+	})
+
+	t.Run("DeveloperAPIKeyCanRegisterSchema", func(t *testing.T) {
+		devSchema := `{"type":"record","name":"APIKeyDevTest","fields":[{"name":"id","type":"int"}]}`
+		resp := makeAPIKeyRequest("POST", "/subjects/apikey-dev-subject/versions",
+			map[string]string{"schema": devSchema}, apiKeys["developer"])
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			t.Errorf("Expected developer API key to register schema, got status %d: %s", resp.StatusCode, body)
+		}
+		resp.Body.Close()
+	})
+
+	t.Run("ReadonlyAPIKeyCannotRegisterSchema", func(t *testing.T) {
+		roSchema := `{"type":"record","name":"APIKeyROTest","fields":[{"name":"id","type":"int"}]}`
+		resp := makeAPIKeyRequest("POST", "/subjects/apikey-readonly-subject/versions",
+			map[string]string{"schema": roSchema}, apiKeys["readonly"])
+
+		if resp.StatusCode != http.StatusForbidden {
+			body, _ := io.ReadAll(resp.Body)
+			t.Errorf("Expected readonly API key to be forbidden, got status %d: %s", resp.StatusCode, body)
+		}
+		resp.Body.Close()
+	})
+
+	// Test schema reading with different API key roles
+	t.Run("AdminAPIKeyCanReadSchema", func(t *testing.T) {
+		resp := makeAPIKeyRequest("GET", "/subjects/apikey-admin-subject/versions/1", nil, apiKeys["admin"])
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			t.Errorf("Expected admin API key to read schema, got status %d: %s", resp.StatusCode, body)
+		}
+		resp.Body.Close()
+	})
+
+	t.Run("DeveloperAPIKeyCanReadSchema", func(t *testing.T) {
+		resp := makeAPIKeyRequest("GET", "/subjects/apikey-admin-subject/versions/1", nil, apiKeys["developer"])
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			t.Errorf("Expected developer API key to read schema, got status %d: %s", resp.StatusCode, body)
+		}
+		resp.Body.Close()
+	})
+
+	t.Run("ReadonlyAPIKeyCanReadSchema", func(t *testing.T) {
+		resp := makeAPIKeyRequest("GET", "/subjects/apikey-admin-subject/versions/1", nil, apiKeys["readonly"])
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			t.Errorf("Expected readonly API key to read schema, got status %d: %s", resp.StatusCode, body)
+		}
+		resp.Body.Close()
+	})
+
+	t.Run("ReadonlyAPIKeyCanListSubjects", func(t *testing.T) {
+		resp := makeAPIKeyRequest("GET", "/subjects", nil, apiKeys["readonly"])
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			t.Errorf("Expected readonly API key to list subjects, got status %d: %s", resp.StatusCode, body)
+		}
+		resp.Body.Close()
+	})
+
+	// Test schema deletion with different API key roles
+	t.Run("ReadonlyAPIKeyCannotDeleteSubject", func(t *testing.T) {
+		resp := makeAPIKeyRequest("DELETE", "/subjects/apikey-admin-subject", nil, apiKeys["readonly"])
+
+		if resp.StatusCode != http.StatusForbidden {
+			body, _ := io.ReadAll(resp.Body)
+			t.Errorf("Expected readonly API key to be forbidden from delete, got status %d: %s", resp.StatusCode, body)
+		}
+		resp.Body.Close()
+	})
+
+	t.Run("DeveloperAPIKeyCannotDeleteSubject", func(t *testing.T) {
+		resp := makeAPIKeyRequest("DELETE", "/subjects/apikey-dev-subject", nil, apiKeys["developer"])
+
+		if resp.StatusCode != http.StatusForbidden {
+			body, _ := io.ReadAll(resp.Body)
+			t.Errorf("Expected developer API key to be forbidden from delete, got status %d: %s", resp.StatusCode, body)
+		}
+		resp.Body.Close()
+	})
+
+	t.Run("AdminAPIKeyCanDeleteSubject", func(t *testing.T) {
+		resp := makeAPIKeyRequest("DELETE", "/subjects/apikey-admin-subject", nil, apiKeys["admin"])
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			t.Errorf("Expected admin API key to delete subject, got status %d: %s", resp.StatusCode, body)
+		}
+		resp.Body.Close()
+	})
+
+	// Test config access with different API key roles
+	t.Run("AdminAPIKeyCanSetConfig", func(t *testing.T) {
+		resp := makeAPIKeyRequest("PUT", "/config",
+			map[string]string{"compatibility": "FULL"}, apiKeys["admin"])
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			t.Errorf("Expected admin API key to set config, got status %d: %s", resp.StatusCode, body)
+		}
+		resp.Body.Close()
+	})
+
+	t.Run("DeveloperAPIKeyCannotSetConfig", func(t *testing.T) {
+		resp := makeAPIKeyRequest("PUT", "/config",
+			map[string]string{"compatibility": "NONE"}, apiKeys["developer"])
+
+		if resp.StatusCode != http.StatusForbidden {
+			body, _ := io.ReadAll(resp.Body)
+			t.Errorf("Expected developer API key to be forbidden from setting config, got status %d: %s", resp.StatusCode, body)
+		}
+		resp.Body.Close()
+	})
+
+	t.Run("ReadonlyAPIKeyCannotSetConfig", func(t *testing.T) {
+		resp := makeAPIKeyRequest("PUT", "/config",
+			map[string]string{"compatibility": "BACKWARD_TRANSITIVE"}, apiKeys["readonly"])
+
+		if resp.StatusCode != http.StatusForbidden {
+			body, _ := io.ReadAll(resp.Body)
+			t.Errorf("Expected readonly API key to be forbidden from setting config, got status %d: %s", resp.StatusCode, body)
+		}
+		resp.Body.Close()
+	})
+
+	t.Run("AllRolesCanReadConfig", func(t *testing.T) {
+		for role, apiKey := range apiKeys {
+			resp := makeAPIKeyRequest("GET", "/config", nil, apiKey)
+			if resp.StatusCode != http.StatusOK {
+				body, _ := io.ReadAll(resp.Body)
+				t.Errorf("Expected %s API key to read config, got status %d: %s", role, resp.StatusCode, body)
+			}
+			resp.Body.Close()
+		}
+	})
+
+	// Test invalid and missing API keys
+	t.Run("InvalidAPIKeyFails", func(t *testing.T) {
+		resp := makeAPIKeyRequest("GET", "/subjects", nil, "invalid-api-key-12345")
+
+		if resp.StatusCode != http.StatusUnauthorized {
+			body, _ := io.ReadAll(resp.Body)
+			t.Errorf("Expected invalid API key to fail with 401, got status %d: %s", resp.StatusCode, body)
+		}
+		resp.Body.Close()
+	})
+
+	t.Run("MissingAPIKeyFails", func(t *testing.T) {
+		resp := makeAPIKeyRequest("GET", "/subjects", nil, "")
+
+		if resp.StatusCode != http.StatusUnauthorized {
+			body, _ := io.ReadAll(resp.Body)
+			t.Errorf("Expected missing API key to fail with 401, got status %d: %s", resp.StatusCode, body)
+		}
+		resp.Body.Close()
+	})
+
+	// Cleanup
+	t.Cleanup(func() {
+		for _, user := range apiKeyUsers {
+			// Delete API keys for user
+			keys, _ := authService.ListAPIKeysByUserID(ctx, user.ID)
+			for _, key := range keys {
+				_ = authService.DeleteAPIKey(ctx, key.ID)
+			}
+			// Delete user
+			_ = testStore.DeleteUser(ctx, user.ID)
+		}
+	})
+}
+
 // Helper functions
 
 func mustHashPassword(t *testing.T, password string) string {
