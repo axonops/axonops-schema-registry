@@ -1,0 +1,340 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+env:
+  GO_VERSION: '1.25.5'
+
+jobs:
+  build:
+    name: Build Release Binaries
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+            suffix: linux-amd64
+          - goos: linux
+            goarch: arm64
+            suffix: linux-arm64
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Get version
+        id: version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Building version: $VERSION"
+
+      - name: Build binaries
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 0
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          COMMIT=$(git rev-parse --short HEAD)
+          BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          LDFLAGS="-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.buildDate=${BUILD_DATE}"
+
+          mkdir -p dist
+
+          # Build schema-registry
+          go build -ldflags "${LDFLAGS}" -o dist/schema-registry ./cmd/schema-registry
+
+          # Build schema-registry-admin
+          go build -ldflags "${LDFLAGS}" -o dist/schema-registry-admin ./cmd/schema-registry-admin
+
+      - name: Create tarball
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          SUFFIX=${{ matrix.suffix }}
+
+          mkdir -p release/axonops-schema-registry-${VERSION}
+          cp dist/schema-registry release/axonops-schema-registry-${VERSION}/
+          cp dist/schema-registry-admin release/axonops-schema-registry-${VERSION}/
+          cp config.example.yaml release/axonops-schema-registry-${VERSION}/
+          cp README.md release/axonops-schema-registry-${VERSION}/
+          cp LICENSE release/axonops-schema-registry-${VERSION}/
+
+          cd release
+          tar -czvf axonops-schema-registry-${VERSION}-${SUFFIX}.tar.gz axonops-schema-registry-${VERSION}
+          cd ..
+
+          mv release/*.tar.gz dist/
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: binaries-${{ matrix.suffix }}
+          path: dist/
+          retention-days: 1
+
+  package:
+    name: Create Packages
+    runs-on: ubuntu-latest
+    needs: build
+    strategy:
+      matrix:
+        include:
+          - arch: amd64
+            suffix: linux-amd64
+            nfpm_arch: amd64
+          - arch: arm64
+            suffix: linux-arm64
+            nfpm_arch: arm64
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get version
+        id: version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Download binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: binaries-${{ matrix.suffix }}
+          path: dist/
+
+      - name: Make binaries executable
+        run: chmod +x dist/schema-registry dist/schema-registry-admin
+
+      - name: Install nfpm
+        run: |
+          curl -sfL https://github.com/goreleaser/nfpm/releases/download/v2.41.1/nfpm_2.41.1_linux_amd64.tar.gz | tar xz -C /tmp
+          sudo mv /tmp/nfpm /usr/local/bin/
+
+      - name: Create nfpm config
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          ARCH=${{ matrix.nfpm_arch }}
+
+          cat > nfpm.yaml << EOF
+          name: axonops-schema-registry
+          arch: ${ARCH}
+          platform: linux
+          version: ${VERSION}
+          section: default
+          priority: optional
+          maintainer: AxonOps <support@axonops.com>
+          description: |
+            AxonOps Schema Registry
+            A high-performance schema registry compatible with Confluent Schema Registry API.
+          vendor: AxonOps
+          homepage: https://github.com/axonops/axonops-schema-registry
+          license: Apache-2.0
+
+          contents:
+            - src: dist/schema-registry
+              dst: /usr/bin/schema-registry
+              file_info:
+                mode: 0755
+
+            - src: dist/schema-registry-admin
+              dst: /usr/bin/schema-registry-admin
+              file_info:
+                mode: 0755
+
+            - src: config.example.yaml
+              dst: /etc/axonops-schema-registry/config.example.yaml
+              type: config|noreplace
+              file_info:
+                mode: 0644
+
+            - dst: /var/lib/axonops-schema-registry
+              type: dir
+              file_info:
+                mode: 0755
+
+            - dst: /var/log/axonops-schema-registry
+              type: dir
+              file_info:
+                mode: 0755
+
+          scripts:
+            postinstall: packaging/postinstall.sh
+            preremove: packaging/preremove.sh
+
+          overrides:
+            rpm:
+              depends:
+                - /bin/sh
+              scripts:
+                postinstall: packaging/postinstall.sh
+                preremove: packaging/preremove.sh
+            deb:
+              depends:
+                - libc6
+          EOF
+
+      - name: Create packaging scripts
+        run: |
+          mkdir -p packaging
+
+          # Post-install script
+          cat > packaging/postinstall.sh << 'EOF'
+          #!/bin/sh
+          set -e
+
+          # Create schema-registry user if it doesn't exist
+          if ! getent passwd schema-registry > /dev/null 2>&1; then
+              useradd --system --no-create-home --shell /usr/sbin/nologin schema-registry
+          fi
+
+          # Set ownership of directories
+          chown -R schema-registry:schema-registry /var/lib/axonops-schema-registry
+          chown -R schema-registry:schema-registry /var/log/axonops-schema-registry
+
+          echo "AxonOps Schema Registry installed successfully."
+          echo "Configuration example: /etc/axonops-schema-registry/config.example.yaml"
+          echo "Copy to /etc/axonops-schema-registry/config.yaml and customize."
+          EOF
+
+          chmod +x packaging/postinstall.sh
+
+          # Pre-remove script
+          cat > packaging/preremove.sh << 'EOF'
+          #!/bin/sh
+          set -e
+
+          # Stop service if running (systemd)
+          if command -v systemctl > /dev/null 2>&1; then
+              systemctl stop axonops-schema-registry 2>/dev/null || true
+              systemctl disable axonops-schema-registry 2>/dev/null || true
+          fi
+          EOF
+
+          chmod +x packaging/preremove.sh
+
+      - name: Create systemd service file
+        run: |
+          mkdir -p packaging
+
+          cat > packaging/axonops-schema-registry.service << 'EOF'
+          [Unit]
+          Description=AxonOps Schema Registry
+          Documentation=https://github.com/axonops/axonops-schema-registry
+          After=network-online.target
+          Wants=network-online.target
+
+          [Service]
+          Type=simple
+          User=schema-registry
+          Group=schema-registry
+          ExecStart=/usr/bin/schema-registry --config /etc/axonops-schema-registry/config.yaml
+          Restart=on-failure
+          RestartSec=5
+          LimitNOFILE=65536
+
+          # Security hardening
+          NoNewPrivileges=true
+          ProtectSystem=strict
+          ProtectHome=true
+          ReadWritePaths=/var/lib/axonops-schema-registry /var/log/axonops-schema-registry
+          PrivateTmp=true
+
+          [Install]
+          WantedBy=multi-user.target
+          EOF
+
+      - name: Update nfpm config with systemd service
+        run: |
+          cat >> nfpm.yaml << 'EOF'
+
+            - src: packaging/axonops-schema-registry.service
+              dst: /lib/systemd/system/axonops-schema-registry.service
+              file_info:
+                mode: 0644
+          EOF
+
+      - name: Build DEB package
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          ARCH=${{ matrix.nfpm_arch }}
+          nfpm package --packager deb --target dist/
+          mv dist/*.deb dist/axonops-schema-registry_${VERSION}_${ARCH}.deb
+
+      - name: Build RPM package
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          ARCH=${{ matrix.nfpm_arch }}
+          nfpm package --packager rpm --target dist/
+          # nfpm uses x86_64 for amd64 in RPM naming
+          if [ "${ARCH}" = "amd64" ]; then
+            RPM_ARCH="x86_64"
+          else
+            RPM_ARCH="aarch64"
+          fi
+          mv dist/*.rpm dist/axonops-schema-registry-${VERSION}-1.${RPM_ARCH}.rpm
+
+      - name: Upload package artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: packages-${{ matrix.suffix }}
+          path: |
+            dist/*.deb
+            dist/*.rpm
+            dist/*.tar.gz
+          retention-days: 1
+
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: package
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get version
+        id: version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+
+      - name: Prepare release assets
+        run: |
+          mkdir -p release
+          find artifacts/ -type f \( -name "*.tar.gz" -o -name "*.deb" -o -name "*.rpm" \) -exec cp {} release/ \;
+          ls -la release/
+
+      - name: Generate checksums
+        run: |
+          cd release
+          sha256sum * > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: v${{ steps.version.outputs.version }}
+          draft: false
+          prerelease: ${{ contains(github.ref, '-rc') || contains(github.ref, '-beta') || contains(github.ref, '-alpha') }}
+          generate_release_notes: true
+          files: |
+            release/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
