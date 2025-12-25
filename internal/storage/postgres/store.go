@@ -734,8 +734,8 @@ func (s *Store) DeleteSubject(ctx context.Context, subject string, permanent boo
 		}
 
 		// Also delete configs and modes
-		s.db.ExecContext(ctx, `DELETE FROM configs WHERE subject = $1`, subject)
-		s.db.ExecContext(ctx, `DELETE FROM modes WHERE subject = $1`, subject)
+		_, _ = s.db.ExecContext(ctx, `DELETE FROM configs WHERE subject = $1`, subject)
+		_, _ = s.db.ExecContext(ctx, `DELETE FROM modes WHERE subject = $1`, subject)
 	} else {
 		_, err = s.db.ExecContext(ctx,
 			`UPDATE schemas SET deleted = TRUE WHERE subject = $1`,
