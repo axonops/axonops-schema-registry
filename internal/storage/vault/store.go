@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -630,6 +631,11 @@ func isNotFoundError(err error) bool {
 	// Vault returns 404 for missing secrets
 	if respErr, ok := err.(*api.ResponseError); ok {
 		return respErr.StatusCode == 404
+	}
+	// KVv2 API returns "secret not found" for missing secrets
+	errStr := err.Error()
+	if strings.Contains(errStr, "secret not found") {
+		return true
 	}
 	return false
 }
