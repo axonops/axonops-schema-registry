@@ -38,7 +38,12 @@ storage:
   #   hosts:
   #     - localhost
   #   keyspace: schemaregistry
+  #   # Default consistency level (used if read/write not specified)
   #   consistency: LOCAL_QUORUM
+  #   # Independent read consistency for multi-DC deployments (e.g., LOCAL_ONE for low latency)
+  #   read_consistency: LOCAL_ONE
+  #   # Independent write consistency for multi-DC deployments (e.g., LOCAL_QUORUM for durability)
+  #   write_consistency: LOCAL_QUORUM
   #   username: ""
   #   password: ""
 

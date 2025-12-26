@@ -25,7 +25,9 @@ type Config struct {
 	Keyspace            string        `json:"keyspace" yaml:"keyspace"`
 	Username            string        `json:"username" yaml:"username"`
 	Password            string        `json:"password" yaml:"password"`
-	Consistency         string        `json:"consistency" yaml:"consistency"`
+	Consistency         string        `json:"consistency" yaml:"consistency"`                   // Default consistency (used if read/write not specified)
+	ReadConsistency     string        `json:"read_consistency" yaml:"read_consistency"`         // Consistency for read operations (e.g., LOCAL_ONE for low latency)
+	WriteConsistency    string        `json:"write_consistency" yaml:"write_consistency"`       // Consistency for write operations (e.g., LOCAL_QUORUM for durability)
 	LocalDC             string        `json:"local_dc" yaml:"local_dc"`
 	ReplicationStrategy string        `json:"replication_strategy" yaml:"replication_strategy"`
 	ReplicationFactor   int           `json:"replication_factor" yaml:"replication_factor"`
@@ -57,9 +59,11 @@ func DefaultConfig() Config {
 
 // Store implements the storage.Storage interface using Cassandra.
 type Store struct {
-	session *gocql.Session
-	config  Config
-	idCache int64 // Local cache of last known ID
+	session          *gocql.Session
+	config           Config
+	idCache          int64           // Local cache of last known ID
+	readConsistency  gocql.Consistency // Consistency level for read operations
+	writeConsistency gocql.Consistency // Consistency level for write operations
 }
 
 // NewStore creates a new Cassandra store.
@@ -77,9 +81,19 @@ func NewStoreWithRetry(config Config, maxRetries int, retryDelay time.Duration) 
 	cluster.ConnectTimeout = config.ConnectTimeout
 	cluster.NumConns = config.NumConns
 
-	// Set consistency level
-	consistency := parseConsistency(config.Consistency)
-	cluster.Consistency = consistency
+	// Set default cluster consistency level
+	defaultConsistency := parseConsistency(config.Consistency)
+	cluster.Consistency = defaultConsistency
+
+	// Parse read/write consistency levels (fall back to default if not specified)
+	readConsistency := defaultConsistency
+	writeConsistency := defaultConsistency
+	if config.ReadConsistency != "" {
+		readConsistency = parseConsistency(config.ReadConsistency)
+	}
+	if config.WriteConsistency != "" {
+		writeConsistency = parseConsistency(config.WriteConsistency)
+	}
 
 	// Configure reconnection policy for better resilience
 	cluster.ReconnectionPolicy = &gocql.ConstantReconnectionPolicy{
@@ -146,8 +160,10 @@ func NewStoreWithRetry(config Config, maxRetries int, retryDelay time.Duration) 
 	}
 
 	store := &Store{
-		session: session,
-		config:  config,
+		session:          session,
+		config:           config,
+		readConsistency:  readConsistency,
+		writeConsistency: writeConsistency,
 	}
 
 	// Run migrations first to ensure tables exist
@@ -164,6 +180,16 @@ func NewStoreWithRetry(config Config, maxRetries int, retryDelay time.Duration) 
 	}
 
 	return store, nil
+}
+
+// readQuery creates a query with read consistency level.
+func (s *Store) readQuery(stmt string, values ...interface{}) *gocql.Query {
+	return s.session.Query(stmt, values...).Consistency(s.readConsistency)
+}
+
+// writeQuery creates a query with write consistency level.
+func (s *Store) writeQuery(stmt string, values ...interface{}) *gocql.Query {
+	return s.session.Query(stmt, values...).Consistency(s.writeConsistency)
 }
 
 // parseConsistency converts a string to gocql.Consistency.
@@ -345,7 +371,7 @@ func (s *Store) GetSchemaByID(ctx context.Context, id int64) (*storage.SchemaRec
 	// First lookup subject and version from schemas_by_id
 	var subject string
 	var version int
-	if err := s.session.Query(
+	if err := s.readQuery(
 		`SELECT subject, version FROM schemas_by_id WHERE id = ?`,
 		id,
 	).WithContext(ctx).Scan(&subject, &version); err != nil {
@@ -368,7 +394,7 @@ func (s *Store) GetSchemaBySubjectVersion(ctx context.Context, subject string, v
 	record := &storage.SchemaRecord{}
 	var schemaType string
 
-	if err := s.session.Query(
+	if err := s.readQuery(
 		`SELECT subject, version, id, schema_type, schema_text, fingerprint, deleted, created_at
 		 FROM schemas WHERE subject = ? AND version = ?`,
 		subject, version,
@@ -379,7 +405,7 @@ func (s *Store) GetSchemaBySubjectVersion(ctx context.Context, subject string, v
 		if err == gocql.ErrNotFound {
 			// Check if subject exists
 			var count int
-			_ = s.session.Query(`SELECT COUNT(*) FROM schemas WHERE subject = ?`, subject).
+			_ = s.readQuery(`SELECT COUNT(*) FROM schemas WHERE subject = ?`, subject).
 				WithContext(ctx).Scan(&count)
 			if count == 0 {
 				return nil, storage.ErrSubjectNotFound
@@ -410,7 +436,7 @@ func (s *Store) GetSchemasBySubject(ctx context.Context, subject string, include
 	query := `SELECT subject, version, id, schema_type, schema_text, fingerprint, deleted, created_at
 		      FROM schemas WHERE subject = ?`
 
-	iter := s.session.Query(query, subject).WithContext(ctx).Iter()
+	iter := s.readQuery(query, subject).WithContext(ctx).Iter()
 
 	var schemas []*storage.SchemaRecord
 	for {
@@ -453,7 +479,7 @@ func (s *Store) GetSchemasBySubject(ctx context.Context, subject string, include
 func (s *Store) GetSchemaByFingerprint(ctx context.Context, subject, fingerprint string) (*storage.SchemaRecord, error) {
 	var id int64
 	var version int
-	if err := s.session.Query(
+	if err := s.readQuery(
 		`SELECT id, version FROM schemas_by_fingerprint WHERE subject = ? AND fingerprint = ?`,
 		subject, fingerprint,
 	).WithContext(ctx).Scan(&id, &version); err != nil {
@@ -864,7 +890,7 @@ func (s *Store) GetReferencedBy(ctx context.Context, subject string, version int
 
 // loadReferences loads references for a schema.
 func (s *Store) loadReferences(ctx context.Context, schemaID int64) ([]storage.Reference, error) {
-	iter := s.session.Query(
+	iter := s.readQuery(
 		`SELECT name, ref_subject, ref_version FROM schema_references WHERE schema_id = ?`,
 		schemaID,
 	).WithContext(ctx).Iter()

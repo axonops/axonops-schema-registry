@@ -16,6 +16,12 @@ import (
 	"github.com/axonops/axonops-schema-registry/internal/storage"
 )
 
+// userCacheEntry stores a cached user with verification timestamp.
+type userCacheEntry struct {
+	user       *storage.UserRecord
+	verifiedAt time.Time
+}
+
 // Service provides user and API key management operations.
 type Service struct {
 	storage   storage.AuthStorage
@@ -27,6 +33,14 @@ type Service struct {
 	// periodically by a background process to ensure cluster consistency.
 	// Map: keyHash (string) -> *storage.APIKeyRecord
 	apiKeyCache sync.Map
+
+	// userCredCache caches validated user credentials in memory for performance.
+	// Entries include a TTL to ensure password changes are eventually reflected.
+	// Map: cacheKey (string) -> *userCacheEntry
+	userCredCache sync.Map
+
+	// userCacheTTL is how long validated user credentials are cached.
+	userCacheTTL time.Duration
 
 	// cacheRefreshInterval is how often the background process refreshes cached keys.
 	cacheRefreshInterval time.Duration
@@ -54,10 +68,17 @@ type ServiceConfig struct {
 	// as all nodes will eventually converge to the same state.
 	// Set to 0 to disable caching entirely. Default is 1 minute.
 	CacheRefreshInterval time.Duration
+	// UserCacheTTL is how long validated user credentials are cached.
+	// This reduces database load for frequently authenticating users.
+	// Set to 0 to disable user credential caching. Default is 60 seconds.
+	UserCacheTTL time.Duration
 }
 
 // DefaultCacheRefreshInterval is the default interval for refreshing the API key cache.
 const DefaultCacheRefreshInterval = 1 * time.Minute
+
+// DefaultUserCacheTTL is the default TTL for cached user credentials.
+const DefaultUserCacheTTL = 60 * time.Second
 
 // NewService creates a new auth service.
 func NewService(store storage.AuthStorage) *Service {
@@ -72,9 +93,16 @@ func NewServiceWithConfig(store storage.AuthStorage, cfg ServiceConfig) *Service
 		refreshInterval = DefaultCacheRefreshInterval
 	}
 
+	// Set default user cache TTL
+	userCacheTTL := cfg.UserCacheTTL
+	if userCacheTTL == 0 {
+		userCacheTTL = DefaultUserCacheTTL
+	}
+
 	s := &Service{
 		storage:              store,
 		keyPrefix:            cfg.APIKeyPrefix,
+		userCacheTTL:         userCacheTTL,
 		cacheRefreshInterval: refreshInterval,
 		stopCacheRefresh:     make(chan struct{}),
 		cacheRefreshDone:     make(chan struct{}),
@@ -269,11 +297,17 @@ func (s *Service) UpdateUser(ctx context.Context, id int64, updates map[string]i
 		return nil, err
 	}
 
+	// Invalidate credential cache for this user
+	s.invalidateUserCredCacheByID(id)
+
 	return user, nil
 }
 
 // DeleteUser deletes a user by ID.
 func (s *Service) DeleteUser(ctx context.Context, id int64) error {
+	// Invalidate credential cache before delete
+	s.invalidateUserCredCacheByID(id)
+
 	return s.storage.DeleteUser(ctx, id)
 }
 
@@ -303,11 +337,76 @@ func (s *Service) ChangePassword(ctx context.Context, id int64, oldPassword, new
 	user.PasswordHash = string(hash)
 	user.UpdatedAt = time.Now().UTC()
 
-	return s.storage.UpdateUser(ctx, user)
+	if err := s.storage.UpdateUser(ctx, user); err != nil {
+		return err
+	}
+
+	// Invalidate credential cache for this user
+	s.invalidateUserCredCacheByID(id)
+
+	return nil
+}
+
+// userCredCacheKey generates a cache key for user credentials.
+// Uses HMAC of username+password to create a secure cache key.
+func (s *Service) userCredCacheKey(username, password string) string {
+	h := sha256.New()
+	h.Write([]byte(username))
+	h.Write([]byte(":"))
+	h.Write([]byte(password))
+	return hex.EncodeToString(h.Sum(nil))
+}
+
+// invalidateUserCredCache removes all cached entries for a user.
+func (s *Service) invalidateUserCredCache(username string) {
+	// Since cache keys include password hash, we need to iterate and check
+	// We store username as part of the entry for invalidation purposes
+	s.userCredCache.Range(func(key, value interface{}) bool {
+		if entry, ok := value.(*userCacheEntry); ok {
+			if entry.user.Username == username {
+				s.userCredCache.Delete(key)
+			}
+		}
+		return true
+	})
+}
+
+// invalidateUserCredCacheByID removes all cached entries for a user by ID.
+func (s *Service) invalidateUserCredCacheByID(userID int64) {
+	s.userCredCache.Range(func(key, value interface{}) bool {
+		if entry, ok := value.(*userCacheEntry); ok {
+			if entry.user.ID == userID {
+				s.userCredCache.Delete(key)
+			}
+		}
+		return true
+	})
 }
 
 // ValidateCredentials validates user credentials and returns the user if valid.
+// Results are cached for performance; cache entries expire after UserCacheTTL.
 func (s *Service) ValidateCredentials(ctx context.Context, username, password string) (*storage.UserRecord, error) {
+	// Generate cache key from credentials
+	cacheKey := s.userCredCacheKey(username, password)
+
+	// Check cache first
+	if cached, ok := s.userCredCache.Load(cacheKey); ok {
+		entry := cached.(*userCacheEntry)
+		// Check if cache entry is still valid (within TTL)
+		if time.Since(entry.verifiedAt) < s.userCacheTTL {
+			// Verify user is still enabled (could have been disabled)
+			if entry.user.Enabled {
+				return entry.user, nil
+			}
+			// User disabled, remove from cache
+			s.userCredCache.Delete(cacheKey)
+			return nil, storage.ErrUserDisabled
+		}
+		// Entry expired, remove it
+		s.userCredCache.Delete(cacheKey)
+	}
+
+	// Cache miss or expired - validate against database
 	user, err := s.storage.GetUserByUsername(ctx, username)
 	if err != nil {
 		return nil, storage.ErrUserNotFound
@@ -320,6 +419,12 @@ func (s *Service) ValidateCredentials(ctx context.Context, username, password st
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
 		return nil, storage.ErrUserNotFound
 	}
+
+	// Cache the validated credentials
+	s.userCredCache.Store(cacheKey, &userCacheEntry{
+		user:       user,
+		verifiedAt: time.Now(),
+	})
 
 	return user, nil
 }

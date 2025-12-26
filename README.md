@@ -26,6 +26,21 @@ AxonOps Schema Registry provides centralized schema management for Apache Kafka 
 - **Serialization**: Integration with Kafka producers/consumers for Avro, Protobuf, and JSON Schema
 - **API Compatibility**: Drop-in replacement for Confluent Schema Registry API
 
+### API Compatibility Scope
+
+AxonOps Schema Registry implements the Confluent Schema Registry REST API v1. Compatibility includes:
+
+- **Supported Endpoints**: All schema, subject, compatibility, config, and mode endpoints
+- **Serializers**: Compatible with Confluent's Avro, Protobuf, and JSON Schema serializers (Java, Go, Python)
+- **Client Libraries**: Works with `confluent-kafka-go`, `confluent-kafka-python`, and Java Kafka clients
+- **Error Codes**: HTTP status codes and error response formats match Confluent behavior
+- **Authentication**: API keys work with `-u "API_KEY:x"` format (key as username, password ignored)
+
+**Known Differences**:
+- No `/schemas` listing endpoint (Confluent Enterprise only)
+- Contexts feature not implemented
+- Schema registry cluster coordination uses database constraints instead of Kafka
+
 ### Why AxonOps Schema Registry?
 
 - **No Kafka/ZooKeeper Dependency**: Unlike Confluent, uses standard databases (PostgreSQL, MySQL, Cassandra) for storage
@@ -54,7 +69,15 @@ AxonOps Schema Registry provides centralized schema management for Apache Kafka 
 | **MySQL** | Production | ACID transactions, connection pooling, TLS |
 | **Cassandra** | Distributed/HA | Multi-datacenter, tunable consistency |
 | **Memory** | Development/Testing | No persistence, fast iteration |
-| **Vault** | Auth Storage | HashiCorp Vault for users/API keys |
+
+**Auth Storage**: Users and API keys can be stored in the schema database or separately in HashiCorp Vault.
+
+### Credential Storage
+
+- **Passwords**: Stored as bcrypt hashes (cost factor 10). Never stored in plaintext.
+- **API Keys**: Stored as SHA-256 hashes (optionally HMAC with server secret). Shown only once at creation.
+- **Server Secret**: If `API_KEY_SECRET` is configured, all instances must use the same value.
+- **Storage Options**: Credentials stored in the same database as schemas, or in HashiCorp Vault for centralized secrets management.
 
 ### Authentication Methods
 
@@ -81,6 +104,44 @@ AxonOps Schema Registry provides centralized schema management for Apache Kafka 
 - **Graceful Shutdown**: Clean connection draining
 - **Database Migrations**: Automatic schema creation and upgrades
 
+## Feature Comparison
+
+*Comparison based on upstream/default configurations. Third-party plugins may extend capabilities.*
+
+| Feature | AxonOps | Confluent OSS | Confluent Enterprise | Karapace |
+|---------|---------|---------------|---------------------|----------|
+| **License** | Apache 2.0 | Confluent Community | Commercial | Apache 2.0 |
+| **Language** | Go | Java | Java | Python |
+| **API Compatibility** | Full¹ | N/A | N/A | Full |
+| **Avro Support** | Yes | Yes | Yes | Yes |
+| **Protobuf Support** | Yes | Yes | Yes | Yes |
+| **JSON Schema Support** | Yes | Yes | Yes | Yes |
+| **Schema References** | Yes | Yes | Yes | Yes |
+| **Compatibility Modes** | All 7 modes | All 7 modes | All 7 modes | All 7 modes |
+| **Storage: Kafka** | No | Yes | Yes | Yes |
+| **Storage: PostgreSQL** | Yes | No | No | No |
+| **Storage: MySQL** | Yes | No | No | No |
+| **Storage: Cassandra** | Yes | No | No | No |
+| **No Kafka Dependency** | Yes | No | No | No |
+| **Basic Auth** | Yes | No | Yes | Yes |
+| **API Keys** | Yes | No | Yes² | No |
+| **LDAP/AD** | Yes | No | Yes | No |
+| **OIDC/OAuth2** | Yes | No | Yes | No |
+| **mTLS** | Yes | Yes | Yes | Yes |
+| **RBAC** | Yes | No | Yes | Limited |
+| **Audit Logging** | Yes | No | Yes | No |
+| **Rate Limiting** | Yes | No | No | No |
+| **Prometheus Metrics** | Yes | Yes | Yes | Yes |
+| **REST Proxy** | No | Separate | Separate | Yes |
+| **Multi-Tenant** | Planned³ | No | Yes | No |
+| **Schema Validation** | Yes | Yes | Yes | Yes |
+| **Single Binary** | Yes | No | No | No |
+| **Memory Footprint** | ~50MB | ~500MB+ | ~500MB+ | ~200MB+ |
+
+¹ See [API Compatibility Scope](#api-compatibility-scope) for details.
+² Confluent Cloud uses key:secret format; AxonOps uses key-only with password ignored.
+³ Multi-tenancy roadmap: subject prefixes with per-tenant auth scope.
+
 ## Architecture
 
 ### Single Instance Deployment
@@ -96,9 +157,15 @@ For development, testing, or low-traffic environments, a single instance deploym
 
 ### High Availability Deployment (PostgreSQL/MySQL)
 
-For production environments requiring high availability, deploy multiple stateless instances behind a load balancer:
+For production environments requiring high availability, deploy multiple stateless instances behind a load balancer.
 
-![HA Architecture](assets/architecture-ha.svg)
+**Write Path:**
+
+![HA Write Path](assets/architecture-ha-write.svg)
+
+**Read Path:**
+
+![HA Read Path](assets/architecture-ha-read.svg)
 
 **Key Features:**
 - **Stateless Design**: Any instance can handle any request
@@ -106,6 +173,11 @@ For production environments requiring high availability, deploy multiple statele
 - **Horizontal Scaling**: Add instances as needed
 - **API Key Caching**: In-memory cache with periodic refresh for consistency across instances
 - **Database HA**: Use PostgreSQL streaming replication or MySQL group replication
+
+**Concurrency Handling:**
+- **Unique Constraints**: Database enforces `(subject, fingerprint)` uniqueness for schema deduplication
+- **Transaction Isolation**: SERIALIZABLE isolation prevents concurrent version assignment races
+- **Idempotent Registration**: Same schema content always returns the same ID, even under concurrent requests
 
 **Deployment Requirements:**
 - Load balancer (HAProxy, Nginx, AWS ALB, etc.)
@@ -121,13 +193,17 @@ For global deployments requiring multi-datacenter support and the highest availa
 
 **Key Features:**
 - **Active-Active**: All datacenters serve read and write traffic
-- **LOCAL_QUORUM**: Operations are local to each datacenter
 - **Automatic Replication**: Cassandra handles cross-DC replication
 - **Disaster Recovery**: Survive complete datacenter failures
-- **Tunable Consistency**: Balance between consistency and latency
+
+**Consistency Settings:**
+- **Write Consistency**: `LOCAL_QUORUM` recommended for durability within datacenter
+- **Read Consistency**: `LOCAL_ONE` for low latency, `LOCAL_QUORUM` for read-your-writes
+- **Version Assignment**: Uses Cassandra lightweight transactions (LWT) for atomic version assignment
+- **Latest Schema**: May return slightly stale data under eventual consistency; configure `read_consistency: LOCAL_QUORUM` for strong consistency
 
 **Deployment Requirements:**
-- Cassandra cluster with multi-DC replication
+- Cassandra cluster with multi-DC replication (NetworkTopologyStrategy)
 - Schema Registry instances in each datacenter
 - Local load balancer per datacenter
 - DNS-based global load balancing (optional)
@@ -158,37 +234,7 @@ Schema registration includes parsing, validation, and compatibility checking:
 5. Compatibility checked against previous versions
 6. Schema stored and ID returned
 
-## Feature Comparison
 
-| Feature | AxonOps | Confluent OSS | Confluent Enterprise | Karapace |
-|---------|---------|---------------|---------------------|----------|
-| **License** | Apache 2.0 | Confluent Community | Commercial | Apache 2.0 |
-| **Language** | Go | Java | Java | Python |
-| **API Compatibility** | Full | N/A | N/A | Full |
-| **Avro Support** | Yes | Yes | Yes | Yes |
-| **Protobuf Support** | Yes | Yes | Yes | Yes |
-| **JSON Schema Support** | Yes | Yes | Yes | Yes |
-| **Schema References** | Yes | Yes | Yes | Yes |
-| **Compatibility Modes** | All 7 modes | All 7 modes | All 7 modes | All 7 modes |
-| **Storage: Kafka** | No | Yes | Yes | Yes |
-| **Storage: PostgreSQL** | Yes | No | No | No |
-| **Storage: MySQL** | Yes | No | No | No |
-| **Storage: Cassandra** | Yes | No | No | No |
-| **No Kafka Dependency** | Yes | No | No | No |
-| **Basic Auth** | Yes | No | Yes | Yes |
-| **API Keys** | Yes | No | Yes | No |
-| **LDAP/AD** | Yes | No | Yes | No |
-| **OIDC/OAuth2** | Yes | No | Yes | No |
-| **mTLS** | Yes | Yes | Yes | Yes |
-| **RBAC** | Yes | No | Yes | Limited |
-| **Audit Logging** | Yes | No | Yes | No |
-| **Rate Limiting** | Yes | No | No | No |
-| **Prometheus Metrics** | Yes | Yes | Yes | Yes |
-| **REST Proxy** | No | Separate | Separate | Yes |
-| **Multi-Tenant** | Planned | No | Yes | No |
-| **Schema Validation** | Yes | Yes | Yes | Yes |
-| **Single Binary** | Yes | No | No | No |
-| **Memory Footprint** | ~50MB | ~500MB+ | ~500MB+ | ~200MB+ |
 
 ## Quick Start
 
@@ -439,7 +485,9 @@ storage:
     hosts:
       - ${CASSANDRA_HOST:localhost}
     keyspace: ${CASSANDRA_KEYSPACE:schemaregistry}
-    consistency: LOCAL_QUORUM
+    consistency: LOCAL_QUORUM          # Default consistency (if read/write not specified)
+    read_consistency: LOCAL_ONE        # Read consistency (e.g., LOCAL_ONE for low latency)
+    write_consistency: LOCAL_QUORUM    # Write consistency (e.g., LOCAL_QUORUM for durability)
     username: ${CASSANDRA_USERNAME}
     password: ${CASSANDRA_PASSWORD}
 
@@ -614,15 +662,17 @@ curl -u admin:password -X POST http://localhost:8081/admin/apikeys \
 ### API Key Authentication
 
 ```bash
+# Confluent-compatible format (API key as username, any value as password)
+curl -u "sr_live_abc123...:x" http://localhost:8081/subjects
+
 # Using X-API-Key header
 curl -H "X-API-Key: sr_live_abc123..." http://localhost:8081/subjects
 
 # Using query parameter
 curl "http://localhost:8081/subjects?api_key=sr_live_abc123..."
-
-# Using Basic Auth format (key as username, empty password)
-curl -u "sr_live_abc123...:" http://localhost:8081/subjects
 ```
+
+**Security Notes**: API keys are bearer tokens—treat them like passwords. Keys are scoped to a role, support expiration, and all usage is logged when audit is enabled. Rotate keys regularly via the Admin CLI.
 
 ### OIDC Authentication
 

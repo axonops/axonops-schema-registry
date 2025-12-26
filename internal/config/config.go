@@ -65,11 +65,13 @@ type MySQLConfig struct {
 
 // CassandraConfig represents Cassandra connection configuration.
 type CassandraConfig struct {
-	Hosts       []string `yaml:"hosts"`
-	Keyspace    string   `yaml:"keyspace"`
-	Consistency string   `yaml:"consistency"`
-	Username    string   `yaml:"username"`
-	Password    string   `yaml:"password"`
+	Hosts            []string `yaml:"hosts"`
+	Keyspace         string   `yaml:"keyspace"`
+	Consistency      string   `yaml:"consistency"`       // Default consistency (used if read/write not specified)
+	ReadConsistency  string   `yaml:"read_consistency"`  // Consistency for read operations (e.g., LOCAL_ONE)
+	WriteConsistency string   `yaml:"write_consistency"` // Consistency for write operations (e.g., LOCAL_QUORUM)
+	Username         string   `yaml:"username"`
+	Password         string   `yaml:"password"`
 }
 
 // VaultConfig represents HashiCorp Vault connection configuration.

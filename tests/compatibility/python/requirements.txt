@@ -1,0 +1,5 @@
+# Confluent Kafka Python client with Schema Registry support
+# Version is specified via environment variable or pip install command
+confluent-kafka[avro,json,protobuf]
+pytest>=7.0.0
+pytest-env>=1.0.0

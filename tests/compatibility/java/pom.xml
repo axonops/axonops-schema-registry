@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.axonops.schemaregistry</groupId>
+    <artifactId>compatibility-tests</artifactId>
+    <version>1.0-SNAPSHOT</version>
+
+    <name>Schema Registry Compatibility Tests</name>
+    <description>Tests for Confluent serializer/deserializer compatibility across versions</description>
+
+    <properties>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <junit.version>5.11.3</junit.version>
+        <kafka.version>3.9.0</kafka.version>
+        <!-- Default to latest Confluent version -->
+        <confluent.version>8.1.0</confluent.version>
+    </properties>
+
+    <!-- Profiles for different Confluent versions -->
+    <profiles>
+        <profile>
+            <id>confluent-8.1</id>
+            <properties>
+                <confluent.version>8.1.0</confluent.version>
+                <kafka.version>3.8.0</kafka.version>
+            </properties>
+        </profile>
+        <profile>
+            <id>confluent-7.9</id>
+            <properties>
+                <confluent.version>7.9.0</confluent.version>
+                <kafka.version>3.7.0</kafka.version>
+            </properties>
+        </profile>
+        <profile>
+            <id>confluent-7.7.4</id>
+            <activation>
+                <activeByDefault>false</activeByDefault>
+            </activation>
+            <properties>
+                <confluent.version>7.7.4</confluent.version>
+                <kafka.version>3.7.0</kafka.version>
+            </properties>
+        </profile>
+        <profile>
+            <id>confluent-7.7.3</id>
+            <activation>
+                <activeByDefault>false</activeByDefault>
+            </activation>
+            <properties>
+                <confluent.version>7.7.3</confluent.version>
+                <kafka.version>3.7.0</kafka.version>
+            </properties>
+        </profile>
+    </profiles>
+
+    <dependencies>
+        <!-- Confluent Schema Registry Client -->
+        <dependency>
+            <groupId>io.confluent</groupId>
+            <artifactId>kafka-schema-registry-client</artifactId>
+            <version>${confluent.version}</version>
+        </dependency>
+
+        <!-- Avro Serializer -->
+        <dependency>
+            <groupId>io.confluent</groupId>
+            <artifactId>kafka-avro-serializer</artifactId>
+            <version>${confluent.version}</version>
+        </dependency>
+
+        <!-- Protobuf Serializer -->
+        <dependency>
+            <groupId>io.confluent</groupId>
+            <artifactId>kafka-protobuf-serializer</artifactId>
+            <version>${confluent.version}</version>
+        </dependency>
+
+        <!-- JSON Schema Serializer -->
+        <dependency>
+            <groupId>io.confluent</groupId>
+            <artifactId>kafka-json-schema-serializer</artifactId>
+            <version>${confluent.version}</version>
+        </dependency>
+
+        <!-- Kafka Clients -->
+        <dependency>
+            <groupId>org.apache.kafka</groupId>
+            <artifactId>kafka-clients</artifactId>
+            <version>${kafka.version}</version>
+        </dependency>
+
+        <!-- Test Dependencies -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <version>2.0.16</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.5.2</version>
+                <configuration>
+                    <systemPropertyVariables>
+                        <schema.registry.url>${schema.registry.url}</schema.registry.url>
+                        <confluent.version>${confluent.version}</confluent.version>
+                    </systemPropertyVariables>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+    <repositories>
+        <repository>
+            <id>confluent</id>
+            <url>https://packages.confluent.io/maven/</url>
+        </repository>
+    </repositories>
+</project>

@@ -855,3 +855,84 @@ jobs:
       - name: Cleanup Keycloak
         if: always()
         run: docker stop keycloak-test && docker rm keycloak-test || true
+
+  # Confluent serializer compatibility tests
+  compatibility-tests:
+    name: Confluent Compatibility Tests
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download test binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: test-binaries
+
+      - name: Make binaries executable
+        run: chmod +x schema-registry
+
+      - name: Start Schema Registry
+        run: |
+          ./schema-registry &
+          echo "Waiting for Schema Registry to start..."
+          for i in {1..30}; do
+            if curl -s http://localhost:8081/subjects > /dev/null 2>&1; then
+              echo "Schema Registry is ready"
+              break
+            fi
+            sleep 1
+          done
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Run Go compatibility tests
+        working-directory: tests/compatibility/go
+        env:
+          SCHEMA_REGISTRY_URL: http://localhost:8081
+        run: |
+          go mod download
+          go test -v ./...
+
+      - name: Run Java compatibility tests
+        working-directory: tests/compatibility/java
+        env:
+          SCHEMA_REGISTRY_URL: http://localhost:8081
+        run: |
+          for profile in confluent-8.1 confluent-7.9 confluent-7.7.4 confluent-7.7.3; do
+            echo "Testing with profile: $profile"
+            mvn test -P "$profile" -Dschema.registry.url=http://localhost:8081 -q
+          done
+
+      - name: Run Python compatibility tests
+        working-directory: tests/compatibility/python
+        env:
+          SCHEMA_REGISTRY_URL: http://localhost:8081
+        run: |
+          for version in 2.8.0 2.6.2 2.5.3; do
+            echo "Testing with confluent-kafka==$version"
+            python -m venv ".venv-$version"
+            source ".venv-$version/bin/activate"
+            pip install --quiet --upgrade pip
+            pip install --quiet "confluent-kafka[avro,json,protobuf]==$version" pytest
+            pytest -v --tb=short
+            deactivate
+          done
+
+      - name: Stop Schema Registry
+        if: always()
+        run: pkill schema-registry || true

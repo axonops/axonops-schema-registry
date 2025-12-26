@@ -358,6 +358,8 @@ func createStorage(cfg *config.Config, logger *slog.Logger) (storage.Storage, er
 			Username:            cfg.Storage.Cassandra.Username,
 			Password:            cfg.Storage.Cassandra.Password,
 			Consistency:         cfg.Storage.Cassandra.Consistency,
+			ReadConsistency:     cfg.Storage.Cassandra.ReadConsistency,
+			WriteConsistency:    cfg.Storage.Cassandra.WriteConsistency,
 			ReplicationStrategy: "SimpleStrategy",
 			ReplicationFactor:   1,
 		}

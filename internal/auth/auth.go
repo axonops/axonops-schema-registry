@@ -126,9 +126,9 @@ func (a *Authenticator) authenticate(r *http.Request, method string) (*User, boo
 }
 
 // authenticateBasic handles HTTP Basic authentication.
-// It also supports API key authentication via Basic Auth format (key as username, empty password)
-// which is compatible with Kafka producers/consumers.
-// Authentication order: API key (empty password) -> LDAP -> Database -> Config-based users
+// It also supports API key authentication via Basic Auth format (key as username, any password)
+// which is compatible with Confluent Schema Registry and Kafka producers/consumers.
+// Authentication order: API key (username only) -> LDAP -> Database -> Config-based users
 func (a *Authenticator) authenticateBasic(r *http.Request) (*User, bool) {
 	auth := r.Header.Get("Authorization")
 	if !strings.HasPrefix(auth, "Basic ") {
@@ -147,13 +147,18 @@ func (a *Authenticator) authenticateBasic(r *http.Request) (*User, bool) {
 
 	username, password := parts[0], parts[1]
 
-	// If password is empty, treat username as an API key
-	// This is compatible with Kafka producers/consumers that use Basic Auth for API keys
-	if password == "" && username != "" {
+	// Try API key authentication first (username as API key, ignore password)
+	// This is compatible with Confluent Schema Registry format: -u "API_KEY:API_SECRET"
+	// where we only validate the API key (username), not the secret (password)
+	if username != "" {
 		if user, ok := a.authenticateAPIKeyValue(r, username); ok {
 			return user, true
 		}
-		// If API key auth fails, don't fall through to password auth with empty password
+	}
+
+	// If password is empty and API key failed, reject
+	// (prevents brute-force attempts with empty passwords)
+	if password == "" {
 		return nil, false
 	}
 
