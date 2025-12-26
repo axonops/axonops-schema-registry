@@ -25,9 +25,9 @@ type Config struct {
 	Keyspace            string        `json:"keyspace" yaml:"keyspace"`
 	Username            string        `json:"username" yaml:"username"`
 	Password            string        `json:"password" yaml:"password"`
-	Consistency         string        `json:"consistency" yaml:"consistency"`                   // Default consistency (used if read/write not specified)
-	ReadConsistency     string        `json:"read_consistency" yaml:"read_consistency"`         // Consistency for read operations (e.g., LOCAL_ONE for low latency)
-	WriteConsistency    string        `json:"write_consistency" yaml:"write_consistency"`       // Consistency for write operations (e.g., LOCAL_QUORUM for durability)
+	Consistency         string        `json:"consistency" yaml:"consistency"`             // Default consistency (used if read/write not specified)
+	ReadConsistency     string        `json:"read_consistency" yaml:"read_consistency"`   // Consistency for read operations (e.g., LOCAL_ONE for low latency)
+	WriteConsistency    string        `json:"write_consistency" yaml:"write_consistency"` // Consistency for write operations (e.g., LOCAL_QUORUM for durability)
 	LocalDC             string        `json:"local_dc" yaml:"local_dc"`
 	ReplicationStrategy string        `json:"replication_strategy" yaml:"replication_strategy"`
 	ReplicationFactor   int           `json:"replication_factor" yaml:"replication_factor"`
@@ -61,7 +61,7 @@ func DefaultConfig() Config {
 type Store struct {
 	session          *gocql.Session
 	config           Config
-	idCache          int64           // Local cache of last known ID
+	idCache          int64             // Local cache of last known ID
 	readConsistency  gocql.Consistency // Consistency level for read operations
 	writeConsistency gocql.Consistency // Consistency level for write operations
 }
