@@ -84,7 +84,9 @@ func (h *Handler) GetSchemaByID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, types.SchemaByIDResponse{
-		Schema: schema.Schema,
+		Schema:     schema.Schema,
+		SchemaType: string(schema.SchemaType),
+		References: schema.References,
 	})
 }
 

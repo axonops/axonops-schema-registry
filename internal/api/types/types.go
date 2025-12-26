@@ -24,7 +24,9 @@ type SchemaResponse struct {
 
 // SchemaByIDResponse is the response for getting a schema by ID.
 type SchemaByIDResponse struct {
-	Schema string `json:"schema"`
+	Schema     string              `json:"schema"`
+	SchemaType string              `json:"schemaType,omitempty"`
+	References []storage.Reference `json:"references,omitempty"`
 }
 
 // SubjectVersionResponse is the response for getting a subject version.
