@@ -111,7 +111,9 @@ func TestMain(m *testing.M) {
 		// Start server in background
 		go func(port int) {
 			addr := fmt.Sprintf(":%d", port)
-			_ = http.ListenAndServe(addr, server)
+			if err := http.ListenAndServe(addr, server); err != nil {
+				fmt.Fprintf(os.Stderr, "server %s exited: %v\n", addr, err)
+			}
 		}(cfg.Server.Port)
 
 		instances = append(instances, &instance{
@@ -121,20 +123,30 @@ func TestMain(m *testing.M) {
 	}
 
 	// Wait for servers to start with polling (deadline-based, not fixed sleep)
-	deadline := time.Now().Add(30 * time.Second)
+	// Each instance gets its own deadline to be fair
 
 	// Verify servers are ready before running tests by actually querying the database
 	for _, inst := range instances {
+		// Per-instance deadline
+		deadline := time.Now().Add(30 * time.Second)
 		ready := false
 		for time.Now().Before(deadline) {
 			// Test actual database connectivity by registering a test schema
-			testSubject := fmt.Sprintf("healthcheck-%d", time.Now().UnixNano())
+			// Use __healthcheck__ prefix to identify test pollution
+			testSubject := fmt.Sprintf("__healthcheck__-%d", time.Now().UnixNano())
 			testSchema := map[string]interface{}{
 				"schema": `{"type":"record","name":"HealthCheck","fields":[{"name":"id","type":"int"}]}`,
 			}
 			resp, err := doRequest("POST", inst.addr+"/subjects/"+testSubject+"/versions", testSchema)
 			if err == nil && resp.StatusCode == http.StatusOK {
 				resp.Body.Close()
+				// Clean up the healthcheck subject (best effort, ignore failures).
+				// Note: Not all storage backends may support permanent deletes,
+				// so we don't fail if this cleanup doesn't work.
+				delResp, _ := doRequest("DELETE", inst.addr+"/subjects/"+testSubject+"?permanent=true", nil)
+				if delResp != nil {
+					delResp.Body.Close()
+				}
 				ready = true
 				fmt.Fprintf(os.Stderr, "Server %s is ready (database connectivity verified)\n", inst.addr)
 				break
@@ -397,9 +409,19 @@ func TestConcurrentVersionUpdates(t *testing.T) {
 	}
 
 	// Collect all returned schema IDs for uniqueness check
-	schemaIDSet := make(map[int64]bool)
+	schemaIDSet := make(map[int64]int)
 	for id := range schemaIDs {
-		schemaIDSet[id] = true
+		schemaIDSet[id]++
+	}
+
+	// INVARIANT 0: Number of unique IDs should equal success count (each worker gets unique ID)
+	if int64(len(schemaIDSet)) != successCount {
+		t.Errorf("Expected %d unique schema IDs, got %d", successCount, len(schemaIDSet))
+	}
+	for id, count := range schemaIDSet {
+		if count > 1 {
+			t.Errorf("Schema ID %d was returned %d times (should be unique per schema)", id, count)
+		}
 	}
 
 	// Verify final state - get all versions
@@ -413,7 +435,7 @@ func TestConcurrentVersionUpdates(t *testing.T) {
 	json.NewDecoder(resp.Body).Decode(&versions)
 	t.Logf("Final versions: %v", versions)
 
-	// INVARIANT 1: Expected version count = 1 (initial) + numConcurrent
+	// INVARIANT 1: Expected version count = 1 (initial) + successCount
 	expectedVersionCount := 1 + int(successCount)
 	if len(versions) != expectedVersionCount {
 		t.Errorf("Expected %d versions, got %d", expectedVersionCount, len(versions))
@@ -454,14 +476,17 @@ func TestConcurrentVersionUpdates(t *testing.T) {
 	t.Logf("All %d versions verified as contiguous and resolvable with non-empty schemas", len(versions))
 }
 
-// TestConcurrentReads tests reading schemas from multiple instances
+// TestConcurrentReads tests reading schemas from multiple instances.
+// Verifies content on 1-in-10 reads to catch "200 but wrong/empty data" bugs.
 func TestConcurrentReads(t *testing.T) {
 	subject := fmt.Sprintf("concurrent-reads-%d", time.Now().UnixNano())
 
-	// Register a schema
+	// Register a schema with a known field name for verification
 	inst := instances[0]
+	expectedFieldName := "data"
+	schemaContent := fmt.Sprintf(`{"type":"record","name":"Reads","fields":[{"name":"%s","type":"string"}]}`, expectedFieldName)
 	schema := map[string]interface{}{
-		"schema": `{"type":"record","name":"Reads","fields":[{"name":"data","type":"string"}]}`,
+		"schema": schemaContent,
 	}
 
 	resp, err := doRequest("POST", inst.addr+"/subjects/"+subject+"/versions", schema)
@@ -485,7 +510,7 @@ func TestConcurrentReads(t *testing.T) {
 	schemaID := int(idVal.(float64))
 
 	var wg sync.WaitGroup
-	var successCount, errorCount int64
+	var successCount, errorCount, verifyCount, verifyFail int64
 
 	// Multiple workers read the same schema
 	for i := 0; i < numConcurrent; i++ {
@@ -499,8 +524,9 @@ func TestConcurrentReads(t *testing.T) {
 				// Alternate between different read operations
 				var resp *http.Response
 				var err error
+				opType := j % 4
 
-				switch j % 4 {
+				switch opType {
 				case 0:
 					resp, err = doRequest("GET", fmt.Sprintf("%s/schemas/ids/%d", inst.addr, schemaID), nil)
 				case 1:
@@ -515,23 +541,46 @@ func TestConcurrentReads(t *testing.T) {
 					atomic.AddInt64(&errorCount, 1)
 					continue
 				}
-				resp.Body.Close()
 
 				if resp.StatusCode == http.StatusOK {
+					// Verify content on 1-in-10 reads for schema content endpoints
+					if j%10 == 0 && (opType == 0 || opType == 1) {
+						var readResult struct {
+							Schema string `json:"schema"`
+						}
+						if err := json.NewDecoder(resp.Body).Decode(&readResult); err != nil || readResult.Schema == "" {
+							atomic.AddInt64(&verifyFail, 1)
+						} else if !strings.Contains(readResult.Schema, expectedFieldName) {
+							atomic.AddInt64(&verifyFail, 1)
+						} else {
+							atomic.AddInt64(&verifyCount, 1)
+						}
+						// Drain any remaining bytes after decode (deterministic connection reuse)
+						_, _ = io.Copy(io.Discard, resp.Body)
+					} else if opType == 0 || opType == 1 {
+						// Drain body for non-verified schema endpoints to allow connection reuse
+						_, _ = io.Copy(io.Discard, resp.Body)
+					}
 					atomic.AddInt64(&successCount, 1)
 				} else {
 					atomic.AddInt64(&errorCount, 1)
 				}
+				resp.Body.Close()
 			}
 		}(i)
 	}
 
 	wg.Wait()
 
-	t.Logf("Concurrent reads: %d successes, %d errors", successCount, errorCount)
+	t.Logf("Concurrent reads: %d successes, %d errors, %d content verifications (%d failed)",
+		successCount, errorCount, verifyCount, verifyFail)
 
 	if errorCount > int64(numConcurrent*numOperations/20) {
 		t.Errorf("Too many read errors: %d out of %d", errorCount, numConcurrent*numOperations)
+	}
+
+	if verifyFail > 0 {
+		t.Errorf("Content verification failed %d times (schema content mismatch)", verifyFail)
 	}
 }
 
@@ -754,8 +803,9 @@ func TestDataConsistency(t *testing.T) {
 	schemaID := writeResult.ID
 
 	// Read from all other instances with polling
-	deadline := time.Now().Add(5 * time.Second)
+	// Each instance gets its own deadline for fairness
 	for i := 1; i < len(instances); i++ {
+		deadline := time.Now().Add(5 * time.Second)
 		var lastErr error
 		success := false
 
@@ -792,8 +842,44 @@ func TestDataConsistency(t *testing.T) {
 	t.Logf("Data consistency verified: schema %d readable from all %d instances", schemaID, len(instances))
 }
 
+// avroField represents a field in an Avro schema for JSON parsing.
+type avroField struct {
+	Name string `json:"name"`
+}
+
+// avroSchema represents an Avro record schema for JSON parsing.
+type avroSchema struct {
+	Type   string      `json:"type"`
+	Name   string      `json:"name"`
+	Fields []avroField `json:"fields"`
+}
+
+// extractMarkerFromSchema parses an Avro schema JSON and returns the first field name.
+// This is used to deterministically extract the worker marker from schemas.
+// Validates that the schema matches our expected test format (record with exactly 1 field).
+func extractMarkerFromSchema(schemaJSON string) (string, error) {
+	var s avroSchema
+	if err := json.Unmarshal([]byte(schemaJSON), &s); err != nil {
+		return "", err
+	}
+	if s.Type != "record" {
+		return "", fmt.Errorf("unexpected type %q (expected record)", s.Type)
+	}
+	if len(s.Fields) != 1 {
+		return "", fmt.Errorf("expected 1 field, got %d", len(s.Fields))
+	}
+	if s.Fields[0].Name == "" {
+		return "", fmt.Errorf("field name is empty")
+	}
+	return s.Fields[0].Name, nil
+}
+
 // TestHotSubjectContention is the critical test for monotonic version allocation.
-// It hammers a single subject with many concurrent writes and verifies strict invariants.
+// It hammers a single subject with many concurrent writes and verifies strict invariants:
+// 1. All writes succeed (with NONE compatibility)
+// 2. Versions are contiguous (1..N with no gaps)
+// 3. Each worker's schema marker appears exactly once
+// 4. Schema ID -> payload mapping is correct via GET /schemas/ids/{id}
 func TestHotSubjectContention(t *testing.T) {
 	subject := fmt.Sprintf("hot-subject-%d", time.Now().UnixNano())
 	numWriters := numConcurrent * 2 // Double the writers for more contention
@@ -814,19 +900,20 @@ func TestHotSubjectContention(t *testing.T) {
 	type writeResult struct {
 		workerID     int
 		schemaID     int64
-		schemaMarker string // The unique "w%d" marker in the schema
+		schemaMarker string // The unique "worker_N" marker in the schema
 	}
 	results := make(chan writeResult, numWriters)
 	errorMsgs := make(chan string, numWriters)
 
 	// All workers POST different schemas to the same subject simultaneously
+	// Use "worker_N" format to avoid false-match (e.g., "w1" matching in "w12")
 	for i := 0; i < numWriters; i++ {
 		wg.Add(1)
 		go func(workerID int) {
 			defer wg.Done()
 
 			inst := getRandomInstance()
-			marker := fmt.Sprintf("w%d", workerID)
+			marker := fmt.Sprintf("worker_%d", workerID)
 			schema := map[string]interface{}{
 				"schema": fmt.Sprintf(`{"type":"record","name":"Hot","fields":[{"name":"%s","type":"int"}]}`, marker),
 			}
@@ -874,12 +961,14 @@ func TestHotSubjectContention(t *testing.T) {
 		t.Errorf("Expected 0 errors, got %d", errorCount)
 	}
 
-	// Collect schema IDs and markers for verification
+	// Collect schema IDs and markers for verification, and build ID->marker map
 	schemaIDSet := make(map[int64]int)        // schemaID -> count
 	submittedMarkers := make(map[string]bool) // markers that were submitted
+	idToMarker := make(map[int64]string)      // for verifying GET /schemas/ids/{id}
 	for r := range results {
 		schemaIDSet[r.schemaID]++
 		submittedMarkers[r.schemaMarker] = true
+		idToMarker[r.schemaID] = r.schemaMarker
 	}
 
 	// INVARIANT 1: Each schema ID should be unique (different schemas = different IDs)
@@ -887,6 +976,11 @@ func TestHotSubjectContention(t *testing.T) {
 		if count > 1 {
 			t.Errorf("Schema ID %d was returned %d times (should be unique per schema)", id, count)
 		}
+	}
+
+	// INVARIANT 1b: Number of unique IDs should equal success count
+	if int64(len(schemaIDSet)) != successCount {
+		t.Errorf("Expected %d unique schema IDs, got %d", successCount, len(schemaIDSet))
 	}
 
 	// Verify versions are contiguous
@@ -915,8 +1009,9 @@ func TestHotSubjectContention(t *testing.T) {
 		}
 	}
 
-	// INVARIANT 3: Each version returns a valid schema that matches one of the submitted markers
-	foundMarkers := make(map[string]bool)
+	// INVARIANT 3: Each version returns a valid schema with exactly one of the submitted markers
+	// Use exact JSON parsing to avoid O(n²) and false-match issues
+	markerCounts := make(map[string]int) // marker -> count (should all be 1)
 	for _, v := range versions {
 		resp, err := doRequest("GET", fmt.Sprintf("%s/subjects/%s/versions/%d", inst.addr, subject, v), nil)
 		if err != nil {
@@ -938,22 +1033,61 @@ func TestHotSubjectContention(t *testing.T) {
 			continue
 		}
 
-		// Extract the marker from the schema (look for "w<number>")
-		for marker := range submittedMarkers {
-			if strings.Contains(versionResult.Schema, marker) {
-				foundMarkers[marker] = true
-				break
-			}
+		// Extract marker using exact JSON parsing (O(1) per version, no false-match)
+		marker, err := extractMarkerFromSchema(versionResult.Schema)
+		if err != nil {
+			t.Errorf("Version %d: failed to extract marker: %v", v, err)
+			continue
+		}
+
+		if !submittedMarkers[marker] {
+			t.Errorf("Version %d has unknown marker %q", v, marker)
+			continue
+		}
+
+		markerCounts[marker]++
+	}
+
+	// Verify exactly-once: each submitted marker appears exactly once
+	// Iterate over submittedMarkers to catch missing markers explicitly
+	for marker := range submittedMarkers {
+		count := markerCounts[marker]
+		if count != 1 {
+			t.Errorf("Marker %q count=%d (expected exactly 1)", marker, count)
 		}
 	}
 
-	// Verify all submitted markers appear exactly once in the versions
-	if len(foundMarkers) != len(submittedMarkers) {
-		t.Errorf("Expected %d unique schema markers, found %d", len(submittedMarkers), len(foundMarkers))
+	// INVARIANT 4: Verify schema ID -> payload mapping via GET /schemas/ids/{id}
+	// This catches bugs where responses return unique IDs but store wrong payloads
+	for schemaID, expectedMarker := range idToMarker {
+		resp, err := doRequest("GET", fmt.Sprintf("%s/schemas/ids/%d", inst.addr, schemaID), nil)
+		if err != nil {
+			t.Errorf("Failed to GET /schemas/ids/%d: %v", schemaID, err)
+			continue
+		}
+		var idResult struct {
+			Schema string `json:"schema"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&idResult); err != nil {
+			resp.Body.Close()
+			t.Errorf("Failed to decode schema ID %d: %v", schemaID, err)
+			continue
+		}
+		resp.Body.Close()
+
+		actualMarker, err := extractMarkerFromSchema(idResult.Schema)
+		if err != nil {
+			t.Errorf("Schema ID %d: failed to extract marker: %v", schemaID, err)
+			continue
+		}
+
+		if actualMarker != expectedMarker {
+			t.Errorf("Schema ID %d: expected marker %q, got %q (ID->payload mismatch)", schemaID, expectedMarker, actualMarker)
+		}
 	}
 
-	t.Logf("Verified %d contiguous versions with %d unique schema IDs and %d unique schema payloads",
-		len(versions), len(schemaIDSet), len(foundMarkers))
+	t.Logf("Verified %d contiguous versions with %d unique schema IDs, %d unique markers, and ID->payload mapping",
+		len(versions), len(schemaIDSet), len(markerCounts))
 }
 
 // TestSchemaIdempotency verifies that posting the same schema multiple times

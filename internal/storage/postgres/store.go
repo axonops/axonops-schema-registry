@@ -418,7 +418,7 @@ func (s *Store) migrate(ctx context.Context) error {
 // This implementation handles concurrent insertions by retrying on conflicts.
 // PostgreSQL serialization errors are handled as retriable errors.
 func (s *Store) CreateSchema(ctx context.Context, record *storage.SchemaRecord) error {
-	const maxRetries = 5
+	const maxRetries = 10
 	var lastErr error
 
 	for attempt := 0; attempt < maxRetries; attempt++ {
@@ -429,9 +429,15 @@ func (s *Store) CreateSchema(ctx context.Context, record *storage.SchemaRecord) 
 		if err == storage.ErrSchemaExists {
 			return err
 		}
-		// On unique violation or serialization error, retry
+		// On unique violation or serialization error, retry with exponential backoff
 		if isUniqueViolation(err) || isSerializationError(err) {
 			lastErr = err
+			// Exponential backoff: 10ms, 20ms, 40ms, 80ms, 160ms, ... capped at 500ms
+			backoff := time.Duration(10<<attempt) * time.Millisecond
+			if backoff > 500*time.Millisecond {
+				backoff = 500 * time.Millisecond
+			}
+			time.Sleep(backoff)
 			continue
 		}
 		return err
