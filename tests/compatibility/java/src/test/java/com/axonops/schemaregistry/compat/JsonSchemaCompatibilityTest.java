@@ -33,7 +33,7 @@ public class JsonSchemaCompatibilityTest {
 
     private static SchemaRegistryClient schemaRegistryClient;
     private static KafkaJsonSchemaSerializer<JsonNode> serializer;
-    private static KafkaJsonSchemaDeserializer<JsonNode> deserializer;
+    private static KafkaJsonSchemaDeserializer<Object> deserializer;
     private static ObjectMapper objectMapper;
 
     private static final String USER_SCHEMA_V1 = """
@@ -141,8 +141,9 @@ public class JsonSchemaCompatibilityTest {
         // Serialize
         byte[] serialized = serializer.serialize(topic, original);
 
-        // Deserialize
-        JsonNode deserialized = deserializer.deserialize(topic, serialized);
+        // Deserialize - returns Object (LinkedHashMap), convert to JsonNode for assertions
+        Object deserializedObj = deserializer.deserialize(topic, serialized);
+        JsonNode deserialized = objectMapper.valueToTree(deserializedObj);
 
         assertNotNull(deserialized, "Deserialized object should not be null");
         assertEquals(42, deserialized.get("id").asInt(), "ID should match");
@@ -209,8 +210,8 @@ public class JsonSchemaCompatibilityTest {
         System.out.println("JSON Schema evolution: V1 ID=" + schemaIdV1 + ", V2 ID=" + schemaIdV2);
 
         // Both should deserialize correctly
-        JsonNode deserializedV1 = deserializer.deserialize(topic, serializedV1);
-        JsonNode deserializedV2 = deserializer.deserialize(topic, serializedV2);
+        JsonNode deserializedV1 = objectMapper.valueToTree(deserializer.deserialize(topic, serializedV1));
+        JsonNode deserializedV2 = objectMapper.valueToTree(deserializer.deserialize(topic, serializedV2));
 
         assertNotNull(deserializedV1, "V1 object should deserialize");
         assertNotNull(deserializedV2, "V2 object should deserialize");
@@ -262,7 +263,7 @@ public class JsonSchemaCompatibilityTest {
         byte[] serialized = serializer.serialize(topic, user);
 
         // Deserialize
-        JsonNode deserialized = deserializer.deserialize(topic, serialized);
+        JsonNode deserialized = objectMapper.valueToTree(deserializer.deserialize(topic, serialized));
 
         assertNotNull(deserialized, "Deserialized object should not be null");
         assertNotNull(deserialized.get("address"), "Address should be present");
@@ -288,7 +289,7 @@ public class JsonSchemaCompatibilityTest {
         byte[] serialized = serializer.serialize(topic, user);
 
         // Deserialize
-        JsonNode deserialized = deserializer.deserialize(topic, serialized);
+        JsonNode deserialized = objectMapper.valueToTree(deserializer.deserialize(topic, serialized));
 
         assertNotNull(deserialized, "Deserialized object should not be null");
         assertTrue(deserialized.get("tags").isArray(), "Tags should be an array");
