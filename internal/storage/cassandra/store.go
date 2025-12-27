@@ -452,12 +452,21 @@ func (s *Store) GetSchemaByID(ctx context.Context, id int64) (*storage.SchemaRec
 		return nil, err
 	}
 
-	return &storage.SchemaRecord{
+	rec := &storage.SchemaRecord{
 		ID:         id,
 		SchemaType: storage.SchemaType(schemaType),
 		Schema:     schemaText,
 		CreatedAt:  createdUUID.Time(),
-	}, nil
+	}
+
+	// Look up the first subject/version that uses this schema ID
+	versions, err := s.GetVersionsBySchemaID(ctx, id, false)
+	if err == nil && len(versions) > 0 {
+		rec.Subject = versions[0].Subject
+		rec.Version = versions[0].Version
+	}
+
+	return rec, nil
 }
 
 // GetSchemaBySubjectVersion retrieves a schema by subject and version.
