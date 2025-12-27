@@ -520,17 +520,27 @@ func TestVaultPasswordAuthentication(t *testing.T) {
 
 	t.Run("DisabledUser", func(t *testing.T) {
 		user, _ := vaultStore.GetUserByUsername(ctx, "vault_auth_user")
-		user.Enabled = false
-		_ = vaultStore.UpdateUser(ctx, user)
 
-		_, err := vaultAuthService.ValidateCredentials(ctx, "vault_auth_user", "NewPassword456!")
+		// Disable user via auth service to properly invalidate credential cache
+		_, err := vaultAuthService.UpdateUser(ctx, user.ID, map[string]interface{}{
+			"enabled": false,
+		})
+		if err != nil {
+			t.Fatalf("Failed to disable user: %v", err)
+		}
+
+		_, err = vaultAuthService.ValidateCredentials(ctx, "vault_auth_user", "NewPassword456!")
 		if err == nil {
 			t.Error("Expected error for disabled user")
 		}
 
-		// Re-enable for cleanup
-		user.Enabled = true
-		_ = vaultStore.UpdateUser(ctx, user)
+		// Re-enable for cleanup via auth service
+		_, err = vaultAuthService.UpdateUser(ctx, user.ID, map[string]interface{}{
+			"enabled": true,
+		})
+		if err != nil {
+			t.Fatalf("Failed to re-enable user: %v", err)
+		}
 	})
 }
 

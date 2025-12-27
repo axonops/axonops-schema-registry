@@ -113,7 +113,8 @@ class TestAvroSerialization:
         )
 
         # Create test data
-        user = {"id": 1, "name": "Test User", "email": {"string": "test@example.com"}}
+        # For union types like ["null", "string"], fastavro expects the raw value, not a tagged dict
+        user = {"id": 1, "name": "Test User", "email": "test@example.com"}
 
         # Serialize
         ctx = SerializationContext(f"python-wire-{confluent_version}", MessageField.VALUE)
@@ -144,8 +145,8 @@ class TestAvroSerialization:
         serializer = AvroSerializer(client, USER_SCHEMA, user_to_dict)
         deserializer = AvroDeserializer(client, USER_SCHEMA, dict_to_user)
 
-        # Test data
-        original = {"id": 42, "name": "Jane Doe", "email": {"string": "jane@example.com"}}
+        # Test data - for union types, fastavro expects the raw value
+        original = {"id": 42, "name": "Jane Doe", "email": "jane@example.com"}
 
         ctx = SerializationContext(f"python-roundtrip-{confluent_version}", MessageField.VALUE)
 

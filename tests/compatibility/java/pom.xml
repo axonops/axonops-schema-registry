@@ -32,6 +32,12 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
+            <!-- Override lz4-java to fix CVE-2025-12183 and CVE-2025-66566 -->
+            <dependency>
+                <groupId>org.lz4</groupId>
+                <artifactId>lz4-java</artifactId>
+                <version>1.8.1</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
