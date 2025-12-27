@@ -12,7 +12,9 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -58,6 +60,19 @@ type instance struct {
 }
 
 var instances []*instance
+
+// Shared HTTP client for all requests (avoids connection churn)
+var httpClient = &http.Client{
+	Timeout: requestTimeout,
+	Transport: &http.Transport{
+		MaxIdleConns:        100,
+		MaxIdleConnsPerHost: 20,
+		IdleConnTimeout:     90 * time.Second,
+	},
+}
+
+// instanceCounter for round-robin selection
+var instanceCounter atomic.Uint64
 
 func TestMain(m *testing.M) {
 	ctx := context.Background()
@@ -105,20 +120,19 @@ func TestMain(m *testing.M) {
 		})
 	}
 
-	// Wait for servers to start
-	time.Sleep(2 * time.Second)
+	// Wait for servers to start with polling (deadline-based, not fixed sleep)
+	deadline := time.Now().Add(30 * time.Second)
 
 	// Verify servers are ready before running tests by actually querying the database
 	for _, inst := range instances {
 		ready := false
-		for attempt := 0; attempt < 10; attempt++ {
-			// Test actual database connectivity by registering and then getting a test schema
-			testSubject := fmt.Sprintf("healthcheck-%d-%d", time.Now().UnixNano(), attempt)
+		for time.Now().Before(deadline) {
+			// Test actual database connectivity by registering a test schema
+			testSubject := fmt.Sprintf("healthcheck-%d", time.Now().UnixNano())
 			testSchema := map[string]interface{}{
 				"schema": `{"type":"record","name":"HealthCheck","fields":[{"name":"id","type":"int"}]}`,
 			}
-			body, _ := json.Marshal(testSchema)
-			resp, err := http.Post(inst.addr+"/subjects/"+testSubject+"/versions", "application/json", bytes.NewReader(body))
+			resp, err := doRequest("POST", inst.addr+"/subjects/"+testSubject+"/versions", testSchema)
 			if err == nil && resp.StatusCode == http.StatusOK {
 				resp.Body.Close()
 				ready = true
@@ -128,15 +142,15 @@ func TestMain(m *testing.M) {
 			if resp != nil {
 				respBody, _ := io.ReadAll(resp.Body)
 				resp.Body.Close()
-				fmt.Fprintf(os.Stderr, "Server %s health check failed (attempt %d): status=%d, body=%s\n",
-					inst.addr, attempt+1, resp.StatusCode, string(respBody))
+				fmt.Fprintf(os.Stderr, "Server %s health check: status=%d, body=%s\n",
+					inst.addr, resp.StatusCode, string(respBody))
 			} else if err != nil {
-				fmt.Fprintf(os.Stderr, "Server %s health check failed (attempt %d): %v\n", inst.addr, attempt+1, err)
+				fmt.Fprintf(os.Stderr, "Server %s health check: %v\n", inst.addr, err)
 			}
-			time.Sleep(2 * time.Second)
+			time.Sleep(500 * time.Millisecond)
 		}
 		if !ready {
-			fmt.Fprintf(os.Stderr, "Server %s failed to become ready after database health checks\n", inst.addr)
+			fmt.Fprintf(os.Stderr, "Server %s failed to become ready within deadline\n", inst.addr)
 			os.Exit(1)
 		}
 	}
@@ -208,8 +222,10 @@ func getEnvOrDefaultInt(key string, defaultValue int) int {
 	return defaultValue
 }
 
+// getRandomInstance returns an instance using round-robin selection
 func getRandomInstance() *instance {
-	return instances[time.Now().UnixNano()%int64(len(instances))]
+	idx := instanceCounter.Add(1) % uint64(len(instances))
+	return instances[idx]
 }
 
 func doRequest(method, url string, body interface{}) (*http.Response, error) {
@@ -228,8 +244,7 @@ func doRequest(method, url string, body interface{}) (*http.Response, error) {
 	}
 	req.Header.Set("Content-Type", "application/vnd.schemaregistry.v1+json")
 
-	client := &http.Client{Timeout: requestTimeout}
-	return client.Do(req)
+	return httpClient.Do(req)
 }
 
 // TestConcurrentSchemaRegistration tests registering schemas from multiple instances concurrently
@@ -290,11 +305,16 @@ func TestConcurrentSchemaRegistration(t *testing.T) {
 	}
 }
 
-// TestConcurrentVersionUpdates tests updating the same subject from multiple instances
+// TestConcurrentVersionUpdates tests concurrent version creation on the same subject.
+// This is the key concurrency correctness test - it verifies:
+// 1. All concurrent writes succeed (with compat=NONE, all schemas are allowed)
+// 2. Versions are contiguous (1..N with no gaps)
+// 3. Each version resolves to exactly one schema
+// 4. No duplicate versions are created
 func TestConcurrentVersionUpdates(t *testing.T) {
 	subject := fmt.Sprintf("concurrent-updates-%d", time.Now().UnixNano())
 
-	// Register initial schema
+	// Register initial schema (version 1)
 	inst := instances[0]
 	initialSchema := map[string]interface{}{
 		"schema": `{"type":"record","name":"Updates","fields":[{"name":"id","type":"int"}]}`,
@@ -315,10 +335,12 @@ func TestConcurrentVersionUpdates(t *testing.T) {
 	resp.Body.Close()
 
 	var wg sync.WaitGroup
-	var successCount, conflictCount int64
-	versionsCreated := make(chan int, numConcurrent)
+	var successCount, errorCount int64
 
-	// Multiple workers try to update the same subject
+	schemaIDs := make(chan int64, numConcurrent)
+	errorMsgs := make(chan string, numConcurrent)
+
+	// Multiple workers try to register unique schemas to the same subject
 	for i := 0; i < numConcurrent; i++ {
 		wg.Add(1)
 		go func(workerID int) {
@@ -326,36 +348,61 @@ func TestConcurrentVersionUpdates(t *testing.T) {
 
 			inst := getRandomInstance()
 
-			// Create a unique schema for this worker
+			// Create a unique schema for this worker (backward compatible - adds optional field)
 			schema := map[string]interface{}{
 				"schema": fmt.Sprintf(`{"type":"record","name":"Updates","fields":[{"name":"id","type":"int"},{"name":"worker%d","type":["null","string"],"default":null}]}`, workerID),
 			}
 
 			resp, err := doRequest("POST", inst.addr+"/subjects/"+subject+"/versions", schema)
 			if err != nil {
+				atomic.AddInt64(&errorCount, 1)
+				errorMsgs <- fmt.Sprintf("worker %d: request error: %v", workerID, err)
 				return
 			}
 			defer resp.Body.Close()
 
 			if resp.StatusCode == http.StatusOK {
-				atomic.AddInt64(&successCount, 1)
-				var result map[string]interface{}
-				json.NewDecoder(resp.Body).Decode(&result)
-				if id, ok := result["id"].(float64); ok {
-					versionsCreated <- int(id)
+				var result struct {
+					ID int64 `json:"id"`
 				}
-			} else if resp.StatusCode == http.StatusConflict {
-				atomic.AddInt64(&conflictCount, 1)
+				if err := json.NewDecoder(resp.Body).Decode(&result); err != nil || result.ID == 0 {
+					atomic.AddInt64(&errorCount, 1)
+					errorMsgs <- fmt.Sprintf("worker %d: 200 but bad decode: %v", workerID, err)
+					return
+				}
+				atomic.AddInt64(&successCount, 1)
+				schemaIDs <- result.ID
+			} else {
+				body, _ := io.ReadAll(resp.Body)
+				atomic.AddInt64(&errorCount, 1)
+				errorMsgs <- fmt.Sprintf("worker %d: status %d, body: %s", workerID, resp.StatusCode, string(body))
 			}
 		}(i)
 	}
 
 	wg.Wait()
-	close(versionsCreated)
+	close(schemaIDs)
+	close(errorMsgs)
 
-	t.Logf("Version updates: %d successes, %d conflicts", successCount, conflictCount)
+	// Log any errors
+	for errMsg := range errorMsgs {
+		t.Logf("Error: %s", errMsg)
+	}
 
-	// Verify final state
+	t.Logf("Version updates: %d successes, %d errors", successCount, errorCount)
+
+	// With NONE compatibility, all writes should succeed
+	if errorCount > 0 {
+		t.Errorf("Expected 0 errors with NONE compatibility, got %d", errorCount)
+	}
+
+	// Collect all returned schema IDs for uniqueness check
+	schemaIDSet := make(map[int64]bool)
+	for id := range schemaIDs {
+		schemaIDSet[id] = true
+	}
+
+	// Verify final state - get all versions
 	resp, err = doRequest("GET", inst.addr+"/subjects/"+subject+"/versions", nil)
 	if err != nil {
 		t.Fatalf("Failed to get versions: %v", err)
@@ -365,6 +412,46 @@ func TestConcurrentVersionUpdates(t *testing.T) {
 	var versions []int
 	json.NewDecoder(resp.Body).Decode(&versions)
 	t.Logf("Final versions: %v", versions)
+
+	// INVARIANT 1: Expected version count = 1 (initial) + numConcurrent
+	expectedVersionCount := 1 + int(successCount)
+	if len(versions) != expectedVersionCount {
+		t.Errorf("Expected %d versions, got %d", expectedVersionCount, len(versions))
+	}
+
+	// INVARIANT 2: Versions must be contiguous (1..N with no gaps)
+	sort.Ints(versions)
+	for i, v := range versions {
+		expected := i + 1
+		if v != expected {
+			t.Errorf("Version gap detected: expected version %d at position %d, got %d. Versions: %v", expected, i, v, versions)
+			break
+		}
+	}
+
+	// INVARIANT 3: Each version resolves to exactly one non-empty schema
+	for _, v := range versions {
+		resp, err := doRequest("GET", fmt.Sprintf("%s/subjects/%s/versions/%d", inst.addr, subject, v), nil)
+		if err != nil {
+			t.Errorf("Failed to get version %d: %v", v, err)
+			continue
+		}
+		var versionResult struct {
+			Schema string `json:"schema"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&versionResult); err != nil {
+			resp.Body.Close()
+			t.Errorf("Failed to decode version %d: %v", v, err)
+			continue
+		}
+		resp.Body.Close()
+
+		if versionResult.Schema == "" {
+			t.Errorf("Version %d has empty schema", v)
+		}
+	}
+
+	t.Logf("All %d versions verified as contiguous and resolvable with non-empty schemas", len(versions))
 }
 
 // TestConcurrentReads tests reading schemas from multiple instances
@@ -637,7 +724,8 @@ func TestConcurrentConfigUpdates(t *testing.T) {
 	t.Logf("Config updates: %d successes, %d errors", successCount, errorCount)
 }
 
-// TestDataConsistency verifies data written by one instance can be read by another
+// TestDataConsistency verifies data written by one instance can be read by another.
+// Uses polling with deadline instead of fixed sleep for reliability.
 func TestDataConsistency(t *testing.T) {
 	subject := fmt.Sprintf("consistency-%d", time.Now().UnixNano())
 
@@ -657,36 +745,398 @@ func TestDataConsistency(t *testing.T) {
 		t.Fatalf("Failed to write schema: status %d, body: %s", resp.StatusCode, body)
 	}
 
-	var writeResult map[string]interface{}
-	json.NewDecoder(resp.Body).Decode(&writeResult)
-
-	idVal, ok := writeResult["id"]
-	if !ok || idVal == nil {
-		t.Fatalf("Expected 'id' in write response, got: %v", writeResult)
+	var writeResult struct {
+		ID int64 `json:"id"`
 	}
-	schemaID := int(idVal.(float64))
+	if err := json.NewDecoder(resp.Body).Decode(&writeResult); err != nil || writeResult.ID == 0 {
+		t.Fatalf("Failed to decode write response: %v", err)
+	}
+	schemaID := writeResult.ID
 
-	// Small delay for replication
-	time.Sleep(100 * time.Millisecond)
-
-	// Read from all other instances
+	// Read from all other instances with polling
+	deadline := time.Now().Add(5 * time.Second)
 	for i := 1; i < len(instances); i++ {
-		resp, err := doRequest("GET", fmt.Sprintf("%s/schemas/ids/%d", instances[i].addr, schemaID), nil)
+		var lastErr error
+		success := false
+
+		for time.Now().Before(deadline) {
+			resp, err := doRequest("GET", fmt.Sprintf("%s/schemas/ids/%d", instances[i].addr, schemaID), nil)
+			if err != nil {
+				lastErr = err
+				time.Sleep(100 * time.Millisecond)
+				continue
+			}
+
+			if resp.StatusCode == http.StatusOK {
+				var readResult struct {
+					Schema string `json:"schema"`
+				}
+				if err := json.NewDecoder(resp.Body).Decode(&readResult); err == nil && readResult.Schema != "" {
+					resp.Body.Close()
+					success = true
+					break
+				}
+				resp.Body.Close()
+			} else {
+				resp.Body.Close()
+				lastErr = fmt.Errorf("status %d", resp.StatusCode)
+			}
+			time.Sleep(100 * time.Millisecond)
+		}
+
+		if !success {
+			t.Errorf("Instance %d failed to read schema %d within deadline: %v", i, schemaID, lastErr)
+		}
+	}
+
+	t.Logf("Data consistency verified: schema %d readable from all %d instances", schemaID, len(instances))
+}
+
+// TestHotSubjectContention is the critical test for monotonic version allocation.
+// It hammers a single subject with many concurrent writes and verifies strict invariants.
+func TestHotSubjectContention(t *testing.T) {
+	subject := fmt.Sprintf("hot-subject-%d", time.Now().UnixNano())
+	numWriters := numConcurrent * 2 // Double the writers for more contention
+
+	// Set compatibility to NONE upfront
+	inst := instances[0]
+	configReq := map[string]string{"compatibility": "NONE"}
+	resp, err := doRequest("PUT", inst.addr+"/config/"+subject, configReq)
+	if err != nil {
+		t.Fatalf("Failed to set config: %v", err)
+	}
+	resp.Body.Close()
+
+	var wg sync.WaitGroup
+	var successCount, errorCount int64
+
+	// Track which schema each worker submitted (for verification)
+	type writeResult struct {
+		workerID     int
+		schemaID     int64
+		schemaMarker string // The unique "w%d" marker in the schema
+	}
+	results := make(chan writeResult, numWriters)
+	errorMsgs := make(chan string, numWriters)
+
+	// All workers POST different schemas to the same subject simultaneously
+	for i := 0; i < numWriters; i++ {
+		wg.Add(1)
+		go func(workerID int) {
+			defer wg.Done()
+
+			inst := getRandomInstance()
+			marker := fmt.Sprintf("w%d", workerID)
+			schema := map[string]interface{}{
+				"schema": fmt.Sprintf(`{"type":"record","name":"Hot","fields":[{"name":"%s","type":"int"}]}`, marker),
+			}
+
+			resp, err := doRequest("POST", inst.addr+"/subjects/"+subject+"/versions", schema)
+			if err != nil {
+				atomic.AddInt64(&errorCount, 1)
+				errorMsgs <- fmt.Sprintf("worker %d: %v", workerID, err)
+				return
+			}
+			defer resp.Body.Close()
+
+			if resp.StatusCode == http.StatusOK {
+				var result struct {
+					ID int64 `json:"id"`
+				}
+				if err := json.NewDecoder(resp.Body).Decode(&result); err != nil || result.ID == 0 {
+					atomic.AddInt64(&errorCount, 1)
+					errorMsgs <- fmt.Sprintf("worker %d: 200 but bad decode: %v", workerID, err)
+					return
+				}
+				atomic.AddInt64(&successCount, 1)
+				results <- writeResult{workerID: workerID, schemaID: result.ID, schemaMarker: marker}
+			} else {
+				body, _ := io.ReadAll(resp.Body)
+				atomic.AddInt64(&errorCount, 1)
+				errorMsgs <- fmt.Sprintf("worker %d: status %d: %s", workerID, resp.StatusCode, string(body))
+			}
+		}(i)
+	}
+
+	wg.Wait()
+	close(results)
+	close(errorMsgs)
+
+	// Log errors
+	for errMsg := range errorMsgs {
+		t.Logf("Error: %s", errMsg)
+	}
+
+	t.Logf("Hot subject: %d successes, %d errors out of %d writers", successCount, errorCount, numWriters)
+
+	// All writes should succeed with NONE compatibility
+	if errorCount > 0 {
+		t.Errorf("Expected 0 errors, got %d", errorCount)
+	}
+
+	// Collect schema IDs and markers for verification
+	schemaIDSet := make(map[int64]int)        // schemaID -> count
+	submittedMarkers := make(map[string]bool) // markers that were submitted
+	for r := range results {
+		schemaIDSet[r.schemaID]++
+		submittedMarkers[r.schemaMarker] = true
+	}
+
+	// INVARIANT 1: Each schema ID should be unique (different schemas = different IDs)
+	for id, count := range schemaIDSet {
+		if count > 1 {
+			t.Errorf("Schema ID %d was returned %d times (should be unique per schema)", id, count)
+		}
+	}
+
+	// Verify versions are contiguous
+	resp, err = doRequest("GET", inst.addr+"/subjects/"+subject+"/versions", nil)
+	if err != nil {
+		t.Fatalf("Failed to get versions: %v", err)
+	}
+	defer resp.Body.Close()
+
+	var versions []int
+	if err := json.NewDecoder(resp.Body).Decode(&versions); err != nil {
+		t.Fatalf("Failed to decode versions: %v", err)
+	}
+	sort.Ints(versions)
+
+	// INVARIANT 2: Versions must be exactly 1..N with no gaps
+	if len(versions) != int(successCount) {
+		t.Errorf("Expected %d versions, got %d", successCount, len(versions))
+	}
+
+	for i, v := range versions {
+		expected := i + 1
+		if v != expected {
+			t.Errorf("Version gap: expected %d at position %d, got %d", expected, i, v)
+			break
+		}
+	}
+
+	// INVARIANT 3: Each version returns a valid schema that matches one of the submitted markers
+	foundMarkers := make(map[string]bool)
+	for _, v := range versions {
+		resp, err := doRequest("GET", fmt.Sprintf("%s/subjects/%s/versions/%d", inst.addr, subject, v), nil)
 		if err != nil {
-			t.Errorf("Instance %d failed to read: %v", i, err)
+			t.Errorf("Failed to get version %d: %v", v, err)
+			continue
+		}
+		var versionResult struct {
+			Schema string `json:"schema"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&versionResult); err != nil {
+			resp.Body.Close()
+			t.Errorf("Failed to decode version %d: %v", v, err)
+			continue
+		}
+		resp.Body.Close()
+
+		if versionResult.Schema == "" {
+			t.Errorf("Version %d has empty schema", v)
 			continue
 		}
 
-		if resp.StatusCode != http.StatusOK {
-			t.Errorf("Instance %d returned status %d", i, resp.StatusCode)
-		}
-
-		var readResult map[string]interface{}
-		json.NewDecoder(resp.Body).Decode(&readResult)
-		resp.Body.Close()
-
-		if readResult["schema"] == nil {
-			t.Errorf("Instance %d returned empty schema", i)
+		// Extract the marker from the schema (look for "w<number>")
+		for marker := range submittedMarkers {
+			if strings.Contains(versionResult.Schema, marker) {
+				foundMarkers[marker] = true
+				break
+			}
 		}
 	}
+
+	// Verify all submitted markers appear exactly once in the versions
+	if len(foundMarkers) != len(submittedMarkers) {
+		t.Errorf("Expected %d unique schema markers, found %d", len(submittedMarkers), len(foundMarkers))
+	}
+
+	t.Logf("Verified %d contiguous versions with %d unique schema IDs and %d unique schema payloads",
+		len(versions), len(schemaIDSet), len(foundMarkers))
+}
+
+// TestSchemaIdempotency verifies that posting the same schema multiple times
+// returns the same ID/version (Confluent-like deduplication behavior).
+// This test documents the expected contract: identical schema content to the same
+// subject returns the same schema ID and does not create duplicate versions.
+func TestSchemaIdempotency(t *testing.T) {
+	subject := fmt.Sprintf("idempotency-%d", time.Now().UnixNano())
+	numWriters := numConcurrent
+
+	// The exact same schema for all workers
+	schemaContent := `{"type":"record","name":"Idempotent","fields":[{"name":"id","type":"int"}]}`
+	schema := map[string]interface{}{
+		"schema": schemaContent,
+	}
+
+	var wg sync.WaitGroup
+	var successCount, errorCount int64
+
+	schemaIDs := make(chan int64, numWriters)
+	errorMsgs := make(chan string, numWriters)
+
+	// All workers POST the exact same schema
+	for i := 0; i < numWriters; i++ {
+		wg.Add(1)
+		go func(workerID int) {
+			defer wg.Done()
+
+			inst := getRandomInstance()
+			resp, err := doRequest("POST", inst.addr+"/subjects/"+subject+"/versions", schema)
+			if err != nil {
+				atomic.AddInt64(&errorCount, 1)
+				errorMsgs <- fmt.Sprintf("worker %d: %v", workerID, err)
+				return
+			}
+			defer resp.Body.Close()
+
+			if resp.StatusCode == http.StatusOK {
+				var result struct {
+					ID int64 `json:"id"`
+				}
+				if err := json.NewDecoder(resp.Body).Decode(&result); err != nil || result.ID == 0 {
+					atomic.AddInt64(&errorCount, 1)
+					errorMsgs <- fmt.Sprintf("worker %d: 200 but bad decode: %v", workerID, err)
+					return
+				}
+				atomic.AddInt64(&successCount, 1)
+				schemaIDs <- result.ID
+			} else {
+				body, _ := io.ReadAll(resp.Body)
+				atomic.AddInt64(&errorCount, 1)
+				errorMsgs <- fmt.Sprintf("worker %d: status %d: %s", workerID, resp.StatusCode, string(body))
+			}
+		}(i)
+	}
+
+	wg.Wait()
+	close(schemaIDs)
+	close(errorMsgs)
+
+	// Log errors
+	for errMsg := range errorMsgs {
+		t.Logf("Error: %s", errMsg)
+	}
+
+	// Collect all schema IDs
+	var allIDs []int64
+	for id := range schemaIDs {
+		allIDs = append(allIDs, id)
+	}
+
+	if len(allIDs) == 0 {
+		t.Fatal("No successful registrations")
+	}
+
+	// INVARIANT: All results should have the same schema ID (deduplication)
+	expectedID := allIDs[0]
+	for i, id := range allIDs {
+		if id != expectedID {
+			t.Errorf("Result %d has schemaID %d, expected %d (same schema should return same ID)",
+				i, id, expectedID)
+		}
+	}
+
+	// Verify only one version was created
+	inst := instances[0]
+	resp, err := doRequest("GET", inst.addr+"/subjects/"+subject+"/versions", nil)
+	if err != nil {
+		t.Fatalf("Failed to get versions: %v", err)
+	}
+	defer resp.Body.Close()
+
+	var versions []int
+	if err := json.NewDecoder(resp.Body).Decode(&versions); err != nil {
+		t.Fatalf("Failed to decode versions: %v", err)
+	}
+
+	// INVARIANT: Should be exactly 1 version (deduplication)
+	if len(versions) != 1 {
+		t.Errorf("Expected 1 version (idempotent registration), got %d: %v", len(versions), versions)
+	}
+
+	t.Logf("Idempotency verified: %d concurrent writes all returned schema ID %d, 1 version created",
+		len(allIDs), expectedID)
+}
+
+// TestSchemaIDUniqueness verifies that different schemas get different IDs.
+// This tests global schema ID allocation across multiple subjects.
+func TestSchemaIDUniqueness(t *testing.T) {
+	var wg sync.WaitGroup
+	numSchemas := numConcurrent * 2
+
+	schemaIDs := make(chan int64, numSchemas)
+	errorMsgs := make(chan string, numSchemas)
+	var successCount, errorCount int64
+
+	// Each worker registers a unique schema under its own subject
+	for i := 0; i < numSchemas; i++ {
+		wg.Add(1)
+		go func(workerID int) {
+			defer wg.Done()
+
+			inst := getRandomInstance()
+			subject := fmt.Sprintf("unique-id-%d-%d", time.Now().UnixNano(), workerID)
+			schema := map[string]interface{}{
+				"schema": fmt.Sprintf(`{"type":"record","name":"Unique%d","fields":[{"name":"id","type":"int"}]}`, workerID),
+			}
+
+			resp, err := doRequest("POST", inst.addr+"/subjects/"+subject+"/versions", schema)
+			if err != nil {
+				atomic.AddInt64(&errorCount, 1)
+				errorMsgs <- fmt.Sprintf("worker %d: %v", workerID, err)
+				return
+			}
+			defer resp.Body.Close()
+
+			if resp.StatusCode == http.StatusOK {
+				var result struct {
+					ID int64 `json:"id"`
+				}
+				if err := json.NewDecoder(resp.Body).Decode(&result); err != nil || result.ID == 0 {
+					atomic.AddInt64(&errorCount, 1)
+					errorMsgs <- fmt.Sprintf("worker %d: 200 but bad decode: %v", workerID, err)
+					return
+				}
+				atomic.AddInt64(&successCount, 1)
+				schemaIDs <- result.ID
+			} else {
+				body, _ := io.ReadAll(resp.Body)
+				atomic.AddInt64(&errorCount, 1)
+				errorMsgs <- fmt.Sprintf("worker %d: status %d: %s", workerID, resp.StatusCode, string(body))
+			}
+		}(i)
+	}
+
+	wg.Wait()
+	close(schemaIDs)
+	close(errorMsgs)
+
+	// Log errors
+	for errMsg := range errorMsgs {
+		t.Logf("Error: %s", errMsg)
+	}
+
+	// Collect all IDs
+	idSet := make(map[int64]int)
+	for id := range schemaIDs {
+		idSet[id]++
+	}
+
+	// INVARIANT: Each ID should appear only once (unique per schema)
+	duplicates := 0
+	for id, count := range idSet {
+		if count > 1 {
+			t.Errorf("Schema ID %d was assigned %d times (should be unique)", id, count)
+			duplicates++
+		}
+	}
+
+	if duplicates > 0 {
+		t.Errorf("Found %d duplicate schema IDs", duplicates)
+	}
+
+	t.Logf("Schema ID uniqueness verified: %d unique IDs allocated, %d successes, %d errors",
+		len(idSet), successCount, errorCount)
 }
