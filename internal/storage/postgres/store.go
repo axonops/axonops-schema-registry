@@ -415,14 +415,40 @@ func (s *Store) migrate(ctx context.Context) error {
 }
 
 // CreateSchema stores a new schema record.
+// This implementation handles concurrent insertions by using SELECT FOR UPDATE
+// to serialize version assignment within a subject.
 func (s *Store) CreateSchema(ctx context.Context, record *storage.SchemaRecord) error {
+	const maxRetries = 3
+	var lastErr error
+
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		err := s.createSchemaWithLock(ctx, record)
+		if err == nil {
+			return nil
+		}
+		if err == storage.ErrSchemaExists {
+			return err
+		}
+		// On unique violation, retry (another concurrent insert won the race)
+		if isUniqueViolation(err) {
+			lastErr = err
+			continue
+		}
+		return err
+	}
+
+	return fmt.Errorf("failed to create schema after %d retries: %w", maxRetries, lastErr)
+}
+
+// createSchemaWithLock performs the actual schema creation with row-level locking.
+func (s *Store) createSchemaWithLock(ctx context.Context, record *storage.SchemaRecord) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	// Check for existing schema with same fingerprint
+	// Check for existing schema with same fingerprint (idempotent check)
 	var existingID int64
 	var existingVersion int
 	var existingDeleted bool
@@ -437,10 +463,12 @@ func (s *Store) CreateSchema(ctx context.Context, record *storage.SchemaRecord) 
 		return storage.ErrSchemaExists
 	}
 
-	// Get next version for this subject
+	// Get next version with FOR UPDATE lock to serialize concurrent inserts
+	// This locks the rows being read, preventing other transactions from
+	// reading the same max version until we commit
 	var nextVersion int
 	err = tx.QueryRowContext(ctx,
-		`SELECT COALESCE(MAX(version), 0) + 1 FROM schemas WHERE subject = $1`,
+		`SELECT COALESCE(MAX(version), 0) + 1 FROM schemas WHERE subject = $1 FOR UPDATE`,
 		record.Subject,
 	).Scan(&nextVersion)
 	if err != nil {
