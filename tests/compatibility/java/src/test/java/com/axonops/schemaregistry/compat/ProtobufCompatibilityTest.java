@@ -2,17 +2,19 @@ package com.axonops.schemaregistry.compat;
 
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.Descriptors;
+import io.confluent.kafka.schemaregistry.avro.AvroSchemaProvider;
 import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.client.rest.exceptions.RestClientException;
+import io.confluent.kafka.schemaregistry.json.JsonSchemaProvider;
 import io.confluent.kafka.schemaregistry.protobuf.ProtobufSchema;
+import io.confluent.kafka.schemaregistry.protobuf.ProtobufSchemaProvider;
 import io.confluent.kafka.serializers.protobuf.KafkaProtobufDeserializer;
 import io.confluent.kafka.serializers.protobuf.KafkaProtobufSerializer;
 import org.junit.jupiter.api.*;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -61,7 +63,13 @@ public class ProtobufCompatibilityTest {
         System.out.println("Running Protobuf compatibility tests with Confluent version: " + CONFLUENT_VERSION);
         System.out.println("Schema Registry URL: " + SCHEMA_REGISTRY_URL);
 
-        schemaRegistryClient = new CachedSchemaRegistryClient(SCHEMA_REGISTRY_URL, 100);
+        schemaRegistryClient = new CachedSchemaRegistryClient(
+            Collections.singletonList(SCHEMA_REGISTRY_URL),
+            100,
+            Arrays.asList(new AvroSchemaProvider(), new JsonSchemaProvider(), new ProtobufSchemaProvider()),
+            Collections.emptyMap(),
+            Collections.emptyMap()
+        );
 
         Map<String, Object> serializerConfig = new HashMap<>();
         serializerConfig.put("schema.registry.url", SCHEMA_REGISTRY_URL);

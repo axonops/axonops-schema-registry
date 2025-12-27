@@ -3,16 +3,18 @@ package com.axonops.schemaregistry.compat;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.confluent.kafka.schemaregistry.avro.AvroSchemaProvider;
 import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.client.rest.exceptions.RestClientException;
+import io.confluent.kafka.schemaregistry.json.JsonSchemaProvider;
+import io.confluent.kafka.schemaregistry.protobuf.ProtobufSchemaProvider;
 import io.confluent.kafka.serializers.json.KafkaJsonSchemaDeserializer;
 import io.confluent.kafka.serializers.json.KafkaJsonSchemaSerializer;
 import org.junit.jupiter.api.*;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -68,7 +70,13 @@ public class JsonSchemaCompatibilityTest {
         System.out.println("Running JSON Schema compatibility tests with Confluent version: " + CONFLUENT_VERSION);
         System.out.println("Schema Registry URL: " + SCHEMA_REGISTRY_URL);
 
-        schemaRegistryClient = new CachedSchemaRegistryClient(SCHEMA_REGISTRY_URL, 100);
+        schemaRegistryClient = new CachedSchemaRegistryClient(
+            Collections.singletonList(SCHEMA_REGISTRY_URL),
+            100,
+            Arrays.asList(new AvroSchemaProvider(), new JsonSchemaProvider(), new ProtobufSchemaProvider()),
+            Collections.emptyMap(),
+            Collections.emptyMap()
+        );
         objectMapper = new ObjectMapper();
 
         Map<String, Object> serializerConfig = new HashMap<>();
