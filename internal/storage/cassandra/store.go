@@ -1022,6 +1022,12 @@ func (s *Store) CreateUser(ctx context.Context, user *storage.UserRecord) error 
 		return errors.New("username is required")
 	}
 
+	// Check for existing user with same username
+	existing, err := s.GetUserByUsername(ctx, user.Username)
+	if err == nil && existing != nil {
+		return storage.ErrUserExists
+	}
+
 	// Generate ID if not set
 	if user.ID == 0 {
 		id, err := s.NextID(ctx)
@@ -1188,21 +1194,26 @@ func (s *Store) CreateAPIKey(ctx context.Context, key *storage.APIKeyRecord) err
 		createdUUID = gocql.UUIDFromTime(key.CreatedAt)
 	}
 
+	// Default enabled to true if not set
+	if !key.Enabled {
+		key.Enabled = true
+	}
+
 	batch := s.session.NewBatch(gocql.LoggedBatch).WithContext(ctx)
 	batch.Query(
-		fmt.Sprintf(`INSERT INTO %s.api_keys_by_id (api_key_id, user_id, name, api_key_hash, created_at, expires_at)
-			VALUES (?, ?, ?, ?, ?, ?)`, qident(s.cfg.Keyspace)),
-		key.ID, key.UserID, key.Name, key.KeyHash, createdUUID, key.ExpiresAt,
+		fmt.Sprintf(`INSERT INTO %s.api_keys_by_id (api_key_id, user_id, name, api_key_hash, key_prefix, role, enabled, created_at, expires_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, qident(s.cfg.Keyspace)),
+		key.ID, key.UserID, key.Name, key.KeyHash, key.KeyPrefix, key.Role, key.Enabled, createdUUID, key.ExpiresAt,
 	)
 	batch.Query(
-		fmt.Sprintf(`INSERT INTO %s.api_keys_by_user (user_id, api_key_id, name, api_key_hash, created_at, expires_at)
-			VALUES (?, ?, ?, ?, ?, ?)`, qident(s.cfg.Keyspace)),
-		key.UserID, key.ID, key.Name, key.KeyHash, createdUUID, key.ExpiresAt,
+		fmt.Sprintf(`INSERT INTO %s.api_keys_by_user (user_id, api_key_id, name, api_key_hash, key_prefix, role, enabled, created_at, expires_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, qident(s.cfg.Keyspace)),
+		key.UserID, key.ID, key.Name, key.KeyHash, key.KeyPrefix, key.Role, key.Enabled, createdUUID, key.ExpiresAt,
 	)
 	batch.Query(
-		fmt.Sprintf(`INSERT INTO %s.api_keys_by_hash (api_key_hash, api_key_id, user_id, name, created_at, expires_at)
-			VALUES (?, ?, ?, ?, ?, ?)`, qident(s.cfg.Keyspace)),
-		key.KeyHash, key.ID, key.UserID, key.Name, createdUUID, key.ExpiresAt,
+		fmt.Sprintf(`INSERT INTO %s.api_keys_by_hash (api_key_hash, api_key_id, user_id, name, key_prefix, role, enabled, created_at, expires_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, qident(s.cfg.Keyspace)),
+		key.KeyHash, key.ID, key.UserID, key.Name, key.KeyPrefix, key.Role, key.Enabled, createdUUID, key.ExpiresAt,
 	)
 	return s.session.ExecuteBatch(batch)
 }
@@ -1210,13 +1221,14 @@ func (s *Store) CreateAPIKey(ctx context.Context, key *storage.APIKeyRecord) err
 // GetAPIKeyByID retrieves an API key by ID.
 func (s *Store) GetAPIKeyByID(ctx context.Context, id int64) (*storage.APIKeyRecord, error) {
 	var userID int64
-	var name, hash string
+	var name, hash, keyPrefix, role string
+	var enabled bool
 	var createdUUID gocql.UUID
-	var expiresAt time.Time
+	var expiresAt, lastUsed time.Time
 	err := s.readQuery(
-		fmt.Sprintf(`SELECT user_id, name, api_key_hash, created_at, expires_at FROM %s.api_keys_by_id WHERE api_key_id = ?`, qident(s.cfg.Keyspace)),
+		fmt.Sprintf(`SELECT user_id, name, api_key_hash, key_prefix, role, enabled, created_at, expires_at, last_used FROM %s.api_keys_by_id WHERE api_key_id = ?`, qident(s.cfg.Keyspace)),
 		id,
-	).WithContext(ctx).Scan(&userID, &name, &hash, &createdUUID, &expiresAt)
+	).WithContext(ctx).Scan(&userID, &name, &hash, &keyPrefix, &role, &enabled, &createdUUID, &expiresAt, &lastUsed)
 	if err != nil {
 		if errors.Is(err, gocql.ErrNotFound) {
 			return nil, storage.ErrAPIKeyNotFound
@@ -1224,26 +1236,34 @@ func (s *Store) GetAPIKeyByID(ctx context.Context, id int64) (*storage.APIKeyRec
 		return nil, err
 	}
 
-	return &storage.APIKeyRecord{
+	rec := &storage.APIKeyRecord{
 		ID:        id,
 		UserID:    userID,
 		Name:      name,
 		KeyHash:   hash,
+		KeyPrefix: keyPrefix,
+		Role:      role,
+		Enabled:   enabled,
 		CreatedAt: createdUUID.Time(),
 		ExpiresAt: expiresAt,
-	}, nil
+	}
+	if !lastUsed.IsZero() {
+		rec.LastUsed = &lastUsed
+	}
+	return rec, nil
 }
 
 // GetAPIKeyByHash retrieves an API key by its hash.
 func (s *Store) GetAPIKeyByHash(ctx context.Context, keyHash string) (*storage.APIKeyRecord, error) {
 	var keyID, userID int64
-	var name string
+	var name, keyPrefix, role string
+	var enabled bool
 	var createdUUID gocql.UUID
-	var expiresAt time.Time
+	var expiresAt, lastUsed time.Time
 	err := s.readQuery(
-		fmt.Sprintf(`SELECT api_key_id, user_id, name, created_at, expires_at FROM %s.api_keys_by_hash WHERE api_key_hash = ?`, qident(s.cfg.Keyspace)),
+		fmt.Sprintf(`SELECT api_key_id, user_id, name, key_prefix, role, enabled, created_at, expires_at, last_used FROM %s.api_keys_by_hash WHERE api_key_hash = ?`, qident(s.cfg.Keyspace)),
 		keyHash,
-	).WithContext(ctx).Scan(&keyID, &userID, &name, &createdUUID, &expiresAt)
+	).WithContext(ctx).Scan(&keyID, &userID, &name, &keyPrefix, &role, &enabled, &createdUUID, &expiresAt, &lastUsed)
 	if err != nil {
 		if errors.Is(err, gocql.ErrNotFound) {
 			return nil, storage.ErrAPIKeyNotFound
@@ -1251,14 +1271,21 @@ func (s *Store) GetAPIKeyByHash(ctx context.Context, keyHash string) (*storage.A
 		return nil, err
 	}
 
-	return &storage.APIKeyRecord{
+	rec := &storage.APIKeyRecord{
 		ID:        keyID,
 		UserID:    userID,
 		Name:      name,
 		KeyHash:   keyHash,
+		KeyPrefix: keyPrefix,
+		Role:      role,
+		Enabled:   enabled,
 		CreatedAt: createdUUID.Time(),
 		ExpiresAt: expiresAt,
-	}, nil
+	}
+	if !lastUsed.IsZero() {
+		rec.LastUsed = &lastUsed
+	}
+	return rec, nil
 }
 
 // GetAPIKeyByUserAndName retrieves an API key by user ID and name.
@@ -1340,9 +1367,27 @@ func (s *Store) ListAPIKeysByUserID(ctx context.Context, userID int64) ([]*stora
 
 // UpdateAPIKeyLastUsed updates the last used timestamp for an API key.
 func (s *Store) UpdateAPIKeyLastUsed(ctx context.Context, id int64) error {
-	// The current schema doesn't have a last_used column, so this is a no-op
-	// Would need schema migration to add this field
-	return nil
+	// Get the API key to find the hash and user ID for updating all tables
+	key, err := s.GetAPIKeyByID(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	now := time.Now()
+	batch := s.session.NewBatch(gocql.LoggedBatch).WithContext(ctx)
+	batch.Query(
+		fmt.Sprintf(`UPDATE %s.api_keys_by_id SET last_used = ? WHERE api_key_id = ?`, qident(s.cfg.Keyspace)),
+		now, id,
+	)
+	batch.Query(
+		fmt.Sprintf(`UPDATE %s.api_keys_by_user SET last_used = ? WHERE user_id = ? AND api_key_id = ?`, qident(s.cfg.Keyspace)),
+		now, key.UserID, id,
+	)
+	batch.Query(
+		fmt.Sprintf(`UPDATE %s.api_keys_by_hash SET last_used = ? WHERE api_key_hash = ?`, qident(s.cfg.Keyspace)),
+		now, key.KeyHash,
+	)
+	return s.session.ExecuteBatch(batch)
 }
 
 // ---------- Helpers ----------

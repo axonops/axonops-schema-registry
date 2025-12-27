@@ -154,8 +154,12 @@ func Migrate(session *gocql.Session, keyspace string) error {
 			user_id      bigint,
 			name         text,
 			api_key_hash text,
+			key_prefix   text,
+			role         text,
+			enabled      boolean,
 			created_at   timeuuid,
-			expires_at   timestamp
+			expires_at   timestamp,
+			last_used    timestamp
 		)`, qident(keyspace)),
 
 		// Table 15: api_keys_by_user - lookup by user
@@ -164,8 +168,12 @@ func Migrate(session *gocql.Session, keyspace string) error {
 			api_key_id   bigint,
 			name         text,
 			api_key_hash text,
+			key_prefix   text,
+			role         text,
+			enabled      boolean,
 			created_at   timeuuid,
 			expires_at   timestamp,
+			last_used    timestamp,
 			PRIMARY KEY ((user_id), api_key_id)
 		)`, qident(keyspace)),
 
@@ -175,8 +183,12 @@ func Migrate(session *gocql.Session, keyspace string) error {
 			api_key_id   bigint,
 			user_id      bigint,
 			name         text,
+			key_prefix   text,
+			role         text,
+			enabled      boolean,
 			created_at   timeuuid,
-			expires_at   timestamp
+			expires_at   timestamp,
+			last_used    timestamp
 		)`, qident(keyspace)),
 	}
 
