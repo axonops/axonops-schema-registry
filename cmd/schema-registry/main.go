@@ -353,15 +353,14 @@ func createStorage(cfg *config.Config, logger *slog.Logger) (storage.Storage, er
 			slog.String("keyspace", cfg.Storage.Cassandra.Keyspace),
 		)
 		cassCfg := cassandra.Config{
-			Hosts:               cfg.Storage.Cassandra.Hosts,
-			Keyspace:            cfg.Storage.Cassandra.Keyspace,
-			Username:            cfg.Storage.Cassandra.Username,
-			Password:            cfg.Storage.Cassandra.Password,
-			Consistency:         cfg.Storage.Cassandra.Consistency,
-			ReadConsistency:     cfg.Storage.Cassandra.ReadConsistency,
-			WriteConsistency:    cfg.Storage.Cassandra.WriteConsistency,
-			ReplicationStrategy: "SimpleStrategy",
-			ReplicationFactor:   1,
+			Hosts:            cfg.Storage.Cassandra.Hosts,
+			Keyspace:         cfg.Storage.Cassandra.Keyspace,
+			Username:         cfg.Storage.Cassandra.Username,
+			Password:         cfg.Storage.Cassandra.Password,
+			Consistency:      cfg.Storage.Cassandra.Consistency,
+			ReadConsistency:  cfg.Storage.Cassandra.ReadConsistency,
+			WriteConsistency: cfg.Storage.Cassandra.WriteConsistency,
+			Migrate:          true,
 		}
 		if len(cassCfg.Hosts) == 0 {
 			cassCfg.Hosts = []string{"localhost"}
@@ -372,7 +371,7 @@ func createStorage(cfg *config.Config, logger *slog.Logger) (storage.Storage, er
 		if cassCfg.Consistency == "" {
 			cassCfg.Consistency = "LOCAL_QUORUM"
 		}
-		return cassandra.NewStore(cassCfg)
+		return cassandra.NewStore(context.Background(), cassCfg)
 
 	default:
 		return nil, fmt.Errorf("unsupported storage type: %s", cfg.Storage.Type)

@@ -176,19 +176,16 @@ func createStorage(_ context.Context) (storage.Storage, error) {
 
 	case "cassandra":
 		cfg := cassandra.Config{
-			Hosts:               []string{getEnvOrDefault("CASSANDRA_HOSTS", "localhost")},
-			Port:                getEnvOrDefaultInt("CASSANDRA_PORT", 9042),
-			Keyspace:            getEnvOrDefault("CASSANDRA_KEYSPACE", "schemaregistry"),
-			Consistency:         "ONE", // Use ONE for single-node test cluster (simpler than LOCAL_ONE)
-			LocalDC:             "",    // Don't use DC-aware policy for single-node setup
-			ReplicationStrategy: "SimpleStrategy",
-			ReplicationFactor:   1,
-			ConnectTimeout:      30 * time.Second,
-			Timeout:             30 * time.Second,
-			NumConns:            5, // Slightly more connections for concurrency test
+			Hosts:          []string{getEnvOrDefault("CASSANDRA_HOSTS", "localhost")},
+			Port:           getEnvOrDefaultInt("CASSANDRA_PORT", 9042),
+			Keyspace:       getEnvOrDefault("CASSANDRA_KEYSPACE", "schemaregistry"),
+			Consistency:    "ONE", // Use ONE for single-node test cluster (simpler than LOCAL_ONE)
+			LocalDC:        "",    // Don't use DC-aware policy for single-node setup
+			ConnectTimeout: 30 * time.Second,
+			Timeout:        30 * time.Second,
+			Migrate:        true,
 		}
-		// Use retry logic for connection establishment
-		return cassandra.NewStoreWithRetry(cfg, 5, 3*time.Second)
+		return cassandra.NewStore(context.Background(), cfg)
 
 	default:
 		return nil, fmt.Errorf("unsupported storage type: %s", storageType)

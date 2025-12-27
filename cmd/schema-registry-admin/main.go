@@ -822,15 +822,14 @@ func initAdmin(cmd *cobra.Command, args []string) error {
 		}
 
 		cfg := cassandra.Config{
-			Hosts:               hosts,
-			Keyspace:            cassandraKeyspace,
-			Username:            cassandraUsername,
-			Password:            cassandraPassword,
-			Consistency:         cassandraConsistency,
-			ReplicationStrategy: "SimpleStrategy",
-			ReplicationFactor:   1,
+			Hosts:       hosts,
+			Keyspace:    cassandraKeyspace,
+			Username:    cassandraUsername,
+			Password:    cassandraPassword,
+			Consistency: cassandraConsistency,
+			Migrate:     true,
 		}
-		store, err = cassandra.NewStore(cfg)
+		store, err = cassandra.NewStore(context.Background(), cfg)
 
 	case "memory":
 		store = &memoryStoreWrapper{memory.NewStore()}
