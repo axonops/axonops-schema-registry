@@ -1,0 +1,10 @@
+# Trivy ignore file
+# https://trivy.dev/docs/configuration/filtering/#trivyignore
+
+# CVE-2025-66566: lz4-java Information Disclosure via Insufficient Output Buffer Clearing
+# Status: No fix available as of 2025-12-27
+# Affected: org.lz4:lz4-java (transitive dependency from Kafka/Confluent)
+# Location: tests/compatibility/java/pom.xml (test code only, not production)
+# Tracking: https://avd.aquasec.com/nvd/cve-2025-66566
+# TODO: Remove this ignore once a fixed version is released
+CVE-2025-66566

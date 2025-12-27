@@ -128,6 +128,7 @@ jobs:
           scan-ref: '.'
           severity: 'CRITICAL,HIGH'
           exit-code: '1'
+          trivyignores: '.trivyignore'
 
   # Build Docker image
   docker:
@@ -923,7 +924,8 @@ jobs:
         env:
           SCHEMA_REGISTRY_URL: http://localhost:8081
         run: |
-          for version in 2.8.0 2.6.2 2.5.3; do
+          # Note: 2.6.2 and 2.5.3 are yanked from PyPI with missing protobuf dependencies
+          for version in 2.8.0 2.7.0 2.6.1; do
             echo "Testing with confluent-kafka==$version"
             python -m venv ".venv-$version"
             source ".venv-$version/bin/activate"
