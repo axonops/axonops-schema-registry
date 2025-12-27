@@ -11,18 +11,29 @@ import (
 	"github.com/axonops/axonops-schema-registry/internal/storage"
 )
 
+// subjectVersionInfo stores info about a schema registered under a subject.
+type subjectVersionInfo struct {
+	schemaID  int64
+	version   int
+	deleted   bool
+	createdAt time.Time
+}
+
 // Store implements the storage.Storage interface using in-memory data structures.
 type Store struct {
 	mu sync.RWMutex
 
-	// schemas stores all schema records by ID
+	// schemas stores schema content by ID (deduplicated globally by fingerprint)
 	schemas map[int64]*storage.SchemaRecord
 
-	// subjectSchemas stores schema IDs by subject, ordered by version
-	subjectSchemas map[string][]int64
+	// subjectVersions stores version info by subject (subject → version → info)
+	subjectVersions map[string]map[int]*subjectVersionInfo
 
-	// fingerprints maps subject+fingerprint to schema ID for deduplication
-	fingerprints map[string]int64
+	// globalFingerprints maps fingerprint to schema ID for global deduplication
+	globalFingerprints map[string]int64
+
+	// idToSubjectVersions maps schema ID to all subject-versions using it
+	idToSubjectVersions map[int64][]storage.SubjectVersion
 
 	// configs stores compatibility configurations by subject
 	configs map[string]*storage.ConfigRecord
@@ -61,15 +72,16 @@ type Store struct {
 // NewStore creates a new in-memory store.
 func NewStore() *Store {
 	return &Store{
-		schemas:         make(map[int64]*storage.SchemaRecord),
-		subjectSchemas:  make(map[string][]int64),
-		fingerprints:    make(map[string]int64),
-		configs:         make(map[string]*storage.ConfigRecord),
-		modes:           make(map[string]*storage.ModeRecord),
-		users:           make(map[int64]*storage.UserRecord),
-		usersByUsername: make(map[string]int64),
-		apiKeys:         make(map[int64]*storage.APIKeyRecord),
-		apiKeysByHash:   make(map[string]int64),
+		schemas:             make(map[int64]*storage.SchemaRecord),
+		subjectVersions:     make(map[string]map[int]*subjectVersionInfo),
+		globalFingerprints:  make(map[string]int64),
+		idToSubjectVersions: make(map[int64][]storage.SubjectVersion),
+		configs:             make(map[string]*storage.ConfigRecord),
+		modes:               make(map[string]*storage.ModeRecord),
+		users:               make(map[int64]*storage.UserRecord),
+		usersByUsername:     make(map[string]int64),
+		apiKeys:             make(map[int64]*storage.APIKeyRecord),
+		apiKeysByHash:       make(map[string]int64),
 		globalConfig: &storage.ConfigRecord{
 			CompatibilityLevel: "BACKWARD",
 		},
@@ -82,41 +94,71 @@ func NewStore() *Store {
 	}
 }
 
-// fingerprintKey generates a key for the fingerprint map.
-func fingerprintKey(subject, fingerprint string) string {
-	return subject + ":" + fingerprint
-}
-
 // CreateSchema stores a new schema record.
+// Uses global fingerprint deduplication: same schema content = same ID across all subjects.
 func (s *Store) CreateSchema(ctx context.Context, record *storage.SchemaRecord) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// Check for existing schema with same fingerprint
-	key := fingerprintKey(record.Subject, record.Fingerprint)
-	if existingID, exists := s.fingerprints[key]; exists {
-		existing := s.schemas[existingID]
-		if existing != nil && !existing.Deleted {
-			record.ID = existing.ID
-			record.Version = existing.Version
-			return storage.ErrSchemaExists
+	// Initialize subject's version map if needed
+	if s.subjectVersions[record.Subject] == nil {
+		s.subjectVersions[record.Subject] = make(map[int]*subjectVersionInfo)
+	}
+
+	// Check if this fingerprint already exists in this subject (exact duplicate)
+	for _, info := range s.subjectVersions[record.Subject] {
+		if !info.deleted {
+			existingSchema := s.schemas[info.schemaID]
+			if existingSchema != nil && existingSchema.Fingerprint == record.Fingerprint {
+				// Same schema already registered under this subject
+				record.ID = info.schemaID
+				record.Version = info.version
+				return storage.ErrSchemaExists
+			}
 		}
 	}
 
-	// Assign ID if not set
-	if record.ID == 0 {
-		record.ID = atomic.AddInt64(&s.nextID, 1) - 1
+	// Check for global fingerprint (same schema in any subject)
+	var schemaID int64
+	if existingID, exists := s.globalFingerprints[record.Fingerprint]; exists {
+		// Reuse the existing schema ID (global deduplication)
+		schemaID = existingID
+	} else {
+		// New schema, assign new ID
+		schemaID = atomic.AddInt64(&s.nextID, 1) - 1
+		s.globalFingerprints[record.Fingerprint] = schemaID
+
+		// Store the schema content (first time seeing this fingerprint)
+		s.schemas[schemaID] = &storage.SchemaRecord{
+			ID:          schemaID,
+			SchemaType:  record.SchemaType,
+			Schema:      record.Schema,
+			References:  record.References,
+			Fingerprint: record.Fingerprint,
+		}
 	}
 
-	// Determine version
-	versions := s.subjectSchemas[record.Subject]
-	record.Version = len(versions) + 1
-	record.CreatedAt = time.Now()
+	// Determine version for this subject
+	version := len(s.subjectVersions[record.Subject]) + 1
 
-	// Store the schema
-	s.schemas[record.ID] = record
-	s.subjectSchemas[record.Subject] = append(versions, record.ID)
-	s.fingerprints[key] = record.ID
+	// Store the subject-version mapping
+	s.subjectVersions[record.Subject][version] = &subjectVersionInfo{
+		schemaID:  schemaID,
+		version:   version,
+		deleted:   false,
+		createdAt: time.Now(),
+	}
+
+	// Update idToSubjectVersions
+	s.idToSubjectVersions[schemaID] = append(s.idToSubjectVersions[schemaID], storage.SubjectVersion{
+		Subject: record.Subject,
+		Version: version,
+	})
+
+	// Update the record with assigned values
+	record.ID = schemaID
+	record.Version = version
+	record.CreatedAt = time.Now()
 
 	return nil
 }
@@ -139,30 +181,52 @@ func (s *Store) GetSchemaBySubjectVersion(ctx context.Context, subject string, v
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	versions := s.subjectSchemas[subject]
-	if len(versions) == 0 {
+	subjectVersionMap := s.subjectVersions[subject]
+	if len(subjectVersionMap) == 0 {
 		return nil, storage.ErrSubjectNotFound
 	}
 
 	// Handle "latest" version (-1)
 	if version == -1 {
-		version = len(versions)
+		// Find the latest non-deleted version
+		latestVersion := 0
+		for v, info := range subjectVersionMap {
+			if !info.deleted && v > latestVersion {
+				latestVersion = v
+			}
+		}
+		if latestVersion == 0 {
+			return nil, storage.ErrSubjectNotFound
+		}
+		version = latestVersion
 	}
 
-	if version < 1 || version > len(versions) {
+	info, exists := subjectVersionMap[version]
+	if !exists {
 		return nil, storage.ErrVersionNotFound
 	}
 
-	schema := s.schemas[versions[version-1]]
+	if info.deleted {
+		return nil, storage.ErrVersionNotFound
+	}
+
+	schema := s.schemas[info.schemaID]
 	if schema == nil {
 		return nil, storage.ErrSchemaNotFound
 	}
 
-	if schema.Deleted {
-		return nil, storage.ErrVersionNotFound
-	}
-
-	return schema, nil
+	// Return a copy with the subject and version filled in
+	return &storage.SchemaRecord{
+		ID:          schema.ID,
+		Subject:     subject,
+		Version:     version,
+		SchemaType:  schema.SchemaType,
+		Schema:      schema.Schema,
+		References:  schema.References,
+		Fingerprint: schema.Fingerprint,
+		Deleted:     info.deleted,
+		CreatedAt:   info.createdAt,
+	}, nil
 }
 
 // GetSchemasBySubject retrieves all schemas for a subject.
@@ -170,18 +234,36 @@ func (s *Store) GetSchemasBySubject(ctx context.Context, subject string, include
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	ids := s.subjectSchemas[subject]
-	if len(ids) == 0 {
+	subjectVersionMap := s.subjectVersions[subject]
+	if len(subjectVersionMap) == 0 {
 		return nil, storage.ErrSubjectNotFound
 	}
 
 	var schemas []*storage.SchemaRecord
-	for _, id := range ids {
-		schema := s.schemas[id]
-		if schema != nil && (includeDeleted || !schema.Deleted) {
-			schemas = append(schemas, schema)
+	for version, info := range subjectVersionMap {
+		if !includeDeleted && info.deleted {
+			continue
+		}
+		schema := s.schemas[info.schemaID]
+		if schema != nil {
+			schemas = append(schemas, &storage.SchemaRecord{
+				ID:          schema.ID,
+				Subject:     subject,
+				Version:     version,
+				SchemaType:  schema.SchemaType,
+				Schema:      schema.Schema,
+				References:  schema.References,
+				Fingerprint: schema.Fingerprint,
+				Deleted:     info.deleted,
+				CreatedAt:   info.createdAt,
+			})
 		}
 	}
+
+	// Sort by version
+	sort.Slice(schemas, func(i, j int) bool {
+		return schemas[i].Version < schemas[j].Version
+	})
 
 	return schemas, nil
 }
@@ -191,14 +273,47 @@ func (s *Store) GetSchemaByFingerprint(ctx context.Context, subject, fingerprint
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	key := fingerprintKey(subject, fingerprint)
-	id, exists := s.fingerprints[key]
+	subjectVersionMap := s.subjectVersions[subject]
+	if len(subjectVersionMap) == 0 {
+		return nil, storage.ErrSchemaNotFound
+	}
+
+	// Find a version in this subject with the matching fingerprint
+	for version, info := range subjectVersionMap {
+		if info.deleted {
+			continue
+		}
+		schema := s.schemas[info.schemaID]
+		if schema != nil && schema.Fingerprint == fingerprint {
+			return &storage.SchemaRecord{
+				ID:          schema.ID,
+				Subject:     subject,
+				Version:     version,
+				SchemaType:  schema.SchemaType,
+				Schema:      schema.Schema,
+				References:  schema.References,
+				Fingerprint: schema.Fingerprint,
+				Deleted:     info.deleted,
+				CreatedAt:   info.createdAt,
+			}, nil
+		}
+	}
+
+	return nil, storage.ErrSchemaNotFound
+}
+
+// GetSchemaByGlobalFingerprint retrieves a schema by fingerprint (global lookup).
+func (s *Store) GetSchemaByGlobalFingerprint(ctx context.Context, fingerprint string) (*storage.SchemaRecord, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	id, exists := s.globalFingerprints[fingerprint]
 	if !exists {
 		return nil, storage.ErrSchemaNotFound
 	}
 
 	schema := s.schemas[id]
-	if schema == nil || schema.Deleted {
+	if schema == nil {
 		return nil, storage.ErrSchemaNotFound
 	}
 
@@ -210,20 +325,41 @@ func (s *Store) GetLatestSchema(ctx context.Context, subject string) (*storage.S
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	ids := s.subjectSchemas[subject]
-	if len(ids) == 0 {
+	subjectVersionMap := s.subjectVersions[subject]
+	if len(subjectVersionMap) == 0 {
 		return nil, storage.ErrSubjectNotFound
 	}
 
-	// Find the latest non-deleted schema
-	for i := len(ids) - 1; i >= 0; i-- {
-		schema := s.schemas[ids[i]]
-		if schema != nil && !schema.Deleted {
-			return schema, nil
+	// Find the latest non-deleted version
+	latestVersion := 0
+	var latestInfo *subjectVersionInfo
+	for v, info := range subjectVersionMap {
+		if !info.deleted && v > latestVersion {
+			latestVersion = v
+			latestInfo = info
 		}
 	}
 
-	return nil, storage.ErrSubjectNotFound
+	if latestInfo == nil {
+		return nil, storage.ErrSubjectNotFound
+	}
+
+	schema := s.schemas[latestInfo.schemaID]
+	if schema == nil {
+		return nil, storage.ErrSchemaNotFound
+	}
+
+	return &storage.SchemaRecord{
+		ID:          schema.ID,
+		Subject:     subject,
+		Version:     latestVersion,
+		SchemaType:  schema.SchemaType,
+		Schema:      schema.Schema,
+		References:  schema.References,
+		Fingerprint: schema.Fingerprint,
+		Deleted:     latestInfo.deleted,
+		CreatedAt:   latestInfo.createdAt,
+	}, nil
 }
 
 // DeleteSchema soft-deletes or permanently deletes a schema version.
@@ -231,27 +367,41 @@ func (s *Store) DeleteSchema(ctx context.Context, subject string, version int, p
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	ids := s.subjectSchemas[subject]
-	if len(ids) == 0 {
+	subjectVersionMap := s.subjectVersions[subject]
+	if len(subjectVersionMap) == 0 {
 		return storage.ErrSubjectNotFound
 	}
 
-	if version < 1 || version > len(ids) {
-		return storage.ErrVersionNotFound
-	}
-
-	schema := s.schemas[ids[version-1]]
-	if schema == nil {
+	info, exists := subjectVersionMap[version]
+	if !exists {
 		return storage.ErrVersionNotFound
 	}
 
 	if permanent {
-		// Remove from fingerprints
-		key := fingerprintKey(subject, schema.Fingerprint)
-		delete(s.fingerprints, key)
-		delete(s.schemas, schema.ID)
+		// Remove from subject versions
+		delete(subjectVersionMap, version)
+
+		// Remove from idToSubjectVersions
+		svs := s.idToSubjectVersions[info.schemaID]
+		newSvs := make([]storage.SubjectVersion, 0, len(svs))
+		for _, sv := range svs {
+			if sv.Subject != subject || sv.Version != version {
+				newSvs = append(newSvs, sv)
+			}
+		}
+		if len(newSvs) == 0 {
+			// No more references to this schema, can delete it
+			schema := s.schemas[info.schemaID]
+			if schema != nil {
+				delete(s.globalFingerprints, schema.Fingerprint)
+			}
+			delete(s.schemas, info.schemaID)
+			delete(s.idToSubjectVersions, info.schemaID)
+		} else {
+			s.idToSubjectVersions[info.schemaID] = newSvs
+		}
 	} else {
-		schema.Deleted = true
+		info.deleted = true
 	}
 
 	return nil
@@ -263,16 +413,15 @@ func (s *Store) ListSubjects(ctx context.Context, includeDeleted bool) ([]string
 	defer s.mu.RUnlock()
 
 	var subjects []string
-	for subject, ids := range s.subjectSchemas {
+	for subject, versionMap := range s.subjectVersions {
 		if includeDeleted {
 			subjects = append(subjects, subject)
 			continue
 		}
 
 		// Check if subject has any non-deleted schemas
-		for _, id := range ids {
-			schema := s.schemas[id]
-			if schema != nil && !schema.Deleted {
+		for _, info := range versionMap {
+			if !info.deleted {
 				subjects = append(subjects, subject)
 				break
 			}
@@ -288,35 +437,49 @@ func (s *Store) DeleteSubject(ctx context.Context, subject string, permanent boo
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	ids := s.subjectSchemas[subject]
-	if len(ids) == 0 {
+	subjectVersionMap := s.subjectVersions[subject]
+	if len(subjectVersionMap) == 0 {
 		return nil, storage.ErrSubjectNotFound
 	}
 
 	var deletedVersions []int
-	for _, id := range ids {
-		schema := s.schemas[id]
-		if schema == nil {
+	for version, info := range subjectVersionMap {
+		if info.deleted && !permanent {
 			continue
 		}
 
-		if schema.Deleted && !permanent {
-			continue
-		}
-
-		deletedVersions = append(deletedVersions, schema.Version)
+		deletedVersions = append(deletedVersions, version)
 
 		if permanent {
-			key := fingerprintKey(subject, schema.Fingerprint)
-			delete(s.fingerprints, key)
-			delete(s.schemas, id)
+			// Remove from idToSubjectVersions
+			svs := s.idToSubjectVersions[info.schemaID]
+			newSvs := make([]storage.SubjectVersion, 0, len(svs))
+			for _, sv := range svs {
+				if sv.Subject != subject || sv.Version != version {
+					newSvs = append(newSvs, sv)
+				}
+			}
+			if len(newSvs) == 0 {
+				// No more references to this schema
+				schema := s.schemas[info.schemaID]
+				if schema != nil {
+					delete(s.globalFingerprints, schema.Fingerprint)
+				}
+				delete(s.schemas, info.schemaID)
+				delete(s.idToSubjectVersions, info.schemaID)
+			} else {
+				s.idToSubjectVersions[info.schemaID] = newSvs
+			}
 		} else {
-			schema.Deleted = true
+			info.deleted = true
 		}
 	}
 
+	// Sort deleted versions
+	sort.Ints(deletedVersions)
+
 	if permanent {
-		delete(s.subjectSchemas, subject)
+		delete(s.subjectVersions, subject)
 		delete(s.configs, subject)
 		delete(s.modes, subject)
 	}
@@ -329,10 +492,9 @@ func (s *Store) SubjectExists(ctx context.Context, subject string) (bool, error)
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	ids := s.subjectSchemas[subject]
-	for _, id := range ids {
-		schema := s.schemas[id]
-		if schema != nil && !schema.Deleted {
+	subjectVersionMap := s.subjectVersions[subject]
+	for _, info := range subjectVersionMap {
+		if !info.deleted {
 			return true, nil
 		}
 	}
@@ -460,18 +622,24 @@ func (s *Store) GetReferencedBy(ctx context.Context, subject string, version int
 
 	var refs []storage.SubjectVersion
 
-	// Check all schemas for references to this subject/version
-	for _, schema := range s.schemas {
-		if schema.Deleted {
-			continue
-		}
-		for _, ref := range schema.References {
-			if ref.Subject == subject && ref.Version == version {
-				refs = append(refs, storage.SubjectVersion{
-					Subject: schema.Subject,
-					Version: schema.Version,
-				})
-				break
+	// Check all subject-versions for references to this subject/version
+	for subj, versionMap := range s.subjectVersions {
+		for ver, info := range versionMap {
+			if info.deleted {
+				continue
+			}
+			schema := s.schemas[info.schemaID]
+			if schema == nil {
+				continue
+			}
+			for _, ref := range schema.References {
+				if ref.Subject == subject && ref.Version == version {
+					refs = append(refs, storage.SubjectVersion{
+						Subject: subj,
+						Version: ver,
+					})
+					break
+				}
 			}
 		}
 	}
@@ -484,18 +652,34 @@ func (s *Store) GetSubjectsBySchemaID(ctx context.Context, id int64, includeDele
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	schema, exists := s.schemas[id]
-	if !exists {
+	if _, exists := s.schemas[id]; !exists {
 		return nil, storage.ErrSchemaNotFound
 	}
 
-	// In this implementation, a schema ID is unique to a subject
-	// Return the subject if not deleted (or if includeDeleted)
-	if !includeDeleted && schema.Deleted {
+	svs := s.idToSubjectVersions[id]
+	if len(svs) == 0 {
 		return []string{}, nil
 	}
 
-	return []string{schema.Subject}, nil
+	// Collect unique subjects, filtering by deleted status
+	subjectSet := make(map[string]bool)
+	for _, sv := range svs {
+		if subjectVersionMap, ok := s.subjectVersions[sv.Subject]; ok {
+			if info, ok := subjectVersionMap[sv.Version]; ok {
+				if includeDeleted || !info.deleted {
+					subjectSet[sv.Subject] = true
+				}
+			}
+		}
+	}
+
+	subjects := make([]string, 0, len(subjectSet))
+	for subj := range subjectSet {
+		subjects = append(subjects, subj)
+	}
+	sort.Strings(subjects)
+
+	return subjects, nil
 }
 
 // GetVersionsBySchemaID returns all subject-version pairs where the given schema ID is registered.
@@ -503,19 +687,28 @@ func (s *Store) GetVersionsBySchemaID(ctx context.Context, id int64, includeDele
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	schema, exists := s.schemas[id]
-	if !exists {
+	if _, exists := s.schemas[id]; !exists {
 		return nil, storage.ErrSchemaNotFound
 	}
 
-	// In this implementation, a schema ID maps to exactly one subject-version
-	if !includeDeleted && schema.Deleted {
+	svs := s.idToSubjectVersions[id]
+	if len(svs) == 0 {
 		return []storage.SubjectVersion{}, nil
 	}
 
-	return []storage.SubjectVersion{
-		{Subject: schema.Subject, Version: schema.Version},
-	}, nil
+	// Filter by deleted status
+	var result []storage.SubjectVersion
+	for _, sv := range svs {
+		if subjectVersionMap, ok := s.subjectVersions[sv.Subject]; ok {
+			if info, ok := subjectVersionMap[sv.Version]; ok {
+				if includeDeleted || !info.deleted {
+					result = append(result, sv)
+				}
+			}
+		}
+	}
+
+	return result, nil
 }
 
 // ListSchemas returns schemas matching the given filters.
@@ -528,44 +721,63 @@ func (s *Store) ListSchemas(ctx context.Context, params *storage.ListSchemasPara
 	// Track latest versions per subject if needed
 	latestVersions := make(map[string]int)
 	if params.LatestOnly {
-		for subject, ids := range s.subjectSchemas {
-			for i := len(ids) - 1; i >= 0; i-- {
-				schema := s.schemas[ids[i]]
-				if schema != nil && (params.Deleted || !schema.Deleted) {
-					latestVersions[subject] = schema.Version
-					break
+		for subject, versionMap := range s.subjectVersions {
+			latestVersion := 0
+			for v, info := range versionMap {
+				if (params.Deleted || !info.deleted) && v > latestVersion {
+					latestVersion = v
 				}
+			}
+			if latestVersion > 0 {
+				latestVersions[subject] = latestVersion
 			}
 		}
 	}
 
-	// Collect matching schemas
-	for _, schema := range s.schemas {
-		// Apply deleted filter
-		if !params.Deleted && schema.Deleted {
-			continue
-		}
-
+	// Collect matching schemas from all subject-versions
+	for subject, versionMap := range s.subjectVersions {
 		// Apply subject prefix filter
 		if params.SubjectPrefix != "" {
-			if len(schema.Subject) < len(params.SubjectPrefix) ||
-				schema.Subject[:len(params.SubjectPrefix)] != params.SubjectPrefix {
+			if len(subject) < len(params.SubjectPrefix) ||
+				subject[:len(params.SubjectPrefix)] != params.SubjectPrefix {
 				continue
 			}
 		}
 
-		// Apply latestOnly filter
-		if params.LatestOnly {
-			if latestVersion, ok := latestVersions[schema.Subject]; ok {
-				if schema.Version != latestVersion {
+		for version, info := range versionMap {
+			// Apply deleted filter
+			if !params.Deleted && info.deleted {
+				continue
+			}
+
+			// Apply latestOnly filter
+			if params.LatestOnly {
+				if latestVersion, ok := latestVersions[subject]; ok {
+					if version != latestVersion {
+						continue
+					}
+				} else {
 					continue
 				}
-			} else {
+			}
+
+			schema := s.schemas[info.schemaID]
+			if schema == nil {
 				continue
 			}
-		}
 
-		results = append(results, schema)
+			results = append(results, &storage.SchemaRecord{
+				ID:          schema.ID,
+				Subject:     subject,
+				Version:     version,
+				SchemaType:  schema.SchemaType,
+				Schema:      schema.Schema,
+				References:  schema.References,
+				Fingerprint: schema.Fingerprint,
+				Deleted:     info.deleted,
+				CreatedAt:   info.createdAt,
+			})
+		}
 	}
 
 	// Sort by ID for consistent ordering

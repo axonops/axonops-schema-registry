@@ -3,7 +3,12 @@ package compatibility_test
 import (
 	"encoding/binary"
 	"encoding/json"
+	"fmt"
+	"net/http"
+	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/riferrei/srclient"
 	"github.com/stretchr/testify/assert"
@@ -249,4 +254,247 @@ func TestJSONSchemaEvolution(t *testing.T) {
 
 		t.Logf("JSON schema evolution: v1 ID=%d, v2 ID=%d", schema1.ID(), schema2.ID())
 	})
+}
+
+func TestJSONSchemaGlobalSchemaID(t *testing.T) {
+	client := srclient.CreateSchemaRegistryClient(getSchemaRegistryURL())
+
+	t.Run("SameSchemaAcrossSubjects", func(t *testing.T) {
+		subject1 := "go-json-global1-value"
+		subject2 := "go-json-global2-value"
+
+		// Register same schema under different subjects
+		schema1, err := client.CreateSchema(subject1, userJSONSchema, srclient.Json)
+		require.NoError(t, err)
+
+		schema2, err := client.CreateSchema(subject2, userJSONSchema, srclient.Json)
+		require.NoError(t, err)
+
+		// Same schema content should produce same global ID (Confluent-compatible behavior)
+		assert.Equal(t, schema1.ID(), schema2.ID(),
+			"Same JSON schema under different subjects should return same global ID")
+
+		// Structural verification - fetch and compare
+		fetched1, err := client.GetSchema(schema1.ID())
+		require.NoError(t, err)
+
+		fetched2, err := client.GetSchema(schema2.ID())
+		require.NoError(t, err)
+
+		assert.Equal(t, fetched1.ID(), fetched2.ID(), "Fetched schema IDs should match")
+
+		t.Logf("Global JSON schema ID verified: both subjects use ID %d", schema1.ID())
+	})
+}
+
+func TestJSONSchemaConcurrentRegistration(t *testing.T) {
+	subject := fmt.Sprintf("go-json-concurrent-%d-value", time.Now().UnixNano())
+
+	numGoroutines := 10
+	var wg sync.WaitGroup
+	readyChan := make(chan struct{})
+	resultChan := make(chan int, numGoroutines)
+	errChan := make(chan error, numGoroutines)
+
+	// Launch goroutines with separate clients for genuine parallel HTTP requests
+	for i := 0; i < numGoroutines; i++ {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+
+			// Each goroutine gets its own client
+			client := srclient.CreateSchemaRegistryClient(getSchemaRegistryURL())
+
+			// Wait for start signal
+			<-readyChan
+
+			schema, err := client.CreateSchema(subject, userJSONSchema, srclient.Json)
+			if err != nil {
+				errChan <- err
+				return
+			}
+			resultChan <- schema.ID()
+		}(i)
+	}
+
+	// Small delay to let goroutines reach the wait point
+	time.Sleep(50 * time.Millisecond)
+
+	// Release all goroutines simultaneously
+	close(readyChan)
+
+	// Wait for completion
+	wg.Wait()
+	close(resultChan)
+	close(errChan)
+
+	// Check for errors
+	for err := range errChan {
+		require.NoError(t, err)
+	}
+
+	// Collect schema IDs
+	schemaIDs := make(map[int]bool)
+	for id := range resultChan {
+		schemaIDs[id] = true
+	}
+
+	// All concurrent registrations should return the same ID
+	assert.Equal(t, 1, len(schemaIDs),
+		"All concurrent registrations should return the same schema ID, got %d different IDs", len(schemaIDs))
+
+	// Verify only one version was created
+	client := srclient.CreateSchemaRegistryClient(getSchemaRegistryURL())
+	versions, err := client.GetSchemaVersions(subject)
+	require.NoError(t, err)
+	assert.Equal(t, 1, len(versions),
+		"Only one version should exist after concurrent registration")
+
+	t.Logf("Concurrent registration test passed: %d goroutines all got the same schema ID", numGoroutines)
+}
+
+func TestJSONSchemaConfigEndpoints(t *testing.T) {
+	t.Run("GetGlobalCompatibility", func(t *testing.T) {
+		// Use HTTP client directly since srclient may not expose config APIs
+		resp, err := http.Get(getSchemaRegistryURL() + "/config")
+		require.NoError(t, err)
+		defer resp.Body.Close()
+
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+		var config struct {
+			CompatibilityLevel string `json:"compatibilityLevel"`
+		}
+		err = json.NewDecoder(resp.Body).Decode(&config)
+		require.NoError(t, err)
+
+		assert.True(t, validCompatibilityLevels[config.CompatibilityLevel],
+			"Global compatibility should be a valid Confluent level, got: %s", config.CompatibilityLevel)
+
+		t.Logf("Global compatibility: %s", config.CompatibilityLevel)
+	})
+}
+
+func TestJSONSchemaIncompatibleSchemaEvolution(t *testing.T) {
+	subject := fmt.Sprintf("go-json-incompat-%d-value", time.Now().UnixNano())
+
+	// First, register v1 schema
+	client := srclient.CreateSchemaRegistryClient(getSchemaRegistryURL())
+	_, err := client.CreateSchema(subject, userJSONSchema, srclient.Json)
+	require.NoError(t, err)
+
+	// Set subject compatibility to BACKWARD via HTTP
+	reqBody := `{"compatibility": "BACKWARD"}`
+	req, err := http.NewRequest(http.MethodPut, getSchemaRegistryURL()+"/config/"+subject, strings.NewReader(reqBody))
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	resp.Body.Close()
+
+	// Verify compatibility was set
+	resp, err = http.Get(getSchemaRegistryURL() + "/config/" + subject)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	var config struct {
+		CompatibilityLevel string `json:"compatibilityLevel"`
+	}
+	err = json.NewDecoder(resp.Body).Decode(&config)
+	require.NoError(t, err)
+	assert.Equal(t, "BACKWARD", config.CompatibilityLevel)
+
+	// Create incompatible schema: change email type from string to integer (breaking change)
+	incompatibleSchema := `{
+		"$schema": "http://json-schema.org/draft-07/schema#",
+		"title": "User",
+		"type": "object",
+		"properties": {
+			"id": {"type": "integer"},
+			"name": {"type": "string"},
+			"email": {"type": "integer"}
+		},
+		"required": ["id", "name"]
+	}`
+
+	// Try to register incompatible schema
+	_, err = client.CreateSchema(subject, incompatibleSchema, srclient.Json)
+	require.Error(t, err, "Expected registration to fail due to incompatible schema")
+
+	// Verify error message indicates incompatibility
+	errMsg := strings.ToLower(err.Error())
+	isIncompatError := strings.Contains(errMsg, "incompatible") ||
+		strings.Contains(errMsg, "compatibility") ||
+		strings.Contains(errMsg, "409") ||
+		strings.Contains(errMsg, "422")
+
+	assert.True(t, isIncompatError,
+		"Expected incompatibility error, got: %s", err.Error())
+
+	t.Log("Incompatible JSON schema correctly rejected")
+}
+
+func TestJSONSchemaCacheBehavior(t *testing.T) {
+	subject := fmt.Sprintf("go-json-cache-%d-value", time.Now().UnixNano())
+
+	// Register schema with first client
+	client1 := srclient.CreateSchemaRegistryClient(getSchemaRegistryURL())
+	schema, err := client1.CreateSchema(subject, userJSONSchema, srclient.Json)
+	require.NoError(t, err)
+
+	// Create a completely new client (empty cache)
+	client2 := srclient.CreateSchemaRegistryClient(getSchemaRegistryURL())
+
+	// Fetch schema with fresh client (cache miss, must hit registry)
+	fetchedSchema, err := client2.GetSchema(schema.ID())
+	require.NoError(t, err)
+
+	assert.NotNil(t, fetchedSchema, "Fresh client should fetch schema by ID")
+	assert.Equal(t, schema.ID(), fetchedSchema.ID(), "Schema IDs should match")
+
+	t.Log("Cache behavior test passed")
+}
+
+func TestJSONSchemaCanonicalisation(t *testing.T) {
+	// Same JSON Schema content but with different formatting
+	// This tests that the registry canonicalizes schemas before comparison
+	//
+	// NOTE: Some client versions may canonicalize client-side before POSTing,
+	// so this test may pass even if server-side canonicalization is broken.
+	// For strict server-side canonicalization validation, register via REST API directly.
+
+	// Compact format (minimal whitespace)
+	compactSchema := `{"$schema":"http://json-schema.org/draft-07/schema#","title":"Canonical","type":"object","properties":{"id":{"type":"integer"},"value":{"type":"string"}},"required":["id","value"]}`
+
+	// Verbose format (extra whitespace)
+	verboseSchema := `{
+		"$schema" : "http://json-schema.org/draft-07/schema#",
+		"title" : "Canonical",
+		"type" : "object",
+		"properties" : {
+			"id" : { "type" : "integer" },
+			"value" : { "type" : "string" }
+		},
+		"required" : [ "id", "value" ]
+	}`
+
+	subject1 := fmt.Sprintf("go-json-canon1-%d-value", time.Now().UnixNano())
+	subject2 := fmt.Sprintf("go-json-canon2-%d-value", time.Now().UnixNano())
+
+	client := srclient.CreateSchemaRegistryClient(getSchemaRegistryURL())
+
+	// Register compact schema
+	schema1, err := client.CreateSchema(subject1, compactSchema, srclient.Json)
+	require.NoError(t, err)
+
+	// Register verbose schema (should be canonicalized to same schema)
+	schema2, err := client.CreateSchema(subject2, verboseSchema, srclient.Json)
+	require.NoError(t, err)
+
+	// Same schema content (after canonicalization) should produce same global ID
+	assert.Equal(t, schema1.ID(), schema2.ID(),
+		"Same JSON schema with different formatting should return same global ID (canonicalization)")
+
+	t.Logf("Schema canonicalization verified: both formats use schema ID %d", schema1.ID())
 }

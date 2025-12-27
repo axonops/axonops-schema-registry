@@ -20,6 +20,8 @@
         <jackson.version>2.17.2</jackson.version>
         <!-- Default to latest Confluent version -->
         <confluent.version>8.1.0</confluent.version>
+        <!-- Default Schema Registry URL -->
+        <schema.registry.url>http://localhost:8081</schema.registry.url>
     </properties>
 
     <dependencyManagement>

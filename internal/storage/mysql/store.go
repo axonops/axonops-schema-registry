@@ -580,6 +580,38 @@ func (s *Store) GetSchemaByFingerprint(ctx context.Context, subject, fingerprint
 	return record, nil
 }
 
+// GetSchemaByGlobalFingerprint retrieves a schema by fingerprint (global lookup).
+// Returns the first matching schema regardless of subject.
+func (s *Store) GetSchemaByGlobalFingerprint(ctx context.Context, fingerprint string) (*storage.SchemaRecord, error) {
+	record := &storage.SchemaRecord{}
+	var schemaType string
+
+	// Query for any schema with this fingerprint (global deduplication)
+	query := `SELECT id, subject, version, schema_type, schema, fingerprint, deleted, created_at
+	          FROM schemas WHERE fingerprint = ? AND deleted = false LIMIT 1`
+	err := s.db.QueryRowContext(ctx, query, fingerprint).Scan(
+		&record.ID, &record.Subject, &record.Version, &schemaType,
+		&record.Schema, &record.Fingerprint, &record.Deleted, &record.CreatedAt)
+
+	if err == sql.ErrNoRows {
+		return nil, storage.ErrSchemaNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get schema by global fingerprint: %w", err)
+	}
+
+	record.SchemaType = storage.SchemaType(schemaType)
+
+	// Load references
+	refs, err := s.loadReferences(ctx, record.ID)
+	if err != nil {
+		return nil, err
+	}
+	record.References = refs
+
+	return record, nil
+}
+
 // GetLatestSchema retrieves the latest schema for a subject.
 func (s *Store) GetLatestSchema(ctx context.Context, subject string) (*storage.SchemaRecord, error) {
 	record := &storage.SchemaRecord{}

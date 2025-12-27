@@ -135,6 +135,7 @@ type Storage interface {
 	GetSchemaBySubjectVersion(ctx context.Context, subject string, version int) (*SchemaRecord, error)
 	GetSchemasBySubject(ctx context.Context, subject string, includeDeleted bool) ([]*SchemaRecord, error)
 	GetSchemaByFingerprint(ctx context.Context, subject, fingerprint string) (*SchemaRecord, error)
+	GetSchemaByGlobalFingerprint(ctx context.Context, fingerprint string) (*SchemaRecord, error)
 	GetLatestSchema(ctx context.Context, subject string) (*SchemaRecord, error)
 	DeleteSchema(ctx context.Context, subject string, version int, permanent bool) error
 

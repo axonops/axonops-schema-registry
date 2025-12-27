@@ -501,6 +501,38 @@ func (s *Store) GetSchemaByFingerprint(ctx context.Context, subject, fingerprint
 	return record, nil
 }
 
+// GetSchemaByGlobalFingerprint retrieves a schema by fingerprint (global lookup).
+// Returns the first matching schema regardless of subject.
+// Note: This requires scanning multiple partitions which is less efficient.
+// Consider adding a global_fingerprints table for better performance.
+func (s *Store) GetSchemaByGlobalFingerprint(ctx context.Context, fingerprint string) (*storage.SchemaRecord, error) {
+	// Query the schemas_by_fingerprint table with ALLOW FILTERING
+	// This is not ideal for production but works for compatibility
+	var subject string
+	var id int64
+	var version int
+	if err := s.readQuery(
+		`SELECT subject, id, version FROM schemas_by_fingerprint WHERE fingerprint = ? LIMIT 1 ALLOW FILTERING`,
+		fingerprint,
+	).WithContext(ctx).Scan(&subject, &id, &version); err != nil {
+		if err == gocql.ErrNotFound {
+			return nil, storage.ErrSchemaNotFound
+		}
+		return nil, fmt.Errorf("failed to lookup schema by global fingerprint: %w", err)
+	}
+
+	record, err := s.GetSchemaBySubjectVersion(ctx, subject, version)
+	if err != nil {
+		return nil, err
+	}
+
+	if record.Deleted {
+		return nil, storage.ErrSchemaNotFound
+	}
+
+	return record, nil
+}
+
 // GetLatestSchema retrieves the latest schema for a subject.
 func (s *Store) GetLatestSchema(ctx context.Context, subject string) (*storage.SchemaRecord, error) {
 	// Get all schemas for subject, ordered by version descending
