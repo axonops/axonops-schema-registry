@@ -375,22 +375,22 @@ func (s *Store) migrate(ctx context.Context) error {
 }
 
 // CreateSchema stores a new schema record.
-// This implementation handles concurrent insertions by using SELECT FOR UPDATE
-// to serialize version assignment within a subject.
+// This implementation handles concurrent insertions by retrying on conflicts.
+// MySQL deadlocks are handled as retriable errors.
 func (s *Store) CreateSchema(ctx context.Context, record *storage.SchemaRecord) error {
-	const maxRetries = 3
+	const maxRetries = 5
 	var lastErr error
 
 	for attempt := 0; attempt < maxRetries; attempt++ {
-		err := s.createSchemaWithLock(ctx, record)
+		err := s.createSchemaAttempt(ctx, record)
 		if err == nil {
 			return nil
 		}
 		if err == storage.ErrSchemaExists {
 			return err
 		}
-		// On duplicate key error, retry (another concurrent insert won the race)
-		if isMySQLDuplicateError(err) {
+		// On duplicate key error or deadlock, retry
+		if isMySQLDuplicateError(err) || isMySQLDeadlock(err) {
 			lastErr = err
 			continue
 		}
@@ -400,8 +400,8 @@ func (s *Store) CreateSchema(ctx context.Context, record *storage.SchemaRecord) 
 	return fmt.Errorf("failed to create schema after %d retries: %w", maxRetries, lastErr)
 }
 
-// createSchemaWithLock performs the actual schema creation with row-level locking.
-func (s *Store) createSchemaWithLock(ctx context.Context, record *storage.SchemaRecord) error {
+// createSchemaAttempt performs a single attempt to create a schema.
+func (s *Store) createSchemaAttempt(ctx context.Context, record *storage.SchemaRecord) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
@@ -423,19 +423,17 @@ func (s *Store) createSchemaWithLock(ctx context.Context, record *storage.Schema
 		return storage.ErrSchemaExists
 	}
 
-	// Get next version with FOR UPDATE lock to serialize concurrent inserts
-	// This locks the rows being read, preventing other transactions from
-	// reading the same max version until we commit
+	// Get next version for this subject (no locking - rely on unique constraint)
 	var nextVersion int
 	err = tx.QueryRowContext(ctx,
-		"SELECT COALESCE(MAX(version), 0) + 1 FROM `schemas` WHERE subject = ? FOR UPDATE",
+		"SELECT COALESCE(MAX(version), 0) + 1 FROM `schemas` WHERE subject = ?",
 		record.Subject,
 	).Scan(&nextVersion)
 	if err != nil {
 		return fmt.Errorf("failed to get next version: %w", err)
 	}
 
-	// Insert schema
+	// Insert schema - unique constraint on (subject, version) prevents duplicates
 	result, err := tx.ExecContext(ctx,
 		"INSERT INTO `schemas` (subject, version, schema_type, schema_text, fingerprint, created_at) VALUES (?, ?, ?, ?, ?, ?)",
 		record.Subject, nextVersion, record.SchemaType, record.Schema, record.Fingerprint, time.Now(),
@@ -1420,6 +1418,16 @@ func isMySQLDuplicateError(err error) bool {
 	// MySQL error code 1062 is for duplicate entry
 	errStr := err.Error()
 	return len(errStr) > 0 && (contains(errStr, "Duplicate entry") || contains(errStr, "1062"))
+}
+
+// isMySQLDeadlock checks if the error is a MySQL deadlock error.
+func isMySQLDeadlock(err error) bool {
+	if err == nil {
+		return false
+	}
+	// MySQL error code 1213 is for deadlock
+	errStr := err.Error()
+	return len(errStr) > 0 && (contains(errStr, "Deadlock found") || contains(errStr, "1213"))
 }
 
 // contains checks if s contains substr.

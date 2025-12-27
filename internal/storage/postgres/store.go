@@ -415,22 +415,22 @@ func (s *Store) migrate(ctx context.Context) error {
 }
 
 // CreateSchema stores a new schema record.
-// This implementation handles concurrent insertions by using SELECT FOR UPDATE
-// to serialize version assignment within a subject.
+// This implementation handles concurrent insertions by retrying on conflicts.
+// PostgreSQL serialization errors are handled as retriable errors.
 func (s *Store) CreateSchema(ctx context.Context, record *storage.SchemaRecord) error {
-	const maxRetries = 3
+	const maxRetries = 5
 	var lastErr error
 
 	for attempt := 0; attempt < maxRetries; attempt++ {
-		err := s.createSchemaWithLock(ctx, record)
+		err := s.createSchemaAttempt(ctx, record)
 		if err == nil {
 			return nil
 		}
 		if err == storage.ErrSchemaExists {
 			return err
 		}
-		// On unique violation, retry (another concurrent insert won the race)
-		if isUniqueViolation(err) {
+		// On unique violation or serialization error, retry
+		if isUniqueViolation(err) || isSerializationError(err) {
 			lastErr = err
 			continue
 		}
@@ -440,8 +440,8 @@ func (s *Store) CreateSchema(ctx context.Context, record *storage.SchemaRecord) 
 	return fmt.Errorf("failed to create schema after %d retries: %w", maxRetries, lastErr)
 }
 
-// createSchemaWithLock performs the actual schema creation with row-level locking.
-func (s *Store) createSchemaWithLock(ctx context.Context, record *storage.SchemaRecord) error {
+// createSchemaAttempt performs a single attempt to create a schema.
+func (s *Store) createSchemaAttempt(ctx context.Context, record *storage.SchemaRecord) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
@@ -463,19 +463,17 @@ func (s *Store) createSchemaWithLock(ctx context.Context, record *storage.Schema
 		return storage.ErrSchemaExists
 	}
 
-	// Get next version with FOR UPDATE lock to serialize concurrent inserts
-	// This locks the rows being read, preventing other transactions from
-	// reading the same max version until we commit
+	// Get next version for this subject (no locking - rely on unique constraint)
 	var nextVersion int
 	err = tx.QueryRowContext(ctx,
-		`SELECT COALESCE(MAX(version), 0) + 1 FROM schemas WHERE subject = $1 FOR UPDATE`,
+		`SELECT COALESCE(MAX(version), 0) + 1 FROM schemas WHERE subject = $1`,
 		record.Subject,
 	).Scan(&nextVersion)
 	if err != nil {
 		return fmt.Errorf("failed to get next version: %w", err)
 	}
 
-	// Insert schema
+	// Insert schema - unique constraint on (subject, version) prevents duplicates
 	err = tx.QueryRowContext(ctx,
 		`INSERT INTO schemas (subject, version, schema_type, schema_text, fingerprint, created_at)
 		 VALUES ($1, $2, $3, $4, $5, $6)
@@ -1446,6 +1444,17 @@ func isUniqueViolation(err error) bool {
 	}
 	// PostgreSQL error code for unique_violation is 23505
 	return err.Error() != "" && (contains(err.Error(), "duplicate key") || contains(err.Error(), "23505"))
+}
+
+// isSerializationError checks if the error is a PostgreSQL serialization error.
+func isSerializationError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errStr := err.Error()
+	// PostgreSQL error code 40001 is for serialization_failure
+	// PostgreSQL error code 40P01 is for deadlock_detected
+	return contains(errStr, "40001") || contains(errStr, "40P01") || contains(errStr, "deadlock")
 }
 
 // contains checks if s contains substr (case-insensitive).
