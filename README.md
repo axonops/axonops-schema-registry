@@ -242,7 +242,7 @@ Schema registration includes parsing, validation, and compatibility checking:
 
 ```bash
 # Start with in-memory storage (for testing)
-docker run -d -p 8081:8081 axonops/schema-registry:latest
+docker run -d -p 8081:8081 ghcr.io/axonops/axonops-schema-registry:latest
 
 # Start with PostgreSQL
 docker run -d -p 8081:8081 \
@@ -251,7 +251,7 @@ docker run -d -p 8081:8081 \
   -e POSTGRES_USER=schemaregistry \
   -e POSTGRES_PASSWORD=secret \
   -e POSTGRES_DATABASE=schemaregistry \
-  axonops/schema-registry:latest
+  ghcr.io/axonops/axonops-schema-registry:latest
 ```
 
 ### Using Binary
@@ -344,9 +344,17 @@ sudo cp axonops-schema-registry-*/config.example.yaml /etc/axonops-schema-regist
 
 ### Docker Installation
 
+Docker images are available from GitHub Container Registry:
+
 ```bash
 # Pull the image
-docker pull axonops/schema-registry:latest
+docker pull ghcr.io/axonops/axonops-schema-registry:latest
+
+# Available tags:
+#   - latest       (latest stable release)
+#   - 1.0.0        (specific version)
+#   - 1.0          (latest patch for minor version)
+#   - 1            (latest minor/patch for major version)
 
 # Run with environment variables
 docker run -d \
@@ -357,14 +365,14 @@ docker run -d \
   -e POSTGRES_DATABASE=schemaregistry \
   -e POSTGRES_USER=schemaregistry \
   -e POSTGRES_PASSWORD=secret \
-  axonops/schema-registry:latest
+  ghcr.io/axonops/axonops-schema-registry:latest
 
 # Run with config file
 docker run -d \
   --name schema-registry \
   -p 8081:8081 \
   -v /path/to/config.yaml:/etc/axonops-schema-registry/config.yaml \
-  axonops/schema-registry:latest --config /etc/axonops-schema-registry/config.yaml
+  ghcr.io/axonops/axonops-schema-registry:latest --config /etc/axonops-schema-registry/config.yaml
 ```
 
 ### Kubernetes Installation
@@ -386,7 +394,7 @@ spec:
     spec:
       containers:
       - name: schema-registry
-        image: axonops/schema-registry:latest
+        image: ghcr.io/axonops/axonops-schema-registry:latest
         ports:
         - containerPort: 8081
         env:
