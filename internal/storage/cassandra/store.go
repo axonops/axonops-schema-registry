@@ -1040,32 +1040,33 @@ func (s *Store) CreateUser(ctx context.Context, user *storage.UserRecord) error 
 		user.UpdatedAt = now
 	}
 
+	createdUUID := gocql.UUIDFromTime(user.CreatedAt)
+	updatedUUID := gocql.UUIDFromTime(user.UpdatedAt)
+
 	// Use username as key in users_by_email (repurposed as users_by_username)
 	batch := s.session.NewBatch(gocql.LoggedBatch).WithContext(ctx)
 	batch.Query(
 		fmt.Sprintf(`INSERT INTO %s.users_by_id (user_id, email, name, password_hash, roles, enabled, created_at, updated_at)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, qident(s.cfg.Keyspace)),
-		gocql.UUIDFromTime(time.Unix(0, user.ID)), user.Email, user.Username, user.PasswordHash, []string{user.Role}, user.Enabled, gocql.UUIDFromTime(user.CreatedAt), gocql.UUIDFromTime(user.UpdatedAt),
+		user.ID, user.Email, user.Username, user.PasswordHash, []string{user.Role}, user.Enabled, createdUUID, updatedUUID,
 	)
 	batch.Query(
 		fmt.Sprintf(`INSERT INTO %s.users_by_email (email, user_id, name, password_hash, roles, enabled, created_at, updated_at)
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, qident(s.cfg.Keyspace)),
-		user.Username, gocql.UUIDFromTime(time.Unix(0, user.ID)), user.Username, user.PasswordHash, []string{user.Role}, user.Enabled, gocql.UUIDFromTime(user.CreatedAt), gocql.UUIDFromTime(user.UpdatedAt),
+		user.Username, user.ID, user.Username, user.PasswordHash, []string{user.Role}, user.Enabled, createdUUID, updatedUUID,
 	)
 	return s.session.ExecuteBatch(batch)
 }
 
 // GetUserByID retrieves a user by ID.
 func (s *Store) GetUserByID(ctx context.Context, id int64) (*storage.UserRecord, error) {
-	uuid := gocql.UUIDFromTime(time.Unix(0, id))
-
 	var email, name, pw string
 	var roles []string
 	var enabled bool
 	var createdUUID, updatedUUID gocql.UUID
 	err := s.readQuery(
 		fmt.Sprintf(`SELECT email, name, password_hash, roles, enabled, created_at, updated_at FROM %s.users_by_id WHERE user_id = ?`, qident(s.cfg.Keyspace)),
-		uuid,
+		id,
 	).WithContext(ctx).Scan(&email, &name, &pw, &roles, &enabled, &createdUUID, &updatedUUID)
 	if err != nil {
 		if errors.Is(err, gocql.ErrNotFound) {
@@ -1096,15 +1097,11 @@ func (s *Store) GetUserByUsername(ctx context.Context, username string) (*storag
 	if username == "" {
 		return nil, storage.ErrUserNotFound
 	}
-	var uuid gocql.UUID
-	var name, pw string
-	var roles []string
-	var enabled bool
-	var createdUUID, updatedUUID gocql.UUID
+	var userID int64
 	err := s.readQuery(
-		fmt.Sprintf(`SELECT user_id, name, password_hash, roles, enabled, created_at, updated_at FROM %s.users_by_email WHERE email = ?`, qident(s.cfg.Keyspace)),
+		fmt.Sprintf(`SELECT user_id FROM %s.users_by_email WHERE email = ?`, qident(s.cfg.Keyspace)),
 		username,
-	).WithContext(ctx).Scan(&uuid, &name, &pw, &roles, &enabled, &createdUUID, &updatedUUID)
+	).WithContext(ctx).Scan(&userID)
 	if err != nil {
 		if errors.Is(err, gocql.ErrNotFound) {
 			return nil, storage.ErrUserNotFound
@@ -1112,21 +1109,8 @@ func (s *Store) GetUserByUsername(ctx context.Context, username string) (*storag
 		return nil, err
 	}
 
-	role := ""
-	if len(roles) > 0 {
-		role = roles[0]
-	}
-
-	return &storage.UserRecord{
-		ID:           uuid.Time().UnixNano(),
-		Username:     name,
-		Email:        "",
-		PasswordHash: pw,
-		Role:         role,
-		Enabled:      enabled,
-		CreatedAt:    createdUUID.Time(),
-		UpdatedAt:    updatedUUID.Time(),
-	}, nil
+	// Fetch the full user record to get all fields
+	return s.GetUserByID(ctx, userID)
 }
 
 // UpdateUser updates a user.
@@ -1147,10 +1131,9 @@ func (s *Store) DeleteUser(ctx context.Context, id int64) error {
 	if err != nil {
 		return err
 	}
-	uuid := gocql.UUIDFromTime(time.Unix(0, id))
 
 	batch := s.session.NewBatch(gocql.LoggedBatch).WithContext(ctx)
-	batch.Query(fmt.Sprintf(`DELETE FROM %s.users_by_id WHERE user_id = ?`, qident(s.cfg.Keyspace)), uuid)
+	batch.Query(fmt.Sprintf(`DELETE FROM %s.users_by_id WHERE user_id = ?`, qident(s.cfg.Keyspace)), id)
 	batch.Query(fmt.Sprintf(`DELETE FROM %s.users_by_email WHERE email = ?`, qident(s.cfg.Keyspace)), u.Username)
 	return s.session.ExecuteBatch(batch)
 }
@@ -1161,10 +1144,10 @@ func (s *Store) ListUsers(ctx context.Context) ([]*storage.UserRecord, error) {
 		fmt.Sprintf(`SELECT user_id FROM %s.users_by_id`, qident(s.cfg.Keyspace)),
 	).WithContext(ctx).Iter()
 
-	var uuid gocql.UUID
+	var userID int64
 	var out []*storage.UserRecord
-	for iter.Scan(&uuid) {
-		u, err := s.GetUserByID(ctx, uuid.Time().UnixNano())
+	for iter.Scan(&userID) {
+		u, err := s.GetUserByID(ctx, userID)
 		if err == nil {
 			out = append(out, u)
 		}
@@ -1198,40 +1181,42 @@ func (s *Store) CreateAPIKey(ctx context.Context, key *storage.APIKeyRecord) err
 		key.ID = id
 	}
 
-	userUUID := gocql.UUIDFromTime(time.Unix(0, key.UserID))
-	keyUUID := gocql.UUIDFromTime(time.Unix(0, key.ID))
 	createdUUID := gocql.TimeUUID()
-
 	if key.CreatedAt.IsZero() {
 		key.CreatedAt = createdUUID.Time()
+	} else {
+		createdUUID = gocql.UUIDFromTime(key.CreatedAt)
 	}
 
 	batch := s.session.NewBatch(gocql.LoggedBatch).WithContext(ctx)
 	batch.Query(
 		fmt.Sprintf(`INSERT INTO %s.api_keys_by_id (api_key_id, user_id, name, api_key_hash, created_at, expires_at)
 			VALUES (?, ?, ?, ?, ?, ?)`, qident(s.cfg.Keyspace)),
-		keyUUID, userUUID, key.Name, key.KeyHash, gocql.UUIDFromTime(key.CreatedAt), key.ExpiresAt,
+		key.ID, key.UserID, key.Name, key.KeyHash, createdUUID, key.ExpiresAt,
 	)
 	batch.Query(
 		fmt.Sprintf(`INSERT INTO %s.api_keys_by_user (user_id, api_key_id, name, api_key_hash, created_at, expires_at)
 			VALUES (?, ?, ?, ?, ?, ?)`, qident(s.cfg.Keyspace)),
-		userUUID, keyUUID, key.Name, key.KeyHash, gocql.UUIDFromTime(key.CreatedAt), key.ExpiresAt,
+		key.UserID, key.ID, key.Name, key.KeyHash, createdUUID, key.ExpiresAt,
+	)
+	batch.Query(
+		fmt.Sprintf(`INSERT INTO %s.api_keys_by_hash (api_key_hash, api_key_id, user_id, name, created_at, expires_at)
+			VALUES (?, ?, ?, ?, ?, ?)`, qident(s.cfg.Keyspace)),
+		key.KeyHash, key.ID, key.UserID, key.Name, createdUUID, key.ExpiresAt,
 	)
 	return s.session.ExecuteBatch(batch)
 }
 
 // GetAPIKeyByID retrieves an API key by ID.
 func (s *Store) GetAPIKeyByID(ctx context.Context, id int64) (*storage.APIKeyRecord, error) {
-	keyUUID := gocql.UUIDFromTime(time.Unix(0, id))
-
-	var userUUID gocql.UUID
+	var userID int64
 	var name, hash string
 	var createdUUID gocql.UUID
 	var expiresAt time.Time
 	err := s.readQuery(
 		fmt.Sprintf(`SELECT user_id, name, api_key_hash, created_at, expires_at FROM %s.api_keys_by_id WHERE api_key_id = ?`, qident(s.cfg.Keyspace)),
-		keyUUID,
-	).WithContext(ctx).Scan(&userUUID, &name, &hash, &createdUUID, &expiresAt)
+		id,
+	).WithContext(ctx).Scan(&userID, &name, &hash, &createdUUID, &expiresAt)
 	if err != nil {
 		if errors.Is(err, gocql.ErrNotFound) {
 			return nil, storage.ErrAPIKeyNotFound
@@ -1241,7 +1226,7 @@ func (s *Store) GetAPIKeyByID(ctx context.Context, id int64) (*storage.APIKeyRec
 
 	return &storage.APIKeyRecord{
 		ID:        id,
-		UserID:    userUUID.Time().UnixNano(),
+		UserID:    userID,
 		Name:      name,
 		KeyHash:   hash,
 		CreatedAt: createdUUID.Time(),
@@ -1251,32 +1236,29 @@ func (s *Store) GetAPIKeyByID(ctx context.Context, id int64) (*storage.APIKeyRec
 
 // GetAPIKeyByHash retrieves an API key by its hash.
 func (s *Store) GetAPIKeyByHash(ctx context.Context, keyHash string) (*storage.APIKeyRecord, error) {
-	// Need to scan all keys to find by hash
-	iter := s.readQuery(
-		fmt.Sprintf(`SELECT api_key_id, user_id, name, api_key_hash, created_at, expires_at FROM %s.api_keys_by_id`, qident(s.cfg.Keyspace)),
-	).WithContext(ctx).Iter()
-
-	var keyUUID, userUUID gocql.UUID
-	var name, hash string
+	var keyID, userID int64
+	var name string
 	var createdUUID gocql.UUID
 	var expiresAt time.Time
-	for iter.Scan(&keyUUID, &userUUID, &name, &hash, &createdUUID, &expiresAt) {
-		if hash == keyHash {
-			iter.Close()
-			return &storage.APIKeyRecord{
-				ID:        keyUUID.Time().UnixNano(),
-				UserID:    userUUID.Time().UnixNano(),
-				Name:      name,
-				KeyHash:   hash,
-				CreatedAt: createdUUID.Time(),
-				ExpiresAt: expiresAt,
-			}, nil
+	err := s.readQuery(
+		fmt.Sprintf(`SELECT api_key_id, user_id, name, created_at, expires_at FROM %s.api_keys_by_hash WHERE api_key_hash = ?`, qident(s.cfg.Keyspace)),
+		keyHash,
+	).WithContext(ctx).Scan(&keyID, &userID, &name, &createdUUID, &expiresAt)
+	if err != nil {
+		if errors.Is(err, gocql.ErrNotFound) {
+			return nil, storage.ErrAPIKeyNotFound
 		}
-	}
-	if err := iter.Close(); err != nil {
 		return nil, err
 	}
-	return nil, storage.ErrAPIKeyNotFound
+
+	return &storage.APIKeyRecord{
+		ID:        keyID,
+		UserID:    userID,
+		Name:      name,
+		KeyHash:   keyHash,
+		CreatedAt: createdUUID.Time(),
+		ExpiresAt: expiresAt,
+	}, nil
 }
 
 // GetAPIKeyByUserAndName retrieves an API key by user ID and name.
@@ -1307,12 +1289,11 @@ func (s *Store) DeleteAPIKey(ctx context.Context, id int64) error {
 	if err != nil {
 		return err
 	}
-	keyUUID := gocql.UUIDFromTime(time.Unix(0, rec.ID))
-	userUUID := gocql.UUIDFromTime(time.Unix(0, rec.UserID))
 
 	batch := s.session.NewBatch(gocql.LoggedBatch).WithContext(ctx)
-	batch.Query(fmt.Sprintf(`DELETE FROM %s.api_keys_by_id WHERE api_key_id = ?`, qident(s.cfg.Keyspace)), keyUUID)
-	batch.Query(fmt.Sprintf(`DELETE FROM %s.api_keys_by_user WHERE user_id = ? AND api_key_id = ?`, qident(s.cfg.Keyspace)), userUUID, keyUUID)
+	batch.Query(fmt.Sprintf(`DELETE FROM %s.api_keys_by_id WHERE api_key_id = ?`, qident(s.cfg.Keyspace)), id)
+	batch.Query(fmt.Sprintf(`DELETE FROM %s.api_keys_by_user WHERE user_id = ? AND api_key_id = ?`, qident(s.cfg.Keyspace)), rec.UserID, id)
+	batch.Query(fmt.Sprintf(`DELETE FROM %s.api_keys_by_hash WHERE api_key_hash = ?`, qident(s.cfg.Keyspace)), rec.KeyHash)
 	return s.session.ExecuteBatch(batch)
 }
 
@@ -1322,10 +1303,10 @@ func (s *Store) ListAPIKeys(ctx context.Context) ([]*storage.APIKeyRecord, error
 		fmt.Sprintf(`SELECT api_key_id FROM %s.api_keys_by_id`, qident(s.cfg.Keyspace)),
 	).WithContext(ctx).Iter()
 
-	var keyUUID gocql.UUID
+	var keyID int64
 	var out []*storage.APIKeyRecord
-	for iter.Scan(&keyUUID) {
-		rec, err := s.GetAPIKeyByID(ctx, keyUUID.Time().UnixNano())
+	for iter.Scan(&keyID) {
+		rec, err := s.GetAPIKeyByID(ctx, keyID)
 		if err == nil {
 			out = append(out, rec)
 		}
@@ -1338,16 +1319,15 @@ func (s *Store) ListAPIKeys(ctx context.Context) ([]*storage.APIKeyRecord, error
 
 // ListAPIKeysByUserID retrieves all API keys for a user.
 func (s *Store) ListAPIKeysByUserID(ctx context.Context, userID int64) ([]*storage.APIKeyRecord, error) {
-	userUUID := gocql.UUIDFromTime(time.Unix(0, userID))
 	iter := s.readQuery(
 		fmt.Sprintf(`SELECT api_key_id FROM %s.api_keys_by_user WHERE user_id = ?`, qident(s.cfg.Keyspace)),
-		userUUID,
+		userID,
 	).WithContext(ctx).Iter()
 
-	var keyUUID gocql.UUID
+	var keyID int64
 	var out []*storage.APIKeyRecord
-	for iter.Scan(&keyUUID) {
-		rec, err := s.GetAPIKeyByID(ctx, keyUUID.Time().UnixNano())
+	for iter.Scan(&keyID) {
+		rec, err := s.GetAPIKeyByID(ctx, keyID)
 		if err == nil {
 			out = append(out, rec)
 		}

@@ -126,7 +126,7 @@ func Migrate(session *gocql.Session, keyspace string) error {
 
 		// Table 12: users_by_id - user records
 		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s.users_by_id (
-			user_id       uuid PRIMARY KEY,
+			user_id       bigint PRIMARY KEY,
 			email         text,
 			name          text,
 			password_hash text,
@@ -136,10 +136,10 @@ func Migrate(session *gocql.Session, keyspace string) error {
 			updated_at    timeuuid
 		)`, qident(keyspace)),
 
-		// Table 13: users_by_email - lookup by email
+		// Table 13: users_by_email - lookup by email (used as users_by_username)
 		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s.users_by_email (
 			email         text PRIMARY KEY,
-			user_id       uuid,
+			user_id       bigint,
 			name          text,
 			password_hash text,
 			roles         set<text>,
@@ -150,8 +150,8 @@ func Migrate(session *gocql.Session, keyspace string) error {
 
 		// Table 14: api_keys_by_id - API key records
 		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s.api_keys_by_id (
-			api_key_id   uuid PRIMARY KEY,
-			user_id      uuid,
+			api_key_id   bigint PRIMARY KEY,
+			user_id      bigint,
 			name         text,
 			api_key_hash text,
 			created_at   timeuuid,
@@ -160,13 +160,23 @@ func Migrate(session *gocql.Session, keyspace string) error {
 
 		// Table 15: api_keys_by_user - lookup by user
 		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s.api_keys_by_user (
-			user_id    uuid,
-			api_key_id uuid,
-			name       text,
+			user_id      bigint,
+			api_key_id   bigint,
+			name         text,
 			api_key_hash text,
-			created_at timeuuid,
-			expires_at timestamp,
+			created_at   timeuuid,
+			expires_at   timestamp,
 			PRIMARY KEY ((user_id), api_key_id)
+		)`, qident(keyspace)),
+
+		// Table 16: api_keys_by_hash - lookup by hash for authentication
+		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s.api_keys_by_hash (
+			api_key_hash text PRIMARY KEY,
+			api_key_id   bigint,
+			user_id      bigint,
+			name         text,
+			created_at   timeuuid,
+			expires_at   timestamp
 		)`, qident(keyspace)),
 	}
 

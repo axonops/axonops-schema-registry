@@ -116,8 +116,8 @@ func createStorage(_ context.Context) (storage.Storage, error) {
 			Hosts:          []string{getEnvOrDefault("CASSANDRA_HOSTS", "localhost")},
 			Port:           getEnvOrDefaultInt("CASSANDRA_PORT", 9042),
 			Keyspace:       getEnvOrDefault("CASSANDRA_KEYSPACE", "schemaregistry"),
-			Consistency:    "ONE", // Use ONE for single-node test cluster (simpler than LOCAL_ONE)
-			LocalDC:        "",    // Don't use DC-aware policy for single-node setup
+			Consistency:    "ONE",            // Use ONE for single-node test cluster (simpler than LOCAL_ONE)
+			LocalDC:        "",               // Don't use DC-aware policy for single-node setup
 			ConnectTimeout: 30 * time.Second, // Longer timeout for CI
 			Timeout:        30 * time.Second,
 			Migrate:        true,
