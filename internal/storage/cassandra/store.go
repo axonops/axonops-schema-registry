@@ -462,7 +462,16 @@ func (s *Store) GetSchemaByID(ctx context.Context, id int64) (*storage.SchemaRec
 
 // GetSchemaBySubjectVersion retrieves a schema by subject and version.
 func (s *Store) GetSchemaBySubjectVersion(ctx context.Context, subject string, version int) (*storage.SchemaRecord, error) {
-	if subject == "" || version <= 0 {
+	if subject == "" {
+		return nil, storage.ErrVersionNotFound
+	}
+
+	// Handle "latest" version (-1)
+	if version == -1 {
+		return s.GetLatestSchema(ctx, subject)
+	}
+
+	if version <= 0 {
 		return nil, storage.ErrVersionNotFound
 	}
 
@@ -1127,8 +1136,41 @@ func (s *Store) UpdateUser(ctx context.Context, user *storage.UserRecord) error 
 	if user.ID == 0 {
 		return errors.New("user id is required")
 	}
+
+	// Verify user exists
+	existing, err := s.GetUserByID(ctx, user.ID)
+	if err != nil {
+		return err
+	}
+
 	user.UpdatedAt = time.Now()
-	return s.CreateUser(ctx, user)
+	updatedUUID := gocql.UUIDFromTime(user.UpdatedAt)
+	createdUUID := gocql.UUIDFromTime(user.CreatedAt)
+
+	batch := s.session.NewBatch(gocql.LoggedBatch).WithContext(ctx)
+
+	// Update users_by_id
+	batch.Query(
+		fmt.Sprintf(`UPDATE %s.users_by_id SET email = ?, name = ?, password_hash = ?, roles = ?, enabled = ?, updated_at = ? WHERE user_id = ?`, qident(s.cfg.Keyspace)),
+		user.Email, user.Username, user.PasswordHash, []string{user.Role}, user.Enabled, updatedUUID, user.ID,
+	)
+
+	// If username changed, delete old entry and create new one in users_by_email
+	if existing.Username != user.Username {
+		batch.Query(
+			fmt.Sprintf(`DELETE FROM %s.users_by_email WHERE email = ?`, qident(s.cfg.Keyspace)),
+			existing.Username,
+		)
+	}
+
+	// Upsert users_by_email with current username
+	batch.Query(
+		fmt.Sprintf(`INSERT INTO %s.users_by_email (email, user_id, name, password_hash, roles, enabled, created_at, updated_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, qident(s.cfg.Keyspace)),
+		user.Username, user.ID, user.Username, user.PasswordHash, []string{user.Role}, user.Enabled, createdUUID, updatedUUID,
+	)
+
+	return s.session.ExecuteBatch(batch)
 }
 
 // DeleteUser deletes a user.
@@ -1307,7 +1349,52 @@ func (s *Store) UpdateAPIKey(ctx context.Context, key *storage.APIKeyRecord) err
 	if key == nil {
 		return errors.New("api key is nil")
 	}
-	return s.CreateAPIKey(ctx, key)
+	if key.ID == 0 {
+		return errors.New("api key id is required")
+	}
+
+	// Verify API key exists
+	existing, err := s.GetAPIKeyByID(ctx, key.ID)
+	if err != nil {
+		return err
+	}
+
+	createdUUID := gocql.UUIDFromTime(key.CreatedAt)
+
+	batch := s.session.NewBatch(gocql.LoggedBatch).WithContext(ctx)
+
+	// Update api_keys_by_id
+	batch.Query(
+		fmt.Sprintf(`UPDATE %s.api_keys_by_id SET name = ?, key_prefix = ?, role = ?, enabled = ?, expires_at = ? WHERE api_key_id = ?`, qident(s.cfg.Keyspace)),
+		key.Name, key.KeyPrefix, key.Role, key.Enabled, key.ExpiresAt, key.ID,
+	)
+
+	// Update api_keys_by_user
+	batch.Query(
+		fmt.Sprintf(`UPDATE %s.api_keys_by_user SET name = ?, key_prefix = ?, role = ?, enabled = ?, expires_at = ? WHERE user_id = ? AND api_key_id = ?`, qident(s.cfg.Keyspace)),
+		key.Name, key.KeyPrefix, key.Role, key.Enabled, key.ExpiresAt, key.UserID, key.ID,
+	)
+
+	// If hash changed, delete old entry and create new one in api_keys_by_hash
+	if existing.KeyHash != key.KeyHash {
+		batch.Query(
+			fmt.Sprintf(`DELETE FROM %s.api_keys_by_hash WHERE api_key_hash = ?`, qident(s.cfg.Keyspace)),
+			existing.KeyHash,
+		)
+		batch.Query(
+			fmt.Sprintf(`INSERT INTO %s.api_keys_by_hash (api_key_hash, api_key_id, user_id, name, key_prefix, role, enabled, created_at, expires_at)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, qident(s.cfg.Keyspace)),
+			key.KeyHash, key.ID, key.UserID, key.Name, key.KeyPrefix, key.Role, key.Enabled, createdUUID, key.ExpiresAt,
+		)
+	} else {
+		// Hash unchanged, just update existing entry
+		batch.Query(
+			fmt.Sprintf(`UPDATE %s.api_keys_by_hash SET name = ?, key_prefix = ?, role = ?, enabled = ?, expires_at = ? WHERE api_key_hash = ?`, qident(s.cfg.Keyspace)),
+			key.Name, key.KeyPrefix, key.Role, key.Enabled, key.ExpiresAt, key.KeyHash,
+		)
+	}
+
+	return s.session.ExecuteBatch(batch)
 }
 
 // DeleteAPIKey deletes an API key.
