@@ -935,6 +935,76 @@ func (s *Store) NextID(ctx context.Context) (int64, error) {
 	return id, nil
 }
 
+// ImportSchema inserts a schema with a specified ID (for migration).
+// Returns ErrSchemaIDConflict if the ID already exists.
+func (s *Store) ImportSchema(ctx context.Context, record *storage.SchemaRecord) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	// Check if schema ID already exists
+	var existingID int64
+	err = tx.QueryRowContext(ctx, `SELECT id FROM schemas WHERE id = $1`, record.ID).Scan(&existingID)
+	if err == nil {
+		return storage.ErrSchemaIDConflict
+	}
+	if err != sql.ErrNoRows {
+		return fmt.Errorf("failed to check existing schema: %w", err)
+	}
+
+	// Check if version already exists for this subject
+	var existingVersion int
+	err = tx.QueryRowContext(ctx,
+		`SELECT version FROM schemas WHERE subject = $1 AND version = $2`,
+		record.Subject, record.Version,
+	).Scan(&existingVersion)
+	if err == nil {
+		return storage.ErrSchemaExists
+	}
+	if err != sql.ErrNoRows {
+		return fmt.Errorf("failed to check existing version: %w", err)
+	}
+
+	// Insert schema with explicit ID
+	_, err = tx.ExecContext(ctx,
+		`INSERT INTO schemas (id, subject, version, schema_type, schema_text, fingerprint, created_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+		record.ID, record.Subject, record.Version, record.SchemaType, record.Schema, record.Fingerprint, time.Now(),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to insert schema: %w", err)
+	}
+
+	// Insert references
+	for _, ref := range record.References {
+		_, err = tx.ExecContext(ctx,
+			`INSERT INTO schema_references (schema_id, name, ref_subject, ref_version)
+			 VALUES ($1, $2, $3, $4)`,
+			record.ID, ref.Name, ref.Subject, ref.Version,
+		)
+		if err != nil {
+			return fmt.Errorf("failed to insert reference: %w", err)
+		}
+	}
+
+	record.CreatedAt = time.Now()
+
+	return tx.Commit()
+}
+
+// SetNextID sets the ID sequence to start from the given value.
+// Used after import to prevent ID conflicts.
+func (s *Store) SetNextID(ctx context.Context, id int64) error {
+	// setval with false means the next nextval will return exactly this value
+	_, err := s.db.ExecContext(ctx, `SELECT setval('schemas_id_seq', $1, false)`, id)
+	if err != nil {
+		return fmt.Errorf("failed to set next ID: %w", err)
+	}
+	return nil
+}
+
 // GetReferencedBy returns subjects/versions that reference the given schema.
 func (s *Store) GetReferencedBy(ctx context.Context, subject string, version int) ([]storage.SubjectVersion, error) {
 	rows, err := s.stmts.getReferencedBy.QueryContext(ctx, subject, version)

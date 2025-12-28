@@ -615,6 +615,65 @@ func (s *Store) NextID(ctx context.Context) (int64, error) {
 	return atomic.AddInt64(&s.nextID, 1) - 1, nil
 }
 
+// ImportSchema inserts a schema with a specified ID (for migration).
+// Returns ErrSchemaIDConflict if the ID already exists.
+func (s *Store) ImportSchema(ctx context.Context, record *storage.SchemaRecord) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Check if schema ID already exists
+	if _, exists := s.schemas[record.ID]; exists {
+		return storage.ErrSchemaIDConflict
+	}
+
+	// Initialize subject's version map if needed
+	if s.subjectVersions[record.Subject] == nil {
+		s.subjectVersions[record.Subject] = make(map[int]*subjectVersionInfo)
+	}
+
+	// Check if version already exists for this subject
+	if _, exists := s.subjectVersions[record.Subject][record.Version]; exists {
+		return storage.ErrSchemaExists
+	}
+
+	// Store the schema content
+	s.schemas[record.ID] = &storage.SchemaRecord{
+		ID:          record.ID,
+		SchemaType:  record.SchemaType,
+		Schema:      record.Schema,
+		References:  record.References,
+		Fingerprint: record.Fingerprint,
+	}
+
+	// Update global fingerprint mapping
+	s.globalFingerprints[record.Fingerprint] = record.ID
+
+	// Store the subject-version mapping
+	s.subjectVersions[record.Subject][record.Version] = &subjectVersionInfo{
+		schemaID:  record.ID,
+		version:   record.Version,
+		deleted:   false,
+		createdAt: time.Now(),
+	}
+
+	// Update idToSubjectVersions
+	s.idToSubjectVersions[record.ID] = append(s.idToSubjectVersions[record.ID], storage.SubjectVersion{
+		Subject: record.Subject,
+		Version: record.Version,
+	})
+
+	record.CreatedAt = time.Now()
+
+	return nil
+}
+
+// SetNextID sets the ID sequence to start from the given value.
+// Used after import to prevent ID conflicts.
+func (s *Store) SetNextID(ctx context.Context, id int64) error {
+	atomic.StoreInt64(&s.nextID, id)
+	return nil
+}
+
 // GetReferencedBy returns subjects/versions that reference the given schema.
 func (s *Store) GetReferencedBy(ctx context.Context, subject string, version int) ([]storage.SubjectVersion, error) {
 	s.mu.RLock()

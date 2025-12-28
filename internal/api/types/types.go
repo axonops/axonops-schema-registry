@@ -259,3 +259,34 @@ type RoleInfo struct {
 	Description string   `json:"description"`
 	Permissions []string `json:"permissions"`
 }
+
+// ImportSchemaRequest is the request for importing a single schema with a specific ID.
+type ImportSchemaRequest struct {
+	ID         int64               `json:"id"`
+	Subject    string              `json:"subject"`
+	Version    int                 `json:"version"`
+	SchemaType string              `json:"schemaType,omitempty"`
+	Schema     string              `json:"schema"`
+	References []storage.Reference `json:"references,omitempty"`
+}
+
+// ImportSchemasRequest is the request for importing multiple schemas.
+type ImportSchemasRequest struct {
+	Schemas []ImportSchemaRequest `json:"schemas"`
+}
+
+// ImportSchemaResult is the result for a single schema import.
+type ImportSchemaResult struct {
+	ID      int64  `json:"id"`
+	Subject string `json:"subject"`
+	Version int    `json:"version"`
+	Success bool   `json:"success"`
+	Error   string `json:"error,omitempty"`
+}
+
+// ImportSchemasResponse is the response for importing schemas.
+type ImportSchemasResponse struct {
+	Imported int                  `json:"imported"`
+	Errors   int                  `json:"errors"`
+	Results  []ImportSchemaResult `json:"results"`
+}

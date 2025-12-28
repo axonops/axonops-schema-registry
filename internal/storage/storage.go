@@ -26,6 +26,7 @@ var (
 	ErrUserDisabled     = errors.New("user is disabled")
 	ErrInvalidRole      = errors.New("invalid role")
 	ErrPermissionDenied = errors.New("permission denied")
+	ErrSchemaIDConflict = errors.New("schema ID already exists")
 )
 
 // SchemaType represents the type of schema.
@@ -160,6 +161,14 @@ type Storage interface {
 
 	// ID generation
 	NextID(ctx context.Context) (int64, error)
+
+	// Import operations (for migration from other schema registries)
+	// ImportSchema inserts a schema with a specified ID (for migration).
+	// Returns ErrSchemaIDConflict if the ID already exists.
+	ImportSchema(ctx context.Context, record *SchemaRecord) error
+	// SetNextID sets the ID sequence to start from the given value.
+	// Used after import to prevent ID conflicts.
+	SetNextID(ctx context.Context, id int64) error
 
 	// References
 	GetReferencedBy(ctx context.Context, subject string, version int) ([]SubjectVersion, error)

@@ -387,6 +387,144 @@ func (r *Registry) ListSchemas(ctx context.Context, params *storage.ListSchemasP
 	return r.storage.ListSchemas(ctx, params)
 }
 
+// ImportSchemaRequest represents a single schema to import with a specified ID.
+type ImportSchemaRequest struct {
+	ID         int64
+	Subject    string
+	Version    int
+	SchemaType storage.SchemaType
+	Schema     string
+	References []storage.Reference
+}
+
+// ImportSchemaResult represents the result of importing a single schema.
+type ImportSchemaResult struct {
+	ID      int64
+	Subject string
+	Version int
+	Success bool
+	Error   string
+}
+
+// ImportResult represents the result of importing multiple schemas.
+type ImportResult struct {
+	Imported int
+	Errors   int
+	Results  []ImportSchemaResult
+}
+
+// ImportSchemas imports schemas with preserved IDs (for migration).
+// It validates each schema, imports it with the specified ID, and adjusts
+// the ID sequence after import to prevent conflicts.
+func (r *Registry) ImportSchemas(ctx context.Context, schemas []ImportSchemaRequest) (*ImportResult, error) {
+	result := &ImportResult{
+		Results: make([]ImportSchemaResult, len(schemas)),
+	}
+
+	var maxID int64
+
+	for i, req := range schemas {
+		res := ImportSchemaResult{
+			ID:      req.ID,
+			Subject: req.Subject,
+			Version: req.Version,
+		}
+
+		// Validate required fields
+		if req.ID <= 0 {
+			res.Error = "schema ID must be positive"
+			result.Errors++
+			result.Results[i] = res
+			continue
+		}
+		if req.Subject == "" {
+			res.Error = "subject is required"
+			result.Errors++
+			result.Results[i] = res
+			continue
+		}
+		if req.Version <= 0 {
+			res.Error = "version must be positive"
+			result.Errors++
+			result.Results[i] = res
+			continue
+		}
+		if req.Schema == "" {
+			res.Error = "schema is required"
+			result.Errors++
+			result.Results[i] = res
+			continue
+		}
+
+		// Default to Avro if not specified
+		schemaType := req.SchemaType
+		if schemaType == "" {
+			schemaType = storage.SchemaTypeAvro
+		}
+
+		// Validate the schema
+		parser, ok := r.schemaParser.Get(schemaType)
+		if !ok {
+			res.Error = fmt.Sprintf("unsupported schema type: %s", schemaType)
+			result.Errors++
+			result.Results[i] = res
+			continue
+		}
+
+		parsed, err := parser.Parse(req.Schema, req.References)
+		if err != nil {
+			res.Error = fmt.Sprintf("invalid schema: %v", err)
+			result.Errors++
+			result.Results[i] = res
+			continue
+		}
+
+		// Create the schema record
+		record := &storage.SchemaRecord{
+			ID:          req.ID,
+			Subject:     req.Subject,
+			Version:     req.Version,
+			SchemaType:  schemaType,
+			Schema:      req.Schema,
+			References:  req.References,
+			Fingerprint: parsed.Fingerprint(),
+		}
+
+		// Import the schema
+		if err := r.storage.ImportSchema(ctx, record); err != nil {
+			if errors.Is(err, storage.ErrSchemaIDConflict) {
+				res.Error = "schema ID already exists"
+			} else if errors.Is(err, storage.ErrSchemaExists) {
+				res.Error = "subject/version already exists"
+			} else {
+				res.Error = err.Error()
+			}
+			result.Errors++
+			result.Results[i] = res
+			continue
+		}
+
+		// Track the maximum ID for sequence adjustment
+		if req.ID > maxID {
+			maxID = req.ID
+		}
+
+		res.Success = true
+		result.Imported++
+		result.Results[i] = res
+	}
+
+	// Adjust the ID sequence to prevent conflicts
+	if maxID > 0 {
+		// Set the next ID to be one more than the maximum imported ID
+		if err := r.storage.SetNextID(ctx, maxID+1); err != nil {
+			return result, fmt.Errorf("imported %d schemas but failed to adjust ID sequence: %w", result.Imported, err)
+		}
+	}
+
+	return result, nil
+}
+
 // GetRawSchemaBySubjectVersion retrieves just the schema string by subject and version.
 func (r *Registry) GetRawSchemaBySubjectVersion(ctx context.Context, subject string, version int) (string, error) {
 	schema, err := r.storage.GetSchemaBySubjectVersion(ctx, subject, version)

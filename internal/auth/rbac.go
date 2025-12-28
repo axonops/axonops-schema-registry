@@ -39,6 +39,9 @@ const (
 	PermissionModeRead  Permission = "mode:read"
 	PermissionModeWrite Permission = "mode:write"
 
+	// Import permissions (for migration)
+	PermissionImport Permission = "import:write"
+
 	// Admin permissions
 	PermissionAdminRead  Permission = "admin:read"
 	PermissionAdminWrite Permission = "admin:write"
@@ -50,12 +53,14 @@ var rolePermissions = map[Role][]Permission{
 		PermissionSchemaRead, PermissionSchemaWrite, PermissionSchemaDelete,
 		PermissionConfigRead, PermissionConfigWrite,
 		PermissionModeRead, PermissionModeWrite,
+		PermissionImport,
 		PermissionAdminRead, PermissionAdminWrite,
 	},
 	RoleAdmin: {
 		PermissionSchemaRead, PermissionSchemaWrite, PermissionSchemaDelete,
 		PermissionConfigRead, PermissionConfigWrite,
 		PermissionModeRead, PermissionModeWrite,
+		PermissionImport,
 		PermissionAdminRead,
 	},
 	RoleDeveloper: {
@@ -173,6 +178,9 @@ func DefaultEndpointPermissions() []EndpointPermission {
 		// Mode operations
 		{Method: "GET", PathPrefix: "/mode", Permission: PermissionModeRead},
 		{Method: "PUT", PathPrefix: "/mode", Permission: PermissionModeWrite},
+
+		// Import operations (migration)
+		{Method: "POST", PathPrefix: "/import", Permission: PermissionImport},
 	}
 }
 

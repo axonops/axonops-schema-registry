@@ -137,6 +137,9 @@ func (s *Server) setupRouter() {
 	r.Put("/mode/{subject}", h.SetMode)
 	r.Delete("/mode/{subject}", h.DeleteMode)
 
+	// Import (for migration from other schema registries)
+	r.Post("/import/schemas", h.ImportSchemas)
+
 	// Compatibility
 	r.Post("/compatibility/subjects/{subject}/versions/{version}", h.CheckCompatibility)
 	r.Post("/compatibility/subjects/{subject}/versions", h.CheckCompatibility) // Check against all versions

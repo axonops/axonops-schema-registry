@@ -557,3 +557,214 @@ func TestServer_RegisterCompatibleSchema(t *testing.T) {
 		t.Errorf("Expected schema ID 2, got %d", resp.ID)
 	}
 }
+
+func TestServer_ImportSchemas(t *testing.T) {
+	server := setupTestServer(t)
+
+	// Import schemas with specific IDs
+	importReq := types.ImportSchemasRequest{
+		Schemas: []types.ImportSchemaRequest{
+			{
+				ID:         42,
+				Subject:    "user-value",
+				Version:    1,
+				SchemaType: "AVRO",
+				Schema:     `{"type": "record", "name": "User", "fields": [{"name": "id", "type": "long"}]}`,
+			},
+			{
+				ID:         43,
+				Subject:    "order-value",
+				Version:    1,
+				SchemaType: "AVRO",
+				Schema:     `{"type": "record", "name": "Order", "fields": [{"name": "order_id", "type": "long"}]}`,
+			},
+		},
+	}
+	bodyBytes, _ := json.Marshal(importReq)
+
+	req := httptest.NewRequest("POST", "/import/schemas", bytes.NewReader(bodyBytes))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	server.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("Expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp types.ImportSchemasResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	if resp.Imported != 2 {
+		t.Errorf("Expected 2 imported schemas, got %d", resp.Imported)
+	}
+	if resp.Errors != 0 {
+		t.Errorf("Expected 0 errors, got %d", resp.Errors)
+	}
+
+	// Verify schemas can be retrieved by ID
+	req = httptest.NewRequest("GET", "/schemas/ids/42", nil)
+	w = httptest.NewRecorder()
+	server.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("Expected status 200 for schema ID 42, got %d: %s", w.Code, w.Body.String())
+	}
+
+	// Verify schemas can be retrieved by subject/version
+	req = httptest.NewRequest("GET", "/subjects/user-value/versions/1", nil)
+	w = httptest.NewRecorder()
+	server.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("Expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var versionResp types.SubjectVersionResponse
+	_ = json.NewDecoder(w.Body).Decode(&versionResp)
+
+	if versionResp.ID != 42 {
+		t.Errorf("Expected schema ID 42, got %d", versionResp.ID)
+	}
+
+	// New schema registration should get an ID after the imported ones
+	newSchema := `{"type": "record", "name": "Product", "fields": [{"name": "product_id", "type": "long"}]}`
+	registerBody := types.RegisterSchemaRequest{Schema: newSchema}
+	registerBytes, _ := json.Marshal(registerBody)
+
+	req = httptest.NewRequest("POST", "/subjects/product-value/versions", bytes.NewReader(registerBytes))
+	req.Header.Set("Content-Type", "application/json")
+	w = httptest.NewRecorder()
+	server.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("Expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var registerResp types.RegisterSchemaResponse
+	_ = json.NewDecoder(w.Body).Decode(&registerResp)
+
+	if registerResp.ID <= 43 {
+		t.Errorf("Expected new schema ID > 43, got %d", registerResp.ID)
+	}
+}
+
+func TestServer_ImportSchemas_DuplicateID(t *testing.T) {
+	server := setupTestServer(t)
+
+	// Import first schema
+	importReq := types.ImportSchemasRequest{
+		Schemas: []types.ImportSchemaRequest{
+			{
+				ID:         42,
+				Subject:    "user-value",
+				Version:    1,
+				SchemaType: "AVRO",
+				Schema:     `{"type": "record", "name": "User", "fields": [{"name": "id", "type": "long"}]}`,
+			},
+		},
+	}
+	bodyBytes, _ := json.Marshal(importReq)
+
+	req := httptest.NewRequest("POST", "/import/schemas", bytes.NewReader(bodyBytes))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	server.ServeHTTP(w, req)
+
+	// Try to import again with same ID but different subject
+	importReq2 := types.ImportSchemasRequest{
+		Schemas: []types.ImportSchemaRequest{
+			{
+				ID:         42,
+				Subject:    "order-value",
+				Version:    1,
+				SchemaType: "AVRO",
+				Schema:     `{"type": "record", "name": "Order", "fields": [{"name": "order_id", "type": "long"}]}`,
+			},
+		},
+	}
+	bodyBytes2, _ := json.Marshal(importReq2)
+
+	req = httptest.NewRequest("POST", "/import/schemas", bytes.NewReader(bodyBytes2))
+	req.Header.Set("Content-Type", "application/json")
+	w = httptest.NewRecorder()
+	server.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("Expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp types.ImportSchemasResponse
+	_ = json.NewDecoder(w.Body).Decode(&resp)
+
+	if resp.Imported != 0 {
+		t.Errorf("Expected 0 imported, got %d", resp.Imported)
+	}
+	if resp.Errors != 1 {
+		t.Errorf("Expected 1 error, got %d", resp.Errors)
+	}
+	if !resp.Results[0].Success {
+		if resp.Results[0].Error == "" {
+			t.Error("Expected error message for failed import")
+		}
+	}
+}
+
+func TestServer_ImportSchemas_InvalidSchema(t *testing.T) {
+	server := setupTestServer(t)
+
+	// Try to import invalid schema
+	importReq := types.ImportSchemasRequest{
+		Schemas: []types.ImportSchemaRequest{
+			{
+				ID:         42,
+				Subject:    "user-value",
+				Version:    1,
+				SchemaType: "AVRO",
+				Schema:     `{invalid json`,
+			},
+		},
+	}
+	bodyBytes, _ := json.Marshal(importReq)
+
+	req := httptest.NewRequest("POST", "/import/schemas", bytes.NewReader(bodyBytes))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	server.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("Expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp types.ImportSchemasResponse
+	_ = json.NewDecoder(w.Body).Decode(&resp)
+
+	if resp.Imported != 0 {
+		t.Errorf("Expected 0 imported, got %d", resp.Imported)
+	}
+	if resp.Errors != 1 {
+		t.Errorf("Expected 1 error, got %d", resp.Errors)
+	}
+}
+
+func TestServer_ImportSchemas_EmptyRequest(t *testing.T) {
+	server := setupTestServer(t)
+
+	// Try to import empty list
+	importReq := types.ImportSchemasRequest{
+		Schemas: []types.ImportSchemaRequest{},
+	}
+	bodyBytes, _ := json.Marshal(importReq)
+
+	req := httptest.NewRequest("POST", "/import/schemas", bytes.NewReader(bodyBytes))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	server.ServeHTTP(w, req)
+
+	// Should return error for empty request
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected status 400, got %d: %s", w.Code, w.Body.String())
+	}
+}

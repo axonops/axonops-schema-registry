@@ -209,6 +209,165 @@ func (s *Store) NextID(ctx context.Context) (int64, error) {
 	return 0, errors.New("failed to allocate schema ID: too much contention")
 }
 
+// ImportSchema inserts a schema with a specified ID (for migration).
+// Returns ErrSchemaIDConflict if the ID already exists.
+func (s *Store) ImportSchema(ctx context.Context, record *storage.SchemaRecord) error {
+	if record == nil {
+		return errors.New("schema is nil")
+	}
+	if record.ID <= 0 {
+		return errors.New("schema ID is required for import")
+	}
+	if record.Subject == "" {
+		return errors.New("subject is required")
+	}
+	if record.Version <= 0 {
+		return errors.New("version is required")
+	}
+	if record.SchemaType == "" {
+		record.SchemaType = storage.SchemaTypeAvro
+	}
+
+	canonical := canonicalize(string(record.SchemaType), record.Schema)
+	fp := fingerprint(canonical)
+	record.Fingerprint = fp
+
+	// Check if schema ID already exists
+	var existingType string
+	err := s.readQuery(
+		fmt.Sprintf(`SELECT schema_type FROM %s.schemas_by_id WHERE schema_id = ?`, qident(s.cfg.Keyspace)),
+		int(record.ID),
+	).WithContext(ctx).Scan(&existingType)
+	if err == nil {
+		return storage.ErrSchemaIDConflict
+	}
+	if !errors.Is(err, gocql.ErrNotFound) {
+		return err
+	}
+
+	// Check if version already exists for this subject
+	var existingSchemaID int
+	err = s.readQuery(
+		fmt.Sprintf(`SELECT schema_id FROM %s.subject_versions WHERE subject = ? AND version = ?`, qident(s.cfg.Keyspace)),
+		record.Subject, record.Version,
+	).WithContext(ctx).Scan(&existingSchemaID)
+	if err == nil {
+		return storage.ErrSchemaExists
+	}
+	if !errors.Is(err, gocql.ErrNotFound) {
+		return err
+	}
+
+	createdUUID := gocql.TimeUUID()
+
+	// Insert into schemas_by_id
+	err = s.writeQuery(
+		fmt.Sprintf(`INSERT INTO %s.schemas_by_id (schema_id, schema_type, fingerprint, schema_text, canonical_text, created_at)
+			VALUES (?, ?, ?, ?, ?, ?)`, qident(s.cfg.Keyspace)),
+		int(record.ID), string(record.SchemaType), fp, record.Schema, canonical, createdUUID,
+	).WithContext(ctx).Exec()
+	if err != nil {
+		return fmt.Errorf("failed to insert schema_by_id: %w", err)
+	}
+
+	// Insert into schemas_by_fingerprint
+	err = s.writeQuery(
+		fmt.Sprintf(`INSERT INTO %s.schemas_by_fingerprint (fingerprint, schema_id, schema_type, schema_text, canonical_text, created_at)
+			VALUES (?, ?, ?, ?, ?, ?)`, qident(s.cfg.Keyspace)),
+		fp, int(record.ID), string(record.SchemaType), record.Schema, canonical, createdUUID,
+	).WithContext(ctx).Exec()
+	if err != nil {
+		return fmt.Errorf("failed to insert schemas_by_fingerprint: %w", err)
+	}
+
+	// Insert into subject_versions
+	err = s.writeQuery(
+		fmt.Sprintf(`INSERT INTO %s.subject_versions (subject, version, schema_id, deleted, created_at)
+			VALUES (?, ?, ?, ?, ?)`, qident(s.cfg.Keyspace)),
+		record.Subject, record.Version, int(record.ID), false, createdUUID,
+	).WithContext(ctx).Exec()
+	if err != nil {
+		return fmt.Errorf("failed to insert subject_versions: %w", err)
+	}
+
+	// Update subject_latest if this is the highest version
+	latestVersion, _, exists, err := s.getSubjectLatest(ctx, record.Subject)
+	if err != nil {
+		return err
+	}
+	if !exists || record.Version > latestVersion {
+		err = s.writeQuery(
+			fmt.Sprintf(`INSERT INTO %s.subject_latest (subject, latest_version, latest_schema_id, updated_at)
+				VALUES (?, ?, ?, now())`, qident(s.cfg.Keyspace)),
+			record.Subject, record.Version, int(record.ID),
+		).WithContext(ctx).Exec()
+		if err != nil {
+			return fmt.Errorf("failed to update subject_latest: %w", err)
+		}
+	}
+
+	// Track subject in bucketed table
+	bucket := s.subjectBucket(record.Subject)
+	_ = s.session.Query(
+		fmt.Sprintf(`INSERT INTO %s.subjects (bucket, subject) VALUES (?, ?)`, qident(s.cfg.Keyspace)),
+		bucket, record.Subject,
+	).WithContext(ctx).Exec()
+
+	record.CreatedAt = createdUUID.Time()
+	record.Deleted = false
+
+	return nil
+}
+
+// SetNextID sets the ID sequence to start from the given value.
+// Used after import to prevent ID conflicts.
+func (s *Store) SetNextID(ctx context.Context, id int64) error {
+	// Use LWT to set the next_id value
+	for attempt := 0; attempt < s.cfg.MaxRetries; attempt++ {
+		var current int
+		err := s.session.Query(
+			fmt.Sprintf(`SELECT next_id FROM %s.id_alloc WHERE name = ?`, qident(s.cfg.Keyspace)),
+			"schema_id",
+		).WithContext(ctx).Scan(&current)
+
+		if errors.Is(err, gocql.ErrNotFound) {
+			// Initialize if not exists
+			applied, err := casApplied(
+				s.session.Query(
+					fmt.Sprintf(`INSERT INTO %s.id_alloc (name, next_id) VALUES (?, ?) IF NOT EXISTS`, qident(s.cfg.Keyspace)),
+					"schema_id", int(id),
+				).WithContext(ctx),
+			)
+			if err != nil {
+				return err
+			}
+			if applied {
+				return nil
+			}
+			continue
+		}
+		if err != nil {
+			return err
+		}
+
+		// CAS update
+		applied, err := casApplied(
+			s.session.Query(
+				fmt.Sprintf(`UPDATE %s.id_alloc SET next_id = ? WHERE name = ? IF next_id = ?`, qident(s.cfg.Keyspace)),
+				int(id), "schema_id", current,
+			).WithContext(ctx),
+		)
+		if err != nil {
+			return err
+		}
+		if applied {
+			return nil
+		}
+		// Contention, retry
+	}
+	return errors.New("failed to set next ID: too much contention")
+}
+
 // ---------- Schema Operations ----------
 
 // CreateSchema registers a schema under a subject.

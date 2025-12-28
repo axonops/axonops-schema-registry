@@ -621,6 +621,78 @@ func (h *Handler) ListSchemas(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, result)
 }
 
+// ImportSchemas handles POST /import/schemas
+func (h *Handler) ImportSchemas(w http.ResponseWriter, r *http.Request) {
+	var req types.ImportSchemasRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, types.ErrorCodeInvalidSchema, "Invalid request body")
+		return
+	}
+
+	if len(req.Schemas) == 0 {
+		writeError(w, http.StatusBadRequest, types.ErrorCodeInvalidSchema, "No schemas provided")
+		return
+	}
+
+	// Convert API types to registry types
+	importReqs := make([]registry.ImportSchemaRequest, len(req.Schemas))
+	for i, s := range req.Schemas {
+		importReqs[i] = registry.ImportSchemaRequest{
+			ID:         s.ID,
+			Subject:    s.Subject,
+			Version:    s.Version,
+			SchemaType: storage.SchemaType(strings.ToUpper(s.SchemaType)),
+			Schema:     s.Schema,
+			References: s.References,
+		}
+	}
+
+	result, err := h.registry.ImportSchemas(r.Context(), importReqs)
+	if err != nil {
+		// Even on error, we might have partial results
+		if result != nil {
+			resp := types.ImportSchemasResponse{
+				Imported: result.Imported,
+				Errors:   result.Errors,
+				Results:  make([]types.ImportSchemaResult, len(result.Results)),
+			}
+			for i, r := range result.Results {
+				resp.Results[i] = types.ImportSchemaResult{
+					ID:      r.ID,
+					Subject: r.Subject,
+					Version: r.Version,
+					Success: r.Success,
+					Error:   r.Error,
+				}
+			}
+			// Return partial success with warning
+			w.Header().Set("X-Warning", err.Error())
+			writeJSON(w, http.StatusOK, resp)
+			return
+		}
+		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		return
+	}
+
+	// Convert result to response
+	resp := types.ImportSchemasResponse{
+		Imported: result.Imported,
+		Errors:   result.Errors,
+		Results:  make([]types.ImportSchemaResult, len(result.Results)),
+	}
+	for i, r := range result.Results {
+		resp.Results[i] = types.ImportSchemaResult{
+			ID:      r.ID,
+			Subject: r.Subject,
+			Version: r.Version,
+			Success: r.Success,
+			Error:   r.Error,
+		}
+	}
+
+	writeJSON(w, http.StatusOK, resp)
+}
+
 // GetRawSchemaByVersion handles GET /subjects/{subject}/versions/{version}/schema
 func (h *Handler) GetRawSchemaByVersion(w http.ResponseWriter, r *http.Request) {
 	subject := chi.URLParam(r, "subject")
