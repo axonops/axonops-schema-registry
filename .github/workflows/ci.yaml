@@ -957,7 +957,7 @@ jobs:
           name: test-binaries
 
       - name: Make binaries executable
-        run: chmod +x schema-registry migration.test tests/migration/*.sh
+        run: chmod +x schema-registry migration.test tests/migration/*.sh scripts/*.sh
 
       - name: Run Go migration tests
         run: ./migration.test -test.v -test.timeout=5m
