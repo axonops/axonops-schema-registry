@@ -323,6 +323,34 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GOOGLEKEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Upload DEB packages to Artifact Registry
+        run: |
+          for deb in release/*.deb; do
+            echo "Uploading $deb to APT repository..."
+            gcloud artifacts apt upload ${{ secrets.APT_REPO }} \
+              --project=${{ secrets.GCP_PROJECT }} \
+              --location=${{ secrets.GCP_REGION }} \
+              --source="$deb"
+          done
+
+      - name: Upload RPM packages to Artifact Registry
+        run: |
+          for rpm in release/*.rpm; do
+            echo "Uploading $rpm to YUM repository..."
+            gcloud artifacts yum upload ${{ secrets.YUM_REPO }} \
+              --project=${{ secrets.GCP_PROJECT }} \
+              --location=${{ secrets.GCP_REGION }} \
+              --source="$rpm"
+          done
+
   docker:
     name: Build and Push Docker Image
     runs-on: ubuntu-latest

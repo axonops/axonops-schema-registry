@@ -288,14 +288,20 @@ curl http://localhost:8081/subjects/test-value/versions/latest
 
 ### Package Installation
 
-#### Debian/Ubuntu (DEB)
+#### Debian/Ubuntu (APT)
 
 ```bash
-# Download the package
-curl -LO https://github.com/axonops/axonops-schema-registry/releases/latest/download/axonops-schema-registry_1.0.0_amd64.deb
+# Install dependencies
+sudo apt-get update
+sudo apt-get install -y curl gnupg ca-certificates
+
+# Add AxonOps repository
+curl -L https://packages.axonops.com/apt/repo-signing-key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/axonops.gpg
+echo "deb [signed-by=/usr/share/keyrings/axonops.gpg] https://packages.axonops.com/apt axonops-apt main" | sudo tee /etc/apt/sources.list.d/axonops-apt.list
 
 # Install
-sudo dpkg -i axonops-schema-registry_1.0.0_amd64.deb
+sudo apt-get update
+sudo apt-get install -y axonops-schema-registry
 
 # Configure
 sudo cp /etc/axonops-schema-registry/config.example.yaml /etc/axonops-schema-registry/config.yaml
@@ -306,14 +312,22 @@ sudo systemctl enable axonops-schema-registry
 sudo systemctl start axonops-schema-registry
 ```
 
-#### RHEL/CentOS/Fedora (RPM)
+#### RHEL/CentOS/Fedora (YUM)
 
 ```bash
-# Download the package
-curl -LO https://github.com/axonops/axonops-schema-registry/releases/latest/download/axonops-schema-registry-1.0.0-1.x86_64.rpm
+# Add AxonOps repository
+sudo tee /etc/yum.repos.d/axonops-yum.repo << 'EOF'
+[axonops-yum]
+name=axonops-yum
+baseurl=https://packages.axonops.com/yum/
+enabled=1
+repo_gpgcheck=0
+gpgcheck=0
+EOF
 
 # Install
-sudo rpm -i axonops-schema-registry-1.0.0-1.x86_64.rpm
+sudo yum makecache
+sudo yum install -y axonops-schema-registry
 
 # Configure
 sudo cp /etc/axonops-schema-registry/config.example.yaml /etc/axonops-schema-registry/config.yaml
