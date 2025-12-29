@@ -171,6 +171,11 @@ jobs:
               file_info:
                 mode: 0755
 
+            - src: packaging/axonops-schema-registry.service
+              dst: /lib/systemd/system/axonops-schema-registry.service
+              file_info:
+                mode: 0644
+
           scripts:
             postinstall: packaging/postinstall.sh
             preremove: packaging/preremove.sh
@@ -255,16 +260,6 @@ jobs:
 
           [Install]
           WantedBy=multi-user.target
-          EOF
-
-      - name: Update nfpm config with systemd service
-        run: |
-          cat >> nfpm.yaml << 'EOF'
-
-            - src: packaging/axonops-schema-registry.service
-              dst: /lib/systemd/system/axonops-schema-registry.service
-              file_info:
-                mode: 0644
           EOF
 
       - name: Build DEB package
