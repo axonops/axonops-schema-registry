@@ -264,23 +264,11 @@ jobs:
 
       - name: Build DEB package
         run: |
-          VERSION=${{ steps.version.outputs.version }}
-          ARCH=${{ matrix.nfpm_arch }}
           nfpm package --packager deb --target dist/
-          mv dist/*.deb dist/axonops-schema-registry_${VERSION}_${ARCH}.deb
 
       - name: Build RPM package
         run: |
-          VERSION=${{ steps.version.outputs.version }}
-          ARCH=${{ matrix.nfpm_arch }}
           nfpm package --packager rpm --target dist/
-          # nfpm uses x86_64 for amd64 in RPM naming
-          if [ "${ARCH}" = "amd64" ]; then
-            RPM_ARCH="x86_64"
-          else
-            RPM_ARCH="aarch64"
-          fi
-          mv dist/*.rpm dist/axonops-schema-registry-${VERSION}-1.${RPM_ARCH}.rpm
 
       - name: Upload package artifacts
         uses: actions/upload-artifact@v4
