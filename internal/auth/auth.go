@@ -39,6 +39,7 @@ type Authenticator struct {
 	service      *Service           // Database-backed auth service
 	ldapProvider *LDAPProvider      // LDAP authentication provider
 	oidcProvider *OIDCProvider      // OIDC authentication provider
+	jwtProvider  *JWTProvider       // JWT authentication provider
 	apiKeys      map[string]*APIKey // key -> APIKey (for legacy/config-based auth)
 }
 
@@ -72,6 +73,11 @@ func (a *Authenticator) SetLDAPProvider(p *LDAPProvider) {
 // SetOIDCProvider sets the OIDC authentication provider.
 func (a *Authenticator) SetOIDCProvider(p *OIDCProvider) {
 	a.oidcProvider = p
+}
+
+// SetJWTProvider sets the JWT authentication provider.
+func (a *Authenticator) SetJWTProvider(p *JWTProvider) {
+	a.jwtProvider = p
 }
 
 // AddAPIKey adds an API key (for legacy/config-based auth).
@@ -257,6 +263,10 @@ func (a *Authenticator) authenticateAPIKeyValue(r *http.Request, key string) (*U
 
 // authenticateJWT handles JWT authentication.
 func (a *Authenticator) authenticateJWT(r *http.Request) (*User, bool) {
+	if a.jwtProvider == nil {
+		return nil, false
+	}
+
 	auth := r.Header.Get("Authorization")
 	if !strings.HasPrefix(auth, "Bearer ") {
 		return nil, false
@@ -267,10 +277,7 @@ func (a *Authenticator) authenticateJWT(r *http.Request) (*User, bool) {
 		return nil, false
 	}
 
-	// JWT validation would be implemented here
-	// For now, return false as placeholder
-	_ = token
-	return nil, false
+	return a.jwtProvider.VerifyToken(r.Context(), token)
 }
 
 // authenticateOIDC handles OpenID Connect authentication.

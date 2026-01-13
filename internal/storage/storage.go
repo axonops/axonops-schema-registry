@@ -13,6 +13,7 @@ var (
 	ErrSubjectNotFound  = errors.New("subject not found")
 	ErrSchemaNotFound   = errors.New("schema not found")
 	ErrVersionNotFound  = errors.New("version not found")
+	ErrInvalidVersion   = errors.New("invalid version")
 	ErrSubjectDeleted   = errors.New("subject has been deleted")
 	ErrSchemaExists     = errors.New("schema already exists")
 	ErrUserNotFound     = errors.New("user not found")
@@ -135,7 +136,7 @@ type Storage interface {
 	GetSchemaByID(ctx context.Context, id int64) (*SchemaRecord, error)
 	GetSchemaBySubjectVersion(ctx context.Context, subject string, version int) (*SchemaRecord, error)
 	GetSchemasBySubject(ctx context.Context, subject string, includeDeleted bool) ([]*SchemaRecord, error)
-	GetSchemaByFingerprint(ctx context.Context, subject, fingerprint string) (*SchemaRecord, error)
+	GetSchemaByFingerprint(ctx context.Context, subject, fingerprint string, includeDeleted bool) (*SchemaRecord, error)
 	GetSchemaByGlobalFingerprint(ctx context.Context, fingerprint string) (*SchemaRecord, error)
 	GetLatestSchema(ctx context.Context, subject string) (*SchemaRecord, error)
 	DeleteSchema(ctx context.Context, subject string, version int, permanent bool) error

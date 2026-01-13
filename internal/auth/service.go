@@ -80,30 +80,23 @@ const DefaultCacheRefreshInterval = 1 * time.Minute
 // DefaultUserCacheTTL is the default TTL for cached user credentials.
 const DefaultUserCacheTTL = 60 * time.Second
 
-// NewService creates a new auth service.
+// NewService creates a new auth service with default configuration.
 func NewService(store storage.AuthStorage) *Service {
-	return NewServiceWithConfig(store, ServiceConfig{})
+	return NewServiceWithConfig(store, ServiceConfig{
+		CacheRefreshInterval: DefaultCacheRefreshInterval,
+		UserCacheTTL:         DefaultUserCacheTTL,
+	})
 }
 
 // NewServiceWithConfig creates a new auth service with configuration.
+// Note: CacheRefreshInterval and UserCacheTTL of 0 will disable caching.
+// Use DefaultCacheRefreshInterval and DefaultUserCacheTTL for default behavior.
 func NewServiceWithConfig(store storage.AuthStorage, cfg ServiceConfig) *Service {
-	// Set default refresh interval
-	refreshInterval := cfg.CacheRefreshInterval
-	if refreshInterval == 0 {
-		refreshInterval = DefaultCacheRefreshInterval
-	}
-
-	// Set default user cache TTL
-	userCacheTTL := cfg.UserCacheTTL
-	if userCacheTTL == 0 {
-		userCacheTTL = DefaultUserCacheTTL
-	}
-
 	s := &Service{
 		storage:              store,
 		keyPrefix:            cfg.APIKeyPrefix,
-		userCacheTTL:         userCacheTTL,
-		cacheRefreshInterval: refreshInterval,
+		userCacheTTL:         cfg.UserCacheTTL,         // 0 means disabled
+		cacheRefreshInterval: cfg.CacheRefreshInterval, // 0 means disabled
 		stopCacheRefresh:     make(chan struct{}),
 		cacheRefreshDone:     make(chan struct{}),
 	}
@@ -119,8 +112,10 @@ func NewServiceWithConfig(store storage.AuthStorage, cfg ServiceConfig) *Service
 		s.apiSecret = secret
 	}
 
-	// Load all API keys into cache on startup
-	s.refreshAPIKeyCache()
+	// Load all API keys into cache on startup (only if caching is enabled)
+	if s.cacheRefreshInterval > 0 {
+		s.refreshAPIKeyCache()
+	}
 
 	// Start background refresh goroutine
 	go s.runCacheRefresh()
@@ -138,6 +133,12 @@ func (s *Service) Close() {
 // runCacheRefresh periodically refreshes the API key cache from the database.
 func (s *Service) runCacheRefresh() {
 	defer close(s.cacheRefreshDone)
+
+	// If cache refresh interval is 0, caching is disabled - just wait for stop signal
+	if s.cacheRefreshInterval == 0 {
+		<-s.stopCacheRefresh
+		return
+	}
 
 	ticker := time.NewTicker(s.cacheRefreshInterval)
 	defer ticker.Stop()
@@ -494,8 +495,10 @@ func (s *Service) CreateAPIKey(ctx context.Context, req CreateAPIKeyRequest) (*C
 		return nil, err
 	}
 
-	// Add to cache immediately so the key can be used right away
-	s.apiKeyCache.Store(keyHashStr, record)
+	// Add to cache immediately so the key can be used right away (only if caching is enabled)
+	if s.cacheRefreshInterval > 0 {
+		s.apiKeyCache.Store(keyHashStr, record)
+	}
 
 	return &CreateAPIKeyResponse{
 		ID:        record.ID,
@@ -511,19 +514,33 @@ func (s *Service) CreateAPIKey(ctx context.Context, req CreateAPIKeyRequest) (*C
 }
 
 // ValidateAPIKey validates an API key and returns the record if valid.
-// Validation is performed entirely from the in-memory cache for performance.
-// The cache is refreshed periodically from the database to ensure cluster consistency.
+// First checks the in-memory cache for performance, then falls back to the database
+// if the key is not found in cache. The cache is refreshed periodically from the
+// database to ensure cluster consistency.
 func (s *Service) ValidateAPIKey(ctx context.Context, rawKey string) (*storage.APIKeyRecord, error) {
 	// Hash the provided key using the same method as CreateAPIKey
 	keyHashStr := s.hashAPIKey(rawKey)
 
-	// Look up in cache only - no database fallback
-	cached, ok := s.apiKeyCache.Load(keyHashStr)
-	if !ok {
-		return nil, storage.ErrAPIKeyNotFound
+	// Look up in cache first (if caching is enabled)
+	var record *storage.APIKeyRecord
+	if s.cacheRefreshInterval > 0 {
+		if cached, ok := s.apiKeyCache.Load(keyHashStr); ok {
+			record = cached.(*storage.APIKeyRecord)
+		}
 	}
 
-	record := cached.(*storage.APIKeyRecord)
+	// Cache miss or caching disabled - fall back to database
+	if record == nil {
+		var err error
+		record, err = s.storage.GetAPIKeyByHash(ctx, keyHashStr)
+		if err != nil {
+			return nil, storage.ErrAPIKeyNotFound
+		}
+		// Cache the result for future lookups (only if caching is enabled)
+		if s.cacheRefreshInterval > 0 {
+			s.apiKeyCache.Store(keyHashStr, record)
+		}
+	}
 
 	// Validate the key is enabled
 	if !record.Enabled {

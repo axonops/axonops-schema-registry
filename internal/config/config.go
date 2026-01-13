@@ -269,6 +269,13 @@ func DefaultConfig() *Config {
 			Level:  "info",
 			Format: "json",
 		},
+		Security: SecurityConfig{
+			Auth: AuthConfig{
+				APIKey: APIKeyConfig{
+					CacheRefreshSeconds: 60, // Default to 60 seconds, 0 means disabled
+				},
+			},
+		},
 	}
 }
 

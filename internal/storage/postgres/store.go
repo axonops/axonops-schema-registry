@@ -625,13 +625,22 @@ func (s *Store) GetSchemasBySubject(ctx context.Context, subject string, include
 }
 
 // GetSchemaByFingerprint retrieves a schema by subject and fingerprint.
-func (s *Store) GetSchemaByFingerprint(ctx context.Context, subject, fingerprint string) (*storage.SchemaRecord, error) {
+func (s *Store) GetSchemaByFingerprint(ctx context.Context, subject, fingerprint string, includeDeleted bool) (*storage.SchemaRecord, error) {
 	record := &storage.SchemaRecord{}
 	var schemaType string
+	var err error
 
-	err := s.stmts.getSchemaByFingerprint.QueryRowContext(ctx, subject, fingerprint).Scan(
-		&record.ID, &record.Subject, &record.Version, &schemaType,
-		&record.Schema, &record.Fingerprint, &record.Deleted, &record.CreatedAt)
+	if includeDeleted {
+		query := `SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at
+		          FROM schemas WHERE subject = $1 AND fingerprint = $2`
+		err = s.db.QueryRowContext(ctx, query, subject, fingerprint).Scan(
+			&record.ID, &record.Subject, &record.Version, &schemaType,
+			&record.Schema, &record.Fingerprint, &record.Deleted, &record.CreatedAt)
+	} else {
+		err = s.stmts.getSchemaByFingerprint.QueryRowContext(ctx, subject, fingerprint).Scan(
+			&record.ID, &record.Subject, &record.Version, &schemaType,
+			&record.Schema, &record.Fingerprint, &record.Deleted, &record.CreatedAt)
+	}
 
 	if err == sql.ErrNoRows {
 		return nil, storage.ErrSchemaNotFound

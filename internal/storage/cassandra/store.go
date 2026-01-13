@@ -700,7 +700,7 @@ func (s *Store) GetSchemasBySubject(ctx context.Context, subject string, include
 }
 
 // GetSchemaByFingerprint retrieves a schema by fingerprint within a subject.
-func (s *Store) GetSchemaByFingerprint(ctx context.Context, subject, fp string) (*storage.SchemaRecord, error) {
+func (s *Store) GetSchemaByFingerprint(ctx context.Context, subject, fp string, includeDeleted bool) (*storage.SchemaRecord, error) {
 	// First get schema by global fingerprint
 	globalRec, err := s.GetSchemaByGlobalFingerprint(ctx, fp)
 	if err != nil {
@@ -716,7 +716,7 @@ func (s *Store) GetSchemaByFingerprint(ctx context.Context, subject, fp string) 
 	var version, schemaID int
 	var deleted bool
 	for iter.Scan(&version, &schemaID, &deleted) {
-		if !deleted && int64(schemaID) == globalRec.ID {
+		if (includeDeleted || !deleted) && int64(schemaID) == globalRec.ID {
 			iter.Close()
 			return s.GetSchemaBySubjectVersion(ctx, subject, version)
 		}

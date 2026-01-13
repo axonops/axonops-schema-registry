@@ -206,6 +206,20 @@ func main() {
 			authenticator.SetOIDCProvider(oidcProvider)
 		}
 
+		// Setup JWT provider if configured
+		if cfg.Security.Auth.JWT.PublicKeyFile != "" || cfg.Security.Auth.JWT.JWKSURL != "" {
+			logger.Info("JWT authentication enabled",
+				slog.String("algorithm", cfg.Security.Auth.JWT.Algorithm),
+				slog.String("issuer", cfg.Security.Auth.JWT.Issuer),
+			)
+			jwtProvider, err := auth.NewJWTProvider(cfg.Security.Auth.JWT)
+			if err != nil {
+				logger.Error("failed to create JWT provider", slog.String("error", err.Error()))
+				os.Exit(1)
+			}
+			authenticator.SetJWTProvider(jwtProvider)
+		}
+
 		// Add auth option
 		serverOpts = append(serverOpts, api.WithAuth(authenticator, authorizer, authService))
 	}

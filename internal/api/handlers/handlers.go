@@ -392,6 +392,14 @@ func (h *Handler) CheckCompatibility(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusNotFound, types.ErrorCodeSubjectNotFound, "Subject not found")
 			return
 		}
+		if errors.Is(err, storage.ErrVersionNotFound) {
+			writeError(w, http.StatusNotFound, types.ErrorCodeVersionNotFound, err.Error())
+			return
+		}
+		if errors.Is(err, storage.ErrInvalidVersion) {
+			writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeVersionNotFound, err.Error())
+			return
+		}
 		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
 		return
 	}

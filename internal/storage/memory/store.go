@@ -29,6 +29,9 @@ type Store struct {
 	// subjectVersions stores version info by subject (subject → version → info)
 	subjectVersions map[string]map[int]*subjectVersionInfo
 
+	// nextSubjectVersion tracks the next version number for each subject (monotonically increasing)
+	nextSubjectVersion map[string]int
+
 	// globalFingerprints maps fingerprint to schema ID for global deduplication
 	globalFingerprints map[string]int64
 
@@ -72,9 +75,10 @@ type Store struct {
 // NewStore creates a new in-memory store.
 func NewStore() *Store {
 	return &Store{
-		schemas:             make(map[int64]*storage.SchemaRecord),
-		subjectVersions:     make(map[string]map[int]*subjectVersionInfo),
-		globalFingerprints:  make(map[string]int64),
+		schemas:            make(map[int64]*storage.SchemaRecord),
+		subjectVersions:    make(map[string]map[int]*subjectVersionInfo),
+		nextSubjectVersion: make(map[string]int),
+		globalFingerprints: make(map[string]int64),
 		idToSubjectVersions: make(map[int64][]storage.SubjectVersion),
 		configs:             make(map[string]*storage.ConfigRecord),
 		modes:               make(map[string]*storage.ModeRecord),
@@ -138,8 +142,9 @@ func (s *Store) CreateSchema(ctx context.Context, record *storage.SchemaRecord) 
 		}
 	}
 
-	// Determine version for this subject
-	version := len(s.subjectVersions[record.Subject]) + 1
+	// Determine version for this subject (monotonically increasing)
+	s.nextSubjectVersion[record.Subject]++
+	version := s.nextSubjectVersion[record.Subject]
 
 	// Store the subject-version mapping
 	s.subjectVersions[record.Subject][version] = &subjectVersionInfo{
@@ -269,7 +274,7 @@ func (s *Store) GetSchemasBySubject(ctx context.Context, subject string, include
 }
 
 // GetSchemaByFingerprint retrieves a schema by subject and fingerprint.
-func (s *Store) GetSchemaByFingerprint(ctx context.Context, subject, fingerprint string) (*storage.SchemaRecord, error) {
+func (s *Store) GetSchemaByFingerprint(ctx context.Context, subject, fingerprint string, includeDeleted bool) (*storage.SchemaRecord, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -280,7 +285,7 @@ func (s *Store) GetSchemaByFingerprint(ctx context.Context, subject, fingerprint
 
 	// Find a version in this subject with the matching fingerprint
 	for version, info := range subjectVersionMap {
-		if info.deleted {
+		if info.deleted && !includeDeleted {
 			continue
 		}
 		schema := s.schemas[info.schemaID]

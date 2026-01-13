@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/axonops/axonops-schema-registry/internal/compatibility"
@@ -53,7 +54,7 @@ func (r *Registry) RegisterSchema(ctx context.Context, subject string, schemaStr
 	}
 
 	// Check if schema already exists with same fingerprint
-	existing, err := r.storage.GetSchemaByFingerprint(ctx, subject, parsed.Fingerprint())
+	existing, err := r.storage.GetSchemaByFingerprint(ctx, subject, parsed.Fingerprint(), false)
 	if err == nil && existing != nil {
 		// Schema already exists, return existing
 		return existing, nil
@@ -102,7 +103,7 @@ func (r *Registry) RegisterSchema(ctx context.Context, subject string, schemaStr
 	if err := r.storage.CreateSchema(ctx, record); err != nil {
 		if errors.Is(err, storage.ErrSchemaExists) {
 			// Get the existing schema
-			existing, _ := r.storage.GetSchemaByFingerprint(ctx, subject, parsed.Fingerprint())
+			existing, _ := r.storage.GetSchemaByFingerprint(ctx, subject, parsed.Fingerprint(), false)
 			if existing != nil {
 				return existing, nil
 			}
@@ -156,8 +157,8 @@ func (r *Registry) CheckCompatibility(ctx context.Context, subject string, schem
 			return nil, err
 		}
 		schemasToCheck = []string{latest.Schema}
-	} else {
-		// Get all schemas for transitive check or specific version
+	} else if version == "" {
+		// Empty version means check against all versions (transitive compatibility)
 		existingSchemas, err := r.storage.GetSchemasBySubject(ctx, subject, false)
 		if err != nil {
 			if errors.Is(err, storage.ErrSubjectNotFound) {
@@ -169,6 +170,20 @@ func (r *Registry) CheckCompatibility(ctx context.Context, subject string, schem
 		for _, s := range existingSchemas {
 			schemasToCheck = append(schemasToCheck, s.Schema)
 		}
+	} else {
+		// Check against specific version only
+		versionNum, err := strconv.Atoi(version)
+		if err != nil {
+			return nil, fmt.Errorf("%w: %s", storage.ErrInvalidVersion, version)
+		}
+		schema, err := r.storage.GetSchemaBySubjectVersion(ctx, subject, versionNum)
+		if err != nil {
+			if errors.Is(err, storage.ErrSubjectNotFound) || errors.Is(err, storage.ErrVersionNotFound) {
+				return nil, fmt.Errorf("%w: version %d for subject %s", storage.ErrVersionNotFound, versionNum, subject)
+			}
+			return nil, err
+		}
+		schemasToCheck = []string{schema.Schema}
 	}
 
 	if len(schemasToCheck) == 0 {
@@ -227,8 +242,8 @@ func (r *Registry) LookupSchema(ctx context.Context, subject string, schemaStr s
 		return nil, fmt.Errorf("invalid schema: %w", err)
 	}
 
-	// Look up by fingerprint
-	return r.storage.GetSchemaByFingerprint(ctx, subject, parsed.Fingerprint())
+	// Look up by fingerprint, including deleted if requested
+	return r.storage.GetSchemaByFingerprint(ctx, subject, parsed.Fingerprint(), deleted)
 }
 
 // DeleteSubject deletes a subject.
