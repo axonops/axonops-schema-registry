@@ -1106,7 +1106,7 @@ func TestDatabaseValidation_SchemaByFingerprint(t *testing.T) {
 	}
 
 	// Validate: Query by fingerprint
-	schemaByFP, err := testStore.GetSchemaByFingerprint(ctx, subject, dbSchema.Fingerprint)
+	schemaByFP, err := testStore.GetSchemaByFingerprint(ctx, subject, dbSchema.Fingerprint, false)
 	if err != nil {
 		t.Fatalf("Database query failed - GetSchemaByFingerprint: %v", err)
 	}

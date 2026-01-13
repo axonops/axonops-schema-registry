@@ -68,7 +68,7 @@ func NewJWTProvider(cfg config.JWTConfig) (*JWTProvider, error) {
 
 // loadPublicKey loads a public key from a PEM file.
 func (p *JWTProvider) loadPublicKey(keyFile, algorithm string) error {
-	keyData, err := os.ReadFile(keyFile)
+	keyData, err := os.ReadFile(keyFile) // #nosec G304 -- keyFile is from trusted server configuration
 	if err != nil {
 		return fmt.Errorf("failed to read key file: %w", err)
 	}

@@ -75,10 +75,10 @@ type Store struct {
 // NewStore creates a new in-memory store.
 func NewStore() *Store {
 	return &Store{
-		schemas:            make(map[int64]*storage.SchemaRecord),
-		subjectVersions:    make(map[string]map[int]*subjectVersionInfo),
-		nextSubjectVersion: make(map[string]int),
-		globalFingerprints: make(map[string]int64),
+		schemas:             make(map[int64]*storage.SchemaRecord),
+		subjectVersions:     make(map[string]map[int]*subjectVersionInfo),
+		nextSubjectVersion:  make(map[string]int),
+		globalFingerprints:  make(map[string]int64),
 		idToSubjectVersions: make(map[int64][]storage.SubjectVersion),
 		configs:             make(map[string]*storage.ConfigRecord),
 		modes:               make(map[string]*storage.ModeRecord),
