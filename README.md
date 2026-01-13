@@ -37,8 +37,7 @@ AxonOps Schema Registry implements the Confluent Schema Registry REST API v1. Co
 - **Authentication**: API keys work with `-u "API_KEY:x"` format (key as username, password ignored)
 
 **Known Differences**:
-- No `/schemas` listing endpoint (Confluent Enterprise only)
-- Contexts feature not implemented
+- Contexts are single-tenant only and always return `["."]`
 - Schema registry cluster coordination uses database constraints instead of Kafka
 
 ### Why AxonOps Schema Registry?
@@ -85,6 +84,7 @@ AxonOps Schema Registry implements the Confluent Schema Registry REST API v1. Co
 |--------|-------------|
 | **Basic Auth** | Username/password with bcrypt hashing |
 | **API Keys** | Header or query parameter, with expiration |
+| **JWT** | JWT validation via public key or JWKS |
 | **LDAP/AD** | Enterprise directory integration with group mapping |
 | **OIDC** | OpenID Connect (Keycloak, Okta, Auth0, etc.) |
 | **mTLS** | Mutual TLS client certificate authentication |
@@ -548,6 +548,7 @@ security:
       - api_key
       - basic
       - oidc
+      - jwt
 
     # Bootstrap initial admin user
     bootstrap:
@@ -611,6 +612,18 @@ security:
         - RS256
         - ES256
 
+    # JWT authentication (public key file or JWKS URL)
+    jwt:
+      issuer: https://auth.example.com/
+      audience: schema-registry
+      algorithm: RS256
+      public_key_file: /etc/axonops-schema-registry/jwt/public.pem
+      # jwks_url: https://auth.example.com/.well-known/jwks.json
+      claims_mapping:
+        sub: preferred_username
+        role: role
+        roles: groups
+
     # RBAC settings
     rbac:
       enabled: true
@@ -638,6 +651,10 @@ security:
       - api_key_create
     include_body: false
 ```
+
+**Rate limiting**: When enabled, limits apply to protected endpoints and return `429` with `Retry-After` plus `X-RateLimit-*` headers. Health (`/`) and metrics (`/metrics`) are unauthenticated and not rate-limited.
+
+**TLS**: When `security.tls.enabled` is true, the server listens with HTTPS using `cert_file`/`key_file` (and optional client auth via `ca_file` + `client_auth`).
 
 ### Environment Variables
 
@@ -696,6 +713,17 @@ curl "http://localhost:8081/subjects?api_key=sr_live_abc123..."
 
 **Security Notes**: API keys are bearer tokens—treat them like passwords. Keys are scoped to a role, support expiration, and all usage is logged when audit is enabled. Rotate keys regularly via the Admin CLI.
 
+### JWT Authentication
+
+```bash
+# Use a JWT issued by your IdP
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8081/subjects
+```
+
+**JWT Notes**:
+- Configure either `jwt.public_key_file` or `jwt.jwks_url` (JWKS is refreshed automatically).
+- `jwt.claims_mapping` lets you remap `sub`, `role`, and `roles` to IdP-specific claims.
+
 ### OIDC Authentication
 
 ```bash
@@ -727,12 +755,16 @@ curl -H "Authorization: Bearer $TOKEN" http://localhost:8081/subjects
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/schemas/types` | List supported schema types |
+| GET | `/schemas` | List schemas (filters: `subjectPrefix`, `deleted`, `latestOnly`, `offset`, `limit`) |
 | GET | `/schemas/ids/{id}` | Get schema by global ID |
 | GET | `/schemas/ids/{id}/schema` | Get raw schema string by ID |
 | GET | `/schemas/ids/{id}/subjects` | Get subjects using schema ID |
+| GET | `/schemas/ids/{id}/versions` | Get subject-version pairs for schema ID |
 | GET | `/subjects` | List all subjects |
 | GET | `/subjects/{subject}/versions` | List versions for subject |
 | GET | `/subjects/{subject}/versions/{version}` | Get specific version |
+| GET | `/subjects/{subject}/versions/{version}/schema` | Get raw schema for version |
+| GET | `/subjects/{subject}/versions/{version}/referencedby` | Get schema IDs referencing this version |
 | POST | `/subjects/{subject}/versions` | Register new schema |
 | POST | `/subjects/{subject}` | Check if schema exists |
 | DELETE | `/subjects/{subject}` | Delete subject |
@@ -744,6 +776,8 @@ curl -H "Authorization: Bearer $TOKEN" http://localhost:8081/subjects
 |--------|----------|-------------|
 | POST | `/compatibility/subjects/{subject}/versions/{version}` | Test compatibility with version |
 | POST | `/compatibility/subjects/{subject}/versions` | Test compatibility with all versions |
+
+**Version behavior**: `latest` checks the latest version, a number checks that version only, and an empty version checks all versions.
 
 ### Configuration
 
@@ -763,6 +797,21 @@ curl -H "Authorization: Bearer $TOKEN" http://localhost:8081/subjects
 | PUT | `/mode` | Set global mode |
 | GET | `/mode/{subject}` | Get subject-level mode |
 | PUT | `/mode/{subject}` | Set subject-level mode |
+| DELETE | `/mode/{subject}` | Delete subject-level mode |
+
+### Import (Migration)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/import/schemas` | Import schemas with preserved IDs (migration) |
+
+### Metadata and Contexts
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/contexts` | List contexts (single-tenant `["."]`) |
+| GET | `/v1/metadata/id` | Cluster ID |
+| GET | `/v1/metadata/version` | Server version/commit |
 
 ### Admin API (User Management)
 
@@ -903,7 +952,7 @@ schema-registry-admin init \
 
 ```bash
 curl http://localhost:8081/
-# Returns: {"status": "healthy"}
+# Returns: {}
 ```
 
 ### Prometheus Metrics
