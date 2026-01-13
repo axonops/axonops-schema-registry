@@ -210,6 +210,16 @@ func main() {
 		serverOpts = append(serverOpts, api.WithAuth(authenticator, authorizer, authService))
 	}
 
+	// Create rate limiter if enabled
+	if cfg.Security.RateLimiting.Enabled {
+		rateLimiter := auth.NewRateLimiter(cfg.Security.RateLimiting)
+		serverOpts = append(serverOpts, api.WithRateLimiter(rateLimiter))
+		logger.Info("rate limiting enabled",
+			slog.Int("requests_per_second", cfg.Security.RateLimiting.RequestsPerSecond),
+			slog.Int("burst_size", cfg.Security.RateLimiting.BurstSize),
+		)
+	}
+
 	// Create and start the HTTP server
 	server := api.NewServer(cfg, reg, logger, serverOpts...)
 

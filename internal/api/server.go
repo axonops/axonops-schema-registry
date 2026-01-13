@@ -29,6 +29,7 @@ type Server struct {
 	authenticator *auth.Authenticator
 	authorizer    *auth.Authorizer
 	authService   *auth.Service
+	rateLimiter   *auth.RateLimiter
 }
 
 // ServerOption is a function that configures the server.
@@ -40,6 +41,13 @@ func WithAuth(authenticator *auth.Authenticator, authorizer *auth.Authorizer, au
 		s.authenticator = authenticator
 		s.authorizer = authorizer
 		s.authService = authService
+	}
+}
+
+// WithRateLimiter configures rate limiting for the server.
+func WithRateLimiter(rateLimiter *auth.RateLimiter) ServerOption {
+	return func(s *Server) {
+		s.rateLimiter = rateLimiter
 	}
 }
 
@@ -70,7 +78,7 @@ func (s *Server) Metrics() *metrics.Metrics {
 func (s *Server) setupRouter() {
 	r := chi.NewRouter()
 
-	// Middleware
+	// Common middleware for all routes
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
 	r.Use(s.loggingMiddleware)
@@ -78,112 +86,118 @@ func (s *Server) setupRouter() {
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(30 * time.Second))
 
-	// Add auth middleware if configured
-	if s.authenticator != nil {
-		r.Use(s.authenticator.Middleware)
-	}
-
-	// Add authorization middleware if configured
-	if s.authorizer != nil {
-		r.Use(s.authorizer.AuthorizeEndpoint(auth.DefaultEndpointPermissions()))
-	}
-
 	// Create handlers
 	h := handlers.New(s.registry)
 
-	// Health check (no auth required)
+	// Public endpoints (no auth required) - health check and metrics
 	r.Get("/", h.HealthCheck)
-
-	// Metrics endpoint (no auth required)
 	r.Get("/metrics", func(w http.ResponseWriter, r *http.Request) {
 		s.metrics.Handler().ServeHTTP(w, r)
 	})
 
-	// Schema types
-	r.Get("/schemas/types", h.GetSchemaTypes)
+	// Protected routes group (auth required when configured)
+	r.Group(func(r chi.Router) {
+		// Add auth middleware if configured
+		if s.authenticator != nil {
+			r.Use(s.authenticator.Middleware)
+		}
 
-	// Schema listing
-	r.Get("/schemas", h.ListSchemas)
+		// Add authorization middleware if configured
+		if s.authorizer != nil {
+			r.Use(s.authorizer.AuthorizeEndpoint(auth.DefaultEndpointPermissions()))
+		}
 
-	// Schema by ID
-	r.Get("/schemas/ids/{id}", h.GetSchemaByID)
-	r.Get("/schemas/ids/{id}/schema", h.GetRawSchemaByID)
-	r.Get("/schemas/ids/{id}/subjects", h.GetSubjectsBySchemaID)
-	r.Get("/schemas/ids/{id}/versions", h.GetVersionsBySchemaID)
+		// Add rate limiting middleware if configured
+		if s.rateLimiter != nil {
+			r.Use(s.rateLimiter.Middleware)
+		}
 
-	// Subjects
-	r.Get("/subjects", h.ListSubjects)
-	r.Get("/subjects/{subject}/versions", h.GetVersions)
-	r.Get("/subjects/{subject}/versions/{version}", h.GetVersion)
-	r.Get("/subjects/{subject}/versions/{version}/schema", h.GetRawSchemaByVersion)
-	r.Get("/subjects/{subject}/versions/{version}/referencedby", h.GetReferencedBy)
-	r.Post("/subjects/{subject}/versions", h.RegisterSchema)
-	r.Post("/subjects/{subject}", h.LookupSchema)
-	r.Delete("/subjects/{subject}", h.DeleteSubject)
-	r.Delete("/subjects/{subject}/versions/{version}", h.DeleteVersion)
+		// Schema types
+		r.Get("/schemas/types", h.GetSchemaTypes)
 
-	// Config
-	r.Get("/config", h.GetConfig)
-	r.Put("/config", h.SetConfig)
-	r.Delete("/config", h.DeleteGlobalConfig)
-	r.Get("/config/{subject}", h.GetConfig)
-	r.Put("/config/{subject}", h.SetConfig)
-	r.Delete("/config/{subject}", h.DeleteConfig)
+		// Schema listing
+		r.Get("/schemas", h.ListSchemas)
 
-	// Mode
-	r.Get("/mode", h.GetMode)
-	r.Put("/mode", h.SetMode)
-	r.Get("/mode/{subject}", h.GetMode)
-	r.Put("/mode/{subject}", h.SetMode)
-	r.Delete("/mode/{subject}", h.DeleteMode)
+		// Schema by ID
+		r.Get("/schemas/ids/{id}", h.GetSchemaByID)
+		r.Get("/schemas/ids/{id}/schema", h.GetRawSchemaByID)
+		r.Get("/schemas/ids/{id}/subjects", h.GetSubjectsBySchemaID)
+		r.Get("/schemas/ids/{id}/versions", h.GetVersionsBySchemaID)
 
-	// Import (for migration from other schema registries)
-	r.Post("/import/schemas", h.ImportSchemas)
+		// Subjects
+		r.Get("/subjects", h.ListSubjects)
+		r.Get("/subjects/{subject}/versions", h.GetVersions)
+		r.Get("/subjects/{subject}/versions/{version}", h.GetVersion)
+		r.Get("/subjects/{subject}/versions/{version}/schema", h.GetRawSchemaByVersion)
+		r.Get("/subjects/{subject}/versions/{version}/referencedby", h.GetReferencedBy)
+		r.Post("/subjects/{subject}/versions", h.RegisterSchema)
+		r.Post("/subjects/{subject}", h.LookupSchema)
+		r.Delete("/subjects/{subject}", h.DeleteSubject)
+		r.Delete("/subjects/{subject}/versions/{version}", h.DeleteVersion)
 
-	// Compatibility
-	r.Post("/compatibility/subjects/{subject}/versions/{version}", h.CheckCompatibility)
-	r.Post("/compatibility/subjects/{subject}/versions", h.CheckCompatibility) // Check against all versions
+		// Config
+		r.Get("/config", h.GetConfig)
+		r.Put("/config", h.SetConfig)
+		r.Delete("/config", h.DeleteGlobalConfig)
+		r.Get("/config/{subject}", h.GetConfig)
+		r.Put("/config/{subject}", h.SetConfig)
+		r.Delete("/config/{subject}", h.DeleteConfig)
 
-	// Contexts
-	r.Get("/contexts", h.GetContexts)
+		// Mode
+		r.Get("/mode", h.GetMode)
+		r.Put("/mode", h.SetMode)
+		r.Get("/mode/{subject}", h.GetMode)
+		r.Put("/mode/{subject}", h.SetMode)
+		r.Delete("/mode/{subject}", h.DeleteMode)
 
-	// Metadata (v1 API)
-	r.Get("/v1/metadata/id", h.GetClusterID)
-	r.Get("/v1/metadata/version", h.GetServerVersion)
+		// Import (for migration from other schema registries)
+		r.Post("/import/schemas", h.ImportSchemas)
 
-	// Account endpoints (self-service, requires auth)
-	if s.authService != nil {
-		accountHandler := handlers.NewAccountHandler(s.authService)
-		r.Route("/me", func(r chi.Router) {
-			r.Get("/", accountHandler.GetCurrentUser)
-			r.Post("/password", accountHandler.ChangePassword)
-		})
-	}
+		// Compatibility
+		r.Post("/compatibility/subjects/{subject}/versions/{version}", h.CheckCompatibility)
+		r.Post("/compatibility/subjects/{subject}/versions", h.CheckCompatibility) // Check against all versions
 
-	// Admin endpoints (requires auth)
-	if s.authService != nil && s.authorizer != nil {
-		adminHandler := handlers.NewAdminHandler(s.authService, s.authorizer)
-		r.Route("/admin", func(r chi.Router) {
-			// User management
-			r.Get("/users", adminHandler.ListUsers)
-			r.Post("/users", adminHandler.CreateUser)
-			r.Get("/users/{id}", adminHandler.GetUser)
-			r.Put("/users/{id}", adminHandler.UpdateUser)
-			r.Delete("/users/{id}", adminHandler.DeleteUser)
+		// Contexts
+		r.Get("/contexts", h.GetContexts)
 
-			// API Key management
-			r.Get("/apikeys", adminHandler.ListAPIKeys)
-			r.Post("/apikeys", adminHandler.CreateAPIKey)
-			r.Get("/apikeys/{id}", adminHandler.GetAPIKey)
-			r.Put("/apikeys/{id}", adminHandler.UpdateAPIKey)
-			r.Delete("/apikeys/{id}", adminHandler.DeleteAPIKey)
-			r.Post("/apikeys/{id}/revoke", adminHandler.RevokeAPIKey)
-			r.Post("/apikeys/{id}/rotate", adminHandler.RotateAPIKey)
+		// Metadata (v1 API)
+		r.Get("/v1/metadata/id", h.GetClusterID)
+		r.Get("/v1/metadata/version", h.GetServerVersion)
 
-			// Roles
-			r.Get("/roles", adminHandler.ListRoles)
-		})
-	}
+		// Account endpoints (self-service, requires auth)
+		if s.authService != nil {
+			accountHandler := handlers.NewAccountHandler(s.authService)
+			r.Route("/me", func(r chi.Router) {
+				r.Get("/", accountHandler.GetCurrentUser)
+				r.Post("/password", accountHandler.ChangePassword)
+			})
+		}
+
+		// Admin endpoints (requires auth)
+		if s.authService != nil && s.authorizer != nil {
+			adminHandler := handlers.NewAdminHandler(s.authService, s.authorizer)
+			r.Route("/admin", func(r chi.Router) {
+				// User management
+				r.Get("/users", adminHandler.ListUsers)
+				r.Post("/users", adminHandler.CreateUser)
+				r.Get("/users/{id}", adminHandler.GetUser)
+				r.Put("/users/{id}", adminHandler.UpdateUser)
+				r.Delete("/users/{id}", adminHandler.DeleteUser)
+
+				// API Key management
+				r.Get("/apikeys", adminHandler.ListAPIKeys)
+				r.Post("/apikeys", adminHandler.CreateAPIKey)
+				r.Get("/apikeys/{id}", adminHandler.GetAPIKey)
+				r.Put("/apikeys/{id}", adminHandler.UpdateAPIKey)
+				r.Delete("/apikeys/{id}", adminHandler.DeleteAPIKey)
+				r.Post("/apikeys/{id}/revoke", adminHandler.RevokeAPIKey)
+				r.Post("/apikeys/{id}/rotate", adminHandler.RotateAPIKey)
+
+				// Roles
+				r.Get("/roles", adminHandler.ListRoles)
+			})
+		}
+	})
 
 	s.router = r
 }
@@ -218,6 +232,17 @@ func (s *Server) Start() error {
 		WriteTimeout: time.Duration(s.config.Server.WriteTimeout) * time.Second,
 	}
 
+	// Configure TLS if enabled
+	if s.config.Security.TLS.Enabled {
+		tlsConfig, err := auth.CreateServerTLSConfig(s.config.Security.TLS)
+		if err != nil {
+			return fmt.Errorf("failed to configure TLS: %w", err)
+		}
+		s.server.TLSConfig = tlsConfig
+		s.logger.Info("starting server with TLS", slog.String("address", addr))
+		return s.server.ListenAndServeTLS("", "") // Certs loaded via GetCertificate
+	}
+
 	s.logger.Info("starting server", slog.String("address", addr))
 	return s.server.ListenAndServe()
 }
@@ -242,5 +267,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // Address returns the server address.
 func (s *Server) Address() string {
+	if s.config.Security.TLS.Enabled {
+		return fmt.Sprintf("https://%s", s.config.Address())
+	}
 	return fmt.Sprintf("http://%s", s.config.Address())
 }

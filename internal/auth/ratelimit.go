@@ -165,8 +165,29 @@ func getClientIP(r *http.Request) string {
 		return xri
 	}
 
-	// Fall back to RemoteAddr
-	return r.RemoteAddr
+	// Fall back to RemoteAddr, stripping port if present
+	addr := r.RemoteAddr
+	// Handle IPv6 addresses like [::1]:8080
+	if len(addr) > 0 && addr[0] == '[' {
+		if idx := lastIndex(addr, ']'); idx != -1 {
+			return addr[1:idx]
+		}
+	}
+	// Handle IPv4 addresses like 192.168.1.1:8080
+	if idx := lastIndex(addr, ':'); idx != -1 {
+		return addr[:idx]
+	}
+	return addr
+}
+
+// lastIndex returns the index of the last occurrence of sep in s, or -1 if not found.
+func lastIndex(s string, sep byte) int {
+	for i := len(s) - 1; i >= 0; i-- {
+		if s[i] == sep {
+			return i
+		}
+	}
+	return -1
 }
 
 // splitAndTrim splits a string and trims whitespace from each part.

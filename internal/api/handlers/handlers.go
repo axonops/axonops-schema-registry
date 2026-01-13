@@ -419,11 +419,15 @@ func (h *Handler) GetReferencedBy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Convert to expected format (array of IDs or subject/versions)
+	// Convert to expected format (array of schema IDs that reference this schema)
 	result := make([]int, 0, len(refs))
-	// For now, return empty array if no references
-	for range refs {
-		// In full implementation, we'd return schema IDs
+	for _, ref := range refs {
+		schema, err := h.registry.GetSchemaBySubjectVersion(r.Context(), ref.Subject, ref.Version)
+		if err != nil {
+			// Skip schemas we can't find (might be deleted)
+			continue
+		}
+		result = append(result, int(schema.ID))
 	}
 
 	writeJSON(w, http.StatusOK, result)
