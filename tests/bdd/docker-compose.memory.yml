@@ -1,0 +1,7 @@
+# Memory backend override for BDD tests.
+# Usage:
+#   docker compose -f docker-compose.base.yml -f docker-compose.memory.yml up -d --build --wait
+
+services:
+  schema-registry:
+    command: ["--config", "/etc/schema-registry/config.memory.yaml"]

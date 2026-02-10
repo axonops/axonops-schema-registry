@@ -1,0 +1,54 @@
+# Docker Compose for BDD tests with database backends.
+# Usage:
+#   docker compose -f tests/bdd/docker-compose.yml up -d postgres
+#   STORAGE_TYPE=postgres BDD_POSTGRES_HOST=localhost go test -tags bdd -v ./tests/bdd/...
+#
+# For all backends:
+#   docker compose -f tests/bdd/docker-compose.yml up -d
+#
+# Cleanup:
+#   docker compose -f tests/bdd/docker-compose.yml down -v
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: schema_registry_bdd
+      POSTGRES_USER: bdd
+      POSTGRES_PASSWORD: bdd
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bdd -d schema_registry_bdd"]
+      interval: 2s
+      timeout: 5s
+      retries: 10
+
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_DATABASE: schema_registry_bdd
+      MYSQL_USER: bdd
+      MYSQL_PASSWORD: bdd
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3307:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-ubdd", "-pbdd"]
+      interval: 2s
+      timeout: 5s
+      retries: 10
+
+  cassandra:
+    image: cassandra:4.1
+    ports:
+      - "9043:9042"
+    environment:
+      CASSANDRA_CLUSTER_NAME: bdd-cluster
+      MAX_HEAP_SIZE: 256M
+      HEAP_NEWSIZE: 128M
+    healthcheck:
+      test: ["CMD-SHELL", "cqlsh -e 'DESCRIBE KEYSPACES'"]
+      interval: 5s
+      timeout: 10s
+      retries: 30

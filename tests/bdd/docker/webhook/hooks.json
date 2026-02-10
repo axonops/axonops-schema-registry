@@ -1,0 +1,51 @@
+[
+  {
+    "id": "kill-backend",
+    "execute-command": "/etc/webhook/scripts/kill-backend.sh",
+    "pass-arguments-to-command": [
+      { "source": "payload", "name": "container" }
+    ]
+  },
+  {
+    "id": "restart-service",
+    "execute-command": "/etc/webhook/scripts/restart-service.sh",
+    "pass-arguments-to-command": [
+      { "source": "payload", "name": "container" }
+    ]
+  },
+  {
+    "id": "restart-backend",
+    "execute-command": "/etc/webhook/scripts/restart-backend.sh",
+    "pass-arguments-to-command": [
+      { "source": "payload", "name": "container" }
+    ]
+  },
+  {
+    "id": "pause-service",
+    "execute-command": "/etc/webhook/scripts/pause-service.sh",
+    "pass-arguments-to-command": [
+      { "source": "payload", "name": "container" }
+    ]
+  },
+  {
+    "id": "unpause-service",
+    "execute-command": "/etc/webhook/scripts/unpause-service.sh",
+    "pass-arguments-to-command": [
+      { "source": "payload", "name": "container" }
+    ]
+  },
+  {
+    "id": "stop-service",
+    "execute-command": "/etc/webhook/scripts/stop-service.sh",
+    "pass-arguments-to-command": [
+      { "source": "payload", "name": "container" }
+    ]
+  },
+  {
+    "id": "start-service",
+    "execute-command": "/etc/webhook/scripts/start-service.sh",
+    "pass-arguments-to-command": [
+      { "source": "payload", "name": "container" }
+    ]
+  }
+]

@@ -1,0 +1,3 @@
+FROM almir/webhook:latest
+RUN apk add --no-cache docker-cli bash curl
+COPY webhook /etc/webhook

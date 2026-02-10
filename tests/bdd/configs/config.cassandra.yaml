@@ -1,0 +1,17 @@
+server:
+  host: "0.0.0.0"
+  port: 8081
+storage:
+  type: cassandra
+  cassandra:
+    hosts:
+      - cassandra
+    port: 9042
+    keyspace: schemaregistry
+    consistency: ONE
+    migrate: true
+compatibility:
+  default_level: BACKWARD
+logging:
+  level: info
+  format: json
