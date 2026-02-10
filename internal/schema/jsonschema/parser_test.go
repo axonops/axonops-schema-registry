@@ -259,6 +259,296 @@ func TestParser_Parse_WithDefinitions(t *testing.T) {
 	}
 }
 
+func TestParser_Parse_CrossRefWithinDefinitions(t *testing.T) {
+	parser := NewParser()
+
+	schema := `{
+		"$schema": "http://json-schema.org/draft-07/schema#",
+		"definitions": {
+			"street_address": {
+				"type": "object",
+				"properties": {
+					"street": {"type": "string"},
+					"city": {"type": "string"},
+					"country": {"type": "string"}
+				},
+				"required": ["street", "city"]
+			},
+			"person": {
+				"type": "object",
+				"properties": {
+					"name": {"type": "string"},
+					"home_address": {"$ref": "#/definitions/street_address"},
+					"work_address": {"$ref": "#/definitions/street_address"}
+				},
+				"required": ["name"]
+			}
+		},
+		"type": "object",
+		"properties": {
+			"primary_contact": {"$ref": "#/definitions/person"},
+			"backup_contact": {"$ref": "#/definitions/person"}
+		}
+	}`
+
+	parsed, err := parser.Parse(schema, nil)
+	if err != nil {
+		t.Fatalf("Failed to parse cross-ref schema: %v", err)
+	}
+	if parsed == nil {
+		t.Fatal("Parsed schema is nil")
+	}
+	if parsed.Fingerprint() == "" {
+		t.Error("Expected non-empty fingerprint")
+	}
+}
+
+func TestParser_Parse_ComplexRealWorldPaymentEvent(t *testing.T) {
+	parser := NewParser()
+
+	schema := `{
+		"$schema": "http://json-schema.org/draft-07/schema#",
+		"type": "object",
+		"title": "PaymentEvent",
+		"definitions": {
+			"address": {
+				"type": "object",
+				"properties": {
+					"street": {"type": "string"},
+					"city": {"type": "string"},
+					"country": {"type": "string"},
+					"zip": {"type": "string", "pattern": "^[0-9]{5}(-[0-9]{4})?$"}
+				},
+				"required": ["street", "city", "country"]
+			},
+			"customer": {
+				"type": "object",
+				"properties": {
+					"id": {"type": "integer"},
+					"name": {"type": "string", "minLength": 1, "maxLength": 200},
+					"email": {"type": "string", "format": "email"},
+					"address": {"$ref": "#/definitions/address"}
+				},
+				"required": ["id", "name"]
+			},
+			"line_item": {
+				"type": "object",
+				"properties": {
+					"product_id": {"type": "string"},
+					"quantity": {"type": "integer", "minimum": 1},
+					"unit_price": {"type": "number", "exclusiveMinimum": 0}
+				},
+				"required": ["product_id", "quantity", "unit_price"]
+			}
+		},
+		"properties": {
+			"event_id": {"type": "string", "format": "uuid"},
+			"timestamp": {"type": "string", "format": "date-time"},
+			"amount": {"type": "number", "minimum": 0},
+			"currency": {"type": "string", "enum": ["USD", "EUR", "GBP", "JPY"]},
+			"status": {"type": "string", "enum": ["PENDING", "COMPLETED", "FAILED", "REFUNDED"]},
+			"customer": {"$ref": "#/definitions/customer"},
+			"items": {
+				"type": "array",
+				"items": {"$ref": "#/definitions/line_item"},
+				"minItems": 1
+			},
+			"metadata": {
+				"type": "object",
+				"additionalProperties": {"type": "string"}
+			},
+			"notes": {"type": ["string", "null"]}
+		},
+		"required": ["event_id", "timestamp", "amount", "currency", "status", "customer", "items"]
+	}`
+
+	parsed, err := parser.Parse(schema, nil)
+	if err != nil {
+		t.Fatalf("Failed to parse PaymentEvent schema: %v", err)
+	}
+	if parsed.Type() != storage.SchemaTypeJSON {
+		t.Errorf("Expected JSON type, got %s", parsed.Type())
+	}
+	if parsed.CanonicalString() == "" {
+		t.Error("Expected non-empty canonical string")
+	}
+	if parsed.Fingerprint() == "" {
+		t.Error("Expected non-empty fingerprint")
+	}
+}
+
+func TestParser_Parse_ComplexComposition(t *testing.T) {
+	parser := NewParser()
+
+	tests := []struct {
+		name   string
+		schema string
+	}{
+		{
+			"oneOf with multiple object schemas",
+			`{
+				"oneOf": [
+					{"type": "object", "properties": {"type": {"const": "email"}, "address": {"type": "string"}}, "required": ["type", "address"]},
+					{"type": "object", "properties": {"type": {"const": "phone"}, "number": {"type": "string"}}, "required": ["type", "number"]},
+					{"type": "object", "properties": {"type": {"const": "sms"}, "number": {"type": "string"}, "carrier": {"type": "string"}}, "required": ["type", "number"]}
+				]
+			}`,
+		},
+		{
+			"allOf combining constraints",
+			`{
+				"allOf": [
+					{"type": "object", "properties": {"name": {"type": "string"}}},
+					{"type": "object", "properties": {"age": {"type": "integer", "minimum": 0, "maximum": 150}}},
+					{"required": ["name", "age"]}
+				]
+			}`,
+		},
+		{
+			"nested anyOf within oneOf",
+			`{
+				"oneOf": [
+					{"type": "string"},
+					{"anyOf": [{"type": "integer"}, {"type": "number"}]}
+				]
+			}`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			parsed, err := parser.Parse(tt.schema, nil)
+			if err != nil {
+				t.Fatalf("Failed to parse: %v", err)
+			}
+			if parsed == nil {
+				t.Fatal("Parsed schema is nil")
+			}
+			if parsed.Fingerprint() == "" {
+				t.Error("Expected non-empty fingerprint")
+			}
+		})
+	}
+}
+
+func TestParser_Parse_DeeplyNestedObjects(t *testing.T) {
+	parser := NewParser()
+
+	schema := `{
+		"type": "object",
+		"properties": {
+			"l1": {
+				"type": "object",
+				"properties": {
+					"l2": {
+						"type": "object",
+						"properties": {
+							"l3": {
+								"type": "object",
+								"properties": {
+									"l4": {
+										"type": "object",
+										"properties": {
+											"value": {"type": "string"}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}`
+
+	parsed, err := parser.Parse(schema, nil)
+	if err != nil {
+		t.Fatalf("Failed to parse deeply nested schema: %v", err)
+	}
+	if parsed == nil {
+		t.Fatal("Parsed schema is nil")
+	}
+}
+
+func TestParser_Parse_ConditionalIfThenElse(t *testing.T) {
+	parser := NewParser()
+
+	schema := `{
+		"$schema": "http://json-schema.org/draft-07/schema#",
+		"type": "object",
+		"properties": {
+			"type": {"type": "string", "enum": ["residential", "business"]},
+			"address": {"type": "string"}
+		},
+		"required": ["type"],
+		"if": {
+			"properties": {"type": {"const": "business"}}
+		},
+		"then": {
+			"properties": {
+				"company_name": {"type": "string"},
+				"tax_id": {"type": "string"}
+			},
+			"required": ["company_name", "tax_id"]
+		},
+		"else": {
+			"properties": {
+				"resident_name": {"type": "string"}
+			},
+			"required": ["resident_name"]
+		}
+	}`
+
+	parsed, err := parser.Parse(schema, nil)
+	if err != nil {
+		t.Fatalf("Failed to parse if/then/else schema: %v", err)
+	}
+	if parsed == nil {
+		t.Fatal("Parsed schema is nil")
+	}
+}
+
+func TestParser_Parse_StandaloneNonObjectTypes(t *testing.T) {
+	parser := NewParser()
+
+	tests := []struct {
+		name   string
+		schema string
+	}{
+		{
+			"standalone string with constraints",
+			`{"type": "string", "minLength": 1, "maxLength": 255, "pattern": "^[a-zA-Z]+$"}`,
+		},
+		{
+			"standalone array of numbers",
+			`{"type": "array", "items": {"type": "number"}, "minItems": 1, "maxItems": 100, "uniqueItems": true}`,
+		},
+		{
+			"standalone integer with constraints",
+			`{"type": "integer", "minimum": 0, "maximum": 1000, "multipleOf": 5}`,
+		},
+		{
+			"type union",
+			`{"type": ["string", "null"]}`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			parsed, err := parser.Parse(tt.schema, nil)
+			if err != nil {
+				t.Fatalf("Failed to parse: %v", err)
+			}
+			if parsed == nil {
+				t.Fatal("Parsed schema is nil")
+			}
+			if parsed.Fingerprint() == "" {
+				t.Error("Expected non-empty fingerprint")
+			}
+		})
+	}
+}
+
 func TestParser_Parse_InvalidSchema(t *testing.T) {
 	parser := NewParser()
 

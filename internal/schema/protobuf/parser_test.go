@@ -334,6 +334,249 @@ message AllTypes {
 	}
 }
 
+func TestParser_Parse_DeeplyNestedMessages(t *testing.T) {
+	parser := NewParser()
+
+	schema := `
+syntax = "proto3";
+
+message Level1 {
+  string name = 1;
+
+  message Level2 {
+    int32 value = 1;
+
+    message Level3 {
+      string data = 1;
+
+      message Level4 {
+        bool flag = 1;
+        int64 count = 2;
+      }
+
+      Level4 deep = 2;
+    }
+
+    Level3 nested = 2;
+  }
+
+  Level2 child = 2;
+}
+`
+
+	parsed, err := parser.Parse(schema, nil)
+	if err != nil {
+		t.Fatalf("Failed to parse deeply nested messages: %v", err)
+	}
+
+	canonical := parsed.CanonicalString()
+	if !strings.Contains(canonical, "message Level1") {
+		t.Errorf("Should contain Level1: %s", canonical)
+	}
+	if !strings.Contains(canonical, "message Level4") {
+		t.Errorf("Should contain Level4: %s", canonical)
+	}
+}
+
+func TestParser_Parse_MapOfComplexTypes(t *testing.T) {
+	parser := NewParser()
+
+	schema := `
+syntax = "proto3";
+
+message Metadata {
+  string key = 1;
+  string value = 2;
+}
+
+message Container {
+  map<string, Metadata> entries = 1;
+  map<int32, string> labels = 2;
+}
+`
+
+	parsed, err := parser.Parse(schema, nil)
+	if err != nil {
+		t.Fatalf("Failed to parse map of complex types: %v", err)
+	}
+
+	if parsed == nil {
+		t.Fatal("Parsed schema is nil")
+	}
+}
+
+func TestParser_Parse_MultipleTopLevelMessages(t *testing.T) {
+	parser := NewParser()
+
+	schema := `
+syntax = "proto3";
+package com.example.events;
+
+message UserCreated {
+  string user_id = 1;
+  string email = 2;
+  int64 created_at = 3;
+}
+
+message UserUpdated {
+  string user_id = 1;
+  string field = 2;
+  string old_value = 3;
+  string new_value = 4;
+}
+
+message UserDeleted {
+  string user_id = 1;
+  int64 deleted_at = 2;
+}
+`
+
+	parsed, err := parser.Parse(schema, nil)
+	if err != nil {
+		t.Fatalf("Failed to parse multiple top-level messages: %v", err)
+	}
+
+	canonical := parsed.CanonicalString()
+	if !strings.Contains(canonical, "message UserCreated") {
+		t.Errorf("Should contain UserCreated: %s", canonical)
+	}
+	if !strings.Contains(canonical, "message UserUpdated") {
+		t.Errorf("Should contain UserUpdated: %s", canonical)
+	}
+	if !strings.Contains(canonical, "message UserDeleted") {
+		t.Errorf("Should contain UserDeleted: %s", canonical)
+	}
+}
+
+func TestParser_Parse_ComplexRealWorld(t *testing.T) {
+	parser := NewParser()
+
+	schema := `
+syntax = "proto3";
+package com.example.payments;
+
+import "google/protobuf/timestamp.proto";
+
+enum Currency {
+  CURRENCY_UNSPECIFIED = 0;
+  USD = 1;
+  EUR = 2;
+  GBP = 3;
+}
+
+enum PaymentStatus {
+  STATUS_UNSPECIFIED = 0;
+  PENDING = 1;
+  COMPLETED = 2;
+  FAILED = 3;
+  REFUNDED = 4;
+}
+
+message Address {
+  string street = 1;
+  string city = 2;
+  string country = 3;
+  string zip = 4;
+}
+
+message Customer {
+  int64 id = 1;
+  string name = 2;
+  string email = 3;
+  Address address = 4;
+}
+
+message LineItem {
+  string product_id = 1;
+  int32 quantity = 2;
+  int64 unit_price_cents = 3;
+}
+
+message PaymentEvent {
+  string event_id = 1;
+  google.protobuf.Timestamp timestamp = 2;
+  int64 amount_cents = 3;
+  Currency currency = 4;
+  PaymentStatus status = 5;
+  Customer customer = 6;
+  repeated LineItem items = 7;
+  map<string, string> metadata = 8;
+  string notes = 9;
+}
+`
+
+	parsed, err := parser.Parse(schema, nil)
+	if err != nil {
+		t.Fatalf("Failed to parse complex real-world schema: %v", err)
+	}
+
+	canonical := parsed.CanonicalString()
+	if !strings.Contains(canonical, "message PaymentEvent") {
+		t.Errorf("Should contain PaymentEvent: %s", canonical)
+	}
+	if !strings.Contains(canonical, "enum Currency") {
+		t.Errorf("Should contain Currency enum: %s", canonical)
+	}
+	if parsed.Fingerprint() == "" {
+		t.Error("Fingerprint should not be empty")
+	}
+}
+
+func TestParser_Parse_Proto3OptionalField(t *testing.T) {
+	parser := NewParser()
+
+	schema := `
+syntax = "proto3";
+
+message UserProfile {
+  string name = 1;
+  optional string nickname = 2;
+  optional int32 age = 3;
+}
+`
+
+	parsed, err := parser.Parse(schema, nil)
+	if err != nil {
+		t.Fatalf("Failed to parse proto3 optional fields: %v", err)
+	}
+
+	if parsed == nil {
+		t.Fatal("Parsed schema is nil")
+	}
+}
+
+func TestParser_Parse_StreamingService(t *testing.T) {
+	parser := NewParser()
+
+	schema := `
+syntax = "proto3";
+
+message Request {
+  string query = 1;
+}
+
+message Response {
+  string result = 1;
+}
+
+service StreamService {
+  rpc ServerStream(Request) returns (stream Response);
+  rpc ClientStream(stream Request) returns (Response);
+  rpc BidiStream(stream Request) returns (stream Response);
+}
+`
+
+	parsed, err := parser.Parse(schema, nil)
+	if err != nil {
+		t.Fatalf("Failed to parse streaming service: %v", err)
+	}
+
+	canonical := parsed.CanonicalString()
+	if !strings.Contains(canonical, "service StreamService") {
+		t.Errorf("Should contain StreamService: %s", canonical)
+	}
+}
+
 func TestParser_Parse_InvalidSchema(t *testing.T) {
 	parser := NewParser()
 
