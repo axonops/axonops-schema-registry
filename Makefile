@@ -20,7 +20,7 @@ CMD_DIR := ./cmd/schema-registry
 BUILD_DIR := ./build
 COVERAGE_DIR := ./coverage
 
-.PHONY: all build test test-coverage clean deps lint fmt run help docker docker-build
+.PHONY: all build test test-unit test-conformance test-bdd test-bdd-memory test-bdd-postgres test-bdd-mysql test-bdd-cassandra test-bdd-all test-bdd-functional test-all test-coverage clean deps lint fmt run help docker docker-build
 
 ## Default target
 all: deps lint test build
@@ -44,6 +44,68 @@ build-all:
 test:
 	@echo "Running tests..."
 	$(GOTEST) -race -v ./...
+
+## Run unit tests only (internal packages)
+test-unit:
+	@echo "Running unit tests..."
+	$(GOTEST) -race -v ./internal/...
+
+## Run storage conformance tests
+test-conformance:
+	@echo "Running storage conformance tests..."
+	$(GOTEST) -race -v ./tests/storage/conformance/...
+
+## Run BDD tests in-process (requires -tags bdd)
+test-bdd:
+	@echo "Running BDD tests (in-process, memory backend)..."
+	$(GOTEST) -tags bdd -v ./tests/bdd/...
+
+## Run BDD tests against memory backend (Docker)
+test-bdd-memory:
+	@echo "Running BDD tests against memory backend..."
+	cd tests/bdd && docker compose -f docker-compose.base.yml -f docker-compose.memory.yml up -d --build --wait
+	BDD_REGISTRY_URL=http://localhost:18081 BDD_WEBHOOK_URL=http://localhost:19000 BDD_BACKEND=memory \
+		$(GOTEST) -tags bdd -v -timeout 10m ./tests/bdd/...
+	cd tests/bdd && docker compose -f docker-compose.base.yml -f docker-compose.memory.yml down -v
+
+## Run BDD tests against PostgreSQL backend (Docker)
+test-bdd-postgres:
+	@echo "Running BDD tests against PostgreSQL backend..."
+	cd tests/bdd && docker compose -f docker-compose.base.yml -f docker-compose.postgres.yml up -d --build --wait
+	BDD_REGISTRY_URL=http://localhost:18081 BDD_WEBHOOK_URL=http://localhost:19000 BDD_BACKEND=postgres \
+		$(GOTEST) -tags bdd -v -timeout 15m ./tests/bdd/...
+	cd tests/bdd && docker compose -f docker-compose.base.yml -f docker-compose.postgres.yml down -v
+
+## Run BDD tests against MySQL backend (Docker)
+test-bdd-mysql:
+	@echo "Running BDD tests against MySQL backend..."
+	cd tests/bdd && docker compose -f docker-compose.base.yml -f docker-compose.mysql.yml up -d --build --wait
+	BDD_REGISTRY_URL=http://localhost:18081 BDD_WEBHOOK_URL=http://localhost:19000 BDD_BACKEND=mysql \
+		$(GOTEST) -tags bdd -v -timeout 15m ./tests/bdd/...
+	cd tests/bdd && docker compose -f docker-compose.base.yml -f docker-compose.mysql.yml down -v
+
+## Run BDD tests against Cassandra backend (Docker)
+test-bdd-cassandra:
+	@echo "Running BDD tests against Cassandra backend..."
+	cd tests/bdd && docker compose -f docker-compose.base.yml -f docker-compose.cassandra.yml up -d --build --wait
+	BDD_REGISTRY_URL=http://localhost:18081 BDD_WEBHOOK_URL=http://localhost:19000 BDD_BACKEND=cassandra \
+		$(GOTEST) -tags bdd -v -timeout 20m ./tests/bdd/...
+	cd tests/bdd && docker compose -f docker-compose.base.yml -f docker-compose.cassandra.yml down -v
+
+## Run BDD tests against all backends (Docker)
+test-bdd-all: test-bdd-memory test-bdd-postgres test-bdd-mysql test-bdd-cassandra
+
+## Run functional BDD only (skip operational, Docker)
+test-bdd-functional:
+	@echo "Running functional BDD tests..."
+	cd tests/bdd && docker compose -f docker-compose.base.yml -f docker-compose.memory.yml up -d --build --wait
+	BDD_REGISTRY_URL=http://localhost:18081 BDD_WEBHOOK_URL=http://localhost:19000 \
+		BDD_TAGS="@functional && ~@operational" \
+		$(GOTEST) -tags bdd -v -timeout 10m ./tests/bdd/...
+	cd tests/bdd && docker compose -f docker-compose.base.yml -f docker-compose.memory.yml down -v
+
+## Run all tests (unit + conformance + BDD)
+test-all: test-unit test-conformance test-bdd
 
 ## Run tests with coverage
 test-coverage:
