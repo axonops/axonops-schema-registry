@@ -2,6 +2,7 @@ package conformance
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/axonops/axonops-schema-registry/internal/storage"
@@ -133,7 +134,7 @@ func RunImportTests(t *testing.T, newStore StoreFactory) {
 				Version:     int(id / 10),
 				SchemaType:  storage.SchemaTypeAvro,
 				Schema:      `{"type":"string"}`,
-				Fingerprint: string(rune(id)),
+				Fingerprint: fmt.Sprintf("fp-itc-%d", id),
 			}
 			if err := store.ImportSchema(ctx, rec); err != nil {
 				t.Fatalf("ImportSchema(id=%d): %v", id, err)
@@ -181,7 +182,7 @@ func RunImportTests(t *testing.T, newStore StoreFactory) {
 				Version:     e.version,
 				SchemaType:  storage.SchemaTypeAvro,
 				Schema:      `{"type":"string"}`,
-				Fingerprint: string(rune(e.id + 100)),
+				Fingerprint: fmt.Sprintf("fp-imp-%d", e.id),
 			}
 			store.ImportSchema(ctx, rec)
 		}

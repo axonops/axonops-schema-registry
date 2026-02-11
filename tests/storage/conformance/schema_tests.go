@@ -2,6 +2,7 @@ package conformance
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/axonops/axonops-schema-registry/internal/storage"
@@ -482,7 +483,7 @@ func RunSchemaTests(t *testing.T, newStore StoreFactory) {
 				Subject:     "s",
 				SchemaType:  storage.SchemaTypeAvro,
 				Schema:      `{"type":"string"}`,
-				Fingerprint: string(rune('a' + i)),
+				Fingerprint: fmt.Sprintf("fp-ol-%d", i),
 			}
 			store.CreateSchema(ctx, rec)
 		}
