@@ -316,6 +316,20 @@ func (s *Store) ImportSchema(ctx context.Context, record *storage.SchemaRecord) 
 		bucket, record.Subject,
 	).WithContext(ctx).Exec()
 
+	// Write schema references if any
+	if len(record.References) > 0 {
+		for _, ref := range record.References {
+			_ = s.writeQuery(
+				fmt.Sprintf(`INSERT INTO %s.schema_references (schema_id, name, ref_subject, ref_version) VALUES (?, ?, ?, ?)`, qident(s.cfg.Keyspace)),
+				int(record.ID), ref.Name, ref.Subject, ref.Version,
+			).WithContext(ctx).Exec()
+			_ = s.writeQuery(
+				fmt.Sprintf(`INSERT INTO %s.references_by_target (ref_subject, ref_version, schema_subject, schema_version) VALUES (?, ?, ?, ?)`, qident(s.cfg.Keyspace)),
+				ref.Subject, ref.Version, record.Subject, record.Version,
+			).WithContext(ctx).Exec()
+		}
+	}
+
 	record.CreatedAt = createdUUID.Time()
 	record.Deleted = false
 
@@ -769,7 +783,17 @@ func (s *Store) GetSchemaByFingerprint(ctx context.Context, subject, fp string, 
 	for iter.Scan(&version, &schemaID, &deleted) {
 		if (includeDeleted || !deleted) && int64(schemaID) == globalRec.ID {
 			iter.Close()
-			return s.GetSchemaBySubjectVersion(ctx, subject, version)
+			// Build result directly instead of calling GetSchemaBySubjectVersion,
+			// which rejects deleted versions even when includeDeleted=true.
+			rec, err := s.GetSchemaByID(ctx, globalRec.ID)
+			if err != nil {
+				return nil, err
+			}
+			rec.Subject = subject
+			rec.Version = version
+			rec.Deleted = deleted
+			rec.Fingerprint = fp
+			return rec, nil
 		}
 	}
 	iter.Close()
