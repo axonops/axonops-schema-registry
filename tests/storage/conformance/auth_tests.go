@@ -246,7 +246,12 @@ func RunAuthTests(t *testing.T, newStore StoreFactory) {
 		defer store.Close()
 		ctx := context.Background()
 
-		key := &storage.APIKeyRecord{UserID: 1, KeyHash: "hash-gid", KeyPrefix: "ak_", Name: "k1", Role: "reader", Enabled: true, ExpiresAt: time.Now().Add(time.Hour)}
+		user := &storage.UserRecord{Username: "u-gid", PasswordHash: "h", Role: "admin", Enabled: true}
+		if err := store.CreateUser(ctx, user); err != nil {
+			t.Fatalf("CreateUser: %v", err)
+		}
+
+		key := &storage.APIKeyRecord{UserID: user.ID, KeyHash: "hash-gid", KeyPrefix: "ak_", Name: "k1", Role: "reader", Enabled: true, ExpiresAt: time.Now().Add(time.Hour)}
 		store.CreateAPIKey(ctx, key)
 
 		got, err := store.GetAPIKeyByID(ctx, key.ID)
@@ -263,7 +268,12 @@ func RunAuthTests(t *testing.T, newStore StoreFactory) {
 		defer store.Close()
 		ctx := context.Background()
 
-		key := &storage.APIKeyRecord{UserID: 1, KeyHash: "hash-gh", KeyPrefix: "ak_", Name: "k2", Role: "reader", Enabled: true, ExpiresAt: time.Now().Add(time.Hour)}
+		user := &storage.UserRecord{Username: "u-gh", PasswordHash: "h", Role: "admin", Enabled: true}
+		if err := store.CreateUser(ctx, user); err != nil {
+			t.Fatalf("CreateUser: %v", err)
+		}
+
+		key := &storage.APIKeyRecord{UserID: user.ID, KeyHash: "hash-gh", KeyPrefix: "ak_", Name: "k2", Role: "reader", Enabled: true, ExpiresAt: time.Now().Add(time.Hour)}
 		store.CreateAPIKey(ctx, key)
 
 		got, err := store.GetAPIKeyByHash(ctx, "hash-gh")
@@ -280,10 +290,15 @@ func RunAuthTests(t *testing.T, newStore StoreFactory) {
 		defer store.Close()
 		ctx := context.Background()
 
-		key := &storage.APIKeyRecord{UserID: 42, KeyHash: "hash-un", KeyPrefix: "ak_", Name: "prod-key", Role: "writer", Enabled: true, ExpiresAt: time.Now().Add(time.Hour)}
+		user := &storage.UserRecord{Username: "u-un", PasswordHash: "h", Role: "admin", Enabled: true}
+		if err := store.CreateUser(ctx, user); err != nil {
+			t.Fatalf("CreateUser: %v", err)
+		}
+
+		key := &storage.APIKeyRecord{UserID: user.ID, KeyHash: "hash-un", KeyPrefix: "ak_", Name: "prod-key", Role: "writer", Enabled: true, ExpiresAt: time.Now().Add(time.Hour)}
 		store.CreateAPIKey(ctx, key)
 
-		got, err := store.GetAPIKeyByUserAndName(ctx, 42, "prod-key")
+		got, err := store.GetAPIKeyByUserAndName(ctx, user.ID, "prod-key")
 		if err != nil {
 			t.Fatalf("GetAPIKeyByUserAndName: %v", err)
 		}
@@ -297,7 +312,12 @@ func RunAuthTests(t *testing.T, newStore StoreFactory) {
 		defer store.Close()
 		ctx := context.Background()
 
-		key := &storage.APIKeyRecord{UserID: 1, KeyHash: "hash-upd", KeyPrefix: "ak_", Name: "k3", Role: "reader", Enabled: true, ExpiresAt: time.Now().Add(time.Hour)}
+		user := &storage.UserRecord{Username: "u-upd", PasswordHash: "h", Role: "admin", Enabled: true}
+		if err := store.CreateUser(ctx, user); err != nil {
+			t.Fatalf("CreateUser: %v", err)
+		}
+
+		key := &storage.APIKeyRecord{UserID: user.ID, KeyHash: "hash-upd", KeyPrefix: "ak_", Name: "k3", Role: "reader", Enabled: true, ExpiresAt: time.Now().Add(time.Hour)}
 		store.CreateAPIKey(ctx, key)
 
 		key.Enabled = false
@@ -320,7 +340,12 @@ func RunAuthTests(t *testing.T, newStore StoreFactory) {
 		defer store.Close()
 		ctx := context.Background()
 
-		key := &storage.APIKeyRecord{UserID: 1, KeyHash: "old-hash", KeyPrefix: "ak_", Name: "k4", Role: "reader", Enabled: true, ExpiresAt: time.Now().Add(time.Hour)}
+		user := &storage.UserRecord{Username: "u-ch", PasswordHash: "h", Role: "admin", Enabled: true}
+		if err := store.CreateUser(ctx, user); err != nil {
+			t.Fatalf("CreateUser: %v", err)
+		}
+
+		key := &storage.APIKeyRecord{UserID: user.ID, KeyHash: "old-hash", KeyPrefix: "ak_", Name: "k4", Role: "reader", Enabled: true, ExpiresAt: time.Now().Add(time.Hour)}
 		store.CreateAPIKey(ctx, key)
 
 		// Create a copy with new hash (avoids pointer aliasing with stored data)
@@ -359,7 +384,12 @@ func RunAuthTests(t *testing.T, newStore StoreFactory) {
 		defer store.Close()
 		ctx := context.Background()
 
-		key := &storage.APIKeyRecord{UserID: 1, KeyHash: "hash-del", KeyPrefix: "ak_", Name: "k5", Role: "reader", Enabled: true, ExpiresAt: time.Now().Add(time.Hour)}
+		user := &storage.UserRecord{Username: "u-del", PasswordHash: "h", Role: "admin", Enabled: true}
+		if err := store.CreateUser(ctx, user); err != nil {
+			t.Fatalf("CreateUser: %v", err)
+		}
+
+		key := &storage.APIKeyRecord{UserID: user.ID, KeyHash: "hash-del", KeyPrefix: "ak_", Name: "k5", Role: "reader", Enabled: true, ExpiresAt: time.Now().Add(time.Hour)}
 		store.CreateAPIKey(ctx, key)
 
 		if err := store.DeleteAPIKey(ctx, key.ID); err != nil {
@@ -382,8 +412,17 @@ func RunAuthTests(t *testing.T, newStore StoreFactory) {
 		defer store.Close()
 		ctx := context.Background()
 
-		k1 := &storage.APIKeyRecord{UserID: 1, KeyHash: "hash-la-1", KeyPrefix: "ak_", Name: "k1", Role: "reader", Enabled: true, ExpiresAt: time.Now().Add(time.Hour)}
-		k2 := &storage.APIKeyRecord{UserID: 2, KeyHash: "hash-la-2", KeyPrefix: "ak_", Name: "k2", Role: "admin", Enabled: true, ExpiresAt: time.Now().Add(time.Hour)}
+		u1 := &storage.UserRecord{Username: "u-la1", PasswordHash: "h", Role: "admin", Enabled: true}
+		u2 := &storage.UserRecord{Username: "u-la2", PasswordHash: "h", Role: "admin", Enabled: true}
+		if err := store.CreateUser(ctx, u1); err != nil {
+			t.Fatalf("CreateUser u1: %v", err)
+		}
+		if err := store.CreateUser(ctx, u2); err != nil {
+			t.Fatalf("CreateUser u2: %v", err)
+		}
+
+		k1 := &storage.APIKeyRecord{UserID: u1.ID, KeyHash: "hash-la-1", KeyPrefix: "ak_", Name: "k1", Role: "reader", Enabled: true, ExpiresAt: time.Now().Add(time.Hour)}
+		k2 := &storage.APIKeyRecord{UserID: u2.ID, KeyHash: "hash-la-2", KeyPrefix: "ak_", Name: "k2", Role: "admin", Enabled: true, ExpiresAt: time.Now().Add(time.Hour)}
 		store.CreateAPIKey(ctx, k1)
 		store.CreateAPIKey(ctx, k2)
 
@@ -401,19 +440,28 @@ func RunAuthTests(t *testing.T, newStore StoreFactory) {
 		defer store.Close()
 		ctx := context.Background()
 
-		k1 := &storage.APIKeyRecord{UserID: 10, KeyHash: "hash-lu-1", KeyPrefix: "ak_", Name: "k1", Role: "reader", Enabled: true, ExpiresAt: time.Now().Add(time.Hour)}
-		k2 := &storage.APIKeyRecord{UserID: 10, KeyHash: "hash-lu-2", KeyPrefix: "ak_", Name: "k2", Role: "reader", Enabled: true, ExpiresAt: time.Now().Add(time.Hour)}
-		k3 := &storage.APIKeyRecord{UserID: 20, KeyHash: "hash-lu-3", KeyPrefix: "ak_", Name: "k3", Role: "reader", Enabled: true, ExpiresAt: time.Now().Add(time.Hour)}
+		u1 := &storage.UserRecord{Username: "u-lu1", PasswordHash: "h", Role: "admin", Enabled: true}
+		u2 := &storage.UserRecord{Username: "u-lu2", PasswordHash: "h", Role: "admin", Enabled: true}
+		if err := store.CreateUser(ctx, u1); err != nil {
+			t.Fatalf("CreateUser u1: %v", err)
+		}
+		if err := store.CreateUser(ctx, u2); err != nil {
+			t.Fatalf("CreateUser u2: %v", err)
+		}
+
+		k1 := &storage.APIKeyRecord{UserID: u1.ID, KeyHash: "hash-lu-1", KeyPrefix: "ak_", Name: "k1", Role: "reader", Enabled: true, ExpiresAt: time.Now().Add(time.Hour)}
+		k2 := &storage.APIKeyRecord{UserID: u1.ID, KeyHash: "hash-lu-2", KeyPrefix: "ak_", Name: "k2", Role: "reader", Enabled: true, ExpiresAt: time.Now().Add(time.Hour)}
+		k3 := &storage.APIKeyRecord{UserID: u2.ID, KeyHash: "hash-lu-3", KeyPrefix: "ak_", Name: "k3", Role: "reader", Enabled: true, ExpiresAt: time.Now().Add(time.Hour)}
 		store.CreateAPIKey(ctx, k1)
 		store.CreateAPIKey(ctx, k2)
 		store.CreateAPIKey(ctx, k3)
 
-		keys, err := store.ListAPIKeysByUserID(ctx, 10)
+		keys, err := store.ListAPIKeysByUserID(ctx, u1.ID)
 		if err != nil {
 			t.Fatalf("ListAPIKeysByUserID: %v", err)
 		}
 		if len(keys) != 2 {
-			t.Errorf("expected 2 keys for user 10, got %d", len(keys))
+			t.Errorf("expected 2 keys for user %d, got %d", u1.ID, len(keys))
 		}
 	})
 
@@ -422,7 +470,12 @@ func RunAuthTests(t *testing.T, newStore StoreFactory) {
 		defer store.Close()
 		ctx := context.Background()
 
-		key := &storage.APIKeyRecord{UserID: 1, KeyHash: "hash-lu", KeyPrefix: "ak_", Name: "k-lu", Role: "reader", Enabled: true, ExpiresAt: time.Now().Add(time.Hour)}
+		user := &storage.UserRecord{Username: "u-alu", PasswordHash: "h", Role: "admin", Enabled: true}
+		if err := store.CreateUser(ctx, user); err != nil {
+			t.Fatalf("CreateUser: %v", err)
+		}
+
+		key := &storage.APIKeyRecord{UserID: user.ID, KeyHash: "hash-lu", KeyPrefix: "ak_", Name: "k-lu", Role: "reader", Enabled: true, ExpiresAt: time.Now().Add(time.Hour)}
 		store.CreateAPIKey(ctx, key)
 
 		if key.LastUsed != nil {
@@ -444,8 +497,17 @@ func RunAuthTests(t *testing.T, newStore StoreFactory) {
 		defer store.Close()
 		ctx := context.Background()
 
-		k1 := &storage.APIKeyRecord{UserID: 1, KeyHash: "dup-hash", KeyPrefix: "ak_", Name: "k1", Role: "reader", Enabled: true, ExpiresAt: time.Now().Add(time.Hour)}
-		k2 := &storage.APIKeyRecord{UserID: 2, KeyHash: "dup-hash", KeyPrefix: "ak_", Name: "k2", Role: "reader", Enabled: true, ExpiresAt: time.Now().Add(time.Hour)}
+		u1 := &storage.UserRecord{Username: "u-dh1", PasswordHash: "h", Role: "admin", Enabled: true}
+		u2 := &storage.UserRecord{Username: "u-dh2", PasswordHash: "h", Role: "admin", Enabled: true}
+		if err := store.CreateUser(ctx, u1); err != nil {
+			t.Fatalf("CreateUser u1: %v", err)
+		}
+		if err := store.CreateUser(ctx, u2); err != nil {
+			t.Fatalf("CreateUser u2: %v", err)
+		}
+
+		k1 := &storage.APIKeyRecord{UserID: u1.ID, KeyHash: "dup-hash", KeyPrefix: "ak_", Name: "k1", Role: "reader", Enabled: true, ExpiresAt: time.Now().Add(time.Hour)}
+		k2 := &storage.APIKeyRecord{UserID: u2.ID, KeyHash: "dup-hash", KeyPrefix: "ak_", Name: "k2", Role: "reader", Enabled: true, ExpiresAt: time.Now().Add(time.Hour)}
 		store.CreateAPIKey(ctx, k1)
 
 		err := store.CreateAPIKey(ctx, k2)

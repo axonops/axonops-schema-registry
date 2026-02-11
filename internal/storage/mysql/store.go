@@ -581,6 +581,14 @@ func (s *Store) GetSchemasBySubject(ctx context.Context, subject string, include
 	}
 
 	if len(schemas) == 0 {
+		if !includeDeleted {
+			var count int
+			_ = s.db.QueryRowContext(ctx,
+				"SELECT COUNT(*) FROM `schemas` WHERE subject = ?", subject).Scan(&count)
+			if count > 0 {
+				return []*storage.SchemaRecord{}, nil
+			}
+		}
 		return nil, storage.ErrSubjectNotFound
 	}
 
@@ -594,8 +602,7 @@ func (s *Store) GetSchemaByFingerprint(ctx context.Context, subject, fingerprint
 	var err error
 
 	if includeDeleted {
-		query := `SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at
-		          FROM schemas WHERE subject = ? AND fingerprint = ?`
+		query := "SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at FROM `schemas` WHERE subject = ? AND fingerprint = ?"
 		err = s.db.QueryRowContext(ctx, query, subject, fingerprint).Scan(
 			&record.ID, &record.Subject, &record.Version, &schemaType,
 			&record.Schema, &record.Fingerprint, &record.Deleted, &record.CreatedAt)
@@ -631,8 +638,7 @@ func (s *Store) GetSchemaByGlobalFingerprint(ctx context.Context, fingerprint st
 	var schemaType string
 
 	// Query for any schema with this fingerprint (global deduplication)
-	query := `SELECT id, subject, version, schema_type, schema, fingerprint, deleted, created_at
-	          FROM schemas WHERE fingerprint = ? AND deleted = false LIMIT 1`
+	query := "SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at FROM `schemas` WHERE fingerprint = ? AND deleted = false LIMIT 1"
 	err := s.db.QueryRowContext(ctx, query, fingerprint).Scan(
 		&record.ID, &record.Subject, &record.Version, &schemaType,
 		&record.Schema, &record.Fingerprint, &record.Deleted, &record.CreatedAt)
@@ -1094,12 +1100,14 @@ func (s *Store) ListSchemas(ctx context.Context, params *storage.ListSchemasPara
 	}
 
 	if params.LatestOnly {
+		args = []interface{}{}
 		query = "SELECT s.id, s.subject, s.version, s.schema_type, s.schema_text, s.fingerprint, s.deleted, s.created_at FROM `schemas` s INNER JOIN (SELECT subject, MAX(version) as max_version FROM `schemas` WHERE 1=1"
 		if !params.Deleted {
 			query += " AND deleted = FALSE"
 		}
 		if params.SubjectPrefix != "" {
 			query += " AND subject LIKE ?"
+			args = append(args, params.SubjectPrefix+"%")
 		}
 		query += " GROUP BY subject) latest ON s.subject = latest.subject AND s.version = latest.max_version"
 		if !params.Deleted {

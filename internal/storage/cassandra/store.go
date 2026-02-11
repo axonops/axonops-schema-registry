@@ -483,6 +483,20 @@ func (s *Store) CreateSchema(ctx context.Context, record *storage.SchemaRecord) 
 			bucket, record.Subject,
 		).WithContext(ctx).Exec()
 
+		// Step 4: Write schema references if any
+		if len(record.References) > 0 {
+			for _, ref := range record.References {
+				_ = s.writeQuery(
+					fmt.Sprintf(`INSERT INTO %s.schema_references (schema_id, name, ref_subject, ref_version) VALUES (?, ?, ?, ?)`, qident(s.cfg.Keyspace)),
+					int(schemaID), ref.Name, ref.Subject, ref.Version,
+				).WithContext(ctx).Exec()
+				_ = s.writeQuery(
+					fmt.Sprintf(`INSERT INTO %s.references_by_target (ref_subject, ref_version, schema_subject, schema_version) VALUES (?, ?, ?, ?)`, qident(s.cfg.Keyspace)),
+					ref.Subject, ref.Version, record.Subject, newVersion,
+				).WithContext(ctx).Exec()
+			}
+		}
+
 		// Update record with assigned values
 		record.ID = schemaID
 		record.Version = newVersion
@@ -687,7 +701,9 @@ func (s *Store) GetSchemasBySubject(ctx context.Context, subject string, include
 	}
 	var entries []versionInfo
 	var vi versionInfo
+	hasAnyRows := false
 	for iter.Scan(&vi.version, &vi.schemaID, &vi.deleted, &vi.createdAt) {
+		hasAnyRows = true
 		if includeDeleted || !vi.deleted {
 			entries = append(entries, vi)
 		}
@@ -696,8 +712,12 @@ func (s *Store) GetSchemasBySubject(ctx context.Context, subject string, include
 		return nil, err
 	}
 
-	if len(entries) == 0 {
+	if !hasAnyRows {
 		return nil, storage.ErrSubjectNotFound
+	}
+
+	if len(entries) == 0 {
+		return []*storage.SchemaRecord{}, nil
 	}
 
 	sort.Slice(entries, func(i, j int) bool { return entries[i].version < entries[j].version })
@@ -771,14 +791,33 @@ func (s *Store) GetSchemaByGlobalFingerprint(ctx context.Context, fp string) (*s
 
 // GetLatestSchema retrieves the latest non-deleted schema for a subject.
 func (s *Store) GetLatestSchema(ctx context.Context, subject string) (*storage.SchemaRecord, error) {
-	v, _, ok, err := s.getSubjectLatest(ctx, subject)
+	_, _, ok, err := s.getSubjectLatest(ctx, subject)
 	if err != nil {
 		return nil, err
 	}
-	if !ok || v <= 0 {
+	if !ok {
 		return nil, storage.ErrSubjectNotFound
 	}
-	return s.GetSchemaBySubjectVersion(ctx, subject, v)
+	// Scan all versions to find the latest non-deleted one
+	iter := s.readQuery(
+		fmt.Sprintf(`SELECT version, deleted FROM %s.subject_versions WHERE subject = ?`, qident(s.cfg.Keyspace)),
+		subject,
+	).WithContext(ctx).Iter()
+	latestVersion := 0
+	var version int
+	var deleted bool
+	for iter.Scan(&version, &deleted) {
+		if !deleted && version > latestVersion {
+			latestVersion = version
+		}
+	}
+	if err := iter.Close(); err != nil {
+		return nil, err
+	}
+	if latestVersion == 0 {
+		return nil, storage.ErrSubjectNotFound
+	}
+	return s.GetSchemaBySubjectVersion(ctx, subject, latestVersion)
 }
 
 func (s *Store) getSubjectLatest(ctx context.Context, subject string) (latestVersion int, latestSchemaID int, exists bool, err error) {
@@ -914,7 +953,25 @@ func (s *Store) DeleteSubject(ctx context.Context, subject string, permanent boo
 // SubjectExists checks if a subject exists.
 func (s *Store) SubjectExists(ctx context.Context, subject string) (bool, error) {
 	_, _, exists, err := s.getSubjectLatest(ctx, subject)
-	return exists, err
+	if err != nil || !exists {
+		return false, err
+	}
+	// Check if there are any non-deleted versions
+	iter := s.readQuery(
+		fmt.Sprintf(`SELECT deleted FROM %s.subject_versions WHERE subject = ?`, qident(s.cfg.Keyspace)),
+		subject,
+	).WithContext(ctx).Iter()
+	var deleted bool
+	for iter.Scan(&deleted) {
+		if !deleted {
+			iter.Close()
+			return true, nil
+		}
+	}
+	if err := iter.Close(); err != nil {
+		return false, err
+	}
+	return false, nil
 }
 
 func (s *Store) subjectBucket(subject string) int {
@@ -1114,6 +1171,11 @@ func (s *Store) DeleteConfig(ctx context.Context, subject string) error {
 	if subject == "" {
 		return nil
 	}
+	// Check if config exists first (Cassandra DELETE is idempotent)
+	_, err := s.GetConfig(ctx, subject)
+	if err != nil {
+		return err
+	}
 	return s.writeQuery(
 		fmt.Sprintf(`DELETE FROM %s.subject_configs WHERE subject = ?`, qident(s.cfg.Keyspace)),
 		subject,
@@ -1194,6 +1256,11 @@ func (s *Store) SetMode(ctx context.Context, subject string, mode *storage.ModeR
 
 // DeleteMode deletes the mode for a subject.
 func (s *Store) DeleteMode(ctx context.Context, subject string) error {
+	// Check if mode exists first (Cassandra DELETE is idempotent)
+	_, err := s.GetMode(ctx, subject)
+	if err != nil {
+		return err
+	}
 	key := "global"
 	if subject != "" {
 		key = "subject:" + subject
@@ -1355,6 +1422,14 @@ func (s *Store) UpdateUser(ctx context.Context, user *storage.UserRecord) error 
 		return err
 	}
 
+	// Check for duplicate username if username is changing
+	if existing.Username != user.Username {
+		existingByName, err := s.GetUserByUsername(ctx, user.Username)
+		if err == nil && existingByName.ID != user.ID {
+			return storage.ErrUserExists
+		}
+	}
+
 	user.UpdatedAt = time.Now()
 	updatedUUID := gocql.UUIDFromTime(user.UpdatedAt)
 	createdUUID := gocql.UUIDFromTime(user.CreatedAt)
@@ -1415,6 +1490,7 @@ func (s *Store) ListUsers(ctx context.Context) ([]*storage.UserRecord, error) {
 	if err := iter.Close(); err != nil {
 		return nil, err
 	}
+	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
 	return out, nil
 }
 
@@ -1451,6 +1527,11 @@ func (s *Store) CreateAPIKey(ctx context.Context, key *storage.APIKeyRecord) err
 	// Default enabled to true if not set
 	if !key.Enabled {
 		key.Enabled = true
+	}
+
+	// Check for duplicate hash
+	if _, err := s.GetAPIKeyByHash(ctx, key.KeyHash); err == nil {
+		return storage.ErrAPIKeyExists
 	}
 
 	batch := s.session.NewBatch(gocql.LoggedBatch).WithContext(ctx)

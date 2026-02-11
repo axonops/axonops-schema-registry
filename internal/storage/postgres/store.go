@@ -194,7 +194,7 @@ func (s *Store) prepareStatements() error {
 	}
 
 	stmts.countSchemasBySubject, err = s.db.Prepare(
-		`SELECT COUNT(*) FROM schemas WHERE subject = $1`)
+		`SELECT COUNT(*) FROM schemas WHERE subject = $1 AND deleted = FALSE`)
 	if err != nil {
 		return fmt.Errorf("prepare countSchemasBySubject: %w", err)
 	}
@@ -618,6 +618,14 @@ func (s *Store) GetSchemasBySubject(ctx context.Context, subject string, include
 	}
 
 	if len(schemas) == 0 {
+		if !includeDeleted {
+			var count int
+			_ = s.db.QueryRowContext(ctx,
+				`SELECT COUNT(*) FROM schemas WHERE subject = $1`, subject).Scan(&count)
+			if count > 0 {
+				return []*storage.SchemaRecord{}, nil
+			}
+		}
 		return nil, storage.ErrSubjectNotFound
 	}
 
@@ -668,7 +676,7 @@ func (s *Store) GetSchemaByGlobalFingerprint(ctx context.Context, fingerprint st
 	var schemaType string
 
 	// Query for any schema with this fingerprint (global deduplication)
-	query := `SELECT id, subject, version, schema_type, schema, fingerprint, deleted, created_at
+	query := `SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at
 	          FROM schemas WHERE fingerprint = $1 AND deleted = false LIMIT 1`
 	err := s.db.QueryRowContext(ctx, query, fingerprint).Scan(
 		&record.ID, &record.Subject, &record.Version, &schemaType,
@@ -1131,6 +1139,8 @@ func (s *Store) ListSchemas(ctx context.Context, params *storage.ListSchemasPara
 	}
 
 	if params.LatestOnly {
+		args = []interface{}{}
+		argNum = 1
 		query = `SELECT s.id, s.subject, s.version, s.schema_type, s.schema_text, s.fingerprint, s.deleted, s.created_at
 		         FROM schemas s
 		         INNER JOIN (
@@ -1141,7 +1151,9 @@ func (s *Store) ListSchemas(ctx context.Context, params *storage.ListSchemasPara
 			query += ` AND deleted = FALSE`
 		}
 		if params.SubjectPrefix != "" {
-			query += fmt.Sprintf(` AND subject LIKE $%d`, argNum-1)
+			query += fmt.Sprintf(` AND subject LIKE $%d`, argNum)
+			args = append(args, params.SubjectPrefix+"%")
+			argNum++
 		}
 		query += ` GROUP BY subject
 		         ) latest ON s.subject = latest.subject AND s.version = latest.max_version`

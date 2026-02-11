@@ -56,4 +56,12 @@ func truncateMySQL(t *testing.T, cfg mysql.Config) {
 	if _, err := db.Exec("SET FOREIGN_KEY_CHECKS = 1"); err != nil {
 		t.Fatalf("Failed to enable FK checks: %v", err)
 	}
+
+	// Re-insert default global config and mode
+	if _, err := db.Exec("INSERT IGNORE INTO `configs` (subject, compatibility_level) VALUES ('', 'BACKWARD')"); err != nil {
+		t.Fatalf("Failed to insert default config: %v", err)
+	}
+	if _, err := db.Exec("INSERT IGNORE INTO `modes` (subject, mode) VALUES ('', 'READWRITE')"); err != nil {
+		t.Fatalf("Failed to insert default mode: %v", err)
+	}
 }
