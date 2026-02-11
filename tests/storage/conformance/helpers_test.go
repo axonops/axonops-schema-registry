@@ -14,8 +14,8 @@ type noCloseStore struct {
 	storage.Storage
 }
 
-func (s *noCloseStore) Close() error                        { return nil }
-func (s *noCloseStore) IsHealthy(ctx context.Context) bool  { return s.Storage.IsHealthy(ctx) }
+func (s *noCloseStore) Close() error                       { return nil }
+func (s *noCloseStore) IsHealthy(ctx context.Context) bool { return s.Storage.IsHealthy(ctx) }
 
 func getEnvOrDefault(key, defaultValue string) string {
 	if v := os.Getenv(key); v != "" {
