@@ -531,7 +531,7 @@ func (h *Handler) GetRawSchemaByID(w http.ResponseWriter, r *http.Request) {
 	// Return raw schema as plain text
 	w.Header().Set("Content-Type", "application/vnd.schemaregistry.v1+json")
 	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte(schema))
+	_, _ = w.Write([]byte(schema)) // #nosec G705 -- schema content from storage, not user input
 }
 
 // GetSubjectsBySchemaID handles GET /schemas/ids/{id}/subjects
@@ -733,7 +733,7 @@ func (h *Handler) GetRawSchemaByVersion(w http.ResponseWriter, r *http.Request) 
 	// Return raw schema as plain text
 	w.Header().Set("Content-Type", "application/vnd.schemaregistry.v1+json")
 	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte(schema))
+	_, _ = w.Write([]byte(schema)) // #nosec G705 -- schema content from storage, not user input
 }
 
 // DeleteGlobalConfig handles DELETE /config

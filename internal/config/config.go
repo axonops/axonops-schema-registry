@@ -184,7 +184,7 @@ type OIDCConfig struct {
 	Enabled           bool              `yaml:"enabled"`
 	IssuerURL         string            `yaml:"issuer_url"`         // https://auth.example.com
 	ClientID          string            `yaml:"client_id"`          // For token validation
-	ClientSecret      string            `yaml:"client_secret"`      // Optional, for code flow
+	ClientSecret      string            `yaml:"client_secret"` // #nosec G117 -- OIDC config field, not a hardcoded secret
 	RedirectURL       string            `yaml:"redirect_url"`       // Callback URL
 	Scopes            []string          `yaml:"scopes"`             // openid, profile, email
 	UsernameClaim     string            `yaml:"username_claim"`     // sub, preferred_username, email
