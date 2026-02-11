@@ -60,49 +60,34 @@ test-bdd:
 	@echo "Running BDD tests (in-process, memory backend)..."
 	$(GOTEST) -tags bdd -v ./tests/bdd/...
 
-## Run BDD tests against memory backend (Docker)
+## Run BDD tests against memory backend (Docker — auto-managed)
 test-bdd-memory:
 	@echo "Running BDD tests against memory backend..."
-	cd tests/bdd && docker compose -f docker-compose.base.yml -f docker-compose.memory.yml up -d --build --wait
-	BDD_REGISTRY_URL=http://localhost:18081 BDD_WEBHOOK_URL=http://localhost:19000 BDD_BACKEND=memory \
-		$(GOTEST) -tags bdd -v -timeout 10m ./tests/bdd/...
-	cd tests/bdd && docker compose -f docker-compose.base.yml -f docker-compose.memory.yml down -v
+	BDD_BACKEND=memory $(GOTEST) -tags bdd -v -timeout 10m ./tests/bdd/...
 
-## Run BDD tests against PostgreSQL backend (Docker)
+## Run BDD tests against PostgreSQL backend (Docker — auto-managed)
 test-bdd-postgres:
 	@echo "Running BDD tests against PostgreSQL backend..."
-	cd tests/bdd && docker compose -f docker-compose.base.yml -f docker-compose.postgres.yml up -d --build --wait
-	BDD_REGISTRY_URL=http://localhost:18081 BDD_WEBHOOK_URL=http://localhost:19000 BDD_BACKEND=postgres \
-		$(GOTEST) -tags bdd -v -timeout 15m ./tests/bdd/...
-	cd tests/bdd && docker compose -f docker-compose.base.yml -f docker-compose.postgres.yml down -v
+	BDD_BACKEND=postgres $(GOTEST) -tags bdd -v -timeout 15m ./tests/bdd/...
 
-## Run BDD tests against MySQL backend (Docker)
+## Run BDD tests against MySQL backend (Docker — auto-managed)
 test-bdd-mysql:
 	@echo "Running BDD tests against MySQL backend..."
-	cd tests/bdd && docker compose -f docker-compose.base.yml -f docker-compose.mysql.yml up -d --build --wait
-	BDD_REGISTRY_URL=http://localhost:18081 BDD_WEBHOOK_URL=http://localhost:19000 BDD_BACKEND=mysql \
-		$(GOTEST) -tags bdd -v -timeout 15m ./tests/bdd/...
-	cd tests/bdd && docker compose -f docker-compose.base.yml -f docker-compose.mysql.yml down -v
+	BDD_BACKEND=mysql $(GOTEST) -tags bdd -v -timeout 15m ./tests/bdd/...
 
-## Run BDD tests against Cassandra backend (Docker)
+## Run BDD tests against Cassandra backend (Docker — auto-managed)
 test-bdd-cassandra:
 	@echo "Running BDD tests against Cassandra backend..."
-	cd tests/bdd && docker compose -f docker-compose.base.yml -f docker-compose.cassandra.yml up -d --build --wait
-	BDD_REGISTRY_URL=http://localhost:18081 BDD_WEBHOOK_URL=http://localhost:19000 BDD_BACKEND=cassandra \
-		$(GOTEST) -tags bdd -v -timeout 20m ./tests/bdd/...
-	cd tests/bdd && docker compose -f docker-compose.base.yml -f docker-compose.cassandra.yml down -v
+	BDD_BACKEND=cassandra $(GOTEST) -tags bdd -v -timeout 20m ./tests/bdd/...
 
-## Run BDD tests against all backends (Docker)
+## Run BDD tests against all backends (Docker — auto-managed)
 test-bdd-all: test-bdd-memory test-bdd-postgres test-bdd-mysql test-bdd-cassandra
 
-## Run functional BDD only (skip operational, Docker)
+## Run functional BDD only (skip operational, Docker — auto-managed)
 test-bdd-functional:
 	@echo "Running functional BDD tests..."
-	cd tests/bdd && docker compose -f docker-compose.base.yml -f docker-compose.memory.yml up -d --build --wait
-	BDD_REGISTRY_URL=http://localhost:18081 BDD_WEBHOOK_URL=http://localhost:19000 \
-		BDD_TAGS="@functional && ~@operational" \
+	BDD_BACKEND=memory BDD_TAGS="@functional && ~@operational" \
 		$(GOTEST) -tags bdd -v -timeout 10m ./tests/bdd/...
-	cd tests/bdd && docker compose -f docker-compose.base.yml -f docker-compose.memory.yml down -v
 
 ## Run all tests (unit + conformance + BDD)
 test-all: test-unit test-conformance test-bdd

@@ -21,7 +21,7 @@ Feature: Schema Listing
       {"type":"record","name":"Shared","fields":[{"name":"id","type":"long"}]}
       """
     And I store the response field "id" as "schema_id"
-    And I get the subjects for schema ID 1
+    And I get the subjects for the stored schema ID
     Then the response status should be 200
     And the response should be an array of length 1
     And the response array should contain "shared-value"

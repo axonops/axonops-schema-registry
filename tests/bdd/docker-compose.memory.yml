@@ -5,3 +5,5 @@
 services:
   schema-registry:
     command: ["--config", "/etc/schema-registry/config.memory.yaml"]
+    environment:
+      REGISTRY_CONFIG: /etc/schema-registry/config.memory.yaml

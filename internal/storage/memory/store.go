@@ -485,6 +485,7 @@ func (s *Store) DeleteSubject(ctx context.Context, subject string, permanent boo
 
 	if permanent {
 		delete(s.subjectVersions, subject)
+		delete(s.nextSubjectVersion, subject)
 		delete(s.configs, subject)
 		delete(s.modes, subject)
 	}

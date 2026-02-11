@@ -5,6 +5,8 @@
 services:
   schema-registry:
     command: ["--config", "/etc/schema-registry/config.cassandra.yaml"]
+    environment:
+      REGISTRY_CONFIG: /etc/schema-registry/config.cassandra.yaml
     depends_on:
       cassandra:
         condition: service_healthy

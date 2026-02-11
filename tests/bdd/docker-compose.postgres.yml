@@ -5,6 +5,8 @@
 services:
   schema-registry:
     command: ["--config", "/etc/schema-registry/config.postgres.yaml"]
+    environment:
+      REGISTRY_CONFIG: /etc/schema-registry/config.postgres.yaml
     depends_on:
       postgres:
         condition: service_healthy

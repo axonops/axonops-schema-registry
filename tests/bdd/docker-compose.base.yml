@@ -1,5 +1,5 @@
 # Base Docker Compose for BDD tests.
-# Contains the schema-registry service and webhook sidecar.
+# The schema-registry container includes webhook for process control.
 # Usage:
 #   docker compose -f docker-compose.base.yml -f docker-compose.memory.yml up -d --build --wait
 
@@ -7,9 +7,11 @@ services:
   schema-registry:
     build:
       context: ../../
-      dockerfile: Dockerfile
+      dockerfile: tests/bdd/docker/Dockerfile.registry
+    init: true
     ports:
       - "${REGISTRY_PORT:-18081}:8081"
+      - "${WEBHOOK_PORT:-19000}:9000"
     volumes:
       - ./configs:/etc/schema-registry:ro
     healthcheck:
@@ -18,14 +20,3 @@ services:
       timeout: 3s
       retries: 10
     restart: "no"
-
-  webhook:
-    build:
-      context: ./docker
-      dockerfile: Dockerfile.webhook
-    ports:
-      - "${WEBHOOK_PORT:-19000}:9000"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ./docker/webhook:/etc/webhook:ro
-    command: ["-hooks", "/etc/webhook/hooks.json", "-verbose"]

@@ -163,6 +163,13 @@ func RegisterSchemaSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 	ctx.Step(`^I get the subjects for schema ID (\d+)$`, func(id int) error {
 		return tc.GET(fmt.Sprintf("/schemas/ids/%d/subjects", id))
 	})
+	ctx.Step(`^I get the subjects for the stored schema ID$`, func() error {
+		id, ok := tc.StoredValues["schema_id"]
+		if !ok {
+			return fmt.Errorf("no stored schema_id")
+		}
+		return tc.GET(fmt.Sprintf("/schemas/ids/%v/subjects", id))
+	})
 	ctx.Step(`^I list all schemas$`, func() error {
 		return tc.GET("/schemas")
 	})

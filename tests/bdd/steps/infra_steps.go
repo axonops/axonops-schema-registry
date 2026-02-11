@@ -3,8 +3,6 @@
 package steps
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
@@ -12,34 +10,35 @@ import (
 	"github.com/cucumber/godog"
 )
 
-// RegisterInfraSteps registers infrastructure control step definitions (webhook sidecar).
+// RegisterInfraSteps registers infrastructure control step definitions.
+// The webhook runs inside the schema registry container and controls the registry process.
 func RegisterInfraSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 	ctx.Step(`^I kill the database container$`, func() error {
-		return tc.webhookAction("kill-backend", tc.BackendContainer)
+		return tc.webhookAction("kill-backend")
 	})
 
 	ctx.Step(`^I restart the schema registry$`, func() error {
-		return tc.webhookAction("restart-service", tc.RegistryContainer)
+		return tc.webhookAction("restart-service")
 	})
 
 	ctx.Step(`^I restart the database container$`, func() error {
-		return tc.webhookAction("restart-backend", tc.BackendContainer)
+		return tc.webhookAction("restart-backend")
 	})
 
 	ctx.Step(`^I pause the database$`, func() error {
-		return tc.webhookAction("pause-service", tc.BackendContainer)
+		return tc.webhookAction("pause-service")
 	})
 
 	ctx.Step(`^I unpause the database$`, func() error {
-		return tc.webhookAction("unpause-service", tc.BackendContainer)
+		return tc.webhookAction("unpause-service")
 	})
 
 	ctx.Step(`^I stop the schema registry$`, func() error {
-		return tc.webhookAction("stop-service", tc.RegistryContainer)
+		return tc.webhookAction("stop-service")
 	})
 
 	ctx.Step(`^I start the schema registry$`, func() error {
-		return tc.webhookAction("start-service", tc.RegistryContainer)
+		return tc.webhookAction("start-service")
 	})
 
 	ctx.Step(`^I wait for the registry to become healthy$`, func() error {
@@ -85,17 +84,12 @@ func RegisterInfraSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 	})
 }
 
-// webhookAction sends a POST request to the webhook sidecar.
-func (tc *TestContext) webhookAction(hook, container string) error {
+// webhookAction sends a POST to the webhook inside the schema registry container.
+func (tc *TestContext) webhookAction(hook string) error {
 	if tc.WebhookURL == "" {
 		return fmt.Errorf("webhook URL not configured (set BDD_WEBHOOK_URL)")
 	}
-	if container == "" {
-		return fmt.Errorf("container name not configured for hook %s", hook)
-	}
-	payload := map[string]string{"container": container}
-	data, _ := json.Marshal(payload)
-	resp, err := tc.client.Post(tc.WebhookURL+"/hooks/"+hook, "application/json", bytes.NewReader(data))
+	resp, err := tc.client.Post(tc.WebhookURL+"/hooks/"+hook, "application/json", nil)
 	if err != nil {
 		return fmt.Errorf("webhook %s: %w", hook, err)
 	}

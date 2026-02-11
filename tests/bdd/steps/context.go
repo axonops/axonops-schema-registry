@@ -11,21 +11,20 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // TestContext holds state shared across steps within a single scenario.
 type TestContext struct {
-	BaseURL            string
-	WebhookURL         string
-	BackendContainer   string
-	RegistryContainer  string
-	LastResponse       *http.Response
-	LastBody           []byte
-	LastStatusCode     int
-	LastJSON           map[string]interface{}
-	LastJSONArray      []interface{}
-	StoredValues       map[string]interface{} // for passing values between steps
-	client             *http.Client
+	BaseURL        string
+	WebhookURL     string
+	LastResponse   *http.Response
+	LastBody       []byte
+	LastStatusCode int
+	LastJSON       map[string]interface{}
+	LastJSONArray  []interface{}
+	StoredValues   map[string]interface{} // for passing values between steps
+	client         *http.Client
 }
 
 // NewTestContext creates a fresh test context.
@@ -33,7 +32,7 @@ func NewTestContext(baseURL string) *TestContext {
 	return &TestContext{
 		BaseURL:      baseURL,
 		StoredValues: make(map[string]interface{}),
-		client:       &http.Client{},
+		client:       &http.Client{Timeout: 5 * time.Second},
 	}
 }
 

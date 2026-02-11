@@ -41,15 +41,16 @@ Feature: Schema References
 
   Scenario: Get subjects by schema ID with referenced schemas
     Given the global compatibility level is "NONE"
-    And subject "shared-type" has schema:
+    When I register a schema under subject "shared-type":
       """
       {"type":"record","name":"SharedType","fields":[{"name":"value","type":"string"}]}
       """
+    And I store the response field "id" as "schema_id"
     And subject "use-shared-a" has schema:
       """
       {"type":"record","name":"UseA","fields":[{"name":"data","type":"string"}]}
       """
-    When I get the subjects for schema ID 1
+    When I get the subjects for the stored schema ID
     Then the response status should be 200
 
   Scenario: Register schema with non-existent reference

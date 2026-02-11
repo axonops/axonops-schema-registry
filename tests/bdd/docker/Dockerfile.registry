@@ -1,0 +1,38 @@
+# BDD test Dockerfile: schema registry + webhook in a single container.
+# The webhook provides HTTP hooks to control the registry process (restart, stop, etc.)
+# for operational resilience testing.
+
+# Build stage — compile the schema registry binary
+FROM golang:1.25-alpine AS builder
+
+WORKDIR /app
+RUN apk add --no-cache git ca-certificates
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build \
+    -ldflags "-s -w" \
+    -o /schema-registry ./cmd/schema-registry
+
+# Runtime stage — registry + webhook
+FROM alpine:3.19
+
+RUN apk add --no-cache ca-certificates tzdata bash webhook
+
+WORKDIR /app
+
+# Copy registry binary
+COPY --from=builder /schema-registry /app/schema-registry
+
+# Copy webhook hooks and scripts
+COPY tests/bdd/docker/webhook/hooks.json /etc/webhook/hooks.json
+COPY tests/bdd/docker/webhook/scripts/ /etc/webhook/scripts/
+RUN chmod +x /etc/webhook/scripts/*.sh
+
+# Copy entrypoint
+COPY tests/bdd/docker/entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+
+EXPOSE 8081 9000
+
+ENTRYPOINT ["/app/entrypoint.sh"]
