@@ -299,7 +299,7 @@ func (s *Store) prepareStatements() error {
 	}
 
 	stmts.updateAPIKey, err = s.db.Prepare(
-		"UPDATE api_keys SET user_id = ?, name = ?, role = ?, enabled = ?, expires_at = ? WHERE id = ?")
+		"UPDATE api_keys SET user_id = ?, key_hash = ?, name = ?, role = ?, enabled = ?, expires_at = ? WHERE id = ?")
 	if err != nil {
 		return fmt.Errorf("prepare updateAPIKey: %w", err)
 	}
@@ -906,15 +906,30 @@ func (s *Store) SetGlobalMode(ctx context.Context, mode *storage.ModeRecord) err
 	return s.SetMode(ctx, "", mode)
 }
 
-// NextID returns the next available schema ID.
+// NextID returns the next available schema ID using the id_alloc table.
+// Atomically reads the current value and increments it.
 func (s *Store) NextID(ctx context.Context) (int64, error) {
-	// MySQL doesn't have sequences, so we use a dummy insert and get the auto_increment value
-	// This is a workaround and may not be ideal for high-concurrency scenarios
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
 	var id int64
-	err := s.db.QueryRowContext(ctx, "SELECT AUTO_INCREMENT FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'schemas'").Scan(&id)
+	err = tx.QueryRowContext(ctx, "SELECT next_id FROM id_alloc WHERE name = 'schema_id' FOR UPDATE").Scan(&id)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get next ID: %w", err)
 	}
+
+	_, err = tx.ExecContext(ctx, "UPDATE id_alloc SET next_id = next_id + 1 WHERE name = 'schema_id'")
+	if err != nil {
+		return 0, fmt.Errorf("failed to increment next ID: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("failed to commit next ID: %w", err)
+	}
+
 	return id, nil
 }
 
@@ -978,10 +993,16 @@ func (s *Store) ImportSchema(ctx context.Context, record *storage.SchemaRecord) 
 // SetNextID sets the ID sequence to start from the given value.
 // Used after import to prevent ID conflicts.
 func (s *Store) SetNextID(ctx context.Context, id int64) error {
-	// MySQL uses AUTO_INCREMENT which is set at the table level
-	_, err := s.db.ExecContext(ctx, fmt.Sprintf("ALTER TABLE `schemas` AUTO_INCREMENT = %d", id))
+	// Update the id_alloc table
+	_, err := s.db.ExecContext(ctx, "UPDATE id_alloc SET next_id = ? WHERE name = 'schema_id'", id)
 	if err != nil {
-		return fmt.Errorf("failed to set next ID: %w", err)
+		return fmt.Errorf("failed to set next ID in id_alloc: %w", err)
+	}
+
+	// Also update AUTO_INCREMENT so CreateSchema (which uses AUTO_INCREMENT) stays in sync
+	_, err = s.db.ExecContext(ctx, fmt.Sprintf("ALTER TABLE `schemas` AUTO_INCREMENT = %d", id))
+	if err != nil {
+		return fmt.Errorf("failed to set AUTO_INCREMENT: %w", err)
 	}
 	return nil
 }
@@ -1389,7 +1410,7 @@ func (s *Store) GetAPIKeyByHash(ctx context.Context, keyHash string) (*storage.A
 // UpdateAPIKey updates an existing API key record.
 func (s *Store) UpdateAPIKey(ctx context.Context, key *storage.APIKeyRecord) error {
 	result, err := s.stmts.updateAPIKey.ExecContext(ctx,
-		key.UserID, key.Name, key.Role, key.Enabled, key.ExpiresAt, key.ID)
+		key.UserID, key.KeyHash, key.Name, key.Role, key.Enabled, key.ExpiresAt, key.ID)
 
 	if err != nil {
 		return fmt.Errorf("failed to update API key: %w", err)
@@ -1472,10 +1493,16 @@ func (s *Store) GetAPIKeyByUserAndName(ctx context.Context, userID int64, name s
 
 // UpdateAPIKeyLastUsed updates the last_used timestamp for an API key.
 func (s *Store) UpdateAPIKeyLastUsed(ctx context.Context, id int64) error {
-	_, err := s.stmts.updateAPIKeyLastUsed.ExecContext(ctx, time.Now(), id)
+	result, err := s.stmts.updateAPIKeyLastUsed.ExecContext(ctx, time.Now(), id)
 	if err != nil {
 		return fmt.Errorf("failed to update API key last used: %w", err)
 	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return storage.ErrAPIKeyNotFound
+	}
+
 	return nil
 }
 

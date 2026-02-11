@@ -3,6 +3,7 @@ package conformance
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/axonops/axonops-schema-registry/internal/storage"
 )
@@ -298,8 +299,18 @@ func RunErrorTests(t *testing.T, newStore StoreFactory) {
 		defer store.Close()
 		ctx := context.Background()
 
-		k1 := &storage.APIKeyRecord{UserID: 1, KeyHash: "same-hash", KeyPrefix: "ak_", Name: "k1", Role: "reader", Enabled: true}
-		k2 := &storage.APIKeyRecord{UserID: 2, KeyHash: "same-hash", KeyPrefix: "ak_", Name: "k2", Role: "reader", Enabled: true}
+		u1 := &storage.UserRecord{Username: "u-edh1", PasswordHash: "h", Role: "admin", Enabled: true}
+		u2 := &storage.UserRecord{Username: "u-edh2", PasswordHash: "h", Role: "admin", Enabled: true}
+		if err := store.CreateUser(ctx, u1); err != nil {
+			t.Fatalf("CreateUser u1: %v", err)
+		}
+		if err := store.CreateUser(ctx, u2); err != nil {
+			t.Fatalf("CreateUser u2: %v", err)
+		}
+
+		exp := time.Now().Add(time.Hour)
+		k1 := &storage.APIKeyRecord{UserID: u1.ID, KeyHash: "same-hash", KeyPrefix: "ak_", Name: "k1", Role: "reader", Enabled: true, ExpiresAt: exp}
+		k2 := &storage.APIKeyRecord{UserID: u2.ID, KeyHash: "same-hash", KeyPrefix: "ak_", Name: "k2", Role: "reader", Enabled: true, ExpiresAt: exp}
 		store.CreateAPIKey(ctx, k1)
 
 		err := store.CreateAPIKey(ctx, k2)

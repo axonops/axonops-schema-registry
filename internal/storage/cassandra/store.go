@@ -229,7 +229,10 @@ func (s *Store) ImportSchema(ctx context.Context, record *storage.SchemaRecord) 
 	}
 
 	canonical := canonicalize(string(record.SchemaType), record.Schema)
-	fp := fingerprint(canonical)
+	fp := record.Fingerprint
+	if fp == "" {
+		fp = fingerprint(canonical)
+	}
 	record.Fingerprint = fp
 
 	// Check if schema ID already exists
@@ -387,7 +390,10 @@ func (s *Store) CreateSchema(ctx context.Context, record *storage.SchemaRecord) 
 	}
 
 	canonical := canonicalize(string(record.SchemaType), record.Schema)
-	fp := fingerprint(canonical)
+	fp := record.Fingerprint
+	if fp == "" {
+		fp = fingerprint(canonical)
+	}
 
 	// Ensure global schema exists (deduplication)
 	schemaID, _, err := s.ensureGlobalSchema(ctx, string(record.SchemaType), record.Schema, canonical, fp)
@@ -402,7 +408,7 @@ func (s *Store) CreateSchema(ctx context.Context, record *storage.SchemaRecord) 
 		record.Version = existing.Version
 		record.Fingerprint = fp
 		record.CreatedAt = existing.CreatedAt
-		return nil
+		return storage.ErrSchemaExists
 	}
 
 	// Allocate next subject version and persist atomically.
@@ -666,6 +672,14 @@ func (s *Store) GetSchemaBySubjectVersion(ctx context.Context, subject string, v
 	).WithContext(ctx).Scan(&schemaID, &deleted, &createdUUID)
 	if err != nil {
 		if errors.Is(err, gocql.ErrNotFound) {
+			// Check if subject exists at all to distinguish ErrSubjectNotFound vs ErrVersionNotFound
+			_, _, subjectExists, subErr := s.getSubjectLatest(ctx, subject)
+			if subErr != nil {
+				return nil, subErr
+			}
+			if !subjectExists {
+				return nil, storage.ErrSubjectNotFound
+			}
 			return nil, storage.ErrVersionNotFound
 		}
 		return nil, err
@@ -841,6 +855,29 @@ func (s *Store) DeleteSchema(ctx context.Context, subject string, version int, p
 	if subject == "" || version <= 0 {
 		return storage.ErrVersionNotFound
 	}
+
+	// Check if the version exists
+	var existingSchemaID int
+	var deleted bool
+	err := s.readQuery(
+		fmt.Sprintf(`SELECT schema_id, deleted FROM %s.subject_versions WHERE subject = ? AND version = ?`, qident(s.cfg.Keyspace)),
+		subject, version,
+	).WithContext(ctx).Scan(&existingSchemaID, &deleted)
+	if err != nil {
+		if errors.Is(err, gocql.ErrNotFound) {
+			// Check if subject exists at all
+			_, _, subjectExists, subErr := s.getSubjectLatest(ctx, subject)
+			if subErr != nil {
+				return subErr
+			}
+			if !subjectExists {
+				return storage.ErrSubjectNotFound
+			}
+			return storage.ErrVersionNotFound
+		}
+		return err
+	}
+
 	if permanent {
 		return s.writeQuery(
 			fmt.Sprintf(`DELETE FROM %s.subject_versions WHERE subject = ? AND version = ?`, qident(s.cfg.Keyspace)),

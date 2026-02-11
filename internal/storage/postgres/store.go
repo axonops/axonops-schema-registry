@@ -333,8 +333,8 @@ func (s *Store) prepareStatements() error {
 	}
 
 	stmts.updateAPIKey, err = s.db.Prepare(
-		`UPDATE api_keys SET user_id = $1, name = $2, role = $3, enabled = $4, expires_at = $5
-		 WHERE id = $6`)
+		`UPDATE api_keys SET user_id = $1, key_hash = $2, name = $3, role = $4, enabled = $5, expires_at = $6
+		 WHERE id = $7`)
 	if err != nil {
 		return fmt.Errorf("prepare updateAPIKey: %w", err)
 	}
@@ -1421,7 +1421,7 @@ func (s *Store) GetAPIKeyByHash(ctx context.Context, keyHash string) (*storage.A
 // UpdateAPIKey updates an existing API key record.
 func (s *Store) UpdateAPIKey(ctx context.Context, key *storage.APIKeyRecord) error {
 	result, err := s.stmts.updateAPIKey.ExecContext(ctx,
-		key.UserID, key.Name, key.Role, key.Enabled, key.ExpiresAt, key.ID,
+		key.UserID, key.KeyHash, key.Name, key.Role, key.Enabled, key.ExpiresAt, key.ID,
 	)
 
 	if err != nil {
@@ -1505,10 +1505,16 @@ func (s *Store) GetAPIKeyByUserAndName(ctx context.Context, userID int64, name s
 
 // UpdateAPIKeyLastUsed updates the last_used timestamp for an API key.
 func (s *Store) UpdateAPIKeyLastUsed(ctx context.Context, id int64) error {
-	_, err := s.stmts.updateAPIKeyLastUsed.ExecContext(ctx, time.Now(), id)
+	result, err := s.stmts.updateAPIKeyLastUsed.ExecContext(ctx, time.Now(), id)
 	if err != nil {
 		return fmt.Errorf("failed to update API key last used: %w", err)
 	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return storage.ErrAPIKeyNotFound
+	}
+
 	return nil
 }
 

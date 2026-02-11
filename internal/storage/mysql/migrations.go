@@ -81,4 +81,13 @@ var migrations = []string{
 		"INDEX idx_api_keys_role (role)," +
 		"FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL" +
 		") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+
+	// Migration 9: ID allocation table for sequential ID generation
+	"CREATE TABLE IF NOT EXISTS id_alloc (" +
+		"name VARCHAR(50) PRIMARY KEY," +
+		"next_id BIGINT NOT NULL DEFAULT 1" +
+		") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+
+	// Migration 10: Initialize ID allocation
+	"INSERT IGNORE INTO id_alloc (name, next_id) VALUES ('schema_id', 1)",
 }
