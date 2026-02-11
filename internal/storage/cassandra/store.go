@@ -950,9 +950,13 @@ func (s *Store) GetReferencedBy(ctx context.Context, subject string, version int
 
 // GetSubjectsBySchemaID returns subjects using the given schema ID.
 func (s *Store) GetSubjectsBySchemaID(ctx context.Context, id int64, includeDeleted bool) ([]string, error) {
-	// Verify schema ID exists first
-	if _, err := s.GetSchemaByID(ctx, id); err != nil {
-		if errors.Is(err, storage.ErrSchemaNotFound) {
+	// Verify schema ID exists first (direct query to avoid recursion with GetSchemaByID)
+	var dummy string
+	if err := s.readQuery(
+		fmt.Sprintf(`SELECT schema_type FROM %s.schemas_by_id WHERE schema_id = ?`, qident(s.cfg.Keyspace)),
+		int(id),
+	).WithContext(ctx).Scan(&dummy); err != nil {
+		if errors.Is(err, gocql.ErrNotFound) {
 			return nil, storage.ErrSchemaNotFound
 		}
 		return nil, err
@@ -992,9 +996,13 @@ func (s *Store) GetSubjectsBySchemaID(ctx context.Context, id int64, includeDele
 
 // GetVersionsBySchemaID returns subject-version pairs using the given schema ID.
 func (s *Store) GetVersionsBySchemaID(ctx context.Context, id int64, includeDeleted bool) ([]storage.SubjectVersion, error) {
-	// Verify schema ID exists first
-	if _, err := s.GetSchemaByID(ctx, id); err != nil {
-		if errors.Is(err, storage.ErrSchemaNotFound) {
+	// Verify schema ID exists first (direct query to avoid recursion with GetSchemaByID)
+	var dummy string
+	if err := s.readQuery(
+		fmt.Sprintf(`SELECT schema_type FROM %s.schemas_by_id WHERE schema_id = ?`, qident(s.cfg.Keyspace)),
+		int(id),
+	).WithContext(ctx).Scan(&dummy); err != nil {
+		if errors.Is(err, gocql.ErrNotFound) {
 			return nil, storage.ErrSchemaNotFound
 		}
 		return nil, err
