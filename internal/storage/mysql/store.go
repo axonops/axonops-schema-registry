@@ -187,7 +187,7 @@ func (s *Store) prepareStatements() error {
 	}
 
 	stmts.countSchemasBySubject, err = s.db.Prepare(
-		"SELECT COUNT(*) FROM `schemas` WHERE subject = ?")
+		"SELECT COUNT(*) FROM `schemas` WHERE subject = ? AND deleted = FALSE")
 	if err != nil {
 		return fmt.Errorf("prepare countSchemasBySubject: %w", err)
 	}
