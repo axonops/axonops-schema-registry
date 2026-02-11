@@ -667,3 +667,329 @@ func TestParser_Type(t *testing.T) {
 		t.Errorf("Expected type %s, got %s", storage.SchemaTypeProtobuf, parser.Type())
 	}
 }
+
+// --- Schema Reference Tests ---
+
+func TestParser_Parse_WithEmptyReferences(t *testing.T) {
+	parser := NewParser()
+
+	schema := `
+syntax = "proto3";
+message Simple { string id = 1; }
+`
+
+	parsed, err := parser.Parse(schema, []storage.Reference{})
+	if err != nil {
+		t.Fatalf("Parse with empty references should not fail: %v", err)
+	}
+	if parsed.Fingerprint() == "" {
+		t.Error("Expected non-empty fingerprint")
+	}
+}
+
+func TestParser_Parse_CrossSubjectImport(t *testing.T) {
+	parser := NewParser()
+
+	// Referenced schema defines CommonMessage
+	commonSchema := `
+syntax = "proto3";
+package common;
+message CommonMessage {
+  string id = 1;
+  string name = 2;
+}
+`
+
+	// Main schema imports the referenced proto
+	mainSchema := `
+syntax = "proto3";
+import "common.proto";
+message Event {
+  string event_id = 1;
+  common.CommonMessage payload = 2;
+}
+`
+
+	refs := []storage.Reference{
+		{Name: "common.proto", Subject: "common-value", Version: 1, Schema: commonSchema},
+	}
+
+	parsed, err := parser.Parse(mainSchema, refs)
+	if err != nil {
+		t.Fatalf("Parse with cross-subject import failed: %v", err)
+	}
+	if parsed.Type() != storage.SchemaTypeProtobuf {
+		t.Errorf("Expected PROTOBUF type, got %s", parsed.Type())
+	}
+	if parsed.Fingerprint() == "" {
+		t.Error("Expected non-empty fingerprint")
+	}
+
+	canonical := parsed.CanonicalString()
+	if !strings.Contains(canonical, "message Event") {
+		t.Errorf("Canonical should contain Event message: %s", canonical)
+	}
+}
+
+func TestParser_Parse_CrossSubjectImport_MultipleRefs(t *testing.T) {
+	parser := NewParser()
+
+	addressSchema := `
+syntax = "proto3";
+package types;
+message Address {
+  string street = 1;
+  string city = 2;
+}
+`
+
+	customerSchema := `
+syntax = "proto3";
+package types;
+message Customer {
+  string id = 1;
+  string name = 2;
+}
+`
+
+	mainSchema := `
+syntax = "proto3";
+import "address.proto";
+import "customer.proto";
+message Order {
+  string order_id = 1;
+  types.Customer buyer = 2;
+  types.Address shipping = 3;
+}
+`
+
+	refs := []storage.Reference{
+		{Name: "address.proto", Subject: "address-value", Version: 1, Schema: addressSchema},
+		{Name: "customer.proto", Subject: "customer-value", Version: 1, Schema: customerSchema},
+	}
+
+	parsed, err := parser.Parse(mainSchema, refs)
+	if err != nil {
+		t.Fatalf("Parse with multiple cross-subject imports failed: %v", err)
+	}
+	if parsed.Fingerprint() == "" {
+		t.Error("Expected non-empty fingerprint")
+	}
+}
+
+func TestParser_Parse_WellKnownTypesWithReferences(t *testing.T) {
+	parser := NewParser()
+
+	commonSchema := `
+syntax = "proto3";
+package common;
+message Metadata {
+  string key = 1;
+  string value = 2;
+}
+`
+
+	// Imports both well-known types and a custom reference
+	mainSchema := `
+syntax = "proto3";
+import "google/protobuf/timestamp.proto";
+import "common.proto";
+message Event {
+  string id = 1;
+  google.protobuf.Timestamp created_at = 2;
+  common.Metadata meta = 3;
+}
+`
+
+	refs := []storage.Reference{
+		{Name: "common.proto", Subject: "common-value", Version: 1, Schema: commonSchema},
+	}
+
+	parsed, err := parser.Parse(mainSchema, refs)
+	if err != nil {
+		t.Fatalf("Parse with well-known types and references failed: %v", err)
+	}
+	if parsed.Fingerprint() == "" {
+		t.Error("Expected non-empty fingerprint")
+	}
+}
+
+func TestParser_Parse_ImportFailsWhenRefContentMissing(t *testing.T) {
+	parser := NewParser()
+
+	// Schema imports a file but reference has no content
+	schema := `
+syntax = "proto3";
+import "common.proto";
+message Event {
+  string id = 1;
+}
+`
+
+	refs := []storage.Reference{
+		{Name: "common.proto", Subject: "common-value", Version: 1},
+	}
+
+	_, err := parser.Parse(schema, refs)
+	if err == nil {
+		t.Error("Expected error when importing reference with no content")
+	}
+}
+
+func TestParser_Parse_ImportUnknownFileWithoutReference(t *testing.T) {
+	parser := NewParser()
+
+	schema := `
+syntax = "proto3";
+import "unknown.proto";
+message Event {
+  string id = 1;
+}
+`
+
+	_, err := parser.Parse(schema, nil)
+	if err == nil {
+		t.Error("Expected error when importing unknown file")
+	}
+}
+
+func TestParser_Parse_UnusedReferencesGraceful(t *testing.T) {
+	parser := NewParser()
+
+	commonSchema := `
+syntax = "proto3";
+message Unused { string x = 1; }
+`
+
+	// Schema doesn't import the referenced proto
+	schema := `
+syntax = "proto3";
+message Simple { string id = 1; }
+`
+
+	refs := []storage.Reference{
+		{Name: "common.proto", Subject: "common-value", Version: 1, Schema: commonSchema},
+	}
+
+	parsed, err := parser.Parse(schema, refs)
+	if err != nil {
+		t.Fatalf("Parse with unused references should not fail: %v", err)
+	}
+	if parsed.Fingerprint() == "" {
+		t.Error("Expected non-empty fingerprint")
+	}
+}
+
+func TestParser_Parse_ReferencesStoredOnParsedSchema(t *testing.T) {
+	parser := NewParser()
+
+	schema := `
+syntax = "proto3";
+message Simple { string id = 1; }
+`
+
+	refs := []storage.Reference{
+		{Name: "common.proto", Subject: "common-value", Version: 1, Schema: `syntax = "proto3"; message C { string x = 1; }`},
+		{Name: "types.proto", Subject: "types-value", Version: 2, Schema: `syntax = "proto3"; message T { string y = 1; }`},
+	}
+
+	parsed, err := parser.Parse(schema, refs)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	protoParsed, ok := parsed.(*ParsedProtobuf)
+	if !ok {
+		t.Fatal("Expected *ParsedProtobuf")
+	}
+
+	if len(protoParsed.references) != 2 {
+		t.Errorf("Expected 2 stored references, got %d", len(protoParsed.references))
+	}
+}
+
+// --- Resolver Tests ---
+
+func TestResolver_FindFileByPath_WellKnownTypes(t *testing.T) {
+	resolver := newReferenceResolver()
+
+	wellKnownFiles := []string{
+		"google/protobuf/timestamp.proto",
+		"google/protobuf/any.proto",
+		"google/protobuf/duration.proto",
+		"google/protobuf/empty.proto",
+		"google/protobuf/struct.proto",
+		"google/protobuf/wrappers.proto",
+		"google/protobuf/field_mask.proto",
+		"google/protobuf/descriptor.proto",
+	}
+
+	for _, path := range wellKnownFiles {
+		t.Run(path, func(t *testing.T) {
+			result, err := resolver.FindFileByPath(path)
+			if err != nil {
+				t.Fatalf("FindFileByPath(%s) failed: %v", path, err)
+			}
+			if result.Source == nil {
+				t.Errorf("Expected non-nil source for %s", path)
+			}
+		})
+	}
+}
+
+func TestResolver_FindFileByPath_NotFound(t *testing.T) {
+	resolver := newReferenceResolver()
+
+	_, err := resolver.FindFileByPath("nonexistent.proto")
+	if err == nil {
+		t.Error("Expected error for nonexistent file")
+	}
+
+	fnfErr, ok := err.(*fileNotFoundError)
+	if !ok {
+		t.Errorf("Expected *fileNotFoundError, got %T", err)
+	}
+	if fnfErr.path != "nonexistent.proto" {
+		t.Errorf("Expected path nonexistent.proto, got %s", fnfErr.path)
+	}
+}
+
+func TestResolver_WithReferencesAndSchema_ResolvesContent(t *testing.T) {
+	baseResolver := newReferenceResolver()
+	refs := []storage.Reference{
+		{Name: "common.proto", Subject: "common", Version: 1, Schema: `syntax = "proto3"; message Foo {}`},
+	}
+	resolver := baseResolver.withReferencesAndSchema("syntax = \"proto3\"; message Bar {}", refs)
+
+	// Main schema resolves
+	result, err := resolver.FindFileByPath("schema.proto")
+	if err != nil {
+		t.Fatalf("FindFileByPath(schema.proto) failed: %v", err)
+	}
+	if result.Source == nil {
+		t.Error("Expected non-nil source for schema.proto")
+	}
+
+	// Referenced schema resolves with content
+	result, err = resolver.FindFileByPath("common.proto")
+	if err != nil {
+		t.Fatalf("FindFileByPath(common.proto) failed: %v", err)
+	}
+	if result.Source == nil {
+		t.Error("Expected non-nil source for common.proto")
+	}
+}
+
+func TestResolver_WithReferencesAndSchema_EmptyContentRef(t *testing.T) {
+	baseResolver := newReferenceResolver()
+	refs := []storage.Reference{
+		{Name: "common.proto", Subject: "common", Version: 1},
+	}
+	resolver := baseResolver.withReferencesAndSchema("syntax = \"proto3\";", refs)
+
+	// Reference with empty content won't resolve
+	_, err := resolver.FindFileByPath("common.proto")
+	if err == nil {
+		t.Error("Expected error for reference with empty content")
+	}
+}

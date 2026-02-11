@@ -33,12 +33,10 @@ func (r *referenceResolver) withReferencesAndSchema(schema string, refs []storag
 	// Add the main schema
 	newResolver.refs["schema.proto"] = schema
 
-	// Add references by name
+	// Add references with their resolved content
 	for _, ref := range refs {
-		// In a full implementation, we would load the referenced schema content
-		// For now, store the reference name for import resolution
 		if ref.Name != "" {
-			newResolver.refs[ref.Name] = "" // Content would be loaded on demand
+			newResolver.refs[ref.Name] = ref.Schema
 		}
 	}
 

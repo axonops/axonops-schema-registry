@@ -830,3 +830,186 @@ func TestCanonicalizeValue_ObjectKeysSorted(t *testing.T) {
 		t.Errorf("Object should start with 'a' key: %s", result)
 	}
 }
+
+// --- Schema Reference Tests ---
+
+func TestParser_Parse_WithEmptyReferences(t *testing.T) {
+	parser := NewParser()
+
+	schema := `{"type": "object", "properties": {"id": {"type": "integer"}}}`
+
+	parsed, err := parser.Parse(schema, []storage.Reference{})
+	if err != nil {
+		t.Fatalf("Parse with empty references should not fail: %v", err)
+	}
+	if parsed.Fingerprint() == "" {
+		t.Error("Expected non-empty fingerprint")
+	}
+}
+
+func TestParser_Parse_CrossSubjectRef(t *testing.T) {
+	parser := NewParser()
+
+	// External schema for "address.json"
+	addressSchema := `{
+		"type": "object",
+		"properties": {
+			"street": {"type": "string"},
+			"city": {"type": "string"},
+			"zip": {"type": "string"}
+		},
+		"required": ["street", "city"]
+	}`
+
+	// Main schema references the external address schema
+	orderSchema := `{
+		"$schema": "http://json-schema.org/draft-07/schema#",
+		"type": "object",
+		"properties": {
+			"id": {"type": "integer"},
+			"shipping_address": {"$ref": "address.json"}
+		},
+		"required": ["id"]
+	}`
+
+	refs := []storage.Reference{
+		{Name: "address.json", Subject: "address-value", Version: 1, Schema: addressSchema},
+	}
+
+	parsed, err := parser.Parse(orderSchema, refs)
+	if err != nil {
+		t.Fatalf("Parse with cross-subject $ref failed: %v", err)
+	}
+	if parsed.Type() != storage.SchemaTypeJSON {
+		t.Errorf("Expected JSON type, got %s", parsed.Type())
+	}
+	if parsed.Fingerprint() == "" {
+		t.Error("Expected non-empty fingerprint")
+	}
+}
+
+func TestParser_Parse_CrossSubjectRef_MultipleRefs(t *testing.T) {
+	parser := NewParser()
+
+	addressSchema := `{
+		"type": "object",
+		"properties": {
+			"street": {"type": "string"},
+			"city": {"type": "string"}
+		}
+	}`
+
+	customerSchema := `{
+		"type": "object",
+		"properties": {
+			"id": {"type": "integer"},
+			"name": {"type": "string"}
+		}
+	}`
+
+	orderSchema := `{
+		"type": "object",
+		"properties": {
+			"customer": {"$ref": "customer.json"},
+			"shipping": {"$ref": "address.json"}
+		}
+	}`
+
+	refs := []storage.Reference{
+		{Name: "address.json", Subject: "address-value", Version: 1, Schema: addressSchema},
+		{Name: "customer.json", Subject: "customer-value", Version: 1, Schema: customerSchema},
+	}
+
+	parsed, err := parser.Parse(orderSchema, refs)
+	if err != nil {
+		t.Fatalf("Parse with multiple cross-subject refs failed: %v", err)
+	}
+	if parsed.Fingerprint() == "" {
+		t.Error("Expected non-empty fingerprint")
+	}
+}
+
+func TestParser_Parse_InternalRefWithExternalReferences(t *testing.T) {
+	parser := NewParser()
+
+	addressSchema := `{
+		"type": "object",
+		"properties": {
+			"street": {"type": "string"},
+			"city": {"type": "string"}
+		}
+	}`
+
+	// Schema uses both internal definitions and external references
+	schema := `{
+		"$schema": "http://json-schema.org/draft-07/schema#",
+		"definitions": {
+			"phone": {
+				"type": "object",
+				"properties": {
+					"number": {"type": "string"}
+				}
+			}
+		},
+		"type": "object",
+		"properties": {
+			"phone": {"$ref": "#/definitions/phone"},
+			"address": {"$ref": "address.json"}
+		}
+	}`
+
+	refs := []storage.Reference{
+		{Name: "address.json", Subject: "address-value", Version: 1, Schema: addressSchema},
+	}
+
+	parsed, err := parser.Parse(schema, refs)
+	if err != nil {
+		t.Fatalf("Parse with internal $ref and external references failed: %v", err)
+	}
+	if parsed.Fingerprint() == "" {
+		t.Error("Expected non-empty fingerprint")
+	}
+}
+
+func TestParser_Parse_ReferencesStoredOnParsedSchema(t *testing.T) {
+	parser := NewParser()
+
+	schema := `{"type": "object", "properties": {"id": {"type": "integer"}}}`
+
+	refs := []storage.Reference{
+		{Name: "TypeA", Subject: "subject-a", Version: 1, Schema: `{"type": "string"}`},
+		{Name: "TypeB", Subject: "subject-b", Version: 3, Schema: `{"type": "integer"}`},
+	}
+
+	parsed, err := parser.Parse(schema, refs)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	jsonParsed, ok := parsed.(*ParsedJSONSchema)
+	if !ok {
+		t.Fatal("Expected *ParsedJSONSchema")
+	}
+
+	if len(jsonParsed.references) != 2 {
+		t.Errorf("Expected 2 stored references, got %d", len(jsonParsed.references))
+	}
+}
+
+func TestParser_Parse_UnusedReferencesGraceful(t *testing.T) {
+	parser := NewParser()
+
+	schema := `{"type": "object", "properties": {"id": {"type": "integer"}}}`
+
+	refs := []storage.Reference{
+		{Name: "unused.json", Subject: "unused-value", Version: 1, Schema: `{"type": "string"}`},
+	}
+
+	parsed, err := parser.Parse(schema, refs)
+	if err != nil {
+		t.Fatalf("Parse with unused references should not fail: %v", err)
+	}
+	if parsed.Fingerprint() == "" {
+		t.Error("Expected non-empty fingerprint")
+	}
+}

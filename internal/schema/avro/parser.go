@@ -30,8 +30,23 @@ func (p *Parser) Type() storage.SchemaType {
 
 // Parse parses an Avro schema string.
 func (p *Parser) Parse(schemaStr string, references []storage.Reference) (schema.ParsedSchema, error) {
-	// Parse the schema using hamba/avro
-	avroSchema, err := avro.Parse(schemaStr)
+	var avroSchema avro.Schema
+	var err error
+
+	if len(references) > 0 {
+		// Use a schema cache to register referenced named types first
+		cache := &avro.SchemaCache{}
+		for _, ref := range references {
+			if ref.Schema != "" {
+				if _, refErr := avro.ParseWithCache(ref.Schema, "", cache); refErr != nil {
+					return nil, fmt.Errorf("invalid reference schema %q: %w", ref.Name, refErr)
+				}
+			}
+		}
+		avroSchema, err = avro.ParseWithCache(schemaStr, "", cache)
+	} else {
+		avroSchema, err = avro.Parse(schemaStr)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("invalid Avro schema: %w", err)
 	}

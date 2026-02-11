@@ -12,6 +12,7 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"github.com/axonops/axonops-schema-registry/internal/compatibility"
+	"github.com/axonops/axonops-schema-registry/internal/storage"
 )
 
 // Checker implements compatibility.SchemaChecker for Protobuf schemas.
@@ -25,14 +26,14 @@ func NewChecker() *Checker {
 // Check checks compatibility between reader and writer Protobuf schemas.
 // For Protobuf, the "reader" is the new schema and "writer" is the old schema.
 // This follows the same convention as Avro.
-func (c *Checker) Check(readerSchema, writerSchema string) *compatibility.Result {
+func (c *Checker) Check(reader, writer compatibility.SchemaWithRefs) *compatibility.Result {
 	// Parse both schemas
-	readerFD, err := parseSchema(readerSchema)
+	readerFD, err := parseSchemaWithRefs(reader)
 	if err != nil {
 		return compatibility.NewIncompatibleResult("failed to parse new schema: " + err.Error())
 	}
 
-	writerFD, err := parseSchema(writerSchema)
+	writerFD, err := parseSchemaWithRefs(writer)
 	if err != nil {
 		return compatibility.NewIncompatibleResult("failed to parse old schema: " + err.Error())
 	}
@@ -61,16 +62,18 @@ func (c *Checker) Check(readerSchema, writerSchema string) *compatibility.Result
 	return result
 }
 
-// parseSchema parses a Protobuf schema string.
-func parseSchema(schemaStr string) (protoreflect.FileDescriptor, error) {
+// parseSchemaWithRefs parses a Protobuf schema string with optional references.
+func parseSchemaWithRefs(s compatibility.SchemaWithRefs) (protoreflect.FileDescriptor, error) {
 	handler := reporter.NewHandler(nil)
-	_, err := parser.Parse("schema.proto", strings.NewReader(schemaStr), handler)
+	_, err := parser.Parse("schema.proto", strings.NewReader(s.Schema), handler)
 	if err != nil {
 		return nil, err
 	}
 
+	resolver := newCheckerResolver(s.Schema, s.References)
+
 	compiler := protocompile.Compiler{
-		Resolver: &simpleResolver{content: schemaStr},
+		Resolver: resolver,
 	}
 
 	ctx := context.Background()
@@ -86,15 +89,44 @@ func parseSchema(schemaStr string) (protoreflect.FileDescriptor, error) {
 	return files[0], nil
 }
 
-// simpleResolver resolves just the main schema file.
-type simpleResolver struct {
-	content string
+// checkerResolver resolves protobuf imports from schema references and well-known types.
+type checkerResolver struct {
+	content   string
+	refs      map[string]string
+	wellKnown map[string]string
 }
 
-func (r *simpleResolver) FindFileByPath(path string) (protocompile.SearchResult, error) {
+// newCheckerResolver creates a resolver for the compatibility checker.
+func newCheckerResolver(content string, refs []storage.Reference) *checkerResolver {
+	r := &checkerResolver{
+		content:   content,
+		refs:      make(map[string]string),
+		wellKnown: checkerWellKnownTypes(),
+	}
+	for _, ref := range refs {
+		if ref.Name != "" {
+			r.refs[ref.Name] = ref.Schema
+		}
+	}
+	return r
+}
+
+func (r *checkerResolver) FindFileByPath(path string) (protocompile.SearchResult, error) {
 	if path == "schema.proto" {
 		return protocompile.SearchResult{
 			Source: strings.NewReader(r.content),
+		}, nil
+	}
+	// Check well-known types
+	if content, ok := r.wellKnown[path]; ok {
+		return protocompile.SearchResult{
+			Source: strings.NewReader(content),
+		}, nil
+	}
+	// Check references
+	if content, ok := r.refs[path]; ok && content != "" {
+		return protocompile.SearchResult{
+			Source: strings.NewReader(content),
 		}, nil
 	}
 	return protocompile.SearchResult{}, fmt.Errorf("file not found: %s", path)
@@ -487,6 +519,77 @@ func protoTypeName(f protoreflect.FieldDescriptor) string {
 		return "group"
 	default:
 		return "unknown"
+	}
+}
+
+// checkerWellKnownTypes returns proto definitions for commonly-used well-known types.
+func checkerWellKnownTypes() map[string]string {
+	return map[string]string{
+		"google/protobuf/any.proto": `
+syntax = "proto3";
+package google.protobuf;
+message Any {
+  string type_url = 1;
+  bytes value = 2;
+}`,
+		"google/protobuf/timestamp.proto": `
+syntax = "proto3";
+package google.protobuf;
+message Timestamp {
+  int64 seconds = 1;
+  int32 nanos = 2;
+}`,
+		"google/protobuf/duration.proto": `
+syntax = "proto3";
+package google.protobuf;
+message Duration {
+  int64 seconds = 1;
+  int32 nanos = 2;
+}`,
+		"google/protobuf/empty.proto": `
+syntax = "proto3";
+package google.protobuf;
+message Empty {}`,
+		"google/protobuf/wrappers.proto": `
+syntax = "proto3";
+package google.protobuf;
+message DoubleValue { double value = 1; }
+message FloatValue { float value = 1; }
+message Int64Value { int64 value = 1; }
+message UInt64Value { uint64 value = 1; }
+message Int32Value { int32 value = 1; }
+message UInt32Value { uint32 value = 1; }
+message BoolValue { bool value = 1; }
+message StringValue { string value = 1; }
+message BytesValue { bytes value = 1; }`,
+		"google/protobuf/struct.proto": `
+syntax = "proto3";
+package google.protobuf;
+message Struct {
+  map<string, Value> fields = 1;
+}
+message Value {
+  oneof kind {
+    NullValue null_value = 1;
+    double number_value = 2;
+    string string_value = 3;
+    bool bool_value = 4;
+    Struct struct_value = 5;
+    ListValue list_value = 6;
+  }
+}
+message ListValue {
+  repeated Value values = 1;
+}
+enum NullValue {
+  NULL_VALUE = 0;
+}`,
+		"google/protobuf/field_mask.proto": `
+syntax = "proto3";
+package google.protobuf;
+message FieldMask {
+  repeated string paths = 1;
+}`,
 	}
 }
 

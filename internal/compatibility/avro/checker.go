@@ -20,18 +20,34 @@ func NewChecker() *Checker {
 // Check checks compatibility between reader and writer schemas.
 // For BACKWARD compatibility: reader=new schema, writer=old schema
 // For FORWARD compatibility: reader=old schema, writer=new schema
-func (c *Checker) Check(readerSchema, writerSchema string) *compatibility.Result {
-	reader, err := avro.Parse(readerSchema)
+func (c *Checker) Check(reader, writer compatibility.SchemaWithRefs) *compatibility.Result {
+	readerSchema, err := c.parseSchema(reader)
 	if err != nil {
 		return compatibility.NewIncompatibleResult(fmt.Sprintf("invalid reader schema: %v", err))
 	}
 
-	writer, err := avro.Parse(writerSchema)
+	writerSchema, err := c.parseSchema(writer)
 	if err != nil {
 		return compatibility.NewIncompatibleResult(fmt.Sprintf("invalid writer schema: %v", err))
 	}
 
-	return c.checkSchemas(reader, writer, "")
+	return c.checkSchemas(readerSchema, writerSchema, "")
+}
+
+// parseSchema parses a schema string with optional reference resolution.
+func (c *Checker) parseSchema(s compatibility.SchemaWithRefs) (avro.Schema, error) {
+	if len(s.References) > 0 {
+		cache := &avro.SchemaCache{}
+		for _, ref := range s.References {
+			if ref.Schema != "" {
+				if _, err := avro.ParseWithCache(ref.Schema, "", cache); err != nil {
+					return nil, fmt.Errorf("invalid reference schema %q: %w", ref.Name, err)
+				}
+			}
+		}
+		return avro.ParseWithCache(s.Schema, "", cache)
+	}
+	return avro.Parse(s.Schema)
 }
 
 // checkSchemas recursively checks compatibility between two schemas.

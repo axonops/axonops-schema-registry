@@ -18,6 +18,20 @@ func newCheckerWithAll() *compatibility.Checker {
 	return c
 }
 
+// s creates a SchemaWithRefs with no references for convenience.
+func s(schema string) compatibility.SchemaWithRefs {
+	return compatibility.SchemaWithRefs{Schema: schema}
+}
+
+// ss creates a slice of SchemaWithRefs with no references for convenience.
+func ss(schemas ...string) []compatibility.SchemaWithRefs {
+	result := make([]compatibility.SchemaWithRefs, len(schemas))
+	for i, schema := range schemas {
+		result[i] = compatibility.SchemaWithRefs{Schema: schema}
+	}
+	return result
+}
+
 // --- Mode helpers ---
 
 func TestMode_IsValid(t *testing.T) {
@@ -76,7 +90,7 @@ func TestMode_RequiresForward(t *testing.T) {
 func TestChecker_NoneMode_AlwaysPasses(t *testing.T) {
 	c := newCheckerWithAll()
 
-	result := c.Check(compatibility.ModeNone, storage.SchemaTypeAvro, `"string"`, []string{`"int"`})
+	result := c.Check(compatibility.ModeNone, storage.SchemaTypeAvro, s(`"string"`), ss(`"int"`))
 	if !result.IsCompatible {
 		t.Error("NONE mode should always pass")
 	}
@@ -95,7 +109,7 @@ func TestChecker_Backward_OnlyChecksLatest(t *testing.T) {
 	v3 := `{"type":"record","name":"User","fields":[{"name":"id","type":"long"},{"name":"name","type":"string"},{"name":"email","type":"string","default":""}]}`
 
 	// BACKWARD (non-transitive) only checks against latest (v2)
-	result := c.Check(compatibility.ModeBackward, storage.SchemaTypeAvro, v3, []string{v1, v2})
+	result := c.Check(compatibility.ModeBackward, storage.SchemaTypeAvro, s(v3), ss(v1, v2))
 	if !result.IsCompatible {
 		t.Errorf("BACKWARD should pass (only checks latest v2): %v", result.Messages)
 	}
@@ -116,7 +130,7 @@ func TestChecker_BackwardTransitive_Avro_ChecksAll(t *testing.T) {
 	v3 := `{"type":"record","name":"User","fields":[{"name":"id","type":"long"},{"name":"name","type":"string"},{"name":"email","type":"string","default":""}]}`
 
 	// BACKWARD_TRANSITIVE checks against ALL versions (v1 and v2)
-	result := c.Check(compatibility.ModeBackwardTransitive, storage.SchemaTypeAvro, v3, []string{v1, v2})
+	result := c.Check(compatibility.ModeBackwardTransitive, storage.SchemaTypeAvro, s(v3), ss(v1, v2))
 	if result.IsCompatible {
 		t.Error("BACKWARD_TRANSITIVE should FAIL (v3 is not backward compat with v1)")
 	}
@@ -130,7 +144,7 @@ func TestChecker_BackwardTransitive_Avro_PassesWhenAllCompatible(t *testing.T) {
 	// v3 adds another optional field - backward compat with ALL previous
 	v3 := `{"type":"record","name":"User","fields":[{"name":"id","type":"long"},{"name":"name","type":"string","default":""},{"name":"email","type":"string","default":""}]}`
 
-	result := c.Check(compatibility.ModeBackwardTransitive, storage.SchemaTypeAvro, v3, []string{v1, v2})
+	result := c.Check(compatibility.ModeBackwardTransitive, storage.SchemaTypeAvro, s(v3), ss(v1, v2))
 	if !result.IsCompatible {
 		t.Errorf("BACKWARD_TRANSITIVE should pass (all optional fields have defaults): %v", result.Messages)
 	}
@@ -146,7 +160,7 @@ func TestChecker_Forward_Avro(t *testing.T) {
 	v1 := `{"type":"record","name":"User","fields":[{"name":"id","type":"long"}]}`
 	v2 := `{"type":"record","name":"User","fields":[{"name":"id","type":"long"},{"name":"name","type":"string"}]}`
 
-	result := c.Check(compatibility.ModeForward, storage.SchemaTypeAvro, v2, []string{v1})
+	result := c.Check(compatibility.ModeForward, storage.SchemaTypeAvro, s(v2), ss(v1))
 	if !result.IsCompatible {
 		t.Errorf("FORWARD should pass (old reader ignores new field): %v", result.Messages)
 	}
@@ -159,7 +173,7 @@ func TestChecker_Forward_Avro_Incompatible(t *testing.T) {
 	v1 := `{"type":"record","name":"User","fields":[{"name":"id","type":"long"},{"name":"name","type":"string"}]}`
 	v2 := `{"type":"record","name":"User","fields":[{"name":"id","type":"long"}]}`
 
-	result := c.Check(compatibility.ModeForward, storage.SchemaTypeAvro, v2, []string{v1})
+	result := c.Check(compatibility.ModeForward, storage.SchemaTypeAvro, s(v2), ss(v1))
 	if result.IsCompatible {
 		t.Error("FORWARD should FAIL (old reader expects 'name' but new schema doesn't have it)")
 	}
@@ -178,7 +192,7 @@ func TestChecker_ForwardTransitive_Avro_ChecksAll(t *testing.T) {
 	// forward compat with v2? v2 has name and id. v2 reads v3 data -> v3 has no name -> v2 expects name without default -> FAIL
 	v3 := `{"type":"record","name":"User","fields":[{"name":"id","type":"long"},{"name":"email","type":"string"}]}`
 
-	result := c.Check(compatibility.ModeForwardTransitive, storage.SchemaTypeAvro, v3, []string{v1, v2})
+	result := c.Check(compatibility.ModeForwardTransitive, storage.SchemaTypeAvro, s(v3), ss(v1, v2))
 	if result.IsCompatible {
 		t.Error("FORWARD_TRANSITIVE should FAIL (v1 and v2 expect 'name' field)")
 	}
@@ -192,7 +206,7 @@ func TestChecker_ForwardTransitive_Avro_PassesWhenAllCompatible(t *testing.T) {
 	v2 := `{"type":"record","name":"User","fields":[{"name":"id","type":"long"},{"name":"name","type":"string"}]}`
 	v3 := `{"type":"record","name":"User","fields":[{"name":"id","type":"long"},{"name":"name","type":"string"},{"name":"email","type":"string"}]}`
 
-	result := c.Check(compatibility.ModeForwardTransitive, storage.SchemaTypeAvro, v3, []string{v1, v2})
+	result := c.Check(compatibility.ModeForwardTransitive, storage.SchemaTypeAvro, s(v3), ss(v1, v2))
 	if !result.IsCompatible {
 		t.Errorf("FORWARD_TRANSITIVE should pass (only adding fields): %v", result.Messages)
 	}
@@ -208,7 +222,7 @@ func TestChecker_Full_Avro_Compatible(t *testing.T) {
 	v1 := `{"type":"record","name":"User","fields":[{"name":"id","type":"long"}]}`
 	v2 := `{"type":"record","name":"User","fields":[{"name":"id","type":"long"},{"name":"name","type":"string","default":""}]}`
 
-	result := c.Check(compatibility.ModeFull, storage.SchemaTypeAvro, v2, []string{v1})
+	result := c.Check(compatibility.ModeFull, storage.SchemaTypeAvro, s(v2), ss(v1))
 	if !result.IsCompatible {
 		t.Errorf("FULL should pass (optional field with default): %v", result.Messages)
 	}
@@ -221,7 +235,7 @@ func TestChecker_Full_Avro_BackwardOnlyFails(t *testing.T) {
 	v1 := `{"type":"record","name":"User","fields":[{"name":"id","type":"long"}]}`
 	v2 := `{"type":"record","name":"User","fields":[{"name":"id","type":"long"},{"name":"name","type":"string"}]}`
 
-	result := c.Check(compatibility.ModeFull, storage.SchemaTypeAvro, v2, []string{v1})
+	result := c.Check(compatibility.ModeFull, storage.SchemaTypeAvro, s(v2), ss(v1))
 	if result.IsCompatible {
 		t.Error("FULL should FAIL (adding field without default is not backward compat)")
 	}
@@ -237,7 +251,7 @@ func TestChecker_FullTransitive_Avro_ChecksAll(t *testing.T) {
 	v2 := `{"type":"record","name":"User","fields":[{"name":"id","type":"long"},{"name":"name","type":"string","default":""}]}`
 	v3 := `{"type":"record","name":"User","fields":[{"name":"id","type":"long"},{"name":"name","type":"string","default":""},{"name":"email","type":"string","default":""}]}`
 
-	result := c.Check(compatibility.ModeFullTransitive, storage.SchemaTypeAvro, v3, []string{v1, v2})
+	result := c.Check(compatibility.ModeFullTransitive, storage.SchemaTypeAvro, s(v3), ss(v1, v2))
 	if !result.IsCompatible {
 		t.Errorf("FULL_TRANSITIVE should pass: %v", result.Messages)
 	}
@@ -253,7 +267,7 @@ func TestChecker_FullTransitive_Avro_FailsOnHistoricalIncompat(t *testing.T) {
 	// v3: removes id, adds email - NOT forward compat with v1 or v2 (they expect id)
 	v3 := `{"type":"record","name":"User","fields":[{"name":"name","type":"string","default":""},{"name":"email","type":"string","default":""}]}`
 
-	result := c.Check(compatibility.ModeFullTransitive, storage.SchemaTypeAvro, v3, []string{v1, v2})
+	result := c.Check(compatibility.ModeFullTransitive, storage.SchemaTypeAvro, s(v3), ss(v1, v2))
 	if result.IsCompatible {
 		t.Error("FULL_TRANSITIVE should FAIL (v3 removes 'id' field)")
 	}
@@ -270,7 +284,7 @@ func TestChecker_BackwardTransitive_Protobuf(t *testing.T) {
 	// v3 removes id field - NOT backward compatible with v1
 	v3 := `syntax = "proto3"; message User { string name = 2; string email = 3; }`
 
-	result := c.Check(compatibility.ModeBackwardTransitive, storage.SchemaTypeProtobuf, v3, []string{v1, v2})
+	result := c.Check(compatibility.ModeBackwardTransitive, storage.SchemaTypeProtobuf, s(v3), ss(v1, v2))
 	if result.IsCompatible {
 		t.Error("BACKWARD_TRANSITIVE should FAIL for protobuf (removed field 1)")
 	}
@@ -286,7 +300,7 @@ func TestChecker_ForwardTransitive_Protobuf(t *testing.T) {
 	v2 := `syntax = "proto3"; message User { string id = 1; string name = 2; string email = 3; }`
 	v3 := `syntax = "proto3"; message User { string id = 1; string name = 2; string email = 3; }`
 
-	result := c.Check(compatibility.ModeForwardTransitive, storage.SchemaTypeProtobuf, v3, []string{v1, v2})
+	result := c.Check(compatibility.ModeForwardTransitive, storage.SchemaTypeProtobuf, s(v3), ss(v1, v2))
 	if !result.IsCompatible {
 		t.Errorf("FORWARD_TRANSITIVE should pass (identical schemas): %v", result.Messages)
 	}
@@ -300,7 +314,7 @@ func TestChecker_ForwardTransitive_Protobuf_FailsOnRemovedField(t *testing.T) {
 	// v3 removes name - forward check: v1 (reader) reads v3 (writer) - v1 has name but v3 doesn't
 	v3 := `syntax = "proto3"; message User { string id = 1; string email = 3; }`
 
-	result := c.Check(compatibility.ModeForwardTransitive, storage.SchemaTypeProtobuf, v3, []string{v1, v2})
+	result := c.Check(compatibility.ModeForwardTransitive, storage.SchemaTypeProtobuf, s(v3), ss(v1, v2))
 	if result.IsCompatible {
 		t.Error("FORWARD_TRANSITIVE should FAIL (removed field 'name' that v1 has)")
 	}
@@ -314,7 +328,7 @@ func TestChecker_FullTransitive_Protobuf(t *testing.T) {
 	v2 := `syntax = "proto3"; message User { string id = 1; }`
 	v3 := `syntax = "proto3"; message User { string id = 1; }`
 
-	result := c.Check(compatibility.ModeFullTransitive, storage.SchemaTypeProtobuf, v3, []string{v1, v2})
+	result := c.Check(compatibility.ModeFullTransitive, storage.SchemaTypeProtobuf, s(v3), ss(v1, v2))
 	if !result.IsCompatible {
 		t.Errorf("FULL_TRANSITIVE should pass for identical schemas: %v", result.Messages)
 	}
@@ -331,7 +345,7 @@ func TestChecker_BackwardTransitive_JSONSchema(t *testing.T) {
 	// v3 adds required name - NOT backward compat with v1 (new required field)
 	v3 := `{"type":"object","properties":{"id":{"type":"integer"},"email":{"type":"string"},"name":{"type":"string"}},"required":["id","name"]}`
 
-	result := c.Check(compatibility.ModeBackwardTransitive, storage.SchemaTypeJSON, v3, []string{v1, v2})
+	result := c.Check(compatibility.ModeBackwardTransitive, storage.SchemaTypeJSON, s(v3), ss(v1, v2))
 	if result.IsCompatible {
 		t.Error("BACKWARD_TRANSITIVE should FAIL for JSON Schema (new required field)")
 	}
@@ -346,7 +360,7 @@ func TestChecker_ForwardTransitive_JSONSchema(t *testing.T) {
 	v2 := `{"type":"object","properties":{"id":{"type":"integer"},"name":{"type":"string"},"email":{"type":"string"}}}`
 	v3 := `{"type":"object","properties":{"id":{"type":"integer"},"name":{"type":"string"},"email":{"type":"string"}}}`
 
-	result := c.Check(compatibility.ModeForwardTransitive, storage.SchemaTypeJSON, v3, []string{v1, v2})
+	result := c.Check(compatibility.ModeForwardTransitive, storage.SchemaTypeJSON, s(v3), ss(v1, v2))
 	if !result.IsCompatible {
 		t.Errorf("FORWARD_TRANSITIVE should pass (identical schemas): %v", result.Messages)
 	}
@@ -360,7 +374,7 @@ func TestChecker_ForwardTransitive_JSONSchema_FailsOnTypeChange(t *testing.T) {
 	// v3 changes type of name → old readers expect string but get integer
 	v3 := `{"type":"object","properties":{"id":{"type":"integer"},"name":{"type":"integer"}}}`
 
-	result := c.Check(compatibility.ModeForwardTransitive, storage.SchemaTypeJSON, v3, []string{v1, v2})
+	result := c.Check(compatibility.ModeForwardTransitive, storage.SchemaTypeJSON, s(v3), ss(v1, v2))
 	if result.IsCompatible {
 		t.Error("FORWARD_TRANSITIVE should FAIL (type of 'name' changed from string to integer)")
 	}
@@ -374,7 +388,7 @@ func TestChecker_FullTransitive_JSONSchema(t *testing.T) {
 	v2 := `{"type":"object","properties":{"id":{"type":"integer"}}}`
 	v3 := `{"type":"object","properties":{"id":{"type":"integer"}}}`
 
-	result := c.Check(compatibility.ModeFullTransitive, storage.SchemaTypeJSON, v3, []string{v1, v2})
+	result := c.Check(compatibility.ModeFullTransitive, storage.SchemaTypeJSON, s(v3), ss(v1, v2))
 	if !result.IsCompatible {
 		t.Errorf("FULL_TRANSITIVE should pass: %v", result.Messages)
 	}
@@ -385,12 +399,12 @@ func TestChecker_FullTransitive_JSONSchema(t *testing.T) {
 func TestChecker_NoExistingSchemas(t *testing.T) {
 	c := newCheckerWithAll()
 
-	result := c.Check(compatibility.ModeBackwardTransitive, storage.SchemaTypeAvro, `"string"`, nil)
+	result := c.Check(compatibility.ModeBackwardTransitive, storage.SchemaTypeAvro, s(`"string"`), nil)
 	if !result.IsCompatible {
 		t.Error("No existing schemas should always be compatible")
 	}
 
-	result = c.Check(compatibility.ModeBackwardTransitive, storage.SchemaTypeAvro, `"string"`, []string{})
+	result = c.Check(compatibility.ModeBackwardTransitive, storage.SchemaTypeAvro, s(`"string"`), []compatibility.SchemaWithRefs{})
 	if !result.IsCompatible {
 		t.Error("Empty existing schemas should always be compatible")
 	}
@@ -399,7 +413,7 @@ func TestChecker_NoExistingSchemas(t *testing.T) {
 func TestChecker_UnknownSchemaType(t *testing.T) {
 	c := newCheckerWithAll()
 
-	result := c.Check(compatibility.ModeBackward, storage.SchemaType("UNKNOWN"), `"string"`, []string{`"string"`})
+	result := c.Check(compatibility.ModeBackward, storage.SchemaType("UNKNOWN"), s(`"string"`), ss(`"string"`))
 	if result.IsCompatible {
 		t.Error("Unknown schema type should fail")
 	}
@@ -473,7 +487,7 @@ func TestChecker_Avro_FourVersionEvolution(t *testing.T) {
 	}`
 
 	// All should pass FULL_TRANSITIVE since every addition has defaults
-	result := c.Check(compatibility.ModeFullTransitive, storage.SchemaTypeAvro, v4, []string{v1, v2, v3})
+	result := c.Check(compatibility.ModeFullTransitive, storage.SchemaTypeAvro, s(v4), ss(v1, v2, v3))
 	if !result.IsCompatible {
 		t.Errorf("4-version evolution should pass FULL_TRANSITIVE: %v", result.Messages)
 	}
@@ -488,7 +502,7 @@ func TestChecker_Protobuf_FourVersionEvolution_BackwardTransitive(t *testing.T) 
 	v3 := `syntax = "proto3"; message Payment { int64 id = 1; double amount = 2; string currency = 3; string status = 4; }`
 	v4 := `syntax = "proto3"; message Payment { int64 id = 1; double amount = 2; string currency = 3; string status = 4; int64 customer_id = 5; }`
 
-	result := c.Check(compatibility.ModeBackwardTransitive, storage.SchemaTypeProtobuf, v4, []string{v1, v2, v3})
+	result := c.Check(compatibility.ModeBackwardTransitive, storage.SchemaTypeProtobuf, s(v4), ss(v1, v2, v3))
 	if !result.IsCompatible {
 		t.Errorf("4-version protobuf evolution should pass BACKWARD_TRANSITIVE: %v", result.Messages)
 	}
@@ -503,7 +517,7 @@ func TestChecker_JSONSchema_FourVersionEvolution_BackwardTransitive(t *testing.T
 	v3 := `{"type":"object","properties":{"id":{"type":"integer"},"amount":{"type":"number"},"currency":{"type":"string"},"status":{"type":"string"}},"required":["id","amount"]}`
 	v4 := `{"type":"object","properties":{"id":{"type":"integer"},"amount":{"type":"number"},"currency":{"type":"string"},"status":{"type":"string"},"customer_id":{"type":"integer"}},"required":["id","amount"]}`
 
-	result := c.Check(compatibility.ModeBackwardTransitive, storage.SchemaTypeJSON, v4, []string{v1, v2, v3})
+	result := c.Check(compatibility.ModeBackwardTransitive, storage.SchemaTypeJSON, s(v4), ss(v1, v2, v3))
 	if !result.IsCompatible {
 		t.Errorf("4-version JSON Schema evolution should pass BACKWARD_TRANSITIVE: %v", result.Messages)
 	}

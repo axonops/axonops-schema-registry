@@ -47,8 +47,14 @@ func (r *Registry) RegisterSchema(ctx context.Context, subject string, schemaStr
 		return nil, fmt.Errorf("unsupported schema type: %s", schemaType)
 	}
 
+	// Resolve reference content from storage
+	resolvedRefs, err := r.resolveReferences(ctx, refs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve references: %w", err)
+	}
+
 	// Parse the schema
-	parsed, err := parser.Parse(schemaStr, refs)
+	parsed, err := parser.Parse(schemaStr, resolvedRefs)
 	if err != nil {
 		return nil, fmt.Errorf("invalid schema: %w", err)
 	}
@@ -76,14 +82,23 @@ func (r *Registry) RegisterSchema(ctx context.Context, subject string, schemaStr
 		}
 
 		if len(existingSchemas) > 0 {
-			// Extract schema strings for comparison
-			schemaStrings := make([]string, len(existingSchemas))
+			// Build existing schemas with resolved references
+			existingWithRefs := make([]compatibility.SchemaWithRefs, len(existingSchemas))
 			for i, s := range existingSchemas {
-				schemaStrings[i] = s.Schema
+				existingResolvedRefs, resolveErr := r.resolveReferences(ctx, s.References)
+				if resolveErr != nil {
+					return nil, fmt.Errorf("failed to resolve existing schema references: %w", resolveErr)
+				}
+				existingWithRefs[i] = compatibility.SchemaWithRefs{
+					Schema:     s.Schema,
+					References: existingResolvedRefs,
+				}
 			}
 
 			// Check compatibility
-			result := r.compatChecker.Check(mode, schemaType, schemaStr, schemaStrings)
+			result := r.compatChecker.Check(mode, schemaType,
+				compatibility.SchemaWithRefs{Schema: schemaStr, References: resolvedRefs},
+				existingWithRefs)
 			if !result.IsCompatible {
 				return nil, fmt.Errorf("%w: %s", ErrIncompatibleSchema, strings.Join(result.Messages, "; "))
 			}
@@ -127,7 +142,13 @@ func (r *Registry) CheckCompatibility(ctx context.Context, subject string, schem
 		return nil, fmt.Errorf("unsupported schema type: %s", schemaType)
 	}
 
-	_, err := parser.Parse(schemaStr, refs)
+	// Resolve reference content from storage
+	resolvedRefs, err := r.resolveReferences(ctx, refs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve references: %w", err)
+	}
+
+	_, err = parser.Parse(schemaStr, resolvedRefs)
 	if err != nil {
 		return nil, fmt.Errorf("invalid schema: %w", err)
 	}
@@ -144,7 +165,7 @@ func (r *Registry) CheckCompatibility(ctx context.Context, subject string, schem
 	}
 
 	// Get schemas to check against
-	var schemasToCheck []string
+	var schemasToCheck []compatibility.SchemaWithRefs
 
 	if version == "latest" {
 		// Check against latest version only
@@ -156,7 +177,11 @@ func (r *Registry) CheckCompatibility(ctx context.Context, subject string, schem
 			}
 			return nil, err
 		}
-		schemasToCheck = []string{latest.Schema}
+		latestRefs, resolveErr := r.resolveReferences(ctx, latest.References)
+		if resolveErr != nil {
+			return nil, fmt.Errorf("failed to resolve existing schema references: %w", resolveErr)
+		}
+		schemasToCheck = []compatibility.SchemaWithRefs{{Schema: latest.Schema, References: latestRefs}}
 	} else if version == "" {
 		// Empty version means check against all versions (transitive compatibility)
 		existingSchemas, err := r.storage.GetSchemasBySubject(ctx, subject, false)
@@ -168,7 +193,11 @@ func (r *Registry) CheckCompatibility(ctx context.Context, subject string, schem
 		}
 
 		for _, s := range existingSchemas {
-			schemasToCheck = append(schemasToCheck, s.Schema)
+			existingRefs, resolveErr := r.resolveReferences(ctx, s.References)
+			if resolveErr != nil {
+				return nil, fmt.Errorf("failed to resolve existing schema references: %w", resolveErr)
+			}
+			schemasToCheck = append(schemasToCheck, compatibility.SchemaWithRefs{Schema: s.Schema, References: existingRefs})
 		}
 	} else {
 		// Check against specific version only
@@ -183,14 +212,20 @@ func (r *Registry) CheckCompatibility(ctx context.Context, subject string, schem
 			}
 			return nil, err
 		}
-		schemasToCheck = []string{schema.Schema}
+		schemaRefs, resolveErr := r.resolveReferences(ctx, schema.References)
+		if resolveErr != nil {
+			return nil, fmt.Errorf("failed to resolve existing schema references: %w", resolveErr)
+		}
+		schemasToCheck = []compatibility.SchemaWithRefs{{Schema: schema.Schema, References: schemaRefs}}
 	}
 
 	if len(schemasToCheck) == 0 {
 		return compatibility.NewCompatibleResult(), nil
 	}
 
-	return r.compatChecker.Check(mode, schemaType, schemaStr, schemasToCheck), nil
+	return r.compatChecker.Check(mode, schemaType,
+		compatibility.SchemaWithRefs{Schema: schemaStr, References: resolvedRefs},
+		schemasToCheck), nil
 }
 
 // GetSchemaByID retrieves a schema by its global ID.
@@ -236,8 +271,14 @@ func (r *Registry) LookupSchema(ctx context.Context, subject string, schemaStr s
 		return nil, fmt.Errorf("unsupported schema type: %s", schemaType)
 	}
 
+	// Resolve reference content from storage
+	resolvedRefs, err := r.resolveReferences(ctx, refs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve references: %w", err)
+	}
+
 	// Parse the schema to get fingerprint
-	parsed, err := parser.Parse(schemaStr, refs)
+	parsed, err := parser.Parse(schemaStr, resolvedRefs)
 	if err != nil {
 		return nil, fmt.Errorf("invalid schema: %w", err)
 	}
@@ -486,7 +527,16 @@ func (r *Registry) ImportSchemas(ctx context.Context, schemas []ImportSchemaRequ
 			continue
 		}
 
-		parsed, err := parser.Parse(req.Schema, req.References)
+		// Resolve reference content from storage
+		resolvedRefs, resolveErr := r.resolveReferences(ctx, req.References)
+		if resolveErr != nil {
+			res.Error = fmt.Sprintf("failed to resolve references: %v", resolveErr)
+			result.Errors++
+			result.Results[i] = res
+			continue
+		}
+
+		parsed, err := parser.Parse(req.Schema, resolvedRefs)
 		if err != nil {
 			res.Error = fmt.Sprintf("invalid schema: %v", err)
 			result.Errors++
@@ -605,4 +655,26 @@ func isValidMode(mode string) bool {
 		"IMPORT":    true,
 	}
 	return valid[mode]
+}
+
+// resolveReferences looks up the schema content for each reference from storage.
+func (r *Registry) resolveReferences(ctx context.Context, refs []storage.Reference) ([]storage.Reference, error) {
+	if len(refs) == 0 {
+		return refs, nil
+	}
+	resolved := make([]storage.Reference, len(refs))
+	for i, ref := range refs {
+		record, err := r.storage.GetSchemaBySubjectVersion(ctx, ref.Subject, ref.Version)
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve reference %q (subject=%s, version=%d): %w",
+				ref.Name, ref.Subject, ref.Version, err)
+		}
+		resolved[i] = storage.Reference{
+			Name:    ref.Name,
+			Subject: ref.Subject,
+			Version: ref.Version,
+			Schema:  record.Schema,
+		}
+	}
+	return resolved, nil
 }

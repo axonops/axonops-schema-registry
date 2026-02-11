@@ -19,14 +19,14 @@ func NewChecker() *Checker {
 }
 
 // Check checks compatibility between reader (new) and writer (old) JSON schemas.
-func (c *Checker) Check(readerSchema, writerSchema string) *compatibility.Result {
+func (c *Checker) Check(reader, writer compatibility.SchemaWithRefs) *compatibility.Result {
 	var newSchema, oldSchema map[string]interface{}
 
-	if err := json.Unmarshal([]byte(readerSchema), &newSchema); err != nil {
+	if err := json.Unmarshal([]byte(reader.Schema), &newSchema); err != nil {
 		return compatibility.NewIncompatibleResult("failed to parse new schema: " + err.Error())
 	}
 
-	if err := json.Unmarshal([]byte(writerSchema), &oldSchema); err != nil {
+	if err := json.Unmarshal([]byte(writer.Schema), &oldSchema); err != nil {
 		return compatibility.NewIncompatibleResult("failed to parse old schema: " + err.Error())
 	}
 

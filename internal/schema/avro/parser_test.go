@@ -521,3 +521,196 @@ func TestParser_SameFingerprintForEquivalentSchemas(t *testing.T) {
 		t.Errorf("Expected same fingerprint for equivalent schemas")
 	}
 }
+
+// --- Schema Reference Tests ---
+
+func TestParser_ParseWithEmptyReferences(t *testing.T) {
+	parser := NewParser()
+
+	schema := `{
+		"type": "record",
+		"name": "Simple",
+		"fields": [{"name": "id", "type": "long"}]
+	}`
+
+	// Empty slice should behave like nil
+	parsed, err := parser.Parse(schema, []storage.Reference{})
+	if err != nil {
+		t.Fatalf("Parse with empty references should not fail: %v", err)
+	}
+	if parsed.Fingerprint() == "" {
+		t.Error("Expected non-empty fingerprint")
+	}
+}
+
+func TestParser_ParseInlineNamedTypeReference(t *testing.T) {
+	parser := NewParser()
+
+	// Avro supports inline named type references within the same schema.
+	schema := `{
+		"type": "record",
+		"name": "Order",
+		"fields": [
+			{"name": "id", "type": "long"},
+			{"name": "billing", "type": {
+				"type": "record",
+				"name": "Address",
+				"fields": [
+					{"name": "street", "type": "string"},
+					{"name": "city", "type": "string"}
+				]
+			}},
+			{"name": "shipping", "type": "Address"}
+		]
+	}`
+
+	parsed, err := parser.Parse(schema, nil)
+	if err != nil {
+		t.Fatalf("Parse with inline named type reference failed: %v", err)
+	}
+	if parsed.Fingerprint() == "" {
+		t.Error("Expected non-empty fingerprint")
+	}
+}
+
+func TestParser_ParseCrossSubjectReference(t *testing.T) {
+	parser := NewParser()
+
+	// The "Address" type is defined in a referenced schema (from another subject).
+	// The main schema uses "Address" as a field type.
+	addressSchema := `{
+		"type": "record",
+		"name": "Address",
+		"namespace": "com.example",
+		"fields": [
+			{"name": "street", "type": "string"},
+			{"name": "city", "type": "string"},
+			{"name": "zip", "type": "string"}
+		]
+	}`
+
+	orderSchema := `{
+		"type": "record",
+		"name": "Order",
+		"namespace": "com.example",
+		"fields": [
+			{"name": "id", "type": "long"},
+			{"name": "shipping_address", "type": "com.example.Address"}
+		]
+	}`
+
+	refs := []storage.Reference{
+		{Name: "com.example.Address", Subject: "address-value", Version: 1, Schema: addressSchema},
+	}
+
+	parsed, err := parser.Parse(orderSchema, refs)
+	if err != nil {
+		t.Fatalf("Parse with cross-subject reference failed: %v", err)
+	}
+	if parsed.Type() != storage.SchemaTypeAvro {
+		t.Errorf("Expected AVRO type, got %s", parsed.Type())
+	}
+	if parsed.Fingerprint() == "" {
+		t.Error("Expected non-empty fingerprint")
+	}
+}
+
+func TestParser_ParseCrossSubjectReference_MultipleRefs(t *testing.T) {
+	parser := NewParser()
+
+	addressSchema := `{
+		"type": "record",
+		"name": "Address",
+		"fields": [
+			{"name": "street", "type": "string"},
+			{"name": "city", "type": "string"}
+		]
+	}`
+
+	customerSchema := `{
+		"type": "record",
+		"name": "Customer",
+		"fields": [
+			{"name": "id", "type": "long"},
+			{"name": "name", "type": "string"}
+		]
+	}`
+
+	orderSchema := `{
+		"type": "record",
+		"name": "Order",
+		"fields": [
+			{"name": "id", "type": "long"},
+			{"name": "customer", "type": "Customer"},
+			{"name": "shipping", "type": "Address"}
+		]
+	}`
+
+	refs := []storage.Reference{
+		{Name: "Address", Subject: "address-value", Version: 1, Schema: addressSchema},
+		{Name: "Customer", Subject: "customer-value", Version: 1, Schema: customerSchema},
+	}
+
+	parsed, err := parser.Parse(orderSchema, refs)
+	if err != nil {
+		t.Fatalf("Parse with multiple cross-subject references failed: %v", err)
+	}
+	if parsed.Fingerprint() == "" {
+		t.Error("Expected non-empty fingerprint")
+	}
+}
+
+func TestParser_ParseCrossSubjectReference_FailsWithoutContent(t *testing.T) {
+	parser := NewParser()
+
+	// Schema references "Address" but the reference has no content
+	orderSchema := `{
+		"type": "record",
+		"name": "Order",
+		"fields": [
+			{"name": "id", "type": "long"},
+			{"name": "shipping", "type": "Address"}
+		]
+	}`
+
+	// Reference without content — should fail since Address is unknown
+	refs := []storage.Reference{
+		{Name: "Address", Subject: "address-value", Version: 1},
+	}
+
+	_, err := parser.Parse(orderSchema, refs)
+	if err == nil {
+		t.Error("Expected error when reference content is missing")
+	}
+}
+
+func TestParser_ParseUnusedReferencesGraceful(t *testing.T) {
+	parser := NewParser()
+
+	// Schema doesn't actually use the referenced type
+	schema := `{
+		"type": "record",
+		"name": "Simple",
+		"fields": [{"name": "id", "type": "long"}]
+	}`
+
+	addressSchema := `{
+		"type": "record",
+		"name": "Address",
+		"fields": [
+			{"name": "street", "type": "string"}
+		]
+	}`
+
+	refs := []storage.Reference{
+		{Name: "Address", Subject: "address-value", Version: 1, Schema: addressSchema},
+	}
+
+	parsed, err := parser.Parse(schema, refs)
+	if err != nil {
+		t.Fatalf("Parse with unused references should not fail: %v", err)
+	}
+	if parsed.Fingerprint() == "" {
+		t.Error("Expected non-empty fingerprint")
+	}
+}

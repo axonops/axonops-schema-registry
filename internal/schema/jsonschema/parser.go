@@ -46,11 +46,13 @@ func (p *Parser) Parse(schemaStr string, refs []storage.Reference) (schema.Parse
 	compiler := jsonschema.NewCompiler()
 	compiler.Draft = jsonschema.Draft7
 
-	// Add referenced schemas
+	// Add referenced schemas as resources so $ref can resolve them
 	for _, ref := range refs {
-		// References would be added here with their content
-		// For now, we support inline schemas
-		_ = ref
+		if ref.Schema != "" {
+			if err := compiler.AddResource(ref.Name, strings.NewReader(ref.Schema)); err != nil {
+				return nil, fmt.Errorf("failed to add reference %q: %w", ref.Name, err)
+			}
+		}
 	}
 
 	// Add the main schema

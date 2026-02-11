@@ -57,6 +57,7 @@ type Reference struct {
 	Name    string `json:"name"`
 	Subject string `json:"subject"`
 	Version int    `json:"version"`
+	Schema  string `json:"-"` // Resolved schema content; not serialized to API responses
 }
 
 // SubjectVersion represents a subject-version pair.

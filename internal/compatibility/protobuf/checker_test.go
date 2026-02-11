@@ -2,7 +2,14 @@ package protobuf
 
 import (
 	"testing"
+
+	"github.com/axonops/axonops-schema-registry/internal/compatibility"
 )
+
+// s creates a SchemaWithRefs with no references for convenience.
+func s(schema string) compatibility.SchemaWithRefs {
+	return compatibility.SchemaWithRefs{Schema: schema}
+}
 
 func TestChecker_CompatibleSchemas(t *testing.T) {
 	checker := NewChecker()
@@ -25,7 +32,7 @@ message User {
 }
 `
 
-	result := checker.Check(newSchema, oldSchema)
+	result := checker.Check(s(newSchema), s(oldSchema))
 	if !result.IsCompatible {
 		t.Errorf("Expected compatible, got messages: %v", result.Messages)
 	}
@@ -51,7 +58,7 @@ message User {
 }
 `
 
-	result := checker.Check(newSchema, oldSchema)
+	result := checker.Check(s(newSchema), s(oldSchema))
 	if !result.IsCompatible {
 		t.Errorf("Adding optional field should be compatible, got: %v", result.Messages)
 	}
@@ -77,7 +84,7 @@ message User {
 }
 `
 
-	result := checker.Check(newSchema, oldSchema)
+	result := checker.Check(s(newSchema), s(oldSchema))
 	if result.IsCompatible {
 		t.Error("Adding required field should be incompatible")
 	}
@@ -103,7 +110,7 @@ message User {
 }
 `
 
-	result := checker.Check(newSchema, oldSchema)
+	result := checker.Check(s(newSchema), s(oldSchema))
 	if result.IsCompatible {
 		t.Error("Removing field should be incompatible")
 	}
@@ -133,7 +140,7 @@ message User {
 }
 `
 
-	result := checker.Check(newSchema, oldSchema)
+	result := checker.Check(s(newSchema), s(oldSchema))
 	if result.IsCompatible {
 		t.Error("Changing field type should be incompatible")
 	}
@@ -158,7 +165,7 @@ message User {
 }
 `
 
-	result := checker.Check(newSchema, oldSchema)
+	result := checker.Check(s(newSchema), s(oldSchema))
 	if !result.IsCompatible {
 		t.Errorf("int32 to sint32 should be compatible: %v", result.Messages)
 	}
@@ -183,7 +190,7 @@ message User {
 }
 `
 
-	result := checker.Check(newSchema, oldSchema)
+	result := checker.Check(s(newSchema), s(oldSchema))
 	if !result.IsCompatible {
 		t.Errorf("int64 to sint64 should be compatible: %v", result.Messages)
 	}
@@ -214,7 +221,7 @@ message User {
 }
 `
 
-	result := checker.Check(newSchema, oldSchema)
+	result := checker.Check(s(newSchema), s(oldSchema))
 	if !result.IsCompatible {
 		t.Errorf("Adding enum should be compatible: %v", result.Messages)
 	}
@@ -250,7 +257,7 @@ message User {
 }
 `
 
-	result := checker.Check(newSchema, oldSchema)
+	result := checker.Check(s(newSchema), s(oldSchema))
 	if result.IsCompatible {
 		t.Error("Removing enum value should be incompatible")
 	}
@@ -286,7 +293,7 @@ message User {
 }
 `
 
-	result := checker.Check(newSchema, oldSchema)
+	result := checker.Check(s(newSchema), s(oldSchema))
 	if !result.IsCompatible {
 		t.Errorf("Adding enum value should be compatible: %v", result.Messages)
 	}
@@ -315,7 +322,7 @@ message Order {
 }
 `
 
-	result := checker.Check(newSchema, oldSchema)
+	result := checker.Check(s(newSchema), s(oldSchema))
 	if !result.IsCompatible {
 		t.Errorf("Adding message should be compatible: %v", result.Messages)
 	}
@@ -344,7 +351,7 @@ message User {
 }
 `
 
-	result := checker.Check(newSchema, oldSchema)
+	result := checker.Check(s(newSchema), s(oldSchema))
 	if result.IsCompatible {
 		t.Error("Removing message should be incompatible")
 	}
@@ -382,7 +389,7 @@ message User {
 }
 `
 
-	result := checker.Check(newSchema, oldSchema)
+	result := checker.Check(s(newSchema), s(oldSchema))
 	if result.IsCompatible {
 		t.Error("Removing field from nested message should be incompatible")
 	}
@@ -418,7 +425,7 @@ service SearchService {
 }
 `
 
-	result := checker.Check(newSchema, oldSchema)
+	result := checker.Check(s(newSchema), s(oldSchema))
 	if !result.IsCompatible {
 		t.Errorf("Adding service method should be compatible: %v", result.Messages)
 	}
@@ -454,7 +461,7 @@ service SearchService {
 }
 `
 
-	result := checker.Check(newSchema, oldSchema)
+	result := checker.Check(s(newSchema), s(oldSchema))
 	if result.IsCompatible {
 		t.Error("Removing service method should be incompatible")
 	}
@@ -487,7 +494,7 @@ service SearchService {
 }
 `
 
-	result := checker.Check(newSchema, oldSchema)
+	result := checker.Check(s(newSchema), s(oldSchema))
 	if result.IsCompatible {
 		t.Error("Changing service method input type should be incompatible")
 	}
@@ -514,7 +521,7 @@ message User {
 }
 `
 
-	result := checker.Check(newSchema, oldSchema)
+	result := checker.Check(s(newSchema), s(oldSchema))
 	// Package change is noted but may or may not be breaking
 	// depending on usage
 	if len(result.Messages) == 0 {
@@ -532,12 +539,12 @@ message User { string name = 1; }
 
 	invalidSchema := `this is not valid protobuf`
 
-	result := checker.Check(invalidSchema, validSchema)
+	result := checker.Check(s(invalidSchema), s(validSchema))
 	if result.IsCompatible {
 		t.Error("Invalid schema should return incompatible")
 	}
 
-	result = checker.Check(validSchema, invalidSchema)
+	result = checker.Check(s(validSchema), s(invalidSchema))
 	if result.IsCompatible {
 		t.Error("Invalid old schema should return incompatible")
 	}
@@ -563,7 +570,7 @@ message Config {
 }
 `
 
-	result := checker.Check(newSchema, oldSchema)
+	result := checker.Check(s(newSchema), s(oldSchema))
 	if !result.IsCompatible {
 		t.Errorf("Adding map field should be compatible: %v", result.Messages)
 	}
@@ -595,7 +602,7 @@ message Event {
 }
 `
 
-	result := checker.Check(newSchema, oldSchema)
+	result := checker.Check(s(newSchema), s(oldSchema))
 	if !result.IsCompatible {
 		t.Errorf("Adding field to oneof should be compatible: %v", result.Messages)
 	}
@@ -623,7 +630,7 @@ message User {
 }
 `
 
-	result := checker.Check(newSchema, oldSchema)
+	result := checker.Check(s(newSchema), s(oldSchema))
 	if result.IsCompatible {
 		t.Error("Reusing field number with different type should be incompatible")
 	}
@@ -648,7 +655,7 @@ message User {
 }
 `
 
-	result := checker.Check(newSchema, oldSchema)
+	result := checker.Check(s(newSchema), s(oldSchema))
 	// This is a type mismatch at the wire level
 	if result.IsCompatible {
 		t.Error("Changing repeated to singular should be incompatible")
