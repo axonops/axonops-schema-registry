@@ -657,6 +657,10 @@ func (s *Store) GetSchemaBySubjectVersion(ctx context.Context, subject string, v
 		return nil, err
 	}
 
+	if deleted {
+		return nil, storage.ErrVersionNotFound
+	}
+
 	rec, err := s.GetSchemaByID(ctx, int64(schemaID))
 	if err != nil {
 		return nil, err
@@ -671,29 +675,42 @@ func (s *Store) GetSchemaBySubjectVersion(ctx context.Context, subject string, v
 // GetSchemasBySubject retrieves all schemas for a subject.
 func (s *Store) GetSchemasBySubject(ctx context.Context, subject string, includeDeleted bool) ([]*storage.SchemaRecord, error) {
 	iter := s.readQuery(
-		fmt.Sprintf(`SELECT version, deleted FROM %s.subject_versions WHERE subject = ?`, qident(s.cfg.Keyspace)),
+		fmt.Sprintf(`SELECT version, schema_id, deleted, created_at FROM %s.subject_versions WHERE subject = ?`, qident(s.cfg.Keyspace)),
 		subject,
 	).WithContext(ctx).Iter()
 
-	var versions []int
-	var version int
-	var deleted bool
-	for iter.Scan(&version, &deleted) {
-		if includeDeleted || !deleted {
-			versions = append(versions, version)
+	type versionInfo struct {
+		version   int
+		schemaID  int
+		deleted   bool
+		createdAt gocql.UUID
+	}
+	var entries []versionInfo
+	var vi versionInfo
+	for iter.Scan(&vi.version, &vi.schemaID, &vi.deleted, &vi.createdAt) {
+		if includeDeleted || !vi.deleted {
+			entries = append(entries, vi)
 		}
 	}
 	if err := iter.Close(); err != nil {
 		return nil, err
 	}
 
-	sort.Ints(versions)
-	out := make([]*storage.SchemaRecord, 0, len(versions))
-	for _, v := range versions {
-		rec, err := s.GetSchemaBySubjectVersion(ctx, subject, v)
+	if len(entries) == 0 {
+		return nil, storage.ErrSubjectNotFound
+	}
+
+	sort.Slice(entries, func(i, j int) bool { return entries[i].version < entries[j].version })
+	out := make([]*storage.SchemaRecord, 0, len(entries))
+	for _, e := range entries {
+		rec, err := s.GetSchemaByID(ctx, int64(e.schemaID))
 		if err != nil {
 			continue
 		}
+		rec.Subject = subject
+		rec.Version = e.version
+		rec.Deleted = e.deleted
+		rec.CreatedAt = e.createdAt.Time()
 		out = append(out, rec)
 	}
 	return out, nil
@@ -866,6 +883,9 @@ func (s *Store) DeleteSubject(ctx context.Context, subject string, permanent boo
 	if err := iter.Close(); err != nil {
 		return nil, err
 	}
+	if len(deletedVersions) == 0 {
+		return nil, storage.ErrSubjectNotFound
+	}
 
 	for _, v := range deletedVersions {
 		if err := s.DeleteSchema(ctx, subject, v, permanent); err != nil {
@@ -930,6 +950,14 @@ func (s *Store) GetReferencedBy(ctx context.Context, subject string, version int
 
 // GetSubjectsBySchemaID returns subjects using the given schema ID.
 func (s *Store) GetSubjectsBySchemaID(ctx context.Context, id int64, includeDeleted bool) ([]string, error) {
+	// Verify schema ID exists first
+	if _, err := s.GetSchemaByID(ctx, id); err != nil {
+		if errors.Is(err, storage.ErrSchemaNotFound) {
+			return nil, storage.ErrSchemaNotFound
+		}
+		return nil, err
+	}
+
 	// Need to scan all subjects to find which use this schema ID
 	allSubjects, err := s.ListSubjects(ctx, true)
 	if err != nil {
@@ -964,6 +992,14 @@ func (s *Store) GetSubjectsBySchemaID(ctx context.Context, id int64, includeDele
 
 // GetVersionsBySchemaID returns subject-version pairs using the given schema ID.
 func (s *Store) GetVersionsBySchemaID(ctx context.Context, id int64, includeDeleted bool) ([]storage.SubjectVersion, error) {
+	// Verify schema ID exists first
+	if _, err := s.GetSchemaByID(ctx, id); err != nil {
+		if errors.Is(err, storage.ErrSchemaNotFound) {
+			return nil, storage.ErrSchemaNotFound
+		}
+		return nil, err
+	}
+
 	allSubjects, err := s.ListSubjects(ctx, true)
 	if err != nil {
 		return nil, err
