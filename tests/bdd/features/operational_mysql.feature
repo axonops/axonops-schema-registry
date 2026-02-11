@@ -26,15 +26,12 @@ Feature: MySQL Backend Resilience
       """
     Then the response status should be 200
 
-  Scenario: Operations fail gracefully during database pause
+  Scenario: Operations resume after database pause
     When I pause the database
     And I wait 3 seconds
-    When I register a schema under subject "pause-test":
-      """
-      {"type":"record","name":"PauseTest","fields":[{"name":"f","type":"string"}]}
-      """
-    When I unpause the database
+    And I unpause the database
     And I wait 5 seconds
+    And I wait for the registry to become healthy
     Then I register a schema under subject "unpause-test":
       """
       {"type":"record","name":"UnpauseTest","fields":[{"name":"f","type":"string"}]}

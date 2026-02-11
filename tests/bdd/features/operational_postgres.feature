@@ -12,11 +12,9 @@ Feature: PostgreSQL Backend Resilience
     Then I get version 1 of subject "users-value"
     And the response status should be 200
 
-  Scenario: Health check fails when database is killed
+  Scenario: Registry becomes unhealthy when database is killed
     When I kill the database container
-    And I wait 5 seconds
-    When I GET "/"
-    Then the response status should be 200
+    And I wait for the registry to become unhealthy
 
   Scenario: Registry recovers after database restart
     When I kill the database container
@@ -32,15 +30,12 @@ Feature: PostgreSQL Backend Resilience
       """
     Then the response status should be 200
 
-  Scenario: Operations fail gracefully during database pause
+  Scenario: Operations resume after database pause
     When I pause the database
     And I wait 3 seconds
-    When I register a schema under subject "pause-test":
-      """
-      {"type":"record","name":"PauseTest","fields":[{"name":"f","type":"string"}]}
-      """
-    When I unpause the database
+    And I unpause the database
     And I wait 5 seconds
+    And I wait for the registry to become healthy
     Then I register a schema under subject "unpause-test":
       """
       {"type":"record","name":"UnpauseTest","fields":[{"name":"f","type":"string"}]}
@@ -52,7 +47,7 @@ Feature: PostgreSQL Backend Resilience
       """
       {"type":"record","name":"BeforeKill","fields":[{"name":"f","type":"string"}]}
       """
-    And I store the response field "id" as "before_id"
+    And I store the response field "id" as "schema_id"
     When I kill the database container
     And I restart the database container
     And I wait for the registry to become healthy

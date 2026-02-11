@@ -264,7 +264,7 @@ func cleanMySQL() error {
 		return fmt.Errorf("disable FK checks: %w", err)
 	}
 	for _, t := range tables {
-		if _, err := db.Exec("TRUNCATE TABLE " + t); err != nil {
+		if _, err := db.Exec("TRUNCATE TABLE `" + t + "`"); err != nil {
 			return fmt.Errorf("truncate %s: %w", t, err)
 		}
 	}
