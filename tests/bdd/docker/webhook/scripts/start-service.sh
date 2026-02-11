@@ -8,6 +8,8 @@ CONFIG_FILE="${REGISTRY_CONFIG:-/etc/schema-registry/config.yaml}"
 if [ -f "$PID_FILE" ]; then
     PID=$(cat "$PID_FILE")
     if kill -0 "$PID" 2>/dev/null; then
+        # Process exists — but it might be paused (SIGSTOP). Resume it first.
+        kill -CONT "$PID" 2>/dev/null || true
         echo "Registry already running (PID $PID)"
         exit 0
     fi

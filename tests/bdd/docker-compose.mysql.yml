@@ -21,7 +21,8 @@ services:
     ports:
       - "${MYSQL_PORT:-13306}:3306"
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uschemaregistry", "-pschemaregistry"]
+      test: ["CMD-SHELL", "mysql -h 127.0.0.1 -uschemaregistry -pschemaregistry -e 'SELECT 1' 2>/dev/null"]
       interval: 5s
       timeout: 3s
-      retries: 10
+      start_period: 30s
+      retries: 20

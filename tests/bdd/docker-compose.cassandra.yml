@@ -21,6 +21,7 @@ services:
       - "${CASSANDRA_PORT:-19042}:9042"
     healthcheck:
       test: ["CMD-SHELL", "cqlsh -e 'DESCRIBE KEYSPACES'"]
-      interval: 5s
+      interval: 10s
       timeout: 10s
+      start_period: 60s
       retries: 30

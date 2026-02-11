@@ -14,25 +14,24 @@ package bdd
 
 import (
 	"context"
+	"database/sql"
+	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
+	gocql "github.com/apache/cassandra-gocql-driver/v2"
 	"github.com/cucumber/godog"
 	"github.com/cucumber/godog/colors"
-	"database/sql"
-	"encoding/json"
-	"io"
-	"strconv"
-
-	gocql "github.com/apache/cassandra-gocql-driver/v2"
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
 
