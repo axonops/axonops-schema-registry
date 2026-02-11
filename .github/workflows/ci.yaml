@@ -368,9 +368,9 @@ jobs:
         if: always()
         run: docker stop cassandra-test && docker rm cassandra-test || true
 
-  # Storage conformance tests — runs the same ~100 tests against all backends
-  storage-conformance:
-    name: Storage Conformance Tests
+  # Storage conformance tests — runs ~100 identical tests per backend
+  conformance-postgres:
+    name: Conformance (PostgreSQL)
     runs-on: ubuntu-latest
     needs: [build]
     services:
@@ -387,6 +387,37 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+
+    steps:
+      - name: Download test binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: test-binaries
+
+      - name: Make binaries executable
+        run: chmod +x conformance.test
+
+      - name: Wait for PostgreSQL
+        run: |
+          for i in {1..30}; do
+            pg_isready -h localhost -p 5432 -U schemaregistry && break
+            sleep 1
+          done
+
+      - name: Run PostgreSQL conformance tests
+        env:
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: "5432"
+          POSTGRES_USER: schemaregistry
+          POSTGRES_PASSWORD: schemaregistry
+          POSTGRES_DATABASE: schemaregistry
+        run: ./conformance.test -test.v -test.timeout=10m -test.run=TestPostgresBackend
+
+  conformance-mysql:
+    name: Conformance (MySQL)
+    runs-on: ubuntu-latest
+    needs: [build]
+    services:
       mysql:
         image: mysql:8
         env:
@@ -411,19 +442,34 @@ jobs:
       - name: Make binaries executable
         run: chmod +x conformance.test
 
-      - name: Wait for PostgreSQL
-        run: |
-          for i in {1..30}; do
-            pg_isready -h localhost -p 5432 -U schemaregistry && break
-            sleep 1
-          done
-
       - name: Wait for MySQL
         run: |
           for i in {1..30}; do
             mysqladmin ping -h 127.0.0.1 -u root -proot --silent && break
             sleep 2
           done
+
+      - name: Run MySQL conformance tests
+        env:
+          MYSQL_HOST: localhost
+          MYSQL_PORT: "3306"
+          MYSQL_USER: schemaregistry
+          MYSQL_PASSWORD: schemaregistry
+          MYSQL_DATABASE: schemaregistry
+        run: ./conformance.test -test.v -test.timeout=10m -test.run=TestMySQLBackend
+
+  conformance-cassandra:
+    name: Conformance (Cassandra)
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - name: Download test binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: test-binaries
+
+      - name: Make binaries executable
+        run: chmod +x conformance.test
 
       - name: Start Cassandra
         run: |
@@ -465,24 +511,6 @@ jobs:
             echo "Waiting for port 9042... ($i)"
             sleep 2
           done
-
-      - name: Run PostgreSQL conformance tests
-        env:
-          POSTGRES_HOST: localhost
-          POSTGRES_PORT: "5432"
-          POSTGRES_USER: schemaregistry
-          POSTGRES_PASSWORD: schemaregistry
-          POSTGRES_DATABASE: schemaregistry
-        run: ./conformance.test -test.v -test.timeout=10m -test.run=TestPostgresBackend
-
-      - name: Run MySQL conformance tests
-        env:
-          MYSQL_HOST: localhost
-          MYSQL_PORT: "3306"
-          MYSQL_USER: schemaregistry
-          MYSQL_PASSWORD: schemaregistry
-          MYSQL_DATABASE: schemaregistry
-        run: ./conformance.test -test.v -test.timeout=10m -test.run=TestMySQLBackend
 
       - name: Run Cassandra conformance tests
         env:
