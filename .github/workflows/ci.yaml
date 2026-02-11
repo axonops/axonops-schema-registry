@@ -372,7 +372,7 @@ jobs:
   conformance-postgres:
     name: Conformance (PostgreSQL)
     runs-on: ubuntu-latest
-    needs: [build]
+    needs: [build, postgres-tests, mysql-tests, cassandra-tests]
     services:
       postgres:
         image: postgres:15
@@ -416,7 +416,7 @@ jobs:
   conformance-mysql:
     name: Conformance (MySQL)
     runs-on: ubuntu-latest
-    needs: [build]
+    needs: [build, postgres-tests, mysql-tests, cassandra-tests]
     services:
       mysql:
         image: mysql:8
@@ -461,7 +461,7 @@ jobs:
   conformance-cassandra:
     name: Conformance (Cassandra)
     runs-on: ubuntu-latest
-    needs: [build]
+    needs: [build, postgres-tests, mysql-tests, cassandra-tests]
     steps:
       - name: Download test binaries
         uses: actions/download-artifact@v4
