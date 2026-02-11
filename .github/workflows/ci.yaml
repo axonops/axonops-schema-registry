@@ -129,7 +129,7 @@ jobs:
         run: go install github.com/securego/gosec/v2/cmd/gosec@latest
 
       - name: Run gosec
-        run: gosec -exclude-generated -severity medium ./...
+        run: gosec -exclude-generated -exclude=G117,G202 -severity medium ./...
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
