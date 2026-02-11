@@ -30,7 +30,7 @@ func TestPostgresBackend(t *testing.T) {
 
 	RunAll(t, func() storage.Storage {
 		truncatePostgres(t, cfg)
-		return store
+		return &noCloseStore{store}
 	})
 }
 

@@ -32,7 +32,7 @@ func TestCassandraBackend(t *testing.T) {
 
 	RunAll(t, func() storage.Storage {
 		truncateCassandra(t, cfg)
-		return store
+		return &noCloseStore{store}
 	})
 }
 

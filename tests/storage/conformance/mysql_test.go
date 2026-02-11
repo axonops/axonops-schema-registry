@@ -29,7 +29,7 @@ func TestMySQLBackend(t *testing.T) {
 
 	RunAll(t, func() storage.Storage {
 		truncateMySQL(t, cfg)
-		return store
+		return &noCloseStore{store}
 	})
 }
 
