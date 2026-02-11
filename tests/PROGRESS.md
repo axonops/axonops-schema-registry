@@ -245,6 +245,45 @@ make test-bdd-memory    # includes @operational @memory
 
 ---
 
+## Phase 8: Handler Unit Tests — DONE
+
+**Result:** 119 handler-level unit tests added. All pass with `-race`.
+
+### Test Files
+
+| File | Tests | Coverage |
+|------|-------|----------|
+| handlers_test.go | ~65 | Schema, subject, config, mode, compatibility endpoints |
+| admin_test.go | ~40 | User and API key admin CRUD, RBAC |
+| account_test.go | ~9 | Self-service account, password change |
+| **Total** | **~119** | |
+
+---
+
+## Phase 9: Schema Reference Resolution Fix — DONE
+
+**Result:** Cross-subject schema references now work end-to-end — both in parsers and compatibility checkers. This was a Confluent compatibility bug: any schema using cross-subject references (Protobuf imports, JSON Schema `$ref`, Avro named types from other subjects) would fail to parse.
+
+### Changes
+
+| Component | Change |
+|-----------|--------|
+| `storage.Reference` | Added `Schema string` field for resolved content |
+| `registry.resolveReferences()` | New method to look up reference content from storage |
+| Avro parser | Uses `avro.ParseWithCache` with pre-parsed reference schemas |
+| JSON Schema parser | Uses `compiler.AddResource` for external `$ref` |
+| Protobuf resolver | Stores actual reference content for imports |
+| `SchemaChecker` interface | Changed to `Check(reader, writer SchemaWithRefs)` |
+| Avro checker | Parses with reference cache |
+| Protobuf checker | New `checkerResolver` with references + well-known types |
+| Registry | Resolves references for both new and existing schemas in compat checks |
+
+### Tests Added
+- Cross-subject reference tests for all 3 parser types
+- All existing compatibility checker tests updated for new interface
+
+---
+
 ## Summary
 
 | Phase | Status | Tests Added |
@@ -256,9 +295,11 @@ make test-bdd-memory    # includes @operational @memory
 | Phase 5: BDD Functional Features | DONE | +146 scenarios / 691 steps |
 | Phase 6: Operational Resilience | DONE | +13 scenarios (require Docker) |
 | Phase 7: Makefile & Running | DONE | — (10 make targets) |
+| Phase 8: Handler Unit Tests | DONE | +119 (handlers, admin, account) |
+| Phase 9: Reference Resolution Fix | DONE | Bug fix + cross-subject ref tests |
 
 **Total test inventory:**
-- 273 internal unit tests (all pass with `-race`)
+- ~392 internal unit tests (all pass with `-race`)
 - 108 storage conformance tests (all pass with `-race`)
 - 146 BDD scenarios / 691 steps (all pass in-process)
 - 13 operational resilience scenarios (require Docker infrastructure)
