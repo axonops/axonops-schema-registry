@@ -1252,7 +1252,7 @@ func (s *Store) GetGlobalConfig(ctx context.Context) (*storage.ConfigRecord, err
 	).WithContext(ctx).Scan(&compat)
 	if err != nil {
 		if errors.Is(err, gocql.ErrNotFound) {
-			return &storage.ConfigRecord{Subject: "", CompatibilityLevel: "BACKWARD"}, nil
+			return nil, storage.ErrNotFound
 		}
 		return nil, err
 	}
@@ -1341,7 +1341,7 @@ func (s *Store) GetGlobalMode(ctx context.Context) (*storage.ModeRecord, error) 
 	).WithContext(ctx).Scan(&mode)
 	if err != nil {
 		if errors.Is(err, gocql.ErrNotFound) {
-			return &storage.ModeRecord{Subject: "", Mode: "READWRITE"}, nil
+			return nil, storage.ErrNotFound
 		}
 		return nil, err
 	}
