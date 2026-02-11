@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'feature/**']
   pull_request:
     branches: [main]
 
@@ -969,3 +969,150 @@ jobs:
 
           # Run the full migration test
           ./tests/migration/test-migration.sh
+
+  # BDD functional tests — in-process, no Docker, fast (~147 scenarios)
+  bdd-functional-tests:
+    name: BDD Functional Tests
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run BDD functional tests (in-process)
+        run: go test -tags bdd -v -count=1 -timeout 10m ./tests/bdd/...
+
+  # BDD tests — Memory backend (functional + operational scenarios)
+  bdd-memory-tests:
+    name: BDD Tests (Memory)
+    runs-on: ubuntu-latest
+    needs: [bdd-functional-tests]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run BDD tests (memory backend)
+        env:
+          BDD_BACKEND: memory
+          CONTAINER_CMD: docker
+        run: go test -tags bdd -v -count=1 -timeout 15m ./tests/bdd/...
+
+      - name: Show container logs on failure
+        if: failure()
+        working-directory: tests/bdd
+        run: docker compose -f docker-compose.base.yml -f docker-compose.memory.yml logs --tail=100 || true
+
+      - name: Cleanup containers
+        if: always()
+        working-directory: tests/bdd
+        run: docker compose -f docker-compose.base.yml -f docker-compose.memory.yml down -v || true
+
+  # BDD tests — PostgreSQL backend (functional + operational scenarios)
+  bdd-postgres-tests:
+    name: BDD Tests (PostgreSQL)
+    runs-on: ubuntu-latest
+    needs: [bdd-functional-tests]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run BDD tests (postgres backend)
+        env:
+          BDD_BACKEND: postgres
+          CONTAINER_CMD: docker
+        run: go test -tags bdd -v -count=1 -timeout 15m ./tests/bdd/...
+
+      - name: Show container logs on failure
+        if: failure()
+        working-directory: tests/bdd
+        run: docker compose -f docker-compose.base.yml -f docker-compose.postgres.yml logs --tail=100 || true
+
+      - name: Cleanup containers
+        if: always()
+        working-directory: tests/bdd
+        run: docker compose -f docker-compose.base.yml -f docker-compose.postgres.yml down -v || true
+
+  # BDD tests — MySQL backend (functional + operational scenarios)
+  bdd-mysql-tests:
+    name: BDD Tests (MySQL)
+    runs-on: ubuntu-latest
+    needs: [bdd-functional-tests]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run BDD tests (mysql backend)
+        env:
+          BDD_BACKEND: mysql
+          CONTAINER_CMD: docker
+        run: go test -tags bdd -v -count=1 -timeout 15m ./tests/bdd/...
+
+      - name: Show container logs on failure
+        if: failure()
+        working-directory: tests/bdd
+        run: docker compose -f docker-compose.base.yml -f docker-compose.mysql.yml logs --tail=100 || true
+
+      - name: Cleanup containers
+        if: always()
+        working-directory: tests/bdd
+        run: docker compose -f docker-compose.base.yml -f docker-compose.mysql.yml down -v || true
+
+  # BDD tests — Cassandra backend (functional + operational scenarios)
+  bdd-cassandra-tests:
+    name: BDD Tests (Cassandra)
+    runs-on: ubuntu-latest
+    needs: [bdd-functional-tests]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run BDD tests (cassandra backend)
+        env:
+          BDD_BACKEND: cassandra
+          CONTAINER_CMD: docker
+        run: go test -tags bdd -v -count=1 -timeout 20m ./tests/bdd/...
+
+      - name: Show container logs on failure
+        if: failure()
+        working-directory: tests/bdd
+        run: docker compose -f docker-compose.base.yml -f docker-compose.cassandra.yml logs --tail=100 || true
+
+      - name: Cleanup containers
+        if: always()
+        working-directory: tests/bdd
+        run: docker compose -f docker-compose.base.yml -f docker-compose.cassandra.yml down -v || true
