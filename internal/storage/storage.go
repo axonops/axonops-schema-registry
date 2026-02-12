@@ -73,6 +73,7 @@ type SubjectVersion struct {
 type ConfigRecord struct {
 	Subject            string `json:"subject,omitempty"` // Empty for global config
 	CompatibilityLevel string `json:"compatibilityLevel"`
+	Normalize          *bool  `json:"normalize,omitempty"`
 }
 
 // ModeRecord represents a mode configuration.
@@ -166,6 +167,7 @@ type Storage interface {
 
 	// ID generation
 	NextID(ctx context.Context) (int64, error)
+	GetMaxSchemaID(ctx context.Context) (int64, error)
 
 	// Import operations (for migration from other schema registries)
 	// ImportSchema inserts a schema with a specified ID (for migration).

@@ -105,6 +105,22 @@ func (p *ParsedJSONSchema) RawSchema() interface{} {
 	return p.schemaMap
 }
 
+// Normalize returns a normalized copy of this schema with deterministic key ordering.
+func (p *ParsedJSONSchema) Normalize() schema.ParsedSchema {
+	return &ParsedJSONSchema{
+		raw:        p.CanonicalString(),
+		schemaMap:  p.schemaMap,
+		compiled:   p.compiled,
+		references: p.references,
+	}
+}
+
+// FormattedString returns the schema in the requested format.
+// JSON Schema does not support special format values; always returns canonical string.
+func (p *ParsedJSONSchema) FormattedString(format string) string {
+	return p.CanonicalString()
+}
+
 // Raw returns the original schema string.
 func (p *ParsedJSONSchema) Raw() string {
 	return p.raw

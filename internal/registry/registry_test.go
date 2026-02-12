@@ -412,7 +412,7 @@ func TestSetConfig_SubjectLevel(t *testing.T) {
 	reg := setupTestRegistry("BACKWARD")
 	ctx := context.Background()
 
-	err := reg.SetConfig(ctx, "my-subject", "FULL")
+	err := reg.SetConfig(ctx, "my-subject", "FULL", nil)
 	if err != nil {
 		t.Fatalf("failed to set config: %v", err)
 	}
@@ -430,7 +430,7 @@ func TestSetConfig_GlobalLevel(t *testing.T) {
 	reg := setupTestRegistry("BACKWARD")
 	ctx := context.Background()
 
-	err := reg.SetConfig(ctx, "", "NONE")
+	err := reg.SetConfig(ctx, "", "NONE", nil)
 	if err != nil {
 		t.Fatalf("failed to set global config: %v", err)
 	}
@@ -448,7 +448,7 @@ func TestSetConfig_InvalidLevel(t *testing.T) {
 	reg := setupTestRegistry("BACKWARD")
 	ctx := context.Background()
 
-	err := reg.SetConfig(ctx, "test", "INVALID")
+	err := reg.SetConfig(ctx, "test", "INVALID", nil)
 	if err == nil {
 		t.Error("expected error for invalid compatibility level")
 	}
@@ -458,7 +458,7 @@ func TestSetConfig_CaseInsensitive(t *testing.T) {
 	reg := setupTestRegistry("BACKWARD")
 	ctx := context.Background()
 
-	err := reg.SetConfig(ctx, "test", "backward")
+	err := reg.SetConfig(ctx, "test", "backward", nil)
 	if err != nil {
 		t.Fatalf("expected lowercase to be accepted: %v", err)
 	}
@@ -475,7 +475,7 @@ func TestSetConfig_AllValidLevels(t *testing.T) {
 	}
 
 	for _, level := range validLevels {
-		err := reg.SetConfig(ctx, "", level)
+		err := reg.SetConfig(ctx, "", level, nil)
 		if err != nil {
 			t.Errorf("level %s should be valid: %v", level, err)
 		}
@@ -486,7 +486,7 @@ func TestDeleteConfig(t *testing.T) {
 	reg := setupTestRegistry("BACKWARD")
 	ctx := context.Background()
 
-	err := reg.SetConfig(ctx, "my-subject", "FULL")
+	err := reg.SetConfig(ctx, "my-subject", "FULL", nil)
 	if err != nil {
 		t.Fatalf("failed to set config: %v", err)
 	}
@@ -523,7 +523,7 @@ func TestDeleteGlobalConfig(t *testing.T) {
 	reg := setupTestRegistry("BACKWARD")
 	ctx := context.Background()
 
-	err := reg.SetConfig(ctx, "", "FULL")
+	err := reg.SetConfig(ctx, "", "FULL", nil)
 	if err != nil {
 		t.Fatalf("failed to set global config: %v", err)
 	}

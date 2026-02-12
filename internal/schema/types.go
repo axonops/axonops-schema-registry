@@ -18,6 +18,15 @@ type ParsedSchema interface {
 
 	// RawSchema returns the underlying schema object.
 	RawSchema() interface{}
+
+	// FormattedString returns the schema formatted according to the given format.
+	// Supported formats vary by schema type (e.g., "resolved" for Avro).
+	// Returns canonical string for unknown or empty format values.
+	FormattedString(format string) string
+
+	// Normalize returns a normalized copy of this schema with deterministic
+	// representation for deduplication and comparison purposes.
+	Normalize() ParsedSchema
 }
 
 // Parser is the interface for schema parsers.

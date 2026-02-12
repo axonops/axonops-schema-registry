@@ -94,6 +94,30 @@ func (s *ParsedSchema) RawSchema() interface{} {
 	return s.rawSchema
 }
 
+// Normalize returns a normalized copy of this schema using canonical form.
+func (s *ParsedSchema) Normalize() schema.ParsedSchema {
+	return &ParsedSchema{
+		schemaType:  s.schemaType,
+		canonical:   s.canonical,
+		fingerprint: s.fingerprint,
+		rawSchema:   s.rawSchema,
+	}
+}
+
+// FormattedString returns the schema in the requested format.
+// Supported formats: "resolved" (inlines all references), "default" (canonical).
+func (s *ParsedSchema) FormattedString(format string) string {
+	switch strings.ToLower(strings.TrimSpace(format)) {
+	case "resolved":
+		if s.rawSchema != nil {
+			return s.rawSchema.String()
+		}
+		return s.canonical
+	default:
+		return s.canonical
+	}
+}
+
 // canonicalize converts an Avro schema to its canonical form.
 // This follows the Avro specification for Parsing Canonical Form.
 func canonicalize(schemaStr string) string {

@@ -667,6 +667,11 @@ func (s *Store) NextID(ctx context.Context) (int64, error) {
 	return atomic.AddInt64(&s.nextID, 1) - 1, nil
 }
 
+// GetMaxSchemaID returns the highest schema ID currently assigned.
+func (s *Store) GetMaxSchemaID(ctx context.Context) (int64, error) {
+	return atomic.LoadInt64(&s.nextID) - 1, nil
+}
+
 // ImportSchema inserts a schema with a specified ID (for migration).
 // Returns ErrSchemaIDConflict if the ID already exists.
 func (s *Store) ImportSchema(ctx context.Context, record *storage.SchemaRecord) error {

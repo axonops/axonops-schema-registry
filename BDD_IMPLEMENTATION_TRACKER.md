@@ -41,11 +41,11 @@ If you are resuming after a crash/compaction, do the following:
 | 13 | Advanced Features | 37-39,42-44 | DONE | advanced_features.feature | handlers.go (force, deletedOnly, subject filter), registry.go (SetMode force), storage.go (ErrOperationNotPermitted) | 18 |
 | 14 | Confluent Conformance | NEW | DONE | confluent_conformance.feature | handlers.go (lookup 40401 vs 40403, double-delete 40404), memory/store.go (GetSchemaByFingerprint, GetSchemasBySubject, DeleteSubject) | 12 |
 | 15 | Pagination | NEW | DONE | pagination.feature | handlers.go (offset/limit/deletedOnly on GET /subjects) | 8 |
-| 16 | normalize (P2) | 36 | TODO | normalize.feature | schema parsers, handlers.go, registry.go | ~10 |
-| 17 | format (P2) | 42 | TODO | format.feature | schema parsers, handlers.go | ~6 |
-| 18 | fetchMaxId (P2) | 43 | TODO | (in advanced_features.feature) | handlers.go, storage interface | ~3 |
+| 16 | normalize (P2) | 36 | DONE | (in advanced_features.feature) | schema/types.go (Normalize), avro/parser.go, protobuf/parser.go, jsonschema/parser.go, handlers.go, registry.go (isNormalizeEnabled), storage.go (ConfigRecord.Normalize), types.go (ConfigRequest/Response.Normalize) | 5 |
+| 17 | format | 42 | DONE | (in advanced_features.feature) | schema/types.go (FormattedString), avro/parser.go, protobuf/parser.go, jsonschema/parser.go, handlers.go, registry.go (FormatSchema) | 6 |
+| 18 | fetchMaxId | 43 | DONE | (in advanced_features.feature) | handlers.go, types.go (MaxId), storage interface (GetMaxSchemaID), memory/postgres/mysql/cassandra stores | 3 |
 
-**Completed: WP1-WP15 = 761 scenarios passing. Remaining: WP16-WP18 (P2).**
+**Completed: WP1-WP18 = 770 scenarios passing. All work packages done.**
 
 ---
 
@@ -545,7 +545,7 @@ In RegisterSchema handler, when mode is IMPORT, parse `id` and `version` from re
 
 ## WP16: NORMALIZE PARAMETER
 
-**Status:** TODO (P2 — required for full compatibility)
+**Status:** DONE
 **Feature file:** `normalize.feature`
 **Code changes needed:** YES — schema parsers (Avro, JSON Schema, Protobuf), handlers.go, registry.go, config
 
@@ -575,7 +575,7 @@ In RegisterSchema handler, when mode is IMPORT, parse `id` and `version` from re
 
 ## WP17: FORMAT PARAMETER
 
-**Status:** TODO (P2 — required for full compatibility)
+**Status:** DONE
 **Feature file:** `format.feature`
 **Code changes needed:** YES — schema parsers, handlers.go
 
@@ -597,7 +597,7 @@ In RegisterSchema handler, when mode is IMPORT, parse `id` and `version` from re
 
 ## WP18: FETCH MAX ID
 
-**Status:** TODO (P2 — required for full compatibility)
+**Status:** DONE
 **Feature file:** (in advanced_features.feature, extend)
 **Code changes needed:** YES — handlers.go, types.go (SchemaByIDResponse), storage interface (GetMaxSchemaID)
 
@@ -615,15 +615,10 @@ In RegisterSchema handler, when mode is IMPORT, parse `id` and `version` from re
 
 ## EXECUTION ORDER
 
-**Completed work packages (WP1-WP15):**
-1. WP1 (step definitions) → WP2-WP7 (test-only) → WP8-WP15 (code changes)
+**All work packages completed (WP1-WP18):**
+WP1 (step definitions) → WP2-WP7 (test-only) → WP8-WP15 (code changes) → WP18 (fetchMaxId) → WP17 (format) → WP16 (normalize)
 
-**Remaining work packages (P2):**
-1. **WP16** (normalize — HIGH complexity, fundamental for schema matching)
-2. **WP17** (format — MEDIUM complexity, schema output formatting)
-3. **WP18** (fetchMaxId — LOW complexity, monitoring feature)
-
-After each WP: run tests, fix failures, update this tracker.
+**770 BDD scenarios passing, 0 failures, all unit tests green.**
 
 ---
 
@@ -661,15 +656,18 @@ go test -tags bdd -v ./tests/bdd/... -godog.tags=@functional
 | 2026-02-12 | 13 | Advanced features: force on PUT /mode, deletedOnly on versions, subject filter on schema-by-ID, {{var}} template support in BDD steps, @p2 tests for normalize/format/fetchMaxId | 741 scenarios passing |
 | 2026-02-12 | 14 | Confluent conformance: lookup 40401 vs 40403, double soft-delete 40404, GET versions after all deleted 40401, GetSchemaByFingerprint/GetSchemasBySubject fixes | 753 scenarios passing |
 | 2026-02-12 | 15 | Pagination: offset/limit/deletedOnly on GET /subjects | 761 scenarios passing |
+| 2026-02-12 | 18 | fetchMaxId: GetMaxSchemaID storage method, MaxId field in SchemaByIDResponse, fetchMaxId query param | 763 scenarios passing |
+| 2026-02-12 | 17 | format: FormattedString on ParsedSchema interface, Avro resolved, Protobuf serialized, handlers format param, FormatSchema registry method | 768 scenarios passing |
+| 2026-02-12 | 16 | normalize: Normalize() on ParsedSchema interface, normalize query param on register/lookup/compat, normalize config per subject/global, isNormalizeEnabled config hierarchy | 770 scenarios passing |
 
 ---
 
-## FUTURE WORK SUMMARY
+## COMPLETION SUMMARY
 
-All remaining work is tracked in WP16-WP18 above. These are P2 features requiring schema parser changes.
+All 18 work packages are complete. 770 BDD scenarios passing, 0 failures.
 
 | WP | Priority | Complexity | Description | Status |
 |----|----------|-----------|-------------|--------|
-| 16 | **P2** | HIGH | normalize parameter (schema normalization per type + config) | TODO |
-| 17 | **P2** | MEDIUM | format parameter (schema output formatting per type) | TODO |
-| 18 | **P2** | LOW | fetchMaxId parameter (max schema ID in response) | TODO |
+| 16 | **P2** | HIGH | normalize parameter (schema normalization per type + config) | DONE |
+| 17 | **P2** | MEDIUM | format parameter (schema output formatting per type) | DONE |
+| 18 | **P2** | LOW | fetchMaxId parameter (max schema ID in response) | DONE |

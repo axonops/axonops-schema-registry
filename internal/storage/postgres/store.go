@@ -952,6 +952,16 @@ func (s *Store) NextID(ctx context.Context) (int64, error) {
 	return id, nil
 }
 
+// GetMaxSchemaID returns the highest schema ID currently assigned.
+func (s *Store) GetMaxSchemaID(ctx context.Context) (int64, error) {
+	var maxID int64
+	err := s.db.QueryRowContext(ctx, `SELECT COALESCE(MAX(id), 0) FROM schemas`).Scan(&maxID)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get max schema ID: %w", err)
+	}
+	return maxID, nil
+}
+
 // ImportSchema inserts a schema with a specified ID (for migration).
 // Returns ErrSchemaIDConflict if the ID already exists.
 func (s *Store) ImportSchema(ctx context.Context, record *storage.SchemaRecord) error {

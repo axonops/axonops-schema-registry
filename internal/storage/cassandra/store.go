@@ -209,6 +209,19 @@ func (s *Store) NextID(ctx context.Context) (int64, error) {
 	return 0, errors.New("failed to allocate schema ID: too much contention")
 }
 
+// GetMaxSchemaID returns the highest schema ID currently assigned.
+func (s *Store) GetMaxSchemaID(ctx context.Context) (int64, error) {
+	var nextID int
+	if err := s.session.Query(
+		fmt.Sprintf(`SELECT next_id FROM %s.id_alloc WHERE name = ?`, qident(s.cfg.Keyspace)),
+		"schema_id",
+	).WithContext(ctx).Scan(&nextID); err != nil {
+		return 0, fmt.Errorf("failed to get max schema ID: %w", err)
+	}
+	// next_id is the next ID to assign, so max assigned is next_id - 1
+	return int64(nextID - 1), nil
+}
+
 // ImportSchema inserts a schema with a specified ID (for migration).
 // Returns ErrSchemaIDConflict if the ID already exists.
 func (s *Store) ImportSchema(ctx context.Context, record *storage.SchemaRecord) error {

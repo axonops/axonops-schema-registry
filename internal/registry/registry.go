@@ -35,7 +35,7 @@ func New(store storage.Storage, parser *schema.Registry, compatChecker *compatib
 }
 
 // RegisterSchema registers a new schema for a subject.
-func (r *Registry) RegisterSchema(ctx context.Context, subject string, schemaStr string, schemaType storage.SchemaType, refs []storage.Reference) (*storage.SchemaRecord, error) {
+func (r *Registry) RegisterSchema(ctx context.Context, subject string, schemaStr string, schemaType storage.SchemaType, refs []storage.Reference, normalize ...bool) (*storage.SchemaRecord, error) {
 	// Default to Avro if not specified
 	if schemaType == "" {
 		schemaType = storage.SchemaTypeAvro
@@ -57,6 +57,16 @@ func (r *Registry) RegisterSchema(ctx context.Context, subject string, schemaStr
 	parsed, err := parser.Parse(schemaStr, resolvedRefs)
 	if err != nil {
 		return nil, fmt.Errorf("invalid schema: %w", err)
+	}
+
+	// Apply normalization if requested (or if subject config has normalize=true)
+	shouldNormalize := len(normalize) > 0 && normalize[0]
+	if !shouldNormalize {
+		shouldNormalize = r.isNormalizeEnabled(ctx, subject)
+	}
+	if shouldNormalize {
+		parsed = parsed.Normalize()
+		schemaStr = parsed.CanonicalString()
 	}
 
 	// Check if schema already exists with same fingerprint
@@ -130,7 +140,7 @@ func (r *Registry) RegisterSchema(ctx context.Context, subject string, schemaStr
 }
 
 // CheckCompatibility checks if a schema is compatible with a specific version or all versions.
-func (r *Registry) CheckCompatibility(ctx context.Context, subject string, schemaStr string, schemaType storage.SchemaType, refs []storage.Reference, version string) (*compatibility.Result, error) {
+func (r *Registry) CheckCompatibility(ctx context.Context, subject string, schemaStr string, schemaType storage.SchemaType, refs []storage.Reference, version string, normalize ...bool) (*compatibility.Result, error) {
 	// Default to Avro if not specified
 	if schemaType == "" {
 		schemaType = storage.SchemaTypeAvro
@@ -148,9 +158,19 @@ func (r *Registry) CheckCompatibility(ctx context.Context, subject string, schem
 		return nil, fmt.Errorf("failed to resolve references: %w", err)
 	}
 
-	_, err = parser.Parse(schemaStr, resolvedRefs)
+	parsed, err := parser.Parse(schemaStr, resolvedRefs)
 	if err != nil {
 		return nil, fmt.Errorf("invalid schema: %w", err)
+	}
+
+	// Apply normalization if requested
+	shouldNormalize := len(normalize) > 0 && normalize[0]
+	if !shouldNormalize {
+		shouldNormalize = r.isNormalizeEnabled(ctx, subject)
+	}
+	if shouldNormalize {
+		parsed = parsed.Normalize()
+		schemaStr = parsed.CanonicalString()
 	}
 
 	// Get compatibility level
@@ -236,6 +256,49 @@ func (r *Registry) GetSchemaByID(ctx context.Context, id int64) (*storage.Schema
 	return r.storage.GetSchemaByID(ctx, id)
 }
 
+// GetMaxSchemaID returns the highest schema ID currently assigned.
+func (r *Registry) GetMaxSchemaID(ctx context.Context) (int64, error) {
+	return r.storage.GetMaxSchemaID(ctx)
+}
+
+// FormatSchema parses a schema record and returns it formatted according to the given format.
+// Returns the original schema string if format is empty or parsing fails.
+func (r *Registry) FormatSchema(ctx context.Context, record *storage.SchemaRecord, format string) string {
+	if format == "" {
+		return record.Schema
+	}
+
+	schemaType := record.SchemaType
+	if schemaType == "" {
+		schemaType = storage.SchemaTypeAvro
+	}
+
+	parser, ok := r.schemaParser.Get(schemaType)
+	if !ok {
+		return record.Schema
+	}
+
+	// Resolve references
+	refs := record.References
+	resolvedRefs := make([]storage.Reference, len(refs))
+	copy(resolvedRefs, refs)
+	for i, ref := range resolvedRefs {
+		if ref.Schema == "" {
+			refSchema, err := r.storage.GetSchemaBySubjectVersion(ctx, ref.Subject, ref.Version)
+			if err == nil {
+				resolvedRefs[i].Schema = refSchema.Schema
+			}
+		}
+	}
+
+	parsed, err := parser.Parse(record.Schema, resolvedRefs)
+	if err != nil {
+		return record.Schema
+	}
+
+	return parsed.FormattedString(format)
+}
+
 // GetSchemaBySubjectVersion retrieves a schema by subject and version.
 func (r *Registry) GetSchemaBySubjectVersion(ctx context.Context, subject string, version int) (*storage.SchemaRecord, error) {
 	return r.storage.GetSchemaBySubjectVersion(ctx, subject, version)
@@ -262,7 +325,7 @@ func (r *Registry) GetVersions(ctx context.Context, subject string, deleted bool
 }
 
 // LookupSchema finds a schema in a subject.
-func (r *Registry) LookupSchema(ctx context.Context, subject string, schemaStr string, schemaType storage.SchemaType, refs []storage.Reference, deleted bool) (*storage.SchemaRecord, error) {
+func (r *Registry) LookupSchema(ctx context.Context, subject string, schemaStr string, schemaType storage.SchemaType, refs []storage.Reference, deleted bool, normalize ...bool) (*storage.SchemaRecord, error) {
 	// Default to Avro if not specified
 	if schemaType == "" {
 		schemaType = storage.SchemaTypeAvro
@@ -284,6 +347,15 @@ func (r *Registry) LookupSchema(ctx context.Context, subject string, schemaStr s
 	parsed, err := parser.Parse(schemaStr, resolvedRefs)
 	if err != nil {
 		return nil, fmt.Errorf("invalid schema: %w", err)
+	}
+
+	// Apply normalization if requested
+	shouldNormalize := len(normalize) > 0 && normalize[0]
+	if !shouldNormalize {
+		shouldNormalize = r.isNormalizeEnabled(ctx, subject)
+	}
+	if shouldNormalize {
+		parsed = parsed.Normalize()
 	}
 
 	// Look up by fingerprint, including deleted if requested
@@ -365,7 +437,7 @@ func (r *Registry) GetSubjectConfig(ctx context.Context, subject string) (string
 }
 
 // SetConfig sets the compatibility configuration for a subject.
-func (r *Registry) SetConfig(ctx context.Context, subject string, level string) error {
+func (r *Registry) SetConfig(ctx context.Context, subject string, level string, normalize *bool) error {
 	level = strings.ToUpper(level)
 	if !isValidCompatibility(level) {
 		return fmt.Errorf("invalid compatibility level: %s", level)
@@ -373,6 +445,7 @@ func (r *Registry) SetConfig(ctx context.Context, subject string, level string) 
 
 	config := &storage.ConfigRecord{
 		CompatibilityLevel: level,
+		Normalize:          normalize,
 	}
 
 	if subject == "" {
@@ -461,6 +534,23 @@ func (r *Registry) SetMode(ctx context.Context, subject string, mode string, for
 }
 
 // hasSubjects checks if any non-deleted schemas exist for the given subject (or globally if subject is empty).
+// isNormalizeEnabled checks if normalization is enabled for a subject via config.
+func (r *Registry) isNormalizeEnabled(ctx context.Context, subject string) bool {
+	// Check subject config first
+	if subject != "" {
+		config, err := r.storage.GetConfig(ctx, subject)
+		if err == nil && config != nil && config.Normalize != nil {
+			return *config.Normalize
+		}
+	}
+	// Fall back to global config
+	config, err := r.storage.GetGlobalConfig(ctx)
+	if err == nil && config != nil && config.Normalize != nil {
+		return *config.Normalize
+	}
+	return false
+}
+
 func (r *Registry) hasSubjects(ctx context.Context, subject string) (bool, error) {
 	if subject == "" {
 		// Check if any subjects exist globally

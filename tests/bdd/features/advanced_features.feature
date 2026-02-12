@@ -169,10 +169,12 @@ Feature: Advanced Features
     And the response should contain "2"
 
   # ==========================================================================
-  # NORMALIZE PARAMETER (P2 — document expected behavior)
+  # NORMALIZE PARAMETER
+  # Confluent behavior: normalize=true normalizes schema before storage/
+  # comparison. Schemas with different whitespace/ordering that normalize
+  # to the same canonical form are deduplicated.
   # ==========================================================================
 
-  @p2
   Scenario: normalize parameter is accepted on registration
     When I POST "/subjects/norm-test/versions?normalize=true" with body:
       """
@@ -180,7 +182,6 @@ Feature: Advanced Features
       """
     Then the response status should be 200
 
-  @p2
   Scenario: normalize parameter is accepted on lookup
     Given subject "norm-lookup" has schema:
       """
@@ -192,7 +193,6 @@ Feature: Advanced Features
       """
     Then the response status should be 200
 
-  @p2
   Scenario: normalize parameter is accepted on compatibility check
     Given subject "norm-compat" has schema:
       """
@@ -204,26 +204,97 @@ Feature: Advanced Features
       """
     Then the response status should be 200
 
+  Scenario: normalize config option can be set per subject
+    When I PUT "/config/norm-config-sub" with body:
+      """
+      {"compatibility": "BACKWARD", "normalize": true}
+      """
+    Then the response status should be 200
+    And the response should contain "normalize"
+
+  Scenario: normalize config option can be set globally
+    When I PUT "/config" with body:
+      """
+      {"compatibility": "BACKWARD", "normalize": true}
+      """
+    Then the response status should be 200
+    # Reset to avoid affecting other tests
+    When I PUT "/config" with body:
+      """
+      {"compatibility": "BACKWARD"}
+      """
+    Then the response status should be 200
+
   # ==========================================================================
-  # FORMAT PARAMETER (P2 — document expected behavior)
+  # FORMAT PARAMETER
+  # Confluent behavior: format=resolved inlines references (Avro),
+  # format=serialized returns base64-encoded FileDescriptorProto (Protobuf).
+  # Unknown formats fall back to canonical string.
   # ==========================================================================
 
-  @p2
   Scenario: format parameter is accepted on GET schema by ID
     Given subject "fmt-test" has schema:
       """
       {"type":"record","name":"FmtTest","fields":[{"name":"a","type":"string"}]}
       """
     And I store the response field "id" as "fmt_schema_id"
-    When I GET "/schemas/ids/{{fmt_schema_id}}"
+    When I GET "/schemas/ids/{{fmt_schema_id}}?format=default"
+    Then the response status should be 200
+    And the response should have field "schema"
+
+  Scenario: format=resolved on Avro schema returns schema content
+    Given subject "fmt-resolved" has schema:
+      """
+      {"type":"record","name":"FmtResolved","fields":[{"name":"a","type":"string"}]}
+      """
+    And I store the response field "id" as "fmt_resolved_id"
+    When I GET "/schemas/ids/{{fmt_resolved_id}}?format=resolved"
+    Then the response status should be 200
+    And the response should have field "schema"
+
+  Scenario: format parameter on raw schema endpoint
+    Given subject "fmt-raw" has schema:
+      """
+      {"type":"record","name":"FmtRaw","fields":[{"name":"a","type":"string"}]}
+      """
+    And I store the response field "id" as "fmt_raw_id"
+    When I GET "/schemas/ids/{{fmt_raw_id}}/schema?format=default"
     Then the response status should be 200
 
+  Scenario: format parameter on GET version
+    Given subject "fmt-ver" has schema:
+      """
+      {"type":"record","name":"FmtVer","fields":[{"name":"a","type":"string"}]}
+      """
+    When I GET "/subjects/fmt-ver/versions/1?format=default"
+    Then the response status should be 200
+    And the response should have field "schema"
+
+  Scenario: format parameter on GET version raw schema
+    Given subject "fmt-ver-raw" has schema:
+      """
+      {"type":"record","name":"FmtVerRaw","fields":[{"name":"a","type":"string"}]}
+      """
+    When I GET "/subjects/fmt-ver-raw/versions/1/schema?format=default"
+    Then the response status should be 200
+
+  Scenario: unknown format falls back to canonical string
+    Given subject "fmt-unknown" has schema:
+      """
+      {"type":"record","name":"FmtUnknown","fields":[{"name":"a","type":"string"}]}
+      """
+    And I store the response field "id" as "fmt_unknown_id"
+    When I GET "/schemas/ids/{{fmt_unknown_id}}?format=nonexistent"
+    Then the response status should be 200
+    And the response should have field "schema"
+
   # ==========================================================================
-  # FETCH MAX ID (P2 — document expected behavior)
+  # FETCH MAX ID
+  # Confluent behavior: GET /schemas/ids/{id}?fetchMaxId=true includes maxId
+  # field in response, which is the highest schema ID in the registry.
   # ==========================================================================
 
-  @p2
-  Scenario: fetchMaxId parameter is accepted on GET schema by ID
+  Scenario: fetchMaxId=true includes maxId field in response
     Given subject "maxid-test" has schema:
       """
       {"type":"record","name":"MaxIdTest","fields":[{"name":"a","type":"string"}]}
@@ -231,6 +302,32 @@ Feature: Advanced Features
     And I store the response field "id" as "maxid_schema_id"
     When I GET "/schemas/ids/{{maxid_schema_id}}?fetchMaxId=true"
     Then the response status should be 200
+    And the response should have field "maxId"
+
+  Scenario: fetchMaxId not set omits maxId field
+    Given subject "maxid-omit" has schema:
+      """
+      {"type":"record","name":"MaxIdOmit","fields":[{"name":"a","type":"string"}]}
+      """
+    And I store the response field "id" as "maxid_omit_id"
+    When I GET "/schemas/ids/{{maxid_omit_id}}"
+    Then the response status should be 200
+    And the response should not have field "maxId"
+
+  Scenario: maxId reflects highest schema ID in registry
+    Given subject "maxid-high1" has schema:
+      """
+      {"type":"record","name":"MaxIdHigh1","fields":[{"name":"a","type":"string"}]}
+      """
+    And I store the response field "id" as "maxid_first"
+    And subject "maxid-high2" has schema:
+      """
+      {"type":"record","name":"MaxIdHigh2","fields":[{"name":"b","type":"string"}]}
+      """
+    And I store the response field "id" as "maxid_second"
+    When I GET "/schemas/ids/{{maxid_first}}?fetchMaxId=true"
+    Then the response status should be 200
+    And the response should have field "maxId"
 
   # ==========================================================================
   # SUBJECT FILTER ON GET /schemas/ids/{id}

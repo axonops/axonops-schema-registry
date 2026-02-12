@@ -107,11 +107,25 @@ func (h *Handler) GetSchemaByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, types.SchemaByIDResponse{
-		Schema:     schema.Schema,
+	schemaStr := schema.Schema
+	if format := r.URL.Query().Get("format"); format != "" {
+		schemaStr = h.registry.FormatSchema(r.Context(), schema, format)
+	}
+
+	resp := types.SchemaByIDResponse{
+		Schema:     schemaStr,
 		SchemaType: schemaTypeForResponse(schema.SchemaType),
 		References: schema.References,
-	})
+	}
+
+	if r.URL.Query().Get("fetchMaxId") == "true" {
+		maxID, err := h.registry.GetMaxSchemaID(r.Context())
+		if err == nil {
+			resp.MaxId = &maxID
+		}
+	}
+
+	writeJSON(w, http.StatusOK, resp)
 }
 
 // ListSubjects handles GET /subjects
@@ -250,12 +264,17 @@ func (h *Handler) GetVersion(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	schemaStr := schema.Schema
+	if format := r.URL.Query().Get("format"); format != "" {
+		schemaStr = h.registry.FormatSchema(r.Context(), schema, format)
+	}
+
 	resp := types.SubjectVersionResponse{
 		Subject:    schema.Subject,
 		ID:         schema.ID,
 		Version:    schema.Version,
 		SchemaType: schemaTypeForResponse(schema.SchemaType),
-		Schema:     schema.Schema,
+		Schema:     schemaStr,
 	}
 	if len(schema.References) > 0 {
 		resp.References = schema.References
@@ -291,7 +310,8 @@ func (h *Handler) RegisterSchema(w http.ResponseWriter, r *http.Request) {
 		schemaType = storage.SchemaTypeAvro
 	}
 
-	schema, err := h.registry.RegisterSchema(r.Context(), subject, req.Schema, schemaType, req.References)
+	normalizeSchema := r.URL.Query().Get("normalize") == "true"
+	schema, err := h.registry.RegisterSchema(r.Context(), subject, req.Schema, schemaType, req.References, normalizeSchema)
 	if err != nil {
 		if strings.Contains(err.Error(), "invalid schema") {
 			writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidSchema, err.Error())
@@ -339,7 +359,8 @@ func (h *Handler) LookupSchema(w http.ResponseWriter, r *http.Request) {
 		schemaType = storage.SchemaTypeAvro
 	}
 
-	schema, err := h.registry.LookupSchema(r.Context(), subject, req.Schema, schemaType, req.References, deleted)
+	normalizeSchema := r.URL.Query().Get("normalize") == "true"
+	schema, err := h.registry.LookupSchema(r.Context(), subject, req.Schema, schemaType, req.References, deleted, normalizeSchema)
 	if err != nil {
 		if errors.Is(err, storage.ErrSubjectNotFound) {
 			writeError(w, http.StatusNotFound, types.ErrorCodeSubjectNotFound, fmt.Sprintf("Subject '%s' not found.", subject))
@@ -496,7 +517,7 @@ func (h *Handler) SetConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.registry.SetConfig(r.Context(), subject, req.Compatibility); err != nil {
+	if err := h.registry.SetConfig(r.Context(), subject, req.Compatibility, req.Normalize); err != nil {
 		if strings.Contains(err.Error(), "invalid compatibility") {
 			writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidCompatibilityLevel, err.Error())
 			return
@@ -505,9 +526,11 @@ func (h *Handler) SetConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, types.ConfigRequest{
+	resp := types.ConfigRequest{
 		Compatibility: strings.ToUpper(req.Compatibility),
-	})
+		Normalize:     req.Normalize,
+	}
+	writeJSON(w, http.StatusOK, resp)
 }
 
 // DeleteConfig handles DELETE /config/{subject}
@@ -550,7 +573,8 @@ func (h *Handler) CheckCompatibility(w http.ResponseWriter, r *http.Request) {
 		schemaType = storage.SchemaTypeAvro
 	}
 
-	result, err := h.registry.CheckCompatibility(r.Context(), subject, req.Schema, schemaType, req.References, versionStr)
+	normalizeSchema := r.URL.Query().Get("normalize") == "true"
+	result, err := h.registry.CheckCompatibility(r.Context(), subject, req.Schema, schemaType, req.References, versionStr, normalizeSchema)
 	if err != nil {
 		if strings.Contains(err.Error(), "invalid schema") {
 			writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidSchema, err.Error())
@@ -734,7 +758,7 @@ func (h *Handler) GetRawSchemaByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	schema, err := h.registry.GetRawSchemaByID(r.Context(), id)
+	schemaRecord, err := h.registry.GetSchemaByID(r.Context(), id)
 	if err != nil {
 		if errors.Is(err, storage.ErrSchemaNotFound) {
 			writeError(w, http.StatusNotFound, types.ErrorCodeSchemaNotFound, "Schema not found")
@@ -744,10 +768,15 @@ func (h *Handler) GetRawSchemaByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	result := schemaRecord.Schema
+	if format := r.URL.Query().Get("format"); format != "" {
+		result = h.registry.FormatSchema(r.Context(), schemaRecord, format)
+	}
+
 	// Return raw schema as plain text
 	w.Header().Set("Content-Type", "application/vnd.schemaregistry.v1+json")
 	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte(schema)) // #nosec G705 -- schema content from storage, not user input
+	_, _ = w.Write([]byte(result)) // #nosec G705 -- schema content from storage, not user input
 }
 
 // GetSubjectsBySchemaID handles GET /schemas/ids/{id}/subjects
@@ -952,7 +981,7 @@ func (h *Handler) GetRawSchemaByVersion(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	schema, err := h.registry.GetRawSchemaBySubjectVersion(r.Context(), subject, version)
+	schemaRecord, err := h.registry.GetSchemaBySubjectVersion(r.Context(), subject, version)
 	if err != nil {
 		if errors.Is(err, storage.ErrSubjectNotFound) {
 			writeError(w, http.StatusNotFound, types.ErrorCodeSubjectNotFound, "Subject not found")
@@ -966,10 +995,15 @@ func (h *Handler) GetRawSchemaByVersion(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	result := schemaRecord.Schema
+	if format := r.URL.Query().Get("format"); format != "" {
+		result = h.registry.FormatSchema(r.Context(), schemaRecord, format)
+	}
+
 	// Return raw schema as plain text
 	w.Header().Set("Content-Type", "application/vnd.schemaregistry.v1+json")
 	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte(schema)) // #nosec G705 -- schema content from storage, not user input
+	_, _ = w.Write([]byte(result)) // #nosec G705 -- schema content from storage, not user input
 }
 
 // DeleteGlobalConfig handles DELETE /config

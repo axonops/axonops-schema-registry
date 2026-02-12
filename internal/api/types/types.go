@@ -27,6 +27,7 @@ type SchemaByIDResponse struct {
 	Schema     string              `json:"schema"`
 	SchemaType string              `json:"schemaType,omitempty"`
 	References []storage.Reference `json:"references,omitempty"`
+	MaxId      *int64              `json:"maxId,omitempty"`
 }
 
 // SubjectVersionResponse is the response for getting a subject version.
@@ -59,11 +60,13 @@ type LookupSchemaResponse struct {
 // ConfigResponse is the response for getting configuration.
 type ConfigResponse struct {
 	CompatibilityLevel string `json:"compatibilityLevel"`
+	Normalize          *bool  `json:"normalize,omitempty"`
 }
 
 // ConfigRequest is the request body for setting configuration.
 type ConfigRequest struct {
 	Compatibility string `json:"compatibility"`
+	Normalize     *bool  `json:"normalize,omitempty"`
 }
 
 // ModeResponse is the response for getting mode.

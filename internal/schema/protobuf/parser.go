@@ -4,13 +4,16 @@ package protobuf
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"sort"
 	"strings"
 
 	"github.com/bufbuild/protocompile"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/types/descriptorpb"
 
 	"github.com/axonops/axonops-schema-registry/internal/schema"
 	"github.com/axonops/axonops-schema-registry/internal/storage"
@@ -102,6 +105,149 @@ func (p *ParsedProtobuf) Raw() string {
 // Descriptor returns the file descriptor.
 func (p *ParsedProtobuf) Descriptor() protoreflect.FileDescriptor {
 	return p.descriptor
+}
+
+// Normalize returns a normalized copy of this schema.
+func (p *ParsedProtobuf) Normalize() schema.ParsedSchema {
+	return &ParsedProtobuf{
+		raw:        p.normalize(),
+		descriptor: p.descriptor,
+		references: p.references,
+	}
+}
+
+// FormattedString returns the schema in the requested format.
+// Supported formats: "serialized" (base64-encoded FileDescriptorProto), "default" (canonical).
+func (p *ParsedProtobuf) FormattedString(format string) string {
+	switch strings.ToLower(strings.TrimSpace(format)) {
+	case "serialized":
+		fdp := toFileDescriptorProto(p.descriptor)
+		data, err := proto.Marshal(fdp)
+		if err != nil {
+			return p.normalize()
+		}
+		return base64.StdEncoding.EncodeToString(data)
+	default:
+		return p.normalize()
+	}
+}
+
+// toFileDescriptorProto converts a protoreflect.FileDescriptor to a descriptorpb.FileDescriptorProto.
+func toFileDescriptorProto(fd protoreflect.FileDescriptor) *descriptorpb.FileDescriptorProto {
+	fdp := &descriptorpb.FileDescriptorProto{}
+	name := string(fd.Path())
+	fdp.Name = &name
+	if fd.Package() != "" {
+		pkg := string(fd.Package())
+		fdp.Package = &pkg
+	}
+	syntax := "proto3"
+	if fd.Syntax() == protoreflect.Proto2 {
+		syntax = "proto2"
+	}
+	fdp.Syntax = &syntax
+
+	// Dependencies
+	for i := 0; i < fd.Imports().Len(); i++ {
+		fdp.Dependency = append(fdp.Dependency, string(fd.Imports().Get(i).Path()))
+	}
+
+	// Messages
+	for i := 0; i < fd.Messages().Len(); i++ {
+		fdp.MessageType = append(fdp.MessageType, messageToProto(fd.Messages().Get(i)))
+	}
+
+	// Enums
+	for i := 0; i < fd.Enums().Len(); i++ {
+		fdp.EnumType = append(fdp.EnumType, enumToProto(fd.Enums().Get(i)))
+	}
+
+	// Services
+	for i := 0; i < fd.Services().Len(); i++ {
+		fdp.Service = append(fdp.Service, serviceToProto(fd.Services().Get(i)))
+	}
+
+	return fdp
+}
+
+func messageToProto(md protoreflect.MessageDescriptor) *descriptorpb.DescriptorProto {
+	dp := &descriptorpb.DescriptorProto{}
+	name := string(md.Name())
+	dp.Name = &name
+
+	for i := 0; i < md.Fields().Len(); i++ {
+		dp.Field = append(dp.Field, fieldToProto(md.Fields().Get(i)))
+	}
+	for i := 0; i < md.Oneofs().Len(); i++ {
+		oo := md.Oneofs().Get(i)
+		ooName := string(oo.Name())
+		dp.OneofDecl = append(dp.OneofDecl, &descriptorpb.OneofDescriptorProto{Name: &ooName})
+	}
+	for i := 0; i < md.Messages().Len(); i++ {
+		dp.NestedType = append(dp.NestedType, messageToProto(md.Messages().Get(i)))
+	}
+	for i := 0; i < md.Enums().Len(); i++ {
+		dp.EnumType = append(dp.EnumType, enumToProto(md.Enums().Get(i)))
+	}
+	return dp
+}
+
+func fieldToProto(fd protoreflect.FieldDescriptor) *descriptorpb.FieldDescriptorProto {
+	fp := &descriptorpb.FieldDescriptorProto{}
+	name := string(fd.Name())
+	fp.Name = &name
+	num := int32(fd.Number())
+	fp.Number = &num
+	fdType := descriptorpb.FieldDescriptorProto_Type(fd.Kind())
+	fp.Type = &fdType
+	label := descriptorpb.FieldDescriptorProto_Label(fd.Cardinality())
+	fp.Label = &label
+	if fd.Kind() == protoreflect.MessageKind || fd.Kind() == protoreflect.EnumKind {
+		tn := string(fd.Message().FullName())
+		if fd.Kind() == protoreflect.EnumKind {
+			tn = string(fd.Enum().FullName())
+		}
+		fp.TypeName = &tn
+	}
+	if fd.ContainingOneof() != nil {
+		idx := int32(fd.ContainingOneof().Index())
+		fp.OneofIndex = &idx
+	}
+	return fp
+}
+
+func enumToProto(ed protoreflect.EnumDescriptor) *descriptorpb.EnumDescriptorProto {
+	ep := &descriptorpb.EnumDescriptorProto{}
+	name := string(ed.Name())
+	ep.Name = &name
+	for i := 0; i < ed.Values().Len(); i++ {
+		v := ed.Values().Get(i)
+		vName := string(v.Name())
+		vNum := int32(v.Number())
+		ep.Value = append(ep.Value, &descriptorpb.EnumValueDescriptorProto{
+			Name:   &vName,
+			Number: &vNum,
+		})
+	}
+	return ep
+}
+
+func serviceToProto(sd protoreflect.ServiceDescriptor) *descriptorpb.ServiceDescriptorProto {
+	sp := &descriptorpb.ServiceDescriptorProto{}
+	name := string(sd.Name())
+	sp.Name = &name
+	for i := 0; i < sd.Methods().Len(); i++ {
+		m := sd.Methods().Get(i)
+		mName := string(m.Name())
+		input := string(m.Input().FullName())
+		output := string(m.Output().FullName())
+		sp.Method = append(sp.Method, &descriptorpb.MethodDescriptorProto{
+			Name:       &mName,
+			InputType:  &input,
+			OutputType: &output,
+		})
+	}
+	return sp
 }
 
 // normalize returns a normalized form of the schema.
