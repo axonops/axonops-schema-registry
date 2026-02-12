@@ -193,10 +193,13 @@ func TestStore_Config(t *testing.T) {
 	store := NewStore()
 	ctx := context.Background()
 
-	// Get global config (no default — returns ErrNotFound)
-	_, err := store.GetGlobalConfig(ctx)
-	if err != storage.ErrNotFound {
-		t.Fatalf("Expected ErrNotFound for unset global config, got %v", err)
+	// Get global config (seeded default is BACKWARD)
+	config, err := store.GetGlobalConfig(ctx)
+	if err != nil {
+		t.Fatalf("Expected seeded default, got error %v", err)
+	}
+	if config.CompatibilityLevel != "BACKWARD" {
+		t.Errorf("Expected BACKWARD default, got %s", config.CompatibilityLevel)
 	}
 
 	// Set global config
@@ -205,7 +208,7 @@ func TestStore_Config(t *testing.T) {
 		t.Fatalf("SetGlobalConfig failed: %v", err)
 	}
 
-	config, _ := store.GetGlobalConfig(ctx)
+	config, _ = store.GetGlobalConfig(ctx)
 	if config.CompatibilityLevel != "FULL" {
 		t.Errorf("Expected FULL, got %s", config.CompatibilityLevel)
 	}

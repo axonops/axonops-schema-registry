@@ -86,12 +86,11 @@ func NewStore() *Store {
 		usersByUsername:     make(map[string]int64),
 		apiKeys:             make(map[int64]*storage.APIKeyRecord),
 		apiKeysByHash:       make(map[string]int64),
-		// globalConfig and globalMode start nil — the registry layer
-		// provides defaults via its defaultConfig parameter.
-		// Call SetGlobalConfig/SetGlobalMode to override.
-		nextID:       1,
-		nextUserID:   1,
-		nextAPIKeyID: 1,
+		globalConfig:        &storage.ConfigRecord{Subject: "", CompatibilityLevel: "BACKWARD"},
+		globalMode:          &storage.ModeRecord{Subject: "", Mode: "READWRITE"},
+		nextID:              1,
+		nextUserID:          1,
+		nextAPIKeyID:        1,
 	}
 }
 
@@ -873,7 +872,7 @@ func (s *Store) DeleteGlobalConfig(ctx context.Context) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.globalConfig = nil
+	s.globalConfig = &storage.ConfigRecord{Subject: "", CompatibilityLevel: "BACKWARD"}
 	return nil
 }
 

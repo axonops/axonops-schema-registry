@@ -19,15 +19,11 @@ func RunConfigTests(t *testing.T, newStore StoreFactory) {
 		ctx := context.Background()
 
 		config, err := store.GetGlobalConfig(ctx)
-		if err == storage.ErrNotFound {
-			// Memory backend: no seeded default, returns ErrNotFound
-		} else if err != nil {
-			t.Fatalf("GetGlobalConfig: unexpected error %v", err)
-		} else {
-			// DB backends seed a default row (e.g. "BACKWARD")
-			if config.CompatibilityLevel == "" {
-				t.Error("expected non-empty compatibility level from seeded default")
-			}
+		if err != nil {
+			t.Fatalf("GetGlobalConfig: expected seeded default, got error %v", err)
+		}
+		if config.CompatibilityLevel != "BACKWARD" {
+			t.Errorf("expected BACKWARD, got %q", config.CompatibilityLevel)
 		}
 	})
 
@@ -62,15 +58,11 @@ func RunConfigTests(t *testing.T, newStore StoreFactory) {
 		}
 
 		config, err := store.GetGlobalConfig(ctx)
-		if err == storage.ErrNotFound {
-			// Memory backend: delete removes the config entirely
-		} else if err != nil {
-			t.Fatalf("GetGlobalConfig after delete: unexpected error %v", err)
-		} else {
-			// DB backends reset to default (e.g. "BACKWARD") instead of deleting
-			if config.CompatibilityLevel == "NONE" {
-				t.Error("expected config to be reset after delete, but still NONE")
-			}
+		if err != nil {
+			t.Fatalf("GetGlobalConfig after delete: expected reset to default, got error %v", err)
+		}
+		if config.CompatibilityLevel != "BACKWARD" {
+			t.Errorf("expected BACKWARD after delete, got %q", config.CompatibilityLevel)
 		}
 	})
 
@@ -163,15 +155,11 @@ func RunConfigTests(t *testing.T, newStore StoreFactory) {
 		ctx := context.Background()
 
 		mode, err := store.GetGlobalMode(ctx)
-		if err == storage.ErrNotFound {
-			// Memory backend: no seeded default, returns ErrNotFound
-		} else if err != nil {
-			t.Fatalf("GetGlobalMode: unexpected error %v", err)
-		} else {
-			// DB backends seed a default row (e.g. "READWRITE")
-			if mode.Mode == "" {
-				t.Error("expected non-empty mode from seeded default")
-			}
+		if err != nil {
+			t.Fatalf("GetGlobalMode: expected seeded default, got error %v", err)
+		}
+		if mode.Mode != "READWRITE" {
+			t.Errorf("expected READWRITE, got %q", mode.Mode)
 		}
 	})
 

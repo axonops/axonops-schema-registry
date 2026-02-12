@@ -21,6 +21,9 @@ import (
 // setupTestRegistry creates a test registry with memory storage and Avro support.
 func setupTestRegistry(defaultCompatibility string) *Registry {
 	store := memory.NewStore()
+	// Set the global config to match the requested default so the store's
+	// seeded BACKWARD doesn't override what the test expects.
+	store.SetGlobalConfig(context.Background(), &storage.ConfigRecord{CompatibilityLevel: defaultCompatibility})
 
 	schemaRegistry := schema.NewRegistry()
 	schemaRegistry.Register(avro.NewParser())
@@ -34,6 +37,7 @@ func setupTestRegistry(defaultCompatibility string) *Registry {
 // setupMultiTypeRegistry creates a test registry supporting all three schema types.
 func setupMultiTypeRegistry(defaultCompatibility string) *Registry {
 	store := memory.NewStore()
+	store.SetGlobalConfig(context.Background(), &storage.ConfigRecord{CompatibilityLevel: defaultCompatibility})
 
 	schemaRegistry := schema.NewRegistry()
 	schemaRegistry.Register(avro.NewParser())
@@ -390,16 +394,17 @@ func TestGetConfig_SubjectFallsBackToGlobal(t *testing.T) {
 	}
 }
 
-func TestGetConfig_GlobalFallsBackToDefault(t *testing.T) {
+func TestGetConfig_GlobalReturnsStoredValue(t *testing.T) {
 	reg := setupTestRegistry("FULL")
 	ctx := context.Background()
 
+	// setupTestRegistry sets the global config to match the requested default.
 	level, err := reg.GetConfig(ctx, "")
 	if err != nil {
 		t.Fatalf("failed to get global config: %v", err)
 	}
 	if level != "FULL" {
-		t.Errorf("expected FULL (default), got %s", level)
+		t.Errorf("expected FULL, got %s", level)
 	}
 }
 
