@@ -66,11 +66,11 @@ func truncateCassandra(t *testing.T, cfg cassandra.Config) {
 	}
 
 	// Re-seed global defaults (matching PostgreSQL/MySQL behavior)
-	if err := session.Query("INSERT INTO global_config (key, compatibility, updated_at) VALUES (?, ?, toTimestamp(now()))",
+	if err := session.Query("INSERT INTO global_config (key, compatibility, updated_at) VALUES (?, ?, now())",
 		"global", "BACKWARD").Exec(); err != nil {
 		t.Fatalf("Failed to seed default global config: %v", err)
 	}
-	if err := session.Query("INSERT INTO modes (key, mode, updated_at) VALUES (?, ?, toTimestamp(now()))",
+	if err := session.Query("INSERT INTO modes (key, mode, updated_at) VALUES (?, ?, now())",
 		"global", "READWRITE").Exec(); err != nil {
 		t.Fatalf("Failed to seed default global mode: %v", err)
 	}
