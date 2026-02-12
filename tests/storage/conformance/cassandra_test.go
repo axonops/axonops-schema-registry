@@ -64,4 +64,18 @@ func truncateCassandra(t *testing.T, cfg cassandra.Config) {
 			t.Fatalf("Failed to truncate Cassandra table %s: %v", table, err)
 		}
 	}
+
+	// Re-seed global defaults (matching PostgreSQL/MySQL behavior)
+	if err := session.Query("INSERT INTO global_config (key, compatibility, updated_at) VALUES (?, ?, toTimestamp(now()))",
+		"global", "BACKWARD").Exec(); err != nil {
+		t.Fatalf("Failed to seed default global config: %v", err)
+	}
+	if err := session.Query("INSERT INTO modes (key, mode, updated_at) VALUES (?, ?, toTimestamp(now()))",
+		"global", "READWRITE").Exec(); err != nil {
+		t.Fatalf("Failed to seed default global mode: %v", err)
+	}
+	if err := session.Query("INSERT INTO id_alloc (name, next_id) VALUES (?, ?)",
+		"schema_id", 1).Exec(); err != nil {
+		t.Fatalf("Failed to seed default id_alloc: %v", err)
+	}
 }

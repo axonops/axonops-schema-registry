@@ -1271,11 +1271,11 @@ func (s *Store) SetGlobalConfig(ctx context.Context, config *storage.ConfigRecor
 	).WithContext(ctx).Exec()
 }
 
-// DeleteGlobalConfig deletes the global config (resets to default).
+// DeleteGlobalConfig resets the global config to the default (BACKWARD).
 func (s *Store) DeleteGlobalConfig(ctx context.Context) error {
 	return s.writeQuery(
-		fmt.Sprintf(`DELETE FROM %s.global_config WHERE key = ?`, qident(s.cfg.Keyspace)),
-		"global",
+		fmt.Sprintf(`INSERT INTO %s.global_config (key, compatibility, updated_at) VALUES (?, ?, now())`, qident(s.cfg.Keyspace)),
+		"global", "BACKWARD",
 	).WithContext(ctx).Exec()
 }
 
