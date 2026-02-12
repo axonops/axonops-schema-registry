@@ -32,16 +32,18 @@ func RegisterReferenceSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 		return tc.GET(fmt.Sprintf("/subjects/%s/versions/%d/referencedby", subject, version))
 	})
 
-	ctx.Step(`^I get the raw schema by ID (\d+)$`, func(id int) error {
-		return tc.GET(fmt.Sprintf("/schemas/ids/%d/schema", id))
+	ctx.Step(`^I get the raw schema by ID (.+)$`, func(idStr string) error {
+		resolved := tc.resolveVars(idStr)
+		return tc.GET("/schemas/ids/" + resolved + "/schema")
 	})
 
 	ctx.Step(`^I get the raw schema for subject "([^"]*)" version (\d+)$`, func(subject string, version int) error {
 		return tc.GET(fmt.Sprintf("/subjects/%s/versions/%d/schema", subject, version))
 	})
 
-	ctx.Step(`^I get versions for schema ID (\d+)$`, func(id int) error {
-		return tc.GET(fmt.Sprintf("/schemas/ids/%d/versions", id))
+	ctx.Step(`^I get versions for schema ID (.+)$`, func(idStr string) error {
+		resolved := tc.resolveVars(idStr)
+		return tc.GET("/schemas/ids/" + resolved + "/versions")
 	})
 
 	ctx.Step(`^I check compatibility of schema against all versions of subject "([^"]*)":$`, func(subject string, schema *godog.DocString) error {

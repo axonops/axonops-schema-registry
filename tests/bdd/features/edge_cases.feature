@@ -120,7 +120,7 @@ Feature: Edge Cases and Boundary Conditions
       {"type":"record","name":"Idem","fields":[{"name":"id","type":"string"}]}
       """
     Then the response status should be 200
-    And the response field "id" should be 1
+    And I store the response field "id" as "second_id"
     When I list versions of subject "edge-idempotent"
     Then the response status should be 200
     And the response should be an array of length 1

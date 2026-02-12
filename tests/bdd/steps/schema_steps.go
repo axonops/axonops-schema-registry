@@ -88,8 +88,9 @@ func RegisterSchemaSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 		}
 		return tc.POST("/subjects/"+subject+"/versions", body)
 	})
-	ctx.Step(`^I get schema by ID (\d+)$`, func(id int) error {
-		return tc.GET("/schemas/ids/" + strconv.Itoa(id))
+	ctx.Step(`^I get schema by ID (.+)$`, func(idStr string) error {
+		resolved := tc.resolveVars(idStr)
+		return tc.GET("/schemas/ids/" + resolved)
 	})
 	ctx.Step(`^I get the stored schema by ID$`, func() error {
 		id, ok := tc.StoredValues["schema_id"]
@@ -172,8 +173,9 @@ func RegisterSchemaSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 		body := map[string]interface{}{"mode": mode}
 		return tc.PUT("/mode?force=true", body)
 	})
-	ctx.Step(`^I get the subjects for schema ID (\d+)$`, func(id int) error {
-		return tc.GET(fmt.Sprintf("/schemas/ids/%d/subjects", id))
+	ctx.Step(`^I get the subjects for schema ID (.+)$`, func(idStr string) error {
+		resolved := tc.resolveVars(idStr)
+		return tc.GET("/schemas/ids/" + resolved + "/subjects")
 	})
 	ctx.Step(`^I get the subjects for the stored schema ID$`, func() error {
 		id, ok := tc.StoredValues["schema_id"]

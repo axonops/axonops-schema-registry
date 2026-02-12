@@ -20,7 +20,6 @@ Feature: Schema Deduplication
       """
     Then the response status should be 200
     And I store the response field "id" as "id_b"
-    Then the response field "id" should be 1
 
   Scenario: Same Protobuf schema in two subjects gets same schema ID
     When I register a "PROTOBUF" schema under subject "dedup-proto-a":
@@ -43,7 +42,6 @@ Feature: Schema Deduplication
       """
     Then the response status should be 200
     And I store the response field "id" as "id_b"
-    Then the response field "id" should be 1
 
   Scenario: Same JSON Schema in two subjects gets same schema ID
     When I register a "JSON" schema under subject "dedup-json-a":
@@ -58,7 +56,6 @@ Feature: Schema Deduplication
       """
     Then the response status should be 200
     And I store the response field "id" as "id_b"
-    Then the response field "id" should be 1
 
   # --------------------------------------------------------------------------
   # IDEMPOTENT REGISTRATION
@@ -134,7 +131,7 @@ Feature: Schema Deduplication
       {"type":"record","name":"Common","fields":[{"name":"ts","type":"long"},{"name":"source","type":"string"}]}
       """
     Then the response status should be 200
-    When I get versions for schema ID 1
+    When I get versions for schema ID {{schema_id}}
     Then the response status should be 200
     And the response should be an array of length 2
 

@@ -105,7 +105,7 @@ Feature: API Endpoint Behaviors Advanced
       """
     Then the response status should be 200
     And I store the response field "id" as "schema_id"
-    When I get the raw schema by ID 1
+    When I get the raw schema by ID {{schema_id}}
     Then the response status should be 200
     And the response body should contain "RawTest"
     And the response body should not contain "schemaType"

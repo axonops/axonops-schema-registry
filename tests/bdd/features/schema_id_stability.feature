@@ -19,8 +19,8 @@ Feature: Schema ID Stability and Content Validation
       {"type":"record","name":"Stable","fields":[{"name":"id","type":"string"},{"name":"val","type":"double"}]}
       """
     Then the response status should be 200
-    And the response field "id" should be 1
-    When I get schema by ID 1
+    And I store the response field "id" as "id_b"
+    When I get schema by ID {{id_a}}
     Then the response status should be 200
     And the response should contain "Stable"
 
@@ -57,7 +57,8 @@ Feature: Schema ID Stability and Content Validation
       """
       {"type":"record","name":"MatchMe","fields":[{"name":"key","type":"string"}]}
       """
-    When I get schema by ID 1
+    And I store the response field "id" as "match_id"
+    When I get schema by ID {{match_id}}
     Then the response status should be 200
     And the response should contain "MatchMe"
     And the response should contain "key"

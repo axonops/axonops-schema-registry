@@ -13,7 +13,8 @@ Feature: Raw Schema Endpoints
       """
       {"type":"record","name":"RawAvro","fields":[{"name":"id","type":"string"}]}
       """
-    When I get the raw schema by ID 1
+    And I store the response field "id" as "avro_id"
+    When I get the raw schema by ID {{avro_id}}
     Then the response status should be 200
     And the response should contain "RawAvro"
 
@@ -25,9 +26,8 @@ Feature: Raw Schema Endpoints
         string id = 1;
       }
       """
-    When I get the latest version of subject "raw-proto"
     And I store the response field "id" as "proto_id"
-    When I GET "/schemas/ids/1/schema"
+    When I get the raw schema by ID {{proto_id}}
     Then the response status should be 200
 
   Scenario: GET raw JSON Schema by ID returns valid JSON string
@@ -35,9 +35,8 @@ Feature: Raw Schema Endpoints
       """
       {"type":"object","properties":{"id":{"type":"string"}},"required":["id"]}
       """
-    When I get the latest version of subject "raw-json"
     And I store the response field "id" as "json_id"
-    When I GET "/schemas/ids/1/schema"
+    When I get the raw schema by ID {{json_id}}
     Then the response status should be 200
 
   Scenario: GET raw schema for non-existent ID returns 404

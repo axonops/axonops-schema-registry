@@ -14,7 +14,6 @@ Feature: Response Shapes — Confluent Wire Compatibility
       """
     Then the response status should be 200
     And the response should have field "id"
-    And the response field "id" should be 1
 
   # ==========================================================================
   # SCHEMA-BY-ID RESPONSE — schemaType OMISSION FOR AVRO
@@ -25,7 +24,8 @@ Feature: Response Shapes — Confluent Wire Compatibility
       """
       {"type":"record","name":"AvroById","fields":[{"name":"a","type":"string"}]}
       """
-    When I get schema by ID 1
+    And I store the response field "id" as "avro_byid"
+    When I get schema by ID {{avro_byid}}
     Then the response status should be 200
     And the response should have field "schema"
     And the response should not have field "schemaType"

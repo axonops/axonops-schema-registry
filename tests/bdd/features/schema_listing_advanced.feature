@@ -170,7 +170,7 @@ Feature: Schema Listing, Querying, and Raw Schema Endpoints
       """
     Then the response status should be 200
     And I store the response field "id" as "schema_id"
-    When I get the raw schema by ID 1
+    When I get the raw schema by ID {{schema_id}}
     Then the response status should be 200
     And the response body should contain "RawTest"
     And the response body should contain "bytes"
@@ -205,7 +205,7 @@ Feature: Schema Listing, Querying, and Raw Schema Endpoints
       """
     Then the response status should be 200
     And I store the response field "id" as "schema_id"
-    When I get versions for schema ID 1
+    When I get versions for schema ID {{schema_id}}
     Then the response status should be 200
     And the response should be an array of length 1
     And the response body should contain "svpair-value"
@@ -227,12 +227,12 @@ Feature: Schema Listing, Querying, and Raw Schema Endpoints
     Then the response status should be 200
     When I delete subject "drop-subj"
     Then the response status should be 200
-    When I get the subjects for schema ID 1
+    When I get the subjects for schema ID {{schema_id}}
     Then the response status should be 200
     And the response should be an array of length 1
     And the response array should contain "keep-subj"
     And the response body should not contain "drop-subj"
-    When I GET "/schemas/ids/1/subjects?deleted=true"
+    When I GET "/schemas/ids/{{schema_id}}/subjects?deleted=true"
     Then the response status should be 200
     And the response should be an array of length 2
     And the response array should contain "keep-subj"
@@ -258,7 +258,7 @@ Feature: Schema Listing, Querying, and Raw Schema Endpoints
       {"type":"record","name":"Common","fields":[{"name":"val","type":"string"}]}
       """
     Then the response status should be 200
-    When I get versions for schema ID 1
+    When I get versions for schema ID {{schema_id}}
     Then the response status should be 200
     And the response should be an array of length 3
     And the response body should contain "multi-a"
@@ -285,7 +285,7 @@ Feature: Schema Listing, Querying, and Raw Schema Endpoints
       {"type":"record","name":"SharedSchema","fields":[{"name":"key","type":"string"}]}
       """
     Then the response status should be 200
-    When I get the subjects for schema ID 1
+    When I get the subjects for schema ID {{schema_id}}
     Then the response status should be 200
     And the response should be an array of length 3
     And the response array should contain "shared-alpha"

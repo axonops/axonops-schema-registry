@@ -261,7 +261,7 @@ Feature: Advanced Schema Deletion
     When I delete subject "del-adv-id-lookup"
     Then the response status should be 200
     # Schema content is still available by its global ID even after subject soft-delete
-    When I get schema by ID 1
+    When I get schema by ID {{schema_id}}
     Then the response status should be 200
     And the response should contain "ByID"
 
@@ -278,5 +278,5 @@ Feature: Advanced Schema Deletion
     When I permanently delete subject "del-adv-id-gone"
     Then the response status should be 200
     # After permanent deletion of the only subject-version, the schema ID should no longer resolve
-    When I get the subjects for schema ID 1
+    When I get the subjects for schema ID {{gone_id}}
     Then the response status should be 404

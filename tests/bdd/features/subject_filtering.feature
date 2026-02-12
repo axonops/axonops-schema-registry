@@ -66,6 +66,7 @@ Feature: Subject Filtering and Deleted Parameters
       {"type":"record","name":"Shared","fields":[{"name":"k","type":"string"},{"name":"v","type":"int"}]}
       """
     Then the response status should be 200
+    And I store the response field "id" as "shared_id"
     When I register a schema under subject "sfilt-id-sub-b":
       """
       {"type":"record","name":"Shared","fields":[{"name":"k","type":"string"},{"name":"v","type":"int"}]}
@@ -73,7 +74,7 @@ Feature: Subject Filtering and Deleted Parameters
     Then the response status should be 200
     When I delete subject "sfilt-id-sub-b"
     Then the response status should be 200
-    When I GET "/schemas/ids/1/subjects"
+    When I GET "/schemas/ids/{{shared_id}}/subjects"
     Then the response status should be 200
     And the response should be an array of length 1
     And the response array should contain "sfilt-id-sub-a"
@@ -84,6 +85,7 @@ Feature: Subject Filtering and Deleted Parameters
       {"type":"record","name":"SharedDel","fields":[{"name":"k","type":"string"},{"name":"v","type":"int"}]}
       """
     Then the response status should be 200
+    And I store the response field "id" as "shared_del_id"
     When I register a schema under subject "sfilt-id-del-b":
       """
       {"type":"record","name":"SharedDel","fields":[{"name":"k","type":"string"},{"name":"v","type":"int"}]}
@@ -91,7 +93,7 @@ Feature: Subject Filtering and Deleted Parameters
     Then the response status should be 200
     When I delete subject "sfilt-id-del-b"
     Then the response status should be 200
-    When I GET "/schemas/ids/1/subjects?deleted=true"
+    When I GET "/schemas/ids/{{shared_del_id}}/subjects?deleted=true"
     Then the response status should be 200
     And the response should be an array of length 2
 
@@ -105,6 +107,7 @@ Feature: Subject Filtering and Deleted Parameters
       {"type":"record","name":"SharedVer","fields":[{"name":"k","type":"string"},{"name":"v","type":"int"}]}
       """
     Then the response status should be 200
+    And I store the response field "id" as "shared_ver_id"
     When I register a schema under subject "sfilt-ver-b":
       """
       {"type":"record","name":"SharedVer","fields":[{"name":"k","type":"string"},{"name":"v","type":"int"}]}
@@ -112,7 +115,7 @@ Feature: Subject Filtering and Deleted Parameters
     Then the response status should be 200
     When I delete subject "sfilt-ver-b"
     Then the response status should be 200
-    When I get versions for schema ID 1
+    When I get versions for schema ID {{shared_ver_id}}
     Then the response status should be 200
     And the response should be an array of length 1
 
@@ -122,6 +125,7 @@ Feature: Subject Filtering and Deleted Parameters
       {"type":"record","name":"SharedVerD","fields":[{"name":"k","type":"string"},{"name":"v","type":"int"}]}
       """
     Then the response status should be 200
+    And I store the response field "id" as "shared_verd_id"
     When I register a schema under subject "sfilt-verd-b":
       """
       {"type":"record","name":"SharedVerD","fields":[{"name":"k","type":"string"},{"name":"v","type":"int"}]}
@@ -129,6 +133,6 @@ Feature: Subject Filtering and Deleted Parameters
     Then the response status should be 200
     When I delete subject "sfilt-verd-b"
     Then the response status should be 200
-    When I GET "/schemas/ids/1/versions?deleted=true"
+    When I GET "/schemas/ids/{{shared_verd_id}}/versions?deleted=true"
     Then the response status should be 200
     And the response should be an array of length 2
