@@ -44,6 +44,19 @@ func RegisterReferenceSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 		return tc.GET(fmt.Sprintf("/schemas/ids/%d/versions", id))
 	})
 
+	ctx.Step(`^I check compatibility of schema against all versions of subject "([^"]*)":$`, func(subject string, schema *godog.DocString) error {
+		body := map[string]interface{}{"schema": schema.Content}
+		return tc.POST(fmt.Sprintf("/compatibility/subjects/%s/versions", subject), body)
+	})
+
+	ctx.Step(`^I check compatibility of "([^"]*)" schema against all versions of subject "([^"]*)":$`, func(schemaType, subject string, schema *godog.DocString) error {
+		body := map[string]interface{}{
+			"schema":     schema.Content,
+			"schemaType": schemaType,
+		}
+		return tc.POST(fmt.Sprintf("/compatibility/subjects/%s/versions", subject), body)
+	})
+
 	ctx.Step(`^I check compatibility of schema against subject "([^"]*)" version (\d+):$`, func(subject string, version int, schema *godog.DocString) error {
 		body := map[string]interface{}{"schema": schema.Content}
 		return tc.POST(fmt.Sprintf("/compatibility/subjects/%s/versions/%d", subject, version), body)

@@ -5,6 +5,7 @@ package steps
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -124,6 +125,17 @@ func RegisterSchemaSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 	ctx.Step(`^I lookup schema in subject "([^"]*)":$`, func(subject string, schema *godog.DocString) error {
 		body := map[string]interface{}{"schema": schema.Content}
 		return tc.POST("/subjects/"+subject, body)
+	})
+	ctx.Step(`^I lookup a "([^"]*)" schema in subject "([^"]*)":$`, func(schemaType, subject string, schema *godog.DocString) error {
+		body := map[string]interface{}{
+			"schema":     schema.Content,
+			"schemaType": schemaType,
+		}
+		return tc.POST("/subjects/"+subject, body)
+	})
+	ctx.Step(`^I lookup schema in subject "([^"]*)" with deleted:$`, func(subject string, schema *godog.DocString) error {
+		body := map[string]interface{}{"schema": schema.Content}
+		return tc.POST("/subjects/"+subject+"?deleted=true", body)
 	})
 	ctx.Step(`^I check compatibility of schema against subject "([^"]*)":$`, func(subject string, schema *godog.DocString) error {
 		body := map[string]interface{}{"schema": schema.Content}
@@ -293,6 +305,53 @@ func RegisterSchemaSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 		var obj interface{}
 		if err := json.Unmarshal(tc.LastBody, &obj); err != nil {
 			return fmt.Errorf("invalid JSON: %w\n%s", err, string(tc.LastBody))
+		}
+		return nil
+	})
+	ctx.Step(`^the response field "([^"]*)" should be (true|false)$`, func(field, expected string) error {
+		val, err := tc.JSONField(field)
+		if err != nil {
+			return err
+		}
+		expectedBool := expected == "true"
+		if val != expectedBool {
+			return fmt.Errorf("field %q: expected %v, got %v", field, expectedBool, val)
+		}
+		return nil
+	})
+	ctx.Step(`^the response should not have field "([^"]*)"$`, func(field string) error {
+		if tc.LastJSON == nil {
+			return nil // no JSON object means field is absent
+		}
+		_, ok := tc.LastJSON[field]
+		if ok {
+			return fmt.Errorf("field %q should not be present in response: %s", field, string(tc.LastBody))
+		}
+		return nil
+	})
+	ctx.Step(`^the response body should contain "([^"]*)"$`, func(expected string) error {
+		if !strings.Contains(string(tc.LastBody), expected) {
+			return fmt.Errorf("response body does not contain %q: %s", expected, string(tc.LastBody))
+		}
+		return nil
+	})
+	ctx.Step(`^the response body should not contain "([^"]*)"$`, func(expected string) error {
+		if strings.Contains(string(tc.LastBody), expected) {
+			return fmt.Errorf("response body should not contain %q but does: %s", expected, string(tc.LastBody))
+		}
+		return nil
+	})
+	ctx.Step(`^the response should contain error message matching "([^"]*)"$`, func(pattern string) error {
+		re, err := regexp.Compile(pattern)
+		if err != nil {
+			return fmt.Errorf("invalid regex %q: %w", pattern, err)
+		}
+		msg, msgErr := tc.JSONFieldString("message")
+		if msgErr != nil {
+			return fmt.Errorf("no message field in response: %s", string(tc.LastBody))
+		}
+		if !re.MatchString(msg) {
+			return fmt.Errorf("message %q does not match pattern %q", msg, pattern)
 		}
 		return nil
 	})
