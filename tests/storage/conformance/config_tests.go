@@ -18,12 +18,9 @@ func RunConfigTests(t *testing.T, newStore StoreFactory) {
 		defer store.Close()
 		ctx := context.Background()
 
-		config, err := store.GetGlobalConfig(ctx)
-		if err != nil {
-			t.Fatalf("GetGlobalConfig: %v", err)
-		}
-		if config.CompatibilityLevel != "BACKWARD" {
-			t.Errorf("expected default BACKWARD, got %q", config.CompatibilityLevel)
+		_, err := store.GetGlobalConfig(ctx)
+		if err != storage.ErrNotFound {
+			t.Fatalf("expected ErrNotFound for unset global config, got %v", err)
 		}
 	})
 
@@ -57,12 +54,9 @@ func RunConfigTests(t *testing.T, newStore StoreFactory) {
 			t.Fatalf("DeleteGlobalConfig: %v", err)
 		}
 
-		config, err := store.GetGlobalConfig(ctx)
-		if err != nil {
-			t.Fatalf("GetGlobalConfig: %v", err)
-		}
-		if config.CompatibilityLevel != "BACKWARD" {
-			t.Errorf("expected BACKWARD after delete, got %q", config.CompatibilityLevel)
+		_, err := store.GetGlobalConfig(ctx)
+		if err != storage.ErrNotFound {
+			t.Fatalf("expected ErrNotFound after delete, got %v", err)
 		}
 	})
 
@@ -154,12 +148,9 @@ func RunConfigTests(t *testing.T, newStore StoreFactory) {
 		defer store.Close()
 		ctx := context.Background()
 
-		mode, err := store.GetGlobalMode(ctx)
-		if err != nil {
-			t.Fatalf("GetGlobalMode: %v", err)
-		}
-		if mode.Mode != "READWRITE" {
-			t.Errorf("expected default READWRITE, got %q", mode.Mode)
+		_, err := store.GetGlobalMode(ctx)
+		if err != storage.ErrNotFound {
+			t.Fatalf("expected ErrNotFound for unset global mode, got %v", err)
 		}
 	})
 

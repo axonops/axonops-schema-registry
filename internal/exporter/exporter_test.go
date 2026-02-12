@@ -113,8 +113,8 @@ func TestUpdateExporter(t *testing.T) {
 	time.Sleep(time.Millisecond)
 
 	updated := &Exporter{
-		Name:    "test",
-		Type:    ExporterTypeFile,
+		Name:     "test",
+		Type:     ExporterTypeFile,
 		Subjects: []string{"sub1"},
 	}
 	err := mgr.UpdateExporter(updated)
@@ -469,9 +469,9 @@ func TestHTTPExporter_Type(t *testing.T) {
 func TestHTTPExporter_Initialize(t *testing.T) {
 	e := NewHTTPExporter()
 	err := e.Initialize(map[string]string{
-		"url":                   "https://example.com/webhook",
-		"header.Authorization":  "Bearer token",
-		"header.Content-Type":   "application/json",
+		"url":                  "https://example.com/webhook",
+		"header.Authorization": "Bearer token",
+		"header.Content-Type":  "application/json",
 	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

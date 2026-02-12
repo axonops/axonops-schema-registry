@@ -57,7 +57,7 @@ func TestNewLDAPProvider_CustomDefaults(t *testing.T) {
 		UserSearchFilter:  "(uid=%s)",
 		UsernameAttribute: "uid",
 		EmailAttribute:    "email",
-		GroupAttribute:     "groups",
+		GroupAttribute:    "groups",
 		ConnectionTimeout: 5,
 		RequestTimeout:    15,
 		DefaultRole:       "admin",

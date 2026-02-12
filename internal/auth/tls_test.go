@@ -27,12 +27,12 @@ func generateTestCert(t *testing.T, dir string) (certFile, keyFile string) {
 	}
 
 	template := &x509.Certificate{
-		SerialNumber: big.NewInt(1),
-		Subject:      pkix.Name{CommonName: "test"},
-		NotBefore:    time.Now().Add(-time.Hour),
-		NotAfter:     time.Now().Add(24 * time.Hour),
-		KeyUsage:     x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
-		IsCA:         true,
+		SerialNumber:          big.NewInt(1),
+		Subject:               pkix.Name{CommonName: "test"},
+		NotBefore:             time.Now().Add(-time.Hour),
+		NotAfter:              time.Now().Add(24 * time.Hour),
+		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
+		IsCA:                  true,
 		BasicConstraintsValid: true,
 	}
 
@@ -194,7 +194,7 @@ func TestTLSManager_GetMinVersion(t *testing.T) {
 		{"1.2", tls.VersionTLS12},
 		{"TLS1.3", tls.VersionTLS13},
 		{"1.3", tls.VersionTLS13},
-		{"", tls.VersionTLS12},       // default
+		{"", tls.VersionTLS12},        // default
 		{"invalid", tls.VersionTLS12}, // default
 	}
 

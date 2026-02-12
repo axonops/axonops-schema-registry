@@ -779,6 +779,26 @@ curl -H "Authorization: Bearer $TOKEN" http://localhost:8081/subjects
 
 **Version behavior**: `latest` checks the latest version, a number checks that version only, and an empty version checks all versions.
 
+#### How Compatibility Configuration Works
+
+Compatibility is checked **at registration time only** — when a new schema version is registered via `POST /subjects/{subject}/versions`. It is not enforced retroactively on existing schemas.
+
+The compatibility level for a given subject is resolved in this order:
+
+1. **Per-subject override** (`PUT /config/{subject}`) — if an admin has set a specific level for this subject, it takes priority.
+2. **Global override** (`PUT /config`) — if an admin has set a global level via the API, it applies to all subjects without their own override.
+3. **Config file default** (`compatibility.default_level` in `config.yaml`) — if neither of the above has been set, the config file default is used. This defaults to `BACKWARD` if omitted.
+
+This means:
+
+- The config file default is the **baseline** that applies until an admin explicitly overrides it via the API.
+- An admin can override the global level at runtime via `PUT /config` without restarting the service. This override is persisted in the database.
+- An admin can delete the runtime override via `DELETE /config`, and the config file default takes effect again immediately.
+- Changing `default_level` in the config file and restarting the service takes effect for all subjects that don't have an explicit API override.
+- Changing the compatibility level (at any layer) only affects **future** schema registrations. Existing schemas that were validated under a previous level remain unchanged.
+
+This behavior matches [Confluent Schema Registry](https://docs.confluent.io/platform/current/schema-registry/fundamentals/schema-evolution.html).
+
 ### Configuration
 
 | Method | Endpoint | Description |

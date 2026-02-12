@@ -77,9 +77,9 @@ func TestOIDCProvider_ExtractStringClaim(t *testing.T) {
 		{"email", "user@example.com"},
 		{"nested.deep.value", "found"},
 		{"nonexistent", ""},
-		{"realm_access.roles", ""},    // not a string
-		{"nested.nonexistent", ""},    // missing nested key
-		{"number", ""},                // not a string
+		{"realm_access.roles", ""}, // not a string
+		{"nested.nonexistent", ""}, // missing nested key
+		{"number", ""},             // not a string
 	}
 
 	for _, tt := range tests {
