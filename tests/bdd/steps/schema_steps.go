@@ -49,6 +49,10 @@ func RegisterSchemaSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 		body := map[string]interface{}{"compatibility": level}
 		return tc.PUT("/config", body)
 	})
+	ctx.Step(`^I set the global compatibility level to "([^"]*)"$`, func(level string) error {
+		body := map[string]interface{}{"compatibility": level}
+		return tc.PUT("/config", body)
+	})
 	ctx.Step(`^subject "([^"]*)" has compatibility level "([^"]*)"$`, func(subject, level string) error {
 		body := map[string]interface{}{"compatibility": level}
 		return tc.PUT("/config/"+subject, body)

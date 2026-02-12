@@ -411,7 +411,33 @@ func (s *Store) migrate(ctx context.Context) error {
 			return fmt.Errorf("migration %d failed: %w", i+1, err)
 		}
 	}
+	// Add fingerprint-only index for global dedup (ignore error if already exists)
+	_, _ = s.db.ExecContext(ctx, `CREATE INDEX IF NOT EXISTS idx_schemas_fingerprint_global ON schemas(fingerprint)`)
 	return nil
+}
+
+// globalSchemaID returns the global schema ID for a fingerprint.
+// The global ID is the MIN(id) across all rows with the same fingerprint,
+// which ensures the same schema content always gets the same API-visible ID.
+func (s *Store) globalSchemaID(ctx context.Context, fingerprint string) (int64, error) {
+	var globalID int64
+	err := s.db.QueryRowContext(ctx,
+		`SELECT MIN(id) FROM schemas WHERE fingerprint = $1`, fingerprint).Scan(&globalID)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get global schema ID: %w", err)
+	}
+	return globalID, nil
+}
+
+// globalSchemaIDTx returns the global schema ID within a transaction.
+func (s *Store) globalSchemaIDTx(ctx context.Context, tx *sql.Tx, fingerprint string) (int64, error) {
+	var globalID int64
+	err := tx.QueryRowContext(ctx,
+		`SELECT MIN(id) FROM schemas WHERE fingerprint = $1`, fingerprint).Scan(&globalID)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get global schema ID: %w", err)
+	}
+	return globalID, nil
 }
 
 // CreateSchema stores a new schema record.
@@ -458,16 +484,20 @@ func (s *Store) createSchemaAttempt(ctx context.Context, record *storage.SchemaR
 	defer func() { _ = tx.Rollback() }()
 
 	// Check for existing schema with same fingerprint (idempotent check)
-	var existingID int64
 	var existingVersion int
 	var existingDeleted bool
 	err = tx.QueryRowContext(ctx,
-		`SELECT id, version, deleted FROM schemas WHERE subject = $1 AND fingerprint = $2`,
+		`SELECT version, deleted FROM schemas WHERE subject = $1 AND fingerprint = $2`,
 		record.Subject, record.Fingerprint,
-	).Scan(&existingID, &existingVersion, &existingDeleted)
+	).Scan(&existingVersion, &existingDeleted)
 
 	if err == nil && !existingDeleted {
-		record.ID = existingID
+		// Schema already exists in this subject - resolve global ID
+		globalID, gErr := s.globalSchemaIDTx(ctx, tx, record.Fingerprint)
+		if gErr != nil {
+			return gErr
+		}
+		record.ID = globalID
 		record.Version = existingVersion
 		return storage.ErrSchemaExists
 	}
@@ -483,28 +513,43 @@ func (s *Store) createSchemaAttempt(ctx context.Context, record *storage.SchemaR
 	}
 
 	// Insert schema - unique constraint on (subject, version) prevents duplicates
-	err = tx.QueryRowContext(ctx,
+	_, err = tx.ExecContext(ctx,
 		`INSERT INTO schemas (subject, version, schema_type, schema_text, fingerprint, created_at)
-		 VALUES ($1, $2, $3, $4, $5, $6)
-		 RETURNING id`,
+		 VALUES ($1, $2, $3, $4, $5, $6)`,
 		record.Subject, nextVersion, record.SchemaType, record.Schema, record.Fingerprint, time.Now(),
-	).Scan(&record.ID)
+	)
 	if err != nil {
 		return fmt.Errorf("failed to insert schema: %w", err)
 	}
 
+	// Resolve global schema ID (MIN(id) across all rows with same fingerprint)
+	globalID, err := s.globalSchemaIDTx(ctx, tx, record.Fingerprint)
+	if err != nil {
+		return fmt.Errorf("failed to get global schema ID: %w", err)
+	}
+
+	record.ID = globalID
 	record.Version = nextVersion
 	record.CreatedAt = time.Now()
 
-	// Insert references
-	for _, ref := range record.References {
-		_, err = tx.ExecContext(ctx,
-			`INSERT INTO schema_references (schema_id, name, ref_subject, ref_version)
-			 VALUES ($1, $2, $3, $4)`,
-			record.ID, ref.Name, ref.Subject, ref.Version,
-		)
-		if err != nil {
-			return fmt.Errorf("failed to insert reference: %w", err)
+	// Insert references using the global ID.
+	// Only insert if no references exist yet for this global ID (avoids duplicates
+	// when same content is registered under multiple subjects).
+	if len(record.References) > 0 {
+		var refCount int
+		_ = tx.QueryRowContext(ctx,
+			`SELECT COUNT(*) FROM schema_references WHERE schema_id = $1`, globalID).Scan(&refCount)
+		if refCount == 0 {
+			for _, ref := range record.References {
+				_, err = tx.ExecContext(ctx,
+					`INSERT INTO schema_references (schema_id, name, ref_subject, ref_version)
+					 VALUES ($1, $2, $3, $4)`,
+					globalID, ref.Name, ref.Subject, ref.Version,
+				)
+				if err != nil {
+					return fmt.Errorf("failed to insert reference: %w", err)
+				}
+			}
 		}
 	}
 
@@ -548,9 +593,10 @@ func (s *Store) GetSchemaBySubjectVersion(ctx context.Context, subject string, v
 
 	record := &storage.SchemaRecord{}
 	var schemaType string
+	var rowID int64
 
 	err := s.stmts.getSchemaBySubjectVer.QueryRowContext(ctx, subject, version).Scan(
-		&record.ID, &record.Subject, &record.Version, &schemaType,
+		&rowID, &record.Subject, &record.Version, &schemaType,
 		&record.Schema, &record.Fingerprint, &record.Deleted, &record.CreatedAt)
 
 	if err == sql.ErrNoRows {
@@ -572,7 +618,15 @@ func (s *Store) GetSchemaBySubjectVersion(ctx context.Context, subject string, v
 
 	record.SchemaType = storage.SchemaType(schemaType)
 
-	// Load references
+	// Resolve global ID
+	globalID, err := s.globalSchemaID(ctx, record.Fingerprint)
+	if err != nil {
+		record.ID = rowID // fallback
+	} else {
+		record.ID = globalID
+	}
+
+	// Load references using global ID
 	refs, err := s.loadReferences(ctx, record.ID)
 	if err != nil {
 		return nil, err
@@ -601,13 +655,21 @@ func (s *Store) GetSchemasBySubject(ctx context.Context, subject string, include
 	for rows.Next() {
 		record := &storage.SchemaRecord{}
 		var schemaType string
-		if err := rows.Scan(&record.ID, &record.Subject, &record.Version, &schemaType,
+		var rowID int64
+		if err := rows.Scan(&rowID, &record.Subject, &record.Version, &schemaType,
 			&record.Schema, &record.Fingerprint, &record.Deleted, &record.CreatedAt); err != nil {
 			return nil, fmt.Errorf("failed to scan row: %w", err)
 		}
 		record.SchemaType = storage.SchemaType(schemaType)
 
-		// Load references
+		// Resolve global ID
+		if globalID, gErr := s.globalSchemaID(ctx, record.Fingerprint); gErr == nil {
+			record.ID = globalID
+		} else {
+			record.ID = rowID
+		}
+
+		// Load references using global ID
 		refs, err := s.loadReferences(ctx, record.ID)
 		if err != nil {
 			return nil, err
@@ -636,17 +698,18 @@ func (s *Store) GetSchemasBySubject(ctx context.Context, subject string, include
 func (s *Store) GetSchemaByFingerprint(ctx context.Context, subject, fingerprint string, includeDeleted bool) (*storage.SchemaRecord, error) {
 	record := &storage.SchemaRecord{}
 	var schemaType string
+	var rowID int64
 	var err error
 
 	if includeDeleted {
 		query := `SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at
 		          FROM schemas WHERE subject = $1 AND fingerprint = $2`
 		err = s.db.QueryRowContext(ctx, query, subject, fingerprint).Scan(
-			&record.ID, &record.Subject, &record.Version, &schemaType,
+			&rowID, &record.Subject, &record.Version, &schemaType,
 			&record.Schema, &record.Fingerprint, &record.Deleted, &record.CreatedAt)
 	} else {
 		err = s.stmts.getSchemaByFingerprint.QueryRowContext(ctx, subject, fingerprint).Scan(
-			&record.ID, &record.Subject, &record.Version, &schemaType,
+			&rowID, &record.Subject, &record.Version, &schemaType,
 			&record.Schema, &record.Fingerprint, &record.Deleted, &record.CreatedAt)
 	}
 
@@ -659,7 +722,14 @@ func (s *Store) GetSchemaByFingerprint(ctx context.Context, subject, fingerprint
 
 	record.SchemaType = storage.SchemaType(schemaType)
 
-	// Load references
+	// Resolve global ID
+	if globalID, gErr := s.globalSchemaID(ctx, record.Fingerprint); gErr == nil {
+		record.ID = globalID
+	} else {
+		record.ID = rowID
+	}
+
+	// Load references using global ID
 	refs, err := s.loadReferences(ctx, record.ID)
 	if err != nil {
 		return nil, err
@@ -674,12 +744,13 @@ func (s *Store) GetSchemaByFingerprint(ctx context.Context, subject, fingerprint
 func (s *Store) GetSchemaByGlobalFingerprint(ctx context.Context, fingerprint string) (*storage.SchemaRecord, error) {
 	record := &storage.SchemaRecord{}
 	var schemaType string
+	var rowID int64
 
 	// Query for any schema with this fingerprint (global deduplication)
 	query := `SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at
 	          FROM schemas WHERE fingerprint = $1 AND deleted = false LIMIT 1`
 	err := s.db.QueryRowContext(ctx, query, fingerprint).Scan(
-		&record.ID, &record.Subject, &record.Version, &schemaType,
+		&rowID, &record.Subject, &record.Version, &schemaType,
 		&record.Schema, &record.Fingerprint, &record.Deleted, &record.CreatedAt)
 
 	if err == sql.ErrNoRows {
@@ -691,7 +762,14 @@ func (s *Store) GetSchemaByGlobalFingerprint(ctx context.Context, fingerprint st
 
 	record.SchemaType = storage.SchemaType(schemaType)
 
-	// Load references
+	// Resolve global ID
+	if globalID, gErr := s.globalSchemaID(ctx, record.Fingerprint); gErr == nil {
+		record.ID = globalID
+	} else {
+		record.ID = rowID
+	}
+
+	// Load references using global ID
 	refs, err := s.loadReferences(ctx, record.ID)
 	if err != nil {
 		return nil, err
@@ -705,9 +783,10 @@ func (s *Store) GetSchemaByGlobalFingerprint(ctx context.Context, fingerprint st
 func (s *Store) GetLatestSchema(ctx context.Context, subject string) (*storage.SchemaRecord, error) {
 	record := &storage.SchemaRecord{}
 	var schemaType string
+	var rowID int64
 
 	err := s.stmts.getLatestSchema.QueryRowContext(ctx, subject).Scan(
-		&record.ID, &record.Subject, &record.Version, &schemaType,
+		&rowID, &record.Subject, &record.Version, &schemaType,
 		&record.Schema, &record.Fingerprint, &record.Deleted, &record.CreatedAt)
 
 	if err == sql.ErrNoRows {
@@ -719,7 +798,14 @@ func (s *Store) GetLatestSchema(ctx context.Context, subject string) (*storage.S
 
 	record.SchemaType = storage.SchemaType(schemaType)
 
-	// Load references
+	// Resolve global ID
+	if globalID, gErr := s.globalSchemaID(ctx, record.Fingerprint); gErr == nil {
+		record.ID = globalID
+	} else {
+		record.ID = rowID
+	}
+
+	// Load references using global ID
 	refs, err := s.loadReferences(ctx, record.ID)
 	if err != nil {
 		return nil, err
@@ -731,15 +817,36 @@ func (s *Store) GetLatestSchema(ctx context.Context, subject string) (*storage.S
 
 // DeleteSchema soft-deletes or permanently deletes a schema version.
 func (s *Store) DeleteSchema(ctx context.Context, subject string, version int, permanent bool) error {
-	var result sql.Result
-	var err error
-
 	if permanent {
-		result, err = s.stmts.hardDeleteSchema.ExecContext(ctx, subject, version)
-	} else {
-		result, err = s.stmts.softDeleteSchema.ExecContext(ctx, subject, version)
+		// Check if version exists and is soft-deleted first
+		var deleted bool
+		err := s.db.QueryRowContext(ctx,
+			`SELECT deleted FROM schemas WHERE subject = $1 AND version = $2`,
+			subject, version).Scan(&deleted)
+		if err == sql.ErrNoRows {
+			// Check if subject exists at all
+			var count int
+			_ = s.db.QueryRowContext(ctx,
+				`SELECT COUNT(*) FROM schemas WHERE subject = $1`, subject).Scan(&count)
+			if count == 0 {
+				return storage.ErrSubjectNotFound
+			}
+			return storage.ErrVersionNotFound
+		}
+		if err != nil {
+			return fmt.Errorf("failed to check schema: %w", err)
+		}
+		if !deleted {
+			return storage.ErrVersionNotSoftDeleted
+		}
+		_, err = s.stmts.hardDeleteSchema.ExecContext(ctx, subject, version)
+		if err != nil {
+			return fmt.Errorf("failed to delete schema: %w", err)
+		}
+		return nil
 	}
 
+	result, err := s.stmts.softDeleteSchema.ExecContext(ctx, subject, version)
 	if err != nil {
 		return fmt.Errorf("failed to delete schema: %w", err)
 	}
@@ -786,11 +893,51 @@ func (s *Store) ListSubjects(ctx context.Context, includeDeleted bool) ([]string
 
 // DeleteSubject deletes all versions of a subject.
 func (s *Store) DeleteSubject(ctx context.Context, subject string, permanent bool) ([]int, error) {
-	// First get all versions
+	if permanent {
+		// For permanent delete, check that all versions are soft-deleted first
+		var totalCount, deletedCount int
+		err := s.db.QueryRowContext(ctx,
+			`SELECT COUNT(*), COALESCE(SUM(CASE WHEN deleted THEN 1 ELSE 0 END), 0)
+			 FROM schemas WHERE subject = $1`, subject).Scan(&totalCount, &deletedCount)
+		if err != nil {
+			return nil, fmt.Errorf("failed to check subject: %w", err)
+		}
+		if totalCount == 0 {
+			return nil, storage.ErrSubjectNotFound
+		}
+		if deletedCount < totalCount {
+			return nil, storage.ErrSubjectNotSoftDeleted
+		}
+
+		// Get all versions for the response
+		rows, err := s.db.QueryContext(ctx,
+			`SELECT version FROM schemas WHERE subject = $1 ORDER BY version`, subject)
+		if err != nil {
+			return nil, fmt.Errorf("failed to query versions: %w", err)
+		}
+		var versions []int
+		for rows.Next() {
+			var v int
+			if err := rows.Scan(&v); err != nil {
+				rows.Close()
+				return nil, fmt.Errorf("failed to scan row: %w", err)
+			}
+			versions = append(versions, v)
+		}
+		rows.Close()
+
+		_, err = s.db.ExecContext(ctx, `DELETE FROM schemas WHERE subject = $1`, subject)
+		if err != nil {
+			return nil, fmt.Errorf("failed to delete schemas: %w", err)
+		}
+		_, _ = s.db.ExecContext(ctx, `DELETE FROM configs WHERE subject = $1`, subject)
+		_, _ = s.db.ExecContext(ctx, `DELETE FROM modes WHERE subject = $1`, subject)
+		return versions, nil
+	}
+
+	// Soft-delete: get non-deleted versions
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT version FROM schemas WHERE subject = $1 AND (deleted = FALSE OR $2)`,
-		subject, permanent,
-	)
+		`SELECT version FROM schemas WHERE subject = $1 AND deleted = FALSE ORDER BY version`, subject)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query versions: %w", err)
 	}
@@ -807,27 +954,22 @@ func (s *Store) DeleteSubject(ctx context.Context, subject string, permanent boo
 	rows.Close()
 
 	if len(versions) == 0 {
+		// Check if subject exists but is already soft-deleted
+		var count int
+		_ = s.db.QueryRowContext(ctx,
+			`SELECT COUNT(*) FROM schemas WHERE subject = $1`, subject).Scan(&count)
+		if count > 0 {
+			return nil, storage.ErrSubjectDeleted
+		}
 		return nil, storage.ErrSubjectNotFound
 	}
 
-	// Delete or soft-delete
-	if permanent {
-		_, err = s.db.ExecContext(ctx, `DELETE FROM schemas WHERE subject = $1`, subject)
-		if err != nil {
-			return nil, fmt.Errorf("failed to delete schemas: %w", err)
-		}
-
-		// Also delete configs and modes
-		_, _ = s.db.ExecContext(ctx, `DELETE FROM configs WHERE subject = $1`, subject)
-		_, _ = s.db.ExecContext(ctx, `DELETE FROM modes WHERE subject = $1`, subject)
-	} else {
-		_, err = s.db.ExecContext(ctx,
-			`UPDATE schemas SET deleted = TRUE WHERE subject = $1`,
-			subject,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to soft-delete schemas: %w", err)
-		}
+	_, err = s.db.ExecContext(ctx,
+		`UPDATE schemas SET deleted = TRUE WHERE subject = $1`,
+		subject,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to soft-delete schemas: %w", err)
 	}
 
 	return versions, nil
@@ -1073,10 +1215,13 @@ func (s *Store) loadReferences(ctx context.Context, schemaID int64) ([]storage.R
 }
 
 // GetSubjectsBySchemaID returns all subjects where the given schema ID is registered.
+// Uses fingerprint-based lookup for global deduplication: the same content registered
+// under different subjects shares the same API-visible schema ID.
 func (s *Store) GetSubjectsBySchemaID(ctx context.Context, id int64, includeDeleted bool) ([]string, error) {
-	query := `SELECT DISTINCT subject FROM schemas WHERE id = $1`
+	query := `SELECT DISTINCT s.subject FROM schemas s
+		WHERE s.fingerprint = (SELECT fingerprint FROM schemas WHERE id = $1 LIMIT 1)`
 	if !includeDeleted {
-		query += ` AND deleted = FALSE`
+		query += ` AND s.deleted = FALSE`
 	}
 
 	rows, err := s.db.QueryContext(ctx, query, id)
@@ -1102,10 +1247,12 @@ func (s *Store) GetSubjectsBySchemaID(ctx context.Context, id int64, includeDele
 }
 
 // GetVersionsBySchemaID returns all subject-version pairs where the given schema ID is registered.
+// Uses fingerprint-based lookup for global deduplication.
 func (s *Store) GetVersionsBySchemaID(ctx context.Context, id int64, includeDeleted bool) ([]storage.SubjectVersion, error) {
-	query := `SELECT subject, version FROM schemas WHERE id = $1`
+	query := `SELECT s.subject, s.version FROM schemas s
+		WHERE s.fingerprint = (SELECT fingerprint FROM schemas WHERE id = $1 LIMIT 1)`
 	if !includeDeleted {
-		query += ` AND deleted = FALSE`
+		query += ` AND s.deleted = FALSE`
 	}
 
 	rows, err := s.db.QueryContext(ctx, query, id)
@@ -1195,11 +1342,20 @@ func (s *Store) ListSchemas(ctx context.Context, params *storage.ListSchemasPara
 	for rows.Next() {
 		record := &storage.SchemaRecord{}
 		var schemaType string
-		if err := rows.Scan(&record.ID, &record.Subject, &record.Version, &schemaType,
+		var rowID int64
+		if err := rows.Scan(&rowID, &record.Subject, &record.Version, &schemaType,
 			&record.Schema, &record.Fingerprint, &record.Deleted, &record.CreatedAt); err != nil {
 			return nil, fmt.Errorf("failed to scan row: %w", err)
 		}
 		record.SchemaType = storage.SchemaType(schemaType)
+
+		// Resolve global ID
+		if globalID, gErr := s.globalSchemaID(ctx, record.Fingerprint); gErr == nil {
+			record.ID = globalID
+		} else {
+			record.ID = rowID
+		}
+
 		schemas = append(schemas, record)
 	}
 

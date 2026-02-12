@@ -916,6 +916,9 @@ func (s *Store) DeleteSchema(ctx context.Context, subject string, version int, p
 	}
 
 	if permanent {
+		if !deleted {
+			return storage.ErrVersionNotSoftDeleted
+		}
 		return s.writeQuery(
 			fmt.Sprintf(`DELETE FROM %s.subject_versions WHERE subject = ? AND version = ?`, qident(s.cfg.Keyspace)),
 			subject, version,
@@ -985,17 +988,46 @@ func (s *Store) DeleteSubject(ctx context.Context, subject string, permanent boo
 		subject,
 	).WithContext(ctx).Iter()
 
-	var deletedVersions []int
+	type versionInfo struct {
+		version int
+		deleted bool
+	}
+	var allVersions []versionInfo
 	var version int
 	var deleted bool
 	for iter.Scan(&version, &deleted) {
-		if permanent || !deleted {
-			deletedVersions = append(deletedVersions, version)
-		}
+		allVersions = append(allVersions, versionInfo{version, deleted})
 	}
 	if err := iter.Close(); err != nil {
 		return nil, err
 	}
+	if len(allVersions) == 0 {
+		return nil, storage.ErrSubjectNotFound
+	}
+
+	var deletedVersions []int
+	if permanent {
+		// Check that all versions are soft-deleted first
+		for _, vi := range allVersions {
+			if !vi.deleted {
+				return nil, storage.ErrSubjectNotSoftDeleted
+			}
+			deletedVersions = append(deletedVersions, vi.version)
+		}
+	} else {
+		// Soft-delete: collect non-deleted versions
+		allSoftDeleted := true
+		for _, vi := range allVersions {
+			if !vi.deleted {
+				allSoftDeleted = false
+				deletedVersions = append(deletedVersions, vi.version)
+			}
+		}
+		if allSoftDeleted {
+			return nil, storage.ErrSubjectDeleted
+		}
+	}
+
 	if len(deletedVersions) == 0 {
 		return nil, storage.ErrSubjectNotFound
 	}
