@@ -188,11 +188,15 @@ func TestMigrationFromConfluent(t *testing.T) {
 			var schemaInfo map[string]interface{}
 			parseResponse(t, resp, &schemaInfo)
 
+			schemaType := "AVRO"
+			if st, ok := schemaInfo["schemaType"].(string); ok && st != "" {
+				schemaType = st
+			}
 			exportedSchemas = append(exportedSchemas, types.ImportSchemaRequest{
 				ID:         int64(schemaInfo["id"].(float64)),
 				Subject:    subject,
 				Version:    int(schemaInfo["version"].(float64)),
-				SchemaType: schemaInfo["schemaType"].(string),
+				SchemaType: schemaType,
 				Schema:     schemaInfo["schema"].(string),
 			})
 		}
@@ -297,10 +301,14 @@ func TestMigrationFromConfluent(t *testing.T) {
 			continue
 		}
 
-		// Verify schema type matches
-		if targetSchema["schemaType"].(string) != exported.SchemaType {
+		// Verify schema type matches (schemaType omitted for AVRO)
+		targetSchemaType := "AVRO"
+		if st, ok := targetSchema["schemaType"].(string); ok && st != "" {
+			targetSchemaType = st
+		}
+		if targetSchemaType != exported.SchemaType {
 			t.Errorf("Schema type mismatch for ID %d: expected %s, got %s",
-				exported.ID, exported.SchemaType, targetSchema["schemaType"])
+				exported.ID, exported.SchemaType, targetSchemaType)
 		}
 
 		// Verify schema content is present (not comparing exact content due to normalization)
