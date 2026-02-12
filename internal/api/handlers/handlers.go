@@ -4,6 +4,7 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -14,6 +15,19 @@ import (
 	"github.com/axonops/axonops-schema-registry/internal/registry"
 	"github.com/axonops/axonops-schema-registry/internal/storage"
 )
+
+// errInvalidVersion is returned when a version string is not valid.
+var errInvalidVersion = errors.New("invalid version")
+
+// schemaTypeForResponse returns the schema type string for API responses.
+// Per Confluent convention, AVRO is the default and is omitted (empty string)
+// so that JSON omitempty will exclude it. Non-AVRO types are returned as-is.
+func schemaTypeForResponse(st storage.SchemaType) string {
+	if st == storage.SchemaTypeAvro || st == "" {
+		return ""
+	}
+	return string(st)
+}
 
 // Handler provides HTTP handlers for the schema registry.
 type Handler struct {
@@ -52,6 +66,16 @@ func NewWithConfig(reg *registry.Registry, cfg Config) *Handler {
 	}
 }
 
+// checkModeForWrite checks if the current mode allows write operations for the given subject.
+// Returns an error message if writes are blocked, or empty string if allowed.
+func (h *Handler) checkModeForWrite(r *http.Request, subject string) string {
+	mode, _ := h.registry.GetMode(r.Context(), subject)
+	if mode == "READONLY" || mode == "READONLY_OVERRIDE" {
+		return mode
+	}
+	return ""
+}
+
 // HealthCheck handles GET /
 func (h *Handler) HealthCheck(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
@@ -85,7 +109,7 @@ func (h *Handler) GetSchemaByID(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, http.StatusOK, types.SchemaByIDResponse{
 		Schema:     schema.Schema,
-		SchemaType: string(schema.SchemaType),
+		SchemaType: schemaTypeForResponse(schema.SchemaType),
 		References: schema.References,
 	})
 }
@@ -93,11 +117,67 @@ func (h *Handler) GetSchemaByID(w http.ResponseWriter, r *http.Request) {
 // ListSubjects handles GET /subjects
 func (h *Handler) ListSubjects(w http.ResponseWriter, r *http.Request) {
 	deleted := r.URL.Query().Get("deleted") == "true"
+	deletedOnly := r.URL.Query().Get("deletedOnly") == "true"
+	subjectPrefix := r.URL.Query().Get("subjectPrefix")
 
-	subjects, err := h.registry.ListSubjects(r.Context(), deleted)
+	// deletedOnly implies including deleted subjects
+	includeDeleted := deleted || deletedOnly
+
+	subjects, err := h.registry.ListSubjects(r.Context(), includeDeleted)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
 		return
+	}
+
+	// For deletedOnly, filter to only deleted subjects by diffing with active set
+	if deletedOnly {
+		activeSubjects, _ := h.registry.ListSubjects(r.Context(), false)
+		activeSet := make(map[string]bool, len(activeSubjects))
+		for _, s := range activeSubjects {
+			activeSet[s] = true
+		}
+		var deletedSubjects []string
+		for _, s := range subjects {
+			if !activeSet[s] {
+				deletedSubjects = append(deletedSubjects, s)
+			}
+		}
+		if deletedSubjects == nil {
+			deletedSubjects = []string{}
+		}
+		subjects = deletedSubjects
+	}
+
+	// Filter by subject prefix if specified
+	if subjectPrefix != "" {
+		filtered := make([]string, 0)
+		for _, s := range subjects {
+			if strings.HasPrefix(s, subjectPrefix) {
+				filtered = append(filtered, s)
+			}
+		}
+		subjects = filtered
+	}
+
+	// Apply pagination (offset/limit)
+	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
+	if offset < 0 {
+		offset = 0
+	}
+	limit := -1 // default: unlimited
+	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
+		limit, _ = strconv.Atoi(limitStr)
+	}
+
+	if offset > 0 {
+		if offset >= len(subjects) {
+			subjects = []string{}
+		} else {
+			subjects = subjects[offset:]
+		}
+	}
+	if limit >= 0 && limit < len(subjects) {
+		subjects = subjects[:limit]
 	}
 
 	writeJSON(w, http.StatusOK, subjects)
@@ -107,14 +187,37 @@ func (h *Handler) ListSubjects(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetVersions(w http.ResponseWriter, r *http.Request) {
 	subject := chi.URLParam(r, "subject")
 	deleted := r.URL.Query().Get("deleted") == "true"
+	deletedOnly := r.URL.Query().Get("deletedOnly") == "true"
 
-	versions, err := h.registry.GetVersions(r.Context(), subject, deleted)
+	// deletedOnly takes precedence: if set, we include deleted and filter to only deleted
+	includeDeleted := deleted || deletedOnly
+	versions, err := h.registry.GetVersions(r.Context(), subject, includeDeleted)
 	if err != nil {
 		if errors.Is(err, storage.ErrSubjectNotFound) {
 			writeError(w, http.StatusNotFound, types.ErrorCodeSubjectNotFound, "Subject not found")
 			return
 		}
 		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		return
+	}
+
+	if deletedOnly {
+		// Filter to only deleted versions by getting all versions and non-deleted, then diffing
+		activeVersions, _ := h.registry.GetVersions(r.Context(), subject, false)
+		activeSet := make(map[int]bool, len(activeVersions))
+		for _, v := range activeVersions {
+			activeSet[v] = true
+		}
+		var deletedVersions []int
+		for _, v := range versions {
+			if !activeSet[v] {
+				deletedVersions = append(deletedVersions, v)
+			}
+		}
+		if deletedVersions == nil {
+			deletedVersions = []int{}
+		}
+		writeJSON(w, http.StatusOK, deletedVersions)
 		return
 	}
 
@@ -128,7 +231,8 @@ func (h *Handler) GetVersion(w http.ResponseWriter, r *http.Request) {
 
 	version, err := parseVersion(versionStr)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, types.ErrorCodeVersionNotFound, "Invalid version")
+		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidVersion,
+			fmt.Sprintf("The specified version '%s' is not a valid version id. Allowed values are between [1, 2^31-1] and the string \"latest\"", versionStr))
 		return
 	}
 
@@ -150,7 +254,7 @@ func (h *Handler) GetVersion(w http.ResponseWriter, r *http.Request) {
 		Subject:    schema.Subject,
 		ID:         schema.ID,
 		Version:    schema.Version,
-		SchemaType: string(schema.SchemaType),
+		SchemaType: schemaTypeForResponse(schema.SchemaType),
 		Schema:     schema.Schema,
 	}
 	if len(schema.References) > 0 {
@@ -164,6 +268,13 @@ func (h *Handler) GetVersion(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) RegisterSchema(w http.ResponseWriter, r *http.Request) {
 	subject := chi.URLParam(r, "subject")
 
+	// Check mode enforcement
+	if mode := h.checkModeForWrite(r, subject); mode != "" {
+		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeOperationNotPermitted,
+			fmt.Sprintf("Subject '%s' is in %s mode", subject, mode))
+		return
+	}
+
 	var req types.RegisterSchemaRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, types.ErrorCodeInvalidSchema, "Invalid request body")
@@ -171,7 +282,7 @@ func (h *Handler) RegisterSchema(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if req.Schema == "" {
-		writeError(w, http.StatusBadRequest, types.ErrorCodeInvalidSchema, "Schema is required")
+		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidSchema, "Empty schema")
 		return
 	}
 
@@ -219,7 +330,7 @@ func (h *Handler) LookupSchema(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if req.Schema == "" {
-		writeError(w, http.StatusBadRequest, types.ErrorCodeInvalidSchema, "Schema is required")
+		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidSchema, "Empty schema")
 		return
 	}
 
@@ -230,7 +341,11 @@ func (h *Handler) LookupSchema(w http.ResponseWriter, r *http.Request) {
 
 	schema, err := h.registry.LookupSchema(r.Context(), subject, req.Schema, schemaType, req.References, deleted)
 	if err != nil {
-		if errors.Is(err, storage.ErrSchemaNotFound) || errors.Is(err, storage.ErrSubjectNotFound) {
+		if errors.Is(err, storage.ErrSubjectNotFound) {
+			writeError(w, http.StatusNotFound, types.ErrorCodeSubjectNotFound, fmt.Sprintf("Subject '%s' not found.", subject))
+			return
+		}
+		if errors.Is(err, storage.ErrSchemaNotFound) {
 			writeError(w, http.StatusNotFound, types.ErrorCodeSchemaNotFound, "Schema not found")
 			return
 		}
@@ -246,7 +361,7 @@ func (h *Handler) LookupSchema(w http.ResponseWriter, r *http.Request) {
 		Subject:    schema.Subject,
 		ID:         schema.ID,
 		Version:    schema.Version,
-		SchemaType: string(schema.SchemaType),
+		SchemaType: schemaTypeForResponse(schema.SchemaType),
 		Schema:     schema.Schema,
 	}
 	if len(schema.References) > 0 {
@@ -261,10 +376,27 @@ func (h *Handler) DeleteSubject(w http.ResponseWriter, r *http.Request) {
 	subject := chi.URLParam(r, "subject")
 	permanent := r.URL.Query().Get("permanent") == "true"
 
+	// Check mode enforcement
+	if mode := h.checkModeForWrite(r, subject); mode != "" {
+		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeOperationNotPermitted,
+			fmt.Sprintf("Subject '%s' is in %s mode", subject, mode))
+		return
+	}
+
 	versions, err := h.registry.DeleteSubject(r.Context(), subject, permanent)
 	if err != nil {
 		if errors.Is(err, storage.ErrSubjectNotFound) {
 			writeError(w, http.StatusNotFound, types.ErrorCodeSubjectNotFound, "Subject not found")
+			return
+		}
+		if errors.Is(err, storage.ErrSubjectDeleted) {
+			writeError(w, http.StatusNotFound, types.ErrorCodeSubjectSoftDeleted,
+				fmt.Sprintf("Subject '%s' was soft deleted. Set permanent=true to delete permanently", subject))
+			return
+		}
+		if errors.Is(err, storage.ErrSubjectNotSoftDeleted) {
+			writeError(w, http.StatusNotFound, types.ErrorCodeSubjectNotSoftDeleted,
+				fmt.Sprintf("Subject '%s' was not deleted first before being permanently deleted", subject))
 			return
 		}
 		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
@@ -280,9 +412,17 @@ func (h *Handler) DeleteVersion(w http.ResponseWriter, r *http.Request) {
 	versionStr := chi.URLParam(r, "version")
 	permanent := r.URL.Query().Get("permanent") == "true"
 
+	// Check mode enforcement
+	if mode := h.checkModeForWrite(r, subject); mode != "" {
+		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeOperationNotPermitted,
+			fmt.Sprintf("Subject '%s' is in %s mode", subject, mode))
+		return
+	}
+
 	version, err := parseVersion(versionStr)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, types.ErrorCodeVersionNotFound, "Invalid version")
+		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidVersion,
+			fmt.Sprintf("The specified version '%s' is not a valid version id. Allowed values are between [1, 2^31-1] and the string \"latest\"", versionStr))
 		return
 	}
 
@@ -294,6 +434,11 @@ func (h *Handler) DeleteVersion(w http.ResponseWriter, r *http.Request) {
 		}
 		if errors.Is(err, storage.ErrVersionNotFound) {
 			writeError(w, http.StatusNotFound, types.ErrorCodeVersionNotFound, "Version not found")
+			return
+		}
+		if errors.Is(err, storage.ErrVersionNotSoftDeleted) {
+			writeError(w, http.StatusNotFound, types.ErrorCodeSubjectNotSoftDeleted,
+				fmt.Sprintf("Subject '%s' Version %s was not deleted first before being permanently deleted", subject, versionStr))
 			return
 		}
 		if strings.Contains(err.Error(), "referenced") {
@@ -310,6 +455,25 @@ func (h *Handler) DeleteVersion(w http.ResponseWriter, r *http.Request) {
 // GetConfig handles GET /config and GET /config/{subject}
 func (h *Handler) GetConfig(w http.ResponseWriter, r *http.Request) {
 	subject := chi.URLParam(r, "subject")
+	defaultToGlobal := r.URL.Query().Get("defaultToGlobal") == "true"
+
+	if subject != "" && !defaultToGlobal {
+		// Subject-specific config only, no fallback to global
+		level, err := h.registry.GetSubjectConfig(r.Context(), subject)
+		if err != nil {
+			if errors.Is(err, storage.ErrNotFound) {
+				writeError(w, http.StatusNotFound, types.ErrorCodeSubjectNotFound,
+					fmt.Sprintf("Subject '%s' does not have subject-level compatibility configured", subject))
+				return
+			}
+			writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, types.ConfigResponse{
+			CompatibilityLevel: level,
+		})
+		return
+	}
 
 	level, err := h.registry.GetConfig(r.Context(), subject)
 	if err != nil {
@@ -341,8 +505,8 @@ func (h *Handler) SetConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, types.ConfigResponse{
-		CompatibilityLevel: strings.ToUpper(req.Compatibility),
+	writeJSON(w, http.StatusOK, types.ConfigRequest{
+		Compatibility: strings.ToUpper(req.Compatibility),
 	})
 }
 
@@ -377,7 +541,7 @@ func (h *Handler) CheckCompatibility(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if req.Schema == "" {
-		writeError(w, http.StatusBadRequest, types.ErrorCodeInvalidSchema, "Schema is required")
+		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidSchema, "Empty schema")
 		return
 	}
 
@@ -401,17 +565,21 @@ func (h *Handler) CheckCompatibility(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if errors.Is(err, storage.ErrInvalidVersion) {
-			writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeVersionNotFound, err.Error())
+			writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidVersion, err.Error())
 			return
 		}
 		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
 		return
 	}
 
-	writeJSON(w, http.StatusOK, types.CompatibilityCheckResponse{
+	verbose := r.URL.Query().Get("verbose") == "true"
+	resp := types.CompatibilityCheckResponse{
 		IsCompatible: result.IsCompatible,
-		Messages:     result.Messages,
-	})
+	}
+	if verbose {
+		resp.Messages = result.Messages
+	}
+	writeJSON(w, http.StatusOK, resp)
 }
 
 // GetReferencedBy handles GET /subjects/{subject}/versions/{version}/referencedby
@@ -421,7 +589,23 @@ func (h *Handler) GetReferencedBy(w http.ResponseWriter, r *http.Request) {
 
 	version, err := parseVersion(versionStr)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, types.ErrorCodeVersionNotFound, "Invalid version")
+		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidVersion,
+			fmt.Sprintf("The specified version '%s' is not a valid version id. Allowed values are between [1, 2^31-1] and the string \"latest\"", versionStr))
+		return
+	}
+
+	// Verify subject and version exist first
+	_, err = h.registry.GetSchemaBySubjectVersion(r.Context(), subject, version)
+	if err != nil {
+		if errors.Is(err, storage.ErrSubjectNotFound) {
+			writeError(w, http.StatusNotFound, types.ErrorCodeSubjectNotFound, "Subject not found")
+			return
+		}
+		if errors.Is(err, storage.ErrVersionNotFound) || errors.Is(err, storage.ErrSchemaNotFound) {
+			writeError(w, http.StatusNotFound, types.ErrorCodeVersionNotFound, "Version not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
 		return
 	}
 
@@ -448,6 +632,25 @@ func (h *Handler) GetReferencedBy(w http.ResponseWriter, r *http.Request) {
 // GetMode handles GET /mode and GET /mode/{subject}
 func (h *Handler) GetMode(w http.ResponseWriter, r *http.Request) {
 	subject := chi.URLParam(r, "subject")
+	defaultToGlobal := r.URL.Query().Get("defaultToGlobal") == "true"
+
+	if subject != "" && !defaultToGlobal {
+		// Subject-specific mode only, no fallback to global
+		mode, err := h.registry.GetSubjectMode(r.Context(), subject)
+		if err != nil {
+			if errors.Is(err, storage.ErrNotFound) {
+				writeError(w, http.StatusNotFound, types.ErrorCodeSubjectNotFound,
+					fmt.Sprintf("Subject '%s' does not have subject-level mode configured", subject))
+				return
+			}
+			writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, types.ModeResponse{
+			Mode: mode,
+		})
+		return
+	}
 
 	mode, err := h.registry.GetMode(r.Context(), subject)
 	if err != nil {
@@ -463,6 +666,7 @@ func (h *Handler) GetMode(w http.ResponseWriter, r *http.Request) {
 // SetMode handles PUT /mode and PUT /mode/{subject}
 func (h *Handler) SetMode(w http.ResponseWriter, r *http.Request) {
 	subject := chi.URLParam(r, "subject")
+	force := r.URL.Query().Get("force") == "true"
 
 	var req types.ModeRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -470,9 +674,13 @@ func (h *Handler) SetMode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.registry.SetMode(r.Context(), subject, req.Mode); err != nil {
+	if err := h.registry.SetMode(r.Context(), subject, req.Mode, force); err != nil {
 		if strings.Contains(err.Error(), "invalid mode") {
 			writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidMode, err.Error())
+			return
+		}
+		if errors.Is(err, storage.ErrOperationNotPermitted) {
+			writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeOperationNotPermitted, err.Error())
 			return
 		}
 		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
@@ -484,14 +692,18 @@ func (h *Handler) SetMode(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// parseVersion parses a version string, handling "latest"
+// parseVersion parses a version string, handling "latest" and "-1".
+// Returns errInvalidVersion for non-numeric strings, zero, or negative values (other than -1).
 func parseVersion(s string) (int, error) {
-	if s == "latest" {
+	if s == "latest" || s == "-1" {
 		return -1, nil
 	}
 	v, err := strconv.Atoi(s)
-	if err != nil || v < 1 {
-		return 0, err
+	if err != nil {
+		return 0, errInvalidVersion
+	}
+	if v < 1 {
+		return 0, errInvalidVersion
 	}
 	return v, nil
 }
@@ -548,6 +760,7 @@ func (h *Handler) GetSubjectsBySchemaID(w http.ResponseWriter, r *http.Request) 
 	}
 
 	deleted := r.URL.Query().Get("deleted") == "true"
+	subjectFilter := r.URL.Query().Get("subject")
 
 	subjects, err := h.registry.GetSubjectsBySchemaID(r.Context(), id, deleted)
 	if err != nil {
@@ -556,6 +769,20 @@ func (h *Handler) GetSubjectsBySchemaID(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		return
+	}
+
+	if subjectFilter != "" {
+		var filtered []string
+		for _, s := range subjects {
+			if s == subjectFilter {
+				filtered = append(filtered, s)
+			}
+		}
+		if filtered == nil {
+			filtered = []string{}
+		}
+		writeJSON(w, http.StatusOK, filtered)
 		return
 	}
 
@@ -572,6 +799,7 @@ func (h *Handler) GetVersionsBySchemaID(w http.ResponseWriter, r *http.Request) 
 	}
 
 	deleted := r.URL.Query().Get("deleted") == "true"
+	subjectFilter := r.URL.Query().Get("subject")
 
 	versions, err := h.registry.GetVersionsBySchemaID(r.Context(), id, deleted)
 	if err != nil {
@@ -586,6 +814,9 @@ func (h *Handler) GetVersionsBySchemaID(w http.ResponseWriter, r *http.Request) 
 	// Convert to response format
 	result := make([]types.SubjectVersionPair, 0, len(versions))
 	for _, sv := range versions {
+		if subjectFilter != "" && sv.Subject != subjectFilter {
+			continue
+		}
 		result = append(result, types.SubjectVersionPair{
 			Subject: sv.Subject,
 			Version: sv.Version,
@@ -628,7 +859,7 @@ func (h *Handler) ListSchemas(w http.ResponseWriter, r *http.Request) {
 			Subject:    s.Subject,
 			Version:    s.Version,
 			ID:         s.ID,
-			SchemaType: string(s.SchemaType),
+			SchemaType: schemaTypeForResponse(s.SchemaType),
 			Schema:     s.Schema,
 			References: s.References,
 		})
@@ -716,7 +947,8 @@ func (h *Handler) GetRawSchemaByVersion(w http.ResponseWriter, r *http.Request) 
 
 	version, err := parseVersion(versionStr)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, types.ErrorCodeVersionNotFound, "Invalid version")
+		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidVersion,
+			fmt.Sprintf("The specified version '%s' is not a valid version id. Allowed values are between [1, 2^31-1] and the string \"latest\"", versionStr))
 		return
 	}
 

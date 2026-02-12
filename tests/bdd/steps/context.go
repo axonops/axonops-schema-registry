@@ -46,8 +46,18 @@ func (tc *TestContext) Reset() {
 	tc.StoredValues = make(map[string]interface{})
 }
 
+// resolveVars replaces {{key}} placeholders in a string with stored values.
+func (tc *TestContext) resolveVars(s string) string {
+	for key, val := range tc.StoredValues {
+		placeholder := "{{" + key + "}}"
+		s = strings.ReplaceAll(s, placeholder, fmt.Sprintf("%v", val))
+	}
+	return s
+}
+
 // DoRequest sends an HTTP request and stores the response.
 func (tc *TestContext) DoRequest(method, path string, body interface{}) error {
+	path = tc.resolveVars(path)
 	url := tc.BaseURL + path
 
 	var reqBody io.Reader
@@ -117,6 +127,56 @@ func (tc *TestContext) PUT(path string, body interface{}) error {
 // DELETE sends a DELETE request.
 func (tc *TestContext) DELETE(path string) error {
 	return tc.DoRequest("DELETE", path, nil)
+}
+
+// DoRawRequest sends an HTTP request with a raw string body (not JSON-marshaled).
+func (tc *TestContext) DoRawRequest(method, path string, body string) error {
+	path = tc.resolveVars(path)
+	url := tc.BaseURL + path
+
+	var reqBody io.Reader
+	if body != "" {
+		reqBody = strings.NewReader(body)
+	}
+
+	req, err := http.NewRequest(method, url, reqBody)
+	if err != nil {
+		return fmt.Errorf("create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/vnd.schemaregistry.v1+json")
+	req.Header.Set("Accept", "application/vnd.schemaregistry.v1+json")
+
+	resp, err := tc.client.Do(req)
+	if err != nil {
+		return fmt.Errorf("do request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	tc.LastResponse = resp
+	tc.LastStatusCode = resp.StatusCode
+	tc.LastBody, err = io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("read body: %w", err)
+	}
+
+	// Try to parse as JSON
+	tc.LastJSON = nil
+	tc.LastJSONArray = nil
+	if len(tc.LastBody) > 0 {
+		if tc.LastBody[0] == '{' {
+			var obj map[string]interface{}
+			if err := json.Unmarshal(tc.LastBody, &obj); err == nil {
+				tc.LastJSON = obj
+			}
+		} else if tc.LastBody[0] == '[' {
+			var arr []interface{}
+			if err := json.Unmarshal(tc.LastBody, &arr); err == nil {
+				tc.LastJSONArray = arr
+			}
+		}
+	}
+
+	return nil
 }
 
 // JSONField extracts a field from the last JSON response.

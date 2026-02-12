@@ -14,7 +14,7 @@ Feature: API Endpoint Behaviors Advanced
     And I store the response field "id" as "schema_id"
     When I get version 1 of subject "default-type-test"
     Then the response status should be 200
-    And the response field "schemaType" should be "AVRO"
+    And the response should not have field "schemaType"
 
   # --- Schema type accepted in any case ---
 
@@ -26,7 +26,7 @@ Feature: API Endpoint Behaviors Advanced
     Then the response status should be 200
     When I get version 1 of subject "case-type-lower"
     Then the response status should be 200
-    And the response field "schemaType" should be "AVRO"
+    And the response should not have field "schemaType"
 
   # --- GET /schemas/types returns all three types ---
 

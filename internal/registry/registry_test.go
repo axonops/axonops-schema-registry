@@ -583,7 +583,7 @@ func TestSetMode(t *testing.T) {
 	reg := setupTestRegistry("NONE")
 	ctx := context.Background()
 
-	err := reg.SetMode(ctx, "my-subject", "READONLY")
+	err := reg.SetMode(ctx, "my-subject", "READONLY", false)
 	if err != nil {
 		t.Fatalf("failed to set mode: %v", err)
 	}
@@ -601,7 +601,7 @@ func TestSetMode_Global(t *testing.T) {
 	reg := setupTestRegistry("NONE")
 	ctx := context.Background()
 
-	err := reg.SetMode(ctx, "", "IMPORT")
+	err := reg.SetMode(ctx, "", "IMPORT", true)
 	if err != nil {
 		t.Fatalf("failed to set global mode: %v", err)
 	}
@@ -619,7 +619,7 @@ func TestSetMode_Invalid(t *testing.T) {
 	reg := setupTestRegistry("NONE")
 	ctx := context.Background()
 
-	err := reg.SetMode(ctx, "", "INVALID")
+	err := reg.SetMode(ctx, "", "INVALID", false)
 	if err == nil {
 		t.Error("expected error for invalid mode")
 	}
@@ -631,7 +631,7 @@ func TestSetMode_AllValidModes(t *testing.T) {
 
 	validModes := []string{"READWRITE", "READONLY", "IMPORT"}
 	for _, mode := range validModes {
-		err := reg.SetMode(ctx, "", mode)
+		err := reg.SetMode(ctx, "", mode, true)
 		if err != nil {
 			t.Errorf("mode %s should be valid: %v", mode, err)
 		}
@@ -642,7 +642,7 @@ func TestSetMode_CaseInsensitive(t *testing.T) {
 	reg := setupTestRegistry("NONE")
 	ctx := context.Background()
 
-	err := reg.SetMode(ctx, "", "readonly")
+	err := reg.SetMode(ctx, "", "readonly", false)
 	if err != nil {
 		t.Fatalf("expected lowercase to be accepted: %v", err)
 	}
@@ -652,7 +652,7 @@ func TestDeleteMode(t *testing.T) {
 	reg := setupTestRegistry("NONE")
 	ctx := context.Background()
 
-	err := reg.SetMode(ctx, "my-subject", "READONLY")
+	err := reg.SetMode(ctx, "my-subject", "READONLY", false)
 	if err != nil {
 		t.Fatalf("failed to set mode: %v", err)
 	}

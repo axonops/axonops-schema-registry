@@ -34,14 +34,16 @@ Feature: Configuration and Mode Management Advanced
 
   # --- Delete subject config falls back to global ---
 
-  Scenario: Delete subject config causes fallback to global
+  Scenario: Delete subject config causes fallback to global with defaultToGlobal
     Given the global compatibility level is "FULL"
     And subject "fallback-cfg" has compatibility level "NONE"
     When I get the config for subject "fallback-cfg"
     Then the response field "compatibilityLevel" should be "NONE"
     When I delete the config for subject "fallback-cfg"
     Then the response status should be 200
-    When I get the config for subject "fallback-cfg"
+    When I GET "/config/fallback-cfg"
+    Then the response status should be 404
+    When I GET "/config/fallback-cfg?defaultToGlobal=true"
     Then the response status should be 200
     And the response field "compatibilityLevel" should be "FULL"
 
@@ -80,13 +82,13 @@ Feature: Configuration and Mode Management Advanced
       {"compatibility": "backward"}
       """
     Then the response status should be 200
-    And the response field "compatibilityLevel" should be "BACKWARD"
+    And the response field "compatibility" should be "BACKWARD"
     When I PUT "/config" with body:
       """
       {"compatibility": "Forward_Transitive"}
       """
     Then the response status should be 200
-    And the response field "compatibilityLevel" should be "FORWARD_TRANSITIVE"
+    And the response field "compatibility" should be "FORWARD_TRANSITIVE"
 
   # --- Set and get all 3 valid mode values ---
 
@@ -124,10 +126,16 @@ Feature: Configuration and Mode Management Advanced
 
   # --- Mode fallback to global ---
 
-  Scenario: Subject mode not set falls back to global mode
+  Scenario: Subject mode not set returns 404 without defaultToGlobal
     When I set the global mode to "READONLY"
     Then the response status should be 200
     When I get the mode for subject "no-mode-set-subject"
+    Then the response status should be 404
+
+  Scenario: Subject mode not set falls back to global with defaultToGlobal
+    When I set the global mode to "READONLY"
+    Then the response status should be 200
+    When I GET "/mode/no-mode-set-subject2?defaultToGlobal=true"
     Then the response status should be 200
     And the response field "mode" should be "READONLY"
 

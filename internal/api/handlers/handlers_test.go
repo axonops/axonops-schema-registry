@@ -497,8 +497,8 @@ func TestGetVersion_InvalidVersion(t *testing.T) {
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("expected 400, got %d", w.Code)
+	if w.Code != http.StatusUnprocessableEntity {
+		t.Errorf("expected 422, got %d", w.Code)
 	}
 }
 
@@ -564,8 +564,8 @@ func TestGetRawSchemaByVersion_InvalidVersion(t *testing.T) {
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("expected 400, got %d", w.Code)
+	if w.Code != http.StatusUnprocessableEntity {
+		t.Errorf("expected 422, got %d", w.Code)
 	}
 }
 
@@ -610,8 +610,8 @@ func TestRegisterSchema_EmptySchema(t *testing.T) {
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("expected 400, got %d", w.Code)
+	if w.Code != http.StatusUnprocessableEntity {
+		t.Errorf("expected 422, got %d", w.Code)
 	}
 }
 
@@ -813,8 +813,8 @@ func TestLookupSchema_EmptySchema(t *testing.T) {
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("expected 400, got %d", w.Code)
+	if w.Code != http.StatusUnprocessableEntity {
+		t.Errorf("expected 422, got %d", w.Code)
 	}
 }
 
@@ -949,8 +949,8 @@ func TestDeleteVersion_InvalidVersion(t *testing.T) {
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("expected 400, got %d", w.Code)
+	if w.Code != http.StatusUnprocessableEntity {
+		t.Errorf("expected 422, got %d", w.Code)
 	}
 }
 
@@ -996,10 +996,10 @@ func TestSetConfig_Global(t *testing.T) {
 		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
 	}
 
-	var resp types.ConfigResponse
+	var resp types.ConfigRequest
 	json.NewDecoder(w.Body).Decode(&resp)
-	if resp.CompatibilityLevel != "FULL" {
-		t.Errorf("expected FULL, got %s", resp.CompatibilityLevel)
+	if resp.Compatibility != "FULL" {
+		t.Errorf("expected FULL, got %s", resp.Compatibility)
 	}
 }
 
@@ -1279,7 +1279,7 @@ func TestCheckCompatibility_Incompatible(t *testing.T) {
 	body := types.CompatibilityCheckRequest{Schema: schema2}
 	bodyBytes, _ := json.Marshal(body)
 
-	req := httptest.NewRequest("POST", "/compatibility/subjects/test/versions/latest", bytes.NewReader(bodyBytes))
+	req := httptest.NewRequest("POST", "/compatibility/subjects/test/versions/latest?verbose=true", bytes.NewReader(bodyBytes))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -1338,8 +1338,8 @@ func TestCheckCompatibility_EmptySchema(t *testing.T) {
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("expected 400, got %d", w.Code)
+	if w.Code != http.StatusUnprocessableEntity {
+		t.Errorf("expected 422, got %d", w.Code)
 	}
 }
 
@@ -1629,7 +1629,7 @@ func TestGetReferencedBy_InvalidVersion(t *testing.T) {
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("expected 400, got %d", w.Code)
+	if w.Code != http.StatusUnprocessableEntity {
+		t.Errorf("expected 422, got %d", w.Code)
 	}
 }

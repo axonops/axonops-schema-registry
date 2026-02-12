@@ -468,7 +468,7 @@ func TestServer_CompatibilityCheckIncompatible(t *testing.T) {
 	checkBody := types.CompatibilityCheckRequest{Schema: schema2}
 	checkBytes, _ := json.Marshal(checkBody)
 
-	req = httptest.NewRequest("POST", "/compatibility/subjects/test-subject/versions/latest", bytes.NewReader(checkBytes))
+	req = httptest.NewRequest("POST", "/compatibility/subjects/test-subject/versions/latest?verbose=true", bytes.NewReader(checkBytes))
 	req.Header.Set("Content-Type", "application/json")
 	w = httptest.NewRecorder()
 

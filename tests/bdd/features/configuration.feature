@@ -19,11 +19,13 @@ Feature: Configuration
     When I get the config for subject "my-subject"
     Then the response field "compatibilityLevel" should be "NONE"
 
-  Scenario: Delete per-subject compatibility falls back to global
+  Scenario: Delete per-subject compatibility falls back to global with defaultToGlobal
     Given subject "my-subject" has compatibility level "FORWARD"
     When I delete the config for subject "my-subject"
     Then the response status should be 200
     When I get the config for subject "my-subject"
+    Then the response status should be 404
+    When I GET "/config/my-subject?defaultToGlobal=true"
     Then the response status should be 200
     And the response field "compatibilityLevel" should be "BACKWARD"
 

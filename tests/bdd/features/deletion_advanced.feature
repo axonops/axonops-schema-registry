@@ -81,6 +81,8 @@ Feature: Advanced Schema Deletion
       """
       {"type":"record","name":"V2","fields":[{"name":"b","type":"string"}]}
       """
+    When I delete version 1 of subject "del-adv-perm-ver"
+    Then the response status should be 200
     When I permanently delete version 1 of subject "del-adv-perm-ver"
     Then the response status should be 200
     When I GET "/subjects/del-adv-perm-ver/versions?deleted=true"
@@ -92,6 +94,8 @@ Feature: Advanced Schema Deletion
       """
       {"type":"record","name":"Gone","fields":[{"name":"v","type":"string"}]}
       """
+    When I delete subject "del-adv-perm-sub"
+    Then the response status should be 200
     When I permanently delete subject "del-adv-perm-sub"
     Then the response status should be 200
     When I list subjects with deleted
@@ -132,6 +136,8 @@ Feature: Advanced Schema Deletion
       """
       {"type":"record","name":"Older","fields":[{"name":"b","type":"string"}]}
       """
+    When I delete subject "del-adv-fresh"
+    Then the response status should be 200
     When I permanently delete subject "del-adv-fresh"
     Then the response status should be 200
     When I register a schema under subject "del-adv-fresh":
@@ -192,7 +198,7 @@ Feature: Advanced Schema Deletion
   # SOFT DELETE THEN PERMANENT DELETE SAME RESOURCE
   # ==========================================================================
 
-  Scenario: Permanent delete version directly removes it
+  Scenario: Soft delete then permanent delete version removes it
     Given the global compatibility level is "NONE"
     And subject "del-adv-two-step-ver" has schema:
       """
@@ -202,6 +208,8 @@ Feature: Advanced Schema Deletion
       """
       {"type":"record","name":"V2","fields":[{"name":"b","type":"string"}]}
       """
+    When I delete version 1 of subject "del-adv-two-step-ver"
+    Then the response status should be 200
     When I permanently delete version 1 of subject "del-adv-two-step-ver"
     Then the response status should be 200
     When I list versions of subject "del-adv-two-step-ver"
@@ -265,6 +273,8 @@ Feature: Advanced Schema Deletion
       """
     Then the response status should be 200
     And I store the response field "id" as "gone_id"
+    When I delete subject "del-adv-id-gone"
+    Then the response status should be 200
     When I permanently delete subject "del-adv-id-gone"
     Then the response status should be 200
     # After permanent deletion of the only subject-version, the schema ID should no longer resolve

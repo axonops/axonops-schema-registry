@@ -18,10 +18,9 @@ Feature: API Error Codes
     Then the response status should be 404
     And the response should have error code 40401
 
-  Scenario: Get config of non-existent subject falls back to global
+  Scenario: Get config of non-existent subject returns 404 by default
     When I get the config for subject "nonexistent"
-    Then the response status should be 200
-    And the response field "compatibilityLevel" should be "BACKWARD"
+    Then the response status should be 404
 
   # --- 40402: Version not found ---
 
@@ -126,4 +125,4 @@ Feature: API Error Codes
       """
 
       """
-    Then the response status should be 400
+    Then the response status should be 422

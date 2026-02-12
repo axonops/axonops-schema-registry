@@ -34,7 +34,7 @@ type SubjectVersionResponse struct {
 	Subject    string              `json:"subject"`
 	ID         int64               `json:"id"`
 	Version    int                 `json:"version"`
-	SchemaType string              `json:"schemaType"`
+	SchemaType string              `json:"schemaType,omitempty"`
 	Schema     string              `json:"schema"`
 	References []storage.Reference `json:"references,omitempty"`
 }
@@ -51,7 +51,7 @@ type LookupSchemaResponse struct {
 	Subject    string              `json:"subject"`
 	ID         int64               `json:"id"`
 	Version    int                 `json:"version"`
-	SchemaType string              `json:"schemaType"`
+	SchemaType string              `json:"schemaType,omitempty"`
 	Schema     string              `json:"schema"`
 	References []storage.Reference `json:"references,omitempty"`
 }
@@ -134,6 +134,7 @@ const (
 	ErrorCodeIncompatibleSchema        = 409
 	ErrorCodeInvalidSchema             = 42201
 	ErrorCodeInvalidSchemaType         = 42202
+	ErrorCodeInvalidVersion            = 42202 // Confluent uses 42202 for both invalid schema type and invalid version
 	ErrorCodeInvalidCompatibilityLevel = 42203
 	ErrorCodeInvalidMode               = 42204
 	ErrorCodeOperationNotPermitted     = 42205

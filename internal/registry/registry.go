@@ -207,7 +207,10 @@ func (r *Registry) CheckCompatibility(ctx context.Context, subject string, schem
 		}
 		schema, err := r.storage.GetSchemaBySubjectVersion(ctx, subject, versionNum)
 		if err != nil {
-			if errors.Is(err, storage.ErrSubjectNotFound) || errors.Is(err, storage.ErrVersionNotFound) {
+			if errors.Is(err, storage.ErrSubjectNotFound) {
+				return nil, fmt.Errorf("%w: %s", storage.ErrSubjectNotFound, subject)
+			}
+			if errors.Is(err, storage.ErrVersionNotFound) {
 				return nil, fmt.Errorf("%w: version %d for subject %s", storage.ErrVersionNotFound, versionNum, subject)
 			}
 			return nil, err
@@ -294,14 +297,27 @@ func (r *Registry) DeleteSubject(ctx context.Context, subject string, permanent 
 
 // DeleteVersion deletes a specific version.
 func (r *Registry) DeleteVersion(ctx context.Context, subject string, version int, permanent bool) (int, error) {
-	// First verify the schema exists
+	if permanent {
+		// For permanent delete, the version must already be soft-deleted.
+		// The storage layer validates this (returns ErrVersionNotSoftDeleted if not).
+		// We skip GetSchemaBySubjectVersion because it filters out soft-deleted versions.
+		if err := r.storage.DeleteSchema(ctx, subject, version, permanent); err != nil {
+			return 0, err
+		}
+		return version, nil
+	}
+
+	// Soft-delete: verify the schema exists (non-deleted)
 	schema, err := r.storage.GetSchemaBySubjectVersion(ctx, subject, version)
 	if err != nil {
 		return 0, err
 	}
 
-	// Check for references
-	refs, err := r.storage.GetReferencedBy(ctx, subject, version)
+	// Use the resolved version (handles "latest" / -1 → actual version number)
+	resolvedVersion := schema.Version
+
+	// Check for references - only block soft-delete when referenced
+	refs, err := r.storage.GetReferencedBy(ctx, subject, resolvedVersion)
 	if err != nil {
 		return 0, err
 	}
@@ -309,11 +325,11 @@ func (r *Registry) DeleteVersion(ctx context.Context, subject string, version in
 		return 0, fmt.Errorf("schema is referenced by other schemas")
 	}
 
-	if err := r.storage.DeleteSchema(ctx, subject, version, permanent); err != nil {
+	if err := r.storage.DeleteSchema(ctx, subject, resolvedVersion, permanent); err != nil {
 		return 0, err
 	}
 
-	return schema.Version, nil
+	return resolvedVersion, nil
 }
 
 // GetConfig gets the compatibility configuration for a subject.
@@ -335,6 +351,16 @@ func (r *Registry) GetConfig(ctx context.Context, subject string) (string, error
 		return "", err
 	}
 
+	return config.CompatibilityLevel, nil
+}
+
+// GetSubjectConfig gets the compatibility configuration for a specific subject only,
+// without falling back to the global default. Returns storage.ErrNotFound if not set.
+func (r *Registry) GetSubjectConfig(ctx context.Context, subject string) (string, error) {
+	config, err := r.storage.GetConfig(ctx, subject)
+	if err != nil {
+		return "", err
+	}
 	return config.CompatibilityLevel, nil
 }
 
@@ -370,7 +396,7 @@ func (r *Registry) DeleteConfig(ctx context.Context, subject string) (string, er
 	return config.CompatibilityLevel, nil
 }
 
-// GetMode gets the mode for a subject.
+// GetMode gets the mode for a subject (with fallback to global).
 func (r *Registry) GetMode(ctx context.Context, subject string) (string, error) {
 	if subject == "" {
 		mode, err := r.storage.GetGlobalMode(ctx)
@@ -391,11 +417,36 @@ func (r *Registry) GetMode(ctx context.Context, subject string) (string, error) 
 	return mode.Mode, nil
 }
 
+// GetSubjectMode gets the mode for a specific subject only,
+// without falling back to the global default. Returns storage.ErrNotFound if not set.
+func (r *Registry) GetSubjectMode(ctx context.Context, subject string) (string, error) {
+	mode, err := r.storage.GetMode(ctx, subject)
+	if err != nil {
+		return "", err
+	}
+	return mode.Mode, nil
+}
+
 // SetMode sets the mode for a subject.
-func (r *Registry) SetMode(ctx context.Context, subject string, mode string) error {
+// If switching to IMPORT mode and force is false, it checks that no schemas exist.
+func (r *Registry) SetMode(ctx context.Context, subject string, mode string, force bool) error {
 	mode = strings.ToUpper(mode)
 	if !isValidMode(mode) {
 		return fmt.Errorf("invalid mode: %s", mode)
+	}
+
+	// Confluent behavior: switching to IMPORT requires force=true if schemas exist
+	if mode == "IMPORT" && !force {
+		currentMode, _ := r.GetMode(ctx, subject)
+		if currentMode != "IMPORT" {
+			hasSchemas, err := r.hasSubjects(ctx, subject)
+			if err != nil {
+				return err
+			}
+			if hasSchemas {
+				return storage.ErrOperationNotPermitted
+			}
+		}
 	}
 
 	modeRecord := &storage.ModeRecord{
@@ -407,6 +458,24 @@ func (r *Registry) SetMode(ctx context.Context, subject string, mode string) err
 	}
 
 	return r.storage.SetMode(ctx, subject, modeRecord)
+}
+
+// hasSubjects checks if any non-deleted schemas exist for the given subject (or globally if subject is empty).
+func (r *Registry) hasSubjects(ctx context.Context, subject string) (bool, error) {
+	if subject == "" {
+		// Check if any subjects exist globally
+		subjects, err := r.storage.ListSubjects(ctx, false)
+		if err != nil {
+			return false, err
+		}
+		return len(subjects) > 0, nil
+	}
+	// Check if the specific subject has schemas
+	exists, err := r.storage.SubjectExists(ctx, subject)
+	if err != nil {
+		return false, err
+	}
+	return exists, nil
 }
 
 // GetReferencedBy gets subjects/versions that reference a schema.
@@ -650,9 +719,10 @@ func isValidCompatibility(level string) bool {
 
 func isValidMode(mode string) bool {
 	valid := map[string]bool{
-		"READWRITE": true,
-		"READONLY":  true,
-		"IMPORT":    true,
+		"READWRITE":         true,
+		"READONLY":          true,
+		"READONLY_OVERRIDE": true,
+		"IMPORT":            true,
 	}
 	return valid[mode]
 }

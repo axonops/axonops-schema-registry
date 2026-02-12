@@ -36,7 +36,7 @@ Feature: Schema Lookup
       {"type":"record","name":"Ghost","fields":[{"name":"id","type":"long"}]}
       """
     Then the response status should be 404
-    And the response should have error code 40403
+    And the response should have error code 40401
 
   Scenario: Lookup existing Protobuf schema with schemaType specified
     Given subject "proto-lookup" has "PROTOBUF" schema:
@@ -153,5 +153,5 @@ Feature: Schema Lookup
     When I lookup schema in subject "empty-lookup":
       """
       """
-    Then the response status should be 400
+    Then the response status should be 422
     And the response should have error code 42201

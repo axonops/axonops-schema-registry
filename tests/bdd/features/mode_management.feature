@@ -26,11 +26,13 @@ Feature: Mode Management
     Then the response status should be 200
     And the response field "mode" should be "READONLY"
 
-  Scenario: Delete per-subject mode falls back to global
+  Scenario: Delete per-subject mode falls back to global with defaultToGlobal
     Given subject "mode-subj" has mode "READONLY"
     When I delete the mode for subject "mode-subj"
     Then the response status should be 200
     When I get the mode for subject "mode-subj"
+    Then the response status should be 404
+    When I GET "/mode/mode-subj?defaultToGlobal=true"
     Then the response status should be 200
     And the response field "mode" should be "READWRITE"
 

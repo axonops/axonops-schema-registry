@@ -33,11 +33,13 @@ Feature: Schema Deletion
     Then the response should be an array of length 1
     And the response array should contain "soft-del-vis"
 
-  Scenario: Permanent delete removes subject completely
+  Scenario: Permanent delete removes subject completely (two-step)
     Given subject "perm-value" has schema:
       """
       {"type":"record","name":"Perm","fields":[{"name":"v","type":"string"}]}
       """
+    When I delete subject "perm-value"
+    Then the response status should be 200
     When I permanently delete subject "perm-value"
     Then the response status should be 200
     When I list all subjects

@@ -170,7 +170,7 @@ func RegisterSchemaSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 	})
 	ctx.Step(`^I set the global mode to "([^"]*)"$`, func(mode string) error {
 		body := map[string]interface{}{"mode": mode}
-		return tc.PUT("/mode", body)
+		return tc.PUT("/mode?force=true", body)
 	})
 	ctx.Step(`^I get the subjects for schema ID (\d+)$`, func(id int) error {
 		return tc.GET(fmt.Sprintf("/schemas/ids/%d/subjects", id))
@@ -354,5 +354,78 @@ func RegisterSchemaSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 			return fmt.Errorf("message %q does not match pattern %q", msg, pattern)
 		}
 		return nil
+	})
+
+	// --- Additional assertion steps ---
+
+	// Response body is a plain integer (e.g., delete version returns just "1")
+	ctx.Step(`^the response should be an integer with value (\d+)$`, func(expected int) error {
+		body := strings.TrimSpace(string(tc.LastBody))
+		actual, err := strconv.Atoi(body)
+		if err != nil {
+			return fmt.Errorf("response body is not an integer: %q", body)
+		}
+		if actual != expected {
+			return fmt.Errorf("expected integer %d, got %d", expected, actual)
+		}
+		return nil
+	})
+
+	// Response array contains a specific integer (e.g., [1, 2, 3] contains 2)
+	ctx.Step(`^the response array should contain integer (\d+)$`, func(expected int) error {
+		if tc.LastJSONArray == nil {
+			return fmt.Errorf("response is not a JSON array: %s", string(tc.LastBody))
+		}
+		for _, v := range tc.LastJSONArray {
+			if num, ok := v.(float64); ok && int(num) == expected {
+				return nil
+			}
+		}
+		return fmt.Errorf("array does not contain integer %d: %s", expected, string(tc.LastBody))
+	})
+
+	// Response field is an array
+	ctx.Step(`^the response field "([^"]*)" should be an array$`, func(field string) error {
+		val, err := tc.JSONField(field)
+		if err != nil {
+			return err
+		}
+		if _, ok := val.([]interface{}); !ok {
+			return fmt.Errorf("field %q is not an array: %T = %v", field, val, val)
+		}
+		return nil
+	})
+
+	// Response field is an array of specific length
+	ctx.Step(`^the response field "([^"]*)" should be an array of length (\d+)$`, func(field string, expected int) error {
+		val, err := tc.JSONField(field)
+		if err != nil {
+			return err
+		}
+		arr, ok := val.([]interface{})
+		if !ok {
+			return fmt.Errorf("field %q is not an array: %T = %v", field, val, val)
+		}
+		if len(arr) != expected {
+			return fmt.Errorf("field %q array length: expected %d, got %d", field, expected, len(arr))
+		}
+		return nil
+	})
+
+	// Response header check
+	ctx.Step(`^the response header "([^"]*)" should contain "([^"]*)"$`, func(header, expected string) error {
+		if tc.LastResponse == nil {
+			return fmt.Errorf("no response available")
+		}
+		actual := tc.LastResponse.Header.Get(header)
+		if !strings.Contains(actual, expected) {
+			return fmt.Errorf("header %q = %q does not contain %q", header, actual, expected)
+		}
+		return nil
+	})
+
+	// Send raw POST with a raw string body (not JSON-marshaled)
+	ctx.Step(`^I POST "([^"]*)" with raw body "([^"]*)"$`, func(path, body string) error {
+		return tc.DoRawRequest("POST", path, body)
 	})
 }

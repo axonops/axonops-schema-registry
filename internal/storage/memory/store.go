@@ -261,6 +261,11 @@ func (s *Store) GetSchemasBySubject(ctx context.Context, subject string, include
 		}
 	}
 
+	// If no schemas matched (all were deleted and includeDeleted=false), return not found
+	if len(schemas) == 0 {
+		return nil, storage.ErrSubjectNotFound
+	}
+
 	// Sort by version
 	sort.Slice(schemas, func(i, j int) bool {
 		return schemas[i].Version < schemas[j].Version
@@ -274,9 +279,23 @@ func (s *Store) GetSchemaByFingerprint(ctx context.Context, subject, fingerprint
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	subjectVersionMap := s.subjectVersions[subject]
-	if len(subjectVersionMap) == 0 {
-		return nil, storage.ErrSchemaNotFound
+	subjectVersionMap, exists := s.subjectVersions[subject]
+	if !exists || len(subjectVersionMap) == 0 {
+		return nil, storage.ErrSubjectNotFound
+	}
+
+	// Check if subject has any non-deleted versions (if not including deleted)
+	if !includeDeleted {
+		hasActive := false
+		for _, info := range subjectVersionMap {
+			if !info.deleted {
+				hasActive = true
+				break
+			}
+		}
+		if !hasActive {
+			return nil, storage.ErrSubjectNotFound
+		}
 	}
 
 	// Find a version in this subject with the matching fingerprint
@@ -378,6 +397,10 @@ func (s *Store) DeleteSchema(ctx context.Context, subject string, version int, p
 		return storage.ErrVersionNotFound
 	}
 
+	if permanent && !info.deleted {
+		return storage.ErrVersionNotSoftDeleted
+	}
+
 	if permanent {
 		// Remove from subject versions
 		delete(subjectVersionMap, version)
@@ -441,6 +464,27 @@ func (s *Store) DeleteSubject(ctx context.Context, subject string, permanent boo
 	subjectVersionMap := s.subjectVersions[subject]
 	if len(subjectVersionMap) == 0 {
 		return nil, storage.ErrSubjectNotFound
+	}
+
+	// Check if all versions are already soft-deleted
+	allDeleted := true
+	for _, info := range subjectVersionMap {
+		if !info.deleted {
+			allDeleted = false
+			break
+		}
+	}
+
+	if permanent {
+		// For permanent delete, verify all versions are already soft-deleted
+		if !allDeleted {
+			return nil, storage.ErrSubjectNotSoftDeleted
+		}
+	} else {
+		// For soft-delete, if all versions already soft-deleted → subject is already deleted
+		if allDeleted {
+			return nil, storage.ErrSubjectDeleted
+		}
 	}
 
 	var deletedVersions []int

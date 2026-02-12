@@ -14,8 +14,10 @@ var (
 	ErrSchemaNotFound   = errors.New("schema not found")
 	ErrVersionNotFound  = errors.New("version not found")
 	ErrInvalidVersion   = errors.New("invalid version")
-	ErrSubjectDeleted   = errors.New("subject has been deleted")
-	ErrSchemaExists     = errors.New("schema already exists")
+	ErrSubjectDeleted        = errors.New("subject has been deleted")
+	ErrSubjectNotSoftDeleted = errors.New("subject must be soft-deleted before being permanently deleted")
+	ErrVersionNotSoftDeleted = errors.New("version must be soft-deleted before being permanently deleted")
+	ErrSchemaExists          = errors.New("schema already exists")
 	ErrUserNotFound     = errors.New("user not found")
 	ErrUserExists       = errors.New("user already exists")
 	ErrAPIKeyNotFound   = errors.New("API key not found")
@@ -27,7 +29,8 @@ var (
 	ErrUserDisabled     = errors.New("user is disabled")
 	ErrInvalidRole      = errors.New("invalid role")
 	ErrPermissionDenied = errors.New("permission denied")
-	ErrSchemaIDConflict = errors.New("schema ID already exists")
+	ErrSchemaIDConflict      = errors.New("schema ID already exists")
+	ErrOperationNotPermitted = errors.New("Cannot import since found existing subjects")
 )
 
 // SchemaType represents the type of schema.
