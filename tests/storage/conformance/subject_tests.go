@@ -123,6 +123,11 @@ func RunSubjectTests(t *testing.T, newStore StoreFactory) {
 		rec := &storage.SchemaRecord{Subject: "s", SchemaType: storage.SchemaTypeAvro, Schema: `{"type":"string"}`, Fingerprint: "fp-dsp"}
 		store.CreateSchema(ctx, rec)
 
+		// Must soft-delete before permanent delete (two-step delete)
+		_, err := store.DeleteSubject(ctx, "s", false)
+		if err != nil {
+			t.Fatalf("DeleteSubject(soft): %v", err)
+		}
 		versions, err := store.DeleteSubject(ctx, "s", true)
 		if err != nil {
 			t.Fatalf("DeleteSubject(permanent): %v", err)

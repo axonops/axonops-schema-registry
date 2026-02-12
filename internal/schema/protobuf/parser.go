@@ -135,7 +135,7 @@ func (p *ParsedProtobuf) FormattedString(format string) string {
 // toFileDescriptorProto converts a protoreflect.FileDescriptor to a descriptorpb.FileDescriptorProto.
 func toFileDescriptorProto(fd protoreflect.FileDescriptor) *descriptorpb.FileDescriptorProto {
 	fdp := &descriptorpb.FileDescriptorProto{}
-	name := string(fd.Path())
+	name := fd.Path()
 	fdp.Name = &name
 	if fd.Package() != "" {
 		pkg := string(fd.Package())
@@ -149,7 +149,7 @@ func toFileDescriptorProto(fd protoreflect.FileDescriptor) *descriptorpb.FileDes
 
 	// Dependencies
 	for i := 0; i < fd.Imports().Len(); i++ {
-		fdp.Dependency = append(fdp.Dependency, string(fd.Imports().Get(i).Path()))
+		fdp.Dependency = append(fdp.Dependency, fd.Imports().Get(i).Path())
 	}
 
 	// Messages
@@ -210,7 +210,7 @@ func fieldToProto(fd protoreflect.FieldDescriptor) *descriptorpb.FieldDescriptor
 		fp.TypeName = &tn
 	}
 	if fd.ContainingOneof() != nil {
-		idx := int32(fd.ContainingOneof().Index())
+		idx := int32(fd.ContainingOneof().Index()) // #nosec G115 -- oneof index is always small
 		fp.OneofIndex = &idx
 	}
 	return fp
