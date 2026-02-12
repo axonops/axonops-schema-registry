@@ -758,7 +758,7 @@ func (s *Store) GetSchemasBySubject(ctx context.Context, subject string, include
 	}
 
 	if len(entries) == 0 {
-		return []*storage.SchemaRecord{}, nil
+		return nil, storage.ErrSubjectNotFound
 	}
 
 	sort.Slice(entries, func(i, j int) bool { return entries[i].version < entries[j].version })
@@ -809,7 +809,18 @@ func (s *Store) GetSchemaByFingerprint(ctx context.Context, subject, fp string, 
 			return rec, nil
 		}
 	}
-	iter.Close()
+	if err := iter.Close(); err != nil {
+		return nil, err
+	}
+
+	// Check if subject exists at all
+	_, _, subjectExists, subErr := s.getSubjectLatest(ctx, subject)
+	if subErr != nil {
+		return nil, subErr
+	}
+	if !subjectExists {
+		return nil, storage.ErrSubjectNotFound
+	}
 
 	return nil, storage.ErrSchemaNotFound
 }

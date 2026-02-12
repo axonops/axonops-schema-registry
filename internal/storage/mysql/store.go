@@ -639,14 +639,14 @@ func (s *Store) GetSchemasBySubject(ctx context.Context, subject string, include
 	}
 
 	if len(schemas) == 0 {
-		if !includeDeleted {
-			var count int
-			_ = s.db.QueryRowContext(ctx,
-				"SELECT COUNT(*) FROM `schemas` WHERE subject = ?", subject).Scan(&count)
-			if count > 0 {
-				return []*storage.SchemaRecord{}, nil
-			}
+		// Check if subject exists at all (including deleted versions)
+		var count int
+		_ = s.db.QueryRowContext(ctx,
+			"SELECT COUNT(*) FROM `schemas` WHERE subject = ?", subject).Scan(&count)
+		if count == 0 {
+			return nil, storage.ErrSubjectNotFound
 		}
+		// Subject exists but all versions are soft-deleted
 		return nil, storage.ErrSubjectNotFound
 	}
 
@@ -672,6 +672,13 @@ func (s *Store) GetSchemaByFingerprint(ctx context.Context, subject, fingerprint
 	}
 
 	if err == sql.ErrNoRows {
+		// Check if subject exists at all
+		var count int
+		_ = s.db.QueryRowContext(ctx,
+			"SELECT COUNT(*) FROM `schemas` WHERE subject = ?", subject).Scan(&count)
+		if count == 0 {
+			return nil, storage.ErrSubjectNotFound
+		}
 		return nil, storage.ErrSchemaNotFound
 	}
 	if err != nil {
@@ -1074,7 +1081,7 @@ func (s *Store) NextID(ctx context.Context) (int64, error) {
 // GetMaxSchemaID returns the highest schema ID currently assigned.
 func (s *Store) GetMaxSchemaID(ctx context.Context) (int64, error) {
 	var maxID int64
-	err := s.db.QueryRowContext(ctx, `SELECT COALESCE(MAX(id), 0) FROM schemas`).Scan(&maxID)
+	err := s.db.QueryRowContext(ctx, "SELECT COALESCE(MAX(id), 0) FROM `schemas`").Scan(&maxID)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get max schema ID: %w", err)
 	}
