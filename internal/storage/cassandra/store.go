@@ -665,6 +665,22 @@ func (s *Store) GetSchemaByID(ctx context.Context, id int64) (*storage.SchemaRec
 		CreatedAt:  createdUUID.Time(),
 	}
 
+	// Load references for this schema
+	refIter := s.readQuery(
+		fmt.Sprintf(`SELECT name, ref_subject, ref_version FROM %s.schema_references WHERE schema_id = ?`, qident(s.cfg.Keyspace)),
+		int(id),
+	).WithContext(ctx).Iter()
+	var refName, refSubject string
+	var refVersion int
+	for refIter.Scan(&refName, &refSubject, &refVersion) {
+		rec.References = append(rec.References, storage.Reference{
+			Name:    refName,
+			Subject: refSubject,
+			Version: refVersion,
+		})
+	}
+	refIter.Close()
+
 	// Look up the first subject/version that uses this schema ID
 	versions, err := s.GetVersionsBySchemaID(ctx, id, false)
 	if err == nil && len(versions) > 0 {
@@ -930,14 +946,65 @@ func (s *Store) DeleteSchema(ctx context.Context, subject string, version int, p
 		if !deleted {
 			return storage.ErrVersionNotSoftDeleted
 		}
-		return s.writeQuery(
+		if err := s.writeQuery(
 			fmt.Sprintf(`DELETE FROM %s.subject_versions WHERE subject = ? AND version = ?`, qident(s.cfg.Keyspace)),
 			subject, version,
-		).WithContext(ctx).Exec()
+		).WithContext(ctx).Exec(); err != nil {
+			return err
+		}
+		// Check if any subject_versions still reference this schema_id.
+		// If none, clean up schemas_by_id and schemas_by_fingerprint.
+		s.cleanupOrphanedSchema(ctx, existingSchemaID)
+		return nil
 	}
 	return s.writeQuery(
 		fmt.Sprintf(`UPDATE %s.subject_versions SET deleted = true WHERE subject = ? AND version = ?`, qident(s.cfg.Keyspace)),
 		subject, version,
+	).WithContext(ctx).Exec()
+}
+
+// cleanupOrphanedSchema removes a schema from schemas_by_id and schemas_by_fingerprint
+// if no subject_versions reference it anymore.
+func (s *Store) cleanupOrphanedSchema(ctx context.Context, schemaID int) {
+	// Check all subjects to see if any still reference this schema_id
+	allSubjects, err := s.ListSubjects(ctx, true)
+	if err != nil {
+		return
+	}
+	for _, subject := range allSubjects {
+		iter := s.readQuery(
+			fmt.Sprintf(`SELECT schema_id FROM %s.subject_versions WHERE subject = ?`, qident(s.cfg.Keyspace)),
+			subject,
+		).WithContext(ctx).Iter()
+		var sid int
+		for iter.Scan(&sid) {
+			if sid == schemaID {
+				iter.Close()
+				return // Still referenced, don't clean up
+			}
+		}
+		iter.Close()
+	}
+
+	// No subject_versions reference this schema_id — clean up
+	var fingerprint string
+	if err := s.readQuery(
+		fmt.Sprintf(`SELECT fingerprint FROM %s.schemas_by_id WHERE schema_id = ?`, qident(s.cfg.Keyspace)),
+		schemaID,
+	).WithContext(ctx).Scan(&fingerprint); err == nil && fingerprint != "" {
+		_ = s.writeQuery(
+			fmt.Sprintf(`DELETE FROM %s.schemas_by_fingerprint WHERE fingerprint = ?`, qident(s.cfg.Keyspace)),
+			fingerprint,
+		).WithContext(ctx).Exec()
+	}
+	_ = s.writeQuery(
+		fmt.Sprintf(`DELETE FROM %s.schemas_by_id WHERE schema_id = ?`, qident(s.cfg.Keyspace)),
+		schemaID,
+	).WithContext(ctx).Exec()
+	// Also clean up references
+	_ = s.writeQuery(
+		fmt.Sprintf(`DELETE FROM %s.schema_references WHERE schema_id = ?`, qident(s.cfg.Keyspace)),
+		schemaID,
 	).WithContext(ctx).Exec()
 }
 
