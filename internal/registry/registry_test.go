@@ -3,6 +3,7 @@ package registry
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/axonops/axonops-schema-registry/internal/compatibility"
@@ -1533,5 +1534,421 @@ func TestIsValidMode(t *testing.T) {
 		if isValidMode(v) {
 			t.Errorf("expected %s to be invalid", v)
 		}
+	}
+}
+
+// --- Reference Resolution tests ---
+
+func TestResolveReferences_EmptyRefs(t *testing.T) {
+	reg := setupTestRegistry("NONE")
+	ctx := context.Background()
+
+	resolved, err := reg.resolveReferences(ctx, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resolved != nil {
+		t.Errorf("expected nil for nil refs, got %v", resolved)
+	}
+
+	resolved, err = reg.resolveReferences(ctx, []storage.Reference{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(resolved) != 0 {
+		t.Errorf("expected empty for empty refs, got %d", len(resolved))
+	}
+}
+
+func TestResolveReferences_NonExistentSubject(t *testing.T) {
+	reg := setupTestRegistry("NONE")
+	ctx := context.Background()
+
+	refs := []storage.Reference{
+		{Name: "missing.avsc", Subject: "nonexistent-subject", Version: 1},
+	}
+
+	_, err := reg.resolveReferences(ctx, refs)
+	if err == nil {
+		t.Error("expected error when resolving reference to non-existent subject")
+	}
+	if !strings.Contains(err.Error(), "nonexistent-subject") {
+		t.Errorf("error should mention subject name, got: %v", err)
+	}
+}
+
+func TestResolveReferences_PopulatesSchemaContent(t *testing.T) {
+	reg := setupTestRegistry("NONE")
+	ctx := context.Background()
+
+	// Register a base schema
+	baseSchema := `{"type":"record","name":"Base","namespace":"test","fields":[{"name":"id","type":"int"}]}`
+	_, err := reg.RegisterSchema(ctx, "base-subject", baseSchema, storage.SchemaTypeAvro, nil)
+	if err != nil {
+		t.Fatalf("failed to register base: %v", err)
+	}
+
+	// Resolve a reference to the base
+	refs := []storage.Reference{
+		{Name: "test.Base", Subject: "base-subject", Version: 1},
+	}
+	resolved, err := reg.resolveReferences(ctx, refs)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(resolved) != 1 {
+		t.Fatalf("expected 1 resolved ref, got %d", len(resolved))
+	}
+	if resolved[0].Name != "test.Base" {
+		t.Errorf("expected name 'test.Base', got %q", resolved[0].Name)
+	}
+	if resolved[0].Subject != "base-subject" {
+		t.Errorf("expected subject 'base-subject', got %q", resolved[0].Subject)
+	}
+	if resolved[0].Schema == "" {
+		t.Error("expected Schema content to be populated")
+	}
+	if resolved[0].Schema != baseSchema {
+		t.Errorf("expected resolved schema to match base, got %q", resolved[0].Schema)
+	}
+}
+
+func TestResolveReferences_MultipleRefs(t *testing.T) {
+	reg := setupTestRegistry("NONE")
+	ctx := context.Background()
+
+	// Register two base schemas
+	base1 := `{"type":"record","name":"Base1","namespace":"multi","fields":[{"name":"id","type":"int"}]}`
+	_, err := reg.RegisterSchema(ctx, "multi-base1", base1, storage.SchemaTypeAvro, nil)
+	if err != nil {
+		t.Fatalf("failed to register base1: %v", err)
+	}
+
+	base2 := `{"type":"record","name":"Base2","namespace":"multi","fields":[{"name":"name","type":"string"}]}`
+	_, err = reg.RegisterSchema(ctx, "multi-base2", base2, storage.SchemaTypeAvro, nil)
+	if err != nil {
+		t.Fatalf("failed to register base2: %v", err)
+	}
+
+	// Resolve both references
+	refs := []storage.Reference{
+		{Name: "multi.Base1", Subject: "multi-base1", Version: 1},
+		{Name: "multi.Base2", Subject: "multi-base2", Version: 1},
+	}
+	resolved, err := reg.resolveReferences(ctx, refs)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(resolved) != 2 {
+		t.Fatalf("expected 2 resolved refs, got %d", len(resolved))
+	}
+	if resolved[0].Schema != base1 {
+		t.Errorf("first ref content mismatch")
+	}
+	if resolved[1].Schema != base2 {
+		t.Errorf("second ref content mismatch")
+	}
+}
+
+func TestRegisterSchema_WithAvroReferences(t *testing.T) {
+	reg := setupTestRegistry("NONE")
+	ctx := context.Background()
+
+	// Register a base schema
+	baseSchema := `{"type":"record","name":"Base","namespace":"com.example","fields":[{"name":"id","type":"int"}]}`
+	baseRec, err := reg.RegisterSchema(ctx, "base-subject", baseSchema, storage.SchemaTypeAvro, nil)
+	if err != nil {
+		t.Fatalf("failed to register base: %v", err)
+	}
+
+	// Register a schema that references the base (uses the named type)
+	referencingSchema := `{"type":"record","name":"Wrapper","namespace":"com.example","fields":[{"name":"base","type":"com.example.Base"}]}`
+	refs := []storage.Reference{
+		{Name: "com.example.Base", Subject: "base-subject", Version: 1},
+	}
+	refRec, err := reg.RegisterSchema(ctx, "wrapper-subject", referencingSchema, storage.SchemaTypeAvro, refs)
+	if err != nil {
+		t.Fatalf("failed to register referencing schema: %v", err)
+	}
+
+	if refRec.ID == baseRec.ID {
+		t.Error("referencing schema should have a different ID from base")
+	}
+	if refRec.Version != 1 {
+		t.Errorf("expected version 1, got %d", refRec.Version)
+	}
+
+	// Verify stored references
+	stored, err := reg.GetSchemaBySubjectVersion(ctx, "wrapper-subject", 1)
+	if err != nil {
+		t.Fatalf("failed to get stored schema: %v", err)
+	}
+	if len(stored.References) != 1 {
+		t.Fatalf("expected 1 stored reference, got %d", len(stored.References))
+	}
+	if stored.References[0].Subject != "base-subject" {
+		t.Errorf("expected ref to base-subject, got %q", stored.References[0].Subject)
+	}
+}
+
+func TestRegisterSchema_WithReferences_FailsOnMissingRef(t *testing.T) {
+	reg := setupTestRegistry("NONE")
+	ctx := context.Background()
+
+	schema := `{"type":"record","name":"Test","fields":[{"name":"id","type":"int"}]}`
+	refs := []storage.Reference{
+		{Name: "missing", Subject: "nonexistent", Version: 1},
+	}
+
+	_, err := reg.RegisterSchema(ctx, "test-subject", schema, storage.SchemaTypeAvro, refs)
+	if err == nil {
+		t.Error("expected error when reference subject doesn't exist")
+	}
+	if !strings.Contains(err.Error(), "resolve references") {
+		t.Errorf("expected 'resolve references' in error, got: %v", err)
+	}
+}
+
+func TestRegisterSchema_WithProtobufReferences(t *testing.T) {
+	reg := setupMultiTypeRegistry("NONE")
+	ctx := context.Background()
+
+	// Register a base protobuf schema
+	baseSchema := `syntax = "proto3";
+package common;
+message Address {
+  string street = 1;
+  string city = 2;
+}`
+	_, err := reg.RegisterSchema(ctx, "common-address", baseSchema, storage.SchemaTypeProtobuf, nil)
+	if err != nil {
+		t.Fatalf("failed to register base protobuf: %v", err)
+	}
+
+	// Register a schema that imports the base
+	referencingSchema := `syntax = "proto3";
+import "common/address.proto";
+package user;
+message User {
+  string name = 1;
+  common.Address address = 2;
+}`
+	refs := []storage.Reference{
+		{Name: "common/address.proto", Subject: "common-address", Version: 1},
+	}
+	rec, err := reg.RegisterSchema(ctx, "user-subject", referencingSchema, storage.SchemaTypeProtobuf, refs)
+	if err != nil {
+		t.Fatalf("failed to register referencing protobuf: %v", err)
+	}
+	if rec.Version != 1 {
+		t.Errorf("expected version 1, got %d", rec.Version)
+	}
+}
+
+func TestRegisterSchema_WithJSONSchemaReferences(t *testing.T) {
+	reg := setupMultiTypeRegistry("NONE")
+	ctx := context.Background()
+
+	// Register a base JSON schema
+	baseSchema := `{"type":"object","properties":{"id":{"type":"integer"},"name":{"type":"string"}},"required":["id"]}`
+	_, err := reg.RegisterSchema(ctx, "base-json", baseSchema, storage.SchemaTypeJSON, nil)
+	if err != nil {
+		t.Fatalf("failed to register base JSON schema: %v", err)
+	}
+
+	// Register a schema with $ref to the base
+	referencingSchema := `{"type":"object","properties":{"user":{"$ref":"base.json"}}}`
+	refs := []storage.Reference{
+		{Name: "base.json", Subject: "base-json", Version: 1},
+	}
+	rec, err := reg.RegisterSchema(ctx, "wrapper-json", referencingSchema, storage.SchemaTypeJSON, refs)
+	if err != nil {
+		t.Fatalf("failed to register referencing JSON schema: %v", err)
+	}
+	if rec.Version != 1 {
+		t.Errorf("expected version 1, got %d", rec.Version)
+	}
+}
+
+func TestLookupSchema_WithReferences(t *testing.T) {
+	reg := setupTestRegistry("NONE")
+	ctx := context.Background()
+
+	// Register base
+	baseSchema := `{"type":"record","name":"LookupBase","namespace":"lookup","fields":[{"name":"id","type":"int"}]}`
+	_, err := reg.RegisterSchema(ctx, "lookup-base", baseSchema, storage.SchemaTypeAvro, nil)
+	if err != nil {
+		t.Fatalf("failed to register base: %v", err)
+	}
+
+	// Register referencing schema
+	referencingSchema := `{"type":"record","name":"LookupRef","namespace":"lookup","fields":[{"name":"base","type":"lookup.LookupBase"}]}`
+	refs := []storage.Reference{
+		{Name: "lookup.LookupBase", Subject: "lookup-base", Version: 1},
+	}
+	registered, err := reg.RegisterSchema(ctx, "lookup-ref", referencingSchema, storage.SchemaTypeAvro, refs)
+	if err != nil {
+		t.Fatalf("failed to register referencing: %v", err)
+	}
+
+	// Lookup the referencing schema with references
+	found, err := reg.LookupSchema(ctx, "lookup-ref", referencingSchema, storage.SchemaTypeAvro, refs, false)
+	if err != nil {
+		t.Fatalf("failed to lookup: %v", err)
+	}
+	if found.ID != registered.ID {
+		t.Errorf("expected ID %d, got %d", registered.ID, found.ID)
+	}
+}
+
+func TestLookupSchema_WithReferences_FailsOnMissingRef(t *testing.T) {
+	reg := setupTestRegistry("NONE")
+	ctx := context.Background()
+
+	schema := `{"type":"record","name":"Test","fields":[{"name":"id","type":"int"}]}`
+	refs := []storage.Reference{
+		{Name: "missing", Subject: "nonexistent", Version: 1},
+	}
+
+	_, err := reg.LookupSchema(ctx, "test", schema, storage.SchemaTypeAvro, refs, false)
+	if err == nil {
+		t.Error("expected error when reference can't be resolved")
+	}
+}
+
+func TestCheckCompatibility_WithReferences(t *testing.T) {
+	reg := setupTestRegistry("BACKWARD")
+	ctx := context.Background()
+
+	// Register base schema
+	baseSchema := `{"type":"record","name":"CompatBase","namespace":"compat","fields":[{"name":"id","type":"int"}]}`
+	_, err := reg.RegisterSchema(ctx, "compat-base", baseSchema, storage.SchemaTypeAvro, nil)
+	if err != nil {
+		t.Fatalf("failed to register base: %v", err)
+	}
+
+	// Register v1 that references the base
+	v1Schema := `{"type":"record","name":"CompatRef","namespace":"compat","fields":[{"name":"base","type":"compat.CompatBase"}]}`
+	refs := []storage.Reference{
+		{Name: "compat.CompatBase", Subject: "compat-base", Version: 1},
+	}
+	_, err = reg.RegisterSchema(ctx, "compat-ref", v1Schema, storage.SchemaTypeAvro, refs)
+	if err != nil {
+		t.Fatalf("failed to register v1: %v", err)
+	}
+
+	// Check compatibility of a new schema version (backward compatible - adds field with default)
+	v2Schema := `{"type":"record","name":"CompatRef","namespace":"compat","fields":[{"name":"base","type":"compat.CompatBase"},{"name":"extra","type":"string","default":""}]}`
+	result, err := reg.CheckCompatibility(ctx, "compat-ref", v2Schema, storage.SchemaTypeAvro, refs, "latest")
+	if err != nil {
+		t.Fatalf("failed to check compatibility: %v", err)
+	}
+	if !result.IsCompatible {
+		t.Error("expected schema to be backward compatible")
+	}
+}
+
+func TestCheckCompatibility_WithReferences_FailsOnMissingRef(t *testing.T) {
+	reg := setupTestRegistry("BACKWARD")
+	ctx := context.Background()
+
+	schema := `{"type":"record","name":"Test","fields":[{"name":"id","type":"int"}]}`
+	refs := []storage.Reference{
+		{Name: "missing", Subject: "nonexistent", Version: 1},
+	}
+
+	_, err := reg.CheckCompatibility(ctx, "test", schema, storage.SchemaTypeAvro, refs, "latest")
+	if err == nil {
+		t.Error("expected error when reference can't be resolved")
+	}
+}
+
+func TestImportSchemas_WithReferences(t *testing.T) {
+	reg := setupTestRegistry("NONE")
+	ctx := context.Background()
+
+	// First import the base schema
+	baseSchemas := []ImportSchemaRequest{
+		{
+			ID:         100,
+			Subject:    "import-base",
+			Version:    1,
+			SchemaType: storage.SchemaTypeAvro,
+			Schema:     `{"type":"record","name":"ImportBase","namespace":"imp","fields":[{"name":"id","type":"int"}]}`,
+		},
+	}
+	result, err := reg.ImportSchemas(ctx, baseSchemas)
+	if err != nil {
+		t.Fatalf("failed to import base: %v", err)
+	}
+	if result.Imported != 1 {
+		t.Fatalf("expected 1 imported, got %d", result.Imported)
+	}
+
+	// Now import a schema with a reference to the base
+	refSchemas := []ImportSchemaRequest{
+		{
+			ID:         101,
+			Subject:    "import-ref",
+			Version:    1,
+			SchemaType: storage.SchemaTypeAvro,
+			Schema:     `{"type":"record","name":"ImportRef","namespace":"imp","fields":[{"name":"base","type":"imp.ImportBase"}]}`,
+			References: []storage.Reference{
+				{Name: "imp.ImportBase", Subject: "import-base", Version: 1},
+			},
+		},
+	}
+	result, err = reg.ImportSchemas(ctx, refSchemas)
+	if err != nil {
+		t.Fatalf("failed to import referencing schema: %v", err)
+	}
+	if result.Imported != 1 {
+		t.Fatalf("expected 1 imported, got %d (errors: %d)", result.Imported, result.Errors)
+	}
+
+	// Verify stored schema
+	stored, err := reg.GetSchemaBySubjectVersion(ctx, "import-ref", 1)
+	if err != nil {
+		t.Fatalf("failed to get imported schema: %v", err)
+	}
+	if stored.ID != 101 {
+		t.Errorf("expected ID 101, got %d", stored.ID)
+	}
+	if len(stored.References) != 1 {
+		t.Errorf("expected 1 reference, got %d", len(stored.References))
+	}
+}
+
+func TestImportSchemas_WithReferences_FailsOnMissingRef(t *testing.T) {
+	reg := setupTestRegistry("NONE")
+	ctx := context.Background()
+
+	schemas := []ImportSchemaRequest{
+		{
+			ID:         1,
+			Subject:    "test",
+			Version:    1,
+			SchemaType: storage.SchemaTypeAvro,
+			Schema:     `{"type":"record","name":"Test","fields":[{"name":"id","type":"int"}]}`,
+			References: []storage.Reference{
+				{Name: "missing", Subject: "nonexistent", Version: 1},
+			},
+		},
+	}
+
+	result, err := reg.ImportSchemas(ctx, schemas)
+	if err != nil {
+		t.Fatalf("import should not return top-level error: %v", err)
+	}
+	if result.Errors != 1 {
+		t.Errorf("expected 1 error, got %d", result.Errors)
+	}
+	if result.Imported != 0 {
+		t.Errorf("expected 0 imported, got %d", result.Imported)
+	}
+	if !strings.Contains(result.Results[0].Error, "resolve references") {
+		t.Errorf("expected resolve references error, got: %s", result.Results[0].Error)
 	}
 }
