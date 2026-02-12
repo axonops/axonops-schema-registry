@@ -18,9 +18,16 @@ func RunConfigTests(t *testing.T, newStore StoreFactory) {
 		defer store.Close()
 		ctx := context.Background()
 
-		_, err := store.GetGlobalConfig(ctx)
-		if err != storage.ErrNotFound {
-			t.Fatalf("expected ErrNotFound for unset global config, got %v", err)
+		config, err := store.GetGlobalConfig(ctx)
+		if err == storage.ErrNotFound {
+			// Memory backend: no seeded default, returns ErrNotFound
+		} else if err != nil {
+			t.Fatalf("GetGlobalConfig: unexpected error %v", err)
+		} else {
+			// DB backends seed a default row (e.g. "BACKWARD")
+			if config.CompatibilityLevel == "" {
+				t.Error("expected non-empty compatibility level from seeded default")
+			}
 		}
 	})
 
@@ -54,9 +61,16 @@ func RunConfigTests(t *testing.T, newStore StoreFactory) {
 			t.Fatalf("DeleteGlobalConfig: %v", err)
 		}
 
-		_, err := store.GetGlobalConfig(ctx)
-		if err != storage.ErrNotFound {
-			t.Fatalf("expected ErrNotFound after delete, got %v", err)
+		config, err := store.GetGlobalConfig(ctx)
+		if err == storage.ErrNotFound {
+			// Memory backend: delete removes the config entirely
+		} else if err != nil {
+			t.Fatalf("GetGlobalConfig after delete: unexpected error %v", err)
+		} else {
+			// DB backends reset to default (e.g. "BACKWARD") instead of deleting
+			if config.CompatibilityLevel == "NONE" {
+				t.Error("expected config to be reset after delete, but still NONE")
+			}
 		}
 	})
 
@@ -148,9 +162,16 @@ func RunConfigTests(t *testing.T, newStore StoreFactory) {
 		defer store.Close()
 		ctx := context.Background()
 
-		_, err := store.GetGlobalMode(ctx)
-		if err != storage.ErrNotFound {
-			t.Fatalf("expected ErrNotFound for unset global mode, got %v", err)
+		mode, err := store.GetGlobalMode(ctx)
+		if err == storage.ErrNotFound {
+			// Memory backend: no seeded default, returns ErrNotFound
+		} else if err != nil {
+			t.Fatalf("GetGlobalMode: unexpected error %v", err)
+		} else {
+			// DB backends seed a default row (e.g. "READWRITE")
+			if mode.Mode == "" {
+				t.Error("expected non-empty mode from seeded default")
+			}
 		}
 	})
 

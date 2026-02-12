@@ -190,6 +190,10 @@ func (h *Handler) RegisterSchema(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidSchemaType, err.Error())
 			return
 		}
+		if strings.Contains(err.Error(), "failed to resolve references") {
+			writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidSchema, err.Error())
+			return
+		}
 		if errors.Is(err, registry.ErrIncompatibleSchema) {
 			writeError(w, http.StatusConflict, types.ErrorCodeIncompatibleSchema, err.Error())
 			return
