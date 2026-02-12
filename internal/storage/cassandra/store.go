@@ -798,6 +798,17 @@ func (s *Store) GetSchemaByFingerprint(ctx context.Context, subject, fp string, 
 	// First get schema by global fingerprint
 	globalRec, err := s.GetSchemaByGlobalFingerprint(ctx, fp)
 	if err != nil {
+		if errors.Is(err, storage.ErrSchemaNotFound) {
+			// Schema content doesn't exist globally; check if subject exists
+			_, _, subjectExists, subErr := s.getSubjectLatest(ctx, subject)
+			if subErr != nil {
+				return nil, subErr
+			}
+			if !subjectExists {
+				return nil, storage.ErrSubjectNotFound
+			}
+			return nil, storage.ErrSchemaNotFound
+		}
 		return nil, err
 	}
 
