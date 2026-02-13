@@ -1294,7 +1294,7 @@ jobs:
 
   # BDD tests — Confluent Schema Registry 8.1.1 (compatibility conformance)
   bdd-confluent-tests:
-    name: BDD Tests (Confluent)
+    name: BDD Tests (Confluent 8.1.1)
     runs-on: ubuntu-latest
     needs: [bdd-functional-tests]
     steps:
