@@ -321,12 +321,14 @@ func TestMigrationFromConfluent(t *testing.T) {
 	t.Log("Migration test PASSED!")
 }
 
-// TestImportWithDuplicateIDs verifies that duplicate IDs are rejected
+// TestImportWithDuplicateIDs verifies that duplicate IDs are handled correctly:
+// - Same schema content with same ID (different subject) is allowed (reuse)
+// - Different schema content with same ID is rejected
 func TestImportWithDuplicateIDs(t *testing.T) {
 	server, _ := createTestServer()
 	defer server.Close()
 
-	// Import first batch
+	// Import first schema
 	importReq := types.ImportSchemasRequest{
 		Schemas: []types.ImportSchemaRequest{
 			{
@@ -347,13 +349,23 @@ func TestImportWithDuplicateIDs(t *testing.T) {
 		t.Fatalf("First import should succeed, got %d errors", result.Errors)
 	}
 
-	// Try to import same ID again
+	// Same schema content, same ID, different subject — should succeed (reuse)
 	importReq.Schemas[0].Subject = "different-subject"
 	resp = doRequest(t, server, "POST", "/import/schemas", importReq)
 	parseResponse(t, resp, &result)
 
+	if result.Errors != 0 {
+		t.Errorf("Same content with same ID in different subject should succeed, got %d errors", result.Errors)
+	}
+
+	// Different schema content with same ID — should be rejected
+	importReq.Schemas[0].Subject = "another-subject"
+	importReq.Schemas[0].Schema = `{"type":"int"}`
+	resp = doRequest(t, server, "POST", "/import/schemas", importReq)
+	parseResponse(t, resp, &result)
+
 	if result.Errors != 1 {
-		t.Errorf("Duplicate ID should be rejected, got %d errors", result.Errors)
+		t.Errorf("Different content with same ID should be rejected, got %d errors", result.Errors)
 	}
 
 	if result.Results[0].Error != "schema ID already exists" {

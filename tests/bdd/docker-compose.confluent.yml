@@ -1,0 +1,55 @@
+# Confluent Schema Registry with Kafka (KRaft mode) for BDD tests.
+# Standalone compose — does NOT use docker-compose.base.yml.
+#
+# Usage:
+#   docker compose -f docker-compose.confluent.yml up -d --wait
+#   BDD_BACKEND=confluent go test -tags bdd -v -timeout 25m ./tests/bdd/...
+
+services:
+  kafka:
+    image: confluentinc/cp-kafka:8.1.1
+    hostname: kafka
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:29093
+      KAFKA_LISTENERS: PLAINTEXT://kafka:29092,CONTROLLER://kafka:29093,PLAINTEXT_HOST://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092 > /dev/null 2>&1"]
+      interval: 5s
+      timeout: 10s
+      start_period: 30s
+      retries: 10
+    restart: "no"
+
+  schema-registry:
+    image: confluentinc/cp-schema-registry:8.1.1
+    hostname: schema-registry
+    depends_on:
+      kafka:
+        condition: service_healthy
+    ports:
+      - "${REGISTRY_PORT:-18081}:8081"
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: kafka:29092
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+      SCHEMA_REGISTRY_SCHEMA_COMPATIBILITY_LEVEL: BACKWARD
+      SCHEMA_REGISTRY_MODE_MUTABILITY: "true"
+      SCHEMA_REGISTRY_DEBUG: "true"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8081/ || exit 1"]
+      interval: 5s
+      timeout: 3s
+      start_period: 60s
+      retries: 15
+    restart: "no"
