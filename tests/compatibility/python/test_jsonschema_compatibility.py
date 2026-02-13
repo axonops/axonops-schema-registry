@@ -211,7 +211,8 @@ class TestJsonSchemaEvolution:
                 "name": {"type": "string"},
                 "value": {"type": "string"}
             },
-            "required": ["name", "value"]
+            "required": ["name", "value"],
+            "additionalProperties": False
         })
 
         v2_schema = json.dumps({
@@ -223,7 +224,8 @@ class TestJsonSchemaEvolution:
                 "value": {"type": "string"},
                 "description": {"type": "string"}
             },
-            "required": ["name", "value"]
+            "required": ["name", "value"],
+            "additionalProperties": False
         })
 
         subject = f"python-json-evolution-{confluent_version}-value"
