@@ -1291,3 +1291,35 @@ jobs:
         if: always()
         working-directory: tests/bdd
         run: docker compose -f docker-compose.base.yml -f docker-compose.cassandra.yml down -v || true
+
+  # BDD tests — Confluent Schema Registry 8.1.1 (compatibility conformance)
+  bdd-confluent-tests:
+    name: BDD Tests (Confluent)
+    runs-on: ubuntu-latest
+    needs: [bdd-functional-tests]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run BDD tests (confluent backend)
+        env:
+          BDD_BACKEND: confluent
+          CONTAINER_CMD: docker
+        run: go test -tags bdd -v -count=1 -timeout 25m ./tests/bdd/...
+
+      - name: Show container logs on failure
+        if: failure()
+        working-directory: tests/bdd
+        run: docker compose -f docker-compose.confluent.yml logs --tail=200 || true
+
+      - name: Cleanup containers
+        if: always()
+        working-directory: tests/bdd
+        run: docker compose -f docker-compose.confluent.yml down -v || true
