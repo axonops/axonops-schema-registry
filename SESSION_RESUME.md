@@ -6,10 +6,20 @@
 
 ---
 
-## Current State
+## Current State — ALL COMPLETE
 
-**785 BDD scenarios** pass against memory backend.
-**752 BDD scenarios** pass against Confluent 8.1.1.
+**796 BDD scenarios** total across 50 feature files.
+**CI fully green** — 23/23 jobs pass.
+
+| Backend | Scenarios | Status |
+|---------|-----------|--------|
+| Memory | 785 | PASS |
+| PostgreSQL | 777 | PASS |
+| MySQL | 775 | PASS |
+| Cassandra | 775 | PASS |
+| Confluent 8.1.1 | 752 | PASS |
+| Functional (in-process) | 772 | PASS |
+
 **0 `@confluent-compat-diff` tags** remain — all 56 were fixed and removed.
 All unit tests pass. `go vet` clean.
 
@@ -85,9 +95,26 @@ These represent intentional divergences (our extensions or Confluent OSS bugs):
 | Subject filter on /schemas/ids/{id}/subjects | advanced_features.feature:336 | Documented in Confluent API but not implemented in OSS (bug) |
 | Subject filter on /schemas/ids/{id}/versions | advanced_features.feature:352 | Documented in Confluent API but not implemented in OSS (bug) |
 
+### @import Scenarios (14 excluded from Confluent)
+
+These test `POST /import/schemas` — our custom bulk import endpoint that doesn't exist in Confluent:
+- `schema_import.feature`: 6 scenarios
+- `import_advanced.feature`: 8 scenarios
+
 ### Tag Filter Cleanup
 
 - Removed `~@confluent-compat-diff` from `bdd_test.go` (tag no longer exists on any scenario)
+
+---
+
+## CI Pipeline — COMPLETE
+
+Added `BDD Tests (Confluent 8.1.1)` job to `.github/workflows/ci.yaml`.
+All 23 CI jobs pass including:
+- BDD tests against all 5 backends (Memory, PostgreSQL, MySQL, Cassandra, Confluent)
+- Confluent compatibility tests (Go, Java, Python)
+- Migration tests (import ID reuse + conflict rejection)
+- All conformance, unit, integration, auth, and Docker build jobs
 
 ---
 
@@ -125,6 +152,16 @@ These represent intentional divergences (our extensions or Confluent OSS bugs):
 - `tests/bdd/features/advanced_features.feature` — subject filter scenarios
 - `tests/bdd/bdd_test.go` — removed dead `~@confluent-compat-diff` filter
 
+### CI
+- `.github/workflows/ci.yaml` — Added `bdd-confluent-tests` job
+
+### Compatibility tests (Go/Java/Python)
+- `tests/compatibility/go/jsonschema_test.go` — closed content model for evolution test
+- `tests/compatibility/python/test_jsonschema_compatibility.py` — closed content model for evolution test
+
+### Migration tests
+- `tests/migration/migration_test.go` — updated `TestImportWithDuplicateIDs` for fingerprint-aware reuse
+
 ---
 
 ## Running Tests
@@ -143,5 +180,4 @@ BDD_BACKEND=confluent BDD_REGISTRY_URL=http://localhost:18081 go test -tags bdd 
 
 ## Next Steps
 
-- [ ] Push and verify CI
-- [ ] Run against PostgreSQL, MySQL, Cassandra backends
+All planned work is complete. Ready for new tasks.
