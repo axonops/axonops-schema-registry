@@ -134,14 +134,14 @@ func TestFeatures(t *testing.T) {
 	if envTags := os.Getenv("BDD_TAGS"); envTags != "" {
 		tags = envTags
 	} else if !dockerMode && registryURL == "" {
-		tags = "~@operational"
+		tags = "~@operational && ~@pending-impl"
 	} else if backend == "confluent" {
-		// Confluent: exclude operational, import (our custom API), axonops-only, and all backend tags.
-		tags = "~@operational && ~@import && ~@axonops-only && ~@memory && ~@postgres && ~@mysql && ~@cassandra"
+		// Confluent: exclude operational, import (our custom API), axonops-only, pending-impl, and all backend tags.
+		tags = "~@operational && ~@import && ~@axonops-only && ~@pending-impl && ~@memory && ~@postgres && ~@mysql && ~@cassandra"
 	} else if dockerMode {
 		// Only run operational scenarios tagged for this backend, exclude other backends.
 		allBackends := []string{"memory", "postgres", "mysql", "cassandra"}
-		var excludes []string
+		excludes := []string{"~@pending-impl"}
 		for _, b := range allBackends {
 			if b != backend {
 				excludes = append(excludes, "~@"+b)

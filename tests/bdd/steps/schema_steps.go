@@ -434,4 +434,50 @@ func RegisterSchemaSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 	ctx.Step(`^I POST "([^"]*)" with raw body "([^"]*)"$`, func(path, body string) error {
 		return tc.DoRawRequest("POST", path, body)
 	})
+
+	// Variable-resolved integer field comparison: the response field "id" should equal stored "first_id"
+	ctx.Step(`^the response field "([^"]*)" should equal stored "([^"]*)"$`, func(field, varName string) error {
+		storedVal, ok := tc.StoredValues[varName]
+		if !ok {
+			return fmt.Errorf("no stored value %q", varName)
+		}
+		actual, err := tc.JSONField(field)
+		if err != nil {
+			return err
+		}
+		// Compare as numbers if both are numeric
+		storedNum, storedIsNum := storedVal.(float64)
+		actualNum, actualIsNum := actual.(float64)
+		if storedIsNum && actualIsNum {
+			if int(storedNum) != int(actualNum) {
+				return fmt.Errorf("field %q: expected %d (from %q), got %d", field, int(storedNum), varName, int(actualNum))
+			}
+			return nil
+		}
+		if fmt.Sprintf("%v", actual) != fmt.Sprintf("%v", storedVal) {
+			return fmt.Errorf("field %q: expected %v (from %q), got %v", field, storedVal, varName, actual)
+		}
+		return nil
+	})
+
+	// Variable-resolved integer array containment: the response array should contain stored integer "use1_id"
+	ctx.Step(`^the response array should contain stored integer "([^"]*)"$`, func(varName string) error {
+		storedVal, ok := tc.StoredValues[varName]
+		if !ok {
+			return fmt.Errorf("no stored value %q", varName)
+		}
+		expected, ok := storedVal.(float64)
+		if !ok {
+			return fmt.Errorf("stored value %q is not numeric: %T = %v", varName, storedVal, storedVal)
+		}
+		if tc.LastJSONArray == nil {
+			return fmt.Errorf("response is not a JSON array: %s", string(tc.LastBody))
+		}
+		for _, v := range tc.LastJSONArray {
+			if num, ok := v.(float64); ok && int(num) == int(expected) {
+				return nil
+			}
+		}
+		return fmt.Errorf("array does not contain integer %d (from %q): %s", int(expected), varName, string(tc.LastBody))
+	})
 }
