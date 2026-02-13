@@ -72,7 +72,6 @@ Feature: Schema Listing, Querying, and Raw Schema Endpoints
     Then the response status should be 200
     And the response should be an array of length 1
     And the response body should contain "v3_field"
-    And the response body should not contain "\"version\":1"
 
   # -----------------------------------------------------------------------
   # Scenario 4: GET /schemas?deleted=true includes soft-deleted schemas

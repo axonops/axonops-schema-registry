@@ -128,12 +128,60 @@ Feature: Mode Enforcement
   # IMPORT MODE
   # ==========================================================================
 
-  Scenario: IMPORT mode allows registration
+  Scenario: IMPORT mode allows registration with explicit ID
     When I set the global mode to "IMPORT"
     Then the response status should be 200
-    When I register a schema under subject "mode-import-test":
+    When I POST "/subjects/mode-import-with-id/versions" with body:
       """
-      {"type":"record","name":"Import","fields":[{"name":"a","type":"string"}]}
+      {"schema": "{\"type\":\"record\",\"name\":\"ImportWithId\",\"fields\":[{\"name\":\"a\",\"type\":\"string\"}]}", "id": 99990}
+      """
+    Then the response status should be 200
+    And the response field "id" should be 99990
+    When I set the global mode to "READWRITE"
+
+  Scenario: IMPORT mode rejects different schema with same ID
+    When I set the global mode to "IMPORT"
+    Then the response status should be 200
+    When I POST "/subjects/mode-import-dup1/versions" with body:
+      """
+      {"schema": "{\"type\":\"record\",\"name\":\"ImportDup1\",\"fields\":[{\"name\":\"a\",\"type\":\"string\"}]}", "id": 99991}
+      """
+    Then the response status should be 200
+    And the response field "id" should be 99991
+    # Try to register a DIFFERENT schema with the SAME ID
+    When I POST "/subjects/mode-import-dup2/versions" with body:
+      """
+      {"schema": "{\"type\":\"record\",\"name\":\"ImportDup2\",\"fields\":[{\"name\":\"b\",\"type\":\"int\"}]}", "id": 99991}
+      """
+    Then the response status should be 422
+    And the response should have error code 42205
+    When I set the global mode to "READWRITE"
+
+  Scenario: IMPORT mode allows same schema with same ID in different subject
+    When I set the global mode to "IMPORT"
+    Then the response status should be 200
+    When I POST "/subjects/mode-import-share1/versions" with body:
+      """
+      {"schema": "{\"type\":\"record\",\"name\":\"ImportShare\",\"fields\":[{\"name\":\"a\",\"type\":\"string\"}]}", "id": 99992}
+      """
+    Then the response status should be 200
+    And the response field "id" should be 99992
+    # Same schema content, same ID, different subject — should succeed
+    When I POST "/subjects/mode-import-share2/versions" with body:
+      """
+      {"schema": "{\"type\":\"record\",\"name\":\"ImportShare\",\"fields\":[{\"name\":\"a\",\"type\":\"string\"}]}", "id": 99992}
+      """
+    Then the response status should be 200
+    And the response field "id" should be 99992
+    When I set the global mode to "READWRITE"
+
+  @axonops-only
+  Scenario: IMPORT mode allows registration without explicit ID
+    When I set the global mode to "IMPORT"
+    Then the response status should be 200
+    When I register a schema under subject "mode-import-no-id":
+      """
+      {"type":"record","name":"ImportNoId","fields":[{"name":"b","type":"string"}]}
       """
     Then the response status should be 200
     When I set the global mode to "READWRITE"

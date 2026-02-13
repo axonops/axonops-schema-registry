@@ -38,9 +38,10 @@ func TestChecker_CompatibleSchemas(t *testing.T) {
 	}
 }
 
-func TestChecker_AddOptionalProperty_Compatible(t *testing.T) {
+func TestChecker_AddOptionalProperty_OpenModel_Incompatible(t *testing.T) {
 	checker := NewChecker()
 
+	// No additionalProperties = open content model (default)
 	oldSchema := `{
 		"type": "object",
 		"properties": {
@@ -59,8 +60,8 @@ func TestChecker_AddOptionalProperty_Compatible(t *testing.T) {
 	}`
 
 	result := checker.Check(s(newSchema), s(oldSchema))
-	if !result.IsCompatible {
-		t.Errorf("Adding optional property should be compatible: %v", result.Messages)
+	if result.IsCompatible {
+		t.Error("Adding optional property to open content model should be incompatible (old writer could have used 'age' as additional property with any type)")
 	}
 }
 
@@ -90,9 +91,10 @@ func TestChecker_AddRequiredProperty_Incompatible(t *testing.T) {
 	}
 }
 
-func TestChecker_RemoveProperty_Incompatible(t *testing.T) {
+func TestChecker_RemoveProperty_OpenModel_Compatible(t *testing.T) {
 	checker := NewChecker()
 
+	// No additionalProperties = open content model
 	oldSchema := `{
 		"type": "object",
 		"properties": {
@@ -109,8 +111,8 @@ func TestChecker_RemoveProperty_Incompatible(t *testing.T) {
 	}`
 
 	result := checker.Check(s(newSchema), s(oldSchema))
-	if result.IsCompatible {
-		t.Error("Removing property should be incompatible")
+	if !result.IsCompatible {
+		t.Errorf("Removing property from open content model should be compatible (property becomes additional): %v", result.Messages)
 	}
 }
 
@@ -296,9 +298,10 @@ func TestChecker_AllowAdditionalProperties_Compatible(t *testing.T) {
 	}
 }
 
-func TestChecker_NestedPropertyChange_Incompatible(t *testing.T) {
+func TestChecker_NestedPropertyRemoval_OpenModel_Compatible(t *testing.T) {
 	checker := NewChecker()
 
+	// Nested object also has open content model (no additionalProperties)
 	oldSchema := `{
 		"type": "object",
 		"properties": {
@@ -325,8 +328,8 @@ func TestChecker_NestedPropertyChange_Incompatible(t *testing.T) {
 	}`
 
 	result := checker.Check(s(newSchema), s(oldSchema))
-	if result.IsCompatible {
-		t.Error("Removing nested property should be incompatible")
+	if !result.IsCompatible {
+		t.Errorf("Removing nested property from open content model should be compatible: %v", result.Messages)
 	}
 }
 
@@ -558,5 +561,214 @@ func TestPathOrRoot(t *testing.T) {
 	}
 	if pathOrRoot("user.name") != "user.name" {
 		t.Error("Non-empty path should be returned as-is")
+	}
+}
+
+// ============================================================================
+// NEW TESTS: Open vs closed content model (J1, J2)
+// ============================================================================
+
+func TestChecker_HasOpenContentModel(t *testing.T) {
+	tests := []struct {
+		name     string
+		schema   map[string]interface{}
+		expected bool
+	}{
+		{"no additionalProperties", map[string]interface{}{"type": "object"}, true},
+		{"additionalProperties true", map[string]interface{}{"additionalProperties": true}, true},
+		{"additionalProperties false", map[string]interface{}{"additionalProperties": false}, false},
+		{"additionalProperties schema", map[string]interface{}{"additionalProperties": map[string]interface{}{"type": "string"}}, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := hasOpenContentModel(tt.schema)
+			if result != tt.expected {
+				t.Errorf("hasOpenContentModel() = %v, want %v", result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestChecker_AddOptionalProperty_ClosedModel_Compatible(t *testing.T) {
+	checker := NewChecker()
+
+	oldSchema := `{
+		"type": "object",
+		"properties": {
+			"name": {"type": "string"}
+		},
+		"additionalProperties": false
+	}`
+
+	newSchema := `{
+		"type": "object",
+		"properties": {
+			"name": {"type": "string"},
+			"age": {"type": "integer"}
+		},
+		"additionalProperties": false
+	}`
+
+	result := checker.Check(s(newSchema), s(oldSchema))
+	if !result.IsCompatible {
+		t.Errorf("Adding optional property to closed model should be compatible (old writer can't have produced this property): %v", result.Messages)
+	}
+}
+
+func TestChecker_RemoveProperty_ClosedModel_Incompatible(t *testing.T) {
+	checker := NewChecker()
+
+	oldSchema := `{
+		"type": "object",
+		"properties": {
+			"name": {"type": "string"},
+			"age": {"type": "integer"}
+		},
+		"additionalProperties": false
+	}`
+
+	newSchema := `{
+		"type": "object",
+		"properties": {
+			"name": {"type": "string"}
+		},
+		"additionalProperties": false
+	}`
+
+	result := checker.Check(s(newSchema), s(oldSchema))
+	if result.IsCompatible {
+		t.Error("Removing property from closed model should be incompatible (old data with 'age' would be rejected)")
+	}
+}
+
+func TestChecker_NestedAddProperty_OpenModel_Incompatible(t *testing.T) {
+	checker := NewChecker()
+
+	oldSchema := `{
+		"type": "object",
+		"properties": {
+			"user": {
+				"type": "object",
+				"properties": {
+					"name": {"type": "string"}
+				}
+			}
+		}
+	}`
+
+	newSchema := `{
+		"type": "object",
+		"properties": {
+			"user": {
+				"type": "object",
+				"properties": {
+					"name": {"type": "string"},
+					"age": {"type": "integer"}
+				}
+			}
+		}
+	}`
+
+	result := checker.Check(s(newSchema), s(oldSchema))
+	if result.IsCompatible {
+		t.Error("Adding property to nested open content model should be incompatible")
+	}
+}
+
+func TestChecker_NestedRemoveProperty_OpenModel_Compatible(t *testing.T) {
+	checker := NewChecker()
+
+	oldSchema := `{
+		"type": "object",
+		"properties": {
+			"user": {
+				"type": "object",
+				"properties": {
+					"name": {"type": "string"},
+					"age": {"type": "integer"}
+				}
+			}
+		}
+	}`
+
+	newSchema := `{
+		"type": "object",
+		"properties": {
+			"user": {
+				"type": "object",
+				"properties": {
+					"name": {"type": "string"}
+				}
+			}
+		}
+	}`
+
+	result := checker.Check(s(newSchema), s(oldSchema))
+	if !result.IsCompatible {
+		t.Errorf("Removing property from nested open content model should be compatible: %v", result.Messages)
+	}
+}
+
+// ============================================================================
+// NEW TESTS: Array items schema removal (J3)
+// ============================================================================
+
+func TestChecker_ArrayItemsSchemaRemoval_Compatible(t *testing.T) {
+	checker := NewChecker()
+
+	oldSchema := `{
+		"type": "array",
+		"items": {"type": "string"}
+	}`
+
+	newSchema := `{
+		"type": "array"
+	}`
+
+	result := checker.Check(s(newSchema), s(oldSchema))
+	if !result.IsCompatible {
+		t.Errorf("Removing array items schema should be compatible (relaxation): %v", result.Messages)
+	}
+}
+
+// ============================================================================
+// NEW TESTS: Mixed content models
+// ============================================================================
+
+func TestChecker_AddProperty_ClosedModel_NestedOpen_Incompatible(t *testing.T) {
+	checker := NewChecker()
+
+	// Root is closed, but nested "user" is open
+	oldSchema := `{
+		"type": "object",
+		"properties": {
+			"user": {
+				"type": "object",
+				"properties": {
+					"name": {"type": "string"}
+				}
+			}
+		},
+		"additionalProperties": false
+	}`
+
+	newSchema := `{
+		"type": "object",
+		"properties": {
+			"user": {
+				"type": "object",
+				"properties": {
+					"name": {"type": "string"},
+					"age": {"type": "integer"}
+				}
+			}
+		},
+		"additionalProperties": false
+	}`
+
+	result := checker.Check(s(newSchema), s(oldSchema))
+	if result.IsCompatible {
+		t.Error("Adding property to nested open model (even if root is closed) should be incompatible")
 	}
 }

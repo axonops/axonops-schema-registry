@@ -65,14 +65,14 @@ Feature: Pagination
     And the response should contain "pagunlim-a"
     And the response should contain "pagunlim-b"
 
-  Scenario: limit=0 returns empty array
+  Scenario: limit=0 returns all results (treated as unlimited)
     Given subject "pagzero-a" has schema:
       """
       {"type":"record","name":"PagZeroA","fields":[{"name":"a","type":"string"}]}
       """
     When I GET "/subjects?subjectPrefix=pagzero-&limit=0"
     Then the response status should be 200
-    And the response should contain "[]"
+    And the response should contain "pagzero-a"
 
   # ==========================================================================
   # DELETED-ONLY ON GET /subjects

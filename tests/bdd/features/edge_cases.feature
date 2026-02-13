@@ -48,12 +48,14 @@ Feature: Edge Cases and Boundary Conditions
       """
     Then the response status should be 422
 
-  Scenario: PUT /config with empty body returns error
+  Scenario: PUT /config with empty body returns current config
+    Given the global compatibility level is "BACKWARD"
     When I PUT "/config" with body:
       """
       {}
       """
-    Then the response status should be 422
+    Then the response status should be 200
+    And the response field "compatibility" should be "BACKWARD"
 
   Scenario: PUT /config with invalid compatibility level returns error
     When I PUT "/config" with body:
@@ -63,6 +65,7 @@ Feature: Edge Cases and Boundary Conditions
     Then the response status should be 422
     And the response should have error code 42203
 
+  @axonops-only
   Scenario: PUT /mode with empty body returns error
     When I PUT "/mode" with body:
       """
@@ -160,7 +163,7 @@ Feature: Edge Cases and Boundary Conditions
       {"schema": "{\"type\":\"record\",\"name\":\"Ghost\",\"fields\":[{\"name\":\"a\",\"type\":\"string\"}]}"}
       """
     Then the response status should be 404
-    And the response should have error code 40401
+    And the response should have error code 40402
 
   # ==========================================================================
   # VERSION BOUNDARY TESTS

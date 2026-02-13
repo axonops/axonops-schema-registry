@@ -153,5 +153,5 @@ Feature: Schema Lookup
     When I lookup schema in subject "empty-lookup":
       """
       """
-    Then the response status should be 422
-    And the response should have error code 42201
+    Then the response status should be 404
+    And the response should have error code 40403

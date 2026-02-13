@@ -218,7 +218,7 @@ Feature: Compatibility Modes
 
   # --- JSON Schema compatibility modes ---
 
-  Scenario: BACKWARD compatible JSON Schema accepted
+  Scenario: BACKWARD incompatible JSON Schema rejected (open model property addition)
     Given the global compatibility level is "BACKWARD"
     And subject "json-compat" has "JSON" schema:
       """
@@ -228,7 +228,7 @@ Feature: Compatibility Modes
       """
       {"type":"object","properties":{"name":{"type":"string"},"email":{"type":"string"}},"required":["name"]}
       """
-    Then the response status should be 200
+    Then the response status should be 409
 
   Scenario: BACKWARD incompatible JSON Schema rejected
     Given the global compatibility level is "BACKWARD"
@@ -242,7 +242,7 @@ Feature: Compatibility Modes
       """
     Then the response status should be 409
 
-  Scenario: FORWARD compatible JSON Schema accepted (remove optional property)
+  Scenario: FORWARD incompatible JSON Schema rejected (open model property in reader)
     Given the global compatibility level is "FORWARD"
     And subject "json-fwd" has "JSON" schema:
       """
@@ -252,7 +252,7 @@ Feature: Compatibility Modes
       """
       {"type":"object","properties":{"name":{"type":"string"}},"required":["name"]}
       """
-    Then the response status should be 200
+    Then the response status should be 409
 
   Scenario: FULL compatible JSON Schema accepted
     Given the global compatibility level is "FULL"

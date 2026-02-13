@@ -16,10 +16,10 @@ Feature: Response Shapes — Confluent Wire Compatibility
     And the response should have field "id"
 
   # ==========================================================================
-  # SCHEMA-BY-ID RESPONSE — schemaType OMISSION FOR AVRO
+  # SCHEMA-BY-ID RESPONSE — schemaType ALWAYS PRESENT
   # ==========================================================================
 
-  Scenario: GET schema by ID for Avro omits schemaType field
+  Scenario: GET schema by ID for Avro includes schemaType AVRO
     Given subject "resp-avro-byid" has schema:
       """
       {"type":"record","name":"AvroById","fields":[{"name":"a","type":"string"}]}
@@ -28,7 +28,7 @@ Feature: Response Shapes — Confluent Wire Compatibility
     When I get schema by ID {{avro_byid}}
     Then the response status should be 200
     And the response should have field "schema"
-    And the response should not have field "schemaType"
+    And the response field "schemaType" should be "AVRO"
 
   Scenario: GET schema by ID for Protobuf includes schemaType PROTOBUF
     Given subject "resp-proto-byid" has "PROTOBUF" schema:
@@ -63,7 +63,7 @@ Feature: Response Shapes — Confluent Wire Compatibility
   # SUBJECT-VERSION RESPONSE
   # ==========================================================================
 
-  Scenario: GET subject/version for Avro has all fields, omits schemaType
+  Scenario: GET subject/version for Avro has all fields, includes schemaType AVRO
     Given subject "resp-avro-ver" has schema:
       """
       {"type":"record","name":"AvroVer","fields":[{"name":"v","type":"string"}]}
@@ -74,7 +74,7 @@ Feature: Response Shapes — Confluent Wire Compatibility
     And the response field "version" should be 1
     And the response should have field "id"
     And the response should have field "schema"
-    And the response should not have field "schemaType"
+    And the response field "schemaType" should be "AVRO"
 
   Scenario: GET subject/version for Protobuf includes schemaType
     Given subject "resp-proto-ver" has "PROTOBUF" schema:
@@ -109,7 +109,7 @@ Feature: Response Shapes — Confluent Wire Compatibility
   # LOOKUP RESPONSE
   # ==========================================================================
 
-  Scenario: Lookup response for Avro has all fields, omits schemaType
+  Scenario: Lookup response for Avro has all fields, includes schemaType AVRO
     Given subject "resp-avro-lookup" has schema:
       """
       {"type":"record","name":"AvroLookup","fields":[{"name":"l","type":"string"}]}
@@ -123,7 +123,7 @@ Feature: Response Shapes — Confluent Wire Compatibility
     And the response field "version" should be 1
     And the response should have field "id"
     And the response should have field "schema"
-    And the response should not have field "schemaType"
+    And the response field "schemaType" should be "AVRO"
 
   Scenario: Lookup response for Protobuf includes schemaType
     Given subject "resp-proto-lookup" has "PROTOBUF" schema:

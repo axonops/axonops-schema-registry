@@ -67,15 +67,28 @@ func (c *Checker) checkObjectCompatibility(newSchema, oldSchema map[string]inter
 	newRequired := getRequiredSet(newSchema)
 	oldRequired := getRequiredSet(oldSchema)
 
-	// Check for removed properties
+	// Check for removed properties — depends on reader's content model.
+	// Open model reader: removal is compatible (old data's extra property becomes
+	// "additional", which is allowed by the open model).
+	// Closed model reader: removal is incompatible (old data with this property
+	// would be rejected by additionalProperties: false).
+	readerOpen := hasOpenContentModel(newSchema)
 	for propName := range oldProps {
 		propPath := joinPath(path, propName)
 		if _, exists := newProps[propName]; !exists {
-			result.AddMessage("Property '%s' was removed", propPath)
+			if !readerOpen {
+				result.AddMessage("Property '%s' was removed", propPath)
+			}
 		}
 	}
 
-	// Check for new required properties (breaking change)
+	// Check for new properties — depends on reader's content model.
+	// Required new property: always incompatible.
+	// Optional + open model reader: incompatible (PROPERTY_ADDED_TO_OPEN_CONTENT_MODEL —
+	//   old writer could have produced data with any type for that property name as
+	//   additional property).
+	// Optional + closed model reader: compatible (old writer can't have produced
+	//   this property because additionalProperties was false).
 	for propName := range newProps {
 		propPath := joinPath(path, propName)
 		_, existedBefore := oldProps[propName]
@@ -83,8 +96,11 @@ func (c *Checker) checkObjectCompatibility(newSchema, oldSchema map[string]inter
 		isRequired := newRequired[propName]
 
 		if !existedBefore && isRequired {
-			// New required property added - breaking
+			// New required property added - always breaking
 			result.AddMessage("New required property '%s' was added", propPath)
+		} else if !existedBefore && !isRequired && readerOpen {
+			// Optional property added to open content model - breaking
+			result.AddMessage("Property '%s' was added to open content model", propPath)
 		} else if existedBefore && !wasRequired && isRequired {
 			// Existing optional property made required - breaking
 			result.AddMessage("Property '%s' changed from optional to required", propPath)
@@ -111,9 +127,9 @@ func (c *Checker) checkArrayCompatibility(newSchema, oldSchema map[string]interf
 
 	if newItems != nil && oldItems != nil {
 		c.checkCompatibility(newItems, oldItems, joinPath(path, "items"), result)
-	} else if oldItems != nil && newItems == nil {
-		result.AddMessage("Array items schema removed at '%s'", pathOrRoot(path))
 	}
+	// Removing the items constraint is a relaxation — the reader accepts any
+	// array items, so it can read old data that had constrained items.
 
 	// Check minItems/maxItems constraints
 	c.checkConstraintChange(newSchema, oldSchema, "minItems", path, result, true)
@@ -285,6 +301,22 @@ func getEnum(schema map[string]interface{}) []interface{} {
 		return enum
 	}
 	return nil
+}
+
+// hasOpenContentModel determines if a JSON Schema has an open content model.
+// A schema has an open content model if it allows additional properties beyond
+// those explicitly defined. This is the default in JSON Schema (when
+// additionalProperties is absent or true).
+func hasOpenContentModel(schema map[string]interface{}) bool {
+	ap, hasAP := schema["additionalProperties"]
+	if !hasAP {
+		return true // default is open
+	}
+	if boolVal, ok := ap.(bool); ok {
+		return boolVal
+	}
+	// Schema object for additionalProperties = still open (constrained but allows additional)
+	return true
 }
 
 func joinPath(base, prop string) string {

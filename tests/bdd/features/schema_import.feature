@@ -1,4 +1,4 @@
-@functional
+@functional @import
 Feature: Schema Import
   As an operator migrating from another schema registry, I want to import schemas with specific IDs
 

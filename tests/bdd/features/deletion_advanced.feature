@@ -172,9 +172,9 @@ Feature: Advanced Schema Deletion
     When I delete version 1 of subject "del-adv-ref-base"
     Then the response status should be 422
     And the response should have error code 42206
-    And the response should contain "referenced"
+    And the response should contain "reference"
 
-  Scenario: Delete subject with active reference succeeds at subject level
+  Scenario: Delete subject with active reference is blocked
     Given the global compatibility level is "NONE"
     And subject "del-adv-refsub-base" has schema:
       """
@@ -190,9 +190,11 @@ Feature: Advanced Schema Deletion
       }
       """
     Then the response status should be 200
-    # Subject-level soft-delete does not check per-version references
+    # Subject-level soft-delete blocked when any version is referenced
     When I delete subject "del-adv-refsub-base"
-    Then the response status should be 200
+    Then the response status should be 422
+    And the response should have error code 42206
+    And the response should contain "reference"
 
   # ==========================================================================
   # SOFT DELETE THEN PERMANENT DELETE SAME RESOURCE

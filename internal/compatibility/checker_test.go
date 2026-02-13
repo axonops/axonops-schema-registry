@@ -281,12 +281,12 @@ func TestChecker_BackwardTransitive_Protobuf(t *testing.T) {
 	v1 := `syntax = "proto3"; message User { string id = 1; }`
 	// v2 adds optional field - compatible
 	v2 := `syntax = "proto3"; message User { string id = 1; string name = 2; }`
-	// v3 removes id field - NOT backward compatible with v1
+	// v3 removes id field — field removal is wire-safe in proto3 (compatible)
 	v3 := `syntax = "proto3"; message User { string name = 2; string email = 3; }`
 
 	result := c.Check(compatibility.ModeBackwardTransitive, storage.SchemaTypeProtobuf, s(v3), ss(v1, v2))
-	if result.IsCompatible {
-		t.Error("BACKWARD_TRANSITIVE should FAIL for protobuf (removed field 1)")
+	if !result.IsCompatible {
+		t.Errorf("BACKWARD_TRANSITIVE should PASS for protobuf (field removal is wire-safe): %v", result.Messages)
 	}
 }
 
@@ -306,17 +306,17 @@ func TestChecker_ForwardTransitive_Protobuf(t *testing.T) {
 	}
 }
 
-func TestChecker_ForwardTransitive_Protobuf_FailsOnRemovedField(t *testing.T) {
+func TestChecker_ForwardTransitive_Protobuf_FieldRemovalCompatible(t *testing.T) {
 	c := newCheckerWithAll()
 
 	v1 := `syntax = "proto3"; message User { string id = 1; string name = 2; }`
 	v2 := `syntax = "proto3"; message User { string id = 1; string name = 2; string email = 3; }`
-	// v3 removes name - forward check: v1 (reader) reads v3 (writer) - v1 has name but v3 doesn't
+	// v3 removes name — field removal is wire-safe in proto3 (compatible)
 	v3 := `syntax = "proto3"; message User { string id = 1; string email = 3; }`
 
 	result := c.Check(compatibility.ModeForwardTransitive, storage.SchemaTypeProtobuf, s(v3), ss(v1, v2))
-	if result.IsCompatible {
-		t.Error("FORWARD_TRANSITIVE should FAIL (removed field 'name' that v1 has)")
+	if !result.IsCompatible {
+		t.Errorf("FORWARD_TRANSITIVE should PASS (field removal is wire-safe): %v", result.Messages)
 	}
 }
 
@@ -511,11 +511,11 @@ func TestChecker_Protobuf_FourVersionEvolution_BackwardTransitive(t *testing.T) 
 func TestChecker_JSONSchema_FourVersionEvolution_BackwardTransitive(t *testing.T) {
 	c := newCheckerWithAll()
 
-	// For JSON Schema, adding optional properties is backward-transitive compatible
-	v1 := `{"type":"object","properties":{"id":{"type":"integer"},"amount":{"type":"number"}},"required":["id","amount"]}`
-	v2 := `{"type":"object","properties":{"id":{"type":"integer"},"amount":{"type":"number"},"currency":{"type":"string"}},"required":["id","amount"]}`
-	v3 := `{"type":"object","properties":{"id":{"type":"integer"},"amount":{"type":"number"},"currency":{"type":"string"},"status":{"type":"string"}},"required":["id","amount"]}`
-	v4 := `{"type":"object","properties":{"id":{"type":"integer"},"amount":{"type":"number"},"currency":{"type":"string"},"status":{"type":"string"},"customer_id":{"type":"integer"}},"required":["id","amount"]}`
+	// For JSON Schema with closed content model, adding optional properties is backward-transitive compatible
+	v1 := `{"type":"object","properties":{"id":{"type":"integer"},"amount":{"type":"number"}},"required":["id","amount"],"additionalProperties":false}`
+	v2 := `{"type":"object","properties":{"id":{"type":"integer"},"amount":{"type":"number"},"currency":{"type":"string"}},"required":["id","amount"],"additionalProperties":false}`
+	v3 := `{"type":"object","properties":{"id":{"type":"integer"},"amount":{"type":"number"},"currency":{"type":"string"},"status":{"type":"string"}},"required":["id","amount"],"additionalProperties":false}`
+	v4 := `{"type":"object","properties":{"id":{"type":"integer"},"amount":{"type":"number"},"currency":{"type":"string"},"status":{"type":"string"},"customer_id":{"type":"integer"}},"required":["id","amount"],"additionalProperties":false}`
 
 	result := c.Check(compatibility.ModeBackwardTransitive, storage.SchemaTypeJSON, s(v4), ss(v1, v2, v3))
 	if !result.IsCompatible {

@@ -16,6 +16,10 @@ import (
 // ErrIncompatibleSchema is returned when a schema fails compatibility checks.
 var ErrIncompatibleSchema = errors.New("incompatible schema")
 
+// ErrImportIDConflict is returned when importing a schema with an ID that already
+// exists but has different content.
+var ErrImportIDConflict = errors.New("import ID conflict")
+
 // Registry is the core schema registry service.
 type Registry struct {
 	storage       storage.Storage
@@ -132,6 +136,68 @@ func (r *Registry) RegisterSchema(ctx context.Context, subject string, schemaStr
 			if existing != nil {
 				return existing, nil
 			}
+		}
+		return nil, fmt.Errorf("failed to store schema: %w", err)
+	}
+
+	return record, nil
+}
+
+// RegisterSchemaWithID registers a schema with a specific ID (for IMPORT mode).
+// It validates the schema, determines the next version, and stores it with the given ID.
+// Confluent behavior: if the ID already exists with the same schema content, the schema
+// is associated with the new subject (succeeds). If the ID exists with different content,
+// returns error code 42205.
+func (r *Registry) RegisterSchemaWithID(ctx context.Context, subject string, schemaStr string, schemaType storage.SchemaType, refs []storage.Reference, id int64) (*storage.SchemaRecord, error) {
+	if schemaType == "" {
+		schemaType = storage.SchemaTypeAvro
+	}
+
+	parser, ok := r.schemaParser.Get(schemaType)
+	if !ok {
+		return nil, fmt.Errorf("unsupported schema type: %s", schemaType)
+	}
+
+	resolvedRefs, err := r.resolveReferences(ctx, refs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve references: %w", err)
+	}
+
+	parsed, err := parser.Parse(schemaStr, resolvedRefs)
+	if err != nil {
+		return nil, fmt.Errorf("invalid schema: %w", err)
+	}
+
+	// Check if schema already exists in this subject with same fingerprint (idempotent)
+	existing, err := r.storage.GetSchemaByFingerprint(ctx, subject, parsed.Fingerprint(), false)
+	if err == nil && existing != nil {
+		return existing, nil
+	}
+
+	// Determine next version for this subject
+	nextVersion := 1
+	existingSchemas, err := r.storage.GetSchemasBySubject(ctx, subject, false)
+	if err == nil && len(existingSchemas) > 0 {
+		for _, s := range existingSchemas {
+			if s.Version >= nextVersion {
+				nextVersion = s.Version + 1
+			}
+		}
+	}
+
+	record := &storage.SchemaRecord{
+		ID:          id,
+		Subject:     subject,
+		Version:     nextVersion,
+		SchemaType:  schemaType,
+		Schema:      schemaStr,
+		References:  refs,
+		Fingerprint: parsed.Fingerprint(),
+	}
+
+	if err := r.storage.ImportSchema(ctx, record); err != nil {
+		if errors.Is(err, storage.ErrSchemaIDConflict) {
+			return nil, fmt.Errorf("overwrite schema with id %d: %w", id, ErrImportIDConflict)
 		}
 		return nil, fmt.Errorf("failed to store schema: %w", err)
 	}
@@ -364,6 +430,23 @@ func (r *Registry) LookupSchema(ctx context.Context, subject string, schemaStr s
 
 // DeleteSubject deletes a subject.
 func (r *Registry) DeleteSubject(ctx context.Context, subject string, permanent bool) ([]int, error) {
+	if !permanent {
+		// For soft-delete, check if any version in this subject is referenced by other schemas.
+		// If the subject doesn't exist or is already deleted, skip the check and let
+		// DeleteSubject return the appropriate error.
+		schemas, err := r.storage.GetSchemasBySubject(ctx, subject, false)
+		if err == nil {
+			for _, schema := range schemas {
+				refs, err := r.storage.GetReferencedBy(ctx, subject, schema.Version)
+				if err != nil {
+					return nil, err
+				}
+				if len(refs) > 0 {
+					return nil, fmt.Errorf("One or more references exist to the schema {subject=%s,version=%d}", subject, schema.Version)
+				}
+			}
+		}
+	}
 	return r.storage.DeleteSubject(ctx, subject, permanent)
 }
 

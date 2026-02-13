@@ -249,15 +249,19 @@ func (s *Store) ImportSchema(ctx context.Context, record *storage.SchemaRecord) 
 	record.Fingerprint = fp
 
 	// Check if schema ID already exists
-	var existingType string
+	var existingType, existingFingerprint string
+	idExists := false
 	err := s.readQuery(
-		fmt.Sprintf(`SELECT schema_type FROM %s.schemas_by_id WHERE schema_id = ?`, qident(s.cfg.Keyspace)),
+		fmt.Sprintf(`SELECT schema_type, fingerprint FROM %s.schemas_by_id WHERE schema_id = ?`, qident(s.cfg.Keyspace)),
 		int(record.ID),
-	).WithContext(ctx).Scan(&existingType)
+	).WithContext(ctx).Scan(&existingType, &existingFingerprint)
 	if err == nil {
-		return storage.ErrSchemaIDConflict
-	}
-	if !errors.Is(err, gocql.ErrNotFound) {
+		// ID exists — allow if same content (fingerprint), reject if different
+		if existingFingerprint != fp {
+			return storage.ErrSchemaIDConflict
+		}
+		idExists = true
+	} else if !errors.Is(err, gocql.ErrNotFound) {
 		return err
 	}
 
@@ -276,24 +280,27 @@ func (s *Store) ImportSchema(ctx context.Context, record *storage.SchemaRecord) 
 
 	createdUUID := gocql.TimeUUID()
 
-	// Insert into schemas_by_id
-	err = s.writeQuery(
-		fmt.Sprintf(`INSERT INTO %s.schemas_by_id (schema_id, schema_type, fingerprint, schema_text, canonical_text, created_at)
-			VALUES (?, ?, ?, ?, ?, ?)`, qident(s.cfg.Keyspace)),
-		int(record.ID), string(record.SchemaType), fp, record.Schema, canonical, createdUUID,
-	).WithContext(ctx).Exec()
-	if err != nil {
-		return fmt.Errorf("failed to insert schema_by_id: %w", err)
-	}
+	// Only insert schema content tables if this is a new ID
+	if !idExists {
+		// Insert into schemas_by_id
+		err = s.writeQuery(
+			fmt.Sprintf(`INSERT INTO %s.schemas_by_id (schema_id, schema_type, fingerprint, schema_text, canonical_text, created_at)
+				VALUES (?, ?, ?, ?, ?, ?)`, qident(s.cfg.Keyspace)),
+			int(record.ID), string(record.SchemaType), fp, record.Schema, canonical, createdUUID,
+		).WithContext(ctx).Exec()
+		if err != nil {
+			return fmt.Errorf("failed to insert schema_by_id: %w", err)
+		}
 
-	// Insert into schemas_by_fingerprint
-	err = s.writeQuery(
-		fmt.Sprintf(`INSERT INTO %s.schemas_by_fingerprint (fingerprint, schema_id, schema_type, schema_text, canonical_text, created_at)
-			VALUES (?, ?, ?, ?, ?, ?)`, qident(s.cfg.Keyspace)),
-		fp, int(record.ID), string(record.SchemaType), record.Schema, canonical, createdUUID,
-	).WithContext(ctx).Exec()
-	if err != nil {
-		return fmt.Errorf("failed to insert schemas_by_fingerprint: %w", err)
+		// Insert into schemas_by_fingerprint
+		err = s.writeQuery(
+			fmt.Sprintf(`INSERT INTO %s.schemas_by_fingerprint (fingerprint, schema_id, schema_type, schema_text, canonical_text, created_at)
+				VALUES (?, ?, ?, ?, ?, ?)`, qident(s.cfg.Keyspace)),
+			fp, int(record.ID), string(record.SchemaType), record.Schema, canonical, createdUUID,
+		).WithContext(ctx).Exec()
+		if err != nil {
+			return fmt.Errorf("failed to insert schemas_by_fingerprint: %w", err)
+		}
 	}
 
 	// Insert into subject_versions

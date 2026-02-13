@@ -20,11 +20,10 @@ import (
 var errInvalidVersion = errors.New("invalid version")
 
 // schemaTypeForResponse returns the schema type string for API responses.
-// Per Confluent convention, AVRO is the default and is omitted (empty string)
-// so that JSON omitempty will exclude it. Non-AVRO types are returned as-is.
+// Always returns a non-empty type string; defaults to "AVRO" if unset.
 func schemaTypeForResponse(st storage.SchemaType) string {
-	if st == storage.SchemaTypeAvro || st == "" {
-		return ""
+	if st == "" {
+		return string(storage.SchemaTypeAvro)
 	}
 	return string(st)
 }
@@ -190,7 +189,7 @@ func (h *Handler) ListSubjects(w http.ResponseWriter, r *http.Request) {
 			subjects = subjects[offset:]
 		}
 	}
-	if limit >= 0 && limit < len(subjects) {
+	if limit > 0 && limit < len(subjects) {
 		subjects = subjects[:limit]
 	}
 
@@ -311,14 +310,23 @@ func (h *Handler) RegisterSchema(w http.ResponseWriter, r *http.Request) {
 	}
 
 	normalizeSchema := r.URL.Query().Get("normalize") == "true"
-	schema, err := h.registry.RegisterSchema(r.Context(), subject, req.Schema, schemaType, req.References, normalizeSchema)
+
+	var schema *storage.SchemaRecord
+	var err error
+
+	// In IMPORT mode with explicit ID, use import path
+	if req.ID > 0 {
+		schema, err = h.registry.RegisterSchemaWithID(r.Context(), subject, req.Schema, schemaType, req.References, req.ID)
+	} else {
+		schema, err = h.registry.RegisterSchema(r.Context(), subject, req.Schema, schemaType, req.References, normalizeSchema)
+	}
 	if err != nil {
 		if strings.Contains(err.Error(), "invalid schema") {
 			writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidSchema, err.Error())
 			return
 		}
 		if strings.Contains(err.Error(), "unsupported schema type") {
-			writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidSchemaType, err.Error())
+			writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidSchema, err.Error())
 			return
 		}
 		if strings.Contains(err.Error(), "failed to resolve references") {
@@ -327,6 +335,11 @@ func (h *Handler) RegisterSchema(w http.ResponseWriter, r *http.Request) {
 		}
 		if errors.Is(err, registry.ErrIncompatibleSchema) {
 			writeError(w, http.StatusConflict, types.ErrorCodeIncompatibleSchema, err.Error())
+			return
+		}
+		if errors.Is(err, registry.ErrImportIDConflict) {
+			writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeOperationNotPermitted,
+				fmt.Sprintf("Overwrite new schema with id %d is not permitted.", req.ID))
 			return
 		}
 		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
@@ -350,7 +363,7 @@ func (h *Handler) LookupSchema(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if req.Schema == "" {
-		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidSchema, "Empty schema")
+		writeError(w, http.StatusNotFound, types.ErrorCodeSchemaNotFound, "Schema not found")
 		return
 	}
 
@@ -420,6 +433,10 @@ func (h *Handler) DeleteSubject(w http.ResponseWriter, r *http.Request) {
 				fmt.Sprintf("Subject '%s' was not deleted first before being permanently deleted", subject))
 			return
 		}
+		if strings.Contains(err.Error(), "reference") {
+			writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeReferenceExists, err.Error())
+			return
+		}
 		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
 		return
 	}
@@ -458,7 +475,7 @@ func (h *Handler) DeleteVersion(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if errors.Is(err, storage.ErrVersionNotSoftDeleted) {
-			writeError(w, http.StatusNotFound, types.ErrorCodeSubjectNotSoftDeleted,
+			writeError(w, http.StatusNotFound, types.ErrorCodeVersionNotSoftDeleted,
 				fmt.Sprintf("Subject '%s' Version %s was not deleted first before being permanently deleted", subject, versionStr))
 			return
 		}
@@ -514,6 +531,17 @@ func (h *Handler) SetConfig(w http.ResponseWriter, r *http.Request) {
 	var req types.ConfigRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, types.ErrorCodeInvalidCompatibilityLevel, "Invalid request body")
+		return
+	}
+
+	// Empty body: return current config (matches Confluent behavior)
+	if req.Compatibility == "" {
+		level, err := h.registry.GetConfig(r.Context(), subject)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, types.ConfigRequest{Compatibility: level})
 		return
 	}
 
@@ -581,7 +609,14 @@ func (h *Handler) CheckCompatibility(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if errors.Is(err, storage.ErrSubjectNotFound) {
-			writeError(w, http.StatusNotFound, types.ErrorCodeSubjectNotFound, "Subject not found")
+			// When checking against a specific version, Confluent returns 40402 (version not found)
+			// rather than 40401 (subject not found)
+			if versionStr != "" && versionStr != "latest" {
+				writeError(w, http.StatusNotFound, types.ErrorCodeVersionNotFound,
+					fmt.Sprintf("Version %s not found", versionStr))
+			} else {
+				writeError(w, http.StatusNotFound, types.ErrorCodeSubjectNotFound, "Subject not found")
+			}
 			return
 		}
 		if errors.Is(err, storage.ErrVersionNotFound) {

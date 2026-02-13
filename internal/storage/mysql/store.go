@@ -1098,12 +1098,16 @@ func (s *Store) ImportSchema(ctx context.Context, record *storage.SchemaRecord) 
 	defer func() { _ = tx.Rollback() }()
 
 	// Check if schema ID already exists
-	var existingID int64
-	err = tx.QueryRowContext(ctx, "SELECT id FROM `schemas` WHERE id = ?", record.ID).Scan(&existingID)
+	var existingFingerprint string
+	idExists := false
+	err = tx.QueryRowContext(ctx, "SELECT fingerprint FROM `schemas` WHERE id = ?", record.ID).Scan(&existingFingerprint)
 	if err == nil {
-		return storage.ErrSchemaIDConflict
-	}
-	if err != sql.ErrNoRows {
+		// ID exists — allow if same content (fingerprint), reject if different
+		if existingFingerprint != record.Fingerprint {
+			return storage.ErrSchemaIDConflict
+		}
+		idExists = true
+	} else if err != sql.ErrNoRows {
 		return fmt.Errorf("failed to check existing schema: %w", err)
 	}
 
@@ -1120,11 +1124,19 @@ func (s *Store) ImportSchema(ctx context.Context, record *storage.SchemaRecord) 
 		return fmt.Errorf("failed to check existing version: %w", err)
 	}
 
-	// Insert schema with explicit ID
-	_, err = tx.ExecContext(ctx,
-		"INSERT INTO `schemas` (id, subject, version, schema_type, schema_text, fingerprint, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-		record.ID, record.Subject, record.Version, record.SchemaType, record.Schema, record.Fingerprint, time.Now(),
-	)
+	if idExists {
+		// Same content, different subject — insert a new row (auto-id)
+		_, err = tx.ExecContext(ctx,
+			"INSERT INTO `schemas` (subject, version, schema_type, schema_text, fingerprint, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+			record.Subject, record.Version, record.SchemaType, record.Schema, record.Fingerprint, time.Now(),
+		)
+	} else {
+		// New ID — insert with explicit ID
+		_, err = tx.ExecContext(ctx,
+			"INSERT INTO `schemas` (id, subject, version, schema_type, schema_text, fingerprint, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+			record.ID, record.Subject, record.Version, record.SchemaType, record.Schema, record.Fingerprint, time.Now(),
+		)
+	}
 	if err != nil {
 		return fmt.Errorf("failed to insert schema: %w", err)
 	}

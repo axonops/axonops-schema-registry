@@ -679,8 +679,13 @@ func (s *Store) ImportSchema(ctx context.Context, record *storage.SchemaRecord) 
 	defer s.mu.Unlock()
 
 	// Check if schema ID already exists
-	if _, exists := s.schemas[record.ID]; exists {
-		return storage.ErrSchemaIDConflict
+	existingSchema, idExists := s.schemas[record.ID]
+	if idExists {
+		// If same content (fingerprint), allow associating with new subject.
+		// If different content, reject — can't overwrite a schema ID.
+		if existingSchema.Fingerprint != record.Fingerprint {
+			return storage.ErrSchemaIDConflict
+		}
 	}
 
 	// Initialize subject's version map if needed
@@ -693,13 +698,15 @@ func (s *Store) ImportSchema(ctx context.Context, record *storage.SchemaRecord) 
 		return storage.ErrSchemaExists
 	}
 
-	// Store the schema content
-	s.schemas[record.ID] = &storage.SchemaRecord{
-		ID:          record.ID,
-		SchemaType:  record.SchemaType,
-		Schema:      record.Schema,
-		References:  record.References,
-		Fingerprint: record.Fingerprint,
+	// Store the schema content (or update if same ID/fingerprint)
+	if !idExists {
+		s.schemas[record.ID] = &storage.SchemaRecord{
+			ID:          record.ID,
+			SchemaType:  record.SchemaType,
+			Schema:      record.Schema,
+			References:  record.References,
+			Fingerprint: record.Fingerprint,
+		}
 	}
 
 	// Update global fingerprint mapping

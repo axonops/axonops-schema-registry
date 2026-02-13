@@ -8,6 +8,7 @@ type RegisterSchemaRequest struct {
 	Schema     string              `json:"schema"`
 	SchemaType string              `json:"schemaType,omitempty"`
 	References []storage.Reference `json:"references,omitempty"`
+	ID         int64               `json:"id,omitempty"`
 }
 
 // RegisterSchemaResponse is the response for registering a schema.
@@ -18,14 +19,14 @@ type RegisterSchemaResponse struct {
 // SchemaResponse is the response for getting a schema.
 type SchemaResponse struct {
 	Schema     string              `json:"schema"`
-	SchemaType string              `json:"schemaType,omitempty"`
+	SchemaType string              `json:"schemaType"`
 	References []storage.Reference `json:"references,omitempty"`
 }
 
 // SchemaByIDResponse is the response for getting a schema by ID.
 type SchemaByIDResponse struct {
 	Schema     string              `json:"schema"`
-	SchemaType string              `json:"schemaType,omitempty"`
+	SchemaType string              `json:"schemaType"`
 	References []storage.Reference `json:"references,omitempty"`
 	MaxId      *int64              `json:"maxId,omitempty"`
 }
@@ -35,7 +36,7 @@ type SubjectVersionResponse struct {
 	Subject    string              `json:"subject"`
 	ID         int64               `json:"id"`
 	Version    int                 `json:"version"`
-	SchemaType string              `json:"schemaType,omitempty"`
+	SchemaType string              `json:"schemaType"`
 	Schema     string              `json:"schema"`
 	References []storage.Reference `json:"references,omitempty"`
 }
@@ -52,7 +53,7 @@ type LookupSchemaResponse struct {
 	Subject    string              `json:"subject"`
 	ID         int64               `json:"id"`
 	Version    int                 `json:"version"`
-	SchemaType string              `json:"schemaType,omitempty"`
+	SchemaType string              `json:"schemaType"`
 	Schema     string              `json:"schema"`
 	References []storage.Reference `json:"references,omitempty"`
 }
@@ -109,7 +110,7 @@ type SchemaListItem struct {
 	Subject    string              `json:"subject"`
 	Version    int                 `json:"version"`
 	ID         int64               `json:"id"`
-	SchemaType string              `json:"schemaType,omitempty"`
+	SchemaType string              `json:"schemaType"`
 	Schema     string              `json:"schema"`
 	References []storage.Reference `json:"references,omitempty"`
 }
@@ -134,6 +135,7 @@ const (
 	ErrorCodeSubjectSoftDeleted        = 40404
 	ErrorCodeSubjectNotSoftDeleted     = 40405
 	ErrorCodeSchemaVersionSoftDeleted  = 40406
+	ErrorCodeVersionNotSoftDeleted     = 40407
 	ErrorCodeIncompatibleSchema        = 409
 	ErrorCodeInvalidSchema             = 42201
 	ErrorCodeInvalidSchemaType         = 42202

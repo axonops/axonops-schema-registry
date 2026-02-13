@@ -67,7 +67,7 @@ Feature: Deletion Lifecycle (Two-Step Delete)
       """
     When I DELETE "/subjects/del-ver-lifecycle-1/versions/1?permanent=true"
     Then the response status should be 404
-    And the response should have error code 40405
+    And the response should have error code 40407
 
   Scenario: Soft-delete version then permanent delete succeeds
     Given the global compatibility level is "NONE"

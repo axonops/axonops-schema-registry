@@ -46,7 +46,7 @@ Feature: Protobuf Schema Compatibility
       """
     Then the response status should be 409
 
-  Scenario: BACKWARD - remove field is incompatible
+  Scenario: BACKWARD - remove field is compatible
     Given the global compatibility level is "BACKWARD"
     And subject "proto-back-3" has "PROTOBUF" schema:
       """
@@ -63,7 +63,7 @@ Feature: Protobuf Schema Compatibility
         string id = 1;
       }
       """
-    Then the response status should be 409
+    Then the response status should be 200
 
   Scenario: BACKWARD - change field type int32 to string is incompatible
     Given the global compatibility level is "BACKWARD"
@@ -83,7 +83,7 @@ Feature: Protobuf Schema Compatibility
       """
     Then the response status should be 409
 
-  Scenario: BACKWARD - compatible type change int32 to sint32
+  Scenario: BACKWARD - type change int32 to sint32 is incompatible
     Given the global compatibility level is "BACKWARD"
     And subject "proto-back-5" has "PROTOBUF" schema:
       """
@@ -99,9 +99,9 @@ Feature: Protobuf Schema Compatibility
         sint32 value = 1;
       }
       """
-    Then the response status should be 200
+    Then the response status should be 409
 
-  Scenario: BACKWARD - change field number is incompatible
+  Scenario: BACKWARD - change field number is compatible
     Given the global compatibility level is "BACKWARD"
     And subject "proto-back-6" has "PROTOBUF" schema:
       """
@@ -117,7 +117,7 @@ Feature: Protobuf Schema Compatibility
         string name = 2;
       }
       """
-    Then the response status should be 409
+    Then the response status should be 200
 
   Scenario: BACKWARD - optional to repeated is compatible
     Given the global compatibility level is "BACKWARD"
@@ -137,7 +137,7 @@ Feature: Protobuf Schema Compatibility
       """
     Then the response status should be 200
 
-  Scenario: BACKWARD - repeated to optional is incompatible
+  Scenario: BACKWARD - repeated to singular string is compatible
     Given the global compatibility level is "BACKWARD"
     And subject "proto-back-8" has "PROTOBUF" schema:
       """
@@ -153,7 +153,7 @@ Feature: Protobuf Schema Compatibility
         string tags = 1;
       }
       """
-    Then the response status should be 409
+    Then the response status should be 200
 
   Scenario: BACKWARD - add enum value is compatible
     Given the global compatibility level is "BACKWARD"
@@ -182,7 +182,7 @@ Feature: Protobuf Schema Compatibility
       """
     Then the response status should be 200
 
-  Scenario: BACKWARD - remove enum value is incompatible
+  Scenario: BACKWARD - remove enum value is compatible
     Given the global compatibility level is "BACKWARD"
     And subject "proto-back-10" has "PROTOBUF" schema:
       """
@@ -207,7 +207,7 @@ Feature: Protobuf Schema Compatibility
         Priority priority = 1;
       }
       """
-    Then the response status should be 409
+    Then the response status should be 200
 
   # ==========================================================================
   # BACKWARD_TRANSITIVE mode (6 scenarios)
@@ -272,7 +272,7 @@ Feature: Protobuf Schema Compatibility
       """
     Then the response status should be 409
 
-  Scenario: BACKWARD_TRANSITIVE - type change chain is incompatible with v1
+  Scenario: BACKWARD_TRANSITIVE - type change chain within varint group is compatible
     Given the global compatibility level is "BACKWARD_TRANSITIVE"
     And subject "proto-bt-3" has "PROTOBUF" schema:
       """
@@ -285,14 +285,14 @@ Feature: Protobuf Schema Compatibility
       """
       syntax = "proto3";
       message Record {
-        sint32 value = 1;
+        uint32 value = 1;
       }
       """
     When I register a "PROTOBUF" schema under subject "proto-bt-3":
       """
       syntax = "proto3";
       message Record {
-        sfixed32 value = 1;
+        int64 value = 1;
       }
       """
     Then the response status should be 200
@@ -362,7 +362,7 @@ Feature: Protobuf Schema Compatibility
       """
     Then the response status should be 200
 
-  Scenario: BACKWARD_TRANSITIVE - incompatible with v1 but OK with v2 still fails
+  Scenario: BACKWARD_TRANSITIVE - field removal across versions is compatible
     Given the global compatibility level is "BACKWARD_TRANSITIVE"
     And subject "proto-bt-6" has "PROTOBUF" schema:
       """
@@ -389,7 +389,7 @@ Feature: Protobuf Schema Compatibility
         string label = 3;
       }
       """
-    Then the response status should be 409
+    Then the response status should be 200
 
   # ==========================================================================
   # FORWARD mode (8 scenarios)
@@ -416,7 +416,7 @@ Feature: Protobuf Schema Compatibility
       """
     Then the response status should be 200
 
-  Scenario: FORWARD - add field is incompatible
+  Scenario: FORWARD - add field is compatible
     Given the global compatibility level is "FORWARD"
     And subject "proto-fwd-2" has "PROTOBUF" schema:
       """
@@ -433,7 +433,7 @@ Feature: Protobuf Schema Compatibility
         string data = 2;
       }
       """
-    Then the response status should be 409
+    Then the response status should be 200
 
   Scenario: FORWARD - change field type is incompatible
     Given the global compatibility level is "FORWARD"
@@ -453,7 +453,7 @@ Feature: Protobuf Schema Compatibility
       """
     Then the response status should be 409
 
-  Scenario: FORWARD - compatible type group uint32 to fixed32
+  Scenario: FORWARD - cross-group type change uint32 to fixed32 is incompatible
     Given the global compatibility level is "FORWARD"
     And subject "proto-fwd-4" has "PROTOBUF" schema:
       """
@@ -469,7 +469,7 @@ Feature: Protobuf Schema Compatibility
         fixed32 counter = 1;
       }
       """
-    Then the response status should be 200
+    Then the response status should be 409
 
   Scenario: FORWARD - remove enum value is compatible
     Given the global compatibility level is "FORWARD"
@@ -498,7 +498,7 @@ Feature: Protobuf Schema Compatibility
       """
     Then the response status should be 200
 
-  Scenario: FORWARD - add enum value is incompatible
+  Scenario: FORWARD - add enum value is compatible
     Given the global compatibility level is "FORWARD"
     And subject "proto-fwd-6" has "PROTOBUF" schema:
       """
@@ -523,7 +523,7 @@ Feature: Protobuf Schema Compatibility
         Level level = 1;
       }
       """
-    Then the response status should be 409
+    Then the response status should be 200
 
   Scenario: FORWARD - remove service method is compatible
     Given the global compatibility level is "FORWARD"
@@ -552,7 +552,7 @@ Feature: Protobuf Schema Compatibility
       """
     Then the response status should be 200
 
-  Scenario: FORWARD - add service method is incompatible
+  Scenario: FORWARD - add service method is compatible (services ignored)
     Given the global compatibility level is "FORWARD"
     And subject "proto-fwd-8" has "PROTOBUF" schema:
       """
@@ -577,7 +577,7 @@ Feature: Protobuf Schema Compatibility
         rpc List(ListReq) returns (ListResp);
       }
       """
-    Then the response status should be 409
+    Then the response status should be 200
 
   # ==========================================================================
   # FORWARD_TRANSITIVE mode (5 scenarios)
@@ -612,7 +612,7 @@ Feature: Protobuf Schema Compatibility
       """
     Then the response status should be 200
 
-  Scenario: FORWARD_TRANSITIVE - field addition breaks against v1
+  Scenario: FORWARD_TRANSITIVE - field addition is compatible
     Given the global compatibility level is "FORWARD_TRANSITIVE"
     And subject "proto-ft-2" has "PROTOBUF" schema:
       """
@@ -636,7 +636,7 @@ Feature: Protobuf Schema Compatibility
         string label = 2;
       }
       """
-    Then the response status should be 409
+    Then the response status should be 200
 
   Scenario: FORWARD_TRANSITIVE - service method addition breaks against v1
     Given the global compatibility level is "FORWARD_TRANSITIVE"
@@ -672,7 +672,7 @@ Feature: Protobuf Schema Compatibility
       """
     Then the response status should be 409
 
-  Scenario: FORWARD_TRANSITIVE - enum value addition breaks against earlier versions
+  Scenario: FORWARD_TRANSITIVE - enum value addition is compatible
     Given the global compatibility level is "FORWARD_TRANSITIVE"
     And subject "proto-ft-4" has "PROTOBUF" schema:
       """
@@ -705,7 +705,7 @@ Feature: Protobuf Schema Compatibility
         Status status = 1;
       }
       """
-    Then the response status should be 409
+    Then the response status should be 200
 
   Scenario: FORWARD_TRANSITIVE - progressive field removal stays compatible
     Given the global compatibility level is "FORWARD_TRANSITIVE"
@@ -741,7 +741,7 @@ Feature: Protobuf Schema Compatibility
   # Only changes that are safe in BOTH directions pass
   # ==========================================================================
 
-  Scenario: FULL - add optional field fails (not forward compatible)
+  Scenario: FULL - add optional field is compatible
     Given the global compatibility level is "FULL"
     And subject "proto-full-1" has "PROTOBUF" schema:
       """
@@ -758,7 +758,7 @@ Feature: Protobuf Schema Compatibility
         string body = 2;
       }
       """
-    Then the response status should be 409
+    Then the response status should be 200
 
   Scenario: FULL - add required field is incompatible
     Given the global compatibility level is "FULL"
@@ -779,7 +779,7 @@ Feature: Protobuf Schema Compatibility
       """
     Then the response status should be 409
 
-  Scenario: FULL - remove field fails (not backward compatible)
+  Scenario: FULL - remove field is compatible
     Given the global compatibility level is "FULL"
     And subject "proto-full-3" has "PROTOBUF" schema:
       """
@@ -796,7 +796,7 @@ Feature: Protobuf Schema Compatibility
         string title = 1;
       }
       """
-    Then the response status should be 409
+    Then the response status should be 200
 
   Scenario: FULL - identical schema is compatible
     Given the global compatibility level is "FULL"
@@ -818,7 +818,7 @@ Feature: Protobuf Schema Compatibility
       """
     Then the response status should be 200
 
-  Scenario: FULL - cross-group type change is incompatible
+  Scenario: FULL - within-group type change int32 to uint32 is compatible
     Given the global compatibility level is "FULL"
     And subject "proto-full-5" has "PROTOBUF" schema:
       """
@@ -834,9 +834,9 @@ Feature: Protobuf Schema Compatibility
         uint32 count = 1;
       }
       """
-    Then the response status should be 409
+    Then the response status should be 200
 
-  Scenario: FULL - add enum value fails (not forward compatible)
+  Scenario: FULL - add enum value is compatible
     Given the global compatibility level is "FULL"
     And subject "proto-full-6" has "PROTOBUF" schema:
       """
@@ -861,9 +861,9 @@ Feature: Protobuf Schema Compatibility
         Role role = 1;
       }
       """
-    Then the response status should be 409
+    Then the response status should be 200
 
-  Scenario: FULL - compatible type change within group passes both directions
+  Scenario: FULL - cross-group type change int32 to sint32 is incompatible
     Given the global compatibility level is "FULL"
     And subject "proto-full-7" has "PROTOBUF" schema:
       """
@@ -881,7 +881,7 @@ Feature: Protobuf Schema Compatibility
         string name = 2;
       }
       """
-    Then the response status should be 200
+    Then the response status should be 409
 
   # ==========================================================================
   # FULL_TRANSITIVE mode (4 scenarios)
@@ -945,7 +945,7 @@ Feature: Protobuf Schema Compatibility
       """
     Then the response status should be 409
 
-  Scenario: FULL_TRANSITIVE - compatible type changes across 3 versions
+  Scenario: FULL_TRANSITIVE - compatible varint type changes across 3 versions
     Given the global compatibility level is "FULL_TRANSITIVE"
     And subject "proto-flt-3" has "PROTOBUF" schema:
       """
@@ -959,7 +959,7 @@ Feature: Protobuf Schema Compatibility
       """
       syntax = "proto3";
       message Config {
-        sint32 counter = 1;
+        uint32 counter = 1;
         string label = 2;
       }
       """
@@ -967,7 +967,7 @@ Feature: Protobuf Schema Compatibility
       """
       syntax = "proto3";
       message Config {
-        sfixed32 counter = 1;
+        int64 counter = 1;
         string label = 2;
       }
       """
@@ -1200,7 +1200,7 @@ Feature: Protobuf Schema Compatibility
       """
     Then the response status should be 409
 
-  Scenario: Edge case - service streaming mode change is incompatible
+  Scenario: Edge case - service streaming mode change is compatible (services ignored)
     Given the global compatibility level is "BACKWARD"
     And subject "proto-edge-7" has "PROTOBUF" schema:
       """
@@ -1220,7 +1220,7 @@ Feature: Protobuf Schema Compatibility
         rpc Fetch(Req) returns (stream Resp);
       }
       """
-    Then the response status should be 409
+    Then the response status should be 200
 
   Scenario: Edge case - adding new message type is compatible (backward)
     Given the global compatibility level is "BACKWARD"
@@ -1373,7 +1373,7 @@ Feature: Protobuf Schema Compatibility
       """
     Then the response status should be 409
 
-  Scenario: BACKWARD - syntax version change is incompatible
+  Scenario: BACKWARD - syntax version change is compatible
     Given the global compatibility level is "BACKWARD"
     And subject "proto-gap-2" has "PROTOBUF" schema:
       """
@@ -1389,7 +1389,7 @@ Feature: Protobuf Schema Compatibility
         optional string name = 1;
       }
       """
-    Then the response status should be 409
+    Then the response status should be 200
 
   Scenario: BACKWARD - cardinality optional to repeated is compatible
     Given the global compatibility level is "BACKWARD"
@@ -1409,7 +1409,7 @@ Feature: Protobuf Schema Compatibility
       """
     Then the response status should be 200
 
-  Scenario: BACKWARD - cardinality repeated to singular is incompatible
+  Scenario: BACKWARD - repeated to singular string is compatible
     Given the global compatibility level is "BACKWARD"
     And subject "proto-gap-4" has "PROTOBUF" schema:
       """
@@ -1425,7 +1425,7 @@ Feature: Protobuf Schema Compatibility
         string tags = 1;
       }
       """
-    Then the response status should be 409
+    Then the response status should be 200
 
   Scenario: BACKWARD - nested message removal is incompatible
     Given the global compatibility level is "BACKWARD"
@@ -1449,7 +1449,7 @@ Feature: Protobuf Schema Compatibility
       """
     Then the response status should be 409
 
-  Scenario: BACKWARD - nested enum removal is incompatible
+  Scenario: BACKWARD - nested enum removal with type change to int32 is compatible
     Given the global compatibility level is "BACKWARD"
     And subject "proto-gap-6" has "PROTOBUF" schema:
       """
@@ -1471,9 +1471,9 @@ Feature: Protobuf Schema Compatibility
         int32 status = 2;
       }
       """
-    Then the response status should be 409
+    Then the response status should be 200
 
-  Scenario: BACKWARD - service method removal is incompatible
+  Scenario: BACKWARD - service method removal is compatible (services ignored)
     Given the global compatibility level is "BACKWARD"
     And subject "proto-gap-7" has "PROTOBUF" schema:
       """
@@ -1494,7 +1494,7 @@ Feature: Protobuf Schema Compatibility
         rpc GetData(Request) returns (Response);
       }
       """
-    Then the response status should be 409
+    Then the response status should be 200
 
   Scenario: BACKWARD - service method addition is compatible
     Given the global compatibility level is "BACKWARD"
@@ -1519,7 +1519,7 @@ Feature: Protobuf Schema Compatibility
       """
     Then the response status should be 200
 
-  Scenario: BACKWARD - service method input type change is incompatible
+  Scenario: BACKWARD - service method input type change is compatible (services ignored)
     Given the global compatibility level is "BACKWARD"
     And subject "proto-gap-9" has "PROTOBUF" schema:
       """
@@ -1541,9 +1541,9 @@ Feature: Protobuf Schema Compatibility
         rpc DoWork(ReqB) returns (Resp);
       }
       """
-    Then the response status should be 409
+    Then the response status should be 200
 
-  Scenario: BACKWARD - service streaming mode change is incompatible
+  Scenario: BACKWARD - service streaming mode change is compatible (services ignored)
     Given the global compatibility level is "BACKWARD"
     And subject "proto-gap-10" has "PROTOBUF" schema:
       """
@@ -1563,9 +1563,9 @@ Feature: Protobuf Schema Compatibility
         rpc StreamData(Req) returns (stream Resp);
       }
       """
-    Then the response status should be 409
+    Then the response status should be 200
 
-  Scenario: BACKWARD - service removal is incompatible
+  Scenario: BACKWARD - service removal is compatible (services ignored)
     Given the global compatibility level is "BACKWARD"
     And subject "proto-gap-11" has "PROTOBUF" schema:
       """
@@ -1582,7 +1582,7 @@ Feature: Protobuf Schema Compatibility
       message Req { string id = 1; }
       message Resp { string data = 1; }
       """
-    Then the response status should be 409
+    Then the response status should be 200
 
   Scenario: BACKWARD - service addition is compatible
     Given the global compatibility level is "BACKWARD"

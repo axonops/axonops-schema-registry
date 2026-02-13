@@ -21,13 +21,13 @@ Feature: Error Codes Exhaustive
     Then the response status should be 404
     And the response should have error code 40401
 
-  Scenario: 40401 on compatibility check against non-existent subject
+  Scenario: 40402 on compatibility check against specific version of non-existent subject
     When I POST "/compatibility/subjects/err-no-subject4/versions/1" with body:
       """
       {"schema": "{\"type\":\"record\",\"name\":\"X\",\"fields\":[{\"name\":\"a\",\"type\":\"string\"}]}"}
       """
     Then the response status should be 404
-    And the response should have error code 40401
+    And the response should have error code 40402
 
   # ==========================================================================
   # 40402 — Version not found
@@ -85,14 +85,14 @@ Feature: Error Codes Exhaustive
     Then the response status should be 404
     And the response should have error code 40405
 
-  Scenario: 40405 on permanent delete version without soft-delete
+  Scenario: 40407 on permanent delete version without soft-delete
     Given subject "err-perm-ver" has schema:
       """
       {"type":"record","name":"PV","fields":[{"name":"a","type":"string"}]}
       """
     When I DELETE "/subjects/err-perm-ver/versions/1?permanent=true"
     Then the response status should be 404
-    And the response should have error code 40405
+    And the response should have error code 40407
 
   # ==========================================================================
   # 409 — Incompatible schema

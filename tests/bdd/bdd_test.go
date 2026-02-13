@@ -79,8 +79,12 @@ func TestMain(m *testing.M) {
 		registryURL = fmt.Sprintf("http://localhost:%s", envOrDefault("REGISTRY_PORT", "18081"))
 		webhookURL = fmt.Sprintf("http://localhost:%s", envOrDefault("WEBHOOK_PORT", "19000"))
 
+		waitTimeout := 120 * time.Second
+		if backend == "confluent" {
+			waitTimeout = 180 * time.Second // Kafka + SR startup takes longer
+		}
 		log.Printf("Waiting for registry at %s ...", registryURL)
-		if err := waitForURL(registryURL+"/", 120*time.Second); err != nil {
+		if err := waitForURL(registryURL+"/", waitTimeout); err != nil {
 			composeLogs(composeFiles)
 			composeDown(composeFiles)
 			log.Fatalf("Registry did not become healthy: %v", err)
@@ -131,6 +135,9 @@ func TestFeatures(t *testing.T) {
 		tags = envTags
 	} else if !dockerMode && registryURL == "" {
 		tags = "~@operational"
+	} else if backend == "confluent" {
+		// Confluent: exclude operational, import (our custom API), axonops-only, and all backend tags.
+		tags = "~@operational && ~@import && ~@axonops-only && ~@memory && ~@postgres && ~@mysql && ~@cassandra"
 	} else if dockerMode {
 		// Only run operational scenarios tagged for this backend, exclude other backends.
 		allBackends := []string{"memory", "postgres", "mysql", "cassandra"}
@@ -222,6 +229,8 @@ func cleanBackend() error {
 		return cleanMySQL()
 	case "cassandra":
 		return cleanCassandra()
+	case "confluent":
+		return cleanViaAPI()
 	default:
 		return cleanViaAPI()
 	}
@@ -389,6 +398,8 @@ func composeFilesForBackend(backend string) []string {
 		return []string{base, "docker-compose.mysql.yml"}
 	case "cassandra":
 		return []string{base, "docker-compose.cassandra.yml"}
+	case "confluent":
+		return []string{"docker-compose.confluent.yml"}
 	default:
 		return []string{base, "docker-compose." + backend + ".yml"}
 	}

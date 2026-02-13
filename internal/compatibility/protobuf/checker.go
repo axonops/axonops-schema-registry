@@ -45,10 +45,8 @@ func (c *Checker) Check(reader, writer compatibility.SchemaWithRefs) *compatibil
 		result.AddMessage("Package changed from '%s' to '%s'", writerFD.Package(), readerFD.Package())
 	}
 
-	// Check syntax compatibility
-	if readerFD.Syntax() != writerFD.Syntax() {
-		result.AddMessage("Syntax changed from '%s' to '%s'", writerFD.Syntax(), readerFD.Syntax())
-	}
+	// Syntax keyword is a source-level annotation only; proto2 optional and proto3
+	// fields produce identical wire bytes. Confluent ignores syntax changes.
 
 	// Check messages
 	c.checkMessages(readerFD, writerFD, result)
@@ -56,8 +54,8 @@ func (c *Checker) Check(reader, writer compatibility.SchemaWithRefs) *compatibil
 	// Check enums
 	c.checkEnums(readerFD, writerFD, result)
 
-	// Check services
-	c.checkServices(readerFD, writerFD, result)
+	// Services are gRPC metadata with zero wire-format impact.
+	// Confluent ignores service definitions entirely.
 
 	return result
 }
@@ -194,11 +192,14 @@ func (c *Checker) checkMessageCompatibility(newMsg, oldMsg protoreflect.MessageD
 		delete(oldFields, num)
 	}
 
-	// Check reserved field numbers - deleted fields should have their numbers reserved
+	// In proto3, field removal is wire-safe: readers ignore unknown fields and use
+	// defaults for missing ones. However, removing a field from a oneof IS
+	// incompatible because it changes oneof semantics.
 	for num, oldField := range oldFields {
-		// Field was removed - this is potentially breaking if clients still use it
-		result.AddMessage("Message '%s': field '%s' (number %d) was removed",
-			msgName, oldField.Name(), num)
+		if oldField.ContainingOneof() != nil {
+			result.AddMessage("Message '%s': field '%s' (number %d) was removed from oneof",
+				msgName, oldField.Name(), num)
+		}
 	}
 
 	// Check nested messages
@@ -240,9 +241,14 @@ func (c *Checker) checkFieldCompatibility(newField, oldField protoreflect.FieldD
 			result.AddMessage("Message '%s': field '%s' changed from optional to required",
 				msgName, fieldName)
 		} else if oldCard == protoreflect.Repeated && newCard != protoreflect.Repeated {
-			// Repeated to non-repeated - breaking
-			result.AddMessage("Message '%s': field '%s' changed from repeated to singular",
-				msgName, fieldName)
+			// Per protobuf spec: "For string, bytes, and message fields, singular is
+			// compatible with repeated." These use length-delimited encoding which
+			// is the same wire format for both singular and repeated.
+			kind := newField.Kind()
+			if kind != protoreflect.StringKind && kind != protoreflect.BytesKind && kind != protoreflect.MessageKind {
+				result.AddMessage("Message '%s': field '%s' changed from repeated to singular",
+					msgName, fieldName)
+			}
 		}
 	}
 
@@ -271,21 +277,18 @@ func (c *Checker) areTypesCompatible(newField, oldField protoreflect.FieldDescri
 		return true
 	}
 
-	// Check compatible type promotions
-	// int32 <-> sint32, sfixed32 (different wire encoding but same value range)
-	// int64 <-> sint64, sfixed64
-	// uint32 <-> fixed32
-	// uint64 <-> fixed64
-
-	// These are NOT compatible due to different wire encodings:
-	// int32 !<-> uint32 (different interpretation)
-	// float !<-> double (different precision)
-
+	// Wire-type compatible groups per official protobuf specification:
+	// - Varint (wire type 0): int32, uint32, int64, uint64, bool
+	// - Zigzag varint (wire type 0): sint32, sint64
+	// - 32-bit (wire type 5): fixed32, sfixed32
+	// - 64-bit (wire type 1): fixed64, sfixed64
+	// - Length-delimited (wire type 2): string, bytes
 	compatibleGroups := [][]protoreflect.Kind{
-		{protoreflect.Int32Kind, protoreflect.Sint32Kind, protoreflect.Sfixed32Kind},
-		{protoreflect.Int64Kind, protoreflect.Sint64Kind, protoreflect.Sfixed64Kind},
-		{protoreflect.Uint32Kind, protoreflect.Fixed32Kind},
-		{protoreflect.Uint64Kind, protoreflect.Fixed64Kind},
+		{protoreflect.Int32Kind, protoreflect.Uint32Kind, protoreflect.Int64Kind, protoreflect.Uint64Kind, protoreflect.BoolKind},
+		{protoreflect.Sint32Kind, protoreflect.Sint64Kind},
+		{protoreflect.Fixed32Kind, protoreflect.Sfixed32Kind},
+		{protoreflect.Fixed64Kind, protoreflect.Sfixed64Kind},
+		{protoreflect.StringKind, protoreflect.BytesKind},
 	}
 
 	for _, group := range compatibleGroups {
@@ -301,6 +304,29 @@ func (c *Checker) areTypesCompatible(newField, oldField protoreflect.FieldDescri
 		}
 		if oldInGroup && newInGroup {
 			return true
+		}
+	}
+
+	// Enum is wire-compatible with varint types (int32, uint32, int64, uint64, bool)
+	// because enums use varint encoding on the wire.
+	varintKinds := []protoreflect.Kind{
+		protoreflect.Int32Kind, protoreflect.Uint32Kind,
+		protoreflect.Int64Kind, protoreflect.Uint64Kind,
+		protoreflect.BoolKind,
+	}
+	if oldKind == protoreflect.EnumKind || newKind == protoreflect.EnumKind {
+		otherKind := newKind
+		if oldKind != protoreflect.EnumKind {
+			otherKind = oldKind
+		}
+		if otherKind == protoreflect.EnumKind {
+			// Both are enums but different enum types - handled by same-kind check above
+			return false
+		}
+		for _, k := range varintKinds {
+			if otherKind == k {
+				return true
+			}
 		}
 	}
 
@@ -353,9 +379,8 @@ func (c *Checker) checkNestedEnums(newMsg, oldMsg protoreflect.MessageDescriptor
 		}
 	}
 
-	for name := range oldEnums {
-		result.AddMessage("Nested enum '%s.%s' was removed", oldMsg.FullName(), name)
-	}
+	// Enum type removal is wire-compatible: enum fields are just integers on
+	// the wire, so removing the type definition doesn't affect wire format.
 }
 
 // checkEnums checks compatibility of top-level enums.
@@ -376,15 +401,12 @@ func (c *Checker) checkEnums(reader, writer protoreflect.FileDescriptor, result 
 		}
 	}
 
-	for name := range oldEnums {
-		result.AddMessage("Enum '%s' was removed", name)
-	}
+	// Enum type removal is wire-compatible: enum fields are integers on the
+	// wire, removing the type definition doesn't affect wire format.
 }
 
 // checkEnumCompatibility checks compatibility between two enum descriptors.
 func (c *Checker) checkEnumCompatibility(newEnum, oldEnum protoreflect.EnumDescriptor, result *compatibility.Result) {
-	enumName := string(newEnum.FullName())
-
 	// Build map of old values by number
 	oldValues := make(map[int32]protoreflect.EnumValueDescriptor)
 	for i := 0; i < oldEnum.Values().Len(); i++ {
@@ -407,11 +429,9 @@ func (c *Checker) checkEnumCompatibility(newEnum, oldEnum protoreflect.EnumDescr
 		// New values are always compatible (added to enum)
 	}
 
-	// Values removed from enum
-	for num, oldValue := range oldValues {
-		result.AddMessage("Enum '%s': value '%s' (number %d) was removed",
-			enumName, oldValue.Name(), num)
-	}
+	// Enum values are integers on the wire. Removing a value name doesn't affect
+	// wire compatibility — unknown values are preserved as numeric values.
+	// Confluent allows enum value removal.
 }
 
 // checkServices checks compatibility of services.

@@ -14,10 +14,11 @@ Feature: API Endpoint Behaviors Advanced
     And I store the response field "id" as "schema_id"
     When I get version 1 of subject "default-type-test"
     Then the response status should be 200
-    And the response should not have field "schemaType"
+    And the response field "schemaType" should be "AVRO"
 
   # --- Schema type accepted in any case ---
 
+  @axonops-only
   Scenario: Schema type is accepted in any case
     When I POST "/subjects/case-type-lower/versions" with body:
       """
@@ -26,7 +27,7 @@ Feature: API Endpoint Behaviors Advanced
     Then the response status should be 200
     When I get version 1 of subject "case-type-lower"
     Then the response status should be 200
-    And the response should not have field "schemaType"
+    And the response field "schemaType" should be "AVRO"
 
   # --- GET /schemas/types returns all three types ---
 
@@ -141,5 +142,5 @@ Feature: API Endpoint Behaviors Advanced
       {"schema": "{\"type\":\"record\",\"name\":\"Test\",\"fields\":[{\"name\":\"a\",\"type\":\"string\"}]}", "schemaType": "XML"}
       """
     Then the response status should be 422
-    And the response should have error code 42202
+    And the response should have error code 42201
     And the response should have field "message"

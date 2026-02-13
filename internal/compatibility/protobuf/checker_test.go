@@ -90,7 +90,7 @@ message User {
 	}
 }
 
-func TestChecker_RemoveField_Incompatible(t *testing.T) {
+func TestChecker_RemoveField_Compatible(t *testing.T) {
 	checker := NewChecker()
 
 	oldSchema := `
@@ -111,11 +111,8 @@ message User {
 `
 
 	result := checker.Check(s(newSchema), s(oldSchema))
-	if result.IsCompatible {
-		t.Error("Removing field should be incompatible")
-	}
-	if len(result.Messages) == 0 {
-		t.Error("Expected message about removed field")
+	if !result.IsCompatible {
+		t.Errorf("Removing field in proto3 should be compatible (wire-safe): %v", result.Messages)
 	}
 }
 
@@ -146,7 +143,7 @@ message User {
 	}
 }
 
-func TestChecker_CompatibleTypeChange_Int32ToSint32(t *testing.T) {
+func TestChecker_TypeChange_Int32ToSint32_Incompatible(t *testing.T) {
 	checker := NewChecker()
 
 	oldSchema := `
@@ -166,12 +163,12 @@ message User {
 `
 
 	result := checker.Check(s(newSchema), s(oldSchema))
-	if !result.IsCompatible {
-		t.Errorf("int32 to sint32 should be compatible: %v", result.Messages)
+	if result.IsCompatible {
+		t.Error("int32 to sint32 should be incompatible (different wire encoding: varint vs zigzag)")
 	}
 }
 
-func TestChecker_CompatibleTypeChange_Int64ToSint64(t *testing.T) {
+func TestChecker_TypeChange_Int64ToSint64_Incompatible(t *testing.T) {
 	checker := NewChecker()
 
 	oldSchema := `
@@ -191,8 +188,8 @@ message User {
 `
 
 	result := checker.Check(s(newSchema), s(oldSchema))
-	if !result.IsCompatible {
-		t.Errorf("int64 to sint64 should be compatible: %v", result.Messages)
+	if result.IsCompatible {
+		t.Error("int64 to sint64 should be incompatible (different wire encoding: varint vs zigzag)")
 	}
 }
 
@@ -227,7 +224,7 @@ message User {
 	}
 }
 
-func TestChecker_RemoveEnumValue_Incompatible(t *testing.T) {
+func TestChecker_RemoveEnumValue_Compatible(t *testing.T) {
 	checker := NewChecker()
 
 	oldSchema := `
@@ -258,8 +255,8 @@ message User {
 `
 
 	result := checker.Check(s(newSchema), s(oldSchema))
-	if result.IsCompatible {
-		t.Error("Removing enum value should be incompatible")
+	if !result.IsCompatible {
+		t.Errorf("Removing enum value should be compatible (enums are integers on the wire): %v", result.Messages)
 	}
 }
 
@@ -357,7 +354,7 @@ message User {
 	}
 }
 
-func TestChecker_NestedMessage_RemoveField(t *testing.T) {
+func TestChecker_NestedMessage_RemoveField_Compatible(t *testing.T) {
 	checker := NewChecker()
 
 	oldSchema := `
@@ -390,8 +387,8 @@ message User {
 `
 
 	result := checker.Check(s(newSchema), s(oldSchema))
-	if result.IsCompatible {
-		t.Error("Removing field from nested message should be incompatible")
+	if !result.IsCompatible {
+		t.Errorf("Removing field from nested message should be compatible (wire-safe in proto3): %v", result.Messages)
 	}
 }
 
@@ -431,7 +428,7 @@ service SearchService {
 	}
 }
 
-func TestChecker_Service_RemoveMethod_Incompatible(t *testing.T) {
+func TestChecker_Service_RemoveMethod_Compatible(t *testing.T) {
 	checker := NewChecker()
 
 	oldSchema := `
@@ -462,12 +459,12 @@ service SearchService {
 `
 
 	result := checker.Check(s(newSchema), s(oldSchema))
-	if result.IsCompatible {
-		t.Error("Removing service method should be incompatible")
+	if !result.IsCompatible {
+		t.Errorf("Service changes should be ignored (gRPC metadata, no wire impact): %v", result.Messages)
 	}
 }
 
-func TestChecker_Service_ChangeMethodInput_Incompatible(t *testing.T) {
+func TestChecker_Service_ChangeMethodInput_Compatible(t *testing.T) {
 	checker := NewChecker()
 
 	oldSchema := `
@@ -495,8 +492,8 @@ service SearchService {
 `
 
 	result := checker.Check(s(newSchema), s(oldSchema))
-	if result.IsCompatible {
-		t.Error("Changing service method input type should be incompatible")
+	if !result.IsCompatible {
+		t.Errorf("Service changes should be ignored (gRPC metadata, no wire impact): %v", result.Messages)
 	}
 }
 
@@ -636,7 +633,7 @@ message User {
 	}
 }
 
-func TestChecker_RepeatedToSingular_Incompatible(t *testing.T) {
+func TestChecker_RepeatedToSingular_String_Compatible(t *testing.T) {
 	checker := NewChecker()
 
 	oldSchema := `
@@ -656,8 +653,299 @@ message User {
 `
 
 	result := checker.Check(s(newSchema), s(oldSchema))
-	// This is a type mismatch at the wire level
+	if !result.IsCompatible {
+		t.Errorf("Repeated to singular for string should be compatible (same wire encoding): %v", result.Messages)
+	}
+}
+
+// ============================================================================
+// NEW TESTS: Correct wire-type compatible groups (P1)
+// ============================================================================
+
+func TestChecker_TypeChange_Int32ToUint32_Compatible(t *testing.T) {
+	checker := NewChecker()
+	oldSchema := `syntax = "proto3"; message M { int32 f = 1; }`
+	newSchema := `syntax = "proto3"; message M { uint32 f = 1; }`
+	result := checker.Check(s(newSchema), s(oldSchema))
+	if !result.IsCompatible {
+		t.Errorf("int32 to uint32 should be compatible (both varint): %v", result.Messages)
+	}
+}
+
+func TestChecker_TypeChange_Int32ToInt64_Compatible(t *testing.T) {
+	checker := NewChecker()
+	oldSchema := `syntax = "proto3"; message M { int32 f = 1; }`
+	newSchema := `syntax = "proto3"; message M { int64 f = 1; }`
+	result := checker.Check(s(newSchema), s(oldSchema))
+	if !result.IsCompatible {
+		t.Errorf("int32 to int64 should be compatible (both varint): %v", result.Messages)
+	}
+}
+
+func TestChecker_TypeChange_Int32ToBool_Compatible(t *testing.T) {
+	checker := NewChecker()
+	oldSchema := `syntax = "proto3"; message M { int32 f = 1; }`
+	newSchema := `syntax = "proto3"; message M { bool f = 1; }`
+	result := checker.Check(s(newSchema), s(oldSchema))
+	if !result.IsCompatible {
+		t.Errorf("int32 to bool should be compatible (both varint): %v", result.Messages)
+	}
+}
+
+func TestChecker_TypeChange_Sint32ToSint64_Compatible(t *testing.T) {
+	checker := NewChecker()
+	oldSchema := `syntax = "proto3"; message M { sint32 f = 1; }`
+	newSchema := `syntax = "proto3"; message M { sint64 f = 1; }`
+	result := checker.Check(s(newSchema), s(oldSchema))
+	if !result.IsCompatible {
+		t.Errorf("sint32 to sint64 should be compatible (both zigzag varint): %v", result.Messages)
+	}
+}
+
+func TestChecker_TypeChange_Fixed32ToSfixed32_Compatible(t *testing.T) {
+	checker := NewChecker()
+	oldSchema := `syntax = "proto3"; message M { fixed32 f = 1; }`
+	newSchema := `syntax = "proto3"; message M { sfixed32 f = 1; }`
+	result := checker.Check(s(newSchema), s(oldSchema))
+	if !result.IsCompatible {
+		t.Errorf("fixed32 to sfixed32 should be compatible (both 32-bit wire type): %v", result.Messages)
+	}
+}
+
+func TestChecker_TypeChange_Fixed64ToSfixed64_Compatible(t *testing.T) {
+	checker := NewChecker()
+	oldSchema := `syntax = "proto3"; message M { fixed64 f = 1; }`
+	newSchema := `syntax = "proto3"; message M { sfixed64 f = 1; }`
+	result := checker.Check(s(newSchema), s(oldSchema))
+	if !result.IsCompatible {
+		t.Errorf("fixed64 to sfixed64 should be compatible (both 64-bit wire type): %v", result.Messages)
+	}
+}
+
+func TestChecker_TypeChange_StringToBytes_Compatible(t *testing.T) {
+	checker := NewChecker()
+	oldSchema := `syntax = "proto3"; message M { string f = 1; }`
+	newSchema := `syntax = "proto3"; message M { bytes f = 1; }`
+	result := checker.Check(s(newSchema), s(oldSchema))
+	if !result.IsCompatible {
+		t.Errorf("string to bytes should be compatible (both length-delimited): %v", result.Messages)
+	}
+}
+
+func TestChecker_TypeChange_Int32ToFixed32_Incompatible(t *testing.T) {
+	checker := NewChecker()
+	oldSchema := `syntax = "proto3"; message M { int32 f = 1; }`
+	newSchema := `syntax = "proto3"; message M { fixed32 f = 1; }`
+	result := checker.Check(s(newSchema), s(oldSchema))
 	if result.IsCompatible {
-		t.Error("Changing repeated to singular should be incompatible")
+		t.Error("int32 to fixed32 should be incompatible (varint vs 32-bit wire type)")
+	}
+}
+
+func TestChecker_TypeChange_Sint32ToInt32_Incompatible(t *testing.T) {
+	checker := NewChecker()
+	oldSchema := `syntax = "proto3"; message M { sint32 f = 1; }`
+	newSchema := `syntax = "proto3"; message M { int32 f = 1; }`
+	result := checker.Check(s(newSchema), s(oldSchema))
+	if result.IsCompatible {
+		t.Error("sint32 to int32 should be incompatible (zigzag vs standard varint)")
+	}
+}
+
+// ============================================================================
+// NEW TESTS: Enum-to-integer compatibility (P2)
+// ============================================================================
+
+func TestChecker_TypeChange_EnumToInt32_Compatible(t *testing.T) {
+	checker := NewChecker()
+	oldSchema := `
+syntax = "proto3";
+enum Status { UNKNOWN = 0; ACTIVE = 1; }
+message M { Status f = 1; }
+`
+	newSchema := `
+syntax = "proto3";
+enum Status { UNKNOWN = 0; ACTIVE = 1; }
+message M { int32 f = 1; }
+`
+	result := checker.Check(s(newSchema), s(oldSchema))
+	if !result.IsCompatible {
+		t.Errorf("enum to int32 should be compatible (both varint): %v", result.Messages)
+	}
+}
+
+func TestChecker_TypeChange_Int32ToEnum_Compatible(t *testing.T) {
+	checker := NewChecker()
+	oldSchema := `
+syntax = "proto3";
+enum Status { UNKNOWN = 0; ACTIVE = 1; }
+message M { int32 f = 1; }
+`
+	newSchema := `
+syntax = "proto3";
+enum Status { UNKNOWN = 0; ACTIVE = 1; }
+message M { Status f = 1; }
+`
+	result := checker.Check(s(newSchema), s(oldSchema))
+	if !result.IsCompatible {
+		t.Errorf("int32 to enum should be compatible (both varint): %v", result.Messages)
+	}
+}
+
+// ============================================================================
+// NEW TESTS: Syntax change (P6)
+// ============================================================================
+
+func TestChecker_SyntaxChange_Compatible(t *testing.T) {
+	checker := NewChecker()
+	oldSchema := `
+syntax = "proto2";
+message M { optional string f = 1; }
+`
+	newSchema := `
+syntax = "proto3";
+message M { string f = 1; }
+`
+	result := checker.Check(s(newSchema), s(oldSchema))
+	if !result.IsCompatible {
+		t.Errorf("Syntax change should be compatible (source-level annotation): %v", result.Messages)
+	}
+}
+
+// ============================================================================
+// NEW TESTS: Field removal with oneof exception (P3)
+// ============================================================================
+
+func TestChecker_RemoveOneofField_Incompatible(t *testing.T) {
+	checker := NewChecker()
+	oldSchema := `
+syntax = "proto3";
+message Event {
+  string id = 1;
+  oneof payload {
+    string text = 2;
+    int32 number = 3;
+  }
+}
+`
+	newSchema := `
+syntax = "proto3";
+message Event {
+  string id = 1;
+  oneof payload {
+    string text = 2;
+  }
+}
+`
+	result := checker.Check(s(newSchema), s(oldSchema))
+	if result.IsCompatible {
+		t.Error("Removing a field from a oneof should be incompatible (changes oneof semantics)")
+	}
+}
+
+// ============================================================================
+// NEW TESTS: Service ignored (P5)
+// ============================================================================
+
+func TestChecker_ServiceIgnored_ServiceRemoval(t *testing.T) {
+	checker := NewChecker()
+	oldSchema := `
+syntax = "proto3";
+message Req { string q = 1; }
+message Res { string r = 1; }
+service Svc { rpc Do(Req) returns (Res); }
+`
+	newSchema := `
+syntax = "proto3";
+message Req { string q = 1; }
+message Res { string r = 1; }
+`
+	result := checker.Check(s(newSchema), s(oldSchema))
+	if !result.IsCompatible {
+		t.Errorf("Service removal should be ignored (gRPC metadata): %v", result.Messages)
+	}
+}
+
+// ============================================================================
+// NEW TESTS: Cardinality (P7)
+// ============================================================================
+
+func TestChecker_RepeatedToSingular_Int32_Incompatible(t *testing.T) {
+	checker := NewChecker()
+	oldSchema := `syntax = "proto3"; message M { repeated int32 f = 1; }`
+	newSchema := `syntax = "proto3"; message M { int32 f = 1; }`
+	result := checker.Check(s(newSchema), s(oldSchema))
+	if result.IsCompatible {
+		t.Error("Repeated to singular for int32 should be incompatible (different wire encoding)")
+	}
+}
+
+func TestChecker_RepeatedToSingular_Message_Compatible(t *testing.T) {
+	checker := NewChecker()
+	oldSchema := `
+syntax = "proto3";
+message Inner { string v = 1; }
+message M { repeated Inner f = 1; }
+`
+	newSchema := `
+syntax = "proto3";
+message Inner { string v = 1; }
+message M { Inner f = 1; }
+`
+	result := checker.Check(s(newSchema), s(oldSchema))
+	if !result.IsCompatible {
+		t.Errorf("Repeated to singular for message should be compatible: %v", result.Messages)
+	}
+}
+
+func TestChecker_RepeatedToSingular_Bytes_Compatible(t *testing.T) {
+	checker := NewChecker()
+	oldSchema := `syntax = "proto3"; message M { repeated bytes f = 1; }`
+	newSchema := `syntax = "proto3"; message M { bytes f = 1; }`
+	result := checker.Check(s(newSchema), s(oldSchema))
+	if !result.IsCompatible {
+		t.Errorf("Repeated to singular for bytes should be compatible: %v", result.Messages)
+	}
+}
+
+// ============================================================================
+// NEW TESTS: Enum type removal (P8)
+// ============================================================================
+
+func TestChecker_EnumTypeRemoval_Compatible(t *testing.T) {
+	checker := NewChecker()
+	oldSchema := `
+syntax = "proto3";
+enum Status { UNKNOWN = 0; ACTIVE = 1; }
+message M { string f = 1; }
+`
+	newSchema := `
+syntax = "proto3";
+message M { string f = 1; }
+`
+	result := checker.Check(s(newSchema), s(oldSchema))
+	if !result.IsCompatible {
+		t.Errorf("Enum type removal should be compatible (integer labels only): %v", result.Messages)
+	}
+}
+
+func TestChecker_NestedEnumRemoval_Compatible(t *testing.T) {
+	checker := NewChecker()
+	oldSchema := `
+syntax = "proto3";
+message M {
+  string f = 1;
+  enum Status { UNKNOWN = 0; ACTIVE = 1; }
+}
+`
+	newSchema := `
+syntax = "proto3";
+message M {
+  string f = 1;
+}
+`
+	result := checker.Check(s(newSchema), s(oldSchema))
+	if !result.IsCompatible {
+		t.Errorf("Nested enum type removal should be compatible: %v", result.Messages)
 	}
 }

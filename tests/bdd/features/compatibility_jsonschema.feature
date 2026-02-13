@@ -7,7 +7,7 @@ Feature: JSON Schema Compatibility
   # New schema (reader) must be able to read data written by old schema (writer)
   # ============================================================================
 
-  Scenario: BACKWARD - add optional property is compatible
+  Scenario: BACKWARD - add optional property to open content model is incompatible
     Given the global compatibility level is "BACKWARD"
     And subject "json-back-1" has "JSON" schema:
       """
@@ -17,7 +17,7 @@ Feature: JSON Schema Compatibility
       """
       {"type":"object","properties":{"name":{"type":"string"},"email":{"type":"string"}},"required":["name"]}
       """
-    Then the response status should be 200
+    Then the response status should be 409
 
   Scenario: BACKWARD - add required property is incompatible
     Given the global compatibility level is "BACKWARD"
@@ -31,7 +31,7 @@ Feature: JSON Schema Compatibility
       """
     Then the response status should be 409
 
-  Scenario: BACKWARD - remove property is incompatible
+  Scenario: BACKWARD - remove property from open content model is compatible
     Given the global compatibility level is "BACKWARD"
     And subject "json-back-3" has "JSON" schema:
       """
@@ -41,7 +41,7 @@ Feature: JSON Schema Compatibility
       """
       {"type":"object","properties":{"name":{"type":"string"}},"required":["name"]}
       """
-    Then the response status should be 409
+    Then the response status should be 200
 
   Scenario: BACKWARD - make optional property required is incompatible
     Given the global compatibility level is "BACKWARD"
@@ -108,24 +108,29 @@ Feature: JSON Schema Compatibility
   # New schema must be compatible with ALL previous versions
   # ============================================================================
 
-  Scenario: BACKWARD_TRANSITIVE - 3-version chain all compatible
+  Scenario: BACKWARD_TRANSITIVE - 3-version chain all compatible (closed model)
+    # With additionalProperties:false (closed content model), adding optional
+    # properties is backward-compatible because the old writer couldn't have
+    # produced data with the new property name.
     Given the global compatibility level is "BACKWARD_TRANSITIVE"
     And subject "json-bt-1" has "JSON" schema:
       """
-      {"type":"object","properties":{"name":{"type":"string"}},"required":["name"]}
+      {"type":"object","properties":{"name":{"type":"string"}},"required":["name"],"additionalProperties":false}
       """
     And subject "json-bt-1" has "JSON" schema:
       """
-      {"type":"object","properties":{"name":{"type":"string"},"email":{"type":"string"}},"required":["name"]}
+      {"type":"object","properties":{"name":{"type":"string"},"email":{"type":"string"}},"required":["name"],"additionalProperties":false}
       """
     When I register a "JSON" schema under subject "json-bt-1":
       """
-      {"type":"object","properties":{"name":{"type":"string"},"email":{"type":"string"},"phone":{"type":"string"}},"required":["name"]}
+      {"type":"object","properties":{"name":{"type":"string"},"email":{"type":"string"},"phone":{"type":"string"}},"required":["name"],"additionalProperties":false}
       """
     Then the response status should be 200
 
   Scenario: BACKWARD_TRANSITIVE - v3 adds required property absent in v1
-    Given the global compatibility level is "BACKWARD_TRANSITIVE"
+    # Register v1 and v2 under NONE to avoid open-model incompatibility on v2.
+    # Then switch to BACKWARD_TRANSITIVE for v3 which adds required "age" — fails vs v1.
+    Given the global compatibility level is "NONE"
     And subject "json-bt-2" has "JSON" schema:
       """
       {"type":"object","properties":{"name":{"type":"string"}},"required":["name"]}
@@ -134,6 +139,7 @@ Feature: JSON Schema Compatibility
       """
       {"type":"object","properties":{"name":{"type":"string"},"age":{"type":"integer"}},"required":["name"]}
       """
+    And the global compatibility level is "BACKWARD_TRANSITIVE"
     When I register a "JSON" schema under subject "json-bt-2":
       """
       {"type":"object","properties":{"name":{"type":"string"},"age":{"type":"integer"}},"required":["name","age"]}
@@ -172,19 +178,20 @@ Feature: JSON Schema Compatibility
       """
     Then the response status should be 409
 
-  Scenario: BACKWARD_TRANSITIVE - optional property additions chain is compatible
+  Scenario: BACKWARD_TRANSITIVE - optional property additions chain is compatible (closed model)
+    # With closed content model, adding optional properties is backward-compatible.
     Given the global compatibility level is "BACKWARD_TRANSITIVE"
     And subject "json-bt-5" has "JSON" schema:
       """
-      {"type":"object","properties":{"id":{"type":"string"}},"required":["id"]}
+      {"type":"object","properties":{"id":{"type":"string"}},"required":["id"],"additionalProperties":false}
       """
     And subject "json-bt-5" has "JSON" schema:
       """
-      {"type":"object","properties":{"id":{"type":"string"},"name":{"type":"string"}},"required":["id"]}
+      {"type":"object","properties":{"id":{"type":"string"},"name":{"type":"string"}},"required":["id"],"additionalProperties":false}
       """
     When I register a "JSON" schema under subject "json-bt-5":
       """
-      {"type":"object","properties":{"id":{"type":"string"},"name":{"type":"string"},"email":{"type":"string"}},"required":["id"]}
+      {"type":"object","properties":{"id":{"type":"string"},"name":{"type":"string"},"email":{"type":"string"}},"required":["id"],"additionalProperties":false}
       """
     Then the response status should be 200
 
@@ -193,7 +200,7 @@ Feature: JSON Schema Compatibility
   # Old schema (reader) must be able to read data written by new schema (writer)
   # ============================================================================
 
-  Scenario: FORWARD - remove optional property from new is compatible
+  Scenario: FORWARD - remove optional property with open content model is incompatible
     Given the global compatibility level is "FORWARD"
     And subject "json-fwd-1" has "JSON" schema:
       """
@@ -203,7 +210,7 @@ Feature: JSON Schema Compatibility
       """
       {"type":"object","properties":{"name":{"type":"string"}},"required":["name"]}
       """
-    Then the response status should be 200
+    Then the response status should be 409
 
   Scenario: FORWARD - remove required property from new is incompatible
     Given the global compatibility level is "FORWARD"
@@ -294,35 +301,38 @@ Feature: JSON Schema Compatibility
   # ALL previous schemas must be able to read data from new schema
   # ============================================================================
 
-  Scenario: FORWARD_TRANSITIVE - 3-version compatible chain
+  Scenario: FORWARD_TRANSITIVE - 3-version compatible chain (closed model)
+    # With closed content model, properties in reader(old) not in writer(new) are
+    # compatible because the old writer couldn't produce those properties.
     Given the global compatibility level is "FORWARD_TRANSITIVE"
     And subject "json-ft-1" has "JSON" schema:
       """
-      {"type":"object","properties":{"name":{"type":"string"},"email":{"type":"string"},"phone":{"type":"string"}},"required":["name"]}
+      {"type":"object","properties":{"name":{"type":"string"},"email":{"type":"string"},"phone":{"type":"string"}},"required":["name"],"additionalProperties":false}
       """
     And subject "json-ft-1" has "JSON" schema:
       """
-      {"type":"object","properties":{"name":{"type":"string"},"email":{"type":"string"}},"required":["name"]}
+      {"type":"object","properties":{"name":{"type":"string"},"email":{"type":"string"}},"required":["name"],"additionalProperties":false}
       """
     When I register a "JSON" schema under subject "json-ft-1":
       """
-      {"type":"object","properties":{"name":{"type":"string"}},"required":["name"]}
+      {"type":"object","properties":{"name":{"type":"string"}},"required":["name"],"additionalProperties":false}
       """
     Then the response status should be 200
 
-  Scenario: FORWARD_TRANSITIVE - removing required property in chain fails
+  Scenario: FORWARD_TRANSITIVE - removing required property in chain fails (closed model)
+    # Removing a required property makes old reader unable to find expected data.
     Given the global compatibility level is "FORWARD_TRANSITIVE"
     And subject "json-ft-2" has "JSON" schema:
       """
-      {"type":"object","properties":{"name":{"type":"string"},"email":{"type":"string"},"phone":{"type":"string"}},"required":["name","email"]}
+      {"type":"object","properties":{"name":{"type":"string"},"email":{"type":"string"},"phone":{"type":"string"}},"required":["name","email"],"additionalProperties":false}
       """
     And subject "json-ft-2" has "JSON" schema:
       """
-      {"type":"object","properties":{"name":{"type":"string"},"email":{"type":"string"}},"required":["name","email"]}
+      {"type":"object","properties":{"name":{"type":"string"},"email":{"type":"string"}},"required":["name","email"],"additionalProperties":false}
       """
     When I register a "JSON" schema under subject "json-ft-2":
       """
-      {"type":"object","properties":{"name":{"type":"string"}},"required":["name"]}
+      {"type":"object","properties":{"name":{"type":"string"}},"required":["name"],"additionalProperties":false}
       """
     Then the response status should be 409
 
@@ -581,7 +591,7 @@ Feature: JSON Schema Compatibility
       """
     Then the response status should be 409
 
-  Scenario: Edge - nested object property removal is incompatible
+  Scenario: Edge - nested object property removal from open model is compatible
     Given the global compatibility level is "BACKWARD"
     And subject "json-edge-5" has "JSON" schema:
       """
@@ -591,7 +601,7 @@ Feature: JSON Schema Compatibility
       """
       {"type":"object","properties":{"user":{"type":"object","properties":{"name":{"type":"string"}}}},"required":["user"]}
       """
-    Then the response status should be 409
+    Then the response status should be 200
 
   Scenario: Edge - array items type change is incompatible
     Given the global compatibility level is "BACKWARD"
@@ -719,7 +729,7 @@ Feature: JSON Schema Compatibility
       """
     Then the response status should be 200
 
-  Scenario: Error - check endpoint returns is_compatible true for compatible schema
+  Scenario: Error - check endpoint returns is_compatible false for open model property addition
     Given the global compatibility level is "BACKWARD"
     And subject "json-err-4" has "JSON" schema:
       """
@@ -729,7 +739,7 @@ Feature: JSON Schema Compatibility
       """
       {"type":"object","properties":{"name":{"type":"string"},"email":{"type":"string"}},"required":["name"]}
       """
-    Then the compatibility check should be compatible
+    Then the compatibility check should be incompatible
 
   Scenario: Error - delete per-subject config falls back to global
     Given the global compatibility level is "BACKWARD"
@@ -777,7 +787,7 @@ Feature: JSON Schema Compatibility
       """
     Then the response status should be 409
 
-  Scenario: BACKWARD - nested property removal is incompatible
+  Scenario: BACKWARD - nested property removal from open model is compatible
     Given the global compatibility level is "BACKWARD"
     And subject "json-gap-3" has "JSON" schema:
       """
@@ -787,9 +797,9 @@ Feature: JSON Schema Compatibility
       """
       {"type":"object","properties":{"address":{"type":"object","properties":{"street":{"type":"string"}}}}}
       """
-    Then the response status should be 409
+    Then the response status should be 200
 
-  Scenario: BACKWARD - nested property addition is compatible
+  Scenario: BACKWARD - nested property addition to open model is incompatible
     Given the global compatibility level is "BACKWARD"
     And subject "json-gap-4" has "JSON" schema:
       """
@@ -799,7 +809,7 @@ Feature: JSON Schema Compatibility
       """
       {"type":"object","properties":{"address":{"type":"object","properties":{"street":{"type":"string"},"zip":{"type":"string"}}}}}
       """
-    Then the response status should be 200
+    Then the response status should be 409
 
   Scenario: BACKWARD - type widening string to string-or-null is compatible
     Given the global compatibility level is "BACKWARD"
@@ -825,7 +835,7 @@ Feature: JSON Schema Compatibility
       """
     Then the response status should be 409
 
-  Scenario: BACKWARD - array items schema removal is incompatible
+  Scenario: BACKWARD - array items schema removal is compatible (relaxation)
     Given the global compatibility level is "BACKWARD"
     And subject "json-gap-7" has "JSON" schema:
       """
@@ -835,7 +845,7 @@ Feature: JSON Schema Compatibility
       """
       {"type":"object","properties":{"tags":{"type":"array"}}}
       """
-    Then the response status should be 409
+    Then the response status should be 200
 
   Scenario: BACKWARD - multiple simultaneous incompatible changes detected
     Given the global compatibility level is "BACKWARD"

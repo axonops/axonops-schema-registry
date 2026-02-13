@@ -308,57 +308,59 @@ Feature: Transitive Compatibility - Multi-Version Chains
   # JSON SCHEMA TRANSITIVE CHAINS
   # ==========================================================================
 
-  Scenario: JSON Schema BACKWARD_TRANSITIVE - 3 versions all compatible
-    # Adding optional properties is backward-compatible: the checker treats the new schema
-    # as "reader" with more properties than the old "writer". No properties removed.
+  Scenario: JSON Schema BACKWARD_TRANSITIVE - 3 versions all compatible (closed model)
+    # With closed content model (additionalProperties:false), adding optional
+    # properties is backward-compatible because old writers can't produce them.
     Given the global compatibility level is "BACKWARD_TRANSITIVE"
     And subject "json-bt-chain-1" has "JSON" schema:
       """
-      {"type":"object","properties":{"id":{"type":"integer"}},"required":["id"]}
+      {"type":"object","properties":{"id":{"type":"integer"}},"required":["id"],"additionalProperties":false}
       """
     And subject "json-bt-chain-1" has "JSON" schema:
       """
-      {"type":"object","properties":{"id":{"type":"integer"},"name":{"type":"string"}},"required":["id"]}
+      {"type":"object","properties":{"id":{"type":"integer"},"name":{"type":"string"}},"required":["id"],"additionalProperties":false}
       """
     When I register a "JSON" schema under subject "json-bt-chain-1":
       """
-      {"type":"object","properties":{"id":{"type":"integer"},"name":{"type":"string"},"email":{"type":"string"}},"required":["id"]}
+      {"type":"object","properties":{"id":{"type":"integer"},"name":{"type":"string"},"email":{"type":"string"}},"required":["id"],"additionalProperties":false}
       """
     Then the response status should be 200
 
   Scenario: JSON Schema BACKWARD_TRANSITIVE - v3 adds required prop (fails vs v1)
-    # v1={id req}, v2={id, name optional}. Backward-compatible (no removal, no new required).
-    # v3={id, name required}. vs v1: "name" is new required property. FAIL.
+    # With closed model: v2 adds optional name (compatible). v3 makes name required.
+    # v3 vs v1: name is new required property absent in v1 → FAIL.
     Given the global compatibility level is "BACKWARD_TRANSITIVE"
     And subject "json-bt-reqd" has "JSON" schema:
       """
-      {"type":"object","properties":{"id":{"type":"integer"}},"required":["id"]}
+      {"type":"object","properties":{"id":{"type":"integer"}},"required":["id"],"additionalProperties":false}
       """
     And subject "json-bt-reqd" has "JSON" schema:
       """
-      {"type":"object","properties":{"id":{"type":"integer"},"name":{"type":"string"}},"required":["id"]}
+      {"type":"object","properties":{"id":{"type":"integer"},"name":{"type":"string"}},"required":["id"],"additionalProperties":false}
       """
     When I register a "JSON" schema under subject "json-bt-reqd":
       """
-      {"type":"object","properties":{"id":{"type":"integer"},"name":{"type":"string"}},"required":["id","name"]}
+      {"type":"object","properties":{"id":{"type":"integer"},"name":{"type":"string"}},"required":["id","name"],"additionalProperties":false}
       """
     Then the response status should be 409
 
   Scenario: JSON Schema BACKWARD vs BACKWARD_TRANSITIVE differentiator
-    # Under BACKWARD, adding optional properties is always compatible.
-    # This test just verifies a 3-version chain passes BACKWARD.
-    Given the global compatibility level is "BACKWARD"
+    # v1=minItems:1, v2=minItems:5 registered under NONE.
+    # BACKWARD v3(minItems:3) vs v2(minItems:5): loosened → compatible → 200.
+    # Under BACKWARD_TRANSITIVE: v3 vs v1(minItems:1) would be tightened → FAIL.
+    Given the global compatibility level is "NONE"
     And subject "json-bt-vs-b" has "JSON" schema:
       """
-      {"type":"object","properties":{"id":{"type":"integer"}},"required":["id"]}
+      {"type":"array","items":{"type":"string"},"minItems":1}
       """
     And subject "json-bt-vs-b" has "JSON" schema:
       """
-      {"type":"object","properties":{"id":{"type":"integer"},"name":{"type":"string"}},"required":["id"]}
+      {"type":"array","items":{"type":"string"},"minItems":5}
       """
+    And the global compatibility level is "BACKWARD"
     When I register a "JSON" schema under subject "json-bt-vs-b":
       """
-      {"type":"object","properties":{"id":{"type":"integer"},"name":{"type":"string"},"email":{"type":"string"}},"required":["id"]}
+      {"type":"array","items":{"type":"string"},"minItems":3}
       """
     Then the response status should be 200
 
@@ -380,44 +382,42 @@ Feature: Transitive Compatibility - Multi-Version Chains
       """
     Then the response status should be 200
 
-  Scenario: JSON Schema BACKWARD_TRANSITIVE - 4 versions progressive evolution
+  Scenario: JSON Schema BACKWARD_TRANSITIVE - 4 versions progressive evolution (closed model)
+    # With closed content model, progressive property additions are backward-compatible.
     Given the global compatibility level is "BACKWARD_TRANSITIVE"
     And subject "json-bt-4v" has "JSON" schema:
       """
-      {"type":"object","properties":{"id":{"type":"integer"}},"required":["id"]}
+      {"type":"object","properties":{"id":{"type":"integer"}},"required":["id"],"additionalProperties":false}
       """
     And subject "json-bt-4v" has "JSON" schema:
       """
-      {"type":"object","properties":{"id":{"type":"integer"},"name":{"type":"string"}},"required":["id"]}
+      {"type":"object","properties":{"id":{"type":"integer"},"name":{"type":"string"}},"required":["id"],"additionalProperties":false}
       """
     And subject "json-bt-4v" has "JSON" schema:
       """
-      {"type":"object","properties":{"id":{"type":"integer"},"name":{"type":"string"},"email":{"type":"string"}},"required":["id"]}
+      {"type":"object","properties":{"id":{"type":"integer"},"name":{"type":"string"},"email":{"type":"string"}},"required":["id"],"additionalProperties":false}
       """
     When I register a "JSON" schema under subject "json-bt-4v":
       """
-      {"type":"object","properties":{"id":{"type":"integer"},"name":{"type":"string"},"email":{"type":"string"},"phone":{"type":"string"}},"required":["id"]}
+      {"type":"object","properties":{"id":{"type":"integer"},"name":{"type":"string"},"email":{"type":"string"},"phone":{"type":"string"}},"required":["id"],"additionalProperties":false}
       """
     Then the response status should be 200
 
-  Scenario: JSON Schema FORWARD_TRANSITIVE - 3 versions compatible
-    # For JSON FORWARD: checker.Check(existing, new) treats existing as "new schema"
-    # and new as "old schema". Properties in the new schema (old param) not in existing
-    # (new param) are flagged as "removed". So FORWARD-compatible evolution means each
-    # new version has FEWER or SAME properties (old readers have all fields).
-    # v1 has {id, name}, v2 drops name to {id}, v3 keeps {id} but adds metadata.
+  Scenario: JSON Schema FORWARD_TRANSITIVE - 3 versions compatible (closed model)
+    # With closed content model, properties in reader(old) not in writer(new) are
+    # compatible because old writers couldn't produce those properties as additional.
     Given the global compatibility level is "FORWARD_TRANSITIVE"
     And subject "json-ft-chain-1" has "JSON" schema:
       """
-      {"type":"object","properties":{"id":{"type":"integer"},"name":{"type":"string"}},"required":["id"]}
+      {"type":"object","properties":{"name":{"type":"string"},"email":{"type":"string"},"phone":{"type":"string"}},"required":["name"],"additionalProperties":false}
       """
     And subject "json-ft-chain-1" has "JSON" schema:
       """
-      {"type":"object","properties":{"id":{"type":"integer"}},"required":["id"]}
+      {"type":"object","properties":{"name":{"type":"string"},"email":{"type":"string"}},"required":["name"],"additionalProperties":false}
       """
     When I register a "JSON" schema under subject "json-ft-chain-1":
       """
-      {"type":"object","properties":{"id":{"type":"integer"}},"required":["id"],"additionalProperties":true}
+      {"type":"object","properties":{"name":{"type":"string"}},"required":["name"],"additionalProperties":false}
       """
     Then the response status should be 200
 
@@ -514,43 +514,45 @@ Feature: Transitive Compatibility - Multi-Version Chains
       """
     Then the response status should be 200
 
-  Scenario: JSON Schema BACKWARD_TRANSITIVE - nested object evolution
+  Scenario: JSON Schema BACKWARD_TRANSITIVE - nested object evolution (closed model)
+    # With closed content model on nested objects, adding properties is compatible.
     Given the global compatibility level is "BACKWARD_TRANSITIVE"
     And subject "json-bt-nested" has "JSON" schema:
       """
-      {"type":"object","properties":{"id":{"type":"integer"},"address":{"type":"object","properties":{"city":{"type":"string"}}}},"required":["id"]}
+      {"type":"object","properties":{"id":{"type":"integer"},"address":{"type":"object","properties":{"city":{"type":"string"}},"additionalProperties":false}},"required":["id"],"additionalProperties":false}
       """
     And subject "json-bt-nested" has "JSON" schema:
       """
-      {"type":"object","properties":{"id":{"type":"integer"},"address":{"type":"object","properties":{"city":{"type":"string"},"state":{"type":"string"}}}},"required":["id"]}
+      {"type":"object","properties":{"id":{"type":"integer"},"address":{"type":"object","properties":{"city":{"type":"string"},"state":{"type":"string"}},"additionalProperties":false}},"required":["id"],"additionalProperties":false}
       """
     When I register a "JSON" schema under subject "json-bt-nested":
       """
-      {"type":"object","properties":{"id":{"type":"integer"},"address":{"type":"object","properties":{"city":{"type":"string"},"state":{"type":"string"},"zip":{"type":"string"}}}},"required":["id"]}
+      {"type":"object","properties":{"id":{"type":"integer"},"address":{"type":"object","properties":{"city":{"type":"string"},"state":{"type":"string"},"zip":{"type":"string"}},"additionalProperties":false}},"required":["id"],"additionalProperties":false}
       """
     Then the response status should be 200
 
-  Scenario: JSON Schema BACKWARD_TRANSITIVE - 5 version chain
+  Scenario: JSON Schema BACKWARD_TRANSITIVE - 5 version chain (closed model)
+    # With closed content model, progressive property additions are backward-compatible.
     Given the global compatibility level is "BACKWARD_TRANSITIVE"
     And subject "json-bt-5v" has "JSON" schema:
       """
-      {"type":"object","properties":{"id":{"type":"integer"}},"required":["id"]}
+      {"type":"object","properties":{"id":{"type":"integer"}},"required":["id"],"additionalProperties":false}
       """
     And subject "json-bt-5v" has "JSON" schema:
       """
-      {"type":"object","properties":{"id":{"type":"integer"},"a":{"type":"string"}},"required":["id"]}
+      {"type":"object","properties":{"id":{"type":"integer"},"a":{"type":"string"}},"required":["id"],"additionalProperties":false}
       """
     And subject "json-bt-5v" has "JSON" schema:
       """
-      {"type":"object","properties":{"id":{"type":"integer"},"a":{"type":"string"},"b":{"type":"string"}},"required":["id"]}
+      {"type":"object","properties":{"id":{"type":"integer"},"a":{"type":"string"},"b":{"type":"string"}},"required":["id"],"additionalProperties":false}
       """
     And subject "json-bt-5v" has "JSON" schema:
       """
-      {"type":"object","properties":{"id":{"type":"integer"},"a":{"type":"string"},"b":{"type":"string"},"c":{"type":"string"}},"required":["id"]}
+      {"type":"object","properties":{"id":{"type":"integer"},"a":{"type":"string"},"b":{"type":"string"},"c":{"type":"string"}},"required":["id"],"additionalProperties":false}
       """
     When I register a "JSON" schema under subject "json-bt-5v":
       """
-      {"type":"object","properties":{"id":{"type":"integer"},"a":{"type":"string"},"b":{"type":"string"},"c":{"type":"string"},"d":{"type":"string"}},"required":["id"]}
+      {"type":"object","properties":{"id":{"type":"integer"},"a":{"type":"string"},"b":{"type":"string"},"c":{"type":"string"},"d":{"type":"string"}},"required":["id"],"additionalProperties":false}
       """
     Then the response status should be 200
 
@@ -655,7 +657,7 @@ Feature: Transitive Compatibility - Multi-Version Chains
     Then the response status should be 409
 
   Scenario: Protobuf BACKWARD_TRANSITIVE - compatible type group across versions
-    # int32, sint32, sfixed32 are in the same compatible type group.
+    # int32, uint32, int64 are in the varint compatible type group.
     # Type changes within a group pass both backward and forward.
     Given the global compatibility level is "BACKWARD_TRANSITIVE"
     And subject "proto-bt-typegroup" has "PROTOBUF" schema:
@@ -669,14 +671,14 @@ Feature: Transitive Compatibility - Multi-Version Chains
       """
       syntax = "proto3";
       message Metric {
-        sint32 value = 1;
+        uint32 value = 1;
       }
       """
     When I register a "PROTOBUF" schema under subject "proto-bt-typegroup":
       """
       syntax = "proto3";
       message Metric {
-        sfixed32 value = 1;
+        int64 value = 1;
       }
       """
     Then the response status should be 200
@@ -757,11 +759,8 @@ Feature: Transitive Compatibility - Multi-Version Chains
     Then the response status should be 200
 
   Scenario: Protobuf FORWARD_TRANSITIVE - 3 versions compatible
-    # The Protobuf checker treats FORWARD as checker.Check(existing, new) where
-    # existing=reader(new in checker), new=writer(old in checker). Adding fields
-    # to the new schema causes the checker to flag "field removed" (old schema has
-    # field not in new). So for FORWARD-compatible evolution, we use type-group
-    # changes which pass in both directions.
+    # Type-group changes within the varint group (int32, uint32, int64, uint64, bool)
+    # are compatible in both directions, so they pass FORWARD_TRANSITIVE.
     Given the global compatibility level is "FORWARD_TRANSITIVE"
     And subject "proto-ft-chain-1" has "PROTOBUF" schema:
       """
@@ -775,30 +774,23 @@ Feature: Transitive Compatibility - Multi-Version Chains
       """
       syntax = "proto3";
       message Event {
-        sint32 id = 1;
-        sint64 timestamp = 2;
+        uint32 id = 1;
+        uint64 timestamp = 2;
       }
       """
     When I register a "PROTOBUF" schema under subject "proto-ft-chain-1":
       """
       syntax = "proto3";
       message Event {
-        sfixed32 id = 1;
-        sfixed64 timestamp = 2;
+        int64 id = 1;
+        int32 timestamp = 2;
       }
       """
     Then the response status should be 200
 
-  Scenario: Protobuf FORWARD_TRANSITIVE - field removal fails chain
-    # v1={id, name}, v2={id, name, tag}. Adding tag under FORWARD_TRANSITIVE:
-    # checker.Check(v1, v2): newMsg=v1, oldMsg=v2. tag in v2 not in v1 -> "removed". FAIL.
-    # Register v1, v2 under NONE. Switch to FORWARD_TRANSITIVE for v3.
-    # v3={id, tag}: removes name.
-    # vs v1: checker.Check(v1, v3). newMsg=v1, oldMsg=v3. v3={id:1, tag:3}. tag:3 in v3
-    # not in v1 -> "field removed". FAIL.
-    # vs v2: checker.Check(v2, v3). newMsg=v2={id,name,tag}, oldMsg=v3={id,tag}.
-    # tag found. id found. name in v2 not in v3: "new field". No remaining. PASS.
-    # Fails vs v1. Expected 409.
+  Scenario: Protobuf FORWARD_TRANSITIVE - field removal compatible
+    # Field removal is wire-safe in proto3 (readers ignore unknown fields, use
+    # defaults for missing ones). v3 removes name — compatible with all versions.
     Given the global compatibility level is "NONE"
     And subject "proto-ft-remove" has "PROTOBUF" schema:
       """
@@ -826,30 +818,24 @@ Feature: Transitive Compatibility - Multi-Version Chains
         string tag = 3;
       }
       """
-    Then the response status should be 409
+    Then the response status should be 200
 
   Scenario: Protobuf FORWARD vs FORWARD_TRANSITIVE differentiator
-    # The Protobuf checker's FORWARD direction flags fields in the new schema not
-    # present in old as "removed". For a differentiator we use type-group crossing:
-    # v1={int32 val=1}, v2={uint32 val=1}, v3={fixed32 val=1}.
-    # Register v1, v2 under NONE. Switch to FORWARD for v3.
-    # FORWARD v3 vs v2 (latest): checker.Check(v2, v3). uint32 vs fixed32.
-    # Compatible group [uint32, fixed32]. PASS.
-    # FORWARD_TRANSITIVE vs v1: checker.Check(v1, v3). int32 vs fixed32.
-    # int32 group [int32, sint32, sfixed32]. fixed32 not in that group. FAIL.
+    # v1=sint32 (zigzag group), v2=int32 (varint group), registered under NONE.
+    # FORWARD v3=uint32: vs v2(int32) only — both varint group — PASS.
     Given the global compatibility level is "NONE"
     And subject "proto-ft-vs-f" has "PROTOBUF" schema:
       """
       syntax = "proto3";
       message Event {
-        int32 value = 1;
+        sint32 value = 1;
       }
       """
     And subject "proto-ft-vs-f" has "PROTOBUF" schema:
       """
       syntax = "proto3";
       message Event {
-        uint32 value = 1;
+        int32 value = 1;
       }
       """
     And the global compatibility level is "FORWARD"
@@ -857,15 +843,22 @@ Feature: Transitive Compatibility - Multi-Version Chains
       """
       syntax = "proto3";
       message Event {
-        fixed32 value = 1;
+        uint32 value = 1;
       }
       """
     Then the response status should be 200
 
   Scenario: Protobuf FORWARD_TRANSITIVE catches what FORWARD misses
-    # Same v1, v2 as above. Switch to FORWARD_TRANSITIVE for v3.
-    # v3={fixed32 val=1}: vs v2(uint32) PASS, vs v1(int32) FAIL (cross type-group).
+    # Same v1=sint32, v2=int32 as above. FORWARD_TRANSITIVE v3=uint32:
+    # vs v2(int32→uint32) varint PASS, vs v1(sint32→uint32) zigzag vs varint FAIL.
     Given the global compatibility level is "NONE"
+    And subject "proto-ft-catch" has "PROTOBUF" schema:
+      """
+      syntax = "proto3";
+      message Event {
+        sint32 value = 1;
+      }
+      """
     And subject "proto-ft-catch" has "PROTOBUF" schema:
       """
       syntax = "proto3";
@@ -873,26 +866,19 @@ Feature: Transitive Compatibility - Multi-Version Chains
         int32 value = 1;
       }
       """
-    And subject "proto-ft-catch" has "PROTOBUF" schema:
+    And the global compatibility level is "FORWARD_TRANSITIVE"
+    When I register a "PROTOBUF" schema under subject "proto-ft-catch":
       """
       syntax = "proto3";
       message Event {
         uint32 value = 1;
       }
       """
-    And the global compatibility level is "FORWARD_TRANSITIVE"
-    When I register a "PROTOBUF" schema under subject "proto-ft-catch":
-      """
-      syntax = "proto3";
-      message Event {
-        fixed32 value = 1;
-      }
-      """
     Then the response status should be 409
 
   Scenario: Protobuf FULL_TRANSITIVE - safe 3-version evolution
-    # FULL = BACKWARD + FORWARD. Type-group changes are compatible in both directions.
-    # int32, sint32, sfixed32 are all in the same compatible group.
+    # FULL = BACKWARD + FORWARD. Type-group changes within the varint group
+    # (int32, uint32, int64, uint64, bool) are compatible in both directions.
     Given the global compatibility level is "FULL_TRANSITIVE"
     And subject "proto-flt-safe" has "PROTOBUF" schema:
       """
@@ -906,25 +892,23 @@ Feature: Transitive Compatibility - Multi-Version Chains
       """
       syntax = "proto3";
       message Event {
-        sint32 id = 1;
-        sint64 timestamp = 2;
+        uint32 id = 1;
+        uint64 timestamp = 2;
       }
       """
     When I register a "PROTOBUF" schema under subject "proto-flt-safe":
       """
       syntax = "proto3";
       message Event {
-        sfixed32 id = 1;
-        sfixed64 timestamp = 2;
+        int64 id = 1;
+        int32 timestamp = 2;
       }
       """
     Then the response status should be 200
 
-  Scenario: Protobuf FULL_TRANSITIVE - field removal fails
-    # v1={id, name}, v2={id, name, email}. Adding email under FULL_TRANSITIVE:
-    # FORWARD: checker.Check(v1, v2). email in v2 not in v1 -> "removed". FAIL.
-    # Register v1, v2 under NONE. Switch to FULL_TRANSITIVE for v3.
-    # v3={id, email}: removes name. BACKWARD vs v1: name in v1 not in v3 -> "removed". FAIL.
+  Scenario: Protobuf FULL_TRANSITIVE - field removal compatible
+    # Field removal is wire-safe in proto3. v3 removes name — compatible with
+    # all versions in both BACKWARD and FORWARD directions.
     Given the global compatibility level is "NONE"
     And subject "proto-flt-fail" has "PROTOBUF" schema:
       """
@@ -952,7 +936,7 @@ Feature: Transitive Compatibility - Multi-Version Chains
         string email = 3;
       }
       """
-    Then the response status should be 409
+    Then the response status should be 200
 
   Scenario: Protobuf BACKWARD_TRANSITIVE - 5 version complex evolution
     Given the global compatibility level is "BACKWARD_TRANSITIVE"
@@ -1009,8 +993,8 @@ Feature: Transitive Compatibility - Multi-Version Chains
     Then the response status should be 200
 
   Scenario: Protobuf FULL_TRANSITIVE - 4-version safe evolution
-    # Type-group changes are FULL-compatible (both backward and forward).
-    # Using multiple compatible type groups across 4 versions.
+    # Type-group changes within the varint group are FULL-compatible.
+    # All types (int32, uint32, int64, uint64, bool) are in the same group.
     Given the global compatibility level is "FULL_TRANSITIVE"
     And subject "proto-flt-4v" has "PROTOBUF" schema:
       """
@@ -1024,24 +1008,24 @@ Feature: Transitive Compatibility - Multi-Version Chains
       """
       syntax = "proto3";
       message User {
-        sint32 id = 1;
-        sint64 timestamp = 2;
+        uint32 id = 1;
+        uint64 timestamp = 2;
       }
       """
     And subject "proto-flt-4v" has "PROTOBUF" schema:
       """
       syntax = "proto3";
       message User {
-        sfixed32 id = 1;
-        sfixed64 timestamp = 2;
+        int64 id = 1;
+        int32 timestamp = 2;
       }
       """
     When I register a "PROTOBUF" schema under subject "proto-flt-4v":
       """
       syntax = "proto3";
       message User {
-        int32 id = 1;
-        sfixed64 timestamp = 2;
+        bool id = 1;
+        uint32 timestamp = 2;
       }
       """
     Then the response status should be 200
