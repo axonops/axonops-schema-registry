@@ -577,7 +577,7 @@ func TestChecker_HasOpenContentModel(t *testing.T) {
 		{"no additionalProperties", map[string]interface{}{"type": "object"}, true},
 		{"additionalProperties true", map[string]interface{}{"additionalProperties": true}, true},
 		{"additionalProperties false", map[string]interface{}{"additionalProperties": false}, false},
-		{"additionalProperties schema", map[string]interface{}{"additionalProperties": map[string]interface{}{"type": "string"}}, true},
+		{"additionalProperties schema", map[string]interface{}{"additionalProperties": map[string]interface{}{"type": "string"}}, false},
 	}
 
 	for _, tt := range tests {

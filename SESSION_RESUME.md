@@ -6,178 +6,91 @@
 
 ---
 
-## Current State — ALL COMPLETE
+## Current State — EXHAUSTIVE BDD TESTING IN PROGRESS
 
-**796 BDD scenarios** total across 50 feature files.
-**CI fully green** — 23/23 jobs pass.
+**1292 total BDD scenarios** across 67+ feature files.
+- **1257 passing** (memory backend, in-process)
+- **35 tagged `@pending-impl`** (tests for unimplemented features, excluded from CI)
 
-| Backend | Scenarios | Status |
-|---------|-----------|--------|
-| Memory | 785 | PASS |
-| PostgreSQL | 777 | PASS |
-| MySQL | 775 | PASS |
-| Cassandra | 775 | PASS |
-| Confluent 8.1.1 | 752 | PASS |
-| Functional (in-process) | 772 | PASS |
+### Phase Progress
 
-**0 `@confluent-compat-diff` tags** remain — all 56 were fixed and removed.
-All unit tests pass. `go vet` clean.
+| Phase | Status | Scenarios Added | Details |
+|-------|--------|-----------------|---------|
+| Phase 1: API BDD Tests | COMPLETE | 102 (88 pass, 14 pending) | Sections 1-13, 19-21 |
+| Phase 2: Avro & Parsing BDD | COMPLETE | 86 (81 pass, 5 pending) | Sections 22-25, 32-34 |
+| Phase 3: Protobuf Diff Tests | COMPLETE | 43 (29 pass, 14 pending) | Section 31 data-driven |
+| Phase 4-5: JSON Schema Diff | COMPLETE | 251 (244 pass, 7 pending) | Sections 27-29 data-driven |
+| Phase 6: JSON Schema Validation | COMPLETE | 40 (35 pass, 5 pending) | Section 30 reader/writer pairs |
+| Phase 7: Feature Implementation | IN PROGRESS | — | JSON Schema checker enhanced |
+| Phase 8: Feature BDD Tests | NOT STARTED | — | Tests for Phase 7 features |
 
----
+### JSON Schema Checker Enhancement (Phase 4/7)
 
-## Compatibility Checker Bug Fixes — COMPLETE
+Major expansion of `internal/compatibility/jsonschema/checker.go` (~360 → ~1430 lines):
 
-### Protobuf Checker (`internal/compatibility/protobuf/checker.go`)
+- **$ref resolution** — Resolves local `#/definitions/` and `#/$defs/` references
+- **Implicit type detection** — Object/array by keywords without explicit `"type"`
+- **String constraints** — minLength, maxLength, pattern
+- **Numeric constraints** — minimum, maximum, exclusiveMin/Max, multipleOf
+- **Composition** — oneOf/anyOf/allOf with recursive subschema checking
+- **Dependencies** — dependentRequired, dependentSchemas (Draft-2020)
+- **Tuple items** — items-as-array (Draft-07), prefixItems (Draft-2020)
+- **Items as boolean** — Draft-2020 `items: true → false`
+- **Const compatibility** — Value change detection
+- **Property count** — maxProperties, minProperties
+- **Not schema** — not keyword changes
+- **patternProperties** — Covering pattern detection for removed properties
+- **Boolean property schemas** — `true`/`false` property handling
+- **Closed vs open model** — Correct property addition semantics
 
-8 fixes applied:
-- **P1**: Corrected wire-type compatible groups (varint, zigzag, 32-bit, 64-bit, bytes)
-- **P2**: Added enum-to-integer compatibility (enum ↔ varint group)
-- **P3**: Field removal now compatible (except oneof fields)
-- **P4**: Enum value removal now compatible
-- **P5**: Service definitions ignored (gRPC metadata, no wire impact)
-- **P6**: Syntax version check removed (source-level annotation only)
-- **P7**: repeated→singular compatible for string/bytes/message types
-- **P8**: Enum type removal now compatible
+### Remaining 35 `@pending-impl` Failures (by category)
 
-### JSON Schema Checker (`internal/compatibility/jsonschema/checker.go`)
+| Category | Count | Files | Details |
+|----------|-------|-------|---------|
+| Protobuf imports | 7 | protobuf_diff | google.proto not found |
+| Protobuf checker | 6 | protobuf_diff | required fields, oneof, field labels |
+| JSON Schema validation | 5 | jsonschema_validation | Record evolution, transitive chains |
+| Config/Mode errors | 5 | config_exhaustive, mode_exhaustive | Error codes 40408/40409 |
+| Avro gaps | 4 | avro_exhaustive | Aliases, transitive modes |
+| Deletion | 3 | deletion_exhaustive | Soft-delete query, config cleanup |
+| Pagination | 3 | pagination_exhaustive | offset/limit params |
+| Error handling | 1 | error_handling_exhaustive | Version 0 validation |
+| Schema parsing | 1 | schema_parsing_exhaustive | Avro alias compat |
 
-3 fixes applied:
-- **J1**: Added `hasOpenContentModel()` helper
-- **J2**: Content-model-aware property handling:
-  - Open model: property removal = compatible, property addition = incompatible
-  - Closed model (additionalProperties:false): property removal = incompatible, property addition = compatible
-- **J3**: Array items schema removal now compatible (relaxation)
+### Files Modified (checker enhancement)
 
-### Unit Tests Updated
+| File | Change |
+|------|--------|
+| `internal/compatibility/jsonschema/checker.go` | +1200 lines — 13 new check categories |
+| `internal/compatibility/jsonschema/checker_test.go` | Updated 4 unit tests for Confluent semantics |
+| `tests/bdd/steps/schema_steps.go` | Added variable-resolved assertion steps |
+| `tests/bdd/bdd_test.go` | Added `~@pending-impl` to all tag filters |
+| `tests/bdd/features/*.feature` | Removed @pending-impl from 77 now-passing scenarios |
 
-- `internal/compatibility/protobuf/checker_test.go`: 8 tests flipped, 19 new tests added (40 total)
-- `internal/compatibility/jsonschema/checker_test.go`: 3 tests flipped, 8 new tests added (35 total)
-- `internal/compatibility/checker_test.go`: 3 integration tests updated
+### Test Data Files
 
-### BDD Scenarios Updated
-
-- `compatibility_protobuf.feature`: 27 scenarios updated (tags removed)
-- `compatibility_jsonschema.feature`: 13 scenarios updated (tags removed)
-- `compatibility_transitive.feature`: 14 scenarios updated (7 protobuf + 7 JSON Schema, tags removed)
-- `compatibility_modes.feature`: 2 scenarios updated (tags removed)
-
----
-
-## Confluent 8.1.1 Compatibility Fixes — COMPLETE
-
-Tested against `confluentinc/cp-schema-registry:8.1.1` + `confluentinc/cp-kafka:8.1.1`.
-Docker Compose: `tests/bdd/docker-compose.confluent.yml`
-
-### Code Fixes (match Confluent behavior)
-
-- [x] **Fix 1** (4 failures): Always include `schemaType` in responses
-- [x] **Fix 2** (2 failures): Error code 40407 for version-level permanent delete
-- [x] **Fix 3** (2 failures): Error code 40402 for compat check on non-existent subject
-- [x] **Fix 4** (1 failure): Error code 42201 for invalid schema type
-- [x] **Fix 6** (1 failure): Lookup with empty schema returns 404/40403
-- [x] **Fix 7** (1 failure): limit=0 means unlimited
-- [x] **Fix 10**: Reference deletion — subject soft-delete now blocked when versions have active references (422/42206)
-- [x] **Fix 11**: PUT /config with empty body returns current config (200)
-- [x] **Fix 12**: IMPORT mode with explicit ID — stores schema with requested ID
-- [x] **Fix 13**: IMPORT mode ID conflict — same content reuses ID (200), different content rejects (422/42205)
-- [x] **Fix 14**: All storage backends (memory, postgres, mysql, cassandra) updated for import ID reuse
-
-### @axonops-only Scenarios (6 remaining)
-
-These represent intentional divergences (our extensions or Confluent OSS bugs):
-
-| Scenario | File | Reason |
-|----------|------|--------|
-| PUT /mode with empty body returns 422 | edge_cases.feature:68 | Confluent returns 500 NPE (bug) |
-| GET /schemas/ids/99999/schema returns 404 | raw_schema_endpoints.feature:42 | Confluent returns 500 NPE (bug) |
-| Schema type case-insensitive | api_endpoints_advanced.feature:21 | Our enhancement (Confluent is case-sensitive) |
-| IMPORT mode without explicit ID | mode_enforcement.feature:178 | Our extension (Confluent requires explicit ID) |
-| Subject filter on /schemas/ids/{id}/subjects | advanced_features.feature:336 | Documented in Confluent API but not implemented in OSS (bug) |
-| Subject filter on /schemas/ids/{id}/versions | advanced_features.feature:352 | Documented in Confluent API but not implemented in OSS (bug) |
-
-### @import Scenarios (14 excluded from Confluent)
-
-These test `POST /import/schemas` — our custom bulk import endpoint that doesn't exist in Confluent:
-- `schema_import.feature`: 6 scenarios
-- `import_advanced.feature`: 8 scenarios
-
-### Tag Filter Cleanup
-
-- Removed `~@confluent-compat-diff` from `bdd_test.go` (tag no longer exists on any scenario)
+| File | Cases | Source |
+|------|-------|--------|
+| `tests/bdd/testdata/protobuf-diff-schema-examples.json` | 43 | Confluent protobuf-provider |
+| `tests/bdd/testdata/jsonschema-diff-draft07.json` | 104 | Confluent json-schema-provider |
+| `tests/bdd/testdata/jsonschema-diff-draft2020.json` | 101 | Confluent json-schema-provider |
+| `tests/bdd/testdata/jsonschema-combined-draft07.json` | 28 | Confluent json-schema-provider |
+| `tests/bdd/testdata/jsonschema-combined-draft2020.json` | 18 | Confluent json-schema-provider |
 
 ---
 
-## CI Pipeline — COMPLETE
+## Plan Reference
 
-Added `BDD Tests (Confluent 8.1.1)` job to `.github/workflows/ci.yaml`.
-All 23 CI jobs pass including:
-- BDD tests against all 5 backends (Memory, PostgreSQL, MySQL, Cassandra, Confluent)
-- Confluent compatibility tests (Go, Java, Python)
-- Migration tests (import ID reuse + conflict rejection)
-- All conformance, unit, integration, auth, and Docker build jobs
+Full 8-phase plan at: `/Users/johnny/.claude/plans/generic-spinning-rossum.md`
 
----
-
-## Summary of Changed Files
-
-### Checker code
-- `internal/compatibility/protobuf/checker.go` — 8 fixes (P1-P8)
-- `internal/compatibility/jsonschema/checker.go` — 3 fixes (J1-J3)
-
-### Registry and handler code
-- `internal/registry/registry.go` — `RegisterSchemaWithID()`, `ErrImportIDConflict`, reference checking in `DeleteSubject()`
-- `internal/api/handlers/handlers.go` — Import ID routing, ID conflict error handling, reference delete error, empty config body
-- `internal/api/types/types.go` — Added `ID` field to `RegisterSchemaRequest`
-
-### Storage backends (import ID reuse)
-- `internal/storage/memory/store.go` — Same-fingerprint ID reuse in `ImportSchema`
-- `internal/storage/postgres/store.go` — Same-fingerprint ID reuse in `ImportSchema`
-- `internal/storage/mysql/store.go` — Same-fingerprint ID reuse in `ImportSchema`
-- `internal/storage/cassandra/store.go` — Same-fingerprint ID reuse in `ImportSchema`
-
-### Unit tests
-- `internal/compatibility/protobuf/checker_test.go` — 8 flipped + 19 new
-- `internal/compatibility/jsonschema/checker_test.go` — 3 flipped + 8 new
-- `internal/compatibility/checker_test.go` — 3 integration tests updated
-
-### BDD scenarios
-- `tests/bdd/features/compatibility_protobuf.feature` — 27 scenarios updated
-- `tests/bdd/features/compatibility_jsonschema.feature` — 13 scenarios updated
-- `tests/bdd/features/compatibility_transitive.feature` — 14 scenarios updated
-- `tests/bdd/features/compatibility_modes.feature` — 2 scenarios updated
-- `tests/bdd/features/mode_enforcement.feature` — 4 IMPORT mode scenarios (2 new)
-- `tests/bdd/features/edge_cases.feature` — empty config, pagination tags
-- `tests/bdd/features/deletion_advanced.feature` — reference deletion
-- `tests/bdd/features/schema_listing_advanced.feature` — removed file-level @axonops-only
-- `tests/bdd/features/advanced_features.feature` — subject filter scenarios
-- `tests/bdd/bdd_test.go` — removed dead `~@confluent-compat-diff` filter
-
-### CI
-- `.github/workflows/ci.yaml` — Added `bdd-confluent-tests` job
-
-### Compatibility tests (Go/Java/Python)
-- `tests/compatibility/go/jsonschema_test.go` — closed content model for evolution test
-- `tests/compatibility/python/test_jsonschema_compatibility.py` — closed content model for evolution test
-
-### Migration tests
-- `tests/migration/migration_test.go` — updated `TestImportWithDuplicateIDs` for fingerprint-aware reuse
-
----
+Source document: `CONFLUENT-bdd-test-scenarios.md` (~555 scenarios across 35 sections)
 
 ## Running Tests
 
 ```bash
-# Unit tests
-go test -race -count=1 ./internal/...
+# In-process (fast, memory backend)
+go test -tags bdd -v -count=1 -timeout 15m ./tests/bdd/...
 
-# Memory backend BDD tests (785 scenarios)
-BDD_BACKEND=memory go test -tags bdd -v -count=1 -timeout 10m ./tests/bdd/...
-
-# Confluent backend (752 scenarios, requires docker-compose up first)
-podman compose -f tests/bdd/docker-compose.confluent.yml up -d --wait
-BDD_BACKEND=confluent BDD_REGISTRY_URL=http://localhost:18081 go test -tags bdd -v -count=1 -timeout 25m ./tests/bdd/...
+# Including pending-impl scenarios (to see what fails)
+BDD_TAGS="~@operational" go test -tags bdd -v -count=1 -timeout 15m ./tests/bdd/...
 ```
-
-## Next Steps
-
-All planned work is complete. Ready for new tasks.
