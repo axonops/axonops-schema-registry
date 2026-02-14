@@ -339,8 +339,8 @@
   },
   {
     "description": "Detect incompatible import change",
-    "original_schema": "syntax = \"proto3\";\nimport \"google.proto\";\nmessage TestMessage {\n    .io.confluent.cloud.demo.domain.GoogleHome test_string = 1;\n    }",
-    "update_schema": "syntax = \"proto3\";\nimport \"google2.proto\";\nmessage TestMessage {\n    .io.confluent.cloud.demo.domain.GoogleHome test_string = 1;\n    }",
+    "original_schema": "syntax = \"proto3\";\nimport \"google.proto\";\nmessage TestMessage {\n    .com.axonops.test.domain.GoogleHome test_string = 1;\n    }",
+    "update_schema": "syntax = \"proto3\";\nimport \"google2.proto\";\nmessage TestMessage {\n    .com.axonops.test.domain.GoogleHome test_string = 1;\n    }",
     "original_references": [
       {
         "name": "google.proto",
@@ -358,13 +358,13 @@
     "original_dependencies": [
       {
         "name": "google.proto",
-        "dependency": "syntax = \"proto3\";\n\npackage io.confluent.cloud.demo.domain;\n\noption java_outer_classname = \"GoogleImpl\";\n\nmessage GoogleHome {\n  int32 deviceID = 1;\n  bool enabled = 2;\n}"
+        "dependency": "syntax = \"proto3\";\n\npackage com.axonops.test.domain;\n\noption java_outer_classname = \"GoogleImpl\";\n\nmessage GoogleHome {\n  int32 deviceID = 1;\n  bool enabled = 2;\n}"
       }
     ],
     "update_dependencies": [
       {
         "name": "google2.proto",
-        "dependency": "syntax = \"proto3\";\n\npackage io.confluent.cloud.demo.domain;\n\noption java_outer_classname = \"GoogleImpl2\";\n\nmessage GoogleHome {\n  string deviceID = 1;\n  bool enabled = 2;\n}"
+        "dependency": "syntax = \"proto3\";\n\npackage com.axonops.test.domain;\n\noption java_outer_classname = \"GoogleImpl2\";\n\nmessage GoogleHome {\n  string deviceID = 1;\n  bool enabled = 2;\n}"
       }
     ],
     "changes": [
@@ -375,7 +375,7 @@
   {
     "description": "Detect moving to import",
     "original_schema": "syntax = \"proto3\";\nmessage TestMessage {\n    GoogleHome test_string = 1;\n    }\nmessage GoogleHome {\n  int32 deviceID = 1;\n  bool enabled = 2;\n}",
-    "update_schema": "syntax = \"proto3\";\nimport \"google.proto\";\nmessage TestMessage {\n    .io.confluent.cloud.demo.domain.GoogleHome test_string = 1;\n    }",
+    "update_schema": "syntax = \"proto3\";\nimport \"google.proto\";\nmessage TestMessage {\n    .com.axonops.test.domain.GoogleHome test_string = 1;\n    }",
     "original_references": [
     ],
     "update_references": [
@@ -390,7 +390,7 @@
     "update_dependencies": [
       {
         "name": "google.proto",
-        "dependency": "syntax = \"proto3\";\n\npackage io.confluent.cloud.demo.domain;\n\noption java_outer_classname = \"GoogleImpl\";\n\nmessage GoogleHome {\n  int32 deviceID = 1;\n  bool enabled = 2;\n}"
+        "dependency": "syntax = \"proto3\";\n\npackage com.axonops.test.domain;\n\noption java_outer_classname = \"GoogleImpl\";\n\nmessage GoogleHome {\n  int32 deviceID = 1;\n  bool enabled = 2;\n}"
       }
     ],
     "changes": [
@@ -400,7 +400,7 @@
   },
   {
     "description": "Detect moving from import",
-    "original_schema": "syntax = \"proto3\";\nimport \"google.proto\";\nmessage TestMessage {\n    .io.confluent.cloud.demo.domain.GoogleHome test_string = 1;\n    }",
+    "original_schema": "syntax = \"proto3\";\nimport \"google.proto\";\nmessage TestMessage {\n    .com.axonops.test.domain.GoogleHome test_string = 1;\n    }",
     "update_schema": "syntax = \"proto3\";\nmessage TestMessage {\n    GoogleHome test_string = 1;\n    }\nmessage GoogleHome {\n  int32 deviceID = 1;\n  bool enabled = 2;\n}",
     "original_references": [
       {
@@ -414,7 +414,7 @@
     "original_dependencies": [
       {
         "name": "google.proto",
-        "dependency": "syntax = \"proto3\";\n\npackage io.confluent.cloud.demo.domain;\n\noption java_outer_classname = \"GoogleImpl\";\n\nmessage GoogleHome {\n  int32 deviceID = 1;\n  bool enabled = 2;\n}"
+        "dependency": "syntax = \"proto3\";\n\npackage com.axonops.test.domain;\n\noption java_outer_classname = \"GoogleImpl\";\n\nmessage GoogleHome {\n  int32 deviceID = 1;\n  bool enabled = 2;\n}"
       }
     ],
     "update_dependencies": [
@@ -426,8 +426,8 @@
   },
   {
     "description": "Detect import change with different remote package name",
-    "original_schema": "syntax = \"proto3\";\nimport \"google.proto\";\nmessage TestMessage {\n    .io.confluent.cloud.demo.domain.GoogleHome test_string = 1;\n    }",
-    "update_schema": "syntax = \"proto3\";\nimport \"google2.proto\";\nmessage TestMessage {\n    .io.confluent.cloud.demo.domain2.GoogleHome test_string = 1;\n    }",
+    "original_schema": "syntax = \"proto3\";\nimport \"google.proto\";\nmessage TestMessage {\n    .com.axonops.test.domain.GoogleHome test_string = 1;\n    }",
+    "update_schema": "syntax = \"proto3\";\nimport \"google2.proto\";\nmessage TestMessage {\n    .com.axonops.test.domain2.GoogleHome test_string = 1;\n    }",
     "original_references": [
       {
         "name": "google.proto",
@@ -445,13 +445,13 @@
     "original_dependencies": [
       {
         "name": "google.proto",
-        "dependency": "syntax = \"proto3\";\n\npackage io.confluent.cloud.demo.domain;\n\noption java_outer_classname = \"GoogleImpl\";\n\nmessage GoogleHome {\n  int32 deviceID = 1;\n  bool enabled = 2;\n}"
+        "dependency": "syntax = \"proto3\";\n\npackage com.axonops.test.domain;\n\noption java_outer_classname = \"GoogleImpl\";\n\nmessage GoogleHome {\n  int32 deviceID = 1;\n  bool enabled = 2;\n}"
       }
     ],
     "update_dependencies": [
       {
         "name": "google2.proto",
-        "dependency": "syntax = \"proto3\";\n\npackage io.confluent.cloud.demo.domain2;\n\noption java_outer_classname = \"GoogleImpl2\";\n\nmessage GoogleHome {\n  int32 deviceID = 1;\n  bool enabled = 2;\n}"
+        "dependency": "syntax = \"proto3\";\n\npackage com.axonops.test.domain2;\n\noption java_outer_classname = \"GoogleImpl2\";\n\nmessage GoogleHome {\n  int32 deviceID = 1;\n  bool enabled = 2;\n}"
       }
     ],
     "changes": [
@@ -460,8 +460,8 @@
   },
   {
     "description": "Detect import change with different remote package nested name",
-    "original_schema": "syntax = \"proto3\";\nimport \"google.proto\";\nmessage TestMessage {\n    .io.confluent.cloud.demo.domain.outer.GoogleHome test_string = 1;\n    }",
-    "update_schema": "syntax = \"proto3\";\nimport \"google2.proto\";\nmessage TestMessage {\n    .io.confluent.cloud.demo.domain2.outer.GoogleHome test_string = 1;\n    }",
+    "original_schema": "syntax = \"proto3\";\nimport \"google.proto\";\nmessage TestMessage {\n    .com.axonops.test.domain.outer.GoogleHome test_string = 1;\n    }",
+    "update_schema": "syntax = \"proto3\";\nimport \"google2.proto\";\nmessage TestMessage {\n    .com.axonops.test.domain2.outer.GoogleHome test_string = 1;\n    }",
     "original_references": [
       {
         "name": "google.proto",
@@ -479,13 +479,13 @@
     "original_dependencies": [
       {
         "name": "google.proto",
-        "dependency": "syntax = \"proto3\";\n\npackage io.confluent.cloud.demo.domain;\n\noption java_outer_classname = \"GoogleImpl\";\n\nmessage outer {\n  message GoogleHome {\n  int32 deviceID = 1;\n  bool enabled = 2;\n}\n}"
+        "dependency": "syntax = \"proto3\";\n\npackage com.axonops.test.domain;\n\noption java_outer_classname = \"GoogleImpl\";\n\nmessage outer {\n  message GoogleHome {\n  int32 deviceID = 1;\n  bool enabled = 2;\n}\n}"
       }
     ],
     "update_dependencies": [
       {
         "name": "google2.proto",
-        "dependency": "syntax = \"proto3\";\n\npackage io.confluent.cloud.demo.domain2;\n\noption java_outer_classname = \"GoogleImpl2\";\n\nmessage outer {\n  message GoogleHome {\n  int32 deviceID = 1;\n  bool enabled = 2;\n}\n}"
+        "dependency": "syntax = \"proto3\";\n\npackage com.axonops.test.domain2;\n\noption java_outer_classname = \"GoogleImpl2\";\n\nmessage outer {\n  message GoogleHome {\n  int32 deviceID = 1;\n  bool enabled = 2;\n}\n}"
       }
     ],
     "changes": [
@@ -494,8 +494,8 @@
   },
   {
     "description": "Detect incompatible import change with different remote package nested name",
-    "original_schema": "syntax = \"proto3\";\nimport \"google.proto\";\nmessage TestMessage {\n    .io.confluent.cloud.demo.domain.outer.GoogleHome test_string = 1;\n    }",
-    "update_schema": "syntax = \"proto3\";\nimport \"google2.proto\";\nmessage TestMessage {\n    .io.confluent.cloud.demo.domain2.outer.GoogleHome test_string = 1;\n    }",
+    "original_schema": "syntax = \"proto3\";\nimport \"google.proto\";\nmessage TestMessage {\n    .com.axonops.test.domain.outer.GoogleHome test_string = 1;\n    }",
+    "update_schema": "syntax = \"proto3\";\nimport \"google2.proto\";\nmessage TestMessage {\n    .com.axonops.test.domain2.outer.GoogleHome test_string = 1;\n    }",
     "original_references": [
       {
         "name": "google.proto",
@@ -513,13 +513,13 @@
     "original_dependencies": [
       {
         "name": "google.proto",
-        "dependency": "syntax = \"proto3\";\n\npackage io.confluent.cloud.demo.domain;\n\noption java_outer_classname = \"GoogleImpl\";\n\nmessage outer {\n  message GoogleHome {\n  int32 deviceID = 1;\n  bool enabled = 2;\n}\n}"
+        "dependency": "syntax = \"proto3\";\n\npackage com.axonops.test.domain;\n\noption java_outer_classname = \"GoogleImpl\";\n\nmessage outer {\n  message GoogleHome {\n  int32 deviceID = 1;\n  bool enabled = 2;\n}\n}"
       }
     ],
     "update_dependencies": [
       {
         "name": "google2.proto",
-        "dependency": "syntax = \"proto3\";\n\npackage io.confluent.cloud.demo.domain2;\n\noption java_outer_classname = \"GoogleImpl2\";\n\nmessage outer {\n  message GoogleHome {\n  string deviceID = 1;\n  bool enabled = 2;\n}\n}"
+        "dependency": "syntax = \"proto3\";\n\npackage com.axonops.test.domain2;\n\noption java_outer_classname = \"GoogleImpl2\";\n\nmessage outer {\n  message GoogleHome {\n  string deviceID = 1;\n  bool enabled = 2;\n}\n}"
       }
     ],
     "changes": [
@@ -529,8 +529,8 @@
   },
   {
     "description": "Detect incompatible import change with same subject, different version",
-    "original_schema": "syntax = \"proto3\";\nimport \"google.proto\";\nmessage TestMessage {\n    .io.confluent.cloud.demo.domain.outer.GoogleHome test_string = 1;\n    }",
-    "update_schema": "syntax = \"proto3\";\nimport \"google.proto\";\nmessage TestMessage {\n    .io.confluent.cloud.demo.domain2.outer.GoogleHome test_string = 1;\n    }",
+    "original_schema": "syntax = \"proto3\";\nimport \"google.proto\";\nmessage TestMessage {\n    .com.axonops.test.domain.outer.GoogleHome test_string = 1;\n    }",
+    "update_schema": "syntax = \"proto3\";\nimport \"google.proto\";\nmessage TestMessage {\n    .com.axonops.test.domain2.outer.GoogleHome test_string = 1;\n    }",
     "original_references": [
       {
         "name": "google.proto",
@@ -548,13 +548,13 @@
     "original_dependencies": [
       {
         "name": "google.proto",
-        "dependency": "syntax = \"proto3\";\n\npackage io.confluent.cloud.demo.domain;\n\noption java_outer_classname = \"GoogleImpl\";\n\nmessage outer {\n  message GoogleHome {\n  int32 deviceID = 1;\n  bool enabled = 2;\n}\n}"
+        "dependency": "syntax = \"proto3\";\n\npackage com.axonops.test.domain;\n\noption java_outer_classname = \"GoogleImpl\";\n\nmessage outer {\n  message GoogleHome {\n  int32 deviceID = 1;\n  bool enabled = 2;\n}\n}"
       }
     ],
     "update_dependencies": [
       {
         "name": "google.proto",
-        "dependency": "syntax = \"proto3\";\n\npackage io.confluent.cloud.demo.domain2;\n\noption java_outer_classname = \"GoogleImpl2\";\n\nmessage outer {\n  message GoogleHome {\n  string deviceID = 1;\n  bool enabled = 2;\n}\n}"
+        "dependency": "syntax = \"proto3\";\n\npackage com.axonops.test.domain2;\n\noption java_outer_classname = \"GoogleImpl2\";\n\nmessage outer {\n  message GoogleHome {\n  string deviceID = 1;\n  bool enabled = 2;\n}\n}"
       }
     ],
     "changes": [

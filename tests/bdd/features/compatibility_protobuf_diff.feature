@@ -899,162 +899,338 @@ message TestMessage {
       """
     Then the compatibility check should be compatible
 
-  @pending-impl
-  Scenario: Protobuf diff 37 — Detect incompatible import change
+  # --------------------------------------------------------------------------
+  # Protobuf diff tests 37-43: Import resolution
+  #
+  # These tests require reference schemas to be registered first, then the main
+  # schemas are registered/checked with references pointing to those subjects.
+  #
+  # Tests 37, 39, 40, 41 require structural comparison of imported message types
+  # (comparing field structures across different packages/imports). Our checker
+  # compares message types structurally (by field numbers and wire types) rather
+  # than by fully-qualified name, matching Confluent's behavior.
+  # --------------------------------------------------------------------------
+
+  Scenario: Protobuf diff 37 — Detect incompatible import change (same type name, different field types)
     Given the global compatibility level is "NONE"
-    And subject "proto-diff-37" has "PROTOBUF" schema:
+    # Register google.proto reference: GoogleHome with int32 deviceID
+    And subject "proto-diff-37-google" has "PROTOBUF" schema:
       """
       syntax = "proto3";
-import "google.proto";
-message TestMessage {
-    .io.confluent.cloud.demo.domain.GoogleHome test_string = 1;
-    }
+      package com.axonops.test.domain;
+      message GoogleHome {
+        int32 deviceID = 1;
+        bool enabled = 2;
+      }
+      """
+    # Register google2.proto reference: GoogleHome with STRING deviceID (incompatible!)
+    And subject "proto-diff-37-google2" has "PROTOBUF" schema:
+      """
+      syntax = "proto3";
+      package com.axonops.test.domain;
+      message GoogleHome {
+        string deviceID = 1;
+        bool enabled = 2;
+      }
+      """
+    # Register main schema with reference to google.proto
+    And subject "proto-diff-37" has "PROTOBUF" schema with reference "google.proto" from subject "proto-diff-37-google" version 1:
+      """
+      syntax = "proto3";
+      import "google.proto";
+      message TestMessage {
+        .com.axonops.test.domain.GoogleHome test_string = 1;
+      }
       """
     When I set the config for subject "proto-diff-37" to "BACKWARD"
-    And I check compatibility of "PROTOBUF" schema against subject "proto-diff-37":
+    # Check compatibility with schema referencing google2.proto (string deviceID)
+    And I check compatibility of "PROTOBUF" schema with reference "google2.proto" from subject "proto-diff-37-google2" version 1 against subject "proto-diff-37":
       """
       syntax = "proto3";
-import "google2.proto";
-message TestMessage {
-    .io.confluent.cloud.demo.domain.GoogleHome test_string = 1;
-    }
+      import "google2.proto";
+      message TestMessage {
+        .com.axonops.test.domain.GoogleHome test_string = 1;
+      }
       """
     Then the compatibility check should be incompatible
 
-  @pending-impl
-  Scenario: Protobuf diff 38 — Detect moving to import
+  Scenario: Protobuf diff 38 — Detect moving to import (MESSAGE_REMOVED)
     Given the global compatibility level is "NONE"
+    # Register google.proto reference
+    And subject "proto-diff-38-google" has "PROTOBUF" schema:
+      """
+      syntax = "proto3";
+      package com.axonops.test.domain;
+
+      message GoogleHome {
+        int32 deviceID = 1;
+        bool enabled = 2;
+      }
+      """
+    # Original: inline GoogleHome + TestMessage (no imports)
     And subject "proto-diff-38" has "PROTOBUF" schema:
       """
       syntax = "proto3";
-message TestMessage {
-    GoogleHome test_string = 1;
-    }
-message GoogleHome {
-  int32 deviceID = 1;
-  bool enabled = 2;
-}
+      message TestMessage {
+        GoogleHome test_string = 1;
+      }
+      message GoogleHome {
+        int32 deviceID = 1;
+        bool enabled = 2;
+      }
       """
     When I set the config for subject "proto-diff-38" to "BACKWARD"
-    And I check compatibility of "PROTOBUF" schema against subject "proto-diff-38":
+    # Update: imports google.proto, removes inline GoogleHome
+    And I check compatibility of "PROTOBUF" schema with reference "google.proto" from subject "proto-diff-38-google" version 1 against subject "proto-diff-38":
       """
       syntax = "proto3";
-import "google.proto";
-message TestMessage {
-    .io.confluent.cloud.demo.domain.GoogleHome test_string = 1;
-    }
+      import "google.proto";
+      message TestMessage {
+        .com.axonops.test.domain.GoogleHome test_string = 1;
+      }
       """
     Then the compatibility check should be incompatible
 
-  @pending-impl
-  Scenario: Protobuf diff 39 — Detect moving from import
+  Scenario: Protobuf diff 39 — Detect moving from import (MESSAGE_ADDED, compatible)
     Given the global compatibility level is "NONE"
-    And subject "proto-diff-39" has "PROTOBUF" schema:
+    # Register google.proto reference
+    And subject "proto-diff-39-google" has "PROTOBUF" schema:
       """
       syntax = "proto3";
-import "google.proto";
-message TestMessage {
-    .io.confluent.cloud.demo.domain.GoogleHome test_string = 1;
-    }
+      package com.axonops.test.domain;
+
+      message GoogleHome {
+        int32 deviceID = 1;
+        bool enabled = 2;
+      }
+      """
+    # Original: imports google.proto
+    And subject "proto-diff-39" has "PROTOBUF" schema with reference "google.proto" from subject "proto-diff-39-google" version 1:
+      """
+      syntax = "proto3";
+      import "google.proto";
+      message TestMessage {
+        .com.axonops.test.domain.GoogleHome test_string = 1;
+      }
       """
     When I set the config for subject "proto-diff-39" to "BACKWARD"
+    # Update: inline GoogleHome, no import
     And I check compatibility of "PROTOBUF" schema against subject "proto-diff-39":
       """
       syntax = "proto3";
-message TestMessage {
-    GoogleHome test_string = 1;
-    }
-message GoogleHome {
-  int32 deviceID = 1;
-  bool enabled = 2;
-}
+      message TestMessage {
+        GoogleHome test_string = 1;
+      }
+      message GoogleHome {
+        int32 deviceID = 1;
+        bool enabled = 2;
+      }
       """
     Then the compatibility check should be compatible
 
-  @pending-impl
-  Scenario: Protobuf diff 40 — Detect import change with different remote package name
+  Scenario: Protobuf diff 40 — Import change with different remote package name (structurally compatible)
     Given the global compatibility level is "NONE"
-    And subject "proto-diff-40" has "PROTOBUF" schema:
+    # google.proto: package domain, GoogleHome with int32 deviceID
+    And subject "proto-diff-40-google" has "PROTOBUF" schema:
       """
       syntax = "proto3";
-import "google.proto";
-message TestMessage {
-    .io.confluent.cloud.demo.domain.GoogleHome test_string = 1;
-    }
+      package com.axonops.test.domain;
+
+      message GoogleHome {
+        int32 deviceID = 1;
+        bool enabled = 2;
+      }
+      """
+    # google2.proto: package domain2, GoogleHome with int32 deviceID (same structure!)
+    And subject "proto-diff-40-google2" has "PROTOBUF" schema:
+      """
+      syntax = "proto3";
+      package com.axonops.test.domain2;
+
+      message GoogleHome {
+        int32 deviceID = 1;
+        bool enabled = 2;
+      }
+      """
+    # Original: imports google.proto
+    And subject "proto-diff-40" has "PROTOBUF" schema with reference "google.proto" from subject "proto-diff-40-google" version 1:
+      """
+      syntax = "proto3";
+      import "google.proto";
+      message TestMessage {
+        .com.axonops.test.domain.GoogleHome test_string = 1;
+      }
       """
     When I set the config for subject "proto-diff-40" to "BACKWARD"
-    And I check compatibility of "PROTOBUF" schema against subject "proto-diff-40":
+    # Update: imports google2.proto (different package, same structure)
+    And I check compatibility of "PROTOBUF" schema with reference "google2.proto" from subject "proto-diff-40-google2" version 1 against subject "proto-diff-40":
       """
       syntax = "proto3";
-import "google2.proto";
-message TestMessage {
-    .io.confluent.cloud.demo.domain2.GoogleHome test_string = 1;
-    }
+      import "google2.proto";
+      message TestMessage {
+        .com.axonops.test.domain2.GoogleHome test_string = 1;
+      }
       """
     Then the compatibility check should be compatible
 
-  @pending-impl
-  Scenario: Protobuf diff 41 — Detect import change with different remote package nested name
+  Scenario: Protobuf diff 41 — Import change with different remote package nested name (structurally compatible)
     Given the global compatibility level is "NONE"
-    And subject "proto-diff-41" has "PROTOBUF" schema:
+    # google.proto: package domain, outer.GoogleHome with int32 deviceID
+    And subject "proto-diff-41-google" has "PROTOBUF" schema:
       """
       syntax = "proto3";
-import "google.proto";
-message TestMessage {
-    .io.confluent.cloud.demo.domain.outer.GoogleHome test_string = 1;
-    }
+      package com.axonops.test.domain;
+
+      message outer {
+        message GoogleHome {
+          int32 deviceID = 1;
+          bool enabled = 2;
+        }
+      }
+      """
+    # google2.proto: package domain2, outer.GoogleHome with int32 deviceID (same structure!)
+    And subject "proto-diff-41-google2" has "PROTOBUF" schema:
+      """
+      syntax = "proto3";
+      package com.axonops.test.domain2;
+
+      message outer {
+        message GoogleHome {
+          int32 deviceID = 1;
+          bool enabled = 2;
+        }
+      }
+      """
+    # Original: imports google.proto
+    And subject "proto-diff-41" has "PROTOBUF" schema with reference "google.proto" from subject "proto-diff-41-google" version 1:
+      """
+      syntax = "proto3";
+      import "google.proto";
+      message TestMessage {
+        .com.axonops.test.domain.outer.GoogleHome test_string = 1;
+      }
       """
     When I set the config for subject "proto-diff-41" to "BACKWARD"
-    And I check compatibility of "PROTOBUF" schema against subject "proto-diff-41":
+    # Update: imports google2.proto (different package, same structure)
+    And I check compatibility of "PROTOBUF" schema with reference "google2.proto" from subject "proto-diff-41-google2" version 1 against subject "proto-diff-41":
       """
       syntax = "proto3";
-import "google2.proto";
-message TestMessage {
-    .io.confluent.cloud.demo.domain2.outer.GoogleHome test_string = 1;
-    }
+      import "google2.proto";
+      message TestMessage {
+        .com.axonops.test.domain2.outer.GoogleHome test_string = 1;
+      }
       """
     Then the compatibility check should be compatible
 
-  @pending-impl
-  Scenario: Protobuf diff 42 — Detect incompatible import change with different remote package nested name
+  Scenario: Protobuf diff 42 — Incompatible import change with different remote package nested name
     Given the global compatibility level is "NONE"
-    And subject "proto-diff-42" has "PROTOBUF" schema:
+    # google.proto: package domain, outer.GoogleHome with int32 deviceID
+    And subject "proto-diff-42-google" has "PROTOBUF" schema:
       """
       syntax = "proto3";
-import "google.proto";
-message TestMessage {
-    .io.confluent.cloud.demo.domain.outer.GoogleHome test_string = 1;
-    }
+      package com.axonops.test.domain;
+
+      message outer {
+        message GoogleHome {
+          int32 deviceID = 1;
+          bool enabled = 2;
+        }
+      }
+      """
+    # google2.proto: package domain2, outer.GoogleHome with STRING deviceID (incompatible!)
+    And subject "proto-diff-42-google2" has "PROTOBUF" schema:
+      """
+      syntax = "proto3";
+      package com.axonops.test.domain2;
+
+      message outer {
+        message GoogleHome {
+          string deviceID = 1;
+          bool enabled = 2;
+        }
+      }
+      """
+    # Original: imports google.proto
+    And subject "proto-diff-42" has "PROTOBUF" schema with reference "google.proto" from subject "proto-diff-42-google" version 1:
+      """
+      syntax = "proto3";
+      import "google.proto";
+      message TestMessage {
+        .com.axonops.test.domain.outer.GoogleHome test_string = 1;
+      }
       """
     When I set the config for subject "proto-diff-42" to "BACKWARD"
-    And I check compatibility of "PROTOBUF" schema against subject "proto-diff-42":
+    # Update: imports google2.proto (different package, different structure)
+    And I check compatibility of "PROTOBUF" schema with reference "google2.proto" from subject "proto-diff-42-google2" version 1 against subject "proto-diff-42":
       """
       syntax = "proto3";
-import "google2.proto";
-message TestMessage {
-    .io.confluent.cloud.demo.domain2.outer.GoogleHome test_string = 1;
-    }
+      import "google2.proto";
+      message TestMessage {
+        .com.axonops.test.domain2.outer.GoogleHome test_string = 1;
+      }
       """
     Then the compatibility check should be incompatible
 
-  @pending-impl
-  Scenario: Protobuf diff 43 — Detect incompatible import change with same subject, different version
+  Scenario: Protobuf diff 43 — Incompatible import change with same subject, different version
     Given the global compatibility level is "NONE"
-    And subject "proto-diff-43" has "PROTOBUF" schema:
+    # Register google.proto v1: package domain, outer.GoogleHome with int32 deviceID
+    And subject "proto-diff-43-google" has "PROTOBUF" schema:
       """
       syntax = "proto3";
-import "google.proto";
-message TestMessage {
-    .io.confluent.cloud.demo.domain.outer.GoogleHome test_string = 1;
-    }
+      package com.axonops.test.domain;
+
+      message outer {
+        message GoogleHome {
+          int32 deviceID = 1;
+          bool enabled = 2;
+        }
+      }
+      """
+    # Register google.proto v2 (intermediate — needed to reach v3)
+    And I set the config for subject "proto-diff-43-google" to "NONE"
+    And subject "proto-diff-43-google" has "PROTOBUF" schema:
+      """
+      syntax = "proto3";
+      package com.axonops.test.domain;
+
+      message outer {
+        message GoogleHome {
+          int32 deviceID = 1;
+          bool enabled = 2;
+          string extra = 3;
+        }
+      }
+      """
+    # Register google.proto v3: package domain2, outer.GoogleHome with STRING deviceID
+    And subject "proto-diff-43-google" has "PROTOBUF" schema:
+      """
+      syntax = "proto3";
+      package com.axonops.test.domain2;
+
+      message outer {
+        message GoogleHome {
+          string deviceID = 1;
+          bool enabled = 2;
+        }
+      }
+      """
+    # Original: imports google.proto v1
+    And subject "proto-diff-43" has "PROTOBUF" schema with reference "google.proto" from subject "proto-diff-43-google" version 1:
+      """
+      syntax = "proto3";
+      import "google.proto";
+      message TestMessage {
+        .com.axonops.test.domain.outer.GoogleHome test_string = 1;
+      }
       """
     When I set the config for subject "proto-diff-43" to "BACKWARD"
-    And I check compatibility of "PROTOBUF" schema against subject "proto-diff-43":
+    # Update: imports google.proto v3 (same name, different version — incompatible structure)
+    And I check compatibility of "PROTOBUF" schema with reference "google.proto" from subject "proto-diff-43-google" version 3 against subject "proto-diff-43":
       """
       syntax = "proto3";
-import "google.proto";
-message TestMessage {
-    .io.confluent.cloud.demo.domain2.outer.GoogleHome test_string = 1;
-    }
+      import "google.proto";
+      message TestMessage {
+        .com.axonops.test.domain2.outer.GoogleHome test_string = 1;
+      }
       """
     Then the compatibility check should be incompatible

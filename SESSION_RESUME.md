@@ -6,11 +6,11 @@
 
 ---
 
-## Current State — ALL NON-PENDING BDD TESTS PASS
+## Current State — ALL BDD TESTS PASS (ZERO PENDING)
 
-**1298 passing BDD scenarios** (0 failures) across 67+ feature files.
-- **1298 passing** (memory backend, in-process)
-- **7 tagged `@pending-impl`** (Protobuf import resolution, excluded from CI)
+**1305 passing BDD scenarios** (0 failures, 0 pending) across 67+ feature files.
+- **1292 passing** (in-process mode, excludes `@operational`)
+- **0 tagged `@pending-impl`** — all previously pending protobuf import tests now pass
 
 ### Phase Progress
 
@@ -21,7 +21,7 @@
 | Phase 3: Protobuf Diff Tests | COMPLETE | 43 | Section 31 data-driven |
 | Phase 4-5: JSON Schema Diff | COMPLETE | 251 | Sections 27-29 data-driven |
 | Phase 6: JSON Schema Validation | COMPLETE | 40 | Section 30 reader/writer pairs |
-| Phase 7: Feature Implementation | COMPLETE | — | All checkers enhanced, aliases, fingerprint fix |
+| Phase 7: Feature Implementation | COMPLETE | — | All checkers enhanced, aliases, fingerprint fix, structural import comparison |
 | Phase 8: Feature BDD Tests | NOT STARTED | — | Tests for Phase 7 features |
 
 ### Key Fixes (All Sessions)
@@ -34,12 +34,8 @@
 6. **Avro fingerprint**: Include `default` in field fingerprint so schemas differing only in defaults are treated as distinct (fixes BACKWARD_TRANSITIVE/FULL_TRANSITIVE dedup bypass)
 7. **Avro aliases**: Field and record alias matching for backward-compatible renaming
 8. **JSON Schema test corrections**: Verified against Confluent — adding property to open content model IS incompatible (PROPERTY_ADDED_TO_OPEN_CONTENT_MODEL); closed model allows new properties
-
-### Remaining 7 `@pending-impl` Scenarios
-
-| Category | Count | Details |
-|----------|-------|---------|
-| Protobuf imports | 7 | Proto import resolution (`import "google.proto"`, custom imports) — fails at parse: `file not found: google.proto` |
+9. **Protobuf import tests**: Rewrote diff tests 37-43 with proper reference setup. All 7 pass.
+10. **Protobuf structural import comparison**: Message-typed fields now compared by structure (field numbers + wire types) instead of fully-qualified name. This handles cross-import compatibility where the same message structure appears under different package names, matching Confluent's behavior.
 
 ### Checker Enhancements
 
@@ -51,11 +47,12 @@
 - 13 new check categories matching Confluent's JsonSchemaDiff
 - $ref resolution, composition, dependencies, constraints, open/closed model
 
-**Protobuf** (`internal/compatibility/protobuf/checker.go`, ~660 lines):
+**Protobuf** (`internal/compatibility/protobuf/checker.go`, ~700 lines):
 - Required field removal detection (proto2)
 - Field-to-oneof: FIELD_MOVED_TO_EXISTING_ONEOF = incompatible
 - Real vs synthetic oneof distinction (proto3 optional)
 - Optional→repeated: only compatible for string/bytes/message
+- Structural message comparison for cross-import compatibility (`areMessagesStructurallyCompatible`)
 
 **Avro Parser** (`internal/schema/avro/parser.go`):
 - Field fingerprint now includes `default` values to prevent dedup bypass
@@ -82,10 +79,10 @@ Source document: `CONFLUENT-bdd-test-scenarios.md` (~555 scenarios across 35 sec
 
 ```bash
 # In-process (fast, memory backend)
-BDD_BACKEND=memory go test -tags bdd -v -count=1 -timeout 15m ./tests/bdd/...
+go test -tags bdd -v -count=1 -timeout 10m ./tests/bdd/...
 
-# Including pending-impl scenarios (to see what fails)
-BDD_BACKEND=memory BDD_TAGS="~@operational" go test -tags bdd -v -count=1 -timeout 15m ./tests/bdd/...
+# Docker mode (memory backend, includes @operational)
+BDD_BACKEND=memory go test -tags bdd -v -count=1 -timeout 15m ./tests/bdd/...
 
 # Against Confluent
 podman compose -f tests/bdd/docker-compose.confluent.yml up -d --wait

@@ -454,7 +454,7 @@ Feature: Advanced Avro Schema Parsing
   Scenario: Kafka Connect source record schema
     When I register a schema under subject "avro-adv-22":
       """
-      {"type":"record","name":"ConnectRecord","namespace":"io.confluent.connect","fields":[
+      {"type":"record","name":"ConnectRecord","namespace":"com.axonops.connect","fields":[
         {"name":"source","type":{"type":"record","name":"Source","fields":[
           {"name":"connector","type":"string"},
           {"name":"version","type":"string"},

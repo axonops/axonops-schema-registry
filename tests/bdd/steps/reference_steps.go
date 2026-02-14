@@ -91,4 +91,33 @@ func RegisterReferenceSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 	ctx.Step(`^I get the contexts$`, func() error {
 		return tc.GET("/contexts")
 	})
+
+	// --- Steps for schemas with a single reference ---
+	ctx.Step(`^subject "([^"]*)" has "([^"]*)" schema with reference "([^"]*)" from subject "([^"]*)" version (\d+):$`, func(subject, schemaType, refName, refSubject string, refVersion int, schema *godog.DocString) error {
+		body := map[string]interface{}{
+			"schema":     schema.Content,
+			"schemaType": schemaType,
+			"references": []map[string]interface{}{
+				{"name": refName, "subject": refSubject, "version": refVersion},
+			},
+		}
+		if err := tc.POST("/subjects/"+subject+"/versions", body); err != nil {
+			return err
+		}
+		if tc.LastStatusCode != 200 {
+			return fmt.Errorf("expected 200 registering %s schema with references, got %d: %s", schemaType, tc.LastStatusCode, string(tc.LastBody))
+		}
+		return nil
+	})
+
+	ctx.Step(`^I check compatibility of "([^"]*)" schema with reference "([^"]*)" from subject "([^"]*)" version (\d+) against subject "([^"]*)":$`, func(schemaType, refName, refSubject string, refVersion int, targetSubject string, schema *godog.DocString) error {
+		body := map[string]interface{}{
+			"schema":     schema.Content,
+			"schemaType": schemaType,
+			"references": []map[string]interface{}{
+				{"name": refName, "subject": refSubject, "version": refVersion},
+			},
+		}
+		return tc.POST(fmt.Sprintf("/compatibility/subjects/%s/versions/latest", targetSubject), body)
+	})
 }

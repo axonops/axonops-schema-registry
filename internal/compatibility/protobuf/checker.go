@@ -350,7 +350,11 @@ func (c *Checker) areTypesCompatible(newField, oldField protoreflect.FieldDescri
 	if newKind == oldKind {
 		// Same kind - check message/enum types
 		if newKind == protoreflect.MessageKind {
-			return newField.Message().FullName() == oldField.Message().FullName()
+			// Compare message types structurally (by field numbers and types) rather
+			// than by fully-qualified name. Protobuf wire format encodes field numbers
+			// and wire types, not type names. This handles cross-import compatibility
+			// where the same message structure appears under different package names.
+			return c.areMessagesStructurallyCompatible(newField.Message(), oldField.Message(), nil)
 		}
 		if newKind == protoreflect.EnumKind {
 			return newField.Enum().FullName() == oldField.Enum().FullName()
@@ -358,6 +362,11 @@ func (c *Checker) areTypesCompatible(newField, oldField protoreflect.FieldDescri
 		return true
 	}
 
+	return c.areKindsWireCompatible(newKind, oldKind)
+}
+
+// areKindsWireCompatible checks if two field kinds are wire-compatible.
+func (c *Checker) areKindsWireCompatible(newKind, oldKind protoreflect.Kind) bool {
 	// Wire-type compatible groups per official protobuf specification:
 	// - Varint (wire type 0): int32, uint32, int64, uint64, bool
 	// - Zigzag varint (wire type 0): sint32, sint64
@@ -412,6 +421,64 @@ func (c *Checker) areTypesCompatible(newField, oldField protoreflect.FieldDescri
 	}
 
 	return false
+}
+
+// areMessagesStructurallyCompatible checks if two message descriptors have
+// compatible field structures. For each field in the old message, the new
+// message must have a field with the same number and wire-compatible type.
+// This handles cross-import compatibility where the same message structure
+// may appear under different package names (Confluent behavior).
+func (c *Checker) areMessagesStructurallyCompatible(newMsg, oldMsg protoreflect.MessageDescriptor, visited map[messagePair]bool) bool {
+	// Fast path: same message descriptor
+	if newMsg.FullName() == oldMsg.FullName() && newMsg.ParentFile().Path() == oldMsg.ParentFile().Path() {
+		return true
+	}
+
+	// Recursion guard for self-referencing message types
+	key := messagePair{newMsg.FullName(), oldMsg.FullName()}
+	if visited == nil {
+		visited = make(map[messagePair]bool)
+	}
+	if visited[key] {
+		return true // Assume compatible for recursive types to break cycle
+	}
+	visited[key] = true
+
+	// Check each field in the old message has a compatible counterpart
+	for i := 0; i < oldMsg.Fields().Len(); i++ {
+		oldField := oldMsg.Fields().Get(i)
+		newField := newMsg.Fields().ByNumber(oldField.Number())
+		if newField == nil {
+			// Field absent in new message — wire-safe (readers ignore unknown fields)
+			continue
+		}
+
+		oldKind := oldField.Kind()
+		newKind := newField.Kind()
+
+		if oldKind != newKind {
+			if !c.areKindsWireCompatible(newKind, oldKind) {
+				return false
+			}
+			continue
+		}
+
+		// Same kind — check deeper for message/enum types
+		if oldKind == protoreflect.MessageKind {
+			if !c.areMessagesStructurallyCompatible(newField.Message(), oldField.Message(), visited) {
+				return false
+			}
+		}
+		// For enums with same kind, wire format is always varint — compatible
+	}
+
+	return true
+}
+
+// messagePair is a key for tracking visited message pairs during structural comparison.
+type messagePair struct {
+	newName protoreflect.FullName
+	oldName protoreflect.FullName
 }
 
 // checkNestedMessages checks compatibility of nested messages.
