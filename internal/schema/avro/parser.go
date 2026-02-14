@@ -230,12 +230,18 @@ func canonicalizeObject(obj map[string]interface{}) string {
 func canonicalizeField(field map[string]interface{}) string {
 	parts := make([]string, 0)
 
-	// Field order: name, type
+	// Field order: name, type, default
+	// Note: default is included for fingerprinting so that schemas differing
+	// only in default values are treated as distinct (important for compatibility).
 	if name, ok := field["name"]; ok {
 		parts = append(parts, fmt.Sprintf(`"name":"%v"`, name))
 	}
 	if typ, ok := field["type"]; ok {
 		parts = append(parts, fmt.Sprintf(`"type":%s`, canonicalizeValue(typ)))
+	}
+	if def, ok := field["default"]; ok {
+		defBytes, _ := json.Marshal(def)
+		parts = append(parts, fmt.Sprintf(`"default":%s`, string(defBytes)))
 	}
 
 	return "{" + strings.Join(parts, ",") + "}"

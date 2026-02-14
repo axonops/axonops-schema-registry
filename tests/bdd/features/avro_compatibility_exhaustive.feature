@@ -440,7 +440,6 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       """
     Then the response status should be 200
 
-  @pending-impl
   Scenario: BACKWARD_TRANSITIVE — removing default transitively is incompatible
     Given the global compatibility level is "NONE"
     And subject "avro-ex-bt-nodef" has schema:
@@ -475,8 +474,7 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       """
     Then the response status should be 200
 
-  @pending-impl
-  Scenario: FORWARD_TRANSITIVE — adding field without default transitively is incompatible
+  Scenario: FORWARD_TRANSITIVE — adding field without default is compatible (old readers ignore new fields)
     Given the global compatibility level is "NONE"
     And subject "avro-ex-ft-add-nodef" has schema:
       """
@@ -491,7 +489,7 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       """
       {"type":"record","name":"R","fields":[{"name":"f1","type":"string"},{"name":"f3","type":"string"}]}
       """
-    Then the response status should be 409
+    Then the response status should be 200
 
   Scenario: FULL_TRANSITIVE — safe evolution with defaults is compatible
     Given the global compatibility level is "NONE"
@@ -510,7 +508,6 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       """
     Then the response status should be 200
 
-  @pending-impl
   Scenario: FULL_TRANSITIVE — field without default transitively is incompatible
     Given the global compatibility level is "NONE"
     And subject "avro-ex-fullt-nodef" has schema:
