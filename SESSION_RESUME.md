@@ -8,9 +8,9 @@
 
 ## Current State — ALL NON-PENDING BDD TESTS PASS
 
-**1283 passing BDD scenarios** (0 failures) across 67+ feature files.
-- **1283 passing** (memory backend, in-process)
-- **23 tagged `@pending-impl`** (tests for unimplemented features, excluded from CI)
+**1298 passing BDD scenarios** (0 failures) across 67+ feature files.
+- **1298 passing** (memory backend, in-process)
+- **7 tagged `@pending-impl`** (Protobuf import resolution, excluded from CI)
 
 ### Phase Progress
 
@@ -21,28 +21,31 @@
 | Phase 3: Protobuf Diff Tests | COMPLETE | 43 | Section 31 data-driven |
 | Phase 4-5: JSON Schema Diff | COMPLETE | 251 | Sections 27-29 data-driven |
 | Phase 6: JSON Schema Validation | COMPLETE | 40 | Section 30 reader/writer pairs |
-| Phase 7: Feature Implementation | IN PROGRESS | — | JSON Schema + Protobuf checkers enhanced |
+| Phase 7: Feature Implementation | COMPLETE | — | All checkers enhanced, aliases, fingerprint fix |
 | Phase 8: Feature BDD Tests | NOT STARTED | — | Tests for Phase 7 features |
 
-### Key Fixes This Session
+### Key Fixes (All Sessions)
 
 1. **API error codes**: 40408 (subject config not found), 40409 (subject mode not found)
 2. **Deletion behaviors**: `deleted=true` for GetVersion, config/mode cleanup on delete
 3. **Pagination**: offset/limit for versions, schema IDs, subject IDs
 4. **FORWARD_TRANSITIVE**: Fixed test data (verified against Confluent v8.1.1)
 5. **Protobuf checker**: Required field removal, oneof moves (existing vs new), optional→repeated for length-delimited types, synthetic oneof handling
-6. **All @pending-impl tags removed** from tests that now pass
+6. **Avro fingerprint**: Include `default` in field fingerprint so schemas differing only in defaults are treated as distinct (fixes BACKWARD_TRANSITIVE/FULL_TRANSITIVE dedup bypass)
+7. **Avro aliases**: Field and record alias matching for backward-compatible renaming
+8. **JSON Schema test corrections**: Verified against Confluent — adding property to open content model IS incompatible (PROPERTY_ADDED_TO_OPEN_CONTENT_MODEL); closed model allows new properties
 
-### Remaining 23 `@pending-impl` Scenarios
+### Remaining 7 `@pending-impl` Scenarios
 
 | Category | Count | Details |
 |----------|-------|---------|
-| Protobuf imports | 13 | Proto import resolution (google.proto, custom imports) |
-| JSON Schema validation | 5 | Record evolution, union compat, transitive chains |
-| Avro gaps | 4 | Aliases (field/record), transitive mode dedup issue |
-| Schema parsing | 1 | Avro alias compatibility in parsing |
+| Protobuf imports | 7 | Proto import resolution (`import "google.proto"`, custom imports) — fails at parse: `file not found: google.proto` |
 
 ### Checker Enhancements
+
+**Avro** (`internal/compatibility/avro/checker.go`):
+- Field alias matching: reader field aliases checked against writer fields
+- Record alias matching: reader/writer aliases compared for name compatibility
 
 **JSON Schema** (`internal/compatibility/jsonschema/checker.go`, ~1430 lines):
 - 13 new check categories matching Confluent's JsonSchemaDiff
@@ -53,6 +56,9 @@
 - Field-to-oneof: FIELD_MOVED_TO_EXISTING_ONEOF = incompatible
 - Real vs synthetic oneof distinction (proto3 optional)
 - Optional→repeated: only compatible for string/bytes/message
+
+**Avro Parser** (`internal/schema/avro/parser.go`):
+- Field fingerprint now includes `default` values to prevent dedup bypass
 
 ### Test Data Files
 
