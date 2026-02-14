@@ -1,71 +1,58 @@
 # Session Resume Guide — BDD Testing & Confluent Compatibility
 
-**Last Updated:** 2026-02-13
+**Last Updated:** 2026-02-14
 **Branch:** `feature/testing`
 **Base Branch:** `main`
 
 ---
 
-## Current State — EXHAUSTIVE BDD TESTING IN PROGRESS
+## Current State — ALL NON-PENDING BDD TESTS PASS
 
-**1292 total BDD scenarios** across 67+ feature files.
-- **1257 passing** (memory backend, in-process)
-- **35 tagged `@pending-impl`** (tests for unimplemented features, excluded from CI)
+**1283 passing BDD scenarios** (0 failures) across 67+ feature files.
+- **1283 passing** (memory backend, in-process)
+- **23 tagged `@pending-impl`** (tests for unimplemented features, excluded from CI)
 
 ### Phase Progress
 
 | Phase | Status | Scenarios Added | Details |
 |-------|--------|-----------------|---------|
-| Phase 1: API BDD Tests | COMPLETE | 102 (88 pass, 14 pending) | Sections 1-13, 19-21 |
-| Phase 2: Avro & Parsing BDD | COMPLETE | 86 (81 pass, 5 pending) | Sections 22-25, 32-34 |
-| Phase 3: Protobuf Diff Tests | COMPLETE | 43 (29 pass, 14 pending) | Section 31 data-driven |
-| Phase 4-5: JSON Schema Diff | COMPLETE | 251 (244 pass, 7 pending) | Sections 27-29 data-driven |
-| Phase 6: JSON Schema Validation | COMPLETE | 40 (35 pass, 5 pending) | Section 30 reader/writer pairs |
-| Phase 7: Feature Implementation | IN PROGRESS | — | JSON Schema checker enhanced |
+| Phase 1: API BDD Tests | COMPLETE | 102 | Sections 1-13, 19-21 |
+| Phase 2: Avro & Parsing BDD | COMPLETE | 86 | Sections 22-25, 32-34 |
+| Phase 3: Protobuf Diff Tests | COMPLETE | 43 | Section 31 data-driven |
+| Phase 4-5: JSON Schema Diff | COMPLETE | 251 | Sections 27-29 data-driven |
+| Phase 6: JSON Schema Validation | COMPLETE | 40 | Section 30 reader/writer pairs |
+| Phase 7: Feature Implementation | IN PROGRESS | — | JSON Schema + Protobuf checkers enhanced |
 | Phase 8: Feature BDD Tests | NOT STARTED | — | Tests for Phase 7 features |
 
-### JSON Schema Checker Enhancement (Phase 4/7)
+### Key Fixes This Session
 
-Major expansion of `internal/compatibility/jsonschema/checker.go` (~360 → ~1430 lines):
+1. **API error codes**: 40408 (subject config not found), 40409 (subject mode not found)
+2. **Deletion behaviors**: `deleted=true` for GetVersion, config/mode cleanup on delete
+3. **Pagination**: offset/limit for versions, schema IDs, subject IDs
+4. **FORWARD_TRANSITIVE**: Fixed test data (verified against Confluent v8.1.1)
+5. **Protobuf checker**: Required field removal, oneof moves (existing vs new), optional→repeated for length-delimited types, synthetic oneof handling
+6. **All @pending-impl tags removed** from tests that now pass
 
-- **$ref resolution** — Resolves local `#/definitions/` and `#/$defs/` references
-- **Implicit type detection** — Object/array by keywords without explicit `"type"`
-- **String constraints** — minLength, maxLength, pattern
-- **Numeric constraints** — minimum, maximum, exclusiveMin/Max, multipleOf
-- **Composition** — oneOf/anyOf/allOf with recursive subschema checking
-- **Dependencies** — dependentRequired, dependentSchemas (Draft-2020)
-- **Tuple items** — items-as-array (Draft-07), prefixItems (Draft-2020)
-- **Items as boolean** — Draft-2020 `items: true → false`
-- **Const compatibility** — Value change detection
-- **Property count** — maxProperties, minProperties
-- **Not schema** — not keyword changes
-- **patternProperties** — Covering pattern detection for removed properties
-- **Boolean property schemas** — `true`/`false` property handling
-- **Closed vs open model** — Correct property addition semantics
+### Remaining 23 `@pending-impl` Scenarios
 
-### Remaining 35 `@pending-impl` Failures (by category)
+| Category | Count | Details |
+|----------|-------|---------|
+| Protobuf imports | 13 | Proto import resolution (google.proto, custom imports) |
+| JSON Schema validation | 5 | Record evolution, union compat, transitive chains |
+| Avro gaps | 4 | Aliases (field/record), transitive mode dedup issue |
+| Schema parsing | 1 | Avro alias compatibility in parsing |
 
-| Category | Count | Files | Details |
-|----------|-------|-------|---------|
-| Protobuf imports | 7 | protobuf_diff | google.proto not found |
-| Protobuf checker | 6 | protobuf_diff | required fields, oneof, field labels |
-| JSON Schema validation | 5 | jsonschema_validation | Record evolution, transitive chains |
-| Config/Mode errors | 5 | config_exhaustive, mode_exhaustive | Error codes 40408/40409 |
-| Avro gaps | 4 | avro_exhaustive | Aliases, transitive modes |
-| Deletion | 3 | deletion_exhaustive | Soft-delete query, config cleanup |
-| Pagination | 3 | pagination_exhaustive | offset/limit params |
-| Error handling | 1 | error_handling_exhaustive | Version 0 validation |
-| Schema parsing | 1 | schema_parsing_exhaustive | Avro alias compat |
+### Checker Enhancements
 
-### Files Modified (checker enhancement)
+**JSON Schema** (`internal/compatibility/jsonschema/checker.go`, ~1430 lines):
+- 13 new check categories matching Confluent's JsonSchemaDiff
+- $ref resolution, composition, dependencies, constraints, open/closed model
 
-| File | Change |
-|------|--------|
-| `internal/compatibility/jsonschema/checker.go` | +1200 lines — 13 new check categories |
-| `internal/compatibility/jsonschema/checker_test.go` | Updated 4 unit tests for Confluent semantics |
-| `tests/bdd/steps/schema_steps.go` | Added variable-resolved assertion steps |
-| `tests/bdd/bdd_test.go` | Added `~@pending-impl` to all tag filters |
-| `tests/bdd/features/*.feature` | Removed @pending-impl from 77 now-passing scenarios |
+**Protobuf** (`internal/compatibility/protobuf/checker.go`, ~660 lines):
+- Required field removal detection (proto2)
+- Field-to-oneof: FIELD_MOVED_TO_EXISTING_ONEOF = incompatible
+- Real vs synthetic oneof distinction (proto3 optional)
+- Optional→repeated: only compatible for string/bytes/message
 
 ### Test Data Files
 
@@ -89,8 +76,12 @@ Source document: `CONFLUENT-bdd-test-scenarios.md` (~555 scenarios across 35 sec
 
 ```bash
 # In-process (fast, memory backend)
-go test -tags bdd -v -count=1 -timeout 15m ./tests/bdd/...
+BDD_BACKEND=memory go test -tags bdd -v -count=1 -timeout 15m ./tests/bdd/...
 
 # Including pending-impl scenarios (to see what fails)
-BDD_TAGS="~@operational" go test -tags bdd -v -count=1 -timeout 15m ./tests/bdd/...
+BDD_BACKEND=memory BDD_TAGS="~@operational" go test -tags bdd -v -count=1 -timeout 15m ./tests/bdd/...
+
+# Against Confluent
+podman compose -f tests/bdd/docker-compose.confluent.yml up -d --wait
+BDD_BACKEND=confluent BDD_REGISTRY_URL=http://localhost:18081 go test -tags bdd -v -count=1 -timeout 25m ./tests/bdd/...
 ```
