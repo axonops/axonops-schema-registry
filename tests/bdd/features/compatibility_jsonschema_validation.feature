@@ -90,8 +90,7 @@ Feature: JSON Schema Validation Compatibility — Exhaustive (Confluent v8.1.1 C
       """
     Then the compatibility check should be compatible
 
-  @pending-impl
-  Scenario: Compatible — record with optional field reader, empty record writer
+  Scenario: Incompatible — adding property to open content model (Confluent PROPERTY_ADDED_TO_OPEN_CONTENT_MODEL)
     Given the global compatibility level is "NONE"
     And subject "jsv-compat-06" has compatibility level "BACKWARD"
     And subject "jsv-compat-06" has "JSON" schema:
@@ -102,10 +101,9 @@ Feature: JSON Schema Validation Compatibility — Exhaustive (Confluent v8.1.1 C
       """
       {"type":"object","properties":{"a":{"type":"integer"}}}
       """
-    Then the compatibility check should be compatible
+    Then the compatibility check should be incompatible
 
-  @pending-impl
-  Scenario: Compatible — record adding optional field with default
+  Scenario: Incompatible — adding optional field with default to open content model
     Given the global compatibility level is "NONE"
     And subject "jsv-compat-07" has compatibility level "BACKWARD"
     And subject "jsv-compat-07" has "JSON" schema:
@@ -116,7 +114,7 @@ Feature: JSON Schema Validation Compatibility — Exhaustive (Confluent v8.1.1 C
       """
       {"type":"object","properties":{"a":{"type":"integer"},"b":{"type":"integer","default":0}},"required":["a"]}
       """
-    Then the compatibility check should be compatible
+    Then the compatibility check should be incompatible
 
   Scenario: Compatible — open content model with extra properties
     Given the global compatibility level is "NONE"
@@ -131,8 +129,7 @@ Feature: JSON Schema Validation Compatibility — Exhaustive (Confluent v8.1.1 C
       """
     Then the compatibility check should be compatible
 
-  @pending-impl
-  Scenario: Compatible — record removing non-required field
+  Scenario: Incompatible — adding non-required property to open content model
     Given the global compatibility level is "NONE"
     And subject "jsv-compat-09" has compatibility level "BACKWARD"
     And subject "jsv-compat-09" has "JSON" schema:
@@ -143,7 +140,7 @@ Feature: JSON Schema Validation Compatibility — Exhaustive (Confluent v8.1.1 C
       """
       {"type":"object","properties":{"a":{"type":"integer"},"b":{"type":"integer"}}}
       """
-    Then the compatibility check should be compatible
+    Then the compatibility check should be incompatible
 
   # ==========================================================================
   # INCOMPATIBLE READER/WRITER PAIRS (15 cases from Confluent)
@@ -335,8 +332,7 @@ Feature: JSON Schema Validation Compatibility — Exhaustive (Confluent v8.1.1 C
   # TRANSITIVE COMPATIBILITY CHAINS
   # ==========================================================================
 
-  @pending-impl
-  Scenario: JSON Schema backward transitive — compatible chain
+  Scenario: JSON Schema backward transitive — open content model rejects new properties
     Given the global compatibility level is "NONE"
     And subject "jsv-trans-ok" has "JSON" schema:
       """
@@ -351,10 +347,9 @@ Feature: JSON Schema Validation Compatibility — Exhaustive (Confluent v8.1.1 C
       """
       {"type":"object","properties":{"a":{"type":"integer"},"b":{"type":"string","default":""},"c":{"type":"number","default":0}},"required":["a"]}
       """
-    Then the response status should be 200
+    Then the response status should be 409
 
-  @pending-impl
-  Scenario: JSON Schema backward transitive — incompatible with first version
+  Scenario: JSON Schema backward transitive — closed content model allows new properties
     Given the global compatibility level is "NONE"
     And subject "jsv-trans-fail" has "JSON" schema:
       """
@@ -369,7 +364,7 @@ Feature: JSON Schema Validation Compatibility — Exhaustive (Confluent v8.1.1 C
       """
       {"type":"object","properties":{"a":{"type":"integer"},"b":{"type":"string"},"c":{"type":"number"}},"required":["a"],"additionalProperties":false}
       """
-    Then the response status should be 409
+    Then the response status should be 200
 
   # ==========================================================================
   # UNION / ONEOF COMPATIBILITY

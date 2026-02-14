@@ -208,7 +208,6 @@ message TestMessage {
       """
     Then the compatibility check should be compatible
 
-  @pending-impl
   Scenario: Protobuf diff 09 — Detect removed required field
     Given the global compatibility level is "NONE"
     And subject "proto-diff-09" has "PROTOBUF" schema:
@@ -426,7 +425,6 @@ enum Status {
       """
     Then the compatibility check should be compatible
 
-  @pending-impl
   Scenario: Protobuf diff 18 — Detect compatible field to oneof change
     Given the global compatibility level is "NONE"
     And subject "proto-diff-18" has "PROTOBUF" schema:
@@ -527,7 +525,6 @@ message TestMessage {
       """
     Then the compatibility check should be incompatible
 
-  @pending-impl
   Scenario: Protobuf diff 22 — Detect compatible move field to oneof
     Given the global compatibility level is "NONE"
     And subject "proto-diff-22" has "PROTOBUF" schema:
@@ -725,7 +722,6 @@ message TestMessage {
       """
     Then the compatibility check should be compatible
 
-  @pending-impl
   Scenario: Protobuf diff 30 — Detect compatible field label change for message
     Given the global compatibility level is "NONE"
     And subject "proto-diff-30" has "PROTOBUF" schema:
@@ -753,7 +749,6 @@ message TestMessage {
       """
     Then the compatibility check should be compatible
 
-  @pending-impl
   Scenario: Protobuf diff 31 — Detect compatible field label change for string
     Given the global compatibility level is "NONE"
     And subject "proto-diff-31" has "PROTOBUF" schema:
@@ -781,7 +776,6 @@ message TestMessage {
       """
     Then the compatibility check should be compatible
 
-  @pending-impl
   Scenario: Protobuf diff 32 — Detect compatible field label change for bytes
     Given the global compatibility level is "NONE"
     And subject "proto-diff-32" has "PROTOBUF" schema:
