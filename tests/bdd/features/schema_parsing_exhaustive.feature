@@ -90,7 +90,6 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
   # AVRO COMPATIBILITY — FIELD NAME ALIAS
   # ==========================================================================
 
-  @pending-impl
   Scenario: Backward compatible — field rename with alias
     Given the global compatibility level is "NONE"
     And subject "parse-avro-alias" has compatibility level "BACKWARD"

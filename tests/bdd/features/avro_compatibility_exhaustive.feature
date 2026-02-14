@@ -46,7 +46,6 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       """
     Then the response status should be 200
 
-  @pending-impl
   Scenario: Backward — changing field name with alias is compatible
     Given the global compatibility level is "NONE"
     And subject "avro-ex-back-alias" has compatibility level "BACKWARD"
