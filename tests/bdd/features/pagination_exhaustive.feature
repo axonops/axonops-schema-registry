@@ -32,7 +32,6 @@ Feature: Pagination — Exhaustive (Confluent v8.1.1 Compatibility)
   # VERSION LISTING PAGINATION
   # ==========================================================================
 
-  @pending-impl
   Scenario: List versions with offset and limit
     Given the global compatibility level is "NONE"
     And subject "page-ver" has schema:
@@ -58,7 +57,6 @@ Feature: Pagination — Exhaustive (Confluent v8.1.1 Compatibility)
   # SUBJECTS BY SCHEMA ID PAGINATION
   # ==========================================================================
 
-  @pending-impl
   Scenario: Get subjects by schema ID with offset and limit
     Given the global compatibility level is "NONE"
     When I register a schema under subject "page-byid-s1":
@@ -85,7 +83,6 @@ Feature: Pagination — Exhaustive (Confluent v8.1.1 Compatibility)
   # VERSIONS BY SCHEMA ID PAGINATION
   # ==========================================================================
 
-  @pending-impl
   Scenario: Get versions by schema ID with offset and limit
     Given the global compatibility level is "NONE"
     When I register a schema under subject "page-verid-s1":

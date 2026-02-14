@@ -111,7 +111,6 @@ Feature: Error Handling & Edge Cases — Exhaustive (Confluent v8.1.1 Compatibil
     Then the response status should be 404
     And the response should have error code 40401
 
-  @pending-impl
   Scenario: Invalid version number returns 422
     Given subject "err-ex-invver" has schema:
       """
@@ -120,7 +119,7 @@ Feature: Error Handling & Edge Cases — Exhaustive (Confluent v8.1.1 Compatibil
     When I GET "/subjects/err-ex-invver/versions/0"
     Then the response status should be 422
     And the response should have error code 42202
-    When I GET "/subjects/err-ex-invver/versions/-1"
+    When I GET "/subjects/err-ex-invver/versions/-2"
     Then the response status should be 422
     And the response should have error code 42202
 

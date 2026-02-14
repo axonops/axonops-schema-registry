@@ -136,6 +136,8 @@ const (
 	ErrorCodeSubjectNotSoftDeleted     = 40405
 	ErrorCodeSchemaVersionSoftDeleted  = 40406
 	ErrorCodeVersionNotSoftDeleted     = 40407
+	ErrorCodeSubjectCompatNotFound     = 40408
+	ErrorCodeSubjectModeNotFound       = 40409
 	ErrorCodeIncompatibleSchema        = 409
 	ErrorCodeInvalidSchema             = 42201
 	ErrorCodeInvalidSchemaType         = 42202

@@ -82,7 +82,6 @@ Feature: Mode Management — Exhaustive (Confluent v8.1.1 Compatibility)
     Then the response status should be 200
     And the response field "mode" should be "READWRITE"
 
-  @pending-impl
   Scenario: Get mode for subject with no override and no defaultToGlobal returns 404
     When I GET "/mode/mode-ex-no-override"
     Then the response status should be 404

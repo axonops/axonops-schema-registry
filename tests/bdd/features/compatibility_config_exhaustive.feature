@@ -38,13 +38,11 @@ Feature: Compatibility Configuration & Testing — Exhaustive (Confluent v8.1.1 
     Then the response status should be 200
     And the response field "compatibilityLevel" should be "FULL"
 
-  @pending-impl
   Scenario: Get config for subject with no subject-level config returns 404
     When I get the config for subject "cc-no-config-at-all"
     Then the response status should be 404
     And the response should have error code 40408
 
-  @pending-impl
   Scenario: Delete subject-level config reverts to global
     Given I set the global config to "FULL"
     And I set the config for subject "cc-del-config" to "BACKWARD"
@@ -157,19 +155,18 @@ Feature: Compatibility Configuration & Testing — Exhaustive (Confluent v8.1.1 
   # TRANSITIVE COMPATIBILITY VIA REST
   # ==========================================================================
 
-  @pending-impl
   Scenario: FORWARD_TRANSITIVE — compatible with latest but not all versions
     Given the global compatibility level is "NONE"
     And subject "cc-ft-rest" has schema:
       """
-      {"type":"record","name":"FTRest","fields":[{"name":"f1","type":"string"},{"name":"f2","type":"string","default":"a"}]}
+      {"type":"record","name":"FTRest","fields":[{"name":"f1","type":"string"},{"name":"f2","type":"string"}]}
       """
     And subject "cc-ft-rest" has schema:
       """
       {"type":"record","name":"FTRest","fields":[{"name":"f1","type":"string"}]}
       """
     When I set the config for subject "cc-ft-rest" to "FORWARD_TRANSITIVE"
-    # v3 adds f3 — compatible with v2 (latest) but v1 can't read f3 without default
+    # v3 adds f3 — compatible with v2 (latest, only f1) but v1 can't read without f2 (no default)
     When I check compatibility of schema against subject "cc-ft-rest":
       """
       {"type":"record","name":"FTRest","fields":[{"name":"f1","type":"string"},{"name":"f3","type":"string"}]}
@@ -185,7 +182,6 @@ Feature: Compatibility Configuration & Testing — Exhaustive (Confluent v8.1.1 
   # defaultToGlobal PARAMETER
   # ==========================================================================
 
-  @pending-impl
   Scenario: defaultToGlobal returns global config when no subject config exists
     Given I set the global config to "BACKWARD_TRANSITIVE"
     When I GET "/config/cc-dtg-test?defaultToGlobal=true"

@@ -171,6 +171,11 @@ func (c *Checker) checkMessageCompatibility(newMsg, oldMsg protoreflect.MessageD
 		oldFields[int32(f.Number())] = f
 	}
 
+	// Track fields that move from non-oneof into a real oneof, keyed by oneof name.
+	// If multiple previously-independent fields land in the same oneof, that adds
+	// a mutual exclusion constraint which is an incompatible change.
+	fieldsMovedToOneof := make(map[string][]string) // oneof name -> list of field names
+
 	// Check each new field
 	for i := 0; i < newMsg.Fields().Len(); i++ {
 		newField := newMsg.Fields().Get(i)
@@ -187,16 +192,74 @@ func (c *Checker) checkMessageCompatibility(newMsg, oldMsg protoreflect.MessageD
 			continue
 		}
 
+		// Track fields moving into a real oneof from non-oneof
+		oldOneof := oldField.ContainingOneof()
+		newOneof := newField.ContainingOneof()
+		oldIsRealOneof := oldOneof != nil && !oldOneof.IsSynthetic()
+		newIsRealOneof := newOneof != nil && !newOneof.IsSynthetic()
+		if !oldIsRealOneof && newIsRealOneof {
+			oneofName := string(newOneof.Name())
+			fieldsMovedToOneof[oneofName] = append(fieldsMovedToOneof[oneofName], string(newField.Name()))
+		}
+
 		// Check field compatibility
 		c.checkFieldCompatibility(newField, oldField, msgName, result)
 		delete(oldFields, num)
 	}
 
-	// In proto3, field removal is wire-safe: readers ignore unknown fields and use
-	// defaults for missing ones. However, removing a field from a oneof IS
-	// incompatible because it changes oneof semantics.
+	// Check if fields were moved into an existing oneof.
+	// Moving a field into a oneof that already has other pre-existing members is
+	// incompatible (FIELD_MOVED_TO_EXISTING_ONEOF) because it adds a mutual
+	// exclusion constraint. Also, moving multiple previously-independent fields
+	// into the same new oneof creates a new mutual exclusion constraint.
+	//
+	// Build a set of old field numbers for quick lookup.
+	oldFieldNums := make(map[int32]bool)
+	for i := 0; i < oldMsg.Fields().Len(); i++ {
+		oldFieldNums[int32(oldMsg.Fields().Get(i).Number())] = true
+	}
+
+	for oneofName, movedFields := range fieldsMovedToOneof {
+		if len(movedFields) > 1 {
+			// Multiple independent fields moved into same oneof
+			result.AddMessage("Message '%s': multiple fields moved into oneof '%s', creating mutual exclusion",
+				msgName, oneofName)
+			continue
+		}
+		// Check if the target oneof has other members that already existed in
+		// the old schema (i.e. they're not brand new fields).
+		movedFieldName := movedFields[0]
+		otherPreExistingMember := false
+		for i := 0; i < newMsg.Fields().Len(); i++ {
+			nf := newMsg.Fields().Get(i)
+			no := nf.ContainingOneof()
+			if no == nil || no.IsSynthetic() || string(no.Name()) != oneofName {
+				continue
+			}
+			if string(nf.Name()) == movedFieldName {
+				continue
+			}
+			// Check if this field existed in the old schema by number
+			if oldFieldNums[int32(nf.Number())] {
+				otherPreExistingMember = true
+				break
+			}
+		}
+		if otherPreExistingMember {
+			result.AddMessage("Message '%s': field '%s' moved into existing oneof '%s'",
+				msgName, movedFieldName, oneofName)
+		}
+	}
+
+	// Check removed fields for compatibility issues:
+	// 1. Removing a required field (proto2) is always incompatible
+	// 2. Removing a field from a non-synthetic oneof is incompatible (changes oneof semantics)
+	// 3. In proto3, non-oneof field removal is wire-safe (readers ignore unknown fields)
 	for num, oldField := range oldFields {
-		if oldField.ContainingOneof() != nil {
+		if oldField.Cardinality() == protoreflect.Required {
+			result.AddMessage("Message '%s': required field '%s' (number %d) was removed",
+				msgName, oldField.Name(), num)
+		} else if oldField.ContainingOneof() != nil && !oldField.ContainingOneof().IsSynthetic() {
 			result.AddMessage("Message '%s': field '%s' (number %d) was removed from oneof",
 				msgName, oldField.Name(), num)
 		}
@@ -233,7 +296,14 @@ func (c *Checker) checkFieldCompatibility(newField, oldField protoreflect.FieldD
 	if oldCard != newCard {
 		// Some cardinality changes are compatible
 		if oldCard == protoreflect.Optional && newCard == protoreflect.Repeated {
-			// Optional to repeated - compatible for reading
+			// Per protobuf spec: "For string, bytes, and message fields, optional is
+			// compatible with repeated." These use length-delimited encoding which
+			// is the same wire format for both singular and repeated.
+			kind := oldField.Kind()
+			if kind != protoreflect.StringKind && kind != protoreflect.BytesKind && kind != protoreflect.MessageKind {
+				result.AddMessage("Message '%s': field '%s' changed from optional to repeated",
+					msgName, fieldName)
+			}
 		} else if oldCard == protoreflect.Required && newCard != protoreflect.Required {
 			// Required to optional/repeated - compatible
 		} else if newCard == protoreflect.Required && oldCard != protoreflect.Required {
@@ -255,9 +325,20 @@ func (c *Checker) checkFieldCompatibility(newField, oldField protoreflect.FieldD
 	// Check oneof membership changes
 	oldOneof := oldField.ContainingOneof()
 	newOneof := newField.ContainingOneof()
-	if (oldOneof == nil) != (newOneof == nil) {
-		result.AddMessage("Message '%s': field '%s' oneof membership changed",
-			msgName, fieldName)
+
+	// Determine if the oneofs are "real" (non-synthetic). Proto3 optional fields
+	// have a synthetic oneof wrapper that is invisible at the wire level.
+	oldIsRealOneof := oldOneof != nil && !oldOneof.IsSynthetic()
+	newIsRealOneof := newOneof != nil && !newOneof.IsSynthetic()
+
+	if oldIsRealOneof != newIsRealOneof {
+		if oldIsRealOneof && !newIsRealOneof {
+			// Moving OUT of a real oneof — incompatible (changes oneof semantics)
+			result.AddMessage("Message '%s': field '%s' oneof membership changed",
+				msgName, fieldName)
+		}
+		// Moving INTO a real oneof from non-oneof or synthetic oneof is compatible
+		// because the field number and wire format are preserved.
 	}
 }
 

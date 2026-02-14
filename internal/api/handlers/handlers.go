@@ -2,6 +2,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -234,7 +235,9 @@ func (h *Handler) GetVersions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, versions)
+	// Apply pagination
+	start, end := parsePagination(r, len(versions))
+	writeJSON(w, http.StatusOK, versions[start:end])
 }
 
 // GetVersion handles GET /subjects/{subject}/versions/{version}
@@ -249,18 +252,26 @@ func (h *Handler) GetVersion(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	includeDeleted := r.URL.Query().Get("deleted") == "true"
+
 	schema, err := h.registry.GetSchemaBySubjectVersion(r.Context(), subject, version)
 	if err != nil {
-		if errors.Is(err, storage.ErrSubjectNotFound) {
-			writeError(w, http.StatusNotFound, types.ErrorCodeSubjectNotFound, "Subject not found")
+		// If deleted=true and version not found, try to find the deleted version
+		if includeDeleted && (errors.Is(err, storage.ErrVersionNotFound) || errors.Is(err, storage.ErrSubjectNotFound)) {
+			schema, err = h.findDeletedVersion(r.Context(), subject, version)
+		}
+		if err != nil {
+			if errors.Is(err, storage.ErrSubjectNotFound) {
+				writeError(w, http.StatusNotFound, types.ErrorCodeSubjectNotFound, "Subject not found")
+				return
+			}
+			if errors.Is(err, storage.ErrVersionNotFound) {
+				writeError(w, http.StatusNotFound, types.ErrorCodeVersionNotFound, "Version not found")
+				return
+			}
+			writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
 			return
 		}
-		if errors.Is(err, storage.ErrVersionNotFound) {
-			writeError(w, http.StatusNotFound, types.ErrorCodeVersionNotFound, "Version not found")
-			return
-		}
-		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
-		return
 	}
 
 	schemaStr := schema.Schema
@@ -280,6 +291,23 @@ func (h *Handler) GetVersion(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, resp)
+}
+
+// findDeletedVersion looks up a soft-deleted version by iterating all versions including deleted.
+func (h *Handler) findDeletedVersion(ctx context.Context, subject string, version int) (*storage.SchemaRecord, error) {
+	schemas, err := h.registry.GetSchemasBySubject(ctx, subject, true) // include deleted
+	if err != nil {
+		return nil, err
+	}
+	if len(schemas) == 0 {
+		return nil, storage.ErrSubjectNotFound
+	}
+	for _, s := range schemas {
+		if s.Version == version {
+			return s, nil
+		}
+	}
+	return nil, storage.ErrVersionNotFound
 }
 
 // RegisterSchema handles POST /subjects/{subject}/versions
@@ -500,7 +528,7 @@ func (h *Handler) GetConfig(w http.ResponseWriter, r *http.Request) {
 		level, err := h.registry.GetSubjectConfig(r.Context(), subject)
 		if err != nil {
 			if errors.Is(err, storage.ErrNotFound) {
-				writeError(w, http.StatusNotFound, types.ErrorCodeSubjectNotFound,
+				writeError(w, http.StatusNotFound, types.ErrorCodeSubjectCompatNotFound,
 					fmt.Sprintf("Subject '%s' does not have subject-level compatibility configured", subject))
 				return
 			}
@@ -698,7 +726,7 @@ func (h *Handler) GetMode(w http.ResponseWriter, r *http.Request) {
 		mode, err := h.registry.GetSubjectMode(r.Context(), subject)
 		if err != nil {
 			if errors.Is(err, storage.ErrNotFound) {
-				writeError(w, http.StatusNotFound, types.ErrorCodeSubjectNotFound,
+				writeError(w, http.StatusNotFound, types.ErrorCodeSubjectModeNotFound,
 					fmt.Sprintf("Subject '%s' does not have subject-level mode configured", subject))
 				return
 			}
@@ -753,6 +781,32 @@ func (h *Handler) SetMode(w http.ResponseWriter, r *http.Request) {
 
 // parseVersion parses a version string, handling "latest" and "-1".
 // Returns errInvalidVersion for non-numeric strings, zero, or negative values (other than -1).
+// parsePagination extracts offset and limit query params and applies them to a slice length.
+// Returns the start and end indices for slicing.
+func parsePagination(r *http.Request, total int) (start, end int) {
+	start = 0
+	end = total
+
+	if offsetStr := r.URL.Query().Get("offset"); offsetStr != "" {
+		if o, err := strconv.Atoi(offsetStr); err == nil && o >= 0 {
+			start = o
+		}
+	}
+	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil && l >= 0 {
+			end = start + l
+		}
+	}
+
+	if start > total {
+		start = total
+	}
+	if end > total {
+		end = total
+	}
+	return start, end
+}
+
 func parseVersion(s string) (int, error) {
 	if s == "latest" || s == "-1" {
 		return -1, nil
@@ -850,7 +904,9 @@ func (h *Handler) GetSubjectsBySchemaID(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	writeJSON(w, http.StatusOK, subjects)
+	// Apply pagination
+	start, end := parsePagination(r, len(subjects))
+	writeJSON(w, http.StatusOK, subjects[start:end])
 }
 
 // GetVersionsBySchemaID handles GET /schemas/ids/{id}/versions
@@ -887,7 +943,9 @@ func (h *Handler) GetVersionsBySchemaID(w http.ResponseWriter, r *http.Request) 
 		})
 	}
 
-	writeJSON(w, http.StatusOK, result)
+	// Apply pagination
+	start, end := parsePagination(r, len(result))
+	writeJSON(w, http.StatusOK, result[start:end])
 }
 
 // ListSchemas handles GET /schemas

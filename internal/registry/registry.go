@@ -370,6 +370,11 @@ func (r *Registry) GetSchemaBySubjectVersion(ctx context.Context, subject string
 	return r.storage.GetSchemaBySubjectVersion(ctx, subject, version)
 }
 
+// GetSchemasBySubject returns all schemas for a subject, optionally including deleted.
+func (r *Registry) GetSchemasBySubject(ctx context.Context, subject string, includeDeleted bool) ([]*storage.SchemaRecord, error) {
+	return r.storage.GetSchemasBySubject(ctx, subject, includeDeleted)
+}
+
 // ListSubjects returns all subject names.
 func (r *Registry) ListSubjects(ctx context.Context, deleted bool) ([]string, error) {
 	return r.storage.ListSubjects(ctx, deleted)
@@ -447,7 +452,14 @@ func (r *Registry) DeleteSubject(ctx context.Context, subject string, permanent 
 			}
 		}
 	}
-	return r.storage.DeleteSubject(ctx, subject, permanent)
+	versions, err := r.storage.DeleteSubject(ctx, subject, permanent)
+	if err != nil {
+		return nil, err
+	}
+	// Clean up subject-level config and mode on delete
+	_ = r.storage.DeleteConfig(ctx, subject)
+	_ = r.storage.DeleteMode(ctx, subject)
+	return versions, nil
 }
 
 // DeleteVersion deletes a specific version.

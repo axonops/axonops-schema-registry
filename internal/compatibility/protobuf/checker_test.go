@@ -949,3 +949,271 @@ message M {
 		t.Errorf("Nested enum type removal should be compatible: %v", result.Messages)
 	}
 }
+
+// ============================================================================
+// NEW TESTS: Required field removal in proto2 (BDD diff 09)
+// ============================================================================
+
+func TestChecker_RemoveRequiredField_Proto2_Incompatible(t *testing.T) {
+	checker := NewChecker()
+	oldSchema := `
+syntax = "proto2";
+message TestMessage {
+  optional string test_string = 1;
+  required string test_string2 = 2;
+}
+`
+	newSchema := `
+syntax = "proto2";
+message TestMessage {
+  optional string test_string = 1;
+}
+`
+	result := checker.Check(s(newSchema), s(oldSchema))
+	if result.IsCompatible {
+		t.Error("Removing a required field in proto2 should be incompatible")
+	}
+}
+
+func TestChecker_RemoveOptionalField_Proto2_Compatible(t *testing.T) {
+	checker := NewChecker()
+	oldSchema := `
+syntax = "proto2";
+message TestMessage {
+  optional string test_string = 1;
+  optional string test_string2 = 2;
+}
+`
+	newSchema := `
+syntax = "proto2";
+message TestMessage {
+  optional string test_string = 1;
+}
+`
+	result := checker.Check(s(newSchema), s(oldSchema))
+	if !result.IsCompatible {
+		t.Errorf("Removing an optional field in proto2 should be compatible: %v", result.Messages)
+	}
+}
+
+// ============================================================================
+// NEW TESTS: Field-to-oneof moves (BDD diff 18, 22)
+// ============================================================================
+
+func TestChecker_MoveFieldToOneof_Compatible(t *testing.T) {
+	checker := NewChecker()
+	oldSchema := `
+syntax = "proto3";
+message TestMessage {
+  string test_string = 1;
+  string test_string2 = 2;
+}
+`
+	newSchema := `
+syntax = "proto3";
+message TestMessage {
+  string test_string = 1;
+  oneof new_oneof {
+    string test_string2 = 2;
+    int32 other_id = 3;
+  }
+}
+`
+	result := checker.Check(s(newSchema), s(oldSchema))
+	if !result.IsCompatible {
+		t.Errorf("Moving field into oneof should be compatible (same field number, wire format preserved): %v", result.Messages)
+	}
+}
+
+func TestChecker_MoveSingleFieldToOneof_Compatible(t *testing.T) {
+	checker := NewChecker()
+	oldSchema := `
+syntax = "proto3";
+message TestMessage {
+  string test_string = 1;
+  string test_string2 = 2;
+}
+`
+	newSchema := `
+syntax = "proto3";
+message TestMessage {
+  string test_string = 1;
+  oneof new_oneof {
+    string test_string2 = 2;
+  }
+}
+`
+	result := checker.Check(s(newSchema), s(oldSchema))
+	if !result.IsCompatible {
+		t.Errorf("Moving single field into oneof should be compatible: %v", result.Messages)
+	}
+}
+
+func TestChecker_MoveMultipleFieldsToOneof_Incompatible(t *testing.T) {
+	checker := NewChecker()
+	oldSchema := `
+syntax = "proto3";
+message TestMessage {
+  string test_string = 1;
+  string test_string2 = 2;
+}
+`
+	newSchema := `
+syntax = "proto3";
+message TestMessage {
+  oneof new_oneof {
+    string test_string = 1;
+    string test_string2 = 2;
+    int32 other_id = 3;
+  }
+}
+`
+	result := checker.Check(s(newSchema), s(oldSchema))
+	if result.IsCompatible {
+		t.Error("Moving multiple previously-independent fields into a single oneof should be incompatible (adds mutual exclusion constraint)")
+	}
+}
+
+func TestChecker_MoveFieldOutOfOneof_Incompatible(t *testing.T) {
+	checker := NewChecker()
+	oldSchema := `
+syntax = "proto3";
+message TestMessage {
+  string test_string = 1;
+  oneof new_oneof {
+    string test_string2 = 2;
+    string test_string3 = 3;
+  }
+}
+`
+	newSchema := `
+syntax = "proto3";
+message TestMessage {
+  string test_string = 1;
+  string test_string2 = 2;
+  oneof new_oneof {
+    string test_string3 = 3;
+  }
+}
+`
+	result := checker.Check(s(newSchema), s(oldSchema))
+	if result.IsCompatible {
+		t.Error("Moving a field OUT of a oneof should be incompatible (changes oneof semantics)")
+	}
+}
+
+// ============================================================================
+// NEW TESTS: Optional-to-repeated for length-delimited types (BDD diff 30-32)
+// ============================================================================
+
+func TestChecker_OptionalToRepeated_Message_Compatible(t *testing.T) {
+	checker := NewChecker()
+	oldSchema := `
+syntax = "proto3";
+message TestMessage {
+  string test_string = 1;
+  optional Status test_status = 2;
+  message Status {
+    string test_string = 1;
+  }
+}
+`
+	newSchema := `
+syntax = "proto3";
+message TestMessage {
+  string test_string = 1;
+  repeated Status test_status = 2;
+  message Status {
+    string test_string = 1;
+  }
+}
+`
+	result := checker.Check(s(newSchema), s(oldSchema))
+	if !result.IsCompatible {
+		t.Errorf("Optional to repeated for message type should be compatible (length-delimited wire format): %v", result.Messages)
+	}
+}
+
+func TestChecker_OptionalToRepeated_String_Compatible(t *testing.T) {
+	checker := NewChecker()
+	oldSchema := `
+syntax = "proto3";
+message TestMessage {
+  optional string test_string = 1;
+  Status test_status = 2;
+  message Status {
+    string test_string = 1;
+  }
+}
+`
+	newSchema := `
+syntax = "proto3";
+message TestMessage {
+  repeated string test_string = 1;
+  Status test_status = 2;
+  message Status {
+    string test_string = 1;
+  }
+}
+`
+	result := checker.Check(s(newSchema), s(oldSchema))
+	if !result.IsCompatible {
+		t.Errorf("Optional to repeated for string should be compatible (length-delimited wire format): %v", result.Messages)
+	}
+}
+
+func TestChecker_OptionalToRepeated_Bytes_Compatible(t *testing.T) {
+	checker := NewChecker()
+	oldSchema := `
+syntax = "proto3";
+message TestMessage {
+  optional bytes test_bytes = 1;
+  Status test_status = 2;
+  message Status {
+    string test_string = 1;
+  }
+}
+`
+	newSchema := `
+syntax = "proto3";
+message TestMessage {
+  repeated bytes test_bytes = 1;
+  Status test_status = 2;
+  message Status {
+    string test_string = 1;
+  }
+}
+`
+	result := checker.Check(s(newSchema), s(oldSchema))
+	if !result.IsCompatible {
+		t.Errorf("Optional to repeated for bytes should be compatible (length-delimited wire format): %v", result.Messages)
+	}
+}
+
+func TestChecker_OptionalToRepeated_Int32_Incompatible(t *testing.T) {
+	checker := NewChecker()
+	oldSchema := `
+syntax = "proto3";
+message TestMessage {
+  optional int32 test_int = 1;
+  Status test_status = 2;
+  message Status {
+    string test_string = 1;
+  }
+}
+`
+	newSchema := `
+syntax = "proto3";
+message TestMessage {
+  repeated int32 test_int = 1;
+  Status test_status = 2;
+  message Status {
+    string test_string = 1;
+  }
+}
+`
+	result := checker.Check(s(newSchema), s(oldSchema))
+	if result.IsCompatible {
+		t.Error("Optional to repeated for int32 should be incompatible (packed encoding differs)")
+	}
+}

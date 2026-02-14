@@ -33,7 +33,6 @@ Feature: Schema & Subject Deletion — Exhaustive (Confluent v8.1.1 Compatibilit
     Then the response status should be 404
     And the response should have error code 40402
 
-  @pending-impl
   Scenario: Get soft-deleted version with deleted=true succeeds
     Given subject "del-ex-getdel" has schema:
       """
@@ -214,14 +213,12 @@ Feature: Schema & Subject Deletion — Exhaustive (Confluent v8.1.1 Compatibilit
   # COMPATIBILITY AFTER DELETE
   # ==========================================================================
 
-  @pending-impl
   Scenario: Compatibility check works correctly after deleting incompatible version
-    Given subject "del-ex-compat" has compatibility level "BACKWARD"
+    Given the global compatibility level is "NONE"
     And subject "del-ex-compat" has schema:
       """
       {"type":"record","name":"Compat","fields":[{"name":"f1","type":"string"}]}
       """
-    And the global compatibility level is "NONE"
     And subject "del-ex-compat" has schema:
       """
       {"type":"record","name":"Compat","fields":[{"name":"f1","type":"int"}]}
@@ -239,7 +236,6 @@ Feature: Schema & Subject Deletion — Exhaustive (Confluent v8.1.1 Compatibilit
   # SUBJECT CONFIG AFTER DELETE
   # ==========================================================================
 
-  @pending-impl
   Scenario: Subject compatibility config deleted when subject is soft-deleted
     Given I set the global config to "FULL"
     And subject "del-ex-cfg" has compatibility level "BACKWARD"
