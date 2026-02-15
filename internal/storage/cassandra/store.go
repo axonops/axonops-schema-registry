@@ -477,6 +477,17 @@ func (s *Store) CreateSchema(ctx context.Context, record *storage.SchemaRecord) 
 
 	// Allocate next subject version and persist atomically.
 	for attempt := 0; attempt < s.cfg.MaxRetries; attempt++ {
+		// Re-check on retry: a concurrent writer may have registered this schema
+		if attempt > 0 {
+			if existing, err := s.findSchemaInSubject(ctx, record.Subject, schemaID); err == nil && existing != nil {
+				record.ID = existing.ID
+				record.Version = existing.Version
+				record.Fingerprint = fp
+				record.CreatedAt = existing.CreatedAt
+				return storage.ErrSchemaExists
+			}
+		}
+
 		latestVersion, latestSchemaID, exists, err := s.getSubjectLatest(ctx, record.Subject)
 		if err != nil {
 			return err
