@@ -301,7 +301,7 @@ jobs:
             -e CASSANDRA_LISTEN_ADDRESS=127.0.0.1 \
             -e MAX_HEAP_SIZE=512M \
             -e HEAP_NEWSIZE=100M \
-            cassandra:4.1
+            cassandra:5.0
 
           # Wait for Cassandra to be ready (up to 5 minutes)
           echo "Waiting for Cassandra to start..."
@@ -499,7 +499,7 @@ jobs:
             -e CASSANDRA_LISTEN_ADDRESS=127.0.0.1 \
             -e MAX_HEAP_SIZE=512M \
             -e HEAP_NEWSIZE=100M \
-            cassandra:4.1
+            cassandra:5.0
 
           echo "Waiting for Cassandra to start..."
           for i in {1..90}; do

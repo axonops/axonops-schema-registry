@@ -12,7 +12,7 @@ services:
         condition: service_healthy
 
   cassandra:
-    image: cassandra:4.1
+    image: cassandra:5.0
     environment:
       CASSANDRA_CLUSTER_NAME: bdd-cluster
       MAX_HEAP_SIZE: 256M
