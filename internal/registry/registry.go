@@ -38,8 +38,15 @@ func New(store storage.Storage, parser *schema.Registry, compatChecker *compatib
 	}
 }
 
+// RegisterOpts holds optional parameters for schema registration.
+type RegisterOpts struct {
+	Normalize bool
+	Metadata  *storage.Metadata
+	RuleSet   *storage.RuleSet
+}
+
 // RegisterSchema registers a new schema for a subject.
-func (r *Registry) RegisterSchema(ctx context.Context, subject string, schemaStr string, schemaType storage.SchemaType, refs []storage.Reference, normalize ...bool) (*storage.SchemaRecord, error) {
+func (r *Registry) RegisterSchema(ctx context.Context, subject string, schemaStr string, schemaType storage.SchemaType, refs []storage.Reference, opts ...RegisterOpts) (*storage.SchemaRecord, error) {
 	// Default to Avro if not specified
 	if schemaType == "" {
 		schemaType = storage.SchemaTypeAvro
@@ -63,8 +70,14 @@ func (r *Registry) RegisterSchema(ctx context.Context, subject string, schemaStr
 		return nil, fmt.Errorf("invalid schema: %w", err)
 	}
 
+	// Extract options
+	var opt RegisterOpts
+	if len(opts) > 0 {
+		opt = opts[0]
+	}
+
 	// Apply normalization if requested (or if subject config has normalize=true)
-	shouldNormalize := len(normalize) > 0 && normalize[0]
+	shouldNormalize := opt.Normalize
 	if !shouldNormalize {
 		shouldNormalize = r.isNormalizeEnabled(ctx, subject)
 	}
@@ -95,6 +108,9 @@ func (r *Registry) RegisterSchema(ctx context.Context, subject string, schemaStr
 			return nil, fmt.Errorf("failed to get existing schemas: %w", err)
 		}
 
+		// Filter by compatibility group if configured
+		existingSchemas = r.filterByCompatibilityGroup(ctx, subject, opt.Metadata, existingSchemas)
+
 		if len(existingSchemas) > 0 {
 			// Build existing schemas with resolved references
 			existingWithRefs := make([]compatibility.SchemaWithRefs, len(existingSchemas))
@@ -119,12 +135,19 @@ func (r *Registry) RegisterSchema(ctx context.Context, subject string, schemaStr
 		}
 	}
 
+	// Check confluent:version (compare-and-set) if present in metadata
+	if err := r.checkConfluentVersion(ctx, subject, opt.Metadata); err != nil {
+		return nil, err
+	}
+
 	// Create new schema record
 	record := &storage.SchemaRecord{
 		Subject:     subject,
 		SchemaType:  schemaType,
 		Schema:      schemaStr,
 		References:  refs,
+		Metadata:    opt.Metadata,
+		RuleSet:     opt.RuleSet,
 		Fingerprint: parsed.Fingerprint(),
 	}
 
@@ -141,6 +164,46 @@ func (r *Registry) RegisterSchema(ctx context.Context, subject string, schemaStr
 	}
 
 	return record, nil
+}
+
+// ErrVersionConflict is returned when confluent:version compare-and-set fails.
+var ErrVersionConflict = errors.New("version conflict")
+
+// checkConfluentVersion validates the confluent:version metadata property if present.
+// When set to a positive integer, it enforces that the version matches the expected
+// next version for the subject (optimistic concurrency control).
+// Values of 0 or -1 mean auto-increment (no check).
+func (r *Registry) checkConfluentVersion(ctx context.Context, subject string, metadata *storage.Metadata) error {
+	if metadata == nil || metadata.Properties == nil {
+		return nil
+	}
+	cvStr, ok := metadata.Properties["confluent:version"]
+	if !ok {
+		return nil
+	}
+	cv, err := strconv.Atoi(cvStr)
+	if err != nil {
+		return nil // Non-numeric value, ignore
+	}
+	if cv <= 0 {
+		return nil // 0 or -1 = auto-increment
+	}
+
+	latest, err := r.storage.GetLatestSchema(ctx, subject)
+	if err != nil {
+		if errors.Is(err, storage.ErrSubjectNotFound) {
+			// New subject — only version 1 is valid
+			if cv != 1 {
+				return fmt.Errorf("%w: confluent:version %d but subject is new (expected 1)", ErrVersionConflict, cv)
+			}
+			return nil
+		}
+		return err
+	}
+	if cv != latest.Version+1 {
+		return fmt.Errorf("%w: confluent:version %d but latest version is %d (expected %d)", ErrVersionConflict, cv, latest.Version, latest.Version+1)
+	}
+	return nil
 }
 
 // RegisterSchemaWithID registers a schema with a specific ID (for IMPORT mode).
@@ -456,9 +519,12 @@ func (r *Registry) DeleteSubject(ctx context.Context, subject string, permanent 
 	if err != nil {
 		return nil, err
 	}
-	// Clean up subject-level config and mode on delete
-	_ = r.storage.DeleteConfig(ctx, subject)
-	_ = r.storage.DeleteMode(ctx, subject)
+	// Only clean up subject-level config and mode on permanent delete.
+	// Soft-delete preserves config/mode so re-registration inherits them.
+	if permanent {
+		_ = r.storage.DeleteConfig(ctx, subject)
+		_ = r.storage.DeleteMode(ctx, subject)
+	}
 	return versions, nil
 }
 
@@ -531,8 +597,44 @@ func (r *Registry) GetSubjectConfig(ctx context.Context, subject string) (string
 	return config.CompatibilityLevel, nil
 }
 
+// GetSubjectConfigFull gets the full configuration record for a subject only,
+// without falling back to global. Returns storage.ErrNotFound if not set.
+func (r *Registry) GetSubjectConfigFull(ctx context.Context, subject string) (*storage.ConfigRecord, error) {
+	return r.storage.GetConfig(ctx, subject)
+}
+
+// GetConfigFull gets the full configuration record with global fallback.
+func (r *Registry) GetConfigFull(ctx context.Context, subject string) (*storage.ConfigRecord, error) {
+	if subject == "" {
+		config, err := r.storage.GetGlobalConfig(ctx)
+		if err != nil {
+			return &storage.ConfigRecord{CompatibilityLevel: r.defaultConfig}, nil
+		}
+		return config, nil
+	}
+
+	config, err := r.storage.GetConfig(ctx, subject)
+	if err != nil {
+		if errors.Is(err, storage.ErrNotFound) {
+			return r.GetConfigFull(ctx, "")
+		}
+		return nil, err
+	}
+	return config, nil
+}
+
+// SetConfigOpts holds optional fields for configuration updates.
+type SetConfigOpts struct {
+	Alias              string
+	CompatibilityGroup string
+	DefaultMetadata    *storage.Metadata
+	OverrideMetadata   *storage.Metadata
+	DefaultRuleSet     *storage.RuleSet
+	OverrideRuleSet    *storage.RuleSet
+}
+
 // SetConfig sets the compatibility configuration for a subject.
-func (r *Registry) SetConfig(ctx context.Context, subject string, level string, normalize *bool) error {
+func (r *Registry) SetConfig(ctx context.Context, subject string, level string, normalize *bool, opts ...SetConfigOpts) error {
 	level = strings.ToUpper(level)
 	if !isValidCompatibility(level) {
 		return fmt.Errorf("invalid compatibility level: %s", level)
@@ -541,6 +643,16 @@ func (r *Registry) SetConfig(ctx context.Context, subject string, level string, 
 	config := &storage.ConfigRecord{
 		CompatibilityLevel: level,
 		Normalize:          normalize,
+	}
+
+	if len(opts) > 0 {
+		opt := opts[0]
+		config.Alias = opt.Alias
+		config.CompatibilityGroup = opt.CompatibilityGroup
+		config.DefaultMetadata = opt.DefaultMetadata
+		config.OverrideMetadata = opt.OverrideMetadata
+		config.DefaultRuleSet = opt.DefaultRuleSet
+		config.OverrideRuleSet = opt.OverrideRuleSet
 	}
 
 	if subject == "" {
@@ -910,6 +1022,42 @@ func isValidMode(mode string) bool {
 		"IMPORT":            true,
 	}
 	return valid[mode]
+}
+
+// filterByCompatibilityGroup filters existing schemas by the compatibility group
+// metadata property if a compatibilityGroup is configured for the subject.
+// The compatibilityGroup config value names a metadata property key; only schemas
+// with the same value for that property are included in compatibility checks.
+func (r *Registry) filterByCompatibilityGroup(ctx context.Context, subject string, newMeta *storage.Metadata, schemas []*storage.SchemaRecord) []*storage.SchemaRecord {
+	if len(schemas) == 0 {
+		return schemas
+	}
+
+	// Get the compatibility group property name from config
+	config, err := r.GetSubjectConfigFull(ctx, subject)
+	if err != nil || config == nil || config.CompatibilityGroup == "" {
+		return schemas
+	}
+	groupKey := config.CompatibilityGroup
+
+	// Get the new schema's value for this property
+	var newGroupVal string
+	if newMeta != nil && newMeta.Properties != nil {
+		newGroupVal = newMeta.Properties[groupKey]
+	}
+
+	// Filter existing schemas to those with the same group value
+	filtered := make([]*storage.SchemaRecord, 0, len(schemas))
+	for _, s := range schemas {
+		existingVal := ""
+		if s.Metadata != nil && s.Metadata.Properties != nil {
+			existingVal = s.Metadata.Properties[groupKey]
+		}
+		if existingVal == newGroupVal {
+			filtered = append(filtered, s)
+		}
+	}
+	return filtered
 }
 
 // resolveReferences looks up the schema content for each reference from storage.

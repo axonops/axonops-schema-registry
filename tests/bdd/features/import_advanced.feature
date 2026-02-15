@@ -1,4 +1,4 @@
-@functional @import
+@functional @import @axonops-only
 Feature: Advanced Schema Import
   As an operator migrating from another schema registry, I want the import API
   to handle edge cases correctly including ID conflicts, partial failures, and references

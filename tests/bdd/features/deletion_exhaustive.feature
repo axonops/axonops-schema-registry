@@ -31,7 +31,7 @@ Feature: Schema & Subject Deletion — Exhaustive (Confluent v8.1.1 Compatibilit
     Then the response status should be 200
     When I get version 1 of subject "del-ex-flag"
     Then the response status should be 404
-    And the response should have error code 40402
+    And the response should have error code 40401
 
   Scenario: Get soft-deleted version with deleted=true succeeds
     Given subject "del-ex-getdel" has schema:
@@ -57,6 +57,7 @@ Feature: Schema & Subject Deletion — Exhaustive (Confluent v8.1.1 Compatibilit
       """
     Then the response status should be 404
 
+  @axonops-only
   Scenario: Lookup soft-deleted schema succeeds with deleted=true
     Given subject "del-ex-lookup2" has schema:
       """
@@ -236,7 +237,7 @@ Feature: Schema & Subject Deletion — Exhaustive (Confluent v8.1.1 Compatibilit
   # SUBJECT CONFIG AFTER DELETE
   # ==========================================================================
 
-  Scenario: Subject compatibility config deleted when subject is soft-deleted
+  Scenario: Subject compatibility config preserved on soft-delete, removed on permanent delete
     Given I set the global config to "FULL"
     And subject "del-ex-cfg" has compatibility level "BACKWARD"
     And subject "del-ex-cfg" has schema:
@@ -245,10 +246,14 @@ Feature: Schema & Subject Deletion — Exhaustive (Confluent v8.1.1 Compatibilit
       """
     When I delete subject "del-ex-cfg"
     Then the response status should be 200
+    # Config is preserved after soft-delete (matches Confluent behavior)
+    When I get the config for subject "del-ex-cfg"
+    Then the response status should be 200
+    # Permanent delete removes config
+    When I permanently delete subject "del-ex-cfg"
+    Then the response status should be 200
     When I get the config for subject "del-ex-cfg"
     Then the response status should be 404
-    When I get the global config
-    Then the response status should be 200
     # Reset global config
     When I set the global config to "NONE"
 

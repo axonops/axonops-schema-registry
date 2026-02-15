@@ -152,25 +152,25 @@ func (s *Store) prepareStatements() error {
 
 	// Schema statements
 	stmts.getSchemaByID, err = s.db.Prepare(
-		"SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at FROM `schemas` WHERE id = ?")
+		"SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at, metadata, ruleset FROM `schemas` WHERE id = ?")
 	if err != nil {
 		return fmt.Errorf("prepare getSchemaByID: %w", err)
 	}
 
 	stmts.getSchemaBySubjectVer, err = s.db.Prepare(
-		"SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at FROM `schemas` WHERE subject = ? AND version = ?")
+		"SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at, metadata, ruleset FROM `schemas` WHERE subject = ? AND version = ?")
 	if err != nil {
 		return fmt.Errorf("prepare getSchemaBySubjectVer: %w", err)
 	}
 
 	stmts.getSchemaByFingerprint, err = s.db.Prepare(
-		"SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at FROM `schemas` WHERE subject = ? AND fingerprint = ? AND deleted = FALSE")
+		"SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at, metadata, ruleset FROM `schemas` WHERE subject = ? AND fingerprint = ? AND deleted = FALSE")
 	if err != nil {
 		return fmt.Errorf("prepare getSchemaByFingerprint: %w", err)
 	}
 
 	stmts.getLatestSchema, err = s.db.Prepare(
-		"SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at FROM `schemas` WHERE subject = ? AND deleted = FALSE ORDER BY version DESC LIMIT 1")
+		"SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at, metadata, ruleset FROM `schemas` WHERE subject = ? AND deleted = FALSE ORDER BY version DESC LIMIT 1")
 	if err != nil {
 		return fmt.Errorf("prepare getLatestSchema: %w", err)
 	}
@@ -207,13 +207,13 @@ func (s *Store) prepareStatements() error {
 
 	// Config statements
 	stmts.getConfig, err = s.db.Prepare(
-		"SELECT subject, compatibility_level FROM configs WHERE subject = ?")
+		"SELECT subject, compatibility_level, alias, normalize, default_metadata, override_metadata, default_ruleset, override_ruleset, compatibility_group FROM configs WHERE subject = ?")
 	if err != nil {
 		return fmt.Errorf("prepare getConfig: %w", err)
 	}
 
 	stmts.setConfig, err = s.db.Prepare(
-		"INSERT INTO configs (subject, compatibility_level) VALUES (?, ?) ON DUPLICATE KEY UPDATE compatibility_level = VALUES(compatibility_level)")
+		"INSERT INTO configs (subject, compatibility_level, alias, normalize, default_metadata, override_metadata, default_ruleset, override_ruleset, compatibility_group) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE compatibility_level = VALUES(compatibility_level), alias = VALUES(alias), normalize = VALUES(normalize), default_metadata = VALUES(default_metadata), override_metadata = VALUES(override_metadata), default_ruleset = VALUES(default_ruleset), override_ruleset = VALUES(override_ruleset), compatibility_group = VALUES(compatibility_group)")
 	if err != nil {
 		return fmt.Errorf("prepare setConfig: %w", err)
 	}
@@ -369,12 +369,26 @@ func (s *Store) closeStatements() {
 func (s *Store) migrate(ctx context.Context) error {
 	for i, migration := range migrations {
 		if _, err := s.db.ExecContext(ctx, migration); err != nil {
+			// Ignore "Duplicate column" errors from ALTER TABLE ADD COLUMN
+			// when re-running migrations on an already-migrated database.
+			if isMySQLDuplicateColumnError(err) {
+				continue
+			}
 			return fmt.Errorf("migration %d failed: %w", i+1, err)
 		}
 	}
 	// Add fingerprint-only index for global dedup (ignore error if already exists)
 	_, _ = s.db.ExecContext(ctx, "ALTER TABLE `schemas` ADD INDEX idx_schemas_fingerprint_global (fingerprint)")
 	return nil
+}
+
+// isMySQLDuplicateColumnError checks if the error is a MySQL duplicate column error (error code 1060).
+func isMySQLDuplicateColumnError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errStr := err.Error()
+	return contains(errStr, "Duplicate column") || contains(errStr, "1060")
 }
 
 // globalSchemaID returns the global schema ID for a fingerprint.
@@ -473,10 +487,20 @@ func (s *Store) createSchemaAttempt(ctx context.Context, record *storage.SchemaR
 		return fmt.Errorf("failed to get next version: %w", err)
 	}
 
+	// Serialize metadata and ruleset as JSON
+	metadataJSON, err := marshalJSON(record.Metadata)
+	if err != nil {
+		return fmt.Errorf("failed to marshal metadata: %w", err)
+	}
+	rulesetJSON, err := marshalJSON(record.RuleSet)
+	if err != nil {
+		return fmt.Errorf("failed to marshal ruleset: %w", err)
+	}
+
 	// Insert schema - unique constraint on (subject, version) prevents duplicates
 	_, err = tx.ExecContext(ctx,
-		"INSERT INTO `schemas` (subject, version, schema_type, schema_text, fingerprint, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-		record.Subject, nextVersion, record.SchemaType, record.Schema, record.Fingerprint, time.Now(),
+		"INSERT INTO `schemas` (subject, version, schema_type, schema_text, fingerprint, created_at, metadata, ruleset) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+		record.Subject, nextVersion, record.SchemaType, record.Schema, record.Fingerprint, time.Now(), metadataJSON, rulesetJSON,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to insert schema: %w", err)
@@ -520,10 +544,12 @@ func (s *Store) createSchemaAttempt(ctx context.Context, record *storage.SchemaR
 func (s *Store) GetSchemaByID(ctx context.Context, id int64) (*storage.SchemaRecord, error) {
 	record := &storage.SchemaRecord{}
 	var schemaType string
+	var metadataBytes, rulesetBytes []byte
 
 	err := s.stmts.getSchemaByID.QueryRowContext(ctx, id).Scan(
 		&record.ID, &record.Subject, &record.Version, &schemaType,
-		&record.Schema, &record.Fingerprint, &record.Deleted, &record.CreatedAt)
+		&record.Schema, &record.Fingerprint, &record.Deleted, &record.CreatedAt,
+		&metadataBytes, &rulesetBytes)
 
 	if err == sql.ErrNoRows {
 		return nil, storage.ErrSchemaNotFound
@@ -533,6 +559,10 @@ func (s *Store) GetSchemaByID(ctx context.Context, id int64) (*storage.SchemaRec
 	}
 
 	record.SchemaType = storage.SchemaType(schemaType)
+
+	if err := scanSchemaMetadata(record, metadataBytes, rulesetBytes); err != nil {
+		return nil, err
+	}
 
 	// Load references
 	refs, err := s.loadReferences(ctx, record.ID)
@@ -554,10 +584,12 @@ func (s *Store) GetSchemaBySubjectVersion(ctx context.Context, subject string, v
 	record := &storage.SchemaRecord{}
 	var schemaType string
 	var rowID int64
+	var metadataBytes, rulesetBytes []byte
 
 	err := s.stmts.getSchemaBySubjectVer.QueryRowContext(ctx, subject, version).Scan(
 		&rowID, &record.Subject, &record.Version, &schemaType,
-		&record.Schema, &record.Fingerprint, &record.Deleted, &record.CreatedAt)
+		&record.Schema, &record.Fingerprint, &record.Deleted, &record.CreatedAt,
+		&metadataBytes, &rulesetBytes)
 
 	if err == sql.ErrNoRows {
 		// Check if subject exists
@@ -577,6 +609,10 @@ func (s *Store) GetSchemaBySubjectVersion(ctx context.Context, subject string, v
 	}
 
 	record.SchemaType = storage.SchemaType(schemaType)
+
+	if err := scanSchemaMetadata(record, metadataBytes, rulesetBytes); err != nil {
+		return nil, err
+	}
 
 	// Resolve global ID
 	globalID, err := s.globalSchemaID(ctx, record.Fingerprint)
@@ -598,7 +634,7 @@ func (s *Store) GetSchemaBySubjectVersion(ctx context.Context, subject string, v
 
 // GetSchemasBySubject retrieves all schemas for a subject.
 func (s *Store) GetSchemasBySubject(ctx context.Context, subject string, includeDeleted bool) ([]*storage.SchemaRecord, error) {
-	query := "SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at FROM `schemas` WHERE subject = ?"
+	query := "SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at, metadata, ruleset FROM `schemas` WHERE subject = ?"
 	if !includeDeleted {
 		query += " AND deleted = FALSE"
 	}
@@ -615,11 +651,17 @@ func (s *Store) GetSchemasBySubject(ctx context.Context, subject string, include
 		record := &storage.SchemaRecord{}
 		var schemaType string
 		var rowID int64
+		var metadataBytes, rulesetBytes []byte
 		if err := rows.Scan(&rowID, &record.Subject, &record.Version, &schemaType,
-			&record.Schema, &record.Fingerprint, &record.Deleted, &record.CreatedAt); err != nil {
+			&record.Schema, &record.Fingerprint, &record.Deleted, &record.CreatedAt,
+			&metadataBytes, &rulesetBytes); err != nil {
 			return nil, fmt.Errorf("failed to scan row: %w", err)
 		}
 		record.SchemaType = storage.SchemaType(schemaType)
+
+		if err := scanSchemaMetadata(record, metadataBytes, rulesetBytes); err != nil {
+			return nil, err
+		}
 
 		// Resolve global ID
 		if globalID, gErr := s.globalSchemaID(ctx, record.Fingerprint); gErr == nil {
@@ -658,17 +700,20 @@ func (s *Store) GetSchemaByFingerprint(ctx context.Context, subject, fingerprint
 	record := &storage.SchemaRecord{}
 	var schemaType string
 	var rowID int64
+	var metadataBytes, rulesetBytes []byte
 	var err error
 
 	if includeDeleted {
-		query := "SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at FROM `schemas` WHERE subject = ? AND fingerprint = ?"
+		query := "SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at, metadata, ruleset FROM `schemas` WHERE subject = ? AND fingerprint = ?"
 		err = s.db.QueryRowContext(ctx, query, subject, fingerprint).Scan(
 			&rowID, &record.Subject, &record.Version, &schemaType,
-			&record.Schema, &record.Fingerprint, &record.Deleted, &record.CreatedAt)
+			&record.Schema, &record.Fingerprint, &record.Deleted, &record.CreatedAt,
+			&metadataBytes, &rulesetBytes)
 	} else {
 		err = s.stmts.getSchemaByFingerprint.QueryRowContext(ctx, subject, fingerprint).Scan(
 			&rowID, &record.Subject, &record.Version, &schemaType,
-			&record.Schema, &record.Fingerprint, &record.Deleted, &record.CreatedAt)
+			&record.Schema, &record.Fingerprint, &record.Deleted, &record.CreatedAt,
+			&metadataBytes, &rulesetBytes)
 	}
 
 	if err == sql.ErrNoRows {
@@ -686,6 +731,10 @@ func (s *Store) GetSchemaByFingerprint(ctx context.Context, subject, fingerprint
 	}
 
 	record.SchemaType = storage.SchemaType(schemaType)
+
+	if err := scanSchemaMetadata(record, metadataBytes, rulesetBytes); err != nil {
+		return nil, err
+	}
 
 	// Resolve global ID
 	if globalID, gErr := s.globalSchemaID(ctx, record.Fingerprint); gErr == nil {
@@ -710,12 +759,14 @@ func (s *Store) GetSchemaByGlobalFingerprint(ctx context.Context, fingerprint st
 	record := &storage.SchemaRecord{}
 	var schemaType string
 	var rowID int64
+	var metadataBytes, rulesetBytes []byte
 
 	// Query for any schema with this fingerprint (global deduplication)
-	query := "SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at FROM `schemas` WHERE fingerprint = ? AND deleted = false LIMIT 1"
+	query := "SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at, metadata, ruleset FROM `schemas` WHERE fingerprint = ? AND deleted = false LIMIT 1"
 	err := s.db.QueryRowContext(ctx, query, fingerprint).Scan(
 		&rowID, &record.Subject, &record.Version, &schemaType,
-		&record.Schema, &record.Fingerprint, &record.Deleted, &record.CreatedAt)
+		&record.Schema, &record.Fingerprint, &record.Deleted, &record.CreatedAt,
+		&metadataBytes, &rulesetBytes)
 
 	if err == sql.ErrNoRows {
 		return nil, storage.ErrSchemaNotFound
@@ -725,6 +776,10 @@ func (s *Store) GetSchemaByGlobalFingerprint(ctx context.Context, fingerprint st
 	}
 
 	record.SchemaType = storage.SchemaType(schemaType)
+
+	if err := scanSchemaMetadata(record, metadataBytes, rulesetBytes); err != nil {
+		return nil, err
+	}
 
 	// Resolve global ID
 	if globalID, gErr := s.globalSchemaID(ctx, record.Fingerprint); gErr == nil {
@@ -748,10 +803,12 @@ func (s *Store) GetLatestSchema(ctx context.Context, subject string) (*storage.S
 	record := &storage.SchemaRecord{}
 	var schemaType string
 	var rowID int64
+	var metadataBytes, rulesetBytes []byte
 
 	err := s.stmts.getLatestSchema.QueryRowContext(ctx, subject).Scan(
 		&rowID, &record.Subject, &record.Version, &schemaType,
-		&record.Schema, &record.Fingerprint, &record.Deleted, &record.CreatedAt)
+		&record.Schema, &record.Fingerprint, &record.Deleted, &record.CreatedAt,
+		&metadataBytes, &rulesetBytes)
 
 	if err == sql.ErrNoRows {
 		return nil, storage.ErrSubjectNotFound
@@ -761,6 +818,10 @@ func (s *Store) GetLatestSchema(ctx context.Context, subject string) (*storage.S
 	}
 
 	record.SchemaType = storage.SchemaType(schemaType)
+
+	if err := scanSchemaMetadata(record, metadataBytes, rulesetBytes); err != nil {
+		return nil, err
+	}
 
 	// Resolve global ID
 	if globalID, gErr := s.globalSchemaID(ctx, record.Fingerprint); gErr == nil {
@@ -955,8 +1016,18 @@ func (s *Store) SubjectExists(ctx context.Context, subject string) (bool, error)
 // GetConfig retrieves the compatibility configuration for a subject.
 func (s *Store) GetConfig(ctx context.Context, subject string) (*storage.ConfigRecord, error) {
 	config := &storage.ConfigRecord{}
+	var alias sql.NullString
+	var normalize sql.NullBool
+	var compatibilityGroup sql.NullString
+	var defaultMetadataBytes, overrideMetadataBytes []byte
+	var defaultRuleSetBytes, overrideRuleSetBytes []byte
+
 	err := s.stmts.getConfig.QueryRowContext(ctx, subject).Scan(
-		&config.Subject, &config.CompatibilityLevel)
+		&config.Subject, &config.CompatibilityLevel,
+		&alias, &normalize,
+		&defaultMetadataBytes, &overrideMetadataBytes,
+		&defaultRuleSetBytes, &overrideRuleSetBytes,
+		&compatibilityGroup)
 
 	if err == sql.ErrNoRows {
 		return nil, storage.ErrNotFound
@@ -965,12 +1036,88 @@ func (s *Store) GetConfig(ctx context.Context, subject string) (*storage.ConfigR
 		return nil, fmt.Errorf("failed to get config: %w", err)
 	}
 
+	if alias.Valid {
+		config.Alias = alias.String
+	}
+	if normalize.Valid {
+		v := normalize.Bool
+		config.Normalize = &v
+	}
+	if compatibilityGroup.Valid {
+		config.CompatibilityGroup = compatibilityGroup.String
+	}
+
+	if len(defaultMetadataBytes) > 0 {
+		m, err := unmarshalMetadata(defaultMetadataBytes)
+		if err != nil {
+			return nil, fmt.Errorf("failed to unmarshal default_metadata: %w", err)
+		}
+		config.DefaultMetadata = m
+	}
+	if len(overrideMetadataBytes) > 0 {
+		m, err := unmarshalMetadata(overrideMetadataBytes)
+		if err != nil {
+			return nil, fmt.Errorf("failed to unmarshal override_metadata: %w", err)
+		}
+		config.OverrideMetadata = m
+	}
+	if len(defaultRuleSetBytes) > 0 {
+		r, err := unmarshalRuleSet(defaultRuleSetBytes)
+		if err != nil {
+			return nil, fmt.Errorf("failed to unmarshal default_ruleset: %w", err)
+		}
+		config.DefaultRuleSet = r
+	}
+	if len(overrideRuleSetBytes) > 0 {
+		r, err := unmarshalRuleSet(overrideRuleSetBytes)
+		if err != nil {
+			return nil, fmt.Errorf("failed to unmarshal override_ruleset: %w", err)
+		}
+		config.OverrideRuleSet = r
+	}
+
 	return config, nil
 }
 
 // SetConfig sets the compatibility configuration for a subject.
 func (s *Store) SetConfig(ctx context.Context, subject string, config *storage.ConfigRecord) error {
-	_, err := s.stmts.setConfig.ExecContext(ctx, subject, config.CompatibilityLevel)
+	defaultMetadataJSON, err := marshalJSON(config.DefaultMetadata)
+	if err != nil {
+		return fmt.Errorf("failed to marshal default_metadata: %w", err)
+	}
+	overrideMetadataJSON, err := marshalJSON(config.OverrideMetadata)
+	if err != nil {
+		return fmt.Errorf("failed to marshal override_metadata: %w", err)
+	}
+	defaultRuleSetJSON, err := marshalJSON(config.DefaultRuleSet)
+	if err != nil {
+		return fmt.Errorf("failed to marshal default_ruleset: %w", err)
+	}
+	overrideRuleSetJSON, err := marshalJSON(config.OverrideRuleSet)
+	if err != nil {
+		return fmt.Errorf("failed to marshal override_ruleset: %w", err)
+	}
+
+	var aliasParam interface{}
+	if config.Alias != "" {
+		aliasParam = config.Alias
+	}
+
+	var normalizeParam interface{}
+	if config.Normalize != nil {
+		normalizeParam = *config.Normalize
+	}
+
+	var compatGroupParam interface{}
+	if config.CompatibilityGroup != "" {
+		compatGroupParam = config.CompatibilityGroup
+	}
+
+	_, err = s.stmts.setConfig.ExecContext(ctx, subject, config.CompatibilityLevel,
+		aliasParam, normalizeParam,
+		defaultMetadataJSON, overrideMetadataJSON,
+		defaultRuleSetJSON, overrideRuleSetJSON,
+		compatGroupParam)
 	if err != nil {
 		return fmt.Errorf("failed to set config: %w", err)
 	}
@@ -1124,17 +1271,27 @@ func (s *Store) ImportSchema(ctx context.Context, record *storage.SchemaRecord) 
 		return fmt.Errorf("failed to check existing version: %w", err)
 	}
 
+	// Serialize metadata and ruleset as JSON
+	metadataJSON, mErr := marshalJSON(record.Metadata)
+	if mErr != nil {
+		return fmt.Errorf("failed to marshal metadata: %w", mErr)
+	}
+	rulesetJSON, rErr := marshalJSON(record.RuleSet)
+	if rErr != nil {
+		return fmt.Errorf("failed to marshal ruleset: %w", rErr)
+	}
+
 	if idExists {
 		// Same content, different subject — insert a new row (auto-id)
 		_, err = tx.ExecContext(ctx,
-			"INSERT INTO `schemas` (subject, version, schema_type, schema_text, fingerprint, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-			record.Subject, record.Version, record.SchemaType, record.Schema, record.Fingerprint, time.Now(),
+			"INSERT INTO `schemas` (subject, version, schema_type, schema_text, fingerprint, created_at, metadata, ruleset) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+			record.Subject, record.Version, record.SchemaType, record.Schema, record.Fingerprint, time.Now(), metadataJSON, rulesetJSON,
 		)
 	} else {
 		// New ID — insert with explicit ID
 		_, err = tx.ExecContext(ctx,
-			"INSERT INTO `schemas` (id, subject, version, schema_type, schema_text, fingerprint, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-			record.ID, record.Subject, record.Version, record.SchemaType, record.Schema, record.Fingerprint, time.Now(),
+			"INSERT INTO `schemas` (id, subject, version, schema_type, schema_text, fingerprint, created_at, metadata, ruleset) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			record.ID, record.Subject, record.Version, record.SchemaType, record.Schema, record.Fingerprint, time.Now(), metadataJSON, rulesetJSON,
 		)
 	}
 	if err != nil {
@@ -1279,7 +1436,7 @@ func (s *Store) GetVersionsBySchemaID(ctx context.Context, id int64, includeDele
 
 // ListSchemas returns schemas matching the given filters.
 func (s *Store) ListSchemas(ctx context.Context, params *storage.ListSchemasParams) ([]*storage.SchemaRecord, error) {
-	query := "SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at FROM `schemas` WHERE 1=1"
+	query := "SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at, metadata, ruleset FROM `schemas` WHERE 1=1"
 	args := []interface{}{}
 
 	if !params.Deleted {
@@ -1294,7 +1451,7 @@ func (s *Store) ListSchemas(ctx context.Context, params *storage.ListSchemasPara
 
 	if params.LatestOnly {
 		args = []interface{}{}
-		query = "SELECT s.id, s.subject, s.version, s.schema_type, s.schema_text, s.fingerprint, s.deleted, s.created_at FROM `schemas` s INNER JOIN (SELECT subject, MAX(version) as max_version FROM `schemas` WHERE 1=1"
+		query = "SELECT s.id, s.subject, s.version, s.schema_type, s.schema_text, s.fingerprint, s.deleted, s.created_at, s.metadata, s.ruleset FROM `schemas` s INNER JOIN (SELECT subject, MAX(version) as max_version FROM `schemas` WHERE 1=1"
 		if !params.Deleted {
 			query += " AND deleted = FALSE"
 		}
@@ -1335,11 +1492,17 @@ func (s *Store) ListSchemas(ctx context.Context, params *storage.ListSchemasPara
 		record := &storage.SchemaRecord{}
 		var schemaType string
 		var rowID int64
+		var metadataBytes, rulesetBytes []byte
 		if err := rows.Scan(&rowID, &record.Subject, &record.Version, &schemaType,
-			&record.Schema, &record.Fingerprint, &record.Deleted, &record.CreatedAt); err != nil {
+			&record.Schema, &record.Fingerprint, &record.Deleted, &record.CreatedAt,
+			&metadataBytes, &rulesetBytes); err != nil {
 			return nil, fmt.Errorf("failed to scan row: %w", err)
 		}
 		record.SchemaType = storage.SchemaType(schemaType)
+
+		if err := scanSchemaMetadata(record, metadataBytes, rulesetBytes); err != nil {
+			return nil, err
+		}
 
 		// Resolve global ID
 		if globalID, gErr := s.globalSchemaID(ctx, record.Fingerprint); gErr == nil {
@@ -1357,8 +1520,9 @@ func (s *Store) ListSchemas(ctx context.Context, params *storage.ListSchemasPara
 // DeleteGlobalConfig resets the global config to default.
 func (s *Store) DeleteGlobalConfig(ctx context.Context) error {
 	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO configs (subject, compatibility_level) VALUES ('', 'BACKWARD')
-		 ON DUPLICATE KEY UPDATE compatibility_level = 'BACKWARD'`,
+		`INSERT INTO configs (subject, compatibility_level, alias, normalize, default_metadata, override_metadata, default_ruleset, override_ruleset, compatibility_group)
+		 VALUES ('', 'BACKWARD', NULL, NULL, NULL, NULL, NULL, NULL, NULL)
+		 ON DUPLICATE KEY UPDATE compatibility_level = 'BACKWARD', alias = NULL, normalize = NULL, default_metadata = NULL, override_metadata = NULL, default_ruleset = NULL, override_ruleset = NULL, compatibility_group = NULL`,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to reset global config: %w", err)
@@ -1714,6 +1878,59 @@ func (s *Store) scanAPIKeys(rows *sql.Rows) ([]*storage.APIKeyRecord, error) {
 		keys = append(keys, key)
 	}
 	return keys, nil
+}
+
+// marshalJSON marshals a value to JSON bytes for storage. Returns nil if v is nil.
+func marshalJSON(v interface{}) ([]byte, error) {
+	if v == nil {
+		return nil, nil
+	}
+	return json.Marshal(v)
+}
+
+// unmarshalMetadata deserializes JSON bytes into a *storage.Metadata.
+// Returns nil if data is nil or empty.
+func unmarshalMetadata(data []byte) (*storage.Metadata, error) {
+	if len(data) == 0 {
+		return nil, nil
+	}
+	var m storage.Metadata
+	if err := json.Unmarshal(data, &m); err != nil {
+		return nil, err
+	}
+	return &m, nil
+}
+
+// unmarshalRuleSet deserializes JSON bytes into a *storage.RuleSet.
+// Returns nil if data is nil or empty.
+func unmarshalRuleSet(data []byte) (*storage.RuleSet, error) {
+	if len(data) == 0 {
+		return nil, nil
+	}
+	var r storage.RuleSet
+	if err := json.Unmarshal(data, &r); err != nil {
+		return nil, err
+	}
+	return &r, nil
+}
+
+// scanSchemaMetadata scans metadata and ruleset JSON columns and populates the schema record.
+func scanSchemaMetadata(record *storage.SchemaRecord, metadataBytes, rulesetBytes []byte) error {
+	if len(metadataBytes) > 0 {
+		m, err := unmarshalMetadata(metadataBytes)
+		if err != nil {
+			return fmt.Errorf("failed to unmarshal metadata: %w", err)
+		}
+		record.Metadata = m
+	}
+	if len(rulesetBytes) > 0 {
+		r, err := unmarshalRuleSet(rulesetBytes)
+		if err != nil {
+			return fmt.Errorf("failed to unmarshal ruleset: %w", err)
+		}
+		record.RuleSet = r
+	}
+	return nil
 }
 
 // isMySQLDuplicateError checks if the error is a MySQL duplicate entry error.

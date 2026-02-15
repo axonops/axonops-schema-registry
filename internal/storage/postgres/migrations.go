@@ -91,4 +91,19 @@ var migrations = []string{
 	`CREATE INDEX IF NOT EXISTS idx_api_keys_user_id ON api_keys(user_id)`,
 	`CREATE INDEX IF NOT EXISTS idx_api_keys_key_hash ON api_keys(key_hash)`,
 	`CREATE INDEX IF NOT EXISTS idx_api_keys_role ON api_keys(role)`,
+
+	// Migration 10: Add metadata and ruleset columns to schemas
+	`ALTER TABLE schemas ADD COLUMN IF NOT EXISTS metadata JSONB`,
+	`ALTER TABLE schemas ADD COLUMN IF NOT EXISTS ruleset JSONB`,
+
+	// Migration 11: Add metadata/ruleset/alias/normalize columns to configs
+	`ALTER TABLE configs ADD COLUMN IF NOT EXISTS alias VARCHAR(255)`,
+	`ALTER TABLE configs ADD COLUMN IF NOT EXISTS normalize BOOLEAN`,
+	`ALTER TABLE configs ADD COLUMN IF NOT EXISTS default_metadata JSONB`,
+	`ALTER TABLE configs ADD COLUMN IF NOT EXISTS override_metadata JSONB`,
+	`ALTER TABLE configs ADD COLUMN IF NOT EXISTS default_ruleset JSONB`,
+	`ALTER TABLE configs ADD COLUMN IF NOT EXISTS override_ruleset JSONB`,
+
+	// Migration 12: Add compatibility_group column to configs
+	`ALTER TABLE configs ADD COLUMN IF NOT EXISTS compatibility_group VARCHAR(255)`,
 }

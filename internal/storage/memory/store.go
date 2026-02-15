@@ -17,6 +17,8 @@ type subjectVersionInfo struct {
 	version   int
 	deleted   bool
 	createdAt time.Time
+	metadata  *storage.Metadata
+	ruleSet   *storage.RuleSet
 }
 
 // Store implements the storage.Storage interface using in-memory data structures.
@@ -148,6 +150,8 @@ func (s *Store) CreateSchema(ctx context.Context, record *storage.SchemaRecord) 
 		version:   version,
 		deleted:   false,
 		createdAt: time.Now(),
+		metadata:  record.Metadata,
+		ruleSet:   record.RuleSet,
 	}
 
 	// Update idToSubjectVersions
@@ -208,6 +212,18 @@ func (s *Store) GetSchemaBySubjectVersion(ctx context.Context, subject string, v
 	}
 
 	if info.deleted {
+		// If ALL versions of this subject are deleted, treat the subject as not found
+		// (matches Confluent behavior: 40401 instead of 40402).
+		hasActive := false
+		for _, vi := range subjectVersionMap {
+			if !vi.deleted {
+				hasActive = true
+				break
+			}
+		}
+		if !hasActive {
+			return nil, storage.ErrSubjectNotFound
+		}
 		return nil, storage.ErrVersionNotFound
 	}
 
@@ -224,6 +240,8 @@ func (s *Store) GetSchemaBySubjectVersion(ctx context.Context, subject string, v
 		SchemaType:  schema.SchemaType,
 		Schema:      schema.Schema,
 		References:  schema.References,
+		Metadata:    info.metadata,
+		RuleSet:     info.ruleSet,
 		Fingerprint: schema.Fingerprint,
 		Deleted:     info.deleted,
 		CreatedAt:   info.createdAt,
@@ -254,6 +272,8 @@ func (s *Store) GetSchemasBySubject(ctx context.Context, subject string, include
 				SchemaType:  schema.SchemaType,
 				Schema:      schema.Schema,
 				References:  schema.References,
+				Metadata:    info.metadata,
+				RuleSet:     info.ruleSet,
 				Fingerprint: schema.Fingerprint,
 				Deleted:     info.deleted,
 				CreatedAt:   info.createdAt,
@@ -312,6 +332,8 @@ func (s *Store) GetSchemaByFingerprint(ctx context.Context, subject, fingerprint
 				SchemaType:  schema.SchemaType,
 				Schema:      schema.Schema,
 				References:  schema.References,
+				Metadata:    info.metadata,
+				RuleSet:     info.ruleSet,
 				Fingerprint: schema.Fingerprint,
 				Deleted:     info.deleted,
 				CreatedAt:   info.createdAt,
@@ -376,6 +398,8 @@ func (s *Store) GetLatestSchema(ctx context.Context, subject string) (*storage.S
 		SchemaType:  schema.SchemaType,
 		Schema:      schema.Schema,
 		References:  schema.References,
+		Metadata:    latestInfo.metadata,
+		RuleSet:     latestInfo.ruleSet,
 		Fingerprint: schema.Fingerprint,
 		Deleted:     latestInfo.deleted,
 		CreatedAt:   latestInfo.createdAt,
@@ -718,6 +742,8 @@ func (s *Store) ImportSchema(ctx context.Context, record *storage.SchemaRecord) 
 		version:   record.Version,
 		deleted:   false,
 		createdAt: time.Now(),
+		metadata:  record.Metadata,
+		ruleSet:   record.RuleSet,
 	}
 
 	// Update idToSubjectVersions
@@ -896,6 +922,8 @@ func (s *Store) ListSchemas(ctx context.Context, params *storage.ListSchemasPara
 				SchemaType:  schema.SchemaType,
 				Schema:      schema.Schema,
 				References:  schema.References,
+				Metadata:    info.metadata,
+				RuleSet:     info.ruleSet,
 				Fingerprint: schema.Fingerprint,
 				Deleted:     info.deleted,
 				CreatedAt:   info.createdAt,

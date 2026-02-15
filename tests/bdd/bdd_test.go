@@ -22,6 +22,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"os/exec"
 	"strconv"
@@ -344,7 +345,7 @@ func cleanViaAPI() error {
 		json.Unmarshal(body, &activeSubjects)
 	}
 	for _, subj := range activeSubjects {
-		req, _ := http.NewRequest("DELETE", registryURL+"/subjects/"+subj, nil)
+		req, _ := http.NewRequest("DELETE", registryURL+"/subjects/"+url.PathEscape(subj), nil)
 		r, err := client.Do(req)
 		if err != nil {
 			return fmt.Errorf("soft-delete subject %s: %w", subj, err)
@@ -365,7 +366,7 @@ func cleanViaAPI() error {
 		json.Unmarshal(body, &allSubjects)
 	}
 	for _, subj := range allSubjects {
-		req, _ := http.NewRequest("DELETE", registryURL+"/subjects/"+subj+"?permanent=true", nil)
+		req, _ := http.NewRequest("DELETE", registryURL+"/subjects/"+url.PathEscape(subj)+"?permanent=true", nil)
 		r, err := client.Do(req)
 		if err != nil {
 			return fmt.Errorf("permanent-delete subject %s: %w", subj, err)
@@ -373,8 +374,28 @@ func cleanViaAPI() error {
 		r.Body.Close()
 	}
 
-	// 4. Reset global config to default
-	configBody := strings.NewReader(`{"compatibility":"BACKWARD"}`)
+	// 4. Delete subject-level configs and modes for all subjects we deleted.
+	// Confluent preserves subject config/mode even after permanent subject delete.
+	allSubjectsToClean := append(activeSubjects, allSubjects...)
+	seen := make(map[string]bool)
+	for _, subj := range allSubjectsToClean {
+		if seen[subj] {
+			continue
+		}
+		seen[subj] = true
+		escaped := url.PathEscape(subj)
+		cfgReq, _ := http.NewRequest("DELETE", registryURL+"/config/"+escaped, nil)
+		if cr, err := client.Do(cfgReq); err == nil {
+			cr.Body.Close()
+		}
+		modeReq, _ := http.NewRequest("DELETE", registryURL+"/mode/"+escaped, nil)
+		if mr, err := client.Do(modeReq); err == nil {
+			mr.Body.Close()
+		}
+	}
+
+	// 5. Reset global config to default (clear metadata/ruleSet fields too)
+	configBody := strings.NewReader(`{"compatibility":"BACKWARD","defaultMetadata":null,"overrideMetadata":null,"defaultRuleSet":null,"overrideRuleSet":null}`)
 	req, _ = http.NewRequest("PUT", registryURL+"/config", configBody)
 	req.Header.Set("Content-Type", "application/vnd.schemaregistry.v1+json")
 	r, err = client.Do(req)

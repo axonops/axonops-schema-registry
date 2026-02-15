@@ -113,6 +113,7 @@ Feature: Schema Lookup
       """
     Then the response status should be 404
 
+  @axonops-only
   Scenario: Lookup after soft-delete with deleted flag returns the schema
     Given subject "del-lookup-recover" has schema:
       """

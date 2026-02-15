@@ -42,6 +42,34 @@ const (
 	SchemaTypeJSON     SchemaType = "JSON"
 )
 
+// Metadata represents schema metadata for data contracts.
+type Metadata struct {
+	Tags       map[string][]string `json:"tags,omitempty"`
+	Properties map[string]string   `json:"properties,omitempty"`
+	Sensitive  []string            `json:"sensitive,omitempty"`
+}
+
+// RuleSet represents a set of data contract rules.
+type RuleSet struct {
+	MigrationRules []Rule `json:"migrationRules,omitempty"`
+	DomainRules    []Rule `json:"domainRules,omitempty"`
+}
+
+// Rule represents a single data contract rule.
+type Rule struct {
+	Name      string            `json:"name"`
+	Doc       string            `json:"doc,omitempty"`
+	Kind      string            `json:"kind"`
+	Mode      string            `json:"mode"`
+	Type      string            `json:"type,omitempty"`
+	Tags      []string          `json:"tags,omitempty"`
+	Params    map[string]string `json:"params,omitempty"`
+	Expr      string            `json:"expr,omitempty"`
+	OnSuccess string            `json:"onSuccess,omitempty"`
+	OnFailure string            `json:"onFailure,omitempty"`
+	Disabled  bool              `json:"disabled,omitempty"`
+}
+
 // SchemaRecord represents a stored schema.
 type SchemaRecord struct {
 	ID          int64       `json:"id"`
@@ -50,6 +78,8 @@ type SchemaRecord struct {
 	SchemaType  SchemaType  `json:"schemaType"`
 	Schema      string      `json:"schema"`
 	References  []Reference `json:"references,omitempty"`
+	Metadata    *Metadata   `json:"metadata,omitempty"`
+	RuleSet     *RuleSet    `json:"ruleSet,omitempty"`
 	Fingerprint string      `json:"-"`
 	Deleted     bool        `json:"-"`
 	CreatedAt   time.Time   `json:"-"`
@@ -71,9 +101,15 @@ type SubjectVersion struct {
 
 // ConfigRecord represents a compatibility configuration.
 type ConfigRecord struct {
-	Subject            string `json:"subject,omitempty"` // Empty for global config
-	CompatibilityLevel string `json:"compatibilityLevel"`
-	Normalize          *bool  `json:"normalize,omitempty"`
+	Subject            string    `json:"subject,omitempty"` // Empty for global config
+	CompatibilityLevel string    `json:"compatibilityLevel"`
+	Normalize          *bool     `json:"normalize,omitempty"`
+	Alias              string    `json:"alias,omitempty"`
+	CompatibilityGroup string    `json:"compatibilityGroup,omitempty"`
+	DefaultMetadata    *Metadata `json:"defaultMetadata,omitempty"`
+	OverrideMetadata   *Metadata `json:"overrideMetadata,omitempty"`
+	DefaultRuleSet     *RuleSet  `json:"defaultRuleSet,omitempty"`
+	OverrideRuleSet    *RuleSet  `json:"overrideRuleSet,omitempty"`
 }
 
 // ModeRecord represents a mode configuration.

@@ -68,12 +68,28 @@ func NewWithConfig(reg *registry.Registry, cfg Config) *Handler {
 
 // checkModeForWrite checks if the current mode allows write operations for the given subject.
 // Returns an error message if writes are blocked, or empty string if allowed.
+// Both READONLY and READONLY_OVERRIDE block data and config writes.
 func (h *Handler) checkModeForWrite(r *http.Request, subject string) string {
 	mode, _ := h.registry.GetMode(r.Context(), subject)
 	if mode == "READONLY" || mode == "READONLY_OVERRIDE" {
 		return mode
 	}
 	return ""
+}
+
+
+// resolveAlias resolves a subject alias. If the subject has an alias configured,
+// the alias target is returned. Otherwise the original subject is returned.
+// Alias resolution is single-level (no recursive chaining).
+func (h *Handler) resolveAlias(ctx context.Context, subject string) string {
+	if subject == "" {
+		return subject
+	}
+	config, err := h.registry.GetSubjectConfigFull(ctx, subject)
+	if err == nil && config.Alias != "" {
+		return config.Alias
+	}
+	return subject
 }
 
 // HealthCheck handles GET /
@@ -116,6 +132,8 @@ func (h *Handler) GetSchemaByID(w http.ResponseWriter, r *http.Request) {
 		Schema:     schemaStr,
 		SchemaType: schemaTypeForResponse(schema.SchemaType),
 		References: schema.References,
+		Metadata:   schema.Metadata,
+		RuleSet:    schema.RuleSet,
 	}
 
 	if r.URL.Query().Get("fetchMaxId") == "true" {
@@ -199,7 +217,7 @@ func (h *Handler) ListSubjects(w http.ResponseWriter, r *http.Request) {
 
 // GetVersions handles GET /subjects/{subject}/versions
 func (h *Handler) GetVersions(w http.ResponseWriter, r *http.Request) {
-	subject := chi.URLParam(r, "subject")
+	subject := h.resolveAlias(r.Context(), chi.URLParam(r, "subject"))
 	deleted := r.URL.Query().Get("deleted") == "true"
 	deletedOnly := r.URL.Query().Get("deletedOnly") == "true"
 
@@ -242,7 +260,7 @@ func (h *Handler) GetVersions(w http.ResponseWriter, r *http.Request) {
 
 // GetVersion handles GET /subjects/{subject}/versions/{version}
 func (h *Handler) GetVersion(w http.ResponseWriter, r *http.Request) {
-	subject := chi.URLParam(r, "subject")
+	subject := h.resolveAlias(r.Context(), chi.URLParam(r, "subject"))
 	versionStr := chi.URLParam(r, "version")
 
 	version, err := parseVersion(versionStr)
@@ -285,6 +303,8 @@ func (h *Handler) GetVersion(w http.ResponseWriter, r *http.Request) {
 		Version:    schema.Version,
 		SchemaType: schemaTypeForResponse(schema.SchemaType),
 		Schema:     schemaStr,
+		Metadata:   schema.Metadata,
+		RuleSet:    schema.RuleSet,
 	}
 	if len(schema.References) > 0 {
 		resp.References = schema.References
@@ -312,7 +332,7 @@ func (h *Handler) findDeletedVersion(ctx context.Context, subject string, versio
 
 // RegisterSchema handles POST /subjects/{subject}/versions
 func (h *Handler) RegisterSchema(w http.ResponseWriter, r *http.Request) {
-	subject := chi.URLParam(r, "subject")
+	subject := h.resolveAlias(r.Context(), chi.URLParam(r, "subject"))
 
 	// Check mode enforcement
 	if mode := h.checkModeForWrite(r, subject); mode != "" {
@@ -346,7 +366,11 @@ func (h *Handler) RegisterSchema(w http.ResponseWriter, r *http.Request) {
 	if req.ID > 0 {
 		schema, err = h.registry.RegisterSchemaWithID(r.Context(), subject, req.Schema, schemaType, req.References, req.ID)
 	} else {
-		schema, err = h.registry.RegisterSchema(r.Context(), subject, req.Schema, schemaType, req.References, normalizeSchema)
+		schema, err = h.registry.RegisterSchema(r.Context(), subject, req.Schema, schemaType, req.References, registry.RegisterOpts{
+			Normalize: normalizeSchema,
+			Metadata:  req.Metadata,
+			RuleSet:   req.RuleSet,
+		})
 	}
 	if err != nil {
 		if strings.Contains(err.Error(), "invalid schema") {
@@ -362,6 +386,10 @@ func (h *Handler) RegisterSchema(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if errors.Is(err, registry.ErrIncompatibleSchema) {
+			writeError(w, http.StatusConflict, types.ErrorCodeIncompatibleSchema, err.Error())
+			return
+		}
+		if errors.Is(err, registry.ErrVersionConflict) {
 			writeError(w, http.StatusConflict, types.ErrorCodeIncompatibleSchema, err.Error())
 			return
 		}
@@ -381,7 +409,7 @@ func (h *Handler) RegisterSchema(w http.ResponseWriter, r *http.Request) {
 
 // LookupSchema handles POST /subjects/{subject}
 func (h *Handler) LookupSchema(w http.ResponseWriter, r *http.Request) {
-	subject := chi.URLParam(r, "subject")
+	subject := h.resolveAlias(r.Context(), chi.URLParam(r, "subject"))
 	deleted := r.URL.Query().Get("deleted") == "true"
 
 	var req types.LookupSchemaRequest
@@ -425,6 +453,8 @@ func (h *Handler) LookupSchema(w http.ResponseWriter, r *http.Request) {
 		Version:    schema.Version,
 		SchemaType: schemaTypeForResponse(schema.SchemaType),
 		Schema:     schema.Schema,
+		Metadata:   schema.Metadata,
+		RuleSet:    schema.RuleSet,
 	}
 	if len(schema.References) > 0 {
 		resp.References = schema.References
@@ -435,7 +465,7 @@ func (h *Handler) LookupSchema(w http.ResponseWriter, r *http.Request) {
 
 // DeleteSubject handles DELETE /subjects/{subject}
 func (h *Handler) DeleteSubject(w http.ResponseWriter, r *http.Request) {
-	subject := chi.URLParam(r, "subject")
+	subject := h.resolveAlias(r.Context(), chi.URLParam(r, "subject"))
 	permanent := r.URL.Query().Get("permanent") == "true"
 
 	// Check mode enforcement
@@ -474,7 +504,7 @@ func (h *Handler) DeleteSubject(w http.ResponseWriter, r *http.Request) {
 
 // DeleteVersion handles DELETE /subjects/{subject}/versions/{version}
 func (h *Handler) DeleteVersion(w http.ResponseWriter, r *http.Request) {
-	subject := chi.URLParam(r, "subject")
+	subject := h.resolveAlias(r.Context(), chi.URLParam(r, "subject"))
 	versionStr := chi.URLParam(r, "version")
 	permanent := r.URL.Query().Get("permanent") == "true"
 
@@ -482,6 +512,13 @@ func (h *Handler) DeleteVersion(w http.ResponseWriter, r *http.Request) {
 	if mode := h.checkModeForWrite(r, subject); mode != "" {
 		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeOperationNotPermitted,
 			fmt.Sprintf("Subject '%s' is in %s mode", subject, mode))
+		return
+	}
+
+	// Permanent delete of "latest" or "-1" is not allowed — must use explicit version number
+	if permanent && (versionStr == "latest" || versionStr == "-1") {
+		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidVersion,
+			fmt.Sprintf("The specified version '%s' is not a valid version id for permanent delete. Use an explicit version number.", versionStr))
 		return
 	}
 
@@ -525,7 +562,7 @@ func (h *Handler) GetConfig(w http.ResponseWriter, r *http.Request) {
 
 	if subject != "" && !defaultToGlobal {
 		// Subject-specific config only, no fallback to global
-		level, err := h.registry.GetSubjectConfig(r.Context(), subject)
+		config, err := h.registry.GetSubjectConfigFull(r.Context(), subject)
 		if err != nil {
 			if errors.Is(err, storage.ErrNotFound) {
 				writeError(w, http.StatusNotFound, types.ErrorCodeSubjectCompatNotFound,
@@ -536,19 +573,33 @@ func (h *Handler) GetConfig(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		writeJSON(w, http.StatusOK, types.ConfigResponse{
-			CompatibilityLevel: level,
+			CompatibilityLevel: config.CompatibilityLevel,
+			Normalize:          config.Normalize,
+			Alias:              config.Alias,
+			CompatibilityGroup: config.CompatibilityGroup,
+			DefaultMetadata:    config.DefaultMetadata,
+			OverrideMetadata:   config.OverrideMetadata,
+			DefaultRuleSet:     config.DefaultRuleSet,
+			OverrideRuleSet:    config.OverrideRuleSet,
 		})
 		return
 	}
 
-	level, err := h.registry.GetConfig(r.Context(), subject)
+	config, err := h.registry.GetConfigFull(r.Context(), subject)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
 		return
 	}
 
 	writeJSON(w, http.StatusOK, types.ConfigResponse{
-		CompatibilityLevel: level,
+		CompatibilityLevel: config.CompatibilityLevel,
+		Normalize:          config.Normalize,
+		Alias:              config.Alias,
+		CompatibilityGroup: config.CompatibilityGroup,
+		DefaultMetadata:    config.DefaultMetadata,
+		OverrideMetadata:   config.OverrideMetadata,
+		DefaultRuleSet:     config.DefaultRuleSet,
+		OverrideRuleSet:    config.OverrideRuleSet,
 	})
 }
 
@@ -573,7 +624,15 @@ func (h *Handler) SetConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.registry.SetConfig(r.Context(), subject, req.Compatibility, req.Normalize); err != nil {
+	configOpts := registry.SetConfigOpts{
+		Alias:              req.Alias,
+		CompatibilityGroup: req.CompatibilityGroup,
+		DefaultMetadata:    req.DefaultMetadata,
+		OverrideMetadata:   req.OverrideMetadata,
+		DefaultRuleSet:     req.DefaultRuleSet,
+		OverrideRuleSet:    req.OverrideRuleSet,
+	}
+	if err := h.registry.SetConfig(r.Context(), subject, req.Compatibility, req.Normalize, configOpts); err != nil {
 		if strings.Contains(err.Error(), "invalid compatibility") {
 			writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidCompatibilityLevel, err.Error())
 			return
@@ -583,8 +642,14 @@ func (h *Handler) SetConfig(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := types.ConfigRequest{
-		Compatibility: strings.ToUpper(req.Compatibility),
-		Normalize:     req.Normalize,
+		Compatibility:      strings.ToUpper(req.Compatibility),
+		Normalize:          req.Normalize,
+		Alias:              req.Alias,
+		CompatibilityGroup: req.CompatibilityGroup,
+		DefaultMetadata:    req.DefaultMetadata,
+		OverrideMetadata:   req.OverrideMetadata,
+		DefaultRuleSet:     req.DefaultRuleSet,
+		OverrideRuleSet:    req.OverrideRuleSet,
 	}
 	writeJSON(w, http.StatusOK, resp)
 }
@@ -610,7 +675,7 @@ func (h *Handler) DeleteConfig(w http.ResponseWriter, r *http.Request) {
 
 // CheckCompatibility handles POST /compatibility/subjects/{subject}/versions/{version}
 func (h *Handler) CheckCompatibility(w http.ResponseWriter, r *http.Request) {
-	subject := chi.URLParam(r, "subject")
+	subject := h.resolveAlias(r.Context(), chi.URLParam(r, "subject"))
 	versionStr := chi.URLParam(r, "version")
 
 	var req types.CompatibilityCheckRequest
@@ -671,7 +736,7 @@ func (h *Handler) CheckCompatibility(w http.ResponseWriter, r *http.Request) {
 
 // GetReferencedBy handles GET /subjects/{subject}/versions/{version}/referencedby
 func (h *Handler) GetReferencedBy(w http.ResponseWriter, r *http.Request) {
-	subject := chi.URLParam(r, "subject")
+	subject := h.resolveAlias(r.Context(), chi.URLParam(r, "subject"))
 	versionStr := chi.URLParam(r, "version")
 
 	version, err := parseVersion(versionStr)
@@ -1064,7 +1129,7 @@ func (h *Handler) ImportSchemas(w http.ResponseWriter, r *http.Request) {
 
 // GetRawSchemaByVersion handles GET /subjects/{subject}/versions/{version}/schema
 func (h *Handler) GetRawSchemaByVersion(w http.ResponseWriter, r *http.Request) {
-	subject := chi.URLParam(r, "subject")
+	subject := h.resolveAlias(r.Context(), chi.URLParam(r, "subject"))
 	versionStr := chi.URLParam(r, "version")
 
 	version, err := parseVersion(versionStr)
@@ -1133,8 +1198,31 @@ func (h *Handler) DeleteMode(w http.ResponseWriter, r *http.Request) {
 
 // GetContexts handles GET /contexts
 func (h *Handler) GetContexts(w http.ResponseWriter, r *http.Request) {
-	// Return default context for single-tenant deployment
-	writeJSON(w, http.StatusOK, []string{"."})
+	// Scan all subjects and extract unique context prefixes.
+	subjects, err := h.registry.ListSubjects(r.Context(), false)
+	if err != nil {
+		writeJSON(w, http.StatusOK, []string{"."})
+		return
+	}
+
+	seen := map[string]bool{".": true}
+	for _, s := range subjects {
+		if strings.HasPrefix(s, ":.") {
+			idx := strings.Index(s[2:], ".:")
+			if idx >= 0 {
+				ctx := s[2 : 2+idx]
+				if ctx != "" {
+					seen["."+ctx+"."] = true
+				}
+			}
+		}
+	}
+
+	result := make([]string, 0, len(seen))
+	for c := range seen {
+		result = append(result, c)
+	}
+	writeJSON(w, http.StatusOK, result)
 }
 
 // GetClusterID handles GET /v1/metadata/id

@@ -198,6 +198,48 @@ func Migrate(session *gocql.Session, keyspace string) error {
 		}
 	}
 
+	// ALTER TABLE migrations — add new columns for metadata, ruleset, and config fields.
+	// Each ALTER is executed individually because Cassandra returns an error if the
+	// column already exists. We silently ignore "already exist" errors to stay idempotent.
+	alterStmts := []string{
+		// schemas_by_id: metadata and ruleset stored as JSON text
+		fmt.Sprintf(`ALTER TABLE %s.schemas_by_id ADD metadata text`, qident(keyspace)),
+		fmt.Sprintf(`ALTER TABLE %s.schemas_by_id ADD ruleset text`, qident(keyspace)),
+
+		// subject_versions: metadata and ruleset stored as JSON text
+		fmt.Sprintf(`ALTER TABLE %s.subject_versions ADD metadata text`, qident(keyspace)),
+		fmt.Sprintf(`ALTER TABLE %s.subject_versions ADD ruleset text`, qident(keyspace)),
+
+		// subject_configs: alias, normalize, and metadata/ruleset config fields
+		fmt.Sprintf(`ALTER TABLE %s.subject_configs ADD alias text`, qident(keyspace)),
+		fmt.Sprintf(`ALTER TABLE %s.subject_configs ADD normalize boolean`, qident(keyspace)),
+		fmt.Sprintf(`ALTER TABLE %s.subject_configs ADD default_metadata text`, qident(keyspace)),
+		fmt.Sprintf(`ALTER TABLE %s.subject_configs ADD override_metadata text`, qident(keyspace)),
+		fmt.Sprintf(`ALTER TABLE %s.subject_configs ADD default_ruleset text`, qident(keyspace)),
+		fmt.Sprintf(`ALTER TABLE %s.subject_configs ADD override_ruleset text`, qident(keyspace)),
+
+		// global_config: same config fields
+		fmt.Sprintf(`ALTER TABLE %s.global_config ADD normalize boolean`, qident(keyspace)),
+		fmt.Sprintf(`ALTER TABLE %s.global_config ADD alias text`, qident(keyspace)),
+		fmt.Sprintf(`ALTER TABLE %s.global_config ADD default_metadata text`, qident(keyspace)),
+		fmt.Sprintf(`ALTER TABLE %s.global_config ADD override_metadata text`, qident(keyspace)),
+		fmt.Sprintf(`ALTER TABLE %s.global_config ADD default_ruleset text`, qident(keyspace)),
+		fmt.Sprintf(`ALTER TABLE %s.global_config ADD override_ruleset text`, qident(keyspace)),
+
+		// subject_configs and global_config: compatibility_group
+		fmt.Sprintf(`ALTER TABLE %s.subject_configs ADD compatibility_group text`, qident(keyspace)),
+		fmt.Sprintf(`ALTER TABLE %s.global_config ADD compatibility_group text`, qident(keyspace)),
+	}
+	for _, stmt := range alterStmts {
+		if err := session.Query(stmt).Exec(); err != nil {
+			// Cassandra returns an error when the column already exists.
+			// Treat that as a no-op so migrations stay idempotent.
+			if !strings.Contains(err.Error(), "already exist") {
+				return fmt.Errorf("cassandra migrate failed: %w (stmt=%s)", err, oneLine(stmt))
+			}
+		}
+	}
+
 	// Initialize allocator row
 	if err := session.Query(
 		fmt.Sprintf(`INSERT INTO %s.id_alloc (name, next_id) VALUES (?, ?) IF NOT EXISTS`, qident(keyspace)),

@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sort"
@@ -280,13 +281,16 @@ func (s *Store) ImportSchema(ctx context.Context, record *storage.SchemaRecord) 
 
 	createdUUID := gocql.TimeUUID()
 
+	metadataStr := marshalJSONText(record.Metadata)
+	rulesetStr := marshalJSONText(record.RuleSet)
+
 	// Only insert schema content tables if this is a new ID
 	if !idExists {
 		// Insert into schemas_by_id
 		err = s.writeQuery(
-			fmt.Sprintf(`INSERT INTO %s.schemas_by_id (schema_id, schema_type, fingerprint, schema_text, canonical_text, created_at)
-				VALUES (?, ?, ?, ?, ?, ?)`, qident(s.cfg.Keyspace)),
-			int(record.ID), string(record.SchemaType), fp, record.Schema, canonical, createdUUID,
+			fmt.Sprintf(`INSERT INTO %s.schemas_by_id (schema_id, schema_type, fingerprint, schema_text, canonical_text, created_at, metadata, ruleset)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, qident(s.cfg.Keyspace)),
+			int(record.ID), string(record.SchemaType), fp, record.Schema, canonical, createdUUID, metadataStr, rulesetStr,
 		).WithContext(ctx).Exec()
 		if err != nil {
 			return fmt.Errorf("failed to insert schema_by_id: %w", err)
@@ -305,9 +309,9 @@ func (s *Store) ImportSchema(ctx context.Context, record *storage.SchemaRecord) 
 
 	// Insert into subject_versions
 	err = s.writeQuery(
-		fmt.Sprintf(`INSERT INTO %s.subject_versions (subject, version, schema_id, deleted, created_at)
-			VALUES (?, ?, ?, ?, ?)`, qident(s.cfg.Keyspace)),
-		record.Subject, record.Version, int(record.ID), false, createdUUID,
+		fmt.Sprintf(`INSERT INTO %s.subject_versions (subject, version, schema_id, deleted, created_at, metadata, ruleset)
+			VALUES (?, ?, ?, ?, ?, ?, ?)`, qident(s.cfg.Keyspace)),
+		record.Subject, record.Version, int(record.ID), false, createdUUID, metadataStr, rulesetStr,
 	).WithContext(ctx).Exec()
 	if err != nil {
 		return fmt.Errorf("failed to insert subject_versions: %w", err)
@@ -460,14 +464,16 @@ func (s *Store) CreateSchema(ctx context.Context, record *storage.SchemaRecord) 
 		}
 
 		createdUUID := gocql.TimeUUID()
+		metadataStr := marshalJSONText(record.Metadata)
+		rulesetStr := marshalJSONText(record.RuleSet)
 
 		// Step 1: Write subject_versions FIRST (idempotent with IF NOT EXISTS)
 		// This ensures the data exists before we "publish" via subject_latest
 		applied, err := casApplied(
 			s.session.Query(
-				fmt.Sprintf(`INSERT INTO %s.subject_versions (subject, version, schema_id, deleted, created_at)
-					VALUES (?, ?, ?, ?, ?) IF NOT EXISTS`, qident(s.cfg.Keyspace)),
-				record.Subject, newVersion, int(schemaID), false, createdUUID,
+				fmt.Sprintf(`INSERT INTO %s.subject_versions (subject, version, schema_id, deleted, created_at, metadata, ruleset)
+					VALUES (?, ?, ?, ?, ?, ?, ?) IF NOT EXISTS`, qident(s.cfg.Keyspace)),
+				record.Subject, newVersion, int(schemaID), false, createdUUID, metadataStr, rulesetStr,
 			).WithContext(ctx),
 		)
 		if err != nil {
@@ -616,6 +622,7 @@ func (s *Store) ensureGlobalSchema(ctx context.Context, schemaType, schemaText, 
 // Uses INSERT IF NOT EXISTS to be idempotent.
 func (s *Store) ensureSchemaByIDExists(ctx context.Context, schemaID int64, schemaType, schemaText, canonical, fp string, createdUUID gocql.UUID) error {
 	// Use IF NOT EXISTS to make this idempotent
+	// Note: metadata/ruleset are not stored per-global-schema; they are per subject-version.
 	_, err := casApplied(
 		s.session.Query(
 			fmt.Sprintf(`INSERT INTO %s.schemas_by_id (schema_id, schema_type, fingerprint, schema_text, canonical_text, created_at)
@@ -652,12 +659,13 @@ func (s *Store) findSchemaInSubject(ctx context.Context, subject string, schemaI
 // GetSchemaByID retrieves a schema by its global ID.
 func (s *Store) GetSchemaByID(ctx context.Context, id int64) (*storage.SchemaRecord, error) {
 	var schemaType, schemaText string
+	var metadataStr, rulesetStr string
 	var createdUUID gocql.UUID
 
 	err := s.readQuery(
-		fmt.Sprintf(`SELECT schema_type, schema_text, created_at FROM %s.schemas_by_id WHERE schema_id = ?`, qident(s.cfg.Keyspace)),
+		fmt.Sprintf(`SELECT schema_type, schema_text, created_at, metadata, ruleset FROM %s.schemas_by_id WHERE schema_id = ?`, qident(s.cfg.Keyspace)),
 		int(id),
-	).WithContext(ctx).Scan(&schemaType, &schemaText, &createdUUID)
+	).WithContext(ctx).Scan(&schemaType, &schemaText, &createdUUID, &metadataStr, &rulesetStr)
 	if err != nil {
 		if errors.Is(err, gocql.ErrNotFound) {
 			return nil, storage.ErrSchemaNotFound
@@ -670,6 +678,8 @@ func (s *Store) GetSchemaByID(ctx context.Context, id int64) (*storage.SchemaRec
 		SchemaType: storage.SchemaType(schemaType),
 		Schema:     schemaText,
 		CreatedAt:  createdUUID.Time(),
+		Metadata:   unmarshalJSONText[storage.Metadata](metadataStr),
+		RuleSet:    unmarshalJSONText[storage.RuleSet](rulesetStr),
 	}
 
 	// Load references for this schema
@@ -716,10 +726,11 @@ func (s *Store) GetSchemaBySubjectVersion(ctx context.Context, subject string, v
 	var schemaID int
 	var deleted bool
 	var createdUUID gocql.UUID
+	var metadataStr, rulesetStr string
 	err := s.readQuery(
-		fmt.Sprintf(`SELECT schema_id, deleted, created_at FROM %s.subject_versions WHERE subject = ? AND version = ?`, qident(s.cfg.Keyspace)),
+		fmt.Sprintf(`SELECT schema_id, deleted, created_at, metadata, ruleset FROM %s.subject_versions WHERE subject = ? AND version = ?`, qident(s.cfg.Keyspace)),
 		subject, version,
-	).WithContext(ctx).Scan(&schemaID, &deleted, &createdUUID)
+	).WithContext(ctx).Scan(&schemaID, &deleted, &createdUUID, &metadataStr, &rulesetStr)
 	if err != nil {
 		if errors.Is(err, gocql.ErrNotFound) {
 			// Check if subject exists at all to distinguish ErrSubjectNotFound vs ErrVersionNotFound
@@ -747,6 +758,13 @@ func (s *Store) GetSchemaBySubjectVersion(ctx context.Context, subject string, v
 	rec.Version = version
 	rec.Deleted = deleted
 	rec.CreatedAt = createdUUID.Time()
+	// subject_versions metadata/ruleset override the schemas_by_id values
+	if m := unmarshalJSONText[storage.Metadata](metadataStr); m != nil {
+		rec.Metadata = m
+	}
+	if r := unmarshalJSONText[storage.RuleSet](rulesetStr); r != nil {
+		rec.RuleSet = r
+	}
 	return rec, nil
 }
 
@@ -1342,18 +1360,31 @@ func (s *Store) GetConfig(ctx context.Context, subject string) (*storage.ConfigR
 	if subject == "" {
 		return s.GetGlobalConfig(ctx)
 	}
-	var compat string
+	var compat, alias string
+	var normalize *bool
+	var compatibilityGroup string
+	var defaultMetadataStr, overrideMetadataStr, defaultRulesetStr, overrideRulesetStr string
 	err := s.readQuery(
-		fmt.Sprintf(`SELECT compatibility FROM %s.subject_configs WHERE subject = ?`, qident(s.cfg.Keyspace)),
+		fmt.Sprintf(`SELECT compatibility, alias, normalize, default_metadata, override_metadata, default_ruleset, override_ruleset, compatibility_group FROM %s.subject_configs WHERE subject = ?`, qident(s.cfg.Keyspace)),
 		subject,
-	).WithContext(ctx).Scan(&compat)
+	).WithContext(ctx).Scan(&compat, &alias, &normalize, &defaultMetadataStr, &overrideMetadataStr, &defaultRulesetStr, &overrideRulesetStr, &compatibilityGroup)
 	if err != nil {
 		if errors.Is(err, gocql.ErrNotFound) {
 			return nil, storage.ErrNotFound
 		}
 		return nil, err
 	}
-	return &storage.ConfigRecord{Subject: subject, CompatibilityLevel: compat}, nil
+	return &storage.ConfigRecord{
+		Subject:            subject,
+		CompatibilityLevel: compat,
+		Alias:              alias,
+		Normalize:          normalize,
+		CompatibilityGroup: compatibilityGroup,
+		DefaultMetadata:    unmarshalJSONText[storage.Metadata](defaultMetadataStr),
+		OverrideMetadata:   unmarshalJSONText[storage.Metadata](overrideMetadataStr),
+		DefaultRuleSet:     unmarshalJSONText[storage.RuleSet](defaultRulesetStr),
+		OverrideRuleSet:    unmarshalJSONText[storage.RuleSet](overrideRulesetStr),
+	}, nil
 }
 
 // SetConfig sets the compatibility config for a subject.
@@ -1363,8 +1394,12 @@ func (s *Store) SetConfig(ctx context.Context, subject string, config *storage.C
 	}
 	compat := normalizeCompat(config.CompatibilityLevel)
 	return s.writeQuery(
-		fmt.Sprintf(`INSERT INTO %s.subject_configs (subject, compatibility, updated_at) VALUES (?, ?, now())`, qident(s.cfg.Keyspace)),
-		subject, compat,
+		fmt.Sprintf(`INSERT INTO %s.subject_configs (subject, compatibility, alias, normalize, default_metadata, override_metadata, default_ruleset, override_ruleset, compatibility_group, updated_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, now())`, qident(s.cfg.Keyspace)),
+		subject, compat, config.Alias, config.Normalize,
+		marshalJSONText(config.DefaultMetadata), marshalJSONText(config.OverrideMetadata),
+		marshalJSONText(config.DefaultRuleSet), marshalJSONText(config.OverrideRuleSet),
+		config.CompatibilityGroup,
 	).WithContext(ctx).Exec()
 }
 
@@ -1386,37 +1421,67 @@ func (s *Store) DeleteConfig(ctx context.Context, subject string) error {
 
 // GetGlobalConfig retrieves the global compatibility config.
 func (s *Store) GetGlobalConfig(ctx context.Context) (*storage.ConfigRecord, error) {
-	var compat string
+	var compat, alias string
+	var normalize *bool
+	var compatibilityGroup string
+	var defaultMetadataStr, overrideMetadataStr, defaultRulesetStr, overrideRulesetStr string
 	err := s.readQuery(
-		fmt.Sprintf(`SELECT compatibility FROM %s.global_config WHERE key = ?`, qident(s.cfg.Keyspace)),
+		fmt.Sprintf(`SELECT compatibility, alias, normalize, default_metadata, override_metadata, default_ruleset, override_ruleset, compatibility_group FROM %s.global_config WHERE key = ?`, qident(s.cfg.Keyspace)),
 		"global",
-	).WithContext(ctx).Scan(&compat)
+	).WithContext(ctx).Scan(&compat, &alias, &normalize, &defaultMetadataStr, &overrideMetadataStr, &defaultRulesetStr, &overrideRulesetStr, &compatibilityGroup)
 	if err != nil {
 		if errors.Is(err, gocql.ErrNotFound) {
 			return nil, storage.ErrNotFound
 		}
 		return nil, err
 	}
-	return &storage.ConfigRecord{Subject: "", CompatibilityLevel: compat}, nil
+	return &storage.ConfigRecord{
+		Subject:            "",
+		CompatibilityLevel: compat,
+		Alias:              alias,
+		Normalize:          normalize,
+		CompatibilityGroup: compatibilityGroup,
+		DefaultMetadata:    unmarshalJSONText[storage.Metadata](defaultMetadataStr),
+		OverrideMetadata:   unmarshalJSONText[storage.Metadata](overrideMetadataStr),
+		DefaultRuleSet:     unmarshalJSONText[storage.RuleSet](defaultRulesetStr),
+		OverrideRuleSet:    unmarshalJSONText[storage.RuleSet](overrideRulesetStr),
+	}, nil
 }
 
 // SetGlobalConfig sets the global compatibility config.
 func (s *Store) SetGlobalConfig(ctx context.Context, config *storage.ConfigRecord) error {
 	compat := "BACKWARD"
+	var alias string
+	var normalize *bool
+	var compatibilityGroup string
+	var defaultMetadata, overrideMetadata *storage.Metadata
+	var defaultRuleSet, overrideRuleSet *storage.RuleSet
 	if config != nil {
 		compat = normalizeCompat(config.CompatibilityLevel)
+		alias = config.Alias
+		normalize = config.Normalize
+		compatibilityGroup = config.CompatibilityGroup
+		defaultMetadata = config.DefaultMetadata
+		overrideMetadata = config.OverrideMetadata
+		defaultRuleSet = config.DefaultRuleSet
+		overrideRuleSet = config.OverrideRuleSet
 	}
 	return s.writeQuery(
-		fmt.Sprintf(`INSERT INTO %s.global_config (key, compatibility, updated_at) VALUES (?, ?, now())`, qident(s.cfg.Keyspace)),
-		"global", compat,
+		fmt.Sprintf(`INSERT INTO %s.global_config (key, compatibility, alias, normalize, default_metadata, override_metadata, default_ruleset, override_ruleset, compatibility_group, updated_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, now())`, qident(s.cfg.Keyspace)),
+		"global", compat, alias, normalize,
+		marshalJSONText(defaultMetadata), marshalJSONText(overrideMetadata),
+		marshalJSONText(defaultRuleSet), marshalJSONText(overrideRuleSet),
+		compatibilityGroup,
 	).WithContext(ctx).Exec()
 }
 
 // DeleteGlobalConfig resets the global config to the default (BACKWARD).
 func (s *Store) DeleteGlobalConfig(ctx context.Context) error {
 	return s.writeQuery(
-		fmt.Sprintf(`INSERT INTO %s.global_config (key, compatibility, updated_at) VALUES (?, ?, now())`, qident(s.cfg.Keyspace)),
-		"global", "BACKWARD",
+		fmt.Sprintf(`INSERT INTO %s.global_config (key, compatibility, alias, normalize, default_metadata, override_metadata, default_ruleset, override_ruleset, compatibility_group, updated_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, now())`, qident(s.cfg.Keyspace)),
+		"global", "BACKWARD", "", nil, "", "", "", "", "",
 	).WithContext(ctx).Exec()
 }
 
@@ -2029,4 +2094,30 @@ func canonicalize(schemaType string, schemaText string) string {
 func fingerprint(canonical string) string {
 	sum := sha256.Sum256([]byte(canonical))
 	return hex.EncodeToString(sum[:])
+}
+
+// marshalJSONText serializes a value to a JSON string for storage in a Cassandra text column.
+// Returns empty string if v is nil.
+func marshalJSONText(v interface{}) string {
+	if v == nil {
+		return ""
+	}
+	data, err := json.Marshal(v)
+	if err != nil {
+		return ""
+	}
+	return string(data)
+}
+
+// unmarshalJSONText deserializes a JSON text column value into a pointer of type T.
+// Returns nil if the input is empty.
+func unmarshalJSONText[T any](s string) *T {
+	if s == "" {
+		return nil
+	}
+	var v T
+	if err := json.Unmarshal([]byte(s), &v); err != nil {
+		return nil
+	}
+	return &v
 }

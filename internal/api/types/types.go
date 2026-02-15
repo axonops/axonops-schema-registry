@@ -9,6 +9,8 @@ type RegisterSchemaRequest struct {
 	SchemaType string              `json:"schemaType,omitempty"`
 	References []storage.Reference `json:"references,omitempty"`
 	ID         int64               `json:"id,omitempty"`
+	Metadata   *storage.Metadata   `json:"metadata,omitempty"`
+	RuleSet    *storage.RuleSet    `json:"ruleSet,omitempty"`
 }
 
 // RegisterSchemaResponse is the response for registering a schema.
@@ -28,6 +30,8 @@ type SchemaByIDResponse struct {
 	Schema     string              `json:"schema"`
 	SchemaType string              `json:"schemaType"`
 	References []storage.Reference `json:"references,omitempty"`
+	Metadata   *storage.Metadata   `json:"metadata,omitempty"`
+	RuleSet    *storage.RuleSet    `json:"ruleSet,omitempty"`
 	MaxId      *int64              `json:"maxId,omitempty"`
 }
 
@@ -39,6 +43,8 @@ type SubjectVersionResponse struct {
 	SchemaType string              `json:"schemaType"`
 	Schema     string              `json:"schema"`
 	References []storage.Reference `json:"references,omitempty"`
+	Metadata   *storage.Metadata   `json:"metadata,omitempty"`
+	RuleSet    *storage.RuleSet    `json:"ruleSet,omitempty"`
 }
 
 // LookupSchemaRequest is the request body for looking up a schema.
@@ -56,18 +62,32 @@ type LookupSchemaResponse struct {
 	SchemaType string              `json:"schemaType"`
 	Schema     string              `json:"schema"`
 	References []storage.Reference `json:"references,omitempty"`
+	Metadata   *storage.Metadata   `json:"metadata,omitempty"`
+	RuleSet    *storage.RuleSet    `json:"ruleSet,omitempty"`
 }
 
 // ConfigResponse is the response for getting configuration.
 type ConfigResponse struct {
-	CompatibilityLevel string `json:"compatibilityLevel"`
-	Normalize          *bool  `json:"normalize,omitempty"`
+	CompatibilityLevel string            `json:"compatibilityLevel"`
+	Normalize          *bool             `json:"normalize,omitempty"`
+	Alias              string            `json:"alias,omitempty"`
+	CompatibilityGroup string            `json:"compatibilityGroup,omitempty"`
+	DefaultMetadata    *storage.Metadata `json:"defaultMetadata,omitempty"`
+	OverrideMetadata   *storage.Metadata `json:"overrideMetadata,omitempty"`
+	DefaultRuleSet     *storage.RuleSet  `json:"defaultRuleSet,omitempty"`
+	OverrideRuleSet    *storage.RuleSet  `json:"overrideRuleSet,omitempty"`
 }
 
 // ConfigRequest is the request body for setting configuration.
 type ConfigRequest struct {
-	Compatibility string `json:"compatibility"`
-	Normalize     *bool  `json:"normalize,omitempty"`
+	Compatibility      string            `json:"compatibility"`
+	Normalize          *bool             `json:"normalize,omitempty"`
+	Alias              string            `json:"alias,omitempty"`
+	CompatibilityGroup string            `json:"compatibilityGroup,omitempty"`
+	DefaultMetadata    *storage.Metadata `json:"defaultMetadata,omitempty"`
+	OverrideMetadata   *storage.Metadata `json:"overrideMetadata,omitempty"`
+	DefaultRuleSet     *storage.RuleSet  `json:"defaultRuleSet,omitempty"`
+	OverrideRuleSet    *storage.RuleSet  `json:"overrideRuleSet,omitempty"`
 }
 
 // ModeResponse is the response for getting mode.
@@ -113,6 +133,8 @@ type SchemaListItem struct {
 	SchemaType string              `json:"schemaType"`
 	Schema     string              `json:"schema"`
 	References []storage.Reference `json:"references,omitempty"`
+	Metadata   *storage.Metadata   `json:"metadata,omitempty"`
+	RuleSet    *storage.RuleSet    `json:"ruleSet,omitempty"`
 }
 
 // ServerClusterIDResponse is the response for getting cluster ID.

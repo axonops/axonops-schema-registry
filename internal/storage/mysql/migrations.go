@@ -90,4 +90,31 @@ var migrations = []string{
 
 	// Migration 10: Initialize ID allocation
 	"INSERT IGNORE INTO id_alloc (name, next_id) VALUES ('schema_id', 1)",
+
+	// Migration 11: Add metadata column to schemas
+	"ALTER TABLE `schemas` ADD COLUMN metadata JSON",
+
+	// Migration 12: Add ruleset column to schemas
+	"ALTER TABLE `schemas` ADD COLUMN ruleset JSON",
+
+	// Migration 13: Add alias column to configs
+	"ALTER TABLE configs ADD COLUMN alias VARCHAR(255)",
+
+	// Migration 14: Add default_metadata column to configs
+	"ALTER TABLE configs ADD COLUMN default_metadata JSON",
+
+	// Migration 15: Add override_metadata column to configs
+	"ALTER TABLE configs ADD COLUMN override_metadata JSON",
+
+	// Migration 16: Add default_ruleset column to configs
+	"ALTER TABLE configs ADD COLUMN default_ruleset JSON",
+
+	// Migration 17: Add override_ruleset column to configs
+	"ALTER TABLE configs ADD COLUMN override_ruleset JSON",
+
+	// Migration 18: Add normalize column to configs
+	"ALTER TABLE configs ADD COLUMN normalize BOOLEAN",
+
+	// Migration 19: Add compatibility_group column to configs
+	"ALTER TABLE configs ADD COLUMN compatibility_group VARCHAR(255)",
 }
