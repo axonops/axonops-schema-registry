@@ -1883,7 +1883,8 @@ func (s *Store) scanAPIKeys(rows *sql.Rows) ([]*storage.APIKeyRecord, error) {
 
 // marshalJSONNullable marshals a value to JSON, returning nil if the input is nil.
 // It handles both untyped nil and typed nil pointers (e.g., (*Metadata)(nil)).
-func marshalJSONNullable(v interface{}) ([]byte, error) {
+// Returns *string so the pq driver sends it as text (not bytea) for JSONB columns.
+func marshalJSONNullable(v interface{}) (*string, error) {
 	if v == nil {
 		return nil, nil
 	}
@@ -1892,7 +1893,12 @@ func marshalJSONNullable(v interface{}) ([]byte, error) {
 	if rv.Kind() == reflect.Ptr && rv.IsNil() {
 		return nil, nil
 	}
-	return json.Marshal(v)
+	data, err := json.Marshal(v)
+	if err != nil {
+		return nil, err
+	}
+	s := string(data)
+	return &s, nil
 }
 
 // unmarshalMetadata unmarshals a nullable JSON byte slice into a *storage.Metadata.

@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"sort"
 	"strings"
 	"time"
@@ -771,20 +772,22 @@ func (s *Store) GetSchemaBySubjectVersion(ctx context.Context, subject string, v
 // GetSchemasBySubject retrieves all schemas for a subject.
 func (s *Store) GetSchemasBySubject(ctx context.Context, subject string, includeDeleted bool) ([]*storage.SchemaRecord, error) {
 	iter := s.readQuery(
-		fmt.Sprintf(`SELECT version, schema_id, deleted, created_at FROM %s.subject_versions WHERE subject = ?`, qident(s.cfg.Keyspace)),
+		fmt.Sprintf(`SELECT version, schema_id, deleted, created_at, metadata, ruleset FROM %s.subject_versions WHERE subject = ?`, qident(s.cfg.Keyspace)),
 		subject,
 	).WithContext(ctx).Iter()
 
 	type versionInfo struct {
-		version   int
-		schemaID  int
-		deleted   bool
-		createdAt gocql.UUID
+		version     int
+		schemaID    int
+		deleted     bool
+		createdAt   gocql.UUID
+		metadataStr string
+		rulesetStr  string
 	}
 	var entries []versionInfo
 	var vi versionInfo
 	hasAnyRows := false
-	for iter.Scan(&vi.version, &vi.schemaID, &vi.deleted, &vi.createdAt) {
+	for iter.Scan(&vi.version, &vi.schemaID, &vi.deleted, &vi.createdAt, &vi.metadataStr, &vi.rulesetStr) {
 		hasAnyRows = true
 		if includeDeleted || !vi.deleted {
 			entries = append(entries, vi)
@@ -813,6 +816,13 @@ func (s *Store) GetSchemasBySubject(ctx context.Context, subject string, include
 		rec.Version = e.version
 		rec.Deleted = e.deleted
 		rec.CreatedAt = e.createdAt.Time()
+		// Overlay per-version metadata/ruleset from subject_versions
+		if m := unmarshalJSONText[storage.Metadata](e.metadataStr); m != nil {
+			rec.Metadata = m
+		}
+		if r := unmarshalJSONText[storage.RuleSet](e.rulesetStr); r != nil {
+			rec.RuleSet = r
+		}
 		out = append(out, rec)
 	}
 	return out, nil
@@ -982,6 +992,8 @@ func (s *Store) DeleteSchema(ctx context.Context, subject string, version int, p
 		if !deleted {
 			return storage.ErrVersionNotSoftDeleted
 		}
+		// Clean up references_by_target for any schemas this version references
+		s.cleanupReferencesByTarget(ctx, existingSchemaID, subject, version)
 		if err := s.writeQuery(
 			fmt.Sprintf(`DELETE FROM %s.subject_versions WHERE subject = ? AND version = ?`, qident(s.cfg.Keyspace)),
 			subject, version,
@@ -1042,6 +1054,27 @@ func (s *Store) cleanupOrphanedSchema(ctx context.Context, schemaID int) {
 		fmt.Sprintf(`DELETE FROM %s.schema_references WHERE schema_id = ?`, qident(s.cfg.Keyspace)),
 		schemaID,
 	).WithContext(ctx).Exec()
+}
+
+// cleanupReferencesByTarget removes references_by_target entries for a schema
+// that is being permanently deleted. This ensures other schemas can be deleted
+// after their referrers are removed.
+func (s *Store) cleanupReferencesByTarget(ctx context.Context, schemaID int, subject string, version int) {
+	// Read all references this schema has
+	refIter := s.readQuery(
+		fmt.Sprintf(`SELECT ref_subject, ref_version FROM %s.schema_references WHERE schema_id = ?`, qident(s.cfg.Keyspace)),
+		schemaID,
+	).WithContext(ctx).Iter()
+	var refSubject string
+	var refVersion int
+	for refIter.Scan(&refSubject, &refVersion) {
+		// Delete the reverse lookup entry
+		_ = s.writeQuery(
+			fmt.Sprintf(`DELETE FROM %s.references_by_target WHERE ref_subject = ? AND ref_version = ? AND schema_subject = ? AND schema_version = ?`, qident(s.cfg.Keyspace)),
+			refSubject, refVersion, subject, version,
+		).WithContext(ctx).Exec()
+	}
+	refIter.Close()
 }
 
 // ---------- Subject Operations ----------
@@ -2103,6 +2136,11 @@ func fingerprint(canonical string) string {
 // Returns empty string if v is nil.
 func marshalJSONText(v interface{}) string {
 	if v == nil {
+		return ""
+	}
+	// Handle typed nil pointers (e.g., (*storage.Metadata)(nil) passed as interface{})
+	rv := reflect.ValueOf(v)
+	if rv.Kind() == reflect.Ptr && rv.IsNil() {
 		return ""
 	}
 	data, err := json.Marshal(v)

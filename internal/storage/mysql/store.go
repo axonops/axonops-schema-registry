@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"reflect"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -1893,6 +1894,11 @@ func (s *Store) scanAPIKeys(rows *sql.Rows) ([]*storage.APIKeyRecord, error) {
 // marshalJSON marshals a value to JSON bytes for storage. Returns nil if v is nil.
 func marshalJSON(v interface{}) ([]byte, error) {
 	if v == nil {
+		return nil, nil
+	}
+	// Handle typed nil pointers (e.g., (*storage.Metadata)(nil) passed as interface{})
+	rv := reflect.ValueOf(v)
+	if rv.Kind() == reflect.Ptr && rv.IsNil() {
 		return nil, nil
 	}
 	return json.Marshal(v)
