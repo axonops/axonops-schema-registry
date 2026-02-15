@@ -77,7 +77,6 @@ func (h *Handler) checkModeForWrite(r *http.Request, subject string) string {
 	return ""
 }
 
-
 // resolveAlias resolves a subject alias. If the subject has an alias configured,
 // the alias target is returned. Otherwise the original subject is returned.
 // Alias resolution is single-level (no recursive chaining).
@@ -284,6 +283,12 @@ func (h *Handler) GetVersion(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			if errors.Is(err, storage.ErrVersionNotFound) {
+				// Confluent returns 40401 (subject not found) when all versions
+				// of a subject are soft-deleted, rather than 40402 (version not found).
+				if h.isSubjectFullyDeleted(r.Context(), subject) {
+					writeError(w, http.StatusNotFound, types.ErrorCodeSubjectNotFound, "Subject not found")
+					return
+				}
 				writeError(w, http.StatusNotFound, types.ErrorCodeVersionNotFound, "Version not found")
 				return
 			}
@@ -328,6 +333,23 @@ func (h *Handler) findDeletedVersion(ctx context.Context, subject string, versio
 		}
 	}
 	return nil, storage.ErrVersionNotFound
+}
+
+// isSubjectFullyDeleted returns true if the subject exists but all its versions
+// are soft-deleted. Used to map ErrVersionNotFound → 40401 (Confluent behavior).
+func (h *Handler) isSubjectFullyDeleted(ctx context.Context, subject string) bool {
+	// Check if subject has any versions including deleted ones
+	allVersions, err := h.registry.GetVersions(ctx, subject, true)
+	if err != nil || len(allVersions) == 0 {
+		return false
+	}
+	// Check if subject has any active (non-deleted) versions
+	activeVersions, err := h.registry.GetVersions(ctx, subject, false)
+	if err != nil {
+		// GetVersions returns ErrSubjectNotFound when all versions are deleted
+		return errors.Is(err, storage.ErrSubjectNotFound)
+	}
+	return len(activeVersions) == 0
 }
 
 // RegisterSchema handles POST /subjects/{subject}/versions
@@ -1150,6 +1172,10 @@ func (h *Handler) GetRawSchemaByVersion(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 		if errors.Is(err, storage.ErrVersionNotFound) {
+			if h.isSubjectFullyDeleted(r.Context(), subject) {
+				writeError(w, http.StatusNotFound, types.ErrorCodeSubjectNotFound, "Subject not found")
+				return
+			}
 			writeError(w, http.StatusNotFound, types.ErrorCodeVersionNotFound, "Version not found")
 			return
 		}

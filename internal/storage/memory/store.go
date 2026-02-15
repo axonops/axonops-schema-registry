@@ -212,18 +212,6 @@ func (s *Store) GetSchemaBySubjectVersion(ctx context.Context, subject string, v
 	}
 
 	if info.deleted {
-		// If ALL versions of this subject are deleted, treat the subject as not found
-		// (matches Confluent behavior: 40401 instead of 40402).
-		hasActive := false
-		for _, vi := range subjectVersionMap {
-			if !vi.deleted {
-				hasActive = true
-				break
-			}
-		}
-		if !hasActive {
-			return nil, storage.ErrSubjectNotFound
-		}
 		return nil, storage.ErrVersionNotFound
 	}
 
