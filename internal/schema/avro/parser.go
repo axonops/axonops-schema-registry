@@ -104,6 +104,19 @@ func (s *ParsedSchema) Normalize() schema.ParsedSchema {
 	}
 }
 
+// HasTopLevelField reports whether the Avro record schema contains a field
+// with the given name. Returns false for non-record schemas.
+func (s *ParsedSchema) HasTopLevelField(field string) bool {
+	if rs, ok := s.rawSchema.(*avro.RecordSchema); ok {
+		for _, f := range rs.Fields() {
+			if f.Name() == field {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // FormattedString returns the schema in the requested format.
 // Supported formats: "resolved" (inlines all references), "default" (canonical).
 func (s *ParsedSchema) FormattedString(format string) string {

@@ -27,6 +27,12 @@ type ParsedSchema interface {
 	// Normalize returns a normalized copy of this schema with deterministic
 	// representation for deduplication and comparison purposes.
 	Normalize() ParsedSchema
+
+	// HasTopLevelField reports whether the schema contains a top-level field
+	// with the given name. For Avro records this checks record fields, for
+	// Protobuf it checks fields across all top-level messages, and for JSON
+	// Schema it checks the "properties" object.
+	HasTopLevelField(field string) bool
 }
 
 // Parser is the interface for schema parsers.

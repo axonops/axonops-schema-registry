@@ -116,6 +116,24 @@ func (p *ParsedProtobuf) Normalize() schema.ParsedSchema {
 	}
 }
 
+// HasTopLevelField reports whether any top-level message in the Protobuf
+// schema contains a field with the given name.
+func (p *ParsedProtobuf) HasTopLevelField(field string) bool {
+	if p.descriptor == nil {
+		return false
+	}
+	msgs := p.descriptor.Messages()
+	for i := 0; i < msgs.Len(); i++ {
+		fields := msgs.Get(i).Fields()
+		for j := 0; j < fields.Len(); j++ {
+			if string(fields.Get(j).Name()) == field {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // FormattedString returns the schema in the requested format.
 // Supported formats: "serialized" (base64-encoded FileDescriptorProto), "default" (canonical).
 func (p *ParsedProtobuf) FormattedString(format string) string {

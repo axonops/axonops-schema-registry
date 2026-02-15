@@ -115,6 +115,17 @@ func (p *ParsedJSONSchema) Normalize() schema.ParsedSchema {
 	}
 }
 
+// HasTopLevelField reports whether the JSON Schema "properties" object
+// contains a key with the given name.
+func (p *ParsedJSONSchema) HasTopLevelField(field string) bool {
+	props, ok := p.schemaMap["properties"].(map[string]interface{})
+	if !ok {
+		return false
+	}
+	_, exists := props[field]
+	return exists
+}
+
 // FormattedString returns the schema in the requested format.
 // JSON Schema does not support special format values; always returns canonical string.
 func (p *ParsedJSONSchema) FormattedString(format string) string {

@@ -207,13 +207,13 @@ func (s *Store) prepareStatements() error {
 
 	// Config statements
 	stmts.getConfig, err = s.db.Prepare(
-		"SELECT subject, compatibility_level, alias, normalize, default_metadata, override_metadata, default_ruleset, override_ruleset, compatibility_group FROM configs WHERE subject = ?")
+		"SELECT subject, compatibility_level, alias, normalize, validate_fields, default_metadata, override_metadata, default_ruleset, override_ruleset, compatibility_group FROM configs WHERE subject = ?")
 	if err != nil {
 		return fmt.Errorf("prepare getConfig: %w", err)
 	}
 
 	stmts.setConfig, err = s.db.Prepare(
-		"INSERT INTO configs (subject, compatibility_level, alias, normalize, default_metadata, override_metadata, default_ruleset, override_ruleset, compatibility_group) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE compatibility_level = VALUES(compatibility_level), alias = VALUES(alias), normalize = VALUES(normalize), default_metadata = VALUES(default_metadata), override_metadata = VALUES(override_metadata), default_ruleset = VALUES(default_ruleset), override_ruleset = VALUES(override_ruleset), compatibility_group = VALUES(compatibility_group)")
+		"INSERT INTO configs (subject, compatibility_level, alias, normalize, validate_fields, default_metadata, override_metadata, default_ruleset, override_ruleset, compatibility_group) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE compatibility_level = VALUES(compatibility_level), alias = VALUES(alias), normalize = VALUES(normalize), validate_fields = VALUES(validate_fields), default_metadata = VALUES(default_metadata), override_metadata = VALUES(override_metadata), default_ruleset = VALUES(default_ruleset), override_ruleset = VALUES(override_ruleset), compatibility_group = VALUES(compatibility_group)")
 	if err != nil {
 		return fmt.Errorf("prepare setConfig: %w", err)
 	}
@@ -1018,13 +1018,14 @@ func (s *Store) GetConfig(ctx context.Context, subject string) (*storage.ConfigR
 	config := &storage.ConfigRecord{}
 	var alias sql.NullString
 	var normalize sql.NullBool
+	var validateFields sql.NullBool
 	var compatibilityGroup sql.NullString
 	var defaultMetadataBytes, overrideMetadataBytes []byte
 	var defaultRuleSetBytes, overrideRuleSetBytes []byte
 
 	err := s.stmts.getConfig.QueryRowContext(ctx, subject).Scan(
 		&config.Subject, &config.CompatibilityLevel,
-		&alias, &normalize,
+		&alias, &normalize, &validateFields,
 		&defaultMetadataBytes, &overrideMetadataBytes,
 		&defaultRuleSetBytes, &overrideRuleSetBytes,
 		&compatibilityGroup)
@@ -1042,6 +1043,10 @@ func (s *Store) GetConfig(ctx context.Context, subject string) (*storage.ConfigR
 	if normalize.Valid {
 		v := normalize.Bool
 		config.Normalize = &v
+	}
+	if validateFields.Valid {
+		v := validateFields.Bool
+		config.ValidateFields = &v
 	}
 	if compatibilityGroup.Valid {
 		config.CompatibilityGroup = compatibilityGroup.String
@@ -1108,13 +1113,18 @@ func (s *Store) SetConfig(ctx context.Context, subject string, config *storage.C
 		normalizeParam = *config.Normalize
 	}
 
+	var validateFieldsParam interface{}
+	if config.ValidateFields != nil {
+		validateFieldsParam = *config.ValidateFields
+	}
+
 	var compatGroupParam interface{}
 	if config.CompatibilityGroup != "" {
 		compatGroupParam = config.CompatibilityGroup
 	}
 
 	_, err = s.stmts.setConfig.ExecContext(ctx, subject, config.CompatibilityLevel,
-		aliasParam, normalizeParam,
+		aliasParam, normalizeParam, validateFieldsParam,
 		defaultMetadataJSON, overrideMetadataJSON,
 		defaultRuleSetJSON, overrideRuleSetJSON,
 		compatGroupParam)
@@ -1520,9 +1530,9 @@ func (s *Store) ListSchemas(ctx context.Context, params *storage.ListSchemasPara
 // DeleteGlobalConfig resets the global config to default.
 func (s *Store) DeleteGlobalConfig(ctx context.Context) error {
 	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO configs (subject, compatibility_level, alias, normalize, default_metadata, override_metadata, default_ruleset, override_ruleset, compatibility_group)
-		 VALUES ('', 'BACKWARD', NULL, NULL, NULL, NULL, NULL, NULL, NULL)
-		 ON DUPLICATE KEY UPDATE compatibility_level = 'BACKWARD', alias = NULL, normalize = NULL, default_metadata = NULL, override_metadata = NULL, default_ruleset = NULL, override_ruleset = NULL, compatibility_group = NULL`,
+		`INSERT INTO configs (subject, compatibility_level, alias, normalize, validate_fields, default_metadata, override_metadata, default_ruleset, override_ruleset, compatibility_group)
+		 VALUES ('', 'BACKWARD', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)
+		 ON DUPLICATE KEY UPDATE compatibility_level = 'BACKWARD', alias = NULL, normalize = NULL, validate_fields = NULL, default_metadata = NULL, override_metadata = NULL, default_ruleset = NULL, override_ruleset = NULL, compatibility_group = NULL`,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to reset global config: %w", err)

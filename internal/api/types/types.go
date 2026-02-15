@@ -70,6 +70,7 @@ type LookupSchemaResponse struct {
 type ConfigResponse struct {
 	CompatibilityLevel string            `json:"compatibilityLevel"`
 	Normalize          *bool             `json:"normalize,omitempty"`
+	ValidateFields     *bool             `json:"validateFields,omitempty"`
 	Alias              string            `json:"alias,omitempty"`
 	CompatibilityGroup string            `json:"compatibilityGroup,omitempty"`
 	DefaultMetadata    *storage.Metadata `json:"defaultMetadata,omitempty"`
@@ -82,6 +83,7 @@ type ConfigResponse struct {
 type ConfigRequest struct {
 	Compatibility      string            `json:"compatibility"`
 	Normalize          *bool             `json:"normalize,omitempty"`
+	ValidateFields     *bool             `json:"validateFields,omitempty"`
 	Alias              string            `json:"alias,omitempty"`
 	CompatibilityGroup string            `json:"compatibilityGroup,omitempty"`
 	DefaultMetadata    *storage.Metadata `json:"defaultMetadata,omitempty"`

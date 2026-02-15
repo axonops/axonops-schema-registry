@@ -395,7 +395,7 @@ func cleanViaAPI() error {
 	}
 
 	// 5. Reset global config to default (clear metadata/ruleSet fields too)
-	configBody := strings.NewReader(`{"compatibility":"BACKWARD","defaultMetadata":null,"overrideMetadata":null,"defaultRuleSet":null,"overrideRuleSet":null}`)
+	configBody := strings.NewReader(`{"compatibility":"BACKWARD","validateFields":null,"defaultMetadata":null,"overrideMetadata":null,"defaultRuleSet":null,"overrideRuleSet":null}`)
 	req, _ = http.NewRequest("PUT", registryURL+"/config", configBody)
 	req.Header.Set("Content-Type", "application/vnd.schemaregistry.v1+json")
 	r, err = client.Do(req)

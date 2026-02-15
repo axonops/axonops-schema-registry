@@ -229,6 +229,10 @@ func Migrate(session *gocql.Session, keyspace string) error {
 		// subject_configs and global_config: compatibility_group
 		fmt.Sprintf(`ALTER TABLE %s.subject_configs ADD compatibility_group text`, qident(keyspace)),
 		fmt.Sprintf(`ALTER TABLE %s.global_config ADD compatibility_group text`, qident(keyspace)),
+
+		// subject_configs and global_config: validate_fields
+		fmt.Sprintf(`ALTER TABLE %s.subject_configs ADD validate_fields boolean`, qident(keyspace)),
+		fmt.Sprintf(`ALTER TABLE %s.global_config ADD validate_fields boolean`, qident(keyspace)),
 	}
 	for _, stmt := range alterStmts {
 		if err := session.Query(stmt).Exec(); err != nil {

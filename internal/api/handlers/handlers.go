@@ -575,6 +575,7 @@ func (h *Handler) GetConfig(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, types.ConfigResponse{
 			CompatibilityLevel: config.CompatibilityLevel,
 			Normalize:          config.Normalize,
+			ValidateFields:     config.ValidateFields,
 			Alias:              config.Alias,
 			CompatibilityGroup: config.CompatibilityGroup,
 			DefaultMetadata:    config.DefaultMetadata,
@@ -594,6 +595,7 @@ func (h *Handler) GetConfig(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, types.ConfigResponse{
 		CompatibilityLevel: config.CompatibilityLevel,
 		Normalize:          config.Normalize,
+		ValidateFields:     config.ValidateFields,
 		Alias:              config.Alias,
 		CompatibilityGroup: config.CompatibilityGroup,
 		DefaultMetadata:    config.DefaultMetadata,
@@ -627,6 +629,7 @@ func (h *Handler) SetConfig(w http.ResponseWriter, r *http.Request) {
 	configOpts := registry.SetConfigOpts{
 		Alias:              req.Alias,
 		CompatibilityGroup: req.CompatibilityGroup,
+		ValidateFields:     req.ValidateFields,
 		DefaultMetadata:    req.DefaultMetadata,
 		OverrideMetadata:   req.OverrideMetadata,
 		DefaultRuleSet:     req.DefaultRuleSet,
@@ -644,6 +647,7 @@ func (h *Handler) SetConfig(w http.ResponseWriter, r *http.Request) {
 	resp := types.ConfigRequest{
 		Compatibility:      strings.ToUpper(req.Compatibility),
 		Normalize:          req.Normalize,
+		ValidateFields:     req.ValidateFields,
 		Alias:              req.Alias,
 		CompatibilityGroup: req.CompatibilityGroup,
 		DefaultMetadata:    req.DefaultMetadata,

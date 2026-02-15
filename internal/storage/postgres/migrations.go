@@ -106,4 +106,7 @@ var migrations = []string{
 
 	// Migration 12: Add compatibility_group column to configs
 	`ALTER TABLE configs ADD COLUMN IF NOT EXISTS compatibility_group VARCHAR(255)`,
+
+	// Migration 13: Add validate_fields column to configs
+	`ALTER TABLE configs ADD COLUMN IF NOT EXISTS validate_fields BOOLEAN`,
 }

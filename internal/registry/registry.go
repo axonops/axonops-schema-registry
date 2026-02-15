@@ -135,6 +135,13 @@ func (r *Registry) RegisterSchema(ctx context.Context, subject string, schemaStr
 		}
 	}
 
+	// Validate reserved fields if enabled
+	if r.isValidateFieldsEnabled(ctx, subject) {
+		if msgs := r.validateReservedFields(ctx, subject, parsed, opt.Metadata); len(msgs) > 0 {
+			return nil, fmt.Errorf("%w: %s", ErrIncompatibleSchema, strings.Join(msgs, "; "))
+		}
+	}
+
 	// Check confluent:version (compare-and-set) if present in metadata
 	if err := r.checkConfluentVersion(ctx, subject, opt.Metadata); err != nil {
 		return nil, err
@@ -627,6 +634,7 @@ func (r *Registry) GetConfigFull(ctx context.Context, subject string) (*storage.
 type SetConfigOpts struct {
 	Alias              string
 	CompatibilityGroup string
+	ValidateFields     *bool
 	DefaultMetadata    *storage.Metadata
 	OverrideMetadata   *storage.Metadata
 	DefaultRuleSet     *storage.RuleSet
@@ -649,6 +657,7 @@ func (r *Registry) SetConfig(ctx context.Context, subject string, level string, 
 		opt := opts[0]
 		config.Alias = opt.Alias
 		config.CompatibilityGroup = opt.CompatibilityGroup
+		config.ValidateFields = opt.ValidateFields
 		config.DefaultMetadata = opt.DefaultMetadata
 		config.OverrideMetadata = opt.OverrideMetadata
 		config.DefaultRuleSet = opt.DefaultRuleSet
@@ -1058,6 +1067,77 @@ func (r *Registry) filterByCompatibilityGroup(ctx context.Context, subject strin
 		}
 	}
 	return filtered
+}
+
+// isValidateFieldsEnabled checks if reserved field validation is enabled for a subject.
+func (r *Registry) isValidateFieldsEnabled(ctx context.Context, subject string) bool {
+	// Check subject config first
+	if subject != "" {
+		config, err := r.storage.GetConfig(ctx, subject)
+		if err == nil && config != nil && config.ValidateFields != nil {
+			return *config.ValidateFields
+		}
+	}
+	// Fall back to global config
+	config, err := r.storage.GetGlobalConfig(ctx)
+	if err == nil && config != nil && config.ValidateFields != nil {
+		return *config.ValidateFields
+	}
+	return false
+}
+
+// getReservedFields extracts reserved field names from the "confluent:reserved"
+// metadata property. Returns an empty set if not present.
+func getReservedFields(metadata *storage.Metadata) map[string]bool {
+	if metadata == nil || metadata.Properties == nil {
+		return nil
+	}
+	val, ok := metadata.Properties["confluent:reserved"]
+	if !ok || val == "" {
+		return nil
+	}
+	fields := make(map[string]bool)
+	for _, f := range strings.Split(val, ",") {
+		f = strings.TrimSpace(f)
+		if f != "" {
+			fields[f] = true
+		}
+	}
+	if len(fields) == 0 {
+		return nil
+	}
+	return fields
+}
+
+// validateReservedFields checks two invariants when validateFields is enabled:
+// 1. Reserved fields listed in metadata must not exist as top-level schema fields.
+// 2. Reserved fields from the previous version must not be removed.
+func (r *Registry) validateReservedFields(ctx context.Context, subject string, parsed schema.ParsedSchema, metadata *storage.Metadata) []string {
+	var msgs []string
+
+	reservedFields := getReservedFields(metadata)
+
+	// Rule 2: Check that reserved fields from previous version are not removed
+	latest, err := r.storage.GetLatestSchema(ctx, subject)
+	if err == nil && latest != nil {
+		prevReserved := getReservedFields(latest.Metadata)
+		for field := range prevReserved {
+			if !reservedFields[field] {
+				msgs = append(msgs, fmt.Sprintf(
+					"The new schema has reserved field %s removed from its metadata which is present in the old schema's metadata.", field))
+			}
+		}
+	}
+
+	// Rule 1: Reserved fields must not conflict with actual schema fields
+	for field := range reservedFields {
+		if parsed.HasTopLevelField(field) {
+			msgs = append(msgs, fmt.Sprintf(
+				"The new schema has field that conflicts with the reserved field %s.", field))
+		}
+	}
+
+	return msgs
 }
 
 // resolveReferences looks up the schema content for each reference from storage.

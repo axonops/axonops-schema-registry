@@ -229,18 +229,19 @@ func (s *Store) prepareStatements() error {
 
 	// Config statements
 	stmts.getConfig, err = s.db.Prepare(
-		`SELECT subject, compatibility_level, alias, normalize, default_metadata, override_metadata, default_ruleset, override_ruleset, compatibility_group FROM configs WHERE subject = $1`)
+		`SELECT subject, compatibility_level, alias, normalize, validate_fields, default_metadata, override_metadata, default_ruleset, override_ruleset, compatibility_group FROM configs WHERE subject = $1`)
 	if err != nil {
 		return fmt.Errorf("prepare getConfig: %w", err)
 	}
 
 	stmts.setConfig, err = s.db.Prepare(
-		`INSERT INTO configs (subject, compatibility_level, alias, normalize, default_metadata, override_metadata, default_ruleset, override_ruleset, compatibility_group)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		`INSERT INTO configs (subject, compatibility_level, alias, normalize, validate_fields, default_metadata, override_metadata, default_ruleset, override_ruleset, compatibility_group)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 		 ON CONFLICT (subject) DO UPDATE SET
 		     compatibility_level = EXCLUDED.compatibility_level,
 		     alias = EXCLUDED.alias,
 		     normalize = EXCLUDED.normalize,
+		     validate_fields = EXCLUDED.validate_fields,
 		     default_metadata = EXCLUDED.default_metadata,
 		     override_metadata = EXCLUDED.override_metadata,
 		     default_ruleset = EXCLUDED.default_ruleset,
@@ -1060,12 +1061,13 @@ func (s *Store) GetConfig(ctx context.Context, subject string) (*storage.ConfigR
 	config := &storage.ConfigRecord{}
 	var alias sql.NullString
 	var normalize sql.NullBool
+	var validateFields sql.NullBool
 	var compatibilityGroup sql.NullString
 	var defaultMetadataJSON, overrideMetadataJSON, defaultRulesetJSON, overrideRulesetJSON []byte
 
 	err := s.stmts.getConfig.QueryRowContext(ctx, subject).Scan(
 		&config.Subject, &config.CompatibilityLevel,
-		&alias, &normalize,
+		&alias, &normalize, &validateFields,
 		&defaultMetadataJSON, &overrideMetadataJSON,
 		&defaultRulesetJSON, &overrideRulesetJSON,
 		&compatibilityGroup)
@@ -1083,6 +1085,10 @@ func (s *Store) GetConfig(ctx context.Context, subject string) (*storage.ConfigR
 	if normalize.Valid {
 		v := normalize.Bool
 		config.Normalize = &v
+	}
+	if validateFields.Valid {
+		v := validateFields.Bool
+		config.ValidateFields = &v
 	}
 	if compatibilityGroup.Valid {
 		config.CompatibilityGroup = compatibilityGroup.String
@@ -1127,7 +1133,7 @@ func (s *Store) SetConfig(ctx context.Context, subject string, config *storage.C
 	}
 
 	_, err = s.stmts.setConfig.ExecContext(ctx, subject, config.CompatibilityLevel,
-		aliasVal, config.Normalize,
+		aliasVal, config.Normalize, config.ValidateFields,
 		defaultMetadataJSON, overrideMetadataJSON,
 		defaultRulesetJSON, overrideRulesetJSON,
 		compatGroupVal)
@@ -1521,12 +1527,13 @@ func (s *Store) ListSchemas(ctx context.Context, params *storage.ListSchemasPara
 // DeleteGlobalConfig resets the global config to default.
 func (s *Store) DeleteGlobalConfig(ctx context.Context) error {
 	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO configs (subject, compatibility_level, alias, normalize, default_metadata, override_metadata, default_ruleset, override_ruleset, compatibility_group)
-		 VALUES ('', 'BACKWARD', NULL, NULL, NULL, NULL, NULL, NULL, NULL)
+		`INSERT INTO configs (subject, compatibility_level, alias, normalize, validate_fields, default_metadata, override_metadata, default_ruleset, override_ruleset, compatibility_group)
+		 VALUES ('', 'BACKWARD', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)
 		 ON CONFLICT (subject) DO UPDATE SET
 		     compatibility_level = 'BACKWARD',
 		     alias = NULL,
 		     normalize = NULL,
+		     validate_fields = NULL,
 		     default_metadata = NULL,
 		     override_metadata = NULL,
 		     default_ruleset = NULL,

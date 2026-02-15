@@ -1361,13 +1361,13 @@ func (s *Store) GetConfig(ctx context.Context, subject string) (*storage.ConfigR
 		return s.GetGlobalConfig(ctx)
 	}
 	var compat, alias string
-	var normalize *bool
+	var normalize, validateFields *bool
 	var compatibilityGroup string
 	var defaultMetadataStr, overrideMetadataStr, defaultRulesetStr, overrideRulesetStr string
 	err := s.readQuery(
-		fmt.Sprintf(`SELECT compatibility, alias, normalize, default_metadata, override_metadata, default_ruleset, override_ruleset, compatibility_group FROM %s.subject_configs WHERE subject = ?`, qident(s.cfg.Keyspace)),
+		fmt.Sprintf(`SELECT compatibility, alias, normalize, validate_fields, default_metadata, override_metadata, default_ruleset, override_ruleset, compatibility_group FROM %s.subject_configs WHERE subject = ?`, qident(s.cfg.Keyspace)),
 		subject,
-	).WithContext(ctx).Scan(&compat, &alias, &normalize, &defaultMetadataStr, &overrideMetadataStr, &defaultRulesetStr, &overrideRulesetStr, &compatibilityGroup)
+	).WithContext(ctx).Scan(&compat, &alias, &normalize, &validateFields, &defaultMetadataStr, &overrideMetadataStr, &defaultRulesetStr, &overrideRulesetStr, &compatibilityGroup)
 	if err != nil {
 		if errors.Is(err, gocql.ErrNotFound) {
 			return nil, storage.ErrNotFound
@@ -1379,6 +1379,7 @@ func (s *Store) GetConfig(ctx context.Context, subject string) (*storage.ConfigR
 		CompatibilityLevel: compat,
 		Alias:              alias,
 		Normalize:          normalize,
+		ValidateFields:     validateFields,
 		CompatibilityGroup: compatibilityGroup,
 		DefaultMetadata:    unmarshalJSONText[storage.Metadata](defaultMetadataStr),
 		OverrideMetadata:   unmarshalJSONText[storage.Metadata](overrideMetadataStr),
@@ -1394,9 +1395,9 @@ func (s *Store) SetConfig(ctx context.Context, subject string, config *storage.C
 	}
 	compat := normalizeCompat(config.CompatibilityLevel)
 	return s.writeQuery(
-		fmt.Sprintf(`INSERT INTO %s.subject_configs (subject, compatibility, alias, normalize, default_metadata, override_metadata, default_ruleset, override_ruleset, compatibility_group, updated_at)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, now())`, qident(s.cfg.Keyspace)),
-		subject, compat, config.Alias, config.Normalize,
+		fmt.Sprintf(`INSERT INTO %s.subject_configs (subject, compatibility, alias, normalize, validate_fields, default_metadata, override_metadata, default_ruleset, override_ruleset, compatibility_group, updated_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())`, qident(s.cfg.Keyspace)),
+		subject, compat, config.Alias, config.Normalize, config.ValidateFields,
 		marshalJSONText(config.DefaultMetadata), marshalJSONText(config.OverrideMetadata),
 		marshalJSONText(config.DefaultRuleSet), marshalJSONText(config.OverrideRuleSet),
 		config.CompatibilityGroup,
@@ -1422,13 +1423,13 @@ func (s *Store) DeleteConfig(ctx context.Context, subject string) error {
 // GetGlobalConfig retrieves the global compatibility config.
 func (s *Store) GetGlobalConfig(ctx context.Context) (*storage.ConfigRecord, error) {
 	var compat, alias string
-	var normalize *bool
+	var normalize, validateFields *bool
 	var compatibilityGroup string
 	var defaultMetadataStr, overrideMetadataStr, defaultRulesetStr, overrideRulesetStr string
 	err := s.readQuery(
-		fmt.Sprintf(`SELECT compatibility, alias, normalize, default_metadata, override_metadata, default_ruleset, override_ruleset, compatibility_group FROM %s.global_config WHERE key = ?`, qident(s.cfg.Keyspace)),
+		fmt.Sprintf(`SELECT compatibility, alias, normalize, validate_fields, default_metadata, override_metadata, default_ruleset, override_ruleset, compatibility_group FROM %s.global_config WHERE key = ?`, qident(s.cfg.Keyspace)),
 		"global",
-	).WithContext(ctx).Scan(&compat, &alias, &normalize, &defaultMetadataStr, &overrideMetadataStr, &defaultRulesetStr, &overrideRulesetStr, &compatibilityGroup)
+	).WithContext(ctx).Scan(&compat, &alias, &normalize, &validateFields, &defaultMetadataStr, &overrideMetadataStr, &defaultRulesetStr, &overrideRulesetStr, &compatibilityGroup)
 	if err != nil {
 		if errors.Is(err, gocql.ErrNotFound) {
 			return nil, storage.ErrNotFound
@@ -1440,6 +1441,7 @@ func (s *Store) GetGlobalConfig(ctx context.Context) (*storage.ConfigRecord, err
 		CompatibilityLevel: compat,
 		Alias:              alias,
 		Normalize:          normalize,
+		ValidateFields:     validateFields,
 		CompatibilityGroup: compatibilityGroup,
 		DefaultMetadata:    unmarshalJSONText[storage.Metadata](defaultMetadataStr),
 		OverrideMetadata:   unmarshalJSONText[storage.Metadata](overrideMetadataStr),
@@ -1452,7 +1454,7 @@ func (s *Store) GetGlobalConfig(ctx context.Context) (*storage.ConfigRecord, err
 func (s *Store) SetGlobalConfig(ctx context.Context, config *storage.ConfigRecord) error {
 	compat := "BACKWARD"
 	var alias string
-	var normalize *bool
+	var normalize, validateFields *bool
 	var compatibilityGroup string
 	var defaultMetadata, overrideMetadata *storage.Metadata
 	var defaultRuleSet, overrideRuleSet *storage.RuleSet
@@ -1460,6 +1462,7 @@ func (s *Store) SetGlobalConfig(ctx context.Context, config *storage.ConfigRecor
 		compat = normalizeCompat(config.CompatibilityLevel)
 		alias = config.Alias
 		normalize = config.Normalize
+		validateFields = config.ValidateFields
 		compatibilityGroup = config.CompatibilityGroup
 		defaultMetadata = config.DefaultMetadata
 		overrideMetadata = config.OverrideMetadata
@@ -1467,9 +1470,9 @@ func (s *Store) SetGlobalConfig(ctx context.Context, config *storage.ConfigRecor
 		overrideRuleSet = config.OverrideRuleSet
 	}
 	return s.writeQuery(
-		fmt.Sprintf(`INSERT INTO %s.global_config (key, compatibility, alias, normalize, default_metadata, override_metadata, default_ruleset, override_ruleset, compatibility_group, updated_at)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, now())`, qident(s.cfg.Keyspace)),
-		"global", compat, alias, normalize,
+		fmt.Sprintf(`INSERT INTO %s.global_config (key, compatibility, alias, normalize, validate_fields, default_metadata, override_metadata, default_ruleset, override_ruleset, compatibility_group, updated_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())`, qident(s.cfg.Keyspace)),
+		"global", compat, alias, normalize, validateFields,
 		marshalJSONText(defaultMetadata), marshalJSONText(overrideMetadata),
 		marshalJSONText(defaultRuleSet), marshalJSONText(overrideRuleSet),
 		compatibilityGroup,
@@ -1479,9 +1482,9 @@ func (s *Store) SetGlobalConfig(ctx context.Context, config *storage.ConfigRecor
 // DeleteGlobalConfig resets the global config to the default (BACKWARD).
 func (s *Store) DeleteGlobalConfig(ctx context.Context) error {
 	return s.writeQuery(
-		fmt.Sprintf(`INSERT INTO %s.global_config (key, compatibility, alias, normalize, default_metadata, override_metadata, default_ruleset, override_ruleset, compatibility_group, updated_at)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, now())`, qident(s.cfg.Keyspace)),
-		"global", "BACKWARD", "", nil, "", "", "", "", "",
+		fmt.Sprintf(`INSERT INTO %s.global_config (key, compatibility, alias, normalize, validate_fields, default_metadata, override_metadata, default_ruleset, override_ruleset, compatibility_group, updated_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())`, qident(s.cfg.Keyspace)),
+		"global", "BACKWARD", "", nil, nil, "", "", "", "", "",
 	).WithContext(ctx).Exec()
 }
 

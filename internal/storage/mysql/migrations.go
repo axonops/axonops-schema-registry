@@ -117,4 +117,7 @@ var migrations = []string{
 
 	// Migration 19: Add compatibility_group column to configs
 	"ALTER TABLE configs ADD COLUMN compatibility_group VARCHAR(255)",
+
+	// Migration 20: Add validate_fields column to configs
+	"ALTER TABLE configs ADD COLUMN validate_fields BOOLEAN",
 }
