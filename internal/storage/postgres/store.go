@@ -533,6 +533,15 @@ func (s *Store) createSchemaAttempt(ctx context.Context, record *storage.SchemaR
 		return fmt.Errorf("failed to marshal ruleset: %w", err)
 	}
 
+	// If a soft-deleted row with the same fingerprint exists, remove it first
+	// to avoid violating the unique constraint on (subject, fingerprint).
+	if existingDeleted {
+		_, _ = tx.ExecContext(ctx,
+			`DELETE FROM schemas WHERE subject = $1 AND fingerprint = $2`,
+			record.Subject, record.Fingerprint,
+		)
+	}
+
 	// Insert schema - unique constraint on (subject, version) prevents duplicates
 	_, err = tx.ExecContext(ctx,
 		`INSERT INTO schemas (subject, version, schema_type, schema_text, fingerprint, created_at, metadata, ruleset)

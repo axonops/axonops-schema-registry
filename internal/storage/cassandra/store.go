@@ -1250,6 +1250,14 @@ func (s *Store) GetReferencedBy(ctx context.Context, subject string, version int
 	var refs []storage.SubjectVersion
 	var ref storage.SubjectVersion
 	for iter.Scan(&ref.Subject, &ref.Version) {
+		// Filter out soft-deleted referrers (consistent with memory store behavior)
+		var deleted bool
+		if err := s.readQuery(
+			fmt.Sprintf(`SELECT deleted FROM %s.subject_versions WHERE subject = ? AND version = ?`, qident(s.cfg.Keyspace)),
+			ref.Subject, ref.Version,
+		).WithContext(ctx).Scan(&deleted); err != nil || deleted {
+			continue
+		}
 		refs = append(refs, ref)
 	}
 	if err := iter.Close(); err != nil {
