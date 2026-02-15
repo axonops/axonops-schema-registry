@@ -56,8 +56,8 @@ func truncateCassandra(t *testing.T, cfg cassandra.Config) {
 		"users_by_email", "users_by_id",
 		"id_alloc", "modes", "global_config", "subject_configs",
 		"references_by_target", "schema_references",
-		"subjects", "subject_latest", "subject_versions",
-		"schemas_by_fingerprint", "schemas_by_id",
+		"subject_latest", "subject_versions",
+		"schemas_by_id",
 	}
 	for _, table := range tables {
 		if err := session.Query("TRUNCATE " + table).Exec(); err != nil {
