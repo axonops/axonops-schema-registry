@@ -313,6 +313,13 @@ func cleanCassandra() error {
 			return fmt.Errorf("truncate %s: %w", t, err)
 		}
 	}
+
+	// Re-seed id_alloc so GetMaxSchemaID works (block-based allocator
+	// caches IDs in-process, but GetMaxSchemaID reads from the table).
+	if err := session.Query("INSERT INTO id_alloc (name, next_id) VALUES (?, ?)",
+		"schema_id", 1).Exec(); err != nil {
+		return fmt.Errorf("seed id_alloc: %w", err)
+	}
 	return nil
 }
 
