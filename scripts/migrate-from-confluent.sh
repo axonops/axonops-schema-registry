@@ -244,6 +244,16 @@ import_schemas() {
 
     log_info "Importing $schema_count schemas..."
 
+    # Set IMPORT mode on target (required for explicit ID import)
+    log_info "Setting target to IMPORT mode..."
+    if ! curl -sf ${TARGET_AUTH[@]+"${TARGET_AUTH[@]}"} \
+        -X PUT "$TARGET_URL/mode?force=true" \
+        -H "Content-Type: application/json" \
+        -d '{"mode":"IMPORT"}' > /dev/null; then
+        log_error "Failed to set IMPORT mode on target"
+        exit 1
+    fi
+
     # Import all schemas in one request
     local response
     response=$(curl -sf ${TARGET_AUTH[@]+"${TARGET_AUTH[@]}"} \
@@ -263,6 +273,13 @@ import_schemas() {
         log_warn "Some schemas failed to import:"
         echo "$response" | jq -r '.results[] | select(.success == false) | "  ID \(.id) (\(.subject) v\(.version)): \(.error)"'
     fi
+
+    # Restore READWRITE mode so normal operations can resume
+    log_info "Restoring target to READWRITE mode..."
+    curl -sf ${TARGET_AUTH[@]+"${TARGET_AUTH[@]}"} \
+        -X PUT "$TARGET_URL/mode" \
+        -H "Content-Type: application/json" \
+        -d '{"mode":"READWRITE"}' > /dev/null || true
 }
 
 # Verify migration
