@@ -206,8 +206,8 @@ AxonOps Schema Registry implements the Confluent Schema Registry REST API v1:
 
 **Known differences:**
 
-- Contexts are single-tenant only and always return `["."]`
-- Cluster coordination uses database constraints instead of Kafka
+- **Contexts** -- In Confluent Schema Registry, contexts are a multi-tenancy feature that allows multiple schemas with the same subject names and IDs to coexist in separate namespaces (e.g. `".team-a"`, `".team-b"`). Subjects are qualified with a context prefix (e.g. `:.mycontext:my-subject`), and schema IDs are unique within each context. This is primarily used for Schema Linking and enterprise multi-tenant deployments. AxonOps Schema Registry operates as a single-tenant registry -- the `GET /contexts` endpoint always returns `["."]` (the default context only), and context-qualified subject names are not supported.
+- **Cluster coordination** -- Confluent uses Kafka's group protocol for leader election between registry instances. AxonOps instances are fully stateless with no leader election -- database-level constraints (transactions, LWTs) handle coordination instead.
 
 ---
 
