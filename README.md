@@ -85,7 +85,7 @@ Unlike Confluent Schema Registry, which uses Kafka itself (a special `_schemas` 
 | **Prometheus Metrics** | ✅ | ✅ | ✅ | ✅ |
 | **REST Proxy** | ❌ | Separate | Separate | ✅ |
 | **Schema Validation** | ✅ | ✅ | ✅ | ✅ |
-| **Multi-Tenant Contexts** | [Planned](https://github.com/axonops/axonops-schema-registry/issues/264) | ✅ | ✅ | ✅ |
+| **Multi-Tenant Contexts** | [Planned](https://github.com/axonops/axonops-schema-registry/issues/264) | ✅ | ✅ | ❌ |
 | **Schema Linking** | ❌ | ❌ | ✅ | ❌ |
 | **Single Binary** | ✅ | ❌ | ❌ | ❌ |
 | **Memory Footprint** | ~50MB | ~500MB+ | ~500MB+ | ~200MB+ |
