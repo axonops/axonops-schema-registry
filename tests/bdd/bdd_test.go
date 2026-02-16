@@ -330,11 +330,18 @@ func cleanCassandra() error {
 		"id_alloc", "modes", "global_config", "subject_configs",
 		"references_by_target", "schema_references",
 		"subject_latest", "subject_versions",
-		"schemas_by_id", "schema_fingerprints",
+		"schemas_by_id",
 	}
 	for _, t := range tables {
 		if err := session.Query("TRUNCATE " + t).Exec(); err != nil {
 			return fmt.Errorf("truncate %s: %w", t, err)
+		}
+	}
+	// schema_fingerprints may not exist on older schema-registry images;
+	// ignore "unconfigured table" errors so cleanup stays compatible.
+	if err := session.Query("TRUNCATE schema_fingerprints").Exec(); err != nil {
+		if !strings.Contains(err.Error(), "unconfigured table") {
+			return fmt.Errorf("truncate schema_fingerprints: %w", err)
 		}
 	}
 
