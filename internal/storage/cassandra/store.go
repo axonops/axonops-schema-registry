@@ -386,16 +386,11 @@ func (s *Store) ImportSchema(ctx context.Context, record *storage.SchemaRecord) 
 
 	// Insert schema content if this is a new ID
 	if !idExists {
-		// Claim fingerprint atomically via LWT — prevents a concurrent CreateSchema
-		// from allocating a different ID for the same schema content.
-		applied, existingFpID, fpErr := s.claimFingerprint(ctx, fp, record.ID)
-		if fpErr != nil {
-			return fmt.Errorf("failed to claim fingerprint for import: %w", fpErr)
-		}
-		if !applied && existingFpID != record.ID {
-			// Fingerprint already claimed by a different schema_id — conflict
-			return storage.ErrSchemaIDConflict
-		}
+		// For imports, claim fingerprint but don't reject on conflict — import mode
+		// preserves external IDs, so the same schema content (e.g. {"type":"string"})
+		// can legitimately appear with different IDs across different subjects/imports.
+		// The fingerprint table is primarily for CreateSchema dedup, not import enforcement.
+		_, _, _ = s.claimFingerprint(ctx, fp, record.ID)
 
 		if err := s.writeQuery(
 			fmt.Sprintf(`INSERT INTO %s.schemas_by_id (schema_id, schema_type, fingerprint, schema_text, canonical_text, created_at, metadata, ruleset)

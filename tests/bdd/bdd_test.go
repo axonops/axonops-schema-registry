@@ -330,7 +330,7 @@ func cleanCassandra() error {
 		"id_alloc", "modes", "global_config", "subject_configs",
 		"references_by_target", "schema_references",
 		"subject_latest", "subject_versions",
-		"schemas_by_id",
+		"schemas_by_id", "schema_fingerprints",
 	}
 	for _, t := range tables {
 		if err := session.Query("TRUNCATE " + t).Exec(); err != nil {
