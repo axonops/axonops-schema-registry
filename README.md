@@ -1,23 +1,47 @@
-# AxonOps Schema Registry
+<div align="center">
+  <img src="assets/axonops-logo.png" alt="AxonOps Schema Registry" width="128">
 
-A high-performance, API-compatible Kafka Schema Registry written in Go. Drop-in replacement for Confluent Schema Registry with enterprise features including multiple storage backends, flexible authentication, and comprehensive audit logging.
+  # AxonOps Schema Registry
+
+  **High-Performance, API-Compatible Drop-In Replacement for Confluent Schema Registry**
+
+  [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+  [![Go Version](https://img.shields.io/badge/Go-1.24+-00ADD8.svg)](https://go.dev/)
+  [![GitHub Issues](https://img.shields.io/github/issues/axonops/axonops-schema-registry)](https://github.com/axonops/axonops-schema-registry/issues)
+
+  [Getting Started](docs/getting-started.md) | [Documentation](docs/) | [API Reference](docs/api-reference.md) | [Report Issue](https://github.com/axonops/axonops-schema-registry/issues/new/choose)
+
+</div>
+
+---
+
+## Overview
+
+[AxonOps Schema Registry](https://github.com/axonops/axonops-schema-registry) is a **schema registry for Apache Kafka** that manages and enforces schemas for event-driven architectures. It stores versioned Avro, Protobuf, and JSON Schema definitions, validates compatibility between schema versions, and ensures producers and consumers agree on data formats.
+
+Unlike Confluent Schema Registry, it **does not require Kafka or ZooKeeper** for its own storage -- it uses standard databases (PostgreSQL, MySQL, or Cassandra) while remaining **fully API-compatible** with Confluent's REST API, serializers, and client libraries.
+
+<div align="center">
+
+  ### 100% Free & Open Source
+
+  **Apache 2.0 Licensed -- No hidden costs -- No premium tiers -- No license keys**
+
+</div>
 
 ## Contents
 
 - [Why AxonOps Schema Registry?](#why-axonops-schema-registry)
 - [Quick Start](#quick-start)
 - [Features](#features)
-  - [Schema Management](#schema-management)
-  - [Storage Backends](#storage-backends)
-  - [Security](#security)
-  - [Operations](#operations)
 - [Feature Comparison](#feature-comparison)
 - [Architecture](#architecture)
 - [API Compatibility](#api-compatibility)
 - [Documentation](#documentation)
+- [Development](#development)
+- [Community & Support](#community--support)
 - [License](#license)
-- [Contributing](#contributing)
-- [Support](#support)
+- [Legal Notices](#legal-notices)
 
 ## Why AxonOps Schema Registry?
 
@@ -26,6 +50,7 @@ A high-performance, API-compatible Kafka Schema Registry written in Go. Drop-in 
 - **Full API Compatibility** -- works with Confluent serializers for Java, Go, and Python
 - **Enterprise Security** -- LDAP, OIDC, mTLS, API keys, JWT, and RBAC out of the box
 - **Cloud Native** -- designed for Kubernetes with health checks, Prometheus metrics, and graceful shutdown
+- **Multi-Datacenter** -- active-active deployments with Cassandra's native cross-DC replication
 
 ## Quick Start
 
@@ -49,6 +74,8 @@ curl -X POST http://localhost:8081/compatibility/subjects/users-value/versions/l
 
 See the [Getting Started](docs/getting-started.md) guide for Kafka client integration examples in Java, Go, and Python.
 
+---
+
 ## Features
 
 ### Schema Management
@@ -61,33 +88,44 @@ See the [Getting Started](docs/getting-started.md) guide for Kafka client integr
 
 ### Storage Backends
 
+<div align="center">
+
 | Backend | Use Case | Concurrency Model |
 |---------|----------|-------------------|
 | **PostgreSQL** | Production | ACID transactions with row-level locking |
 | **MySQL** | Production | ACID transactions with `SELECT ... FOR UPDATE` |
-| **Cassandra** | Distributed/HA | Lightweight transactions (LWT) + SAI indexes |
+| **Cassandra 5+** | Distributed / HA | Lightweight transactions (LWT) + SAI indexes |
 | **Memory** | Development | Mutex-based, no persistence |
+
+</div>
+
+> **Note:** The Cassandra storage backend requires **Cassandra 5.0 or later**. Earlier versions are not supported.
 
 Auth storage can optionally be separated into HashiCorp Vault.
 
 ### Security
 
-- **Authentication**: Basic Auth, API Keys, JWT, LDAP/AD, OIDC, mTLS
-- **Authorization**: RBAC with 4 built-in roles (super_admin, admin, developer, readonly)
-- **Rate Limiting**: Token bucket algorithm, per-client or per-endpoint
-- **Audit Logging**: Structured JSON events to file or stdout
-- **TLS**: Auto-reload certificates, configurable minimum version, mutual TLS
+- **Authentication** -- Basic Auth, API Keys, JWT, LDAP/AD, OIDC, mTLS
+- **Authorization** -- RBAC with 4 built-in roles (super_admin, admin, developer, readonly)
+- **Rate Limiting** -- Token bucket algorithm, per-client or per-endpoint
+- **Audit Logging** -- Structured JSON events to file or stdout
+- **TLS** -- Auto-reload certificates, configurable minimum version, mutual TLS
 
 ### Operations
 
-- **Prometheus Metrics**: 19 metrics covering requests, schemas, compatibility, storage, cache, auth, and rate limiting
-- **Health Checks**: `GET /` for load balancer and Kubernetes probes
-- **Graceful Shutdown**: Clean connection draining on SIGTERM/SIGINT
-- **Database Migrations**: Automatic schema creation and upgrades
+- **Prometheus Metrics** -- 19 metrics covering requests, schemas, compatibility, storage, cache, auth, and rate limiting
+- **Health Checks** -- `GET /` for load balancer and Kubernetes probes
+- **Swagger UI** -- Built-in interactive API documentation at `GET /docs`
+- **Graceful Shutdown** -- Clean connection draining on SIGTERM/SIGINT
+- **Database Migrations** -- Automatic schema creation and upgrades
+
+---
 
 ## Feature Comparison
 
 *Comparison based on upstream/default configurations. Third-party plugins may extend capabilities.*
+
+<div align="center">
 
 | Feature | AxonOps | Confluent OSS | Confluent Enterprise | Karapace |
 |---------|---------|---------------|---------------------|----------|
@@ -117,6 +155,10 @@ Auth storage can optionally be separated into HashiCorp Vault.
 | **Schema Validation** | Yes | Yes | Yes | Yes |
 | **Single Binary** | Yes | No | No | No |
 | **Memory Footprint** | ~50MB | ~500MB+ | ~500MB+ | ~200MB+ |
+
+</div>
+
+---
 
 ## Architecture
 
@@ -152,20 +194,27 @@ Active-active across datacenters with automatic cross-DC replication via Cassand
 
 ![Schema Registration Flow](assets/schema-flow.svg)
 
+---
+
 ## API Compatibility
 
 AxonOps Schema Registry implements the Confluent Schema Registry REST API v1:
 
-- **All endpoints**: schemas, subjects, compatibility, config, mode, import
-- **All serializers**: compatible with Confluent's Avro, Protobuf, and JSON Schema serializers
-- **All client libraries**: works with `confluent-kafka-go`, `confluent-kafka-python`, and Java Kafka clients
-- **Error format**: HTTP status codes and error response JSON match Confluent behavior
+- **All endpoints** -- schemas, subjects, compatibility, config, mode, import
+- **All serializers** -- compatible with Confluent's Avro, Protobuf, and JSON Schema serializers
+- **All client libraries** -- works with `confluent-kafka-go`, `confluent-kafka-python`, and Java Kafka clients
+- **Error format** -- HTTP status codes and error response JSON match Confluent behavior
 
-**Known differences**:
+**Known differences:**
+
 - Contexts are single-tenant only and always return `["."]`
 - Cluster coordination uses database constraints instead of Kafka
 
+---
+
 ## Documentation
+
+<div align="center">
 
 | Guide | Description |
 |-------|-------------|
@@ -184,14 +233,78 @@ AxonOps Schema Registry implements the Confluent Schema Registry REST API v1:
 | [Development](docs/development.md) | Building from source, running the test suite, and contributing |
 | [Troubleshooting](docs/troubleshooting.md) | Common issues, diagnostic commands, and error code reference |
 
+</div>
+
+---
+
+## Development
+
+### Building from Source
+
+```bash
+git clone https://github.com/axonops/axonops-schema-registry.git
+cd axonops-schema-registry
+make build
+```
+
+### Running Tests
+
+```bash
+# Unit tests
+make test
+
+# Integration tests (requires Docker)
+make test-integration
+
+# BDD tests
+make test-bdd
+
+# All tests with coverage
+make test-coverage
+```
+
+See the [Development](docs/development.md) guide for the full build, test, and contribution workflow.
+
+### Contributing
+
+We welcome contributions from the community. Please read the [Development](docs/development.md) guide before submitting pull requests. It covers:
+
+- Code conventions and project structure
+- Testing philosophy and how to write tests
+- Step-by-step developer workflows
+- How to update the API and regenerate documentation
+
+---
+
+## Community & Support
+
+- **GitHub Issues** -- [Report bugs or request features](https://github.com/axonops/axonops-schema-registry/issues/new/choose)
+- **GitHub Discussions** -- [Ask questions and share ideas](https://github.com/axonops/axonops-schema-registry/discussions)
+- **Website** -- [axonops.com](https://axonops.com)
+
+If you find AxonOps Schema Registry useful, please consider giving us a star!
+
+---
+
 ## License
 
 Apache License 2.0 -- see [LICENSE](LICENSE) for details.
 
-## Contributing
+---
 
-Contributions are welcome. See the [Development](docs/development.md) guide for build instructions, test targets, and code conventions.
+## Legal Notices
 
-## Support
+*This project may contain trademarks or logos for projects, products, or services. Any use of third-party trademarks or logos is subject to those third parties' policies.*
 
-- **GitHub Issues**: [Report bugs or request features](https://github.com/axonops/axonops-schema-registry/issues)
+- **AxonOps** is a registered trademark of AxonOps Limited.
+- **Apache**, **Apache Cassandra**, **Cassandra**, **Apache Kafka**, and **Kafka** are either registered trademarks or trademarks of the Apache Software Foundation or its subsidiaries in Canada, the United States, and/or other countries.
+
+---
+
+<div align="center">
+
+  Made with :heart: by the [AxonOps](https://axonops.com) team
+
+  Copyright &copy; 2025 AxonOps Limited
+
+</div>
