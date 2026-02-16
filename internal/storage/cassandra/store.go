@@ -255,16 +255,16 @@ func (s *Store) reserveIDBlock(ctx context.Context, blockSize int64) (int64, err
 }
 
 // GetMaxSchemaID returns the highest schema ID currently assigned.
+// Queries the actual schemas_by_id table rather than the block allocator,
+// which would over-report by up to IDBlockSize-1 due to pre-reserved blocks.
 func (s *Store) GetMaxSchemaID(ctx context.Context) (int64, error) {
-	var nextID int
-	if err := s.session.Query(
-		fmt.Sprintf(`SELECT next_id FROM %s.id_alloc WHERE name = ?`, qident(s.cfg.Keyspace)),
-		"schema_id",
-	).WithContext(ctx).Scan(&nextID); err != nil {
+	var maxID int
+	if err := s.readQuery(
+		fmt.Sprintf(`SELECT MAX(schema_id) FROM %s.schemas_by_id`, qident(s.cfg.Keyspace)),
+	).WithContext(ctx).Scan(&maxID); err != nil {
 		return 0, fmt.Errorf("failed to get max schema ID: %w", err)
 	}
-	// next_id is the next ID to assign, so max assigned is next_id - 1
-	return int64(nextID - 1), nil
+	return int64(maxID), nil
 }
 
 // SetNextID sets the ID sequence to start from the given value.

@@ -120,4 +120,13 @@ var migrations = []string{
 
 	// Migration 20: Add validate_fields column to configs
 	"ALTER TABLE configs ADD COLUMN validate_fields BOOLEAN",
+
+	// Migration 21: schema_fingerprints table for stable global ID resolution.
+	// Maps each unique schema fingerprint to an immutable schema_id, matching
+	// the Cassandra backend's approach.
+	"CREATE TABLE IF NOT EXISTS schema_fingerprints (" +
+		"fingerprint VARCHAR(64) PRIMARY KEY," +
+		"schema_id BIGINT NOT NULL," +
+		"UNIQUE KEY idx_schema_fingerprints_schema_id (schema_id)" +
+		") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
 }

@@ -67,14 +67,20 @@ func NewWithConfig(reg *registry.Registry, cfg Config) *Handler {
 }
 
 // checkModeForWrite checks if the current mode allows write operations for the given subject.
-// Returns an error message if writes are blocked, or empty string if allowed.
+// Returns:
+//   - mode string: non-empty if writes are blocked by READONLY or READONLY_OVERRIDE
+//   - error: non-nil if the mode check itself failed (e.g. storage unreachable)
+//
 // Both READONLY and READONLY_OVERRIDE block data and config writes.
-func (h *Handler) checkModeForWrite(r *http.Request, subject string) string {
-	mode, _ := h.registry.GetMode(r.Context(), subject)
-	if mode == "READONLY" || mode == "READONLY_OVERRIDE" {
-		return mode
+func (h *Handler) checkModeForWrite(r *http.Request, subject string) (string, error) {
+	mode, err := h.registry.GetMode(r.Context(), subject)
+	if err != nil {
+		return "", fmt.Errorf("failed to check mode: %w", err)
 	}
-	return ""
+	if mode == "READONLY" || mode == "READONLY_OVERRIDE" {
+		return mode, nil
+	}
+	return "", nil
 }
 
 // resolveAlias resolves a subject alias. If the subject has an alias configured,
@@ -319,6 +325,8 @@ func (h *Handler) GetVersion(w http.ResponseWriter, r *http.Request) {
 }
 
 // findDeletedVersion looks up a soft-deleted version by iterating all versions including deleted.
+// When version is -1 (the "latest" sentinel), it returns the highest-versioned schema
+// among all versions (including soft-deleted), matching Confluent's behavior.
 func (h *Handler) findDeletedVersion(ctx context.Context, subject string, version int) (*storage.SchemaRecord, error) {
 	schemas, err := h.registry.GetSchemasBySubject(ctx, subject, true) // include deleted
 	if err != nil {
@@ -327,6 +335,21 @@ func (h *Handler) findDeletedVersion(ctx context.Context, subject string, versio
 	if len(schemas) == 0 {
 		return nil, storage.ErrSubjectNotFound
 	}
+
+	// "latest" sentinel: return the highest version among all (including deleted)
+	if version == -1 {
+		var latest *storage.SchemaRecord
+		for _, s := range schemas {
+			if latest == nil || s.Version > latest.Version {
+				latest = s
+			}
+		}
+		if latest != nil {
+			return latest, nil
+		}
+		return nil, storage.ErrVersionNotFound
+	}
+
 	for _, s := range schemas {
 		if s.Version == version {
 			return s, nil
@@ -357,7 +380,10 @@ func (h *Handler) RegisterSchema(w http.ResponseWriter, r *http.Request) {
 	subject := h.resolveAlias(r.Context(), chi.URLParam(r, "subject"))
 
 	// Check mode enforcement
-	if mode := h.checkModeForWrite(r, subject); mode != "" {
+	if mode, modeErr := h.checkModeForWrite(r, subject); modeErr != nil {
+		writeError(w, http.StatusInternalServerError, types.ErrorCodeStorageError, modeErr.Error())
+		return
+	} else if mode != "" {
 		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeOperationNotPermitted,
 			fmt.Sprintf("Subject '%s' is in %s mode", subject, mode))
 		return
@@ -384,8 +410,18 @@ func (h *Handler) RegisterSchema(w http.ResponseWriter, r *http.Request) {
 	var schema *storage.SchemaRecord
 	var err error
 
-	// In IMPORT mode with explicit ID, use import path
+	// Explicit ID requires IMPORT mode (Confluent behavior)
 	if req.ID > 0 {
+		mode, modeErr := h.registry.GetMode(r.Context(), subject)
+		if modeErr != nil {
+			writeError(w, http.StatusInternalServerError, types.ErrorCodeStorageError, "Failed to check mode")
+			return
+		}
+		if mode != "IMPORT" {
+			writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeOperationNotPermitted,
+				fmt.Sprintf("Subject '%s' is not in import mode. Registering schemas with explicit IDs requires IMPORT mode.", subject))
+			return
+		}
 		schema, err = h.registry.RegisterSchemaWithID(r.Context(), subject, req.Schema, schemaType, req.References, req.ID)
 	} else {
 		schema, err = h.registry.RegisterSchema(r.Context(), subject, req.Schema, schemaType, req.References, registry.RegisterOpts{
@@ -491,7 +527,10 @@ func (h *Handler) DeleteSubject(w http.ResponseWriter, r *http.Request) {
 	permanent := r.URL.Query().Get("permanent") == "true"
 
 	// Check mode enforcement
-	if mode := h.checkModeForWrite(r, subject); mode != "" {
+	if mode, modeErr := h.checkModeForWrite(r, subject); modeErr != nil {
+		writeError(w, http.StatusInternalServerError, types.ErrorCodeStorageError, modeErr.Error())
+		return
+	} else if mode != "" {
 		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeOperationNotPermitted,
 			fmt.Sprintf("Subject '%s' is in %s mode", subject, mode))
 		return
@@ -531,7 +570,10 @@ func (h *Handler) DeleteVersion(w http.ResponseWriter, r *http.Request) {
 	permanent := r.URL.Query().Get("permanent") == "true"
 
 	// Check mode enforcement
-	if mode := h.checkModeForWrite(r, subject); mode != "" {
+	if mode, modeErr := h.checkModeForWrite(r, subject); modeErr != nil {
+		writeError(w, http.StatusInternalServerError, types.ErrorCodeStorageError, modeErr.Error())
+		return
+	} else if mode != "" {
 		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeOperationNotPermitted,
 			fmt.Sprintf("Subject '%s' is in %s mode", subject, mode))
 		return
@@ -1083,6 +1125,18 @@ func (h *Handler) ListSchemas(w http.ResponseWriter, r *http.Request) {
 
 // ImportSchemas handles POST /import/schemas
 func (h *Handler) ImportSchemas(w http.ResponseWriter, r *http.Request) {
+	// Bulk import requires IMPORT mode (Confluent behavior)
+	mode, modeErr := h.registry.GetMode(r.Context(), "")
+	if modeErr != nil {
+		writeError(w, http.StatusInternalServerError, types.ErrorCodeStorageError, "Failed to check mode")
+		return
+	}
+	if mode != "IMPORT" {
+		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeOperationNotPermitted,
+			"Import is not permitted. The registry must be in IMPORT mode to import schemas.")
+		return
+	}
+
 	var req types.ImportSchemasRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, types.ErrorCodeInvalidSchema, "Invalid request body")

@@ -460,6 +460,22 @@ func RegisterSchemaSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 		return nil
 	})
 
+	// Stored value numeric comparison: the stored "new_id" should be greater than 50000
+	ctx.Step(`^the stored "([^"]*)" should be greater than (\d+)$`, func(key string, threshold int) error {
+		val, ok := tc.StoredValues[key]
+		if !ok {
+			return fmt.Errorf("no stored value %q", key)
+		}
+		num, ok := val.(float64)
+		if !ok {
+			return fmt.Errorf("stored %q is not numeric: %T = %v", key, val, val)
+		}
+		if int(num) <= threshold {
+			return fmt.Errorf("stored %q = %d, expected > %d", key, int(num), threshold)
+		}
+		return nil
+	})
+
 	// Variable-resolved integer array containment: the response array should contain stored integer "use1_id"
 	ctx.Step(`^the response array should contain stored integer "([^"]*)"$`, func(varName string) error {
 		storedVal, ok := tc.StoredValues[varName]

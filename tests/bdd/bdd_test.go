@@ -259,7 +259,7 @@ func cleanPostgres() error {
 	defer db.Close()
 
 	stmts := []string{
-		"TRUNCATE TABLE api_keys, users, schema_references, schemas, modes, configs CASCADE",
+		"TRUNCATE TABLE api_keys, users, schema_references, schema_fingerprints, schemas, modes, configs CASCADE",
 		"ALTER SEQUENCE schemas_id_seq RESTART WITH 1",
 	}
 	for _, s := range stmts {
@@ -280,7 +280,7 @@ func cleanMySQL() error {
 	}
 	defer db.Close()
 
-	tables := []string{"api_keys", "users", "schema_references", "schemas", "modes", "configs"}
+	tables := []string{"api_keys", "users", "schema_references", "schema_fingerprints", "schemas", "modes", "configs"}
 	if _, err := db.Exec("SET FOREIGN_KEY_CHECKS = 0"); err != nil {
 		return fmt.Errorf("disable FK checks: %w", err)
 	}

@@ -8,6 +8,7 @@ Feature: Advanced Schema Import
   # --------------------------------------------------------------------------
 
   Scenario: Import with conflicting schema ID fails
+    Given the global mode is "IMPORT"
     When I import a schema with ID 100 under subject "imp-conflict-a" version 1:
       """
       {"type":"record","name":"First","fields":[{"name":"id","type":"string"}]}
@@ -20,8 +21,10 @@ Feature: Advanced Schema Import
       """
     Then the response status should be 200
     And the import should have 0 imported and 1 errors
+    When I set the global mode to "READWRITE"
 
   Scenario: Import with conflicting subject and version fails
+    Given the global mode is "IMPORT"
     When I import a schema with ID 200 under subject "imp-sv-conflict" version 1:
       """
       {"type":"record","name":"Original","fields":[{"name":"id","type":"string"}]}
@@ -34,12 +37,14 @@ Feature: Advanced Schema Import
       """
     Then the response status should be 200
     And the import should have 0 imported and 1 errors
+    When I set the global mode to "READWRITE"
 
   # --------------------------------------------------------------------------
   # PARTIAL IMPORT
   # --------------------------------------------------------------------------
 
   Scenario: Partial import success with invalid schema in batch
+    Given the global mode is "IMPORT"
     When I import schemas:
       """
       {"schemas":[
@@ -50,6 +55,7 @@ Feature: Advanced Schema Import
       """
     Then the response status should be 200
     And the import should have 2 imported and 1 errors
+    When I set the global mode to "READWRITE"
     When I get schema by ID 300
     Then the response status should be 200
     And the response should contain "Good1"
@@ -62,12 +68,14 @@ Feature: Advanced Schema Import
   # --------------------------------------------------------------------------
 
   Scenario: Import then register continues IDs above imported
+    Given the global mode is "IMPORT"
     When I import a schema with ID 500 under subject "imp-seq-imported" version 1:
       """
       {"type":"record","name":"Imported","fields":[{"name":"id","type":"string"}]}
       """
     Then the response status should be 200
     And the import should have 1 imported and 0 errors
+    When I set the global mode to "READWRITE"
     When I register a schema under subject "imp-seq-new":
       """
       {"type":"record","name":"AutoAssigned","fields":[{"name":"name","type":"string"}]}
@@ -81,6 +89,7 @@ Feature: Advanced Schema Import
   # --------------------------------------------------------------------------
 
   Scenario: Import schema with references to another subject
+    Given the global mode is "IMPORT"
     When I import a schema with ID 600 under subject "imp-ref-base" version 1:
       """
       {"type":"record","name":"Address","namespace":"com.imp","fields":[{"name":"street","type":"string"},{"name":"city","type":"string"}]}
@@ -95,6 +104,7 @@ Feature: Advanced Schema Import
       """
     Then the response status should be 200
     And the import should have 1 imported and 0 errors
+    When I set the global mode to "READWRITE"
     When I get schema by ID 601
     Then the response status should be 200
     And the response should contain "Person"
@@ -104,6 +114,7 @@ Feature: Advanced Schema Import
   # --------------------------------------------------------------------------
 
   Scenario: Import preserves schema type across retrieval
+    Given the global mode is "IMPORT"
     When I import a "PROTOBUF" schema with ID 700 under subject "imp-type-proto" version 1:
       """
       syntax = "proto3";
@@ -114,6 +125,7 @@ Feature: Advanced Schema Import
       """
     Then the response status should be 200
     And the import should have 1 imported and 0 errors
+    When I set the global mode to "READWRITE"
     When I get schema by ID 700
     Then the response status should be 200
     And the response field "schemaType" should be "PROTOBUF"
@@ -128,12 +140,14 @@ Feature: Advanced Schema Import
   # --------------------------------------------------------------------------
 
   Scenario: Imported schema retrievable by subject and version
+    Given the global mode is "IMPORT"
     When I import a schema with ID 800 under subject "imp-retrieve" version 1:
       """
       {"type":"record","name":"Retrievable","fields":[{"name":"key","type":"string"},{"name":"value","type":"long"}]}
       """
     Then the response status should be 200
     And the import should have 1 imported and 0 errors
+    When I set the global mode to "READWRITE"
     When I get version 1 of subject "imp-retrieve"
     Then the response status should be 200
     And the response field "subject" should be "imp-retrieve"
@@ -149,6 +163,7 @@ Feature: Advanced Schema Import
 
   Scenario: Import multiple versions of same subject
     Given the global compatibility level is "NONE"
+    And the global mode is "IMPORT"
     When I import schemas:
       """
       {"schemas":[
@@ -159,6 +174,7 @@ Feature: Advanced Schema Import
       """
     Then the response status should be 200
     And the import should have 3 imported and 0 errors
+    When I set the global mode to "READWRITE"
     When I list versions of subject "imp-multi-ver"
     Then the response status should be 200
     And the response should be an array of length 3

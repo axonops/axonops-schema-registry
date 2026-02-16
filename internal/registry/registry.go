@@ -244,9 +244,11 @@ func (r *Registry) RegisterSchemaWithID(ctx context.Context, subject string, sch
 		return existing, nil
 	}
 
-	// Determine next version for this subject
+	// Determine next version for this subject.
+	// Include soft-deleted versions to avoid version number conflicts
+	// with rows that still physically exist in storage.
 	nextVersion := 1
-	existingSchemas, err := r.storage.GetSchemasBySubject(ctx, subject, false)
+	existingSchemas, err := r.storage.GetSchemasBySubject(ctx, subject, true)
 	if err == nil && len(existingSchemas) > 0 {
 		for _, s := range existingSchemas {
 			if s.Version >= nextVersion {
@@ -271,6 +273,15 @@ func (r *Registry) RegisterSchemaWithID(ctx context.Context, subject string, sch
 		}
 		return nil, fmt.Errorf("failed to store schema: %w", err)
 	}
+
+	// Advance the ID sequence so future auto-assigned IDs don't collide.
+	// Only advance forward, never rewind.
+	nextID := id + 1
+	currentMax, err := r.storage.GetMaxSchemaID(ctx)
+	if err == nil && currentMax+1 > nextID {
+		nextID = currentMax + 1
+	}
+	_ = r.storage.SetNextID(ctx, nextID)
 
 	return record, nil
 }
@@ -690,7 +701,12 @@ func (r *Registry) GetMode(ctx context.Context, subject string) (string, error) 
 	if subject == "" {
 		mode, err := r.storage.GetGlobalMode(ctx)
 		if err != nil {
-			return "READWRITE", nil
+			if errors.Is(err, storage.ErrNotFound) {
+				// No global mode configured: default to READWRITE
+				return "READWRITE", nil
+			}
+			// Storage error: propagate rather than fail open
+			return "", fmt.Errorf("failed to get global mode: %w", err)
 		}
 		return mode.Mode, nil
 	}
@@ -954,10 +970,18 @@ func (r *Registry) ImportSchemas(ctx context.Context, schemas []ImportSchemaRequ
 		result.Results[i] = res
 	}
 
-	// Adjust the ID sequence to prevent conflicts
+	// Adjust the ID sequence to prevent conflicts.
+	// Guard against rewinding: only advance the sequence, never go backward.
 	if maxID > 0 {
-		// Set the next ID to be one more than the maximum imported ID
-		if err := r.storage.SetNextID(ctx, maxID+1); err != nil {
+		nextID := maxID + 1
+
+		// Check current max to avoid rewinding the sequence
+		currentMax, err := r.storage.GetMaxSchemaID(ctx)
+		if err == nil && currentMax+1 > nextID {
+			nextID = currentMax + 1
+		}
+
+		if err := r.storage.SetNextID(ctx, nextID); err != nil {
 			return result, fmt.Errorf("imported %d schemas but failed to adjust ID sequence: %w", result.Imported, err)
 		}
 	}

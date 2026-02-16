@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/axonops/axonops-schema-registry/internal/compatibility"
+	"github.com/axonops/axonops-schema-registry/internal/storage"
 )
 
 // Checker implements compatibility.SchemaChecker for JSON Schema.
@@ -32,9 +33,13 @@ func (c *Checker) Check(reader, writer compatibility.SchemaWithRefs) *compatibil
 		return compatibility.NewIncompatibleResult("failed to parse old schema: " + err.Error())
 	}
 
-	// Resolve $ref references within each schema
-	resolveRefs(newSchema)
-	resolveRefs(oldSchema)
+	// Build external reference maps from resolved references
+	newExtRefs := buildExternalRefMap(reader.References)
+	oldExtRefs := buildExternalRefMap(writer.References)
+
+	// Resolve $ref references within each schema (local + external)
+	resolveAllRefs(newSchema, newExtRefs)
+	resolveAllRefs(oldSchema, oldExtRefs)
 
 	result := compatibility.NewCompatibleResult()
 	c.checkCompatibility(newSchema, oldSchema, "", result)
@@ -123,13 +128,33 @@ func (c *Checker) checkCompatibility(newSchema, oldSchema map[string]interface{}
 // $REF RESOLUTION
 // ==========================================================================
 
-// resolveRefs resolves all $ref references within a schema using its definitions.
-func resolveRefs(schema map[string]interface{}) {
-	defs := getDefinitions(schema)
-	if defs == nil {
-		return
+// buildExternalRefMap builds a map of reference name → parsed schema from resolved
+// external references. This allows $ref resolution for cross-subject references.
+func buildExternalRefMap(refs []storage.Reference) map[string]map[string]interface{} {
+	if len(refs) == 0 {
+		return nil
 	}
-	resolveRefsInMap(schema, defs)
+	result := make(map[string]map[string]interface{}, len(refs))
+	for _, ref := range refs {
+		if ref.Schema == "" {
+			continue
+		}
+		var parsed map[string]interface{}
+		if err := json.Unmarshal([]byte(ref.Schema), &parsed); err == nil {
+			result[ref.Name] = parsed
+		}
+	}
+	if len(result) == 0 {
+		return nil
+	}
+	return result
+}
+
+// resolveAllRefs resolves all $ref references within a schema using both
+// local definitions and external references from other subjects.
+func resolveAllRefs(schema map[string]interface{}, extRefs map[string]map[string]interface{}) {
+	defs := getDefinitions(schema)
+	resolveRefsInMap(schema, defs, extRefs)
 }
 
 // getDefinitions returns the definitions map from a schema.
@@ -144,7 +169,8 @@ func getDefinitions(schema map[string]interface{}) map[string]interface{} {
 }
 
 // resolveRefsInMap recursively replaces $ref with the referenced definition content.
-func resolveRefsInMap(schema map[string]interface{}, defs map[string]interface{}) {
+// Resolves both local ($ref: "#/definitions/...") and external ($ref: "RefName") references.
+func resolveRefsInMap(schema map[string]interface{}, defs map[string]interface{}, extRefs map[string]map[string]interface{}) {
 	for key, val := range schema {
 		if key == "definitions" || key == "$defs" {
 			continue
@@ -152,22 +178,21 @@ func resolveRefsInMap(schema map[string]interface{}, defs map[string]interface{}
 		switch v := val.(type) {
 		case map[string]interface{}:
 			if ref, ok := v["$ref"].(string); ok {
-				// Resolve local $ref (e.g., "#/definitions/someRef")
-				if resolved := resolveLocalRef(ref, defs); resolved != nil {
+				if resolved := resolveRef(ref, defs, extRefs); resolved != nil {
 					schema[key] = resolved
 				}
 			} else {
-				resolveRefsInMap(v, defs)
+				resolveRefsInMap(v, defs, extRefs)
 			}
 		case []interface{}:
 			for i, item := range v {
 				if m, ok := item.(map[string]interface{}); ok {
 					if ref, ok := m["$ref"].(string); ok {
-						if resolved := resolveLocalRef(ref, defs); resolved != nil {
+						if resolved := resolveRef(ref, defs, extRefs); resolved != nil {
 							v[i] = resolved
 						}
 					} else {
-						resolveRefsInMap(m, defs)
+						resolveRefsInMap(m, defs, extRefs)
 					}
 				}
 			}
@@ -175,8 +200,31 @@ func resolveRefsInMap(schema map[string]interface{}, defs map[string]interface{}
 	}
 }
 
+// resolveRef resolves a $ref string, trying local definitions first, then external references.
+func resolveRef(ref string, defs map[string]interface{}, extRefs map[string]map[string]interface{}) map[string]interface{} {
+	// Try local $ref first (e.g., "#/definitions/someRef")
+	if resolved := resolveLocalRef(ref, defs); resolved != nil {
+		return resolved
+	}
+	// Try external references (e.g., "Address" or "com.example.Address")
+	if extRefs != nil {
+		if resolved, ok := extRefs[ref]; ok {
+			// Return a copy to avoid mutation
+			result := make(map[string]interface{}, len(resolved))
+			for k, v := range resolved {
+				result[k] = v
+			}
+			return result
+		}
+	}
+	return nil
+}
+
 // resolveLocalRef resolves a local $ref string to its definition.
 func resolveLocalRef(ref string, defs map[string]interface{}) map[string]interface{} {
+	if defs == nil {
+		return nil
+	}
 	// Handle "#/definitions/name" and "#/$defs/name" patterns
 	for _, prefix := range []string{"#/definitions/", "#/$defs/"} {
 		if strings.HasPrefix(ref, prefix) {

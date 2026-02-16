@@ -163,9 +163,8 @@ const (
 	ErrorCodeSubjectCompatNotFound     = 40408
 	ErrorCodeSubjectModeNotFound       = 40409
 	ErrorCodeIncompatibleSchema        = 409
-	ErrorCodeInvalidSchema             = 42201
-	ErrorCodeInvalidSchemaType         = 42202
-	ErrorCodeInvalidVersion            = 42202 // Confluent uses 42202 for both invalid schema type and invalid version
+	ErrorCodeInvalidSchema  = 42201
+	ErrorCodeInvalidVersion = 42202
 	ErrorCodeInvalidCompatibilityLevel = 42203
 	ErrorCodeInvalidMode               = 42204
 	ErrorCodeOperationNotPermitted     = 42205

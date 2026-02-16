@@ -558,8 +558,25 @@ func TestServer_RegisterCompatibleSchema(t *testing.T) {
 	}
 }
 
+// setGlobalMode sets the global mode via the API (e.g., "IMPORT", "READWRITE").
+func setGlobalMode(t *testing.T, server *Server, mode string) {
+	t.Helper()
+	modeReq := types.ModeRequest{Mode: mode}
+	modeBytes, _ := json.Marshal(modeReq)
+	req := httptest.NewRequest("PUT", "/mode?force=true", bytes.NewReader(modeBytes))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	server.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("Failed to set mode to %s: %d %s", mode, w.Code, w.Body.String())
+	}
+}
+
 func TestServer_ImportSchemas(t *testing.T) {
 	server := setupTestServer(t)
+
+	// Set IMPORT mode (required for import operations)
+	setGlobalMode(t, server, "IMPORT")
 
 	// Import schemas with specific IDs
 	importReq := types.ImportSchemasRequest{
@@ -629,6 +646,9 @@ func TestServer_ImportSchemas(t *testing.T) {
 		t.Errorf("Expected schema ID 42, got %d", versionResp.ID)
 	}
 
+	// Switch back to READWRITE for normal registration
+	setGlobalMode(t, server, "READWRITE")
+
 	// New schema registration should get an ID after the imported ones
 	newSchema := `{"type": "record", "name": "Product", "fields": [{"name": "product_id", "type": "long"}]}`
 	registerBody := types.RegisterSchemaRequest{Schema: newSchema}
@@ -653,6 +673,9 @@ func TestServer_ImportSchemas(t *testing.T) {
 
 func TestServer_ImportSchemas_DuplicateID(t *testing.T) {
 	server := setupTestServer(t)
+
+	// Set IMPORT mode (required for import operations)
+	setGlobalMode(t, server, "IMPORT")
 
 	// Import first schema
 	importReq := types.ImportSchemasRequest{
@@ -715,6 +738,9 @@ func TestServer_ImportSchemas_DuplicateID(t *testing.T) {
 func TestServer_ImportSchemas_InvalidSchema(t *testing.T) {
 	server := setupTestServer(t)
 
+	// Set IMPORT mode (required for import operations)
+	setGlobalMode(t, server, "IMPORT")
+
 	// Try to import invalid schema
 	importReq := types.ImportSchemasRequest{
 		Schemas: []types.ImportSchemaRequest{
@@ -751,6 +777,9 @@ func TestServer_ImportSchemas_InvalidSchema(t *testing.T) {
 
 func TestServer_ImportSchemas_EmptyRequest(t *testing.T) {
 	server := setupTestServer(t)
+
+	// Set IMPORT mode (required for import operations)
+	setGlobalMode(t, server, "IMPORT")
 
 	// Try to import empty list
 	importReq := types.ImportSchemasRequest{

@@ -53,6 +53,25 @@ func registerSchema(t *testing.T, h *Handler, subject, schemaStr string) int64 {
 	return resp.ID
 }
 
+// setImportMode sets the global mode to IMPORT via the handler.
+func setImportMode(t *testing.T, h *Handler) {
+	t.Helper()
+	modeReq := types.ModeRequest{Mode: "IMPORT"}
+	modeBytes, _ := json.Marshal(modeReq)
+
+	r := chi.NewRouter()
+	r.Put("/mode", h.SetMode)
+
+	req := httptest.NewRequest("PUT", "/mode?force=true", bytes.NewReader(modeBytes))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("setImportMode failed: %d %s", w.Code, w.Body.String())
+	}
+}
+
 func decodeErrorResponse(t *testing.T, w *httptest.ResponseRecorder) types.ErrorResponse {
 	t.Helper()
 	var resp types.ErrorResponse
@@ -1389,6 +1408,7 @@ func TestListSchemas_WithSchemas(t *testing.T) {
 
 func TestImportSchemas_Success(t *testing.T) {
 	h := setupTestHandler(t)
+	setImportMode(t, h)
 
 	r := chi.NewRouter()
 	r.Post("/import/schemas", h.ImportSchemas)
@@ -1422,6 +1442,7 @@ func TestImportSchemas_Success(t *testing.T) {
 
 func TestImportSchemas_EmptyList(t *testing.T) {
 	h := setupTestHandler(t)
+	setImportMode(t, h)
 
 	r := chi.NewRouter()
 	r.Post("/import/schemas", h.ImportSchemas)
@@ -1441,6 +1462,7 @@ func TestImportSchemas_EmptyList(t *testing.T) {
 
 func TestImportSchemas_InvalidBody(t *testing.T) {
 	h := setupTestHandler(t)
+	setImportMode(t, h)
 
 	r := chi.NewRouter()
 	r.Post("/import/schemas", h.ImportSchemas)
@@ -1457,6 +1479,7 @@ func TestImportSchemas_InvalidBody(t *testing.T) {
 
 func TestImportSchemas_DuplicateID(t *testing.T) {
 	h := setupTestHandler(t)
+	setImportMode(t, h)
 
 	r := chi.NewRouter()
 	r.Post("/import/schemas", h.ImportSchemas)
