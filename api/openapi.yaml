@@ -1647,7 +1647,9 @@ paths:
 
         AxonOps Schema Registry operates as a single-tenant registry. This endpoint
         always returns `["."]` (the default context only). Context-qualified subject
-        names are not supported.
+        names are not supported. See
+        [#264](https://github.com/axonops/axonops-schema-registry/issues/264) for the
+        feature request to add context support.
       operationId: getContexts
       tags:
         - Metadata

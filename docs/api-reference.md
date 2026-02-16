@@ -3744,7 +3744,7 @@ Returns the list of contexts defined in the registry.
 
 In Confluent Schema Registry, **contexts** are a multi-tenancy feature that allows multiple schemas with the same subject names and IDs to coexist in separate namespaces (e.g. `.team-a`, `.team-b`). Subjects are qualified with a context prefix (e.g. `:.mycontext:my-subject`), and schema IDs are unique within each context. This is primarily used for Schema Linking and enterprise multi-tenant deployments.
 
-AxonOps Schema Registry operates as a single-tenant registry. This endpoint always returns `["."]` (the default context only). Context-qualified subject names are not supported.
+AxonOps Schema Registry operates as a single-tenant registry. This endpoint always returns `["."]` (the default context only). Context-qualified subject names are not supported. See [#264](https://github.com/axonops/axonops-schema-registry/issues/264) for the feature request to add context support.
 
 > Example responses
 
