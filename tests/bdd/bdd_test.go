@@ -59,6 +59,11 @@ var (
 	backend      string
 	composeFiles []string
 	containerCmd string // "podman" or "docker"
+
+	// cassandraSession is a long-lived session reused across all BDD scenario cleanups.
+	// gocql sessions are expensive to create (topology discovery, connection pool setup),
+	// so we create one at first use and close it in TestMain.
+	cassandraSession *gocql.Session
 )
 
 func TestMain(m *testing.M) {
@@ -94,6 +99,12 @@ func TestMain(m *testing.M) {
 	}
 
 	code := m.Run()
+
+	// Close the long-lived Cassandra session before tearing down containers.
+	if cassandraSession != nil {
+		cassandraSession.Close()
+		cassandraSession = nil
+	}
 
 	if dockerMode {
 		log.Println("Stopping compose...")
@@ -284,8 +295,12 @@ func cleanMySQL() error {
 	return nil
 }
 
-// cleanCassandra truncates all tables in the schemaregistry keyspace.
-func cleanCassandra() error {
+// getCassandraSession returns a long-lived session for BDD cleanup.
+// The session is created once and reused across all scenarios.
+func getCassandraSession() (*gocql.Session, error) {
+	if cassandraSession != nil {
+		return cassandraSession, nil
+	}
 	portStr := envOrDefault("CASSANDRA_PORT", "19042")
 	port, _ := strconv.Atoi(portStr)
 	cluster := gocql.NewCluster("localhost")
@@ -296,9 +311,18 @@ func cleanCassandra() error {
 
 	session, err := cluster.CreateSession()
 	if err != nil {
-		return fmt.Errorf("connect cassandra: %w", err)
+		return nil, fmt.Errorf("connect cassandra: %w", err)
 	}
-	defer session.Close()
+	cassandraSession = session
+	return session, nil
+}
+
+// cleanCassandra truncates all tables in the schemaregistry keyspace.
+func cleanCassandra() error {
+	session, err := getCassandraSession()
+	if err != nil {
+		return err
+	}
 
 	tables := []string{
 		"api_keys_by_hash", "api_keys_by_user", "api_keys_by_id",
