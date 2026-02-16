@@ -51,6 +51,7 @@ Unlike Confluent Schema Registry, which uses Kafka itself (a special `_schemas` 
 - **Enterprise Security** -- LDAP, OIDC, mTLS, API keys, JWT, and RBAC out of the box
 - **Cloud Native** -- designed for Kubernetes with health checks, Prometheus metrics, and graceful shutdown
 - **Multi-Datacenter** -- active-active deployments with Cassandra's native cross-DC replication
+- **Built-in API Documentation** -- OpenAPI spec with Swagger UI and ReDoc, always in sync with the codebase
 
 ## Feature Comparison
 

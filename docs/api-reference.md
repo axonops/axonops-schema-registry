@@ -2,8 +2,7 @@
 <!-- Do not edit manually. Regenerate with: make docs-api -->
 
 
-# AxonOps Schema Registry v1.0.0
-
+# AxonOps Schema Registry
 AxonOps Schema Registry is a drop-in replacement for the Confluent Schema Registry,
 providing full API compatibility with extensions for enterprise security and
 multi-backend storage. It supports **Avro**, **Protobuf**, and **JSON Schema**
@@ -12,7 +11,7 @@ formats for schema management.
 
 ## Contents
 
-- [AxonOps Schema Registry v1.0.0](#axonops-schema-registry-v100)
+- [AxonOps Schema Registry](#axonops-schema-registry)
   - [Key Concepts](#key-concepts)
   - [Content Types](#content-types)
   - [Error Handling](#error-handling)

@@ -82,6 +82,9 @@ perl -0777 -pe '
     # Remove stray HTML break tags
     s|<br\s*/?>||g;
 
+    # Strip version suffix from the title heading (e.g. "v1.0.0")
+    s/^(# .+?) v\d+\.\d+\.\d+\s*$/$1/gm;
+
     # Collapse runs of 3+ blank lines to 2
     s/\n{4,}/\n\n\n/g;
 ' "$TMPFILE" > "$TMPFILE2"
@@ -113,6 +116,7 @@ generate_toc() {
 }
 
 TOC="$(generate_toc "$TMPFILE2")"
+export TOC
 
 # ── Assemble final output ─────────────────────────────────────────────
 #
