@@ -386,6 +386,17 @@ func (s *Store) ImportSchema(ctx context.Context, record *storage.SchemaRecord) 
 
 	// Insert schema content if this is a new ID
 	if !idExists {
+		// Claim fingerprint atomically via LWT — prevents a concurrent CreateSchema
+		// from allocating a different ID for the same schema content.
+		applied, existingFpID, fpErr := s.claimFingerprint(ctx, fp, record.ID)
+		if fpErr != nil {
+			return fmt.Errorf("failed to claim fingerprint for import: %w", fpErr)
+		}
+		if !applied && existingFpID != record.ID {
+			// Fingerprint already claimed by a different schema_id — conflict
+			return storage.ErrSchemaIDConflict
+		}
+
 		if err := s.writeQuery(
 			fmt.Sprintf(`INSERT INTO %s.schemas_by_id (schema_id, schema_type, fingerprint, schema_text, canonical_text, created_at, metadata, ruleset)
 				VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, qident(s.cfg.Keyspace)),
@@ -393,6 +404,9 @@ func (s *Store) ImportSchema(ctx context.Context, record *storage.SchemaRecord) 
 		).WithContext(ctx).Exec(); err != nil {
 			return fmt.Errorf("failed to insert schema_by_id: %w", err)
 		}
+	} else {
+		// Schema already exists — ensure fingerprint is claimed (covers pre-migration data)
+		_, _, _ = s.claimFingerprint(ctx, fp, record.ID)
 	}
 
 	// Batch: subject_versions + subject_latest + references (logged batch for atomicity)
@@ -460,7 +474,7 @@ func (s *Store) CreateSchema(ctx context.Context, record *storage.SchemaRecord) 
 		fp = fingerprint(canonical)
 	}
 
-	// Ensure global schema exists (deduplication via SAI on fingerprint)
+	// Ensure global schema exists (deduplication via LWT on schema_fingerprints)
 	schemaID, _, err := s.ensureGlobalSchema(ctx, string(record.SchemaType), record.Schema, canonical, fp)
 	if err != nil {
 		return err
@@ -583,61 +597,103 @@ func (s *Store) CreateSchema(ctx context.Context, record *storage.SchemaRecord) 
 	return errors.New("failed to create schema due to contention (too many retries)")
 }
 
-// ensureGlobalSchema ensures a schema exists in schemas_by_id, using SAI fingerprint lookup for dedup.
+// ensureGlobalSchema ensures a schema exists in schemas_by_id, using LWT on
+// schema_fingerprints for atomic deduplication.
+//
+// The schema_fingerprints table has fingerprint as its partition key, so
+// INSERT IF NOT EXISTS provides a true compare-and-swap: exactly one writer
+// wins the CAS and claims the fingerprint→schema_id mapping. Losers receive
+// the winning schema_id in the CAS response without a separate read.
+//
+// This replaces the previous SAI-based approach where the fingerprint index on
+// schemas_by_id was eventually consistent and could not prevent concurrent
+// writers from both inserting different schema_ids for the same fingerprint.
 func (s *Store) ensureGlobalSchema(ctx context.Context, schemaType, schemaText, canonical, fp string) (schemaID int64, createdAt time.Time, err error) {
-	// SAI lookup by fingerprint on schemas_by_id (replaces old schemas_by_fingerprint table)
+	// Fast path: check if fingerprint is already claimed (PK lookup — strongly consistent)
 	var existingID int
-	var createdUUID gocql.UUID
 	err = s.readQuery(
-		fmt.Sprintf(`SELECT schema_id, created_at FROM %s.schemas_by_id WHERE fingerprint = ?`, qident(s.cfg.Keyspace)),
+		fmt.Sprintf(`SELECT schema_id FROM %s.schema_fingerprints WHERE fingerprint = ?`, qident(s.cfg.Keyspace)),
 		fp,
-	).WithContext(ctx).Scan(&existingID, &createdUUID)
+	).WithContext(ctx).Scan(&existingID)
 	if err == nil {
-		return int64(existingID), createdUUID.Time(), nil
+		// Fingerprint already claimed — ensure schemas_by_id has the data (crash recovery)
+		return s.ensureSchemaData(ctx, int64(existingID), schemaType, schemaText, canonical, fp)
 	}
 	if !errors.Is(err, gocql.ErrNotFound) {
 		return 0, time.Time{}, err
 	}
 
-	// Allocate new ID and try to insert
+	// Slow path: allocate new ID and claim fingerprint via LWT
 	newID, err := s.NextID(ctx)
 	if err != nil {
 		return 0, time.Time{}, err
 	}
-	createdUUID = gocql.TimeUUID()
 
-	// INSERT IF NOT EXISTS on schemas_by_id — the SAI index on fingerprint ensures
-	// we can detect duplicates, but schema_id is the PK so CAS is on schema_id.
-	// Race window: two concurrent registrations of the same schema both allocate different IDs.
-	// The first to insert wins; the second detects via SAI fingerprint lookup on retry.
+	applied, winnerID, err := s.claimFingerprint(ctx, fp, newID)
+	if err != nil {
+		return 0, time.Time{}, err
+	}
+	if !applied {
+		// Another writer claimed this fingerprint first — use their schema_id
+		return s.ensureSchemaData(ctx, winnerID, schemaType, schemaText, canonical, fp)
+	}
+
+	// We won the CAS — insert full schema data into schemas_by_id
+	return s.ensureSchemaData(ctx, newID, schemaType, schemaText, canonical, fp)
+}
+
+// claimFingerprint atomically associates a fingerprint with a schema_id using LWT.
+// Returns (true, 0, nil) if we won the CAS (fingerprint newly claimed).
+// Returns (false, existingID, nil) if the fingerprint was already claimed by existingID.
+func (s *Store) claimFingerprint(ctx context.Context, fp string, schemaID int64) (applied bool, existingID int64, err error) {
+	m := map[string]interface{}{}
+	applied, err = s.session.Query(
+		fmt.Sprintf(`INSERT INTO %s.schema_fingerprints (fingerprint, schema_id) VALUES (?, ?) IF NOT EXISTS`, qident(s.cfg.Keyspace)),
+		fp, int(schemaID),
+	).WithContext(ctx).MapScanCAS(m)
+	if err != nil {
+		return false, 0, fmt.Errorf("fingerprint LWT failed: %w", err)
+	}
+	if !applied {
+		// CAS failed — extract the existing schema_id from the result
+		if id, ok := m["schema_id"]; ok {
+			if v, ok := id.(int); ok {
+				return false, int64(v), nil
+			}
+		}
+		return false, 0, fmt.Errorf("fingerprint LWT: CAS failed but could not extract existing schema_id from %v", m)
+	}
+	return true, 0, nil
+}
+
+// ensureSchemaData ensures schemas_by_id has the full schema data for a given schema_id.
+// This handles both the normal insert path and crash recovery (where the fingerprint
+// was claimed via LWT but the process crashed before writing to schemas_by_id).
+func (s *Store) ensureSchemaData(ctx context.Context, schemaID int64, schemaType, schemaText, canonical, fp string) (int64, time.Time, error) {
+	// Try to read existing data (common case for dedup hits)
+	var createdUUID gocql.UUID
+	err := s.readQuery(
+		fmt.Sprintf(`SELECT created_at FROM %s.schemas_by_id WHERE schema_id = ?`, qident(s.cfg.Keyspace)),
+		int(schemaID),
+	).WithContext(ctx).Scan(&createdUUID)
+	if err == nil {
+		return schemaID, createdUUID.Time(), nil
+	}
+	if !errors.Is(err, gocql.ErrNotFound) {
+		return 0, time.Time{}, err
+	}
+
+	// Data missing — insert it (first write or crash recovery)
+	createdUUID = gocql.TimeUUID()
 	if err := s.writeQuery(
 		fmt.Sprintf(`INSERT INTO %s.schemas_by_id (schema_id, schema_type, fingerprint, schema_text, canonical_text, created_at)
 			VALUES (?, ?, ?, ?, ?, ?)`, qident(s.cfg.Keyspace)),
-		int(newID), schemaType, fp, schemaText, canonical, createdUUID,
+		int(schemaID), schemaType, fp, schemaText, canonical, createdUUID,
 	).WithContext(ctx).Exec(); err != nil {
 		return 0, time.Time{}, err
 	}
 
-	// Verify we won: re-read by fingerprint to check no one else inserted first
-	var verifyID int
-	var verifyUUID gocql.UUID
-	err = s.readQuery(
-		fmt.Sprintf(`SELECT schema_id, created_at FROM %s.schemas_by_id WHERE fingerprint = ?`, qident(s.cfg.Keyspace)),
-		fp,
-	).WithContext(ctx).Scan(&verifyID, &verifyUUID)
-	if err != nil {
-		return newID, createdUUID.Time(), nil // Can't verify, assume our insert is the one
-	}
-	if int64(verifyID) != newID {
-		// Someone else's schema_id is the canonical one — clean up our orphan
-		s.writeQuery(
-			fmt.Sprintf(`DELETE FROM %s.schemas_by_id WHERE schema_id = ?`, qident(s.cfg.Keyspace)),
-			int(newID),
-		).WithContext(ctx).Exec()
-		return int64(verifyID), verifyUUID.Time(), nil
-	}
-
-	return newID, createdUUID.Time(), nil
+	return schemaID, createdUUID.Time(), nil
 }
 
 // findSchemaInSubject finds a non-deleted version of a schema in a subject using SAI.

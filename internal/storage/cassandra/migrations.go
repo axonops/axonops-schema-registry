@@ -195,6 +195,15 @@ func Migrate(session *gocql.Session, keyspace string) error {
 			expires_at   timestamp,
 			last_used    timestamp
 		)`, qident(keyspace)),
+
+		// Table 15: schema_fingerprints - atomic fingerprint→schema_id deduplication
+		// Uses LWT (INSERT IF NOT EXISTS) to guarantee exactly one schema_id per fingerprint.
+		// This replaces the SAI-based dedup on schemas_by_id which was eventually consistent
+		// and could not prevent concurrent writers from allocating duplicate IDs.
+		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s.schema_fingerprints (
+			fingerprint text PRIMARY KEY,
+			schema_id   int
+		)`, qident(keyspace)),
 	}
 
 	for _, stmt := range stmts {
@@ -243,6 +252,29 @@ func Migrate(session *gocql.Session, keyspace string) error {
 				return fmt.Errorf("cassandra migrate failed: %w (stmt=%s)", err, oneLine(stmt))
 			}
 		}
+	}
+
+	// Backfill schema_fingerprints from existing schemas_by_id data.
+	// This handles production upgrades where schemas_by_id has data that predates
+	// the schema_fingerprints table. Uses IF NOT EXISTS so the first schema_id
+	// encountered for each fingerprint wins (idempotent, safe to re-run).
+	iter := session.Query(
+		fmt.Sprintf(`SELECT schema_id, fingerprint FROM %s.schemas_by_id`, qident(keyspace)),
+	).Iter()
+	var bfID int
+	var bfFP string
+	for iter.Scan(&bfID, &bfFP) {
+		if bfFP != "" {
+			// Best effort — IF NOT EXISTS handles duplicates gracefully
+			_ = session.Query(
+				fmt.Sprintf(`INSERT INTO %s.schema_fingerprints (fingerprint, schema_id) VALUES (?, ?) IF NOT EXISTS`, qident(keyspace)),
+				bfFP, bfID,
+			).Exec()
+		}
+	}
+	if err := iter.Close(); err != nil {
+		// Non-fatal: table may be empty on fresh install
+		_ = err
 	}
 
 	// SAI indexes (Cassandra 5.0+ required) — replace the old schemas_by_fingerprint
