@@ -1,0 +1,36 @@
+name: Generate API Documentation
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  generate-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Generate API documentation
+        run: ./scripts/generate-api-docs.sh
+
+      - name: Check for changes
+        id: changes
+        run: |
+          git diff --quiet docs/api-reference.md docs/api/index.html && echo "changed=false" >> "$GITHUB_OUTPUT" || echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Commit and push
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/api-reference.md docs/api/index.html
+          git commit -m "docs: regenerate API reference from OpenAPI spec"
+          git push

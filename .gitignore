@@ -32,8 +32,8 @@ config.local.yaml
 .env
 .env.local
 
-# Generated API documentation
-docs/api/
+# Generated API documentation (committed; regenerate with: make docs-api)
+# docs/api/
 
 # Debug
 debug

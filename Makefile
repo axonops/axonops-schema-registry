@@ -480,12 +480,9 @@ docker-build:
 docker-run:
 	docker run -p 8081:8081 axonops/schema-registry:latest
 
-## Generate static API documentation (requires npx)
+## Generate API documentation from OpenAPI spec (markdown + ReDoc HTML)
 docs-api:
-	@echo "Generating static API documentation..."
-	@mkdir -p docs/api
-	npx @redocly/cli build-docs api/openapi.yaml -o docs/api/index.html
-	@echo "Documentation generated at docs/api/index.html"
+	@./scripts/generate-api-docs.sh
 
 ## Clean build artifacts
 clean:
@@ -552,5 +549,5 @@ help:
 	@echo "  fmt                 Format code"
 	@echo "  run                 Build and run the server"
 	@echo "  dev                 Run with hot reload (requires air)"
-	@echo "  docs-api            Generate static API documentation"
+	@echo "  docs-api            Generate API docs from OpenAPI (markdown + HTML)"
 	@echo "  clean               Clean build artifacts"
