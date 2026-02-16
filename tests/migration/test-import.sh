@@ -150,7 +150,7 @@ echo "PASS: New schema got ID $NEW_ID (> 200)"
 
 echo ""
 echo "=== Setting IMPORT mode for duplicate test ==="
-curl -sf -X PUT http://localhost:$TEST_PORT/mode \
+curl -sf -X PUT "http://localhost:$TEST_PORT/mode?force=true" \
     -H "Content-Type: application/json" \
     -d '{"mode":"IMPORT"}' > /dev/null
 
