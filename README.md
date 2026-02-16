@@ -3,7 +3,7 @@
 
   # AxonOps Schema Registry
 
-  **High-Performance, API-Compatible Drop-In Replacement for Confluent Schema Registry**
+  **High-Performance Kafka Schema Registry with Multi-Backend Storage and Enterprise Security**
 
   [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
   [![Go Version](https://img.shields.io/badge/Go-1.24+-00ADD8.svg)](https://go.dev/)
