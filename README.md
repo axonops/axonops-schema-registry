@@ -32,9 +32,9 @@ Unlike Confluent Schema Registry, which uses Kafka itself (a special `_schemas` 
 ## Contents
 
 - [Why AxonOps Schema Registry?](#why-axonops-schema-registry)
+- [Feature Comparison](#feature-comparison)
 - [Quick Start](#quick-start)
 - [Features](#features)
-- [Feature Comparison](#feature-comparison)
 - [Architecture](#architecture)
 - [API Compatibility](#api-compatibility)
 - [Documentation](#documentation)
@@ -51,6 +51,43 @@ Unlike Confluent Schema Registry, which uses Kafka itself (a special `_schemas` 
 - **Enterprise Security** -- LDAP, OIDC, mTLS, API keys, JWT, and RBAC out of the box
 - **Cloud Native** -- designed for Kubernetes with health checks, Prometheus metrics, and graceful shutdown
 - **Multi-Datacenter** -- active-active deployments with Cassandra's native cross-DC replication
+
+## Feature Comparison
+
+*Comparison based on upstream/default configurations. Third-party plugins may extend capabilities.*
+
+<div align="center">
+
+| Feature | AxonOps | Confluent OSS | Confluent Enterprise | Karapace |
+|---------|---------|---------------|---------------------|----------|
+| **License** | Apache 2.0 | Confluent Community | Commercial | Apache 2.0 |
+| **Language** | Go | Java | Java | Python |
+| **API Compatibility** | Full | N/A | N/A | Full |
+| **Avro** | ✅ | ✅ | ✅ | ✅ |
+| **Protobuf** | ✅ | ✅ | ✅ | ✅ |
+| **JSON Schema** | ✅ | ✅ | ✅ | ✅ |
+| **Schema References** | ✅ | ✅ | ✅ | ✅ |
+| **All 7 Compat Modes** | ✅ | ✅ | ✅ | ✅ |
+| **Storage: Kafka** | ❌ | ✅ | ✅ | ✅ |
+| **Storage: PostgreSQL** | ✅ | ❌ | ❌ | ❌ |
+| **Storage: MySQL** | ✅ | ❌ | ❌ | ❌ |
+| **Storage: Cassandra** | ✅ | ❌ | ❌ | ❌ |
+| **No Kafka Dependency** | ✅ | ❌ | ❌ | ❌ |
+| **Basic Auth** | ✅ | ❌ | ✅ | ✅ |
+| **API Keys** | ✅ | ❌ | ✅ | ❌ |
+| **LDAP/AD** | ✅ | ❌ | ✅ | ❌ |
+| **OIDC/OAuth2** | ✅ | ❌ | ✅ | ❌ |
+| **mTLS** | ✅ | ✅ | ✅ | ✅ |
+| **RBAC** | ✅ | ❌ | ✅ | ⚠️ Limited |
+| **Audit Logging** | ✅ | ❌ | ✅ | ❌ |
+| **Rate Limiting** | ✅ | ❌ | ❌ | ❌ |
+| **Prometheus Metrics** | ✅ | ✅ | ✅ | ✅ |
+| **REST Proxy** | ❌ | Separate | Separate | ✅ |
+| **Schema Validation** | ✅ | ✅ | ✅ | ✅ |
+| **Single Binary** | ✅ | ❌ | ❌ | ❌ |
+| **Memory Footprint** | ~50MB | ~500MB+ | ~500MB+ | ~200MB+ |
+
+</div>
 
 ## Quick Start
 
@@ -118,45 +155,6 @@ Auth storage can optionally be separated into HashiCorp Vault.
 - **Swagger UI** -- Built-in interactive API documentation at `GET /docs`
 - **Graceful Shutdown** -- Clean connection draining on SIGTERM/SIGINT
 - **Database Migrations** -- Automatic schema creation and upgrades
-
----
-
-## Feature Comparison
-
-*Comparison based on upstream/default configurations. Third-party plugins may extend capabilities.*
-
-<div align="center">
-
-| Feature | AxonOps | Confluent OSS | Confluent Enterprise | Karapace |
-|---------|---------|---------------|---------------------|----------|
-| **License** | Apache 2.0 | Confluent Community | Commercial | Apache 2.0 |
-| **Language** | Go | Java | Java | Python |
-| **API Compatibility** | Full | N/A | N/A | Full |
-| **Avro Support** | Yes | Yes | Yes | Yes |
-| **Protobuf Support** | Yes | Yes | Yes | Yes |
-| **JSON Schema Support** | Yes | Yes | Yes | Yes |
-| **Schema References** | Yes | Yes | Yes | Yes |
-| **Compatibility Modes** | All 7 modes | All 7 modes | All 7 modes | All 7 modes |
-| **Storage: Kafka** | No | Yes | Yes | Yes |
-| **Storage: PostgreSQL** | Yes | No | No | No |
-| **Storage: MySQL** | Yes | No | No | No |
-| **Storage: Cassandra** | Yes | No | No | No |
-| **No Kafka Dependency** | Yes | No | No | No |
-| **Basic Auth** | Yes | No | Yes | Yes |
-| **API Keys** | Yes | No | Yes | No |
-| **LDAP/AD** | Yes | No | Yes | No |
-| **OIDC/OAuth2** | Yes | No | Yes | No |
-| **mTLS** | Yes | Yes | Yes | Yes |
-| **RBAC** | Yes | No | Yes | Limited |
-| **Audit Logging** | Yes | No | Yes | No |
-| **Rate Limiting** | Yes | No | No | No |
-| **Prometheus Metrics** | Yes | Yes | Yes | Yes |
-| **REST Proxy** | No | Separate | Separate | Yes |
-| **Schema Validation** | Yes | Yes | Yes | Yes |
-| **Single Binary** | Yes | No | No | No |
-| **Memory Footprint** | ~50MB | ~500MB+ | ~500MB+ | ~200MB+ |
-
-</div>
 
 ---
 
@@ -305,6 +303,6 @@ Apache License 2.0 -- see [LICENSE](LICENSE) for details.
 
   Made with :heart: by the [AxonOps](https://axonops.com) team
 
-  Copyright &copy; 2025 AxonOps Limited
+  Copyright &copy; 2026 AxonOps Limited
 
 </div>
