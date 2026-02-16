@@ -19,7 +19,7 @@
 
 [AxonOps Schema Registry](https://github.com/axonops/axonops-schema-registry) is a **schema registry for Apache Kafka** that manages and enforces schemas for event-driven architectures. It stores versioned Avro, Protobuf, and JSON Schema definitions, validates compatibility between schema versions, and ensures producers and consumers agree on data formats.
 
-Unlike Confluent Schema Registry, it **does not require Kafka or ZooKeeper** for its own storage -- it uses standard databases (PostgreSQL, MySQL, or Cassandra) while remaining **fully API-compatible** with Confluent's REST API, serializers, and client libraries.
+Unlike Confluent Schema Registry, which uses Kafka itself (a special `_schemas` topic) as its storage backend, AxonOps Schema Registry **does not require Kafka** for storage -- it uses standard databases (PostgreSQL, MySQL, or Cassandra) while remaining **fully API-compatible** with Confluent's REST API, serializers, and client libraries.
 
 <div align="center">
 
@@ -45,7 +45,7 @@ Unlike Confluent Schema Registry, it **does not require Kafka or ZooKeeper** for
 
 ## Why AxonOps Schema Registry?
 
-- **No Kafka/ZooKeeper Dependency** -- uses standard databases (PostgreSQL, MySQL, Cassandra) for storage
+- **No Kafka Dependency** -- uses standard databases (PostgreSQL, MySQL, Cassandra) instead of Kafka for storage
 - **Single Binary** -- ~50 MB memory footprint, zero runtime dependencies
 - **Full API Compatibility** -- works with Confluent serializers for Java, Go, and Python
 - **Enterprise Security** -- LDAP, OIDC, mTLS, API keys, JWT, and RBAC out of the box
