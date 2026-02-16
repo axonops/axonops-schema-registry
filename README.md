@@ -17,7 +17,7 @@
 
 ## Overview
 
-[AxonOps Schema Registry](https://github.com/axonops/axonops-schema-registry) is a **schema registry for Apache Kafka** that manages and enforces schemas for event-driven architectures. It stores versioned Avro, Protobuf, and JSON Schema definitions, validates compatibility between schema versions, and ensures producers and consumers agree on data formats.
+[AxonOps](https://axonops.com) Schema Registry is a **schema registry for Apache Kafka** that manages and enforces schemas for event-driven architectures. It stores versioned Avro, Protobuf, and JSON Schema definitions, validates compatibility between schema versions, and ensures producers and consumers agree on data formats.
 
 Unlike Confluent Schema Registry, which uses Kafka itself (a special `_schemas` topic) as its storage backend, AxonOps Schema Registry **does not require Kafka** for storage -- it uses standard databases (PostgreSQL, MySQL, or Cassandra) while remaining **fully API-compatible** with Confluent's REST API, serializers, and client libraries.
 
@@ -76,7 +76,7 @@ Unlike Confluent Schema Registry, which uses Kafka itself (a special `_schemas` 
 | **Basic Auth** | ✅ | ❌ | ✅ | ✅ |
 | **API Keys** | ✅ | ❌ | ✅ | ❌ |
 | **LDAP/AD** | ✅ | ❌ | ✅ | ❌ |
-| **OIDC/OAuth2** | ✅ | ❌ | ✅ | ❌ |
+| **OIDC/OAuth2** | ✅ | ❌ | ✅ | ✅ |
 | **mTLS** | ✅ | ✅ | ✅ | ✅ |
 | **RBAC** | ✅ | ❌ | ✅ | ⚠️ Limited |
 | **Audit Logging** | ✅ | ❌ | ✅ | ❌ |
@@ -228,6 +228,7 @@ AxonOps Schema Registry implements the Confluent Schema Registry REST API v1:
 | [Deployment](docs/deployment.md) | Topologies, Docker Compose, Kubernetes manifests, systemd, and health checks |
 | [Monitoring](docs/monitoring.md) | Prometheus metrics, alerting rules, structured logging, and Grafana queries |
 | [Migration](docs/migration.md) | Migrating from Confluent Schema Registry with preserved schema IDs |
+| [Testing Strategy](docs/testing.md) | Testing philosophy, all test layers, how to run and write tests |
 | [Development](docs/development.md) | Building from source, running the test suite, and contributing |
 | [Troubleshooting](docs/troubleshooting.md) | Common issues, diagnostic commands, and error code reference |
 
@@ -296,6 +297,7 @@ Apache License 2.0 -- see [LICENSE](LICENSE) for details.
 
 - **AxonOps** is a registered trademark of AxonOps Limited.
 - **Apache**, **Apache Cassandra**, **Cassandra**, **Apache Kafka**, and **Kafka** are either registered trademarks or trademarks of the Apache Software Foundation or its subsidiaries in Canada, the United States, and/or other countries.
+- **Confluent** is a registered trademark of Confluent, Inc.
 
 ---
 
