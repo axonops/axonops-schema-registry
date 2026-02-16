@@ -43,6 +43,8 @@ Unlike Confluent Schema Registry, which uses Kafka itself (a special `_schemas` 
 - [License](#license)
 - [Legal Notices](#legal-notices)
 
+**New to schema registries?** Read the [Fundamentals](docs/fundamentals.md) guide to understand what a schema registry is, why it matters, and how it fits into an event-driven architecture.
+
 ## Why AxonOps Schema Registry?
 
 - **No Kafka Dependency** -- uses standard databases (PostgreSQL, MySQL, Cassandra) instead of Kafka for storage
@@ -219,6 +221,7 @@ AxonOps Schema Registry implements the Confluent Schema Registry REST API v1:
 
 | Guide | Description |
 |-------|-------------|
+| [Fundamentals](docs/fundamentals.md) | What is a schema registry, core concepts, and how it fits into Kafka |
 | [Getting Started](docs/getting-started.md) | Run the registry and register your first schemas in five minutes |
 | [Installation](docs/installation.md) | Docker, APT, YUM, binary, Kubernetes, and from-source installation |
 | [Configuration](docs/configuration.md) | Complete YAML reference with all fields, defaults, and environment variables |
