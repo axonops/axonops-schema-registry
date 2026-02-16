@@ -102,7 +102,7 @@ func TestMain(m *testing.M) {
 		cfg := &config.Config{
 			Server: config.ServerConfig{
 				Host: "localhost",
-				Port: 18081 + i,
+				Port: 28181 + i,
 			},
 		}
 

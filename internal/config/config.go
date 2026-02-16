@@ -25,6 +25,7 @@ type ServerConfig struct {
 	Port         int    `yaml:"port"`
 	ReadTimeout  int    `yaml:"read_timeout"`
 	WriteTimeout int    `yaml:"write_timeout"`
+	DocsEnabled  bool   `yaml:"docs_enabled"`
 }
 
 // StorageConfig represents storage backend configuration.
@@ -373,6 +374,11 @@ func (c *Config) applyEnvOverrides() {
 	}
 	if v := os.Getenv("SCHEMA_REGISTRY_MYSQL_TLS"); v != "" {
 		c.Storage.MySQL.TLS = v
+	}
+
+	// Docs enabled override
+	if v := os.Getenv("SCHEMA_REGISTRY_DOCS_ENABLED"); v != "" {
+		c.Server.DocsEnabled = strings.ToLower(v) == "true" || v == "1"
 	}
 
 	// Auth type override

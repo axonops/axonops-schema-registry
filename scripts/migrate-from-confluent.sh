@@ -137,14 +137,14 @@ check_dependencies() {
 # Test connectivity
 test_connectivity() {
     log_info "Testing connectivity to source: $SOURCE_URL"
-    if ! curl -sf "${SOURCE_AUTH[@]}" "$SOURCE_URL/" > /dev/null 2>&1; then
+    if ! curl -sf ${SOURCE_AUTH[@]+"${SOURCE_AUTH[@]}"} "$SOURCE_URL/" > /dev/null 2>&1; then
         log_error "Cannot connect to source Schema Registry at $SOURCE_URL"
         exit 1
     fi
 
     if [[ "$DRY_RUN" == "false" ]]; then
         log_info "Testing connectivity to target: $TARGET_URL"
-        if ! curl -sf "${TARGET_AUTH[@]}" "$TARGET_URL/" > /dev/null 2>&1; then
+        if ! curl -sf ${TARGET_AUTH[@]+"${TARGET_AUTH[@]}"} "$TARGET_URL/" > /dev/null 2>&1; then
             log_error "Cannot connect to target Schema Registry at $TARGET_URL"
             exit 1
         fi
@@ -157,7 +157,7 @@ export_schemas() {
 
     # Get all subjects
     local subjects
-    subjects=$(curl -sf "${SOURCE_AUTH[@]}" "$SOURCE_URL/subjects" | jq -r '.[]')
+    subjects=$(curl -sf ${SOURCE_AUTH[@]+"${SOURCE_AUTH[@]}"} "$SOURCE_URL/subjects" | jq -r '.[]')
 
     if [[ -z "$subjects" ]]; then
         log_warn "No subjects found in source registry"
@@ -175,14 +175,14 @@ export_schemas() {
 
         # Get all versions for this subject
         local versions
-        versions=$(curl -sf "${SOURCE_AUTH[@]}" "$SOURCE_URL/subjects/$subject/versions" | jq -r '.[]')
+        versions=$(curl -sf ${SOURCE_AUTH[@]+"${SOURCE_AUTH[@]}"} "$SOURCE_URL/subjects/$subject/versions" | jq -r '.[]')
 
         while IFS= read -r version; do
             [[ -z "$version" ]] && continue
 
             # Get schema details for this version
             local schema_info
-            schema_info=$(curl -sf "${SOURCE_AUTH[@]}" "$SOURCE_URL/subjects/$subject/versions/$version")
+            schema_info=$(curl -sf ${SOURCE_AUTH[@]+"${SOURCE_AUTH[@]}"} "$SOURCE_URL/subjects/$subject/versions/$version")
 
             local schema_id
             schema_id=$(echo "$schema_info" | jq -r '.id')
@@ -246,7 +246,7 @@ import_schemas() {
 
     # Import all schemas in one request
     local response
-    response=$(curl -sf "${TARGET_AUTH[@]}" \
+    response=$(curl -sf ${TARGET_AUTH[@]+"${TARGET_AUTH[@]}"} \
         -X POST "$TARGET_URL/import/schemas" \
         -H "Content-Type: application/json" \
         -d "$import_data")
@@ -274,10 +274,10 @@ verify_migration() {
     log_info "Verifying migration..."
 
     local source_subjects
-    source_subjects=$(curl -sf "${SOURCE_AUTH[@]}" "$SOURCE_URL/subjects" | jq -r '.[]' | sort)
+    source_subjects=$(curl -sf ${SOURCE_AUTH[@]+"${SOURCE_AUTH[@]}"} "$SOURCE_URL/subjects" | jq -r '.[]' | sort)
 
     local target_subjects
-    target_subjects=$(curl -sf "${TARGET_AUTH[@]}" "$TARGET_URL/subjects" | jq -r '.[]' | sort)
+    target_subjects=$(curl -sf ${TARGET_AUTH[@]+"${TARGET_AUTH[@]}"} "$TARGET_URL/subjects" | jq -r '.[]' | sort)
 
     # Compare subjects
     local missing_subjects
@@ -297,13 +297,13 @@ verify_migration() {
         [[ -z "$subject" ]] && continue
 
         local source_versions
-        source_versions=$(curl -sf "${SOURCE_AUTH[@]}" "$SOURCE_URL/subjects/$subject/versions" | jq -r '.[]')
+        source_versions=$(curl -sf ${SOURCE_AUTH[@]+"${SOURCE_AUTH[@]}"} "$SOURCE_URL/subjects/$subject/versions" | jq -r '.[]')
 
         while IFS= read -r version; do
             [[ -z "$version" ]] && continue
 
             local source_schema
-            source_schema=$(curl -sf "${SOURCE_AUTH[@]}" "$SOURCE_URL/subjects/$subject/versions/$version")
+            source_schema=$(curl -sf ${SOURCE_AUTH[@]+"${SOURCE_AUTH[@]}"} "$SOURCE_URL/subjects/$subject/versions/$version")
 
             local source_id
             source_id=$(echo "$source_schema" | jq -r '.id')
@@ -313,7 +313,7 @@ verify_migration() {
 
             # Get from target
             local target_schema
-            target_schema=$(curl -sf "${TARGET_AUTH[@]}" "$TARGET_URL/subjects/$subject/versions/$version" 2>/dev/null || echo "null")
+            target_schema=$(curl -sf ${TARGET_AUTH[@]+"${TARGET_AUTH[@]}"} "$TARGET_URL/subjects/$subject/versions/$version" 2>/dev/null || echo "null")
 
             if [[ "$target_schema" == "null" ]]; then
                 log_error "Missing: $subject v$version (ID: $source_id)"

@@ -2,9 +2,50 @@ openapi: 3.0.3
 info:
   title: AxonOps Schema Registry
   description: |
-    A high-performance Kafka Schema Registry compatible with Confluent Schema Registry API.
-    Supports Avro, Protobuf, and JSON Schema formats.
+    AxonOps Schema Registry is a drop-in replacement for the Confluent Schema Registry,
+    providing full API compatibility with extensions for enterprise security and
+    multi-backend storage. It supports **Avro**, **Protobuf**, and **JSON Schema**
+    formats for schema management.
+
+    ## Key Concepts
+
+    - **Schema**: A versioned definition of a data structure (Avro record, Protobuf message,
+      or JSON Schema document). Schemas are stored centrally and assigned a globally unique ID.
+    - **Subject**: A named scope under which schema versions are registered. A subject typically
+      maps to a Kafka topic (e.g. `my-topic-value`).
+    - **Version**: An incrementing integer assigned each time a new schema is registered under
+      a subject.
+    - **Compatibility**: A policy that controls whether a new schema version is allowed based on
+      its relationship to previous versions. Levels include BACKWARD, FORWARD, FULL, and
+      their TRANSITIVE variants.
+    - **Mode**: Controls whether a subject (or the entire registry) accepts writes. Modes
+      include READWRITE, READONLY, READONLY_OVERRIDE, and IMPORT.
+    - **Reference**: A pointer from one schema to another, enabling cross-subject schema
+      composition (e.g. Avro named types, Protobuf imports, JSON Schema $ref).
+    - **Metadata**: Key-value tags and properties attached to a schema for data contract
+      management.
+    - **RuleSet**: Data contract rules (migration and domain rules) attached to a schema.
+
+    ## Content Types
+
+    The primary content type is `application/vnd.schemaregistry.v1+json`.
+    The registry also accepts `application/json`.
+
+    ## Error Handling
+
+    All errors are returned as JSON objects with `error_code` and `message` fields.
+    Error codes follow the Confluent Schema Registry convention (e.g. 40401 for subject
+    not found, 42201 for invalid schema).
+
+    ## Authentication
+
+    When security is enabled, the registry supports HTTP Basic authentication,
+    API key authentication (via the `X-API-Key` header), and JWT bearer tokens.
+    Public endpoints (health check, metrics, documentation) do not require authentication.
   version: 1.0.0
+  contact:
+    name: AxonOps
+    url: https://github.com/axonops/axonops-schema-registry
   license:
     name: Apache 2.0
     url: https://www.apache.org/licenses/LICENSE-2.0
@@ -15,626 +56,1684 @@ servers:
 
 tags:
   - name: Schemas
-    description: Schema operations by ID
+    description: >-
+      Operations for retrieving schemas by their globally unique ID, listing all schemas,
+      and querying supported schema types. Every schema registered in the registry receives
+      a unique integer ID that persists across subjects.
   - name: Subjects
-    description: Subject and version operations
+    description: >-
+      Operations for managing subjects and their schema versions. A subject is a named scope
+      (typically corresponding to a Kafka topic) under which one or more schema versions are
+      registered. Subjects support soft-delete and permanent-delete semantics.
   - name: Config
-    description: Compatibility configuration
+    description: >-
+      Operations for managing compatibility configuration at the global and per-subject level.
+      The compatibility level determines what changes are permitted when registering a new
+      schema version. Supported levels are NONE, BACKWARD, BACKWARD_TRANSITIVE, FORWARD,
+      FORWARD_TRANSITIVE, FULL, and FULL_TRANSITIVE.
   - name: Mode
-    description: Registry mode configuration
+    description: >-
+      Operations for managing the registry mode at the global and per-subject level.
+      The mode controls whether schema registration (writes) is permitted. Supported modes
+      are READWRITE, READONLY, READONLY_OVERRIDE, and IMPORT.
   - name: Compatibility
-    description: Compatibility checking
+    description: >-
+      Operations for testing whether a candidate schema is compatible with existing schema
+      versions under a subject, without actually registering it.
+  - name: Import
+    description: >-
+      Operations for bulk-importing schemas from another schema registry, preserving original
+      schema IDs. This is used for migration scenarios.
+  - name: Metadata
+    description: >-
+      Operations for retrieving registry metadata such as the cluster ID and server version.
   - name: Account
-    description: Self-service account management
+    description: >-
+      Self-service account endpoints for authenticated users to view their own profile and
+      change their password.
   - name: Admin
-    description: User and API key management (requires admin permissions)
+    description: >-
+      Administrative endpoints for managing users, API keys, and roles. These endpoints
+      require admin-level permissions.
+  - name: Documentation
+    description: >-
+      Endpoints for serving the interactive API documentation (Swagger UI) and the raw
+      OpenAPI specification. Available only when the server is configured with docs_enabled.
+
+security:
+  - basicAuth: []
+  - apiKey: []
+  - bearerAuth: []
 
 paths:
   /:
     get:
       summary: Health check
+      description: >-
+        Returns an empty JSON object to indicate the service is healthy and accepting
+        requests. This endpoint does not require authentication.
       operationId: healthCheck
+      security: []
       responses:
         '200':
-          description: Service is healthy
+          description: The service is healthy.
           content:
             application/json:
               schema:
                 type: object
+                description: An empty JSON object.
+                example: {}
+
+  /metrics:
+    get:
+      summary: Prometheus metrics
+      description: >-
+        Returns Prometheus-formatted metrics for the registry. This endpoint does not
+        require authentication. Metrics include request counts, latencies, cache statistics,
+        and storage health indicators.
+      operationId: getMetrics
+      security: []
+      responses:
+        '200':
+          description: Prometheus metrics in text exposition format.
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  /docs:
+    get:
+      summary: Swagger UI
+      description: >-
+        Serves the interactive Swagger UI for exploring the API. This endpoint is only
+        available when the server is configured with `docs_enabled: true`. It does not
+        require authentication.
+      operationId: getSwaggerUI
+      tags:
+        - Documentation
+      security: []
+      responses:
+        '200':
+          description: The Swagger UI HTML page.
+          content:
+            text/html:
+              schema:
+                type: string
+
+  /openapi.yaml:
+    get:
+      summary: OpenAPI specification
+      description: >-
+        Returns the raw OpenAPI 3.0.3 specification for this API in YAML format. This
+        endpoint is only available when the server is configured with `docs_enabled: true`.
+        It does not require authentication.
+      operationId: getOpenAPISpec
+      tags:
+        - Documentation
+      security: []
+      responses:
+        '200':
+          description: The OpenAPI specification in YAML format.
+          content:
+            application/x-yaml:
+              schema:
+                type: string
 
   /schemas/types:
     get:
       summary: Get supported schema types
+      description: >-
+        Returns the list of schema types supported by this registry. The response is an
+        array of strings. Currently supported types are AVRO, PROTOBUF, and JSON.
       operationId: getSchemaTypes
       tags:
         - Schemas
       responses:
         '200':
-          description: List of supported schema types
+          description: A list of supported schema type strings.
           content:
-            application/json:
+            application/vnd.schemaregistry.v1+json:
               schema:
                 type: array
                 items:
                   type: string
-                example: ["AVRO", "PROTOBUF", "JSON"]
+                  enum:
+                    - AVRO
+                    - PROTOBUF
+                    - JSON
+                example:
+                  - AVRO
+                  - PROTOBUF
+                  - JSON
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
-  /schemas/ids/{id}:
+  /schemas:
     get:
-      summary: Get schema by ID
-      operationId: getSchemaById
+      summary: List schemas
+      description: >-
+        Returns a list of all schemas registered in the registry. Results MAY be
+        filtered by subject prefix, soft-deleted status, and whether to return only the
+        latest version per subject. Pagination is supported via offset and limit
+        query parameters.
+      operationId: listSchemas
       tags:
         - Schemas
       parameters:
-        - name: id
-          in: path
-          required: true
+        - name: subjectPrefix
+          in: query
+          description: >-
+            Filter results to schemas whose subject name starts with this prefix.
+            If omitted, schemas across all subjects are returned.
+          schema:
+            type: string
+        - name: deleted
+          in: query
+          description: >-
+            When set to `true`, soft-deleted schemas are included in the results.
+          schema:
+            type: boolean
+            default: false
+        - name: latestOnly
+          in: query
+          description: >-
+            When set to `true`, only the latest version of each subject is returned.
+          schema:
+            type: boolean
+            default: false
+        - name: offset
+          in: query
+          description: The number of results to skip for pagination.
           schema:
             type: integer
-            format: int64
+            minimum: 0
+            default: 0
+        - name: limit
+          in: query
+          description: >-
+            The maximum number of results to return. If omitted or set to 0,
+            all results are returned.
+          schema:
+            type: integer
+            minimum: 0
       responses:
         '200':
-          description: Schema found
+          description: A list of schema records.
           content:
-            application/json:
+            application/vnd.schemaregistry.v1+json:
               schema:
-                $ref: '#/components/schemas/SchemaResponse'
-        '404':
-          description: Schema not found
+                type: array
+                items:
+                  $ref: '#/components/schemas/SchemaListItem'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /schemas/ids/{id}:
+    get:
+      summary: Get schema by global ID
+      description: >-
+        Retrieves a schema by its globally unique ID. The response includes the schema
+        string, its type, any references, metadata, and ruleset. The optional `format`
+        query parameter allows requesting the schema in an alternative serialization
+        (e.g. `serialized` for Protobuf's normalized format). When `fetchMaxId` is set
+        to `true`, the response includes the current maximum schema ID in the registry.
+        The `subject` query parameter MAY be used as a hint but does not filter results.
+      operationId: getSchemaByID
+      tags:
+        - Schemas
+      parameters:
+        - $ref: '#/components/parameters/SchemaID'
+        - name: format
+          in: query
+          description: >-
+            An optional format hint for the returned schema string. For Protobuf schemas,
+            passing `serialized` returns the normalized descriptor representation.
+          schema:
+            type: string
+        - name: fetchMaxId
+          in: query
+          description: >-
+            When set to `true`, the response includes a `maxId` field containing the
+            current highest schema ID in the registry.
+          schema:
+            type: boolean
+            default: false
+        - name: subject
+          in: query
+          description: >-
+            An optional subject name filter. This parameter is accepted for Confluent
+            API compatibility.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The schema identified by the given global ID.
           content:
-            application/json:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/SchemaByIDResponse'
+        '404':
+          description: Schema not found.
+          content:
+            application/vnd.schemaregistry.v1+json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error_code: 40403
+                message: "Schema not found"
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /schemas/ids/{id}/schema:
+    get:
+      summary: Get raw schema string by global ID
+      description: >-
+        Retrieves the raw schema string for the schema identified by its globally unique
+        ID. Unlike `GET /schemas/ids/{id}`, this endpoint returns only the schema content
+        as a string, without metadata or references. The optional `format` query parameter
+        allows requesting an alternative serialization.
+      operationId: getRawSchemaByID
+      tags:
+        - Schemas
+      parameters:
+        - $ref: '#/components/parameters/SchemaID'
+        - name: format
+          in: query
+          description: >-
+            An optional format hint for the returned schema string.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The raw schema string.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                type: string
+        '404':
+          description: Schema not found.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error_code: 40403
+                message: "Schema not found"
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /schemas/ids/{id}/subjects:
+    get:
+      summary: Get subjects associated with a schema ID
+      description: >-
+        Returns the list of subject names that have registered the schema identified by
+        the given global ID. This is useful for determining which subjects share the same
+        schema content. Soft-deleted subjects MAY be included by setting `deleted=true`.
+        An optional `subject` query parameter filters the results to a specific subject name.
+      operationId: getSubjectsBySchemaID
+      tags:
+        - Schemas
+      parameters:
+        - $ref: '#/components/parameters/SchemaID'
+        - name: deleted
+          in: query
+          description: >-
+            When set to `true`, includes subjects that have been soft-deleted.
+          schema:
+            type: boolean
+            default: false
+        - name: subject
+          in: query
+          description: >-
+            An optional subject name to filter the result to only that subject.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: A list of subject names.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                type: array
+                items:
+                  type: string
+                example:
+                  - "my-topic-value"
+                  - "other-topic-value"
+        '404':
+          description: Schema not found.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error_code: 40403
+                message: "Schema not found"
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /schemas/ids/{id}/versions:
+    get:
+      summary: Get subject-version pairs for a schema ID
+      description: >-
+        Returns all subject-version pairs where the schema identified by the given global
+        ID is registered. A single schema MAY be registered under multiple subjects at
+        different version numbers. Soft-deleted versions MAY be included by setting
+        `deleted=true`. An optional `subject` filter restricts results to a specific
+        subject name.
+      operationId: getVersionsBySchemaID
+      tags:
+        - Schemas
+      parameters:
+        - $ref: '#/components/parameters/SchemaID'
+        - name: deleted
+          in: query
+          description: >-
+            When set to `true`, includes soft-deleted subject-version pairs.
+          schema:
+            type: boolean
+            default: false
+        - name: subject
+          in: query
+          description: >-
+            An optional subject name to filter results to only versions under that subject.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: A list of subject-version pairs.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SubjectVersionPair'
+        '404':
+          description: Schema not found.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error_code: 40403
+                message: "Schema not found"
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   /subjects:
     get:
-      summary: List all subjects
+      summary: List subjects
+      description: >-
+        Returns a list of all registered subject names. By default only active (non-deleted)
+        subjects are returned. Use the `deleted` query parameter to include soft-deleted
+        subjects, or `deletedOnly` to return only soft-deleted subjects. Results MAY be
+        filtered by a subject name prefix and paginated with offset and limit.
       operationId: listSubjects
       tags:
         - Subjects
       parameters:
         - name: deleted
           in: query
+          description: >-
+            When set to `true`, includes soft-deleted subjects alongside active ones.
           schema:
             type: boolean
             default: false
+        - name: deletedOnly
+          in: query
+          description: >-
+            When set to `true`, returns only subjects that have been soft-deleted.
+            This implicitly sets `deleted=true`.
+          schema:
+            type: boolean
+            default: false
+        - name: subjectPrefix
+          in: query
+          description: >-
+            Filters the results to subjects whose name starts with the given prefix.
+          schema:
+            type: string
+        - name: offset
+          in: query
+          description: The number of results to skip for pagination.
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: limit
+          in: query
+          description: >-
+            The maximum number of results to return. If omitted, all results are returned.
+          schema:
+            type: integer
+            minimum: 0
       responses:
         '200':
-          description: List of subject names
+          description: A JSON array of subject name strings.
           content:
-            application/json:
+            application/vnd.schemaregistry.v1+json:
               schema:
                 type: array
                 items:
                   type: string
-
-  /subjects/{subject}:
-    post:
-      summary: Look up schema under subject
-      operationId: lookupSchema
-      tags:
-        - Subjects
-      parameters:
-        - name: subject
-          in: path
-          required: true
-          schema:
-            type: string
-        - name: deleted
-          in: query
-          schema:
-            type: boolean
-            default: false
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/RegisterSchemaRequest'
-      responses:
-        '200':
-          description: Schema found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SubjectVersionResponse'
-        '404':
-          description: Schema not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-    delete:
-      summary: Delete subject
-      operationId: deleteSubject
-      tags:
-        - Subjects
-      parameters:
-        - name: subject
-          in: path
-          required: true
-          schema:
-            type: string
-        - name: permanent
-          in: query
-          schema:
-            type: boolean
-            default: false
-      responses:
-        '200':
-          description: List of deleted versions
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  type: integer
-        '404':
-          description: Subject not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                example:
+                  - "my-topic-value"
+                  - "other-topic-key"
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   /subjects/{subject}/versions:
     get:
-      summary: List versions for subject
-      operationId: listVersions
+      summary: List versions under a subject
+      description: >-
+        Returns a list of version numbers registered under the specified subject. By
+        default only active (non-deleted) versions are returned. Use `deleted=true`
+        to include soft-deleted versions, or `deletedOnly=true` to return exclusively
+        soft-deleted versions. Pagination is supported via offset and limit.
+      operationId: getVersions
       tags:
         - Subjects
       parameters:
-        - name: subject
-          in: path
-          required: true
-          schema:
-            type: string
+        - $ref: '#/components/parameters/Subject'
         - name: deleted
           in: query
+          description: >-
+            When set to `true`, includes soft-deleted versions alongside active ones.
           schema:
             type: boolean
             default: false
+        - name: deletedOnly
+          in: query
+          description: >-
+            When set to `true`, returns only versions that have been soft-deleted.
+            This implicitly sets `deleted=true`.
+          schema:
+            type: boolean
+            default: false
+        - name: offset
+          in: query
+          description: The number of results to skip for pagination.
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: limit
+          in: query
+          description: >-
+            The maximum number of results to return. If omitted, all versions are returned.
+          schema:
+            type: integer
+            minimum: 0
       responses:
         '200':
-          description: List of version numbers
+          description: A JSON array of version numbers (integers).
           content:
-            application/json:
+            application/vnd.schemaregistry.v1+json:
               schema:
                 type: array
                 items:
                   type: integer
+                example:
+                  - 1
+                  - 2
+                  - 3
         '404':
-          description: Subject not found
+          description: Subject not found.
           content:
-            application/json:
+            application/vnd.schemaregistry.v1+json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error_code: 40401
+                message: "Subject not found"
+        '500':
+          $ref: '#/components/responses/InternalServerError'
     post:
-      summary: Register new schema
+      summary: Register a new schema under a subject
+      description: >-
+        Registers a new schema version under the specified subject. If an identical schema
+        (by content fingerprint) already exists under this subject, the existing schema's ID
+        is returned without creating a new version. The schema MUST be compatible with
+        previous versions according to the subject's compatibility policy, unless the
+        compatibility level is set to NONE.
+
+        The request body MUST include the `schema` field containing the schema definition
+        as a string. The `schemaType` field defaults to `AVRO` if omitted. References to
+        other schemas MAY be included via the `references` array.
+
+        When the `normalize` query parameter is set to `true`, the schema string is
+        canonicalized before fingerprinting and storage.
+
+        If the request includes an explicit `id` field and the registry is in IMPORT mode,
+        the schema is imported with that specific ID.
+
+        The subject's mode MUST be READWRITE or IMPORT for this operation to succeed.
+        If the subject is in READONLY or READONLY_OVERRIDE mode, a 42205 error is returned.
       operationId: registerSchema
       tags:
         - Subjects
       parameters:
-        - name: subject
-          in: path
-          required: true
+        - $ref: '#/components/parameters/Subject'
+        - name: normalize
+          in: query
+          description: >-
+            When set to `true`, the schema is canonicalized (normalized) before storage
+            and fingerprinting. This ensures semantically equivalent schemas produce
+            the same fingerprint.
           schema:
-            type: string
+            type: boolean
+            default: false
       requestBody:
         required: true
         content:
+          application/vnd.schemaregistry.v1+json:
+            schema:
+              $ref: '#/components/schemas/RegisterSchemaRequest'
           application/json:
             schema:
               $ref: '#/components/schemas/RegisterSchemaRequest'
       responses:
         '200':
-          description: Schema registered
+          description: >-
+            The schema was registered successfully (or an identical schema already
+            existed). Returns the globally unique schema ID.
           content:
-            application/json:
+            application/vnd.schemaregistry.v1+json:
               schema:
                 $ref: '#/components/schemas/RegisterSchemaResponse'
         '409':
-          description: Incompatible schema
+          description: >-
+            The schema is incompatible with an existing version under this subject
+            according to the configured compatibility policy.
           content:
-            application/json:
+            application/vnd.schemaregistry.v1+json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error_code: 409
+                message: "Schema being registered is incompatible with an earlier schema"
         '422':
-          description: Invalid schema
+          description: >-
+            The schema is invalid, the schema type is unsupported, references could
+            not be resolved, or the operation is not permitted in the current mode.
           content:
-            application/json:
+            application/vnd.schemaregistry.v1+json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error_code: 42201
+                message: "Invalid schema"
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   /subjects/{subject}/versions/{version}:
     get:
-      summary: Get schema by version
-      operationId: getSchemaVersion
+      summary: Get a specific version of a subject
+      description: >-
+        Retrieves the schema registered under the given subject at the specified version
+        number. The `version` path parameter accepts an integer (1 through 2^31-1) or the
+        string `latest` to retrieve the most recently registered version.
+
+        When `deleted=true` is set, soft-deleted versions are also returned. The optional
+        `format` query parameter allows requesting an alternative schema serialization.
+      operationId: getVersion
       tags:
         - Subjects
       parameters:
-        - name: subject
-          in: path
-          required: true
+        - $ref: '#/components/parameters/Subject'
+        - $ref: '#/components/parameters/Version'
+        - name: deleted
+          in: query
+          description: >-
+            When set to `true`, soft-deleted versions are also retrievable.
+          schema:
+            type: boolean
+            default: false
+        - name: format
+          in: query
+          description: >-
+            An optional format hint for the returned schema string.
           schema:
             type: string
-        - name: version
-          in: path
-          required: true
-          schema:
-            oneOf:
-              - type: integer
-              - type: string
-                enum: [latest]
       responses:
         '200':
-          description: Schema version found
+          description: The schema version detail.
           content:
-            application/json:
+            application/vnd.schemaregistry.v1+json:
               schema:
                 $ref: '#/components/schemas/SubjectVersionResponse'
         '404':
-          description: Subject or version not found
+          description: Subject or version not found.
           content:
-            application/json:
+            application/vnd.schemaregistry.v1+json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                subjectNotFound:
+                  summary: Subject not found
+                  value:
+                    error_code: 40401
+                    message: "Subject not found"
+                versionNotFound:
+                  summary: Version not found
+                  value:
+                    error_code: 40402
+                    message: "Version not found"
+        '422':
+          description: Invalid version identifier.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error_code: 42202
+                message: "The specified version 'abc' is not a valid version id. Allowed values are between [1, 2^31-1] and the string \"latest\""
+        '500':
+          $ref: '#/components/responses/InternalServerError'
     delete:
-      summary: Delete schema version
-      operationId: deleteSchemaVersion
+      summary: Delete a specific version of a subject
+      description: >-
+        Deletes a specific version of a schema under a subject. By default this performs a
+        soft-delete, marking the version as deleted but retaining it in storage. To
+        permanently remove the version, set `permanent=true`. A version MUST be soft-deleted
+        before it can be permanently deleted.
+
+        The string `latest` and `-1` are NOT allowed for permanent deletes; an explicit
+        numeric version MUST be specified.
+
+        If the schema version is referenced by other schemas, the delete operation fails
+        with a 42206 error.
+
+        The subject's mode MUST NOT be READONLY or READONLY_OVERRIDE for this operation to
+        succeed.
+      operationId: deleteVersion
       tags:
         - Subjects
       parameters:
-        - name: subject
-          in: path
-          required: true
-          schema:
-            type: string
-        - name: version
-          in: path
-          required: true
-          schema:
-            type: integer
+        - $ref: '#/components/parameters/Subject'
+        - $ref: '#/components/parameters/Version'
         - name: permanent
           in: query
+          description: >-
+            When set to `true`, permanently removes the version from storage. The
+            version MUST have been soft-deleted first.
           schema:
             type: boolean
             default: false
       responses:
         '200':
-          description: Deleted version number
+          description: >-
+            The version was deleted. Returns the version number that was deleted.
           content:
-            application/json:
+            application/vnd.schemaregistry.v1+json:
               schema:
                 type: integer
+                description: The deleted version number.
+                example: 3
         '404':
-          description: Subject or version not found
+          description: Subject or version not found, or version not yet soft-deleted.
           content:
-            application/json:
+            application/vnd.schemaregistry.v1+json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                subjectNotFound:
+                  summary: Subject not found
+                  value:
+                    error_code: 40401
+                    message: "Subject not found"
+                versionNotFound:
+                  summary: Version not found
+                  value:
+                    error_code: 40402
+                    message: "Version not found"
+                versionNotSoftDeleted:
+                  summary: Version not soft-deleted yet
+                  value:
+                    error_code: 40407
+                    message: "Subject 'my-subject' Version 3 was not deleted first before being permanently deleted"
+        '422':
+          description: Invalid version, operation not permitted, or referenced by other schemas.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidVersion:
+                  summary: Invalid version identifier
+                  value:
+                    error_code: 42202
+                    message: "The specified version 'abc' is not a valid version id."
+                referenceExists:
+                  summary: Referenced by other schemas
+                  value:
+                    error_code: 42206
+                    message: "Schema is referenced by other schemas"
+                operationNotPermitted:
+                  summary: Subject is in READONLY mode
+                  value:
+                    error_code: 42205
+                    message: "Subject 'my-subject' is in READONLY mode"
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /subjects/{subject}/versions/{version}/schema:
+    get:
+      summary: Get raw schema string by subject version
+      description: >-
+        Retrieves only the raw schema string for the specified subject and version, without
+        any metadata envelope. The `version` path parameter accepts an integer or `latest`.
+        The optional `format` query parameter allows requesting an alternative serialization.
+      operationId: getRawSchemaByVersion
+      tags:
+        - Subjects
+      parameters:
+        - $ref: '#/components/parameters/Subject'
+        - $ref: '#/components/parameters/Version'
+        - name: format
+          in: query
+          description: >-
+            An optional format hint for the returned schema string.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The raw schema string.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                type: string
+        '404':
+          description: Subject or version not found.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                subjectNotFound:
+                  summary: Subject not found
+                  value:
+                    error_code: 40401
+                    message: "Subject not found"
+                versionNotFound:
+                  summary: Version not found
+                  value:
+                    error_code: 40402
+                    message: "Version not found"
+        '422':
+          description: Invalid version identifier.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   /subjects/{subject}/versions/{version}/referencedby:
     get:
-      summary: Get schemas that reference this schema
+      summary: Get schema IDs that reference this version
+      description: >-
+        Returns a list of schema IDs that reference the schema registered under the given
+        subject and version. This is useful for determining downstream dependencies before
+        deleting a schema.
       operationId: getReferencedBy
       tags:
         - Subjects
       parameters:
-        - name: subject
-          in: path
-          required: true
-          schema:
-            type: string
-        - name: version
-          in: path
-          required: true
-          schema:
-            oneOf:
-              - type: integer
-              - type: string
-                enum: [latest]
+        - $ref: '#/components/parameters/Subject'
+        - $ref: '#/components/parameters/Version'
       responses:
         '200':
-          description: List of schema IDs that reference this schema
+          description: >-
+            A JSON array of schema IDs (integers) that reference this schema version.
           content:
-            application/json:
+            application/vnd.schemaregistry.v1+json:
               schema:
                 type: array
                 items:
                   type: integer
+                  format: int64
+                example:
+                  - 5
+                  - 12
+        '404':
+          description: Subject or version not found.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                subjectNotFound:
+                  summary: Subject not found
+                  value:
+                    error_code: 40401
+                    message: "Subject not found"
+                versionNotFound:
+                  summary: Version not found
+                  value:
+                    error_code: 40402
+                    message: "Version not found"
+        '422':
+          description: Invalid version identifier.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /subjects/{subject}:
+    post:
+      summary: Look up schema under a subject
+      description: >-
+        Checks whether the given schema has been registered under the specified subject. If
+        found, returns the subject name, schema ID, version, and the full schema details.
+        This is a lookup-only operation that does NOT register the schema.
+
+        The `deleted` query parameter controls whether soft-deleted versions are considered
+        during the lookup. When `normalize=true`, the schema is canonicalized before
+        comparison.
+      operationId: lookupSchema
+      tags:
+        - Subjects
+      parameters:
+        - $ref: '#/components/parameters/Subject'
+        - name: deleted
+          in: query
+          description: >-
+            When set to `true`, also searches among soft-deleted versions.
+          schema:
+            type: boolean
+            default: false
+        - name: normalize
+          in: query
+          description: >-
+            When set to `true`, the provided schema is canonicalized before comparison.
+          schema:
+            type: boolean
+            default: false
+      requestBody:
+        required: true
+        content:
+          application/vnd.schemaregistry.v1+json:
+            schema:
+              $ref: '#/components/schemas/LookupSchemaRequest'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LookupSchemaRequest'
+      responses:
+        '200':
+          description: The schema was found under the given subject.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/LookupSchemaResponse'
+        '404':
+          description: Subject or schema not found.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                subjectNotFound:
+                  summary: Subject not found
+                  value:
+                    error_code: 40401
+                    message: "Subject 'my-subject' not found."
+                schemaNotFound:
+                  summary: Schema not found under this subject
+                  value:
+                    error_code: 40403
+                    message: "Schema not found"
+        '422':
+          description: Invalid schema.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    delete:
+      summary: Delete a subject
+      description: >-
+        Deletes all schema versions registered under the specified subject. By default this
+        performs a soft-delete, marking all versions as deleted but retaining them in
+        storage. To permanently remove the subject and all its versions, set
+        `permanent=true`. A subject MUST be soft-deleted before it can be permanently
+        deleted.
+
+        If any schema version under this subject is referenced by schemas in other subjects,
+        the delete operation fails with a 42206 error.
+
+        The subject's mode MUST NOT be READONLY or READONLY_OVERRIDE for this operation to
+        succeed.
+      operationId: deleteSubject
+      tags:
+        - Subjects
+      parameters:
+        - $ref: '#/components/parameters/Subject'
+        - name: permanent
+          in: query
+          description: >-
+            When set to `true`, permanently removes the subject and all its versions
+            from storage. The subject MUST have been soft-deleted first.
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: >-
+            The subject was deleted. Returns a JSON array of the version numbers
+            that were deleted.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                type: array
+                items:
+                  type: integer
+                example:
+                  - 1
+                  - 2
+                  - 3
+        '404':
+          description: Subject not found or not in the expected delete state.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                subjectNotFound:
+                  summary: Subject not found
+                  value:
+                    error_code: 40401
+                    message: "Subject not found"
+                subjectSoftDeleted:
+                  summary: Subject already soft-deleted
+                  value:
+                    error_code: 40404
+                    message: "Subject 'my-subject' was soft deleted. Set permanent=true to delete permanently"
+                subjectNotSoftDeleted:
+                  summary: Must soft-delete before permanent delete
+                  value:
+                    error_code: 40405
+                    message: "Subject 'my-subject' was not deleted first before being permanently deleted"
+        '422':
+          description: Referenced by other schemas or operation not permitted.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                referenceExists:
+                  summary: Referenced by other schemas
+                  value:
+                    error_code: 42206
+                    message: "Schema is referenced by other schemas"
+                operationNotPermitted:
+                  summary: Subject is in READONLY mode
+                  value:
+                    error_code: 42205
+                    message: "Subject 'my-subject' is in READONLY mode"
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   /config:
     get:
-      summary: Get global compatibility level
+      summary: Get global compatibility configuration
+      description: >-
+        Returns the global compatibility configuration for the registry. The `defaultToGlobal`
+        query parameter is accepted for Confluent API compatibility but has no effect on
+        this endpoint (it is meaningful only on per-subject config endpoints).
       operationId: getGlobalConfig
       tags:
         - Config
+      parameters:
+        - name: defaultToGlobal
+          in: query
+          description: >-
+            Accepted for compatibility. Has no effect on the global config endpoint.
+          schema:
+            type: boolean
+            default: false
       responses:
         '200':
-          description: Current compatibility level
+          description: The global compatibility configuration.
           content:
-            application/json:
+            application/vnd.schemaregistry.v1+json:
               schema:
                 $ref: '#/components/schemas/ConfigResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
     put:
-      summary: Set global compatibility level
+      summary: Set global compatibility configuration
+      description: >-
+        Updates the global compatibility configuration for the registry. The `compatibility`
+        field MUST be set to a valid compatibility level. If the request body contains an
+        empty `compatibility` field, the current global configuration is returned without
+        modification (Confluent compatibility behavior).
       operationId: setGlobalConfig
       tags:
         - Config
       requestBody:
         required: true
         content:
+          application/vnd.schemaregistry.v1+json:
+            schema:
+              $ref: '#/components/schemas/ConfigRequest'
           application/json:
             schema:
               $ref: '#/components/schemas/ConfigRequest'
       responses:
         '200':
-          description: Updated compatibility level
+          description: The updated global compatibility configuration.
           content:
-            application/json:
+            application/vnd.schemaregistry.v1+json:
               schema:
-                $ref: '#/components/schemas/ConfigResponse'
+                $ref: '#/components/schemas/ConfigRequest'
         '422':
-          description: Invalid compatibility level
+          description: Invalid compatibility level.
           content:
-            application/json:
+            application/vnd.schemaregistry.v1+json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error_code: 42203
+                message: "Invalid compatibility level"
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    delete:
+      summary: Delete global compatibility configuration
+      description: >-
+        Deletes the global compatibility configuration, resetting it to the server default
+        (BACKWARD). Returns the compatibility level that was in effect before deletion.
+      operationId: deleteGlobalConfig
+      tags:
+        - Config
+      responses:
+        '200':
+          description: The compatibility level that was in effect before deletion.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ConfigResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   /config/{subject}:
     get:
-      summary: Get subject compatibility level
+      summary: Get subject-level compatibility configuration
+      description: >-
+        Returns the compatibility configuration for the specified subject. If the subject
+        does not have a subject-level configuration and `defaultToGlobal` is set to `true`,
+        the global configuration is returned as a fallback. If `defaultToGlobal` is `false`
+        (the default) and no subject-level configuration exists, a 40408 error is returned.
       operationId: getSubjectConfig
       tags:
         - Config
       parameters:
-        - name: subject
-          in: path
-          required: true
+        - $ref: '#/components/parameters/Subject'
+        - name: defaultToGlobal
+          in: query
+          description: >-
+            When set to `true`, falls back to the global compatibility configuration
+            if the subject does not have its own configuration.
           schema:
-            type: string
+            type: boolean
+            default: false
       responses:
         '200':
-          description: Current compatibility level
+          description: The subject-level compatibility configuration.
           content:
-            application/json:
+            application/vnd.schemaregistry.v1+json:
               schema:
                 $ref: '#/components/schemas/ConfigResponse'
+        '404':
+          description: Subject does not have subject-level compatibility configured.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error_code: 40408
+                message: "Subject 'my-subject' does not have subject-level compatibility configured"
+        '500':
+          $ref: '#/components/responses/InternalServerError'
     put:
-      summary: Set subject compatibility level
+      summary: Set subject-level compatibility configuration
+      description: >-
+        Updates the compatibility configuration for the specified subject. The `compatibility`
+        field MUST be set to a valid compatibility level. If the request body contains an
+        empty `compatibility` field, the current configuration for this subject is returned
+        without modification.
       operationId: setSubjectConfig
       tags:
         - Config
       parameters:
-        - name: subject
-          in: path
-          required: true
-          schema:
-            type: string
+        - $ref: '#/components/parameters/Subject'
       requestBody:
         required: true
         content:
+          application/vnd.schemaregistry.v1+json:
+            schema:
+              $ref: '#/components/schemas/ConfigRequest'
           application/json:
             schema:
               $ref: '#/components/schemas/ConfigRequest'
       responses:
         '200':
-          description: Updated compatibility level
+          description: The updated subject-level compatibility configuration.
           content:
-            application/json:
+            application/vnd.schemaregistry.v1+json:
               schema:
-                $ref: '#/components/schemas/ConfigResponse'
+                $ref: '#/components/schemas/ConfigRequest'
         '422':
-          description: Invalid compatibility level
+          description: Invalid compatibility level.
           content:
-            application/json:
+            application/vnd.schemaregistry.v1+json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error_code: 42203
+                message: "Invalid compatibility level"
+        '500':
+          $ref: '#/components/responses/InternalServerError'
     delete:
-      summary: Delete subject compatibility level
+      summary: Delete subject-level compatibility configuration
+      description: >-
+        Deletes the subject-level compatibility configuration for the specified subject,
+        causing the subject to inherit the global configuration. Returns the compatibility
+        level that was in effect before deletion.
       operationId: deleteSubjectConfig
       tags:
         - Config
       parameters:
-        - name: subject
-          in: path
-          required: true
-          schema:
-            type: string
+        - $ref: '#/components/parameters/Subject'
       responses:
         '200':
-          description: Deleted compatibility level
+          description: The compatibility level that was in effect before deletion.
           content:
-            application/json:
+            application/vnd.schemaregistry.v1+json:
               schema:
                 $ref: '#/components/schemas/ConfigResponse'
         '404':
-          description: Subject config not found
+          description: No subject-level config found for this subject.
           content:
-            application/json:
+            application/vnd.schemaregistry.v1+json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error_code: 40401
+                message: "Config not found for subject"
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   /mode:
     get:
       summary: Get global mode
+      description: >-
+        Returns the global registry mode. The mode controls whether the registry accepts
+        schema registration (write) operations. Possible modes are READWRITE (default),
+        READONLY, READONLY_OVERRIDE, and IMPORT.
       operationId: getGlobalMode
       tags:
         - Mode
       responses:
         '200':
-          description: Current mode
+          description: The global mode.
           content:
-            application/json:
+            application/vnd.schemaregistry.v1+json:
               schema:
                 $ref: '#/components/schemas/ModeResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
     put:
       summary: Set global mode
+      description: >-
+        Updates the global registry mode. The `mode` field MUST be set to a valid mode
+        string (READWRITE, READONLY, READONLY_OVERRIDE, or IMPORT). The `force` query
+        parameter MAY be set to `true` to bypass validation checks when changing mode.
       operationId: setGlobalMode
       tags:
         - Mode
+      parameters:
+        - name: force
+          in: query
+          description: >-
+            When set to `true`, forces the mode change even if validation would
+            otherwise prevent it.
+          schema:
+            type: boolean
+            default: false
       requestBody:
         required: true
         content:
+          application/vnd.schemaregistry.v1+json:
+            schema:
+              $ref: '#/components/schemas/ModeRequest'
           application/json:
             schema:
               $ref: '#/components/schemas/ModeRequest'
       responses:
         '200':
-          description: Updated mode
+          description: The updated global mode.
           content:
-            application/json:
+            application/vnd.schemaregistry.v1+json:
               schema:
                 $ref: '#/components/schemas/ModeResponse'
         '422':
-          description: Invalid mode
+          description: Invalid mode or operation not permitted.
           content:
-            application/json:
+            application/vnd.schemaregistry.v1+json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidMode:
+                  summary: Invalid mode
+                  value:
+                    error_code: 42204
+                    message: "Invalid mode"
+                operationNotPermitted:
+                  summary: Operation not permitted
+                  value:
+                    error_code: 42205
+                    message: "Operation not permitted"
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   /mode/{subject}:
     get:
-      summary: Get subject mode
+      summary: Get subject-level mode
+      description: >-
+        Returns the mode configured for the specified subject. If the subject does not
+        have a subject-level mode and `defaultToGlobal` is set to `true`, the global mode
+        is returned. If `defaultToGlobal` is `false` (the default) and no subject-level
+        mode exists, a 40409 error is returned.
       operationId: getSubjectMode
       tags:
         - Mode
       parameters:
-        - name: subject
-          in: path
-          required: true
+        - $ref: '#/components/parameters/Subject'
+        - name: defaultToGlobal
+          in: query
+          description: >-
+            When set to `true`, falls back to the global mode if the subject does
+            not have its own mode configured.
           schema:
-            type: string
+            type: boolean
+            default: false
       responses:
         '200':
-          description: Current mode
+          description: The subject-level mode.
           content:
-            application/json:
+            application/vnd.schemaregistry.v1+json:
               schema:
                 $ref: '#/components/schemas/ModeResponse'
+        '404':
+          description: Subject does not have a subject-level mode configured.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error_code: 40409
+                message: "Subject 'my-subject' does not have subject-level mode configured"
+        '500':
+          $ref: '#/components/responses/InternalServerError'
     put:
-      summary: Set subject mode
+      summary: Set subject-level mode
+      description: >-
+        Updates the mode for the specified subject. The `mode` field MUST be a valid
+        mode string. The `force` query parameter MAY be set to `true` to bypass validation.
       operationId: setSubjectMode
       tags:
         - Mode
       parameters:
-        - name: subject
-          in: path
-          required: true
+        - $ref: '#/components/parameters/Subject'
+        - name: force
+          in: query
+          description: >-
+            When set to `true`, forces the mode change even if validation would
+            otherwise prevent it.
           schema:
-            type: string
+            type: boolean
+            default: false
       requestBody:
         required: true
         content:
+          application/vnd.schemaregistry.v1+json:
+            schema:
+              $ref: '#/components/schemas/ModeRequest'
           application/json:
             schema:
               $ref: '#/components/schemas/ModeRequest'
       responses:
         '200':
-          description: Updated mode
+          description: The updated subject-level mode.
           content:
-            application/json:
+            application/vnd.schemaregistry.v1+json:
               schema:
                 $ref: '#/components/schemas/ModeResponse'
         '422':
-          description: Invalid mode
+          description: Invalid mode or operation not permitted.
           content:
-            application/json:
+            application/vnd.schemaregistry.v1+json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    delete:
+      summary: Delete subject-level mode
+      description: >-
+        Deletes the subject-level mode for the specified subject, causing it to inherit
+        the global mode. Returns the mode that was in effect before deletion.
+      operationId: deleteSubjectMode
+      tags:
+        - Mode
+      parameters:
+        - $ref: '#/components/parameters/Subject'
+      responses:
+        '200':
+          description: The mode that was in effect before deletion.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ModeResponse'
+        '404':
+          description: No subject-level mode found for this subject.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error_code: 40401
+                message: "Mode not found for subject"
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   /compatibility/subjects/{subject}/versions/{version}:
     post:
-      summary: Check schema compatibility
-      operationId: checkCompatibility
+      summary: Check compatibility against a specific version
+      description: >-
+        Tests whether a candidate schema is compatible with the schema registered under the
+        given subject at the specified version, according to the subject's compatibility
+        policy. This is a read-only check that does NOT register the schema.
+
+        The `version` path parameter accepts an integer or the string `latest`. When
+        `verbose=true`, the response includes detailed compatibility messages explaining
+        any incompatibilities found. When `normalize=true`, the candidate schema is
+        canonicalized before comparison.
+      operationId: checkCompatibilityByVersion
       tags:
         - Compatibility
       parameters:
-        - name: subject
-          in: path
-          required: true
+        - $ref: '#/components/parameters/Subject'
+        - $ref: '#/components/parameters/Version'
+        - name: verbose
+          in: query
+          description: >-
+            When set to `true`, the response includes detailed compatibility messages.
           schema:
-            type: string
-        - name: version
-          in: path
-          required: true
+            type: boolean
+            default: false
+        - name: normalize
+          in: query
+          description: >-
+            When set to `true`, the candidate schema is canonicalized before comparison.
           schema:
-            oneOf:
-              - type: integer
-              - type: string
-                enum: [latest]
+            type: boolean
+            default: false
       requestBody:
         required: true
         content:
+          application/vnd.schemaregistry.v1+json:
+            schema:
+              $ref: '#/components/schemas/CompatibilityCheckRequest'
           application/json:
             schema:
-              $ref: '#/components/schemas/RegisterSchemaRequest'
+              $ref: '#/components/schemas/CompatibilityCheckRequest'
       responses:
         '200':
-          description: Compatibility check result
+          description: The compatibility check result.
           content:
-            application/json:
+            application/vnd.schemaregistry.v1+json:
               schema:
-                $ref: '#/components/schemas/CompatibilityResponse'
+                $ref: '#/components/schemas/CompatibilityCheckResponse'
         '404':
-          description: Subject not found
+          description: Subject or version not found.
           content:
-            application/json:
+            application/vnd.schemaregistry.v1+json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                subjectNotFound:
+                  summary: Subject not found
+                  value:
+                    error_code: 40401
+                    message: "Subject not found"
+                versionNotFound:
+                  summary: Version not found
+                  value:
+                    error_code: 40402
+                    message: "Version 5 not found"
         '422':
-          description: Invalid schema
+          description: Invalid schema or invalid version.
           content:
-            application/json:
+            application/vnd.schemaregistry.v1+json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
-  /metrics:
-    get:
-      summary: Prometheus metrics endpoint
-      operationId: getMetrics
+  /compatibility/subjects/{subject}/versions:
+    post:
+      summary: Check compatibility against all versions
+      description: >-
+        Tests whether a candidate schema is compatible with all existing schema versions
+        registered under the given subject, according to the subject's compatibility policy.
+        This endpoint is equivalent to checking compatibility against `latest` when the
+        compatibility level is non-transitive, or against all versions when the level is
+        transitive. This is a read-only check that does NOT register the schema.
+
+        When `verbose=true`, the response includes detailed compatibility messages.
+        When `normalize=true`, the candidate schema is canonicalized before comparison.
+      operationId: checkCompatibilityAllVersions
+      tags:
+        - Compatibility
+      parameters:
+        - $ref: '#/components/parameters/Subject'
+        - name: verbose
+          in: query
+          description: >-
+            When set to `true`, the response includes detailed compatibility messages.
+          schema:
+            type: boolean
+            default: false
+        - name: normalize
+          in: query
+          description: >-
+            When set to `true`, the candidate schema is canonicalized before comparison.
+          schema:
+            type: boolean
+            default: false
+      requestBody:
+        required: true
+        content:
+          application/vnd.schemaregistry.v1+json:
+            schema:
+              $ref: '#/components/schemas/CompatibilityCheckRequest'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompatibilityCheckRequest'
       responses:
         '200':
-          description: Prometheus metrics
+          description: The compatibility check result.
           content:
-            text/plain:
+            application/vnd.schemaregistry.v1+json:
               schema:
-                type: string
+                $ref: '#/components/schemas/CompatibilityCheckResponse'
+        '404':
+          description: Subject not found.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error_code: 40401
+                message: "Subject not found"
+        '422':
+          description: Invalid schema.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
-  # Account endpoints - Self-service
+  /import/schemas:
+    post:
+      summary: Bulk import schemas
+      description: >-
+        Imports multiple schemas in a single request, preserving the original schema IDs
+        from the source registry. This endpoint is intended for migrating schemas from
+        another schema registry (e.g. Confluent Schema Registry). Each schema in the
+        request MUST include a specific `id`, `subject`, `version`, and `schema` string.
+
+        The response indicates how many schemas were successfully imported and how many
+        failed, along with individual results for each schema in the request.
+      operationId: importSchemas
+      tags:
+        - Import
+      requestBody:
+        required: true
+        content:
+          application/vnd.schemaregistry.v1+json:
+            schema:
+              $ref: '#/components/schemas/ImportSchemasRequest'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportSchemasRequest'
+      responses:
+        '200':
+          description: >-
+            Import completed. Check the `imported` and `errors` counts and the individual
+            `results` to determine whether all schemas were imported successfully.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ImportSchemasResponse'
+        '400':
+          description: Invalid request body or no schemas provided.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /contexts:
+    get:
+      summary: Get schema registry contexts
+      description: >-
+        Returns the list of contexts defined in the registry. Contexts are namespace
+        prefixes extracted from subject names. The default context is `.` (a single dot).
+        This endpoint always includes the default context in the response.
+      operationId: getContexts
+      tags:
+        - Metadata
+      responses:
+        '200':
+          description: A list of context strings.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                type: array
+                items:
+                  type: string
+                example:
+                  - "."
+
+  /v1/metadata/id:
+    get:
+      summary: Get cluster ID
+      description: >-
+        Returns the cluster ID of this schema registry instance. The cluster ID is a
+        string identifier configured at server startup.
+      operationId: getClusterID
+      tags:
+        - Metadata
+      responses:
+        '200':
+          description: The cluster ID.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ServerClusterIDResponse'
+
+  /v1/metadata/version:
+    get:
+      summary: Get server version
+      description: >-
+        Returns the version, commit hash, and build time of the running schema registry
+        server.
+      operationId: getServerVersion
+      tags:
+        - Metadata
+      responses:
+        '200':
+          description: The server version information.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ServerVersionResponse'
+
   /me:
     get:
-      summary: Get current user info
+      summary: Get current user
+      description: >-
+        Returns the profile of the currently authenticated user. The caller MUST be
+        authenticated. If the user record is not found in the database, a 404 error
+        is returned.
       operationId: getCurrentUser
       tags:
         - Account
-      security:
-        - basicAuth: []
-        - apiKey: []
       responses:
         '200':
-          description: Current user info
+          description: The current user's profile.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/UserResponse'
         '401':
-          description: Authentication required
+          description: Authentication required.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error_code: 40101
+                message: "Authentication required"
+        '404':
+          description: User not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error_code: 40404
+                message: "User not found"
+        '500':
+          $ref: '#/components/responses/InternalServerErrorJSON'
 
   /me/password:
     post:
-      summary: Change own password
-      description: Change the password for the currently authenticated user. Requires the current password for verification.
+      summary: Change current user password
+      description: >-
+        Changes the password of the currently authenticated user. The request MUST include
+        both the current (old) password for verification and the desired new password.
+        Returns 204 No Content on success.
       operationId: changePassword
       tags:
         - Account
-      security:
-        - basicAuth: []
-        - apiKey: []
       requestBody:
         required: true
         content:
@@ -643,63 +1742,71 @@ paths:
               $ref: '#/components/schemas/ChangePasswordRequest'
       responses:
         '204':
-          description: Password changed successfully
+          description: Password changed successfully.
         '400':
-          description: Invalid request (e.g., password too weak)
+          description: Missing required fields.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '401':
-          description: Authentication required
+          description: Authentication required.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error_code: 40101
+                message: "Authentication required"
         '403':
-          description: Current password is incorrect
+          description: Current password is incorrect.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error_code: 40301
+                message: "Current password is incorrect"
+        '404':
+          description: User not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerErrorJSON'
 
-  # Admin endpoints - User Management
   /admin/users:
     get:
       summary: List all users
+      description: >-
+        Returns a list of all users in the registry. The caller MUST have admin read
+        permissions.
       operationId: listUsers
       tags:
         - Admin
-      security:
-        - basicAuth: []
-        - apiKey: []
       responses:
         '200':
-          description: List of users
+          description: A list of all users.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/UsersListResponse'
         '401':
-          description: Authentication required
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/Unauthorized'
         '403':
-          description: Insufficient permissions
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerErrorJSON'
     post:
       summary: Create a new user
+      description: >-
+        Creates a new user in the registry. The `username`, `password`, and `role` fields
+        are required. The `role` MUST be one of `super_admin`, `admin`, `developer`, or
+        `readonly`. The caller MUST have admin write permissions.
       operationId: createUser
       tags:
         - Admin
-      security:
-        - basicAuth: []
-        - apiKey: []
       requestBody:
         required: true
         content:
@@ -708,92 +1815,83 @@ paths:
               $ref: '#/components/schemas/CreateUserRequest'
       responses:
         '201':
-          description: User created
+          description: The newly created user.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/UserResponse'
         '400':
-          description: Invalid request
+          description: Missing required fields or invalid role.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '401':
-          description: Authentication required
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/Unauthorized'
         '403':
-          description: Insufficient permissions
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/Forbidden'
         '409':
-          description: User already exists
+          description: A user with this username already exists.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error_code: 40901
+                message: "User already exists"
+        '500':
+          $ref: '#/components/responses/InternalServerErrorJSON'
 
   /admin/users/{id}:
     get:
-      summary: Get user by ID
+      summary: Get a user by ID
+      description: >-
+        Retrieves the user with the specified ID. The caller MUST have admin read
+        permissions.
       operationId: getUser
       tags:
         - Admin
-      security:
-        - basicAuth: []
-        - apiKey: []
       parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
+        - $ref: '#/components/parameters/ResourceID'
       responses:
         '200':
-          description: User found
+          description: The user record.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: Invalid user ID.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '401':
-          description: Authentication required
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/Unauthorized'
         '403':
-          description: Insufficient permissions
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/Forbidden'
         '404':
-          description: User not found
+          description: User not found.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error_code: 40404
+                message: "User not found"
+        '500':
+          $ref: '#/components/responses/InternalServerErrorJSON'
     put:
-      summary: Update user
+      summary: Update a user
+      description: >-
+        Updates one or more fields of the user with the specified ID. Only the fields
+        provided in the request body are modified; omitted fields remain unchanged. The
+        caller MUST have admin write permissions.
       operationId: updateUser
       tags:
         - Admin
-      security:
-        - basicAuth: []
-        - apiKey: []
       parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
+        - $ref: '#/components/parameters/ResourceID'
       requestBody:
         required: true
         content:
@@ -802,116 +1900,123 @@ paths:
               $ref: '#/components/schemas/UpdateUserRequest'
       responses:
         '200':
-          description: User updated
+          description: The updated user record.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/UserResponse'
         '400':
-          description: Invalid request
+          description: Invalid user ID or invalid role.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '401':
-          description: Authentication required
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/Unauthorized'
         '403':
-          description: Insufficient permissions
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/Forbidden'
         '404':
-          description: User not found
+          description: User not found.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error_code: 40404
+                message: "User not found"
+        '500':
+          $ref: '#/components/responses/InternalServerErrorJSON'
     delete:
-      summary: Delete user
+      summary: Delete a user
+      description: >-
+        Permanently deletes the user with the specified ID. Returns 204 No Content on
+        success. The caller MUST have admin write permissions.
       operationId: deleteUser
       tags:
         - Admin
-      security:
-        - basicAuth: []
-        - apiKey: []
       parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
+        - $ref: '#/components/parameters/ResourceID'
       responses:
         '204':
-          description: User deleted
+          description: User deleted successfully.
+        '400':
+          description: Invalid user ID.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '401':
-          description: Authentication required
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/Unauthorized'
         '403':
-          description: Insufficient permissions
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/Forbidden'
         '404':
-          description: User not found
+          description: User not found.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error_code: 40404
+                message: "User not found"
+        '500':
+          $ref: '#/components/responses/InternalServerErrorJSON'
 
-  # Admin endpoints - API Key Management
   /admin/apikeys:
     get:
-      summary: List all API keys
+      summary: List API keys
+      description: >-
+        Returns a list of all API keys in the registry. The optional `user_id` query
+        parameter filters results to API keys owned by a specific user. The caller MUST
+        have admin read permissions. The raw key secret is never included in list
+        responses.
       operationId: listAPIKeys
       tags:
         - Admin
-      security:
-        - basicAuth: []
-        - apiKey: []
       parameters:
         - name: user_id
           in: query
-          description: Filter by user ID
+          description: >-
+            Filter API keys by the owning user's ID. If omitted, all API keys are
+            returned.
           schema:
             type: integer
             format: int64
       responses:
         '200':
-          description: List of API keys
+          description: A list of API keys.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/APIKeysListResponse'
+        '400':
+          description: Invalid user ID.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '401':
-          description: Authentication required
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/Unauthorized'
         '403':
-          description: Insufficient permissions
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerErrorJSON'
     post:
       summary: Create a new API key
+      description: >-
+        Creates a new API key. The `name`, `role`, and `expires_in` fields are required.
+        The `name` MUST be unique per user. The `expires_in` value is a duration in
+        seconds from the current time (e.g. 2592000 for 30 days). The `role` MUST be one
+        of `super_admin`, `admin`, `developer`, or `readonly`.
+
+        The raw API key secret is returned ONLY in the creation response and cannot be
+        retrieved afterward. Clients SHOULD store the key securely immediately after
+        creation.
+
+        Super admins MAY create API keys for other users by specifying the `for_user_id`
+        field.
       operationId: createAPIKey
       tags:
         - Admin
-      security:
-        - basicAuth: []
-        - apiKey: []
       requestBody:
         required: true
         content:
@@ -920,92 +2025,85 @@ paths:
               $ref: '#/components/schemas/CreateAPIKeyRequest'
       responses:
         '201':
-          description: API key created (key is only shown once)
+          description: >-
+            The newly created API key, including the raw key secret. This is the ONLY
+            time the raw key is returned.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/CreateAPIKeyResponse'
         '400':
-          description: Invalid request
+          description: Missing required fields, invalid role, or invalid expires_in.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '401':
-          description: Authentication required
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/Unauthorized'
         '403':
-          description: Insufficient permissions
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/Forbidden'
         '409':
-          description: API key name already exists for user
+          description: An API key with this name already exists for the user.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error_code: 40902
+                message: "API key name already exists for this user"
+        '500':
+          $ref: '#/components/responses/InternalServerErrorJSON'
 
   /admin/apikeys/{id}:
     get:
-      summary: Get API key by ID
+      summary: Get an API key by ID
+      description: >-
+        Retrieves the API key with the specified ID. The raw key secret is NOT included
+        in the response. The caller MUST have admin read permissions.
       operationId: getAPIKey
       tags:
         - Admin
-      security:
-        - basicAuth: []
-        - apiKey: []
       parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
+        - $ref: '#/components/parameters/ResourceID'
       responses:
         '200':
-          description: API key found
+          description: The API key record.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/APIKeyResponse'
+        '400':
+          description: Invalid API key ID.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '401':
-          description: Authentication required
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/Unauthorized'
         '403':
-          description: Insufficient permissions
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/Forbidden'
         '404':
-          description: API key not found
+          description: API key not found.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error_code: 40405
+                message: "API key not found"
+        '500':
+          $ref: '#/components/responses/InternalServerErrorJSON'
     put:
-      summary: Update API key
+      summary: Update an API key
+      description: >-
+        Updates one or more fields of the API key with the specified ID. Only the fields
+        provided in the request body are modified; omitted fields remain unchanged. The
+        caller MUST have admin write permissions.
       operationId: updateAPIKey
       tags:
         - Admin
-      security:
-        - basicAuth: []
-        - apiKey: []
       parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
+        - $ref: '#/components/parameters/ResourceID'
       requestBody:
         required: true
         content:
@@ -1014,130 +2112,123 @@ paths:
               $ref: '#/components/schemas/UpdateAPIKeyRequest'
       responses:
         '200':
-          description: API key updated
+          description: The updated API key record.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/APIKeyResponse'
         '400':
-          description: Invalid request
+          description: Invalid API key ID or invalid role.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '401':
-          description: Authentication required
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/Unauthorized'
         '403':
-          description: Insufficient permissions
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/Forbidden'
         '404':
-          description: API key not found
+          description: API key not found.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error_code: 40405
+                message: "API key not found"
+        '500':
+          $ref: '#/components/responses/InternalServerErrorJSON'
     delete:
-      summary: Delete API key
+      summary: Delete an API key
+      description: >-
+        Permanently deletes the API key with the specified ID. Returns 204 No Content
+        on success. The caller MUST have admin write permissions.
       operationId: deleteAPIKey
       tags:
         - Admin
-      security:
-        - basicAuth: []
-        - apiKey: []
       parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
+        - $ref: '#/components/parameters/ResourceID'
       responses:
         '204':
-          description: API key deleted
+          description: API key deleted successfully.
+        '400':
+          description: Invalid API key ID.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '401':
-          description: Authentication required
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/Unauthorized'
         '403':
-          description: Insufficient permissions
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/Forbidden'
         '404':
-          description: API key not found
+          description: API key not found.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error_code: 40405
+                message: "API key not found"
+        '500':
+          $ref: '#/components/responses/InternalServerErrorJSON'
 
   /admin/apikeys/{id}/revoke:
     post:
-      summary: Revoke an API key (disable it)
+      summary: Revoke an API key
+      description: >-
+        Revokes the API key with the specified ID by disabling it. The API key remains
+        in the database but can no longer be used for authentication. The caller MUST have
+        admin write permissions.
       operationId: revokeAPIKey
       tags:
         - Admin
-      security:
-        - basicAuth: []
-        - apiKey: []
       parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
+        - $ref: '#/components/parameters/ResourceID'
       responses:
         '200':
-          description: API key revoked
+          description: The revoked API key record (with enabled set to false).
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/APIKeyResponse'
+        '400':
+          description: Invalid API key ID.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '401':
-          description: Authentication required
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/Unauthorized'
         '403':
-          description: Insufficient permissions
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/Forbidden'
         '404':
-          description: API key not found
+          description: API key not found.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error_code: 40405
+                message: "API key not found"
+        '500':
+          $ref: '#/components/responses/InternalServerErrorJSON'
 
   /admin/apikeys/{id}/rotate:
     post:
-      summary: Rotate an API key (revoke old, create new)
+      summary: Rotate an API key
+      description: >-
+        Rotates the API key with the specified ID by revoking the existing key and creating
+        a new one with the same name and role but a fresh secret and expiry. The
+        `expires_in` field in the request body specifies the duration in seconds for the
+        new key. The raw secret for the new key is returned ONLY in this response.
+
+        The caller MUST have admin write permissions.
       operationId: rotateAPIKey
       tags:
         - Admin
-      security:
-        - basicAuth: []
-        - apiKey: []
       parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
+        - $ref: '#/components/parameters/ResourceID'
       requestBody:
         required: true
         content:
@@ -1146,187 +2237,949 @@ paths:
               $ref: '#/components/schemas/RotateAPIKeyRequest'
       responses:
         '200':
-          description: API key rotated (new key is only shown once)
+          description: >-
+            The rotation result containing the new API key (with its raw secret) and the
+            ID of the revoked key.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/RotateAPIKeyResponse'
         '400':
-          description: Invalid request
+          description: Invalid API key ID or invalid expires_in.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '401':
-          description: Authentication required
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/Unauthorized'
         '403':
-          description: Insufficient permissions
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/Forbidden'
         '404':
-          description: API key not found
+          description: API key not found.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error_code: 40405
+                message: "API key not found"
+        '500':
+          $ref: '#/components/responses/InternalServerErrorJSON'
 
-  # Admin endpoints - Roles
   /admin/roles:
     get:
-      summary: List available roles and their permissions
+      summary: List available roles
+      description: >-
+        Returns the list of roles available in the registry along with their descriptions
+        and associated permissions. The caller MUST have admin read permissions.
       operationId: listRoles
       tags:
         - Admin
-      security:
-        - basicAuth: []
-        - apiKey: []
       responses:
         '200':
-          description: List of roles
+          description: A list of available roles with their permissions.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/RolesListResponse'
         '401':
-          description: Authentication required
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/Unauthorized'
         '403':
-          description: Insufficient permissions
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerErrorJSON'
 
 components:
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+      description: >-
+        HTTP Basic authentication. The username and password are verified against the
+        registry's user database.
+    apiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: >-
+        API key authentication. Pass the full API key string in the `X-API-Key` header.
+        API keys are created and managed via the admin endpoints.
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: >-
+        JWT bearer token authentication. Tokens may be issued by the configured OIDC
+        provider or the registry itself.
+
+  parameters:
+    SchemaID:
+      name: id
+      in: path
+      required: true
+      description: >-
+        The globally unique integer ID of the schema.
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+
+    Subject:
+      name: subject
+      in: path
+      required: true
+      description: >-
+        The name of the subject. Subjects typically correspond to Kafka topic names
+        with a `-key` or `-value` suffix (e.g. `my-topic-value`).
+      schema:
+        type: string
+
+    Version:
+      name: version
+      in: path
+      required: true
+      description: >-
+        The version number to operate on. MUST be a positive integer (1 through 2^31-1)
+        or the string `latest` to refer to the most recently registered version.
+        The value `-1` is also accepted as an alias for `latest`.
+      schema:
+        oneOf:
+          - type: integer
+            minimum: 1
+          - type: string
+            enum:
+              - latest
+
+    ResourceID:
+      name: id
+      in: path
+      required: true
+      description: The unique integer ID of the resource.
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+
   schemas:
-    SchemaResponse:
+    # --- Schema Registry Core Schemas ---
+
+    Reference:
       type: object
+      description: >-
+        A reference from one schema to another. References enable schema composition across
+        subjects. For Avro, this corresponds to named type references. For Protobuf, this
+        corresponds to import statements. For JSON Schema, this corresponds to $ref URIs.
+      required:
+        - name
+        - subject
+        - version
       properties:
-        schema:
+        name:
           type: string
-          description: The schema string
+          description: >-
+            The reference name. For Avro, this is the fully-qualified name of the referenced
+            type. For Protobuf, this is the import path. For JSON Schema, this is the $ref URI.
+          example: "com.example.Address"
+        subject:
+          type: string
+          description: >-
+            The subject under which the referenced schema is registered.
+          example: "address-value"
+        version:
+          type: integer
+          description: >-
+            The version of the referenced schema.
+          example: 1
+
+    Metadata:
+      type: object
+      description: >-
+        Metadata associated with a schema for data contract management. Contains tags
+        for categorization, properties for key-value data, and a list of field names
+        that contain sensitive information.
+      properties:
+        tags:
+          type: object
+          description: >-
+            A map of tag names to arrays of tag values. Used for categorizing schemas.
+          additionalProperties:
+            type: array
+            items:
+              type: string
+          example:
+            team:
+              - "platform"
+              - "data-eng"
+        properties:
+          type: object
+          description: >-
+            A map of property names to string values. Used for attaching arbitrary
+            metadata to schemas.
+          additionalProperties:
+            type: string
+          example:
+            owner: "data-platform-team"
+            classification: "internal"
+        sensitive:
+          type: array
+          description: >-
+            A list of field names that contain sensitive data (e.g. PII). Schema
+            processing tools MAY use this to apply data masking or encryption.
+          items:
+            type: string
+          example:
+            - "ssn"
+            - "email"
+
+    Rule:
+      type: object
+      description: >-
+        A single data contract rule. Rules define validations, transformations, or
+        governance policies applied to data flowing through schemas.
+      required:
+        - name
+        - kind
+        - mode
+      properties:
+        name:
+          type: string
+          description: The unique name of this rule.
+          example: "checkSensitiveFields"
+        doc:
+          type: string
+          description: A human-readable description of the rule's purpose.
+          example: "Ensures PII fields are encrypted"
+        kind:
+          type: string
+          description: >-
+            The kind of rule. Common values include CONDITION (validation) and
+            TRANSFORM (data transformation).
+          enum:
+            - CONDITION
+            - TRANSFORM
+          example: "CONDITION"
+        mode:
+          type: string
+          description: >-
+            When the rule is applied in the data flow. Common values include
+            WRITE (applied on produce), READ (applied on consume), and
+            WRITEREAD (applied on both).
+          enum:
+            - WRITE
+            - READ
+            - WRITEREAD
+          example: "WRITE"
+        type:
+          type: string
+          description: The rule engine type (e.g. CEL, AVRO, JSONATA).
+          example: "CEL"
+        tags:
+          type: array
+          description: Tags that this rule applies to.
+          items:
+            type: string
+        params:
+          type: object
+          description: Key-value parameters passed to the rule engine.
+          additionalProperties:
+            type: string
+        expr:
+          type: string
+          description: >-
+            The rule expression to evaluate. The syntax depends on the rule `type`.
+          example: "message.ssn != ''"
+        onSuccess:
+          type: string
+          description: Action to take when the rule evaluates successfully (e.g. NONE, ERROR).
+        onFailure:
+          type: string
+          description: Action to take when the rule evaluation fails (e.g. NONE, ERROR, DLQ).
+        disabled:
+          type: boolean
+          description: Whether the rule is currently disabled.
+          default: false
+
+    RuleSet:
+      type: object
+      description: >-
+        A set of data contract rules attached to a schema. Contains migration rules
+        (applied during schema evolution) and domain rules (applied during data processing).
+      properties:
+        migrationRules:
+          type: array
+          description: >-
+            Rules applied during schema migration (evolution). These rules govern how
+            data written with an older schema version is transformed when read with a
+            newer version, or vice versa.
+          items:
+            $ref: '#/components/schemas/Rule'
+        domainRules:
+          type: array
+          description: >-
+            Rules applied during normal data processing. These rules define validation
+            conditions and data transformations.
+          items:
+            $ref: '#/components/schemas/Rule'
 
     RegisterSchemaRequest:
       type: object
+      description: >-
+        The request body for registering a new schema under a subject.
       required:
         - schema
       properties:
         schema:
           type: string
-          description: The schema string
+          description: >-
+            The schema definition as a string. For Avro, this is a JSON string. For
+            Protobuf, this is the `.proto` file content. For JSON Schema, this is a
+            JSON Schema document as a string.
+          example: '{"type":"record","name":"User","fields":[{"name":"name","type":"string"}]}'
         schemaType:
           type: string
-          enum: [AVRO, PROTOBUF, JSON]
+          description: >-
+            The type of the schema. Defaults to `AVRO` if omitted.
+          enum:
+            - AVRO
+            - PROTOBUF
+            - JSON
           default: AVRO
         references:
           type: array
+          description: >-
+            References to other schemas that this schema depends on.
           items:
             $ref: '#/components/schemas/Reference'
+        id:
+          type: integer
+          format: int64
+          description: >-
+            An explicit schema ID to assign. This is used in IMPORT mode for migrating
+            schemas while preserving their original IDs.
+        metadata:
+          $ref: '#/components/schemas/Metadata'
+        ruleSet:
+          $ref: '#/components/schemas/RuleSet'
 
     RegisterSchemaResponse:
       type: object
+      description: >-
+        The response returned after successfully registering a schema. Contains the
+        globally unique ID assigned to the schema.
+      required:
+        - id
       properties:
         id:
           type: integer
           format: int64
-          description: Global unique schema ID
+          description: The globally unique ID assigned to the registered schema.
+          example: 1
 
-    SubjectVersionResponse:
+    SchemaByIDResponse:
       type: object
+      description: >-
+        The full response when retrieving a schema by its global ID.
+      required:
+        - schema
+        - schemaType
       properties:
-        subject:
-          type: string
-        id:
-          type: integer
-          format: int64
-        version:
-          type: integer
-        schemaType:
-          type: string
         schema:
           type: string
+          description: The schema definition as a string.
+        schemaType:
+          type: string
+          description: The type of the schema (AVRO, PROTOBUF, or JSON).
+          enum:
+            - AVRO
+            - PROTOBUF
+            - JSON
         references:
           type: array
+          description: References to other schemas that this schema depends on.
+          items:
+            $ref: '#/components/schemas/Reference'
+        metadata:
+          $ref: '#/components/schemas/Metadata'
+        ruleSet:
+          $ref: '#/components/schemas/RuleSet'
+        maxId:
+          type: integer
+          format: int64
+          description: >-
+            The current maximum schema ID in the registry. Only present when the
+            `fetchMaxId=true` query parameter is set.
+
+    SchemaResponse:
+      type: object
+      description: >-
+        A schema response containing the schema string, type, and references.
+      required:
+        - schema
+        - schemaType
+      properties:
+        schema:
+          type: string
+          description: The schema definition as a string.
+        schemaType:
+          type: string
+          description: The type of the schema.
+          enum:
+            - AVRO
+            - PROTOBUF
+            - JSON
+        references:
+          type: array
+          description: References to other schemas.
           items:
             $ref: '#/components/schemas/Reference'
 
-    Reference:
+    SubjectVersionResponse:
       type: object
+      description: >-
+        The detailed response for a specific subject version, including the subject name,
+        version number, schema ID, schema content, and optional metadata.
+      required:
+        - subject
+        - id
+        - version
+        - schemaType
+        - schema
       properties:
-        name:
-          type: string
-          description: Name used in the schema to reference this schema
         subject:
           type: string
-          description: Subject name of the referenced schema
+          description: The subject name.
+          example: "my-topic-value"
+        id:
+          type: integer
+          format: int64
+          description: The globally unique schema ID.
+          example: 1
         version:
           type: integer
-          description: Version of the referenced schema
+          description: The version number under the subject.
+          example: 1
+        schemaType:
+          type: string
+          description: The type of the schema.
+          enum:
+            - AVRO
+            - PROTOBUF
+            - JSON
+        schema:
+          type: string
+          description: The schema definition as a string.
+        references:
+          type: array
+          description: References to other schemas.
+          items:
+            $ref: '#/components/schemas/Reference'
+        metadata:
+          $ref: '#/components/schemas/Metadata'
+        ruleSet:
+          $ref: '#/components/schemas/RuleSet'
+
+    LookupSchemaRequest:
+      type: object
+      description: >-
+        The request body for looking up whether a schema exists under a subject.
+      required:
+        - schema
+      properties:
+        schema:
+          type: string
+          description: The schema definition to search for.
+        schemaType:
+          type: string
+          description: >-
+            The type of the schema. Defaults to `AVRO` if omitted.
+          enum:
+            - AVRO
+            - PROTOBUF
+            - JSON
+          default: AVRO
+        references:
+          type: array
+          description: References to other schemas.
+          items:
+            $ref: '#/components/schemas/Reference'
+
+    LookupSchemaResponse:
+      type: object
+      description: >-
+        The response when a schema lookup finds a match under the specified subject.
+      required:
+        - subject
+        - id
+        - version
+        - schemaType
+        - schema
+      properties:
+        subject:
+          type: string
+          description: The subject name where the schema was found.
+        id:
+          type: integer
+          format: int64
+          description: The globally unique schema ID.
+        version:
+          type: integer
+          description: The version number under the subject.
+        schemaType:
+          type: string
+          description: The type of the schema.
+          enum:
+            - AVRO
+            - PROTOBUF
+            - JSON
+        schema:
+          type: string
+          description: The schema definition as a string.
+        references:
+          type: array
+          description: References to other schemas.
+          items:
+            $ref: '#/components/schemas/Reference'
+        metadata:
+          $ref: '#/components/schemas/Metadata'
+        ruleSet:
+          $ref: '#/components/schemas/RuleSet'
+
+    SchemaListItem:
+      type: object
+      description: >-
+        A single schema in the list schemas response.
+      required:
+        - subject
+        - version
+        - id
+        - schemaType
+        - schema
+      properties:
+        subject:
+          type: string
+          description: The subject name.
+        version:
+          type: integer
+          description: The version number.
+        id:
+          type: integer
+          format: int64
+          description: The globally unique schema ID.
+        schemaType:
+          type: string
+          description: The type of the schema.
+          enum:
+            - AVRO
+            - PROTOBUF
+            - JSON
+        schema:
+          type: string
+          description: The schema definition as a string.
+        references:
+          type: array
+          description: References to other schemas.
+          items:
+            $ref: '#/components/schemas/Reference'
+        metadata:
+          $ref: '#/components/schemas/Metadata'
+        ruleSet:
+          $ref: '#/components/schemas/RuleSet'
+
+    SubjectVersionPair:
+      type: object
+      description: >-
+        A pair identifying a specific subject and version.
+      required:
+        - subject
+        - version
+      properties:
+        subject:
+          type: string
+          description: The subject name.
+          example: "my-topic-value"
+        version:
+          type: integer
+          description: The version number.
+          example: 1
+
+    # --- Configuration Schemas ---
 
     ConfigResponse:
       type: object
+      description: >-
+        The compatibility configuration for a subject or the global default.
+      required:
+        - compatibilityLevel
       properties:
         compatibilityLevel:
           type: string
-          enum: [NONE, BACKWARD, BACKWARD_TRANSITIVE, FORWARD, FORWARD_TRANSITIVE, FULL, FULL_TRANSITIVE]
+          description: >-
+            The compatibility level. Determines what schema changes are permitted when
+            registering new versions.
+          enum:
+            - NONE
+            - BACKWARD
+            - BACKWARD_TRANSITIVE
+            - FORWARD
+            - FORWARD_TRANSITIVE
+            - FULL
+            - FULL_TRANSITIVE
+          example: "BACKWARD"
+        normalize:
+          type: boolean
+          description: >-
+            Whether schemas are normalized before storage and compatibility checks.
+        validateFields:
+          type: boolean
+          description: >-
+            Whether reserved field validation is enforced for this subject.
+        alias:
+          type: string
+          description: >-
+            An alias that redirects operations on this subject to another subject.
+        compatibilityGroup:
+          type: string
+          description: >-
+            A group name used to partition compatibility checks. Schemas in the same
+            group are checked for compatibility independently from other groups.
+        defaultMetadata:
+          $ref: '#/components/schemas/Metadata'
+        overrideMetadata:
+          $ref: '#/components/schemas/Metadata'
+        defaultRuleSet:
+          $ref: '#/components/schemas/RuleSet'
+        overrideRuleSet:
+          $ref: '#/components/schemas/RuleSet'
 
     ConfigRequest:
       type: object
-      required:
-        - compatibility
+      description: >-
+        The request body for setting compatibility configuration.
       properties:
         compatibility:
           type: string
-          enum: [NONE, BACKWARD, BACKWARD_TRANSITIVE, FORWARD, FORWARD_TRANSITIVE, FULL, FULL_TRANSITIVE]
+          description: >-
+            The desired compatibility level. MUST be one of the supported levels.
+          enum:
+            - NONE
+            - BACKWARD
+            - BACKWARD_TRANSITIVE
+            - FORWARD
+            - FORWARD_TRANSITIVE
+            - FULL
+            - FULL_TRANSITIVE
+        normalize:
+          type: boolean
+          description: >-
+            Whether schemas SHOULD be normalized before storage and compatibility checks.
+        validateFields:
+          type: boolean
+          description: >-
+            Whether reserved field validation SHOULD be enforced.
+        alias:
+          type: string
+          description: >-
+            An alias that redirects operations on this subject to another subject.
+        compatibilityGroup:
+          type: string
+          description: >-
+            A group name used to partition compatibility checks.
+        defaultMetadata:
+          $ref: '#/components/schemas/Metadata'
+        overrideMetadata:
+          $ref: '#/components/schemas/Metadata'
+        defaultRuleSet:
+          $ref: '#/components/schemas/RuleSet'
+        overrideRuleSet:
+          $ref: '#/components/schemas/RuleSet'
+
+    # --- Mode Schemas ---
 
     ModeResponse:
       type: object
-      properties:
-        mode:
-          type: string
-          enum: [READWRITE, READONLY, IMPORT]
-
-    ModeRequest:
-      type: object
+      description: >-
+        The mode for a subject or the global default.
       required:
         - mode
       properties:
         mode:
           type: string
-          enum: [READWRITE, READONLY, IMPORT]
+          description: >-
+            The current mode. READWRITE allows normal operations. READONLY blocks
+            schema registration. READONLY_OVERRIDE blocks registration but allows
+            configuration changes. IMPORT allows importing schemas with explicit IDs.
+          enum:
+            - READWRITE
+            - READONLY
+            - READONLY_OVERRIDE
+            - IMPORT
+          example: "READWRITE"
 
-    CompatibilityResponse:
+    ModeRequest:
       type: object
+      description: >-
+        The request body for setting the registry mode.
+      required:
+        - mode
+      properties:
+        mode:
+          type: string
+          description: >-
+            The desired mode. MUST be one of the supported mode values.
+          enum:
+            - READWRITE
+            - READONLY
+            - READONLY_OVERRIDE
+            - IMPORT
+
+    # --- Compatibility Schemas ---
+
+    CompatibilityCheckRequest:
+      type: object
+      description: >-
+        The request body for checking schema compatibility. Contains the candidate schema
+        to test against existing versions.
+      required:
+        - schema
+      properties:
+        schema:
+          type: string
+          description: >-
+            The candidate schema definition to check for compatibility.
+        schemaType:
+          type: string
+          description: >-
+            The type of the candidate schema. Defaults to `AVRO` if omitted.
+          enum:
+            - AVRO
+            - PROTOBUF
+            - JSON
+          default: AVRO
+        references:
+          type: array
+          description: >-
+            References to other schemas that the candidate schema depends on.
+          items:
+            $ref: '#/components/schemas/Reference'
+
+    CompatibilityCheckResponse:
+      type: object
+      description: >-
+        The result of a compatibility check.
+      required:
+        - is_compatible
       properties:
         is_compatible:
           type: boolean
+          description: >-
+            Whether the candidate schema is compatible with the existing schema(s)
+            according to the configured compatibility policy.
+          example: true
         messages:
           type: array
+          description: >-
+            Detailed messages describing compatibility issues. Only populated when the
+            `verbose=true` query parameter is set and the schema is incompatible.
           items:
             type: string
 
+    # --- Import Schemas ---
+
+    ImportSchemasRequest:
+      type: object
+      description: >-
+        The request body for bulk-importing schemas from another registry.
+      required:
+        - schemas
+      properties:
+        schemas:
+          type: array
+          description: >-
+            The list of schemas to import. Each entry MUST include an explicit ID,
+            subject, version, and schema content.
+          items:
+            $ref: '#/components/schemas/ImportSchemaRequest'
+
+    ImportSchemaRequest:
+      type: object
+      description: >-
+        A single schema to import with a specific ID.
+      required:
+        - id
+        - subject
+        - version
+        - schema
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: The original schema ID to preserve during import.
+        subject:
+          type: string
+          description: The subject to register the schema under.
+        version:
+          type: integer
+          description: The version number to assign.
+        schemaType:
+          type: string
+          description: >-
+            The type of the schema. Defaults to `AVRO` if omitted.
+          enum:
+            - AVRO
+            - PROTOBUF
+            - JSON
+          default: AVRO
+        schema:
+          type: string
+          description: The schema definition as a string.
+        references:
+          type: array
+          description: References to other schemas.
+          items:
+            $ref: '#/components/schemas/Reference'
+
+    ImportSchemasResponse:
+      type: object
+      description: >-
+        The response for a bulk import operation. Includes counts of successful and
+        failed imports, along with individual results for each schema.
+      required:
+        - imported
+        - errors
+        - results
+      properties:
+        imported:
+          type: integer
+          description: The number of schemas successfully imported.
+          example: 10
+        errors:
+          type: integer
+          description: The number of schemas that failed to import.
+          example: 2
+        results:
+          type: array
+          description: Individual import results for each schema in the request.
+          items:
+            $ref: '#/components/schemas/ImportSchemaResult'
+
+    ImportSchemaResult:
+      type: object
+      description: >-
+        The result of importing a single schema.
+      required:
+        - id
+        - subject
+        - version
+        - success
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: The schema ID.
+        subject:
+          type: string
+          description: The subject the schema was imported under.
+        version:
+          type: integer
+          description: The version number.
+        success:
+          type: boolean
+          description: Whether the import was successful.
+        error:
+          type: string
+          description: >-
+            The error message if the import failed. Empty when `success` is `true`.
+
+    # --- Metadata Schemas ---
+
+    ServerClusterIDResponse:
+      type: object
+      description: The cluster ID of this schema registry instance.
+      required:
+        - id
+      properties:
+        id:
+          type: string
+          description: The cluster identifier string.
+          example: "default-cluster"
+
+    ServerVersionResponse:
+      type: object
+      description: Version information for the running server.
+      required:
+        - version
+      properties:
+        version:
+          type: string
+          description: The server version string.
+          example: "1.0.0"
+        commit:
+          type: string
+          description: The git commit hash of the build.
+          example: "abc123def"
+        build_time:
+          type: string
+          description: The build timestamp in RFC 3339 format.
+          example: "2025-01-15T10:30:00Z"
+
+    # --- Error Schema ---
+
     ErrorResponse:
       type: object
+      description: >-
+        The standard error response format for all API errors. Error codes follow the
+        Confluent Schema Registry convention. Common error codes include:
+
+        | Code  | Meaning                       |
+        |-------|-------------------------------|
+        | 40101 | Unauthorized                  |
+        | 40103 | API key expired               |
+        | 40104 | API key disabled              |
+        | 40105 | User disabled                 |
+        | 40301 | Forbidden                     |
+        | 40401 | Subject not found             |
+        | 40402 | Version not found             |
+        | 40403 | Schema not found              |
+        | 40404 | Subject soft-deleted          |
+        | 40405 | Subject not soft-deleted      |
+        | 40406 | Schema version soft-deleted   |
+        | 40407 | Version not soft-deleted       |
+        | 40408 | Subject compat config not found |
+        | 40409 | Subject mode not found        |
+        | 409   | Incompatible schema           |
+        | 40901 | User already exists           |
+        | 40902 | API key already exists        |
+        | 42201 | Invalid schema                |
+        | 42202 | Invalid schema type or version |
+        | 42203 | Invalid compatibility level   |
+        | 42204 | Invalid mode                  |
+        | 42205 | Operation not permitted       |
+        | 42206 | Reference exists              |
+        | 42207 | Invalid role                  |
+        | 42208 | Invalid password              |
+        | 50001 | Internal server error         |
+        | 50002 | Storage error                 |
+      required:
+        - error_code
+        - message
       properties:
         error_code:
           type: integer
-          description: Error code
+          description: >-
+            The application-specific error code. These codes provide more granular
+            detail than HTTP status codes.
+          example: 40401
         message:
           type: string
-          description: Error message
+          description: A human-readable description of the error.
+          example: "Subject 'my-topic-value' not found"
 
-    # Admin schemas - Users
+    # --- Admin Schemas ---
+
     CreateUserRequest:
       type: object
+      description: >-
+        The request body for creating a new user.
       required:
         - username
         - password
@@ -1334,81 +3187,119 @@ components:
       properties:
         username:
           type: string
-          description: Unique username
+          description: The unique username for the new user.
+          example: "johndoe"
         email:
           type: string
-          format: email
-          description: User email address
+          description: The email address for the user.
+          example: "johndoe@example.com"
         password:
           type: string
           format: password
-          description: User password
+          description: The password for the new user.
+          example: "SecureP@ss123"
         role:
           type: string
-          enum: [super_admin, admin, developer, readonly]
-          description: User role
+          description: >-
+            The role to assign to the user. Determines the user's permissions.
+          enum:
+            - super_admin
+            - admin
+            - developer
+            - readonly
+          example: "developer"
         enabled:
           type: boolean
+          description: >-
+            Whether the user account is enabled. Defaults to `true` if omitted.
           default: true
-          description: Whether the user is enabled
 
     UpdateUserRequest:
       type: object
+      description: >-
+        The request body for updating an existing user. Only provided fields are updated;
+        omitted fields remain unchanged.
       properties:
         email:
           type: string
-          format: email
-          description: User email address
+          description: The new email address.
         password:
           type: string
           format: password
-          description: New password
+          description: The new password.
         role:
           type: string
-          enum: [super_admin, admin, developer, readonly]
-          description: User role
+          description: The new role.
+          enum:
+            - super_admin
+            - admin
+            - developer
+            - readonly
         enabled:
           type: boolean
-          description: Whether the user is enabled
+          description: Whether the user account is enabled.
 
     UserResponse:
       type: object
+      description: >-
+        The representation of a user in API responses.
+      required:
+        - id
+        - username
+        - role
+        - enabled
+        - created_at
+        - updated_at
       properties:
         id:
           type: integer
           format: int64
-          description: User ID
+          description: The unique user ID.
+          example: 1
         username:
           type: string
-          description: Username
+          description: The username.
+          example: "johndoe"
         email:
           type: string
-          description: Email address
+          description: The email address.
+          example: "johndoe@example.com"
         role:
           type: string
-          description: User role
+          description: The user's role.
+          example: "developer"
         enabled:
           type: boolean
-          description: Whether the user is enabled
+          description: Whether the user account is enabled.
+          example: true
         created_at:
           type: string
           format: date-time
-          description: Creation timestamp
+          description: The timestamp when the user was created (RFC 3339).
+          example: "2025-01-15T10:30:00Z"
         updated_at:
           type: string
           format: date-time
-          description: Last update timestamp
+          description: The timestamp when the user was last updated (RFC 3339).
+          example: "2025-01-15T10:30:00Z"
 
     UsersListResponse:
       type: object
+      description: >-
+        The response for listing all users.
+      required:
+        - users
       properties:
         users:
           type: array
+          description: The list of users.
           items:
             $ref: '#/components/schemas/UserResponse'
 
     ChangePasswordRequest:
       type: object
+      description: >-
+        The request body for changing the current user's password.
       required:
         - old_password
         - new_password
@@ -1416,15 +3307,16 @@ components:
         old_password:
           type: string
           format: password
-          description: Current password for verification
+          description: The current password for verification.
         new_password:
           type: string
           format: password
-          description: New password to set
+          description: The desired new password.
 
-    # Admin schemas - API Keys
     CreateAPIKeyRequest:
       type: object
+      description: >-
+        The request body for creating a new API key.
       required:
         - name
         - role
@@ -1432,179 +3324,299 @@ components:
       properties:
         name:
           type: string
-          description: Unique name for this API key (per user)
+          description: >-
+            A human-readable name for the API key. MUST be unique per user.
+          example: "ci-pipeline-key"
         role:
           type: string
-          enum: [super_admin, admin, developer, readonly]
-          description: Role for this API key
+          description: >-
+            The role to assign to the API key. Determines what operations the key
+            can perform.
+          enum:
+            - super_admin
+            - admin
+            - developer
+            - readonly
+          example: "developer"
         expires_in:
           type: integer
           format: int64
-          description: Expiry duration in seconds (e.g., 2592000 for 30 days)
+          description: >-
+            The duration in seconds until the API key expires. For example, 2592000
+            for 30 days. MUST be a positive integer.
+          example: 2592000
         for_user_id:
           type: integer
           format: int64
-          description: Create API key for another user (super_admin only)
+          description: >-
+            The ID of the user who SHOULD own this API key. Only super admins MAY
+            create API keys for other users. If omitted, the key is created for the
+            authenticated user.
 
     UpdateAPIKeyRequest:
       type: object
+      description: >-
+        The request body for updating an existing API key. Only provided fields are
+        updated; omitted fields remain unchanged.
       properties:
         name:
           type: string
-          description: New name for the API key
+          description: The new name for the API key.
         role:
           type: string
-          enum: [super_admin, admin, developer, readonly]
-          description: New role
+          description: The new role for the API key.
+          enum:
+            - super_admin
+            - admin
+            - developer
+            - readonly
         enabled:
           type: boolean
-          description: Whether the API key is enabled
+          description: Whether the API key is enabled.
 
     APIKeyResponse:
       type: object
+      description: >-
+        The representation of an API key in API responses. The raw key secret is never
+        included; only the key prefix is shown for identification.
+      required:
+        - id
+        - key_prefix
+        - name
+        - role
+        - user_id
+        - username
+        - enabled
+        - created_at
+        - expires_at
       properties:
         id:
           type: integer
           format: int64
-          description: API key ID
+          description: The unique API key ID.
+          example: 1
         key_prefix:
           type: string
-          description: Prefix of the key (for identification)
+          description: >-
+            The first 8 characters of the API key for display and identification.
+          example: "axon_abc"
         name:
           type: string
-          description: API key name
+          description: The human-readable name of the API key.
+          example: "ci-pipeline-key"
         role:
           type: string
-          description: API key role
+          description: The role assigned to this API key.
+          example: "developer"
         user_id:
           type: integer
           format: int64
-          description: Owner user ID
+          description: The ID of the user who owns this API key.
+          example: 1
         username:
           type: string
-          description: Owner username
+          description: The username of the user who owns this API key.
+          example: "johndoe"
         enabled:
           type: boolean
-          description: Whether the API key is enabled
+          description: Whether the API key is currently enabled.
+          example: true
         created_at:
           type: string
           format: date-time
-          description: Creation timestamp
+          description: The timestamp when the API key was created (RFC 3339).
+          example: "2025-01-15T10:30:00Z"
         expires_at:
           type: string
           format: date-time
-          description: Expiry timestamp
+          description: The timestamp when the API key expires (RFC 3339).
+          example: "2025-02-14T10:30:00Z"
         last_used:
           type: string
           format: date-time
-          description: Last usage timestamp
+          description: >-
+            The timestamp when the API key was last used for authentication (RFC 3339).
+            May be null if the key has never been used.
 
     CreateAPIKeyResponse:
       type: object
+      description: >-
+        The response returned when creating a new API key. This is the ONLY time the
+        raw API key secret is included in a response. Clients MUST store the key securely.
+      required:
+        - id
+        - key
+        - key_prefix
+        - name
+        - role
+        - user_id
+        - username
+        - enabled
+        - created_at
+        - expires_at
       properties:
         id:
           type: integer
           format: int64
-          description: API key ID
+          description: The unique API key ID.
         key:
           type: string
-          description: The raw API key (only shown once!)
+          description: >-
+            The raw API key secret. This value is shown ONLY once at creation time
+            and cannot be retrieved later.
+          example: "axon_abcdefghijklmnopqrstuvwxyz1234567890"
         key_prefix:
           type: string
-          description: Prefix of the key (for identification)
+          description: The first 8 characters of the API key for identification.
         name:
           type: string
-          description: API key name
+          description: The name of the API key.
         role:
           type: string
-          description: API key role
+          description: The role assigned to this API key.
         user_id:
           type: integer
           format: int64
-          description: Owner user ID
+          description: The ID of the user who owns this API key.
         username:
           type: string
-          description: Owner username
+          description: The username of the user who owns this API key.
         enabled:
           type: boolean
-          description: Whether the API key is enabled
+          description: Whether the API key is enabled.
         created_at:
           type: string
           format: date-time
-          description: Creation timestamp
+          description: The creation timestamp (RFC 3339).
         expires_at:
           type: string
           format: date-time
-          description: Expiry timestamp
+          description: The expiration timestamp (RFC 3339).
 
     APIKeysListResponse:
       type: object
+      description: >-
+        The response for listing API keys.
+      required:
+        - api_keys
       properties:
         api_keys:
           type: array
+          description: The list of API keys.
           items:
             $ref: '#/components/schemas/APIKeyResponse'
 
     RotateAPIKeyRequest:
       type: object
+      description: >-
+        The request body for rotating an API key. The old key is revoked and a new
+        key is created with the same name and role.
       required:
         - expires_in
       properties:
         expires_in:
           type: integer
           format: int64
-          description: Expiry duration in seconds for the new key
+          description: >-
+            The duration in seconds until the new API key expires. MUST be a positive
+            integer.
+          example: 2592000
 
     RotateAPIKeyResponse:
       type: object
+      description: >-
+        The response for rotating an API key. Contains the new key (with its raw secret)
+        and the ID of the revoked key.
+      required:
+        - new_key
+        - revoked_id
       properties:
         new_key:
           $ref: '#/components/schemas/CreateAPIKeyResponse'
         revoked_id:
           type: integer
           format: int64
-          description: ID of the revoked key
+          description: The ID of the API key that was revoked.
+          example: 1
 
-    # Admin schemas - Roles
     RoleInfo:
       type: object
+      description: >-
+        Information about a role, including its name, description, and the
+        permissions it grants.
+      required:
+        - name
+        - description
+        - permissions
       properties:
         name:
           type: string
-          description: Role name
+          description: The role name.
+          example: "developer"
         description:
           type: string
-          description: Role description
+          description: A human-readable description of the role.
+          example: "Can register and read schemas"
         permissions:
           type: array
+          description: The list of permissions granted by this role.
           items:
             type: string
-          description: List of permissions
+          example:
+            - "schema:read"
+            - "schema:write"
+            - "subject:read"
 
     RolesListResponse:
       type: object
+      description: >-
+        The response for listing available roles.
+      required:
+        - roles
       properties:
         roles:
           type: array
+          description: The list of available roles.
           items:
             $ref: '#/components/schemas/RoleInfo'
 
-  securitySchemes:
-    basicAuth:
-      type: http
-      scheme: basic
-      description: |
-        HTTP Basic Authentication. Supports two modes:
-        1. Username/password: Standard basic auth with username and password
-        2. API key via Basic Auth: Use API key as username with empty password
-           (compatible with Kafka producers/consumers)
-           Example: Authorization: Basic <base64(api_key:)>
-    apiKey:
-      type: apiKey
-      in: header
-      name: X-API-Key
-      description: API key passed via X-API-Key header
+  responses:
+    InternalServerError:
+      description: An internal server error occurred.
+      content:
+        application/vnd.schemaregistry.v1+json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error_code: 50001
+            message: "Internal server error"
 
-security:
-  - basicAuth: []
-  - apiKey: []
+    InternalServerErrorJSON:
+      description: An internal server error occurred.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error_code: 50001
+            message: "Internal server error"
+
+    Unauthorized:
+      description: Authentication is required.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error_code: 40101
+            message: "Authentication required"
+
+    Forbidden:
+      description: The authenticated user does not have sufficient permissions.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error_code: 40301
+            message: "Admin write permission required"

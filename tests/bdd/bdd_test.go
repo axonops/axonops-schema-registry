@@ -131,7 +131,7 @@ func newTestServer() (*httptest.Server, storage.Storage) {
 	reg := registry.New(store, schemaRegistry, compatChecker, "BACKWARD")
 
 	cfg := &config.Config{
-		Server: config.ServerConfig{Host: "localhost", Port: 0},
+		Server: config.ServerConfig{Host: "localhost", Port: 0, DocsEnabled: true},
 	}
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 	server := api.NewServer(cfg, reg, logger)
