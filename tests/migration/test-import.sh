@@ -56,6 +56,13 @@ for i in {1..30}; do
 done
 
 echo ""
+echo "=== Setting IMPORT mode ==="
+curl -sf -X PUT http://localhost:$TEST_PORT/mode \
+    -H "Content-Type: application/json" \
+    -d '{"mode":"IMPORT"}' > /dev/null
+echo "IMPORT mode set"
+
+echo ""
 echo "=== Test 1: Import multiple schemas ==="
 IMPORT_RESPONSE=$(curl -sf -X POST http://localhost:$TEST_PORT/import/schemas \
     -H "Content-Type: application/json" \
@@ -120,6 +127,13 @@ fi
 echo "PASS: user-value v1 has correct ID 100"
 
 echo ""
+echo "=== Restoring READWRITE mode ==="
+curl -sf -X PUT http://localhost:$TEST_PORT/mode \
+    -H "Content-Type: application/json" \
+    -d '{"mode":"READWRITE"}' > /dev/null
+echo "READWRITE mode restored"
+
+echo ""
 echo "=== Test 4: New schema gets ID after imported IDs ==="
 NEW_SCHEMA_RESPONSE=$(curl -sf -X POST http://localhost:$TEST_PORT/subjects/product-value/versions \
     -H "Content-Type: application/json" \
@@ -133,6 +147,12 @@ if [[ "$NEW_ID" -le 200 ]]; then
     exit 1
 fi
 echo "PASS: New schema got ID $NEW_ID (> 200)"
+
+echo ""
+echo "=== Setting IMPORT mode for duplicate test ==="
+curl -sf -X PUT http://localhost:$TEST_PORT/mode \
+    -H "Content-Type: application/json" \
+    -d '{"mode":"IMPORT"}' > /dev/null
 
 echo ""
 echo "=== Test 5: Duplicate ID rejected ==="
@@ -158,6 +178,12 @@ if [[ "$DUP_ERRORS" != "1" ]]; then
     exit 1
 fi
 echo "PASS: Duplicate ID correctly rejected"
+
+echo ""
+echo "=== Restoring READWRITE mode ==="
+curl -sf -X PUT http://localhost:$TEST_PORT/mode \
+    -H "Content-Type: application/json" \
+    -d '{"mode":"READWRITE"}' > /dev/null
 
 echo ""
 echo "=== Test 6: List subjects ==="

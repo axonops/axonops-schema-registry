@@ -165,6 +165,7 @@ Feature: PR Fixes Conformance
   # highest-versioned soft-deleted schema.
   # ==========================================================================
 
+  @axonops-only
   Scenario: GET latest returns 404 after all versions soft-deleted
     Given the global compatibility level is "NONE"
     And subject "fix9-latest-del" has schema:

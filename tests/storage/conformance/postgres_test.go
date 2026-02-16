@@ -44,7 +44,7 @@ func truncatePostgres(t *testing.T, cfg postgres.Config) {
 	defer db.Close()
 
 	stmts := []string{
-		"TRUNCATE TABLE api_keys, users, schema_references, schemas, modes, configs CASCADE",
+		"TRUNCATE TABLE api_keys, users, schema_references, schema_fingerprints, schemas, modes, configs CASCADE",
 		"ALTER SEQUENCE schemas_id_seq RESTART WITH 1",
 		"INSERT INTO configs (subject, compatibility_level) VALUES ('', 'BACKWARD') ON CONFLICT (subject) DO NOTHING",
 		"INSERT INTO modes (subject, mode) VALUES ('', 'READWRITE') ON CONFLICT (subject) DO NOTHING",

@@ -46,7 +46,7 @@ func truncateMySQL(t *testing.T, cfg mysql.Config) {
 		t.Fatalf("Failed to disable FK checks: %v", err)
 	}
 
-	tables := []string{"api_keys", "users", "schema_references", "schemas", "modes", "configs", "id_alloc"}
+	tables := []string{"api_keys", "users", "schema_references", "schema_fingerprints", "schemas", "modes", "configs", "id_alloc"}
 	for _, table := range tables {
 		if _, err := db.Exec("TRUNCATE TABLE `" + table + "`"); err != nil {
 			t.Fatalf("Failed to truncate MySQL table %s: %v", table, err)

@@ -111,6 +111,16 @@ func parseResponse(t *testing.T, resp *http.Response, target interface{}) {
 	}
 }
 
+// setMode sets the global registry mode via the REST API.
+func setMode(t *testing.T, server *httptest.Server, mode string) {
+	t.Helper()
+	resp := doRequest(t, server, "PUT", "/mode", map[string]string{"mode": mode})
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("Failed to set mode to %s: status %d", mode, resp.StatusCode)
+	}
+}
+
 // TestMigrationFromConfluent simulates a complete migration from Confluent Schema Registry
 // to AxonOps Schema Registry, verifying that:
 // 1. Schema IDs are preserved
@@ -212,6 +222,9 @@ func TestMigrationFromConfluent(t *testing.T) {
 	// Step 3: Import schemas to target
 	t.Log("Step 3: Importing schemas to target (AxonOps SR)")
 
+	// Set IMPORT mode on target before importing
+	setMode(t, targetServer, "IMPORT")
+
 	importReq := types.ImportSchemasRequest{Schemas: exportedSchemas}
 	resp = doRequest(t, targetServer, "POST", "/import/schemas", importReq)
 
@@ -232,6 +245,9 @@ func TestMigrationFromConfluent(t *testing.T) {
 	}
 
 	t.Logf("  Imported %d schemas with 0 errors", importResult.Imported)
+
+	// Restore READWRITE mode for subsequent registrations and queries
+	setMode(t, targetServer, "READWRITE")
 
 	// Step 4: Verify schema IDs match
 	t.Log("Step 4: Verifying schema IDs match")
@@ -328,6 +344,9 @@ func TestImportWithDuplicateIDs(t *testing.T) {
 	server, _ := createTestServer()
 	defer server.Close()
 
+	setMode(t, server, "IMPORT")
+	defer setMode(t, server, "READWRITE")
+
 	// Import first schema
 	importReq := types.ImportSchemasRequest{
 		Schemas: []types.ImportSchemaRequest{
@@ -377,6 +396,9 @@ func TestImportWithDuplicateIDs(t *testing.T) {
 func TestImportWithReferences(t *testing.T) {
 	server, store := createTestServer()
 	defer server.Close()
+
+	setMode(t, server, "IMPORT")
+	defer setMode(t, server, "READWRITE")
 
 	// Import base schema first
 	baseSchema := `{"type":"record","name":"Address","namespace":"com.example","fields":[{"name":"street","type":"string"}]}`
@@ -451,6 +473,8 @@ func TestImportMultipleVersions(t *testing.T) {
 	server, _ := createTestServer()
 	defer server.Close()
 
+	setMode(t, server, "IMPORT")
+
 	// Import multiple versions in order
 	importReq := types.ImportSchemasRequest{
 		Schemas: []types.ImportSchemaRequest{
@@ -490,6 +514,8 @@ func TestImportMultipleVersions(t *testing.T) {
 		t.Errorf("Expected 3 imported, got %d", result.Imported)
 	}
 
+	setMode(t, server, "READWRITE")
+
 	// Verify versions
 	resp = doRequest(t, server, "GET", "/subjects/multi-version/versions", nil)
 	var versions []int
@@ -517,6 +543,9 @@ func TestImportMultipleVersions(t *testing.T) {
 func TestImportPreservesSchemaTypes(t *testing.T) {
 	server, store := createTestServer()
 	defer server.Close()
+
+	setMode(t, server, "IMPORT")
+	defer setMode(t, server, "READWRITE")
 
 	importReq := types.ImportSchemasRequest{
 		Schemas: []types.ImportSchemaRequest{
