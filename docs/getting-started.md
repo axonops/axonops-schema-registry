@@ -2,6 +2,32 @@
 
 This guide walks you through running AxonOps Schema Registry, registering your first schemas, and verifying compatibility. You should have a working registry within five minutes.
 
+## Contents
+
+- [Prerequisites](#prerequisites)
+- [Quick Start with Docker](#quick-start-with-docker)
+- [Quick Start with Binary](#quick-start-with-binary)
+  - [Build from Source](#build-from-source)
+  - [Run](#run)
+- [Your First API Calls](#your-first-api-calls)
+  - [Check Health](#check-health)
+  - [Register an Avro Schema](#register-an-avro-schema)
+  - [Retrieve the Schema](#retrieve-the-schema)
+  - [List Subjects](#list-subjects)
+  - [Register a Second Version](#register-a-second-version)
+  - [Check Compatibility](#check-compatibility)
+  - [Register a JSON Schema](#register-a-json-schema)
+  - [Register a Protobuf Schema](#register-a-protobuf-schema)
+  - [View All Subjects](#view-all-subjects)
+  - [Get Supported Schema Types](#get-supported-schema-types)
+- [Using with Kafka Clients](#using-with-kafka-clients)
+  - [Java (Confluent Kafka Client)](#java-confluent-kafka-client)
+  - [Go (confluent-kafka-go)](#go-confluent-kafka-go)
+  - [Python (confluent-kafka-python)](#python-confluent-kafka-python)
+- [Configuration](#configuration)
+  - [Change the Default Compatibility Level](#change-the-default-compatibility-level)
+- [Next Steps](#next-steps)
+
 ## Prerequisites
 
 You need one of the following:

@@ -2,7 +2,7 @@
 
 This guide covers common issues encountered when running AxonOps Schema Registry, along with diagnostic commands and a complete error code reference.
 
-## Table of Contents
+## Contents
 
 - [Common Issues](#common-issues)
   - [Connection Refused](#connection-refused)

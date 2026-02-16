@@ -2,7 +2,7 @@
 
 This guide covers the observability features of AxonOps Schema Registry, including health checks, Prometheus metrics, structured logging, and Grafana dashboard setup.
 
-## Table of Contents
+## Contents
 
 - [Overview](#overview)
 - [Health Check](#health-check)

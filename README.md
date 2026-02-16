@@ -2,6 +2,23 @@
 
 A high-performance, API-compatible Kafka Schema Registry written in Go. Drop-in replacement for Confluent Schema Registry with enterprise features including multiple storage backends, flexible authentication, and comprehensive audit logging.
 
+## Contents
+
+- [Why AxonOps Schema Registry?](#why-axonops-schema-registry)
+- [Quick Start](#quick-start)
+- [Features](#features)
+  - [Schema Management](#schema-management)
+  - [Storage Backends](#storage-backends)
+  - [Security](#security)
+  - [Operations](#operations)
+- [Feature Comparison](#feature-comparison)
+- [Architecture](#architecture)
+- [API Compatibility](#api-compatibility)
+- [Documentation](#documentation)
+- [License](#license)
+- [Contributing](#contributing)
+- [Support](#support)
+
 ## Why AxonOps Schema Registry?
 
 - **No Kafka/ZooKeeper Dependency** -- uses standard databases (PostgreSQL, MySQL, Cassandra) for storage

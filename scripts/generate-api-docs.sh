@@ -19,8 +19,9 @@ OPENAPI_SPEC="$REPO_ROOT/api/openapi.yaml"
 OUTPUT_MD="$REPO_ROOT/docs/api-reference.md"
 OUTPUT_HTML="$REPO_ROOT/docs/api/index.html"
 TMPFILE="$(mktemp)"
+TMPFILE2="$(mktemp)"
 
-trap 'rm -f "$TMPFILE"' EXIT
+trap 'rm -f "$TMPFILE" "$TMPFILE2"' EXIT
 
 # ── Check prerequisites ──────────────────────────────────────────────
 
@@ -83,17 +84,95 @@ perl -0777 -pe '
 
     # Collapse runs of 3+ blank lines to 2
     s/\n{4,}/\n\n\n/g;
-' "$TMPFILE" > "$OUTPUT_MD.tmp"
+' "$TMPFILE" > "$TMPFILE2"
 
-# Prepend auto-generation header
+# ── Generate table of contents ────────────────────────────────────────
+#
+# Extract # and ## headings (outside code fences) and build a TOC.
+# Code fences (```) toggle an in_fence flag so shell comments like
+# "# You can also use wget" are excluded.
+
+generate_toc() {
+    perl -ne '
+        BEGIN { $in_fence = 0; }
+        if (/^```/) { $in_fence = !$in_fence; next; }
+        next if $in_fence;
+        if (/^(#{1,2})\s+(.+)/) {
+            my $level = length($1);
+            my $title = $2;
+            # Build GitHub-style anchor: lowercase, spaces to hyphens, strip non-alnum
+            my $anchor = lc($title);
+            $anchor =~ s/\s+/-/g;
+            $anchor =~ s/[^a-z0-9_-]//g;
+            $anchor =~ s/-+/-/g;
+            $anchor =~ s/^-|-$//g;
+            my $indent = ($level == 1) ? "" : "  ";
+            print "${indent}- [${title}](#${anchor})\n";
+        }
+    ' "$1"
+}
+
+TOC="$(generate_toc "$TMPFILE2")"
+
+# ── Assemble final output ─────────────────────────────────────────────
+#
+# Insert the TOC after the title (first # heading) and its description block.
+# We find the second # heading and insert the TOC before it.
+
 {
     printf '%s\n' '<!-- This file is auto-generated from api/openapi.yaml -->'
     printf '%s\n' '<!-- Do not edit manually. Regenerate with: make docs-api -->'
     printf '\n'
-    cat "$OUTPUT_MD.tmp"
-} > "$OUTPUT_MD"
 
-rm -f "$OUTPUT_MD.tmp"
+    # Use perl to insert TOC right after the title heading and its description,
+    # before the first ## heading (Key Concepts, Content Types, etc.)
+    perl -e '
+        use strict;
+        use warnings;
+        my $toc = $ENV{"TOC"};
+        my $content = do { local $/; open my $fh, "<", $ARGV[0] or die $!; <$fh> };
+
+        my @lines = split /\n/, $content;
+        my $in_fence = 0;
+        my $found_title = 0;
+        my $insert_at = -1;
+
+        for my $i (0..$#lines) {
+            if ($lines[$i] =~ /^```/) {
+                $in_fence = !$in_fence;
+                next;
+            }
+            next if $in_fence;
+            # Find the first # title heading
+            if (!$found_title && $lines[$i] =~ /^# /) {
+                $found_title = 1;
+                next;
+            }
+            # After finding the title, insert TOC before the first ## heading
+            if ($found_title && $lines[$i] =~ /^## /) {
+                $insert_at = $i;
+                last;
+            }
+        }
+
+        if ($insert_at > 0) {
+            # Print title and its description paragraph
+            for my $i (0..($insert_at-1)) {
+                print "$lines[$i]\n";
+            }
+            # Insert TOC
+            print "\n## Contents\n\n";
+            print "$toc\n\n";
+            # Print remaining lines (starting from the first ## heading)
+            for my $i ($insert_at..$#lines) {
+                print "$lines[$i]\n";
+            }
+        } else {
+            # Fallback: print as-is
+            print "$content";
+        }
+    ' "$TMPFILE2"
+} > "$OUTPUT_MD"
 
 echo "  -> $OUTPUT_MD ($(wc -l < "$OUTPUT_MD" | tr -d ' ') lines)"
 

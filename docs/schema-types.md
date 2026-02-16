@@ -1,5 +1,38 @@
 # Schema Types
 
+## Contents
+
+- [Overview](#overview)
+- [Avro](#avro)
+  - [Supported Types](#supported-types)
+  - [Logical Types](#logical-types)
+  - [Named Types and References](#named-types-and-references)
+  - [Aliases](#aliases)
+  - [Canonicalization and Fingerprinting](#canonicalization-and-fingerprinting)
+  - [Registration Example](#registration-example)
+  - [Avro with References](#avro-with-references)
+- [Protobuf](#protobuf)
+  - [Supported Features](#supported-features)
+  - [Canonicalization and Fingerprinting](#canonicalization-and-fingerprinting-1)
+  - [Registration Example](#registration-example-1)
+  - [Protobuf with Imports (References)](#protobuf-with-imports-references)
+  - [Complex Protobuf Example](#complex-protobuf-example)
+- [JSON Schema](#json-schema)
+  - [Supported Drafts](#supported-drafts)
+  - [Supported Keywords](#supported-keywords)
+  - [Canonicalization and Fingerprinting](#canonicalization-and-fingerprinting-2)
+  - [Registration Example](#registration-example-2)
+  - [JSON Schema with References](#json-schema-with-references)
+  - [Complex JSON Schema Example](#complex-json-schema-example)
+- [Schema References](#schema-references)
+  - [Reference Structure](#reference-structure)
+  - [How name Is Interpreted Per Schema Type](#how-name-is-interpreted-per-schema-type)
+  - [Reference Resolution](#reference-resolution)
+- [Schema Deduplication](#schema-deduplication)
+- [Schema Normalization](#schema-normalization)
+- [Formatted Output](#formatted-output)
+- [Related Documentation](#related-documentation)
+
 ## Overview
 
 AxonOps Schema Registry supports three schema types: **AVRO**, **PROTOBUF**, and **JSON**. Each type has its own parser, canonicalization strategy, fingerprinting algorithm, and compatibility checker.

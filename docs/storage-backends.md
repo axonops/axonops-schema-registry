@@ -1,5 +1,31 @@
 # Storage Backends
 
+## Contents
+
+- [Overview](#overview)
+- [Backend Comparison](#backend-comparison)
+- [PostgreSQL](#postgresql)
+  - [Configuration](#configuration)
+  - [Environment Variable Overrides](#environment-variable-overrides)
+- [MySQL](#mysql)
+  - [Configuration](#configuration-1)
+  - [Environment Variable Overrides](#environment-variable-overrides-1)
+- [Cassandra](#cassandra)
+  - [Data Model](#data-model)
+  - [Concurrency and Consistency](#concurrency-and-consistency)
+  - [Keyspace Management](#keyspace-management)
+  - [Configuration](#configuration-2)
+- [Memory](#memory)
+  - [Configuration](#configuration-3)
+- [Auth Storage](#auth-storage)
+  - [Vault Auth Storage](#vault-auth-storage)
+- [Database Setup](#database-setup)
+  - [PostgreSQL](#postgresql-1)
+  - [MySQL](#mysql-1)
+  - [Cassandra](#cassandra-1)
+- [Switching Backends](#switching-backends)
+- [Further Reading](#further-reading)
+
 ## Overview
 
 All storage backends implement the same `Storage` interface, which defines approximately 40 methods covering schema operations, subject management, configuration, mode settings, ID generation, import/export, reference tracking, and authentication (user and API key management). The registry is backend-agnostic: switching backends requires only a configuration change and the appropriate database setup. Schema migrations run automatically on startup, creating all required tables and indexes.

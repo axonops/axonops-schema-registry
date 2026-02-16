@@ -1,5 +1,29 @@
 # Migrating from Confluent Schema Registry
 
+## Contents
+
+- [Overview](#overview)
+- [Prerequisites](#prerequisites)
+- [Migration Script](#migration-script)
+  - [Usage](#usage)
+  - [Options](#options)
+  - [What the Script Does](#what-the-script-does)
+- [Import API](#import-api)
+  - [Request Format](#request-format)
+  - [Response Format](#response-format)
+  - [Import Rules](#import-rules)
+- [Step-by-Step Migration](#step-by-step-migration)
+  - [1. Deploy AxonOps Schema Registry](#1-deploy-axonops-schema-registry)
+  - [2. Set the Target to IMPORT Mode](#2-set-the-target-to-import-mode)
+  - [3. Run a Dry-Run Export](#3-run-a-dry-run-export)
+  - [4. Run the Migration](#4-run-the-migration)
+  - [5. Switch to READWRITE Mode](#5-switch-to-readwrite-mode)
+  - [6. Update Kafka Clients](#6-update-kafka-clients)
+- [Verification](#verification)
+- [Rollback](#rollback)
+- [Troubleshooting](#troubleshooting)
+- [Related Documentation](#related-documentation)
+
 ## Overview
 
 AxonOps Schema Registry includes a migration script and an import API for migrating schemas from Confluent Schema Registry. The migration preserves schema IDs, which is critical because the Kafka wire format embeds a 4-byte schema ID in every message. If schema IDs change, existing Kafka consumers will be unable to deserialize messages already on the topic.

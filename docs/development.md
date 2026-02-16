@@ -2,6 +2,38 @@
 
 This guide covers building AxonOps Schema Registry from source, running the test suite, and contributing changes.
 
+## Contents
+
+- [Prerequisites](#prerequisites)
+- [Building from Source](#building-from-source)
+  - [Cross-Compilation](#cross-compilation)
+- [Project Structure](#project-structure)
+- [Running Tests](#running-tests)
+  - [Unit Tests](#unit-tests)
+  - [BDD Tests](#bdd-tests)
+  - [Integration Tests](#integration-tests)
+  - [Concurrency Tests](#concurrency-tests)
+  - [Storage Conformance Tests](#storage-conformance-tests)
+  - [Auth Tests](#auth-tests)
+  - [Migration Tests](#migration-tests)
+  - [API Endpoint Tests](#api-endpoint-tests)
+  - [Compatibility Tests](#compatibility-tests)
+  - [Full Test Suite](#full-test-suite)
+  - [Coverage](#coverage)
+- [Code Quality](#code-quality)
+- [Running the Server Locally](#running-the-server-locally)
+- [API Documentation](#api-documentation)
+  - [OpenAPI Spec](#openapi-spec)
+  - [Swagger UI](#swagger-ui)
+  - [Static Documentation](#static-documentation)
+- [Docker](#docker)
+  - [Build the Image](#build-the-image)
+  - [Run with Docker](#run-with-docker)
+- [CI Pipeline](#ci-pipeline)
+- [Code Conventions](#code-conventions)
+- [Contributing](#contributing)
+- [Related Documentation](#related-documentation)
+
 ## Prerequisites
 
 - **Go 1.24+** ([download](https://go.dev/dl/))

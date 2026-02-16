@@ -1,5 +1,37 @@
 # Deployment
 
+## Contents
+
+- [Overview](#overview)
+- [Deployment Topologies](#deployment-topologies)
+  - [Single Instance](#single-instance)
+  - [High Availability (PostgreSQL/MySQL)](#high-availability-postgresqlmysql)
+  - [Distributed Multi-Datacenter (Cassandra)](#distributed-multi-datacenter-cassandra)
+- [Docker Deployment](#docker-deployment)
+  - [Simple Docker Run](#simple-docker-run)
+  - [Docker Compose with PostgreSQL](#docker-compose-with-postgresql)
+- [Kubernetes Deployment](#kubernetes-deployment)
+  - [Namespace](#namespace)
+  - [Secret](#secret)
+  - [ConfigMap](#configmap)
+  - [Deployment](#deployment)
+  - [Service](#service)
+  - [HorizontalPodAutoscaler (Optional)](#horizontalpodautoscaler-optional)
+  - [Ingress (Optional)](#ingress-optional)
+  - [Apply All Manifests](#apply-all-manifests)
+- [Systemd Service](#systemd-service)
+  - [Service File](#service-file)
+  - [Setup](#setup)
+  - [Verify](#verify)
+- [Health Checks](#health-checks)
+- [Graceful Shutdown](#graceful-shutdown)
+- [Resource Requirements](#resource-requirements)
+- [TLS Termination](#tls-termination)
+  - [Option 1: TLS at the Load Balancer (Recommended)](#option-1-tls-at-the-load-balancer-recommended)
+  - [Option 2: TLS at the Registry](#option-2-tls-at-the-registry)
+- [Network Requirements](#network-requirements)
+- [Related Documentation](#related-documentation)
+
 ## Overview
 
 AxonOps Schema Registry is a stateless binary. All state -- schemas, subjects, configuration, users, and API keys -- is stored in the database. This means multiple instances can be deployed behind a load balancer with no coordination between them. There is no leader election, no peer discovery, and no inter-instance communication.

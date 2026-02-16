@@ -2,7 +2,7 @@
 
 This document provides a complete reference for all configuration options available in AxonOps Schema Registry.
 
-## Table of Contents
+## Contents
 
 - [Configuration File](#configuration-file)
 - [Environment Variable Substitution](#environment-variable-substitution)

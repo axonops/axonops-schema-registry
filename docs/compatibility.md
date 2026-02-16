@@ -1,5 +1,45 @@
 # Compatibility
 
+## Contents
+
+- [Overview](#overview)
+- [Compatibility Modes](#compatibility-modes)
+  - [Understanding Backward vs Forward](#understanding-backward-vs-forward)
+  - [Transitive vs Non-Transitive](#transitive-vs-non-transitive)
+- [Configuration Resolution](#configuration-resolution)
+  - [Setting Compatibility](#setting-compatibility)
+- [Avro Compatibility Rules](#avro-compatibility-rules)
+  - [Backward-Compatible Changes (safe to make under BACKWARD mode)](#backward-compatible-changes-safe-to-make-under-backward-mode)
+  - [Forward-Compatible Changes (safe to make under FORWARD mode)](#forward-compatible-changes-safe-to-make-under-forward-mode)
+  - [Incompatible Changes](#incompatible-changes)
+  - [Type Promotions](#type-promotions)
+  - [Aliases](#aliases)
+  - [Unions](#unions)
+  - [Enums](#enums)
+- [JSON Schema Compatibility Rules](#json-schema-compatibility-rules)
+  - [Backward-Compatible Changes](#backward-compatible-changes)
+  - [Incompatible Changes](#incompatible-changes-1)
+  - [Checked Constraints](#checked-constraints)
+- [Protobuf Compatibility Rules](#protobuf-compatibility-rules)
+  - [Backward-Compatible Changes](#backward-compatible-changes-1)
+  - [Incompatible Changes](#incompatible-changes-2)
+  - [Wire-Compatible Type Groups](#wire-compatible-type-groups)
+  - [Cardinality Changes](#cardinality-changes)
+  - [Syntax Changes](#syntax-changes)
+  - [Service Definitions](#service-definitions)
+- [Checking Compatibility via API](#checking-compatibility-via-api)
+  - [Check Against a Specific Version](#check-against-a-specific-version)
+  - [Check Against All Versions](#check-against-all-versions)
+  - [Request Body](#request-body)
+  - [Response](#response)
+  - [Verbose Mode](#verbose-mode)
+  - [Example: Check Before Registering](#example-check-before-registering)
+- [Compatibility Groups](#compatibility-groups)
+  - [How It Works](#how-it-works)
+  - [Configuration](#configuration)
+  - [Registering Schemas with Groups](#registering-schemas-with-groups)
+- [Related Documentation](#related-documentation)
+
 ## Overview
 
 Compatibility checking ensures that new schema versions can coexist with previous versions. The registry checks compatibility at registration time -- when a new schema version is registered via `POST /subjects/{subject}/versions`. If the proposed schema is incompatible with existing versions (under the active compatibility mode), the registry rejects the registration with HTTP 409 and an error message describing the incompatibility.

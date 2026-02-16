@@ -1,5 +1,34 @@
 # Security
 
+## Contents
+
+- [Overview](#overview)
+- [Transport Layer Security (TLS)](#transport-layer-security-tls)
+  - [Configuration](#configuration)
+  - [Client Certificate Modes](#client-certificate-modes)
+  - [Certificate Reload](#certificate-reload)
+  - [TLS Termination at a Load Balancer](#tls-termination-at-a-load-balancer)
+- [Role-Based Access Control (RBAC)](#role-based-access-control-rbac)
+  - [Permission Matrix](#permission-matrix)
+  - [Configuration](#configuration-1)
+- [Credential Storage](#credential-storage)
+  - [Passwords](#passwords)
+  - [API Keys](#api-keys)
+  - [External Credential Storage with HashiCorp Vault](#external-credential-storage-with-hashicorp-vault)
+- [Rate Limiting](#rate-limiting)
+  - [Configuration](#configuration-2)
+  - [Behavior](#behavior)
+  - [Scope](#scope)
+  - [Exempt Endpoints](#exempt-endpoints)
+  - [Stale Client Cleanup](#stale-client-cleanup)
+- [Audit Logging](#audit-logging)
+  - [Configuration](#configuration-3)
+  - [Event Types](#event-types)
+  - [Log Format](#log-format)
+- [Unauthenticated Endpoints](#unauthenticated-endpoints)
+- [Security Hardening Checklist](#security-hardening-checklist)
+- [Related Documentation](#related-documentation)
+
 ## Overview
 
 Security in AxonOps Schema Registry spans authentication, authorization, transport encryption, rate limiting, and audit logging. All security features are optional and can be enabled independently. When no security configuration is present, the registry operates in open mode with all endpoints accessible without credentials.
