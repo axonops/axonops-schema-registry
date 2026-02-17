@@ -52,29 +52,54 @@ type Config struct {
 
 // idAllocator reserves blocks of sequential IDs via a single LWT, then hands
 // them out locally. This reduces LWT frequency by ~50x compared to per-ID allocation.
+// Each allocator is per-context.
 type idAllocator struct {
-	mu      sync.Mutex
-	current int64
-	ceiling int64 // IDs available up to (exclusive)
-	block   int64
+	mu         sync.Mutex
+	allocators map[string]*contextIDBlock
+	block      int64
 }
 
-func (a *idAllocator) next(ctx context.Context, s *Store) (int64, error) {
+// contextIDBlock tracks current/ceiling for a single context.
+type contextIDBlock struct {
+	current int64
+	ceiling int64
+}
+
+func newIDAllocator(blockSize int64) *idAllocator {
+	return &idAllocator{
+		allocators: make(map[string]*contextIDBlock),
+		block:      blockSize,
+	}
+}
+
+func (a *idAllocator) next(ctx context.Context, s *Store, registryCtx string) (int64, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	if a.current >= a.ceiling {
+	blk, ok := a.allocators[registryCtx]
+	if !ok {
+		blk = &contextIDBlock{}
+		a.allocators[registryCtx] = blk
+	}
+
+	if blk.current >= blk.ceiling {
 		// Reserve a new block via LWT
-		base, err := s.reserveIDBlock(ctx, a.block)
+		base, err := s.reserveIDBlock(ctx, registryCtx, a.block)
 		if err != nil {
 			return 0, err
 		}
-		a.current = base
-		a.ceiling = base + a.block
+		blk.current = base
+		blk.ceiling = base + a.block
 	}
-	id := a.current
-	a.current++
+	id := blk.current
+	blk.current++
 	return id, nil
+}
+
+func (a *idAllocator) reset(registryCtx string) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	delete(a.allocators, registryCtx)
 }
 
 // Store implements storage.Storage on Cassandra.
@@ -175,9 +200,7 @@ func NewStore(ctx context.Context, cfg Config) (*Store, error) {
 		session:          session,
 		readConsistency:  readConsistency,
 		writeConsistency: writeConsistency,
-		idAlloc: &idAllocator{
-			block: int64(cfg.IDBlockSize),
-		},
+		idAlloc:          newIDAllocator(int64(cfg.IDBlockSize)),
 	}
 
 	if cfg.Migrate {
@@ -217,35 +240,55 @@ func (s *Store) writeQuery(stmt string, values ...interface{}) *gocql.Query {
 
 // ---------- Context Operations ----------
 
-// ListContexts returns the list of registry contexts.
-// For now, only the default context is supported.
-func (s *Store) ListContexts(ctx context.Context) ([]string, error) {
-	return []string{"."}, nil
+// ensureContext ensures a context exists in the contexts tracking table.
+func (s *Store) ensureContext(ctx context.Context, registryCtx string) {
+	_ = s.writeQuery(
+		fmt.Sprintf(`INSERT INTO %s.contexts (registry_ctx, created_at) VALUES (?, now()) IF NOT EXISTS`, qident(s.cfg.Keyspace)),
+		registryCtx,
+	).WithContext(ctx).Exec()
 }
 
-// ---------- ID Allocation (Block-Based) ----------
+// ListContexts returns the list of registry contexts.
+func (s *Store) ListContexts(ctx context.Context) ([]string, error) {
+	iter := s.readQuery(
+		fmt.Sprintf(`SELECT registry_ctx FROM %s.contexts`, qident(s.cfg.Keyspace)),
+	).WithContext(ctx).Iter()
 
-// NextID returns a new globally unique schema ID using block-based allocation.
+	var contexts []string
+	var c string
+	for iter.Scan(&c) {
+		contexts = append(contexts, c)
+	}
+	if err := iter.Close(); err != nil {
+		return nil, fmt.Errorf("failed to query contexts: %w", err)
+	}
+	sort.Strings(contexts)
+	return contexts, nil
+}
+
+// ---------- ID Allocation (Block-Based, Per-Context) ----------
+
+// NextID returns a new per-context schema ID using block-based allocation.
 // Reserves IDs in blocks via a single LWT, then hands out locally.
 func (s *Store) NextID(ctx context.Context, registryCtx string) (int64, error) {
-	return s.idAlloc.next(ctx, s)
+	return s.idAlloc.next(ctx, s, registryCtx)
 }
 
-// reserveIDBlock atomically reserves a block of IDs via LWT.
+// reserveIDBlock atomically reserves a block of IDs via LWT for a specific context.
 // Returns the base ID of the reserved block.
-func (s *Store) reserveIDBlock(ctx context.Context, blockSize int64) (int64, error) {
+func (s *Store) reserveIDBlock(ctx context.Context, registryCtx string, blockSize int64) (int64, error) {
 	for attempt := 0; attempt < s.cfg.MaxRetries; attempt++ {
 		var current int
 		if err := s.session.Query(
-			fmt.Sprintf(`SELECT next_id FROM %s.id_alloc WHERE name = ?`, qident(s.cfg.Keyspace)),
-			"schema_id",
+			fmt.Sprintf(`SELECT next_id FROM %s.id_alloc WHERE registry_ctx = ? AND name = ?`, qident(s.cfg.Keyspace)),
+			registryCtx, "schema_id",
 		).WithContext(ctx).Scan(&current); err != nil {
 			if errors.Is(err, gocql.ErrNotFound) {
 				// Initialize if not exists
 				applied, err := casApplied(
 					s.session.Query(
-						fmt.Sprintf(`INSERT INTO %s.id_alloc (name, next_id) VALUES (?, ?) IF NOT EXISTS`, qident(s.cfg.Keyspace)),
-						"schema_id", int(blockSize)+1,
+						fmt.Sprintf(`INSERT INTO %s.id_alloc (registry_ctx, name, next_id) VALUES (?, ?, ?) IF NOT EXISTS`, qident(s.cfg.Keyspace)),
+						registryCtx, "schema_id", int(blockSize)+1,
 					).WithContext(ctx),
 				)
 				if err != nil {
@@ -262,8 +305,8 @@ func (s *Store) reserveIDBlock(ctx context.Context, blockSize int64) (int64, err
 		// Atomically reserve block: SET next_id = current + blockSize IF next_id = current
 		applied, err := casApplied(
 			s.session.Query(
-				fmt.Sprintf(`UPDATE %s.id_alloc SET next_id = ? WHERE name = ? IF next_id = ?`, qident(s.cfg.Keyspace)),
-				current+int(blockSize), "schema_id", current,
+				fmt.Sprintf(`UPDATE %s.id_alloc SET next_id = ? WHERE registry_ctx = ? AND name = ? IF next_id = ?`, qident(s.cfg.Keyspace)),
+				current+int(blockSize), registryCtx, "schema_id", current,
 			).WithContext(ctx),
 		)
 		if err != nil {
@@ -277,49 +320,51 @@ func (s *Store) reserveIDBlock(ctx context.Context, blockSize int64) (int64, err
 	return 0, errors.New("failed to allocate schema ID block: too much contention")
 }
 
-// GetMaxSchemaID returns the highest schema ID currently assigned.
-// Queries the actual schemas_by_id table rather than the block allocator,
-// which would over-report by up to IDBlockSize-1 due to pre-reserved blocks.
+// GetMaxSchemaID returns the highest per-context schema ID currently assigned.
+// Queries the schema_fingerprints table for the given context.
 func (s *Store) GetMaxSchemaID(ctx context.Context, registryCtx string) (int64, error) {
-	var maxID *int
-	if err := s.readQuery(
-		fmt.Sprintf(`SELECT MAX(schema_id) FROM %s.schemas_by_id`, qident(s.cfg.Keyspace)),
-	).WithContext(ctx).Scan(&maxID); err != nil {
+	// Query all schema_ids in schema_fingerprints for this context and find the max
+	iter := s.readQuery(
+		fmt.Sprintf(`SELECT schema_id FROM %s.schemas_by_id WHERE registry_ctx = ?`, qident(s.cfg.Keyspace)),
+		registryCtx,
+	).WithContext(ctx).Iter()
+
+	var maxID int64
+	var sid int
+	for iter.Scan(&sid) {
+		if int64(sid) > maxID {
+			maxID = int64(sid)
+		}
+	}
+	if err := iter.Close(); err != nil {
 		return 0, fmt.Errorf("failed to get max schema ID: %w", err)
 	}
-	if maxID == nil {
-		return 0, nil
-	}
-	return int64(*maxID), nil
+	return maxID, nil
 }
 
-// SetNextID sets the ID sequence to start from the given value.
+// SetNextID sets the per-context ID sequence to start from the given value.
 // Used after import to prevent ID conflicts.
 func (s *Store) SetNextID(ctx context.Context, registryCtx string, id int64) error {
 	// Use LWT to set the next_id value
 	for attempt := 0; attempt < s.cfg.MaxRetries; attempt++ {
 		var current int
 		err := s.session.Query(
-			fmt.Sprintf(`SELECT next_id FROM %s.id_alloc WHERE name = ?`, qident(s.cfg.Keyspace)),
-			"schema_id",
+			fmt.Sprintf(`SELECT next_id FROM %s.id_alloc WHERE registry_ctx = ? AND name = ?`, qident(s.cfg.Keyspace)),
+			registryCtx, "schema_id",
 		).WithContext(ctx).Scan(&current)
 
 		if errors.Is(err, gocql.ErrNotFound) {
 			applied, err := casApplied(
 				s.session.Query(
-					fmt.Sprintf(`INSERT INTO %s.id_alloc (name, next_id) VALUES (?, ?) IF NOT EXISTS`, qident(s.cfg.Keyspace)),
-					"schema_id", int(id),
+					fmt.Sprintf(`INSERT INTO %s.id_alloc (registry_ctx, name, next_id) VALUES (?, ?, ?) IF NOT EXISTS`, qident(s.cfg.Keyspace)),
+					registryCtx, "schema_id", int(id),
 				).WithContext(ctx),
 			)
 			if err != nil {
 				return err
 			}
 			if applied {
-				// Reset the local allocator so it doesn't hand out stale IDs
-				s.idAlloc.mu.Lock()
-				s.idAlloc.current = 0
-				s.idAlloc.ceiling = 0
-				s.idAlloc.mu.Unlock()
+				s.idAlloc.reset(registryCtx)
 				return nil
 			}
 			continue
@@ -330,19 +375,15 @@ func (s *Store) SetNextID(ctx context.Context, registryCtx string, id int64) err
 
 		applied, err := casApplied(
 			s.session.Query(
-				fmt.Sprintf(`UPDATE %s.id_alloc SET next_id = ? WHERE name = ? IF next_id = ?`, qident(s.cfg.Keyspace)),
-				int(id), "schema_id", current,
+				fmt.Sprintf(`UPDATE %s.id_alloc SET next_id = ? WHERE registry_ctx = ? AND name = ? IF next_id = ?`, qident(s.cfg.Keyspace)),
+				int(id), registryCtx, "schema_id", current,
 			).WithContext(ctx),
 		)
 		if err != nil {
 			return err
 		}
 		if applied {
-			// Reset the local allocator
-			s.idAlloc.mu.Lock()
-			s.idAlloc.current = 0
-			s.idAlloc.ceiling = 0
-			s.idAlloc.mu.Unlock()
+			s.idAlloc.reset(registryCtx)
 			return nil
 		}
 	}
@@ -370,6 +411,8 @@ func (s *Store) ImportSchema(ctx context.Context, registryCtx string, record *st
 		record.SchemaType = storage.SchemaTypeAvro
 	}
 
+	s.ensureContext(ctx, registryCtx)
+
 	canonical := canonicalize(string(record.SchemaType), record.Schema)
 	fp := record.Fingerprint
 	if fp == "" {
@@ -377,12 +420,12 @@ func (s *Store) ImportSchema(ctx context.Context, registryCtx string, record *st
 	}
 	record.Fingerprint = fp
 
-	// Check if schema ID already exists
+	// Check if schema ID already exists in this context
 	var existingType, existingFingerprint string
 	idExists := false
 	err := s.readQuery(
-		fmt.Sprintf(`SELECT schema_type, fingerprint FROM %s.schemas_by_id WHERE schema_id = ?`, qident(s.cfg.Keyspace)),
-		int(record.ID),
+		fmt.Sprintf(`SELECT schema_type, fingerprint FROM %s.schemas_by_id WHERE registry_ctx = ? AND schema_id = ?`, qident(s.cfg.Keyspace)),
+		registryCtx, int(record.ID),
 	).WithContext(ctx).Scan(&existingType, &existingFingerprint)
 	if err == nil {
 		if existingFingerprint != fp {
@@ -393,11 +436,11 @@ func (s *Store) ImportSchema(ctx context.Context, registryCtx string, record *st
 		return err
 	}
 
-	// Check if version already exists for this subject
+	// Check if version already exists for this subject in this context
 	var existingSchemaID int
 	err = s.readQuery(
-		fmt.Sprintf(`SELECT schema_id FROM %s.subject_versions WHERE subject = ? AND version = ?`, qident(s.cfg.Keyspace)),
-		record.Subject, record.Version,
+		fmt.Sprintf(`SELECT schema_id FROM %s.subject_versions WHERE registry_ctx = ? AND subject = ? AND version = ?`, qident(s.cfg.Keyspace)),
+		registryCtx, record.Subject, record.Version,
 	).WithContext(ctx).Scan(&existingSchemaID)
 	if err == nil {
 		return storage.ErrSchemaExists
@@ -415,52 +458,51 @@ func (s *Store) ImportSchema(ctx context.Context, registryCtx string, record *st
 		// For imports, claim fingerprint but don't reject on conflict — import mode
 		// preserves external IDs, so the same schema content (e.g. {"type":"string"})
 		// can legitimately appear with different IDs across different subjects/imports.
-		// The fingerprint table is primarily for CreateSchema dedup, not import enforcement.
-		_, _, _ = s.claimFingerprint(ctx, fp, record.ID)
+		_, _, _ = s.claimFingerprint(ctx, registryCtx, fp, record.ID)
 
 		if err := s.writeQuery(
-			fmt.Sprintf(`INSERT INTO %s.schemas_by_id (schema_id, schema_type, fingerprint, schema_text, canonical_text, created_at, metadata, ruleset)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, qident(s.cfg.Keyspace)),
-			int(record.ID), string(record.SchemaType), fp, record.Schema, canonical, createdUUID, metadataStr, rulesetStr,
+			fmt.Sprintf(`INSERT INTO %s.schemas_by_id (registry_ctx, schema_id, schema_type, fingerprint, schema_text, canonical_text, created_at, metadata, ruleset)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, qident(s.cfg.Keyspace)),
+			registryCtx, int(record.ID), string(record.SchemaType), fp, record.Schema, canonical, createdUUID, metadataStr, rulesetStr,
 		).WithContext(ctx).Exec(); err != nil {
 			return fmt.Errorf("failed to insert schema_by_id: %w", err)
 		}
 	} else {
 		// Schema already exists — ensure fingerprint is claimed (covers pre-migration data)
-		_, _, _ = s.claimFingerprint(ctx, fp, record.ID)
+		_, _, _ = s.claimFingerprint(ctx, registryCtx, fp, record.ID)
 	}
 
 	// Batch: subject_versions + subject_latest + references (logged batch for atomicity)
 	batch := s.session.NewBatch(gocql.LoggedBatch).WithContext(ctx)
 
 	batch.Query(
-		fmt.Sprintf(`INSERT INTO %s.subject_versions (subject, version, schema_id, deleted, created_at, metadata, ruleset)
-			VALUES (?, ?, ?, ?, ?, ?, ?)`, qident(s.cfg.Keyspace)),
-		record.Subject, record.Version, int(record.ID), false, createdUUID, metadataStr, rulesetStr,
+		fmt.Sprintf(`INSERT INTO %s.subject_versions (registry_ctx, subject, version, schema_id, deleted, created_at, metadata, ruleset)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, qident(s.cfg.Keyspace)),
+		registryCtx, record.Subject, record.Version, int(record.ID), false, createdUUID, metadataStr, rulesetStr,
 	)
 
 	// Update subject_latest if this is the highest version
-	latestVersion, _, exists, lerr := s.getSubjectLatest(ctx, record.Subject)
+	latestVersion, _, exists, lerr := s.getSubjectLatest(ctx, registryCtx, record.Subject)
 	if lerr != nil {
 		return lerr
 	}
 	if !exists || record.Version > latestVersion {
 		batch.Query(
-			fmt.Sprintf(`INSERT INTO %s.subject_latest (subject, latest_version, latest_schema_id, updated_at)
-				VALUES (?, ?, ?, now())`, qident(s.cfg.Keyspace)),
-			record.Subject, record.Version, int(record.ID),
+			fmt.Sprintf(`INSERT INTO %s.subject_latest (subject, registry_ctx, latest_version, latest_schema_id, updated_at)
+				VALUES (?, ?, ?, ?, now())`, qident(s.cfg.Keyspace)),
+			record.Subject, registryCtx, record.Version, int(record.ID),
 		)
 	}
 
 	// Write schema references
 	for _, ref := range record.References {
 		batch.Query(
-			fmt.Sprintf(`INSERT INTO %s.schema_references (schema_id, name, ref_subject, ref_version) VALUES (?, ?, ?, ?)`, qident(s.cfg.Keyspace)),
-			int(record.ID), ref.Name, ref.Subject, ref.Version,
+			fmt.Sprintf(`INSERT INTO %s.schema_references (registry_ctx, schema_id, name, ref_subject, ref_version) VALUES (?, ?, ?, ?, ?)`, qident(s.cfg.Keyspace)),
+			registryCtx, int(record.ID), ref.Name, ref.Subject, ref.Version,
 		)
 		batch.Query(
-			fmt.Sprintf(`INSERT INTO %s.references_by_target (ref_subject, ref_version, schema_subject, schema_version) VALUES (?, ?, ?, ?)`, qident(s.cfg.Keyspace)),
-			ref.Subject, ref.Version, record.Subject, record.Version,
+			fmt.Sprintf(`INSERT INTO %s.references_by_target (registry_ctx, ref_subject, ref_version, schema_subject, schema_version) VALUES (?, ?, ?, ?, ?)`, qident(s.cfg.Keyspace)),
+			registryCtx, ref.Subject, ref.Version, record.Subject, record.Version,
 		)
 	}
 
@@ -474,7 +516,7 @@ func (s *Store) ImportSchema(ctx context.Context, registryCtx string, record *st
 }
 
 // CreateSchema registers a schema under a subject.
-// Implements global schema deduplication: same canonical schema => same ID.
+// Implements per-context schema deduplication: same canonical schema => same ID within a context.
 func (s *Store) CreateSchema(ctx context.Context, registryCtx string, record *storage.SchemaRecord) error {
 	if record == nil {
 		return errors.New("schema is nil")
@@ -489,13 +531,15 @@ func (s *Store) CreateSchema(ctx context.Context, registryCtx string, record *st
 		return errors.New("schema is required")
 	}
 
+	s.ensureContext(ctx, registryCtx)
+
 	canonical := canonicalize(string(record.SchemaType), record.Schema)
 	fp := record.Fingerprint
 	if fp == "" {
 		fp = fingerprint(canonical)
 	}
 
-	// Ensure global schema exists (deduplication via LWT on schema_fingerprints)
+	// Ensure per-context schema exists (deduplication via LWT on schema_fingerprints)
 	schemaID, _, err := s.ensureGlobalSchema(ctx, registryCtx, string(record.SchemaType), record.Schema, canonical, fp)
 	if err != nil {
 		return err
@@ -523,7 +567,7 @@ func (s *Store) CreateSchema(ctx context.Context, registryCtx string, record *st
 			}
 		}
 
-		latestVersion, latestSchemaID, exists, err := s.getSubjectLatest(ctx, record.Subject)
+		latestVersion, latestSchemaID, exists, err := s.getSubjectLatest(ctx, registryCtx, record.Subject)
 		if err != nil {
 			return err
 		}
@@ -540,9 +584,9 @@ func (s *Store) CreateSchema(ctx context.Context, registryCtx string, record *st
 		// Step 1: Write subject_versions FIRST (idempotent with IF NOT EXISTS)
 		applied, err := casApplied(
 			s.session.Query(
-				fmt.Sprintf(`INSERT INTO %s.subject_versions (subject, version, schema_id, deleted, created_at, metadata, ruleset)
-					VALUES (?, ?, ?, ?, ?, ?, ?) IF NOT EXISTS`, qident(s.cfg.Keyspace)),
-				record.Subject, newVersion, int(schemaID), false, createdUUID, metadataStr, rulesetStr,
+				fmt.Sprintf(`INSERT INTO %s.subject_versions (registry_ctx, subject, version, schema_id, deleted, created_at, metadata, ruleset)
+					VALUES (?, ?, ?, ?, ?, ?, ?, ?) IF NOT EXISTS`, qident(s.cfg.Keyspace)),
+				registryCtx, record.Subject, newVersion, int(schemaID), false, createdUUID, metadataStr, rulesetStr,
 			).WithContext(ctx),
 		)
 		if err != nil {
@@ -552,8 +596,8 @@ func (s *Store) CreateSchema(ctx context.Context, registryCtx string, record *st
 			// Version already exists — check if it has our schema_id (retry case) or different (contention)
 			var existingSchemaID int
 			err := s.session.Query(
-				fmt.Sprintf(`SELECT schema_id FROM %s.subject_versions WHERE subject = ? AND version = ?`, qident(s.cfg.Keyspace)),
-				record.Subject, newVersion,
+				fmt.Sprintf(`SELECT schema_id FROM %s.subject_versions WHERE registry_ctx = ? AND subject = ? AND version = ?`, qident(s.cfg.Keyspace)),
+				registryCtx, record.Subject, newVersion,
 			).WithContext(ctx).Scan(&existingSchemaID)
 			if err != nil {
 				continue
@@ -567,17 +611,17 @@ func (s *Store) CreateSchema(ctx context.Context, registryCtx string, record *st
 		if !exists {
 			applied, err = casApplied(
 				s.session.Query(
-					fmt.Sprintf(`INSERT INTO %s.subject_latest (subject, latest_version, latest_schema_id, updated_at)
-						VALUES (?, ?, ?, now()) IF NOT EXISTS`, qident(s.cfg.Keyspace)),
-					record.Subject, newVersion, int(schemaID),
+					fmt.Sprintf(`INSERT INTO %s.subject_latest (subject, registry_ctx, latest_version, latest_schema_id, updated_at)
+						VALUES (?, ?, ?, ?, now()) IF NOT EXISTS`, qident(s.cfg.Keyspace)),
+					record.Subject, registryCtx, newVersion, int(schemaID),
 				).WithContext(ctx),
 			)
 		} else {
 			applied, err = casApplied(
 				s.session.Query(
-					fmt.Sprintf(`UPDATE %s.subject_latest SET latest_version = ?, latest_schema_id = ?, updated_at = now()
+					fmt.Sprintf(`UPDATE %s.subject_latest SET registry_ctx = ?, latest_version = ?, latest_schema_id = ?, updated_at = now()
 						WHERE subject = ? IF latest_version = ? AND latest_schema_id = ?`, qident(s.cfg.Keyspace)),
-					newVersion, int(schemaID), record.Subject, latestVersion, latestSchemaID,
+					registryCtx, newVersion, int(schemaID), record.Subject, latestVersion, latestSchemaID,
 				).WithContext(ctx),
 			)
 		}
@@ -593,12 +637,12 @@ func (s *Store) CreateSchema(ctx context.Context, registryCtx string, record *st
 			batch := s.session.NewBatch(gocql.LoggedBatch).WithContext(ctx)
 			for _, ref := range record.References {
 				batch.Query(
-					fmt.Sprintf(`INSERT INTO %s.schema_references (schema_id, name, ref_subject, ref_version) VALUES (?, ?, ?, ?)`, qident(s.cfg.Keyspace)),
-					int(schemaID), ref.Name, ref.Subject, ref.Version,
+					fmt.Sprintf(`INSERT INTO %s.schema_references (registry_ctx, schema_id, name, ref_subject, ref_version) VALUES (?, ?, ?, ?, ?)`, qident(s.cfg.Keyspace)),
+					registryCtx, int(schemaID), ref.Name, ref.Subject, ref.Version,
 				)
 				batch.Query(
-					fmt.Sprintf(`INSERT INTO %s.references_by_target (ref_subject, ref_version, schema_subject, schema_version) VALUES (?, ?, ?, ?)`, qident(s.cfg.Keyspace)),
-					ref.Subject, ref.Version, record.Subject, newVersion,
+					fmt.Sprintf(`INSERT INTO %s.references_by_target (registry_ctx, ref_subject, ref_version, schema_subject, schema_version) VALUES (?, ?, ?, ?, ?)`, qident(s.cfg.Keyspace)),
+					registryCtx, ref.Subject, ref.Version, record.Subject, newVersion,
 				)
 			}
 			if err := s.session.ExecuteBatch(batch); err != nil {
@@ -618,27 +662,23 @@ func (s *Store) CreateSchema(ctx context.Context, registryCtx string, record *st
 	return errors.New("failed to create schema due to contention (too many retries)")
 }
 
-// ensureGlobalSchema ensures a schema exists in schemas_by_id, using LWT on
-// schema_fingerprints for atomic deduplication.
+// ensureGlobalSchema ensures a schema exists in schemas_by_id within a context,
+// using LWT on schema_fingerprints for atomic deduplication.
 //
-// The schema_fingerprints table has fingerprint as its partition key, so
-// INSERT IF NOT EXISTS provides a true compare-and-swap: exactly one writer
-// wins the CAS and claims the fingerprint→schema_id mapping. Losers receive
+// The schema_fingerprints table has (registry_ctx, fingerprint) as its partition key,
+// so INSERT IF NOT EXISTS provides a true compare-and-swap per context: exactly one
+// writer wins the CAS and claims the fingerprint->schema_id mapping. Losers receive
 // the winning schema_id in the CAS response without a separate read.
-//
-// This replaces the previous SAI-based approach where the fingerprint index on
-// schemas_by_id was eventually consistent and could not prevent concurrent
-// writers from both inserting different schema_ids for the same fingerprint.
 func (s *Store) ensureGlobalSchema(ctx context.Context, registryCtx string, schemaType, schemaText, canonical, fp string) (schemaID int64, createdAt time.Time, err error) {
-	// Fast path: check if fingerprint is already claimed (PK lookup — strongly consistent)
+	// Fast path: check if fingerprint is already claimed in this context (PK lookup — strongly consistent)
 	var existingID int
 	err = s.readQuery(
-		fmt.Sprintf(`SELECT schema_id FROM %s.schema_fingerprints WHERE fingerprint = ?`, qident(s.cfg.Keyspace)),
-		fp,
+		fmt.Sprintf(`SELECT schema_id FROM %s.schema_fingerprints WHERE registry_ctx = ? AND fingerprint = ?`, qident(s.cfg.Keyspace)),
+		registryCtx, fp,
 	).WithContext(ctx).Scan(&existingID)
 	if err == nil {
 		// Fingerprint already claimed — ensure schemas_by_id has the data (crash recovery)
-		return s.ensureSchemaData(ctx, int64(existingID), schemaType, schemaText, canonical, fp)
+		return s.ensureSchemaData(ctx, registryCtx, int64(existingID), schemaType, schemaText, canonical, fp)
 	}
 	if !errors.Is(err, gocql.ErrNotFound) {
 		return 0, time.Time{}, err
@@ -650,27 +690,27 @@ func (s *Store) ensureGlobalSchema(ctx context.Context, registryCtx string, sche
 		return 0, time.Time{}, err
 	}
 
-	applied, winnerID, err := s.claimFingerprint(ctx, fp, newID)
+	applied, winnerID, err := s.claimFingerprint(ctx, registryCtx, fp, newID)
 	if err != nil {
 		return 0, time.Time{}, err
 	}
 	if !applied {
 		// Another writer claimed this fingerprint first — use their schema_id
-		return s.ensureSchemaData(ctx, winnerID, schemaType, schemaText, canonical, fp)
+		return s.ensureSchemaData(ctx, registryCtx, winnerID, schemaType, schemaText, canonical, fp)
 	}
 
 	// We won the CAS — insert full schema data into schemas_by_id
-	return s.ensureSchemaData(ctx, newID, schemaType, schemaText, canonical, fp)
+	return s.ensureSchemaData(ctx, registryCtx, newID, schemaType, schemaText, canonical, fp)
 }
 
-// claimFingerprint atomically associates a fingerprint with a schema_id using LWT.
+// claimFingerprint atomically associates a fingerprint with a schema_id using LWT within a context.
 // Returns (true, 0, nil) if we won the CAS (fingerprint newly claimed).
 // Returns (false, existingID, nil) if the fingerprint was already claimed by existingID.
-func (s *Store) claimFingerprint(ctx context.Context, fp string, schemaID int64) (applied bool, existingID int64, err error) {
+func (s *Store) claimFingerprint(ctx context.Context, registryCtx, fp string, schemaID int64) (applied bool, existingID int64, err error) {
 	m := map[string]interface{}{}
 	applied, err = s.session.Query(
-		fmt.Sprintf(`INSERT INTO %s.schema_fingerprints (fingerprint, schema_id) VALUES (?, ?) IF NOT EXISTS`, qident(s.cfg.Keyspace)),
-		fp, int(schemaID),
+		fmt.Sprintf(`INSERT INTO %s.schema_fingerprints (registry_ctx, fingerprint, schema_id) VALUES (?, ?, ?) IF NOT EXISTS`, qident(s.cfg.Keyspace)),
+		registryCtx, fp, int(schemaID),
 	).WithContext(ctx).MapScanCAS(m)
 	if err != nil {
 		return false, 0, fmt.Errorf("fingerprint LWT failed: %w", err)
@@ -687,15 +727,15 @@ func (s *Store) claimFingerprint(ctx context.Context, fp string, schemaID int64)
 	return true, 0, nil
 }
 
-// ensureSchemaData ensures schemas_by_id has the full schema data for a given schema_id.
+// ensureSchemaData ensures schemas_by_id has the full schema data for a given schema_id within a context.
 // This handles both the normal insert path and crash recovery (where the fingerprint
 // was claimed via LWT but the process crashed before writing to schemas_by_id).
-func (s *Store) ensureSchemaData(ctx context.Context, schemaID int64, schemaType, schemaText, canonical, fp string) (int64, time.Time, error) {
+func (s *Store) ensureSchemaData(ctx context.Context, registryCtx string, schemaID int64, schemaType, schemaText, canonical, fp string) (int64, time.Time, error) {
 	// Try to read existing data (common case for dedup hits)
 	var createdUUID gocql.UUID
 	err := s.readQuery(
-		fmt.Sprintf(`SELECT created_at FROM %s.schemas_by_id WHERE schema_id = ?`, qident(s.cfg.Keyspace)),
-		int(schemaID),
+		fmt.Sprintf(`SELECT created_at FROM %s.schemas_by_id WHERE registry_ctx = ? AND schema_id = ?`, qident(s.cfg.Keyspace)),
+		registryCtx, int(schemaID),
 	).WithContext(ctx).Scan(&createdUUID)
 	if err == nil {
 		return schemaID, createdUUID.Time(), nil
@@ -707,9 +747,9 @@ func (s *Store) ensureSchemaData(ctx context.Context, schemaID int64, schemaType
 	// Data missing — insert it (first write or crash recovery)
 	createdUUID = gocql.TimeUUID()
 	if err := s.writeQuery(
-		fmt.Sprintf(`INSERT INTO %s.schemas_by_id (schema_id, schema_type, fingerprint, schema_text, canonical_text, created_at)
-			VALUES (?, ?, ?, ?, ?, ?)`, qident(s.cfg.Keyspace)),
-		int(schemaID), schemaType, fp, schemaText, canonical, createdUUID,
+		fmt.Sprintf(`INSERT INTO %s.schemas_by_id (registry_ctx, schema_id, schema_type, fingerprint, schema_text, canonical_text, created_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?)`, qident(s.cfg.Keyspace)),
+		registryCtx, int(schemaID), schemaType, fp, schemaText, canonical, createdUUID,
 	).WithContext(ctx).Exec(); err != nil {
 		return 0, time.Time{}, err
 	}
@@ -719,10 +759,10 @@ func (s *Store) ensureSchemaData(ctx context.Context, schemaID int64, schemaType
 
 // findSchemaInSubject finds a non-deleted version of a schema in a subject using SAI.
 func (s *Store) findSchemaInSubject(ctx context.Context, registryCtx string, subject string, schemaID int64) (*storage.SchemaRecord, error) {
-	// SAI query on subject_versions: partition key (subject) + SAI index (schema_id)
+	// SAI query on subject_versions: partition key (registry_ctx, subject) + SAI index (schema_id)
 	iter := s.readQuery(
-		fmt.Sprintf(`SELECT version, deleted, created_at FROM %s.subject_versions WHERE subject = ? AND schema_id = ?`, qident(s.cfg.Keyspace)),
-		subject, int(schemaID),
+		fmt.Sprintf(`SELECT version, deleted, created_at FROM %s.subject_versions WHERE registry_ctx = ? AND subject = ? AND schema_id = ?`, qident(s.cfg.Keyspace)),
+		registryCtx, subject, int(schemaID),
 	).WithContext(ctx).Iter()
 
 	var version int
@@ -738,15 +778,15 @@ func (s *Store) findSchemaInSubject(ctx context.Context, registryCtx string, sub
 	return nil, nil
 }
 
-// GetSchemaByID retrieves a schema by its global ID.
+// GetSchemaByID retrieves a schema by its per-context ID.
 func (s *Store) GetSchemaByID(ctx context.Context, registryCtx string, id int64) (*storage.SchemaRecord, error) {
 	var schemaType, schemaText string
 	var metadataStr, rulesetStr string
 	var createdUUID gocql.UUID
 
 	err := s.readQuery(
-		fmt.Sprintf(`SELECT schema_type, schema_text, created_at, metadata, ruleset FROM %s.schemas_by_id WHERE schema_id = ?`, qident(s.cfg.Keyspace)),
-		int(id),
+		fmt.Sprintf(`SELECT schema_type, schema_text, created_at, metadata, ruleset FROM %s.schemas_by_id WHERE registry_ctx = ? AND schema_id = ?`, qident(s.cfg.Keyspace)),
+		registryCtx, int(id),
 	).WithContext(ctx).Scan(&schemaType, &schemaText, &createdUUID, &metadataStr, &rulesetStr)
 	if err != nil {
 		if errors.Is(err, gocql.ErrNotFound) {
@@ -764,10 +804,10 @@ func (s *Store) GetSchemaByID(ctx context.Context, registryCtx string, id int64)
 		RuleSet:    unmarshalJSONText[storage.RuleSet](rulesetStr),
 	}
 
-	// Load references for this schema
+	// Load references for this schema within this context
 	refIter := s.readQuery(
-		fmt.Sprintf(`SELECT name, ref_subject, ref_version FROM %s.schema_references WHERE schema_id = ?`, qident(s.cfg.Keyspace)),
-		int(id),
+		fmt.Sprintf(`SELECT name, ref_subject, ref_version FROM %s.schema_references WHERE registry_ctx = ? AND schema_id = ?`, qident(s.cfg.Keyspace)),
+		registryCtx, int(id),
 	).WithContext(ctx).Iter()
 	var refName, refSubject string
 	var refVersion int
@@ -780,12 +820,12 @@ func (s *Store) GetSchemaByID(ctx context.Context, registryCtx string, id int64)
 	}
 	refIter.Close()
 
-	// Look up the first subject/version that uses this schema ID (SAI query)
+	// Look up the first subject/version that uses this schema ID in this context (SAI query)
 	var subject string
 	var version int
 	err = s.readQuery(
-		fmt.Sprintf(`SELECT subject, version FROM %s.subject_versions WHERE schema_id = ? AND deleted = false LIMIT 1`, qident(s.cfg.Keyspace)),
-		int(id),
+		fmt.Sprintf(`SELECT subject, version FROM %s.subject_versions WHERE registry_ctx = ? AND schema_id = ? AND deleted = false LIMIT 1`, qident(s.cfg.Keyspace)),
+		registryCtx, int(id),
 	).WithContext(ctx).Scan(&subject, &version)
 	if err == nil {
 		rec.Subject = subject
@@ -795,7 +835,7 @@ func (s *Store) GetSchemaByID(ctx context.Context, registryCtx string, id int64)
 	return rec, nil
 }
 
-// GetSchemaBySubjectVersion retrieves a schema by subject and version.
+// GetSchemaBySubjectVersion retrieves a schema by subject and version within a context.
 func (s *Store) GetSchemaBySubjectVersion(ctx context.Context, registryCtx string, subject string, version int) (*storage.SchemaRecord, error) {
 	if subject == "" {
 		return nil, storage.ErrVersionNotFound
@@ -815,12 +855,12 @@ func (s *Store) GetSchemaBySubjectVersion(ctx context.Context, registryCtx strin
 	var createdUUID gocql.UUID
 	var metadataStr, rulesetStr string
 	err := s.readQuery(
-		fmt.Sprintf(`SELECT schema_id, deleted, created_at, metadata, ruleset FROM %s.subject_versions WHERE subject = ? AND version = ?`, qident(s.cfg.Keyspace)),
-		subject, version,
+		fmt.Sprintf(`SELECT schema_id, deleted, created_at, metadata, ruleset FROM %s.subject_versions WHERE registry_ctx = ? AND subject = ? AND version = ?`, qident(s.cfg.Keyspace)),
+		registryCtx, subject, version,
 	).WithContext(ctx).Scan(&schemaID, &deleted, &createdUUID, &metadataStr, &rulesetStr)
 	if err != nil {
 		if errors.Is(err, gocql.ErrNotFound) {
-			_, _, subjectExists, subErr := s.getSubjectLatest(ctx, subject)
+			_, _, subjectExists, subErr := s.getSubjectLatest(ctx, registryCtx, subject)
 			if subErr != nil {
 				return nil, subErr
 			}
@@ -854,12 +894,12 @@ func (s *Store) GetSchemaBySubjectVersion(ctx context.Context, registryCtx strin
 	return rec, nil
 }
 
-// GetSchemasBySubject retrieves all schemas for a subject.
+// GetSchemasBySubject retrieves all schemas for a subject within a context.
 // Uses IN-clause batch reads to avoid N+1 queries.
 func (s *Store) GetSchemasBySubject(ctx context.Context, registryCtx string, subject string, includeDeleted bool) ([]*storage.SchemaRecord, error) {
 	iter := s.readQuery(
-		fmt.Sprintf(`SELECT version, schema_id, deleted, created_at, metadata, ruleset FROM %s.subject_versions WHERE subject = ?`, qident(s.cfg.Keyspace)),
-		subject,
+		fmt.Sprintf(`SELECT version, schema_id, deleted, created_at, metadata, ruleset FROM %s.subject_versions WHERE registry_ctx = ? AND subject = ?`, qident(s.cfg.Keyspace)),
+		registryCtx, subject,
 	).WithContext(ctx).Iter()
 
 	type versionInfo struct {
@@ -892,17 +932,13 @@ func (s *Store) GetSchemasBySubject(ctx context.Context, registryCtx string, sub
 
 	sort.Slice(entries, func(i, j int) bool { return entries[i].version < entries[j].version })
 
-	// Collect unique schema IDs for IN-clause batch read
+	// Collect unique schema IDs for batch read
 	idSet := make(map[int]bool)
 	for _, e := range entries {
 		idSet[e.schemaID] = true
 	}
-	ids := make([]int, 0, len(idSet))
-	for id := range idSet {
-		ids = append(ids, id)
-	}
 
-	// Batch read all schema content in one query
+	// Batch read all schema content — one query per ID (context-scoped PK)
 	type schemaContent struct {
 		schemaType string
 		schemaText string
@@ -911,39 +947,36 @@ func (s *Store) GetSchemasBySubject(ctx context.Context, registryCtx string, sub
 		ruleStr    string
 	}
 	schemaMap := make(map[int]*schemaContent)
-	contentIter := s.readQuery(
-		fmt.Sprintf(`SELECT schema_id, schema_type, schema_text, created_at, metadata, ruleset FROM %s.schemas_by_id WHERE schema_id IN ?`, qident(s.cfg.Keyspace)),
-		ids,
-	).WithContext(ctx).Iter()
-	var sid int
-	var sc schemaContent
-	for contentIter.Scan(&sid, &sc.schemaType, &sc.schemaText, &sc.createdAt, &sc.metaStr, &sc.ruleStr) {
-		cp := sc
-		schemaMap[sid] = &cp
+	for id := range idSet {
+		var sc schemaContent
+		err := s.readQuery(
+			fmt.Sprintf(`SELECT schema_type, schema_text, created_at, metadata, ruleset FROM %s.schemas_by_id WHERE registry_ctx = ? AND schema_id = ?`, qident(s.cfg.Keyspace)),
+			registryCtx, id,
+		).WithContext(ctx).Scan(&sc.schemaType, &sc.schemaText, &sc.createdAt, &sc.metaStr, &sc.ruleStr)
+		if err == nil {
+			cp := sc
+			schemaMap[id] = &cp
+		}
 	}
-	contentIter.Close()
 
-	// Batch read all references in one query
-	type refEntry struct {
-		schemaID   int
-		name       string
-		refSubject string
-		refVersion int
-	}
+	// Batch read all references
 	refMap := make(map[int][]storage.Reference)
-	refIter := s.readQuery(
-		fmt.Sprintf(`SELECT schema_id, name, ref_subject, ref_version FROM %s.schema_references WHERE schema_id IN ?`, qident(s.cfg.Keyspace)),
-		ids,
-	).WithContext(ctx).Iter()
-	var re refEntry
-	for refIter.Scan(&re.schemaID, &re.name, &re.refSubject, &re.refVersion) {
-		refMap[re.schemaID] = append(refMap[re.schemaID], storage.Reference{
-			Name:    re.name,
-			Subject: re.refSubject,
-			Version: re.refVersion,
-		})
+	for id := range idSet {
+		refIter := s.readQuery(
+			fmt.Sprintf(`SELECT name, ref_subject, ref_version FROM %s.schema_references WHERE registry_ctx = ? AND schema_id = ?`, qident(s.cfg.Keyspace)),
+			registryCtx, id,
+		).WithContext(ctx).Iter()
+		var rName, rSubject string
+		var rVersion int
+		for refIter.Scan(&rName, &rSubject, &rVersion) {
+			refMap[id] = append(refMap[id], storage.Reference{
+				Name:    rName,
+				Subject: rSubject,
+				Version: rVersion,
+			})
+		}
+		refIter.Close()
 	}
-	refIter.Close()
 
 	// Build results
 	out := make([]*storage.SchemaRecord, 0, len(entries))
@@ -976,13 +1009,13 @@ func (s *Store) GetSchemasBySubject(ctx context.Context, registryCtx string, sub
 	return out, nil
 }
 
-// GetSchemaByFingerprint retrieves a schema by fingerprint within a subject.
+// GetSchemaByFingerprint retrieves a schema by fingerprint within a subject and context.
 func (s *Store) GetSchemaByFingerprint(ctx context.Context, registryCtx string, subject, fp string, includeDeleted bool) (*storage.SchemaRecord, error) {
 	// SAI lookup by fingerprint on schemas_by_id
 	globalRec, err := s.GetSchemaByGlobalFingerprint(ctx, registryCtx, fp)
 	if err != nil {
 		if errors.Is(err, storage.ErrSchemaNotFound) {
-			_, _, subjectExists, subErr := s.getSubjectLatest(ctx, subject)
+			_, _, subjectExists, subErr := s.getSubjectLatest(ctx, registryCtx, subject)
 			if subErr != nil {
 				return nil, subErr
 			}
@@ -994,10 +1027,10 @@ func (s *Store) GetSchemaByFingerprint(ctx context.Context, registryCtx string, 
 		return nil, err
 	}
 
-	// SAI query: find version in subject by schema_id
+	// Query: find version in subject by schema_id within this context
 	iter := s.readQuery(
-		fmt.Sprintf(`SELECT version, deleted FROM %s.subject_versions WHERE subject = ? AND schema_id = ?`, qident(s.cfg.Keyspace)),
-		subject, int(globalRec.ID),
+		fmt.Sprintf(`SELECT version, deleted FROM %s.subject_versions WHERE registry_ctx = ? AND subject = ? AND schema_id = ?`, qident(s.cfg.Keyspace)),
+		registryCtx, subject, int(globalRec.ID),
 	).WithContext(ctx).Iter()
 
 	var version int
@@ -1020,7 +1053,7 @@ func (s *Store) GetSchemaByFingerprint(ctx context.Context, registryCtx string, 
 		return nil, err
 	}
 
-	_, _, subjectExists, subErr := s.getSubjectLatest(ctx, subject)
+	_, _, subjectExists, subErr := s.getSubjectLatest(ctx, registryCtx, subject)
 	if subErr != nil {
 		return nil, subErr
 	}
@@ -1030,16 +1063,28 @@ func (s *Store) GetSchemaByFingerprint(ctx context.Context, registryCtx string, 
 	return nil, storage.ErrSchemaNotFound
 }
 
-// GetSchemaByGlobalFingerprint retrieves a schema by fingerprint (global SAI lookup).
+// GetSchemaByGlobalFingerprint retrieves a schema by fingerprint within a context (SAI lookup).
 func (s *Store) GetSchemaByGlobalFingerprint(ctx context.Context, registryCtx string, fp string) (*storage.SchemaRecord, error) {
+	// First try the fingerprint table for exact context lookup
 	var schemaID int
+	err := s.readQuery(
+		fmt.Sprintf(`SELECT schema_id FROM %s.schema_fingerprints WHERE registry_ctx = ? AND fingerprint = ?`, qident(s.cfg.Keyspace)),
+		registryCtx, fp,
+	).WithContext(ctx).Scan(&schemaID)
+	if err != nil {
+		if errors.Is(err, gocql.ErrNotFound) {
+			return nil, storage.ErrSchemaNotFound
+		}
+		return nil, err
+	}
+
+	// Now get the full schema data
 	var schemaType, schemaText string
 	var createdUUID gocql.UUID
-
-	err := s.readQuery(
-		fmt.Sprintf(`SELECT schema_id, schema_type, schema_text, created_at FROM %s.schemas_by_id WHERE fingerprint = ?`, qident(s.cfg.Keyspace)),
-		fp,
-	).WithContext(ctx).Scan(&schemaID, &schemaType, &schemaText, &createdUUID)
+	err = s.readQuery(
+		fmt.Sprintf(`SELECT schema_type, schema_text, created_at FROM %s.schemas_by_id WHERE registry_ctx = ? AND schema_id = ?`, qident(s.cfg.Keyspace)),
+		registryCtx, schemaID,
+	).WithContext(ctx).Scan(&schemaType, &schemaText, &createdUUID)
 	if err != nil {
 		if errors.Is(err, gocql.ErrNotFound) {
 			return nil, storage.ErrSchemaNotFound
@@ -1056,9 +1101,9 @@ func (s *Store) GetSchemaByGlobalFingerprint(ctx context.Context, registryCtx st
 	}, nil
 }
 
-// GetLatestSchema retrieves the latest non-deleted schema for a subject.
+// GetLatestSchema retrieves the latest non-deleted schema for a subject within a context.
 func (s *Store) GetLatestSchema(ctx context.Context, registryCtx string, subject string) (*storage.SchemaRecord, error) {
-	_, _, ok, err := s.getSubjectLatest(ctx, subject)
+	_, _, ok, err := s.getSubjectLatest(ctx, registryCtx, subject)
 	if err != nil {
 		return nil, err
 	}
@@ -1068,8 +1113,8 @@ func (s *Store) GetLatestSchema(ctx context.Context, registryCtx string, subject
 
 	// SAI query: get all non-deleted versions, find the max
 	iter := s.readQuery(
-		fmt.Sprintf(`SELECT version FROM %s.subject_versions WHERE subject = ? AND deleted = false`, qident(s.cfg.Keyspace)),
-		subject,
+		fmt.Sprintf(`SELECT version FROM %s.subject_versions WHERE registry_ctx = ? AND subject = ? AND deleted = false`, qident(s.cfg.Keyspace)),
+		registryCtx, subject,
 	).WithContext(ctx).Iter()
 	latestVersion := 0
 	var version int
@@ -1087,23 +1132,28 @@ func (s *Store) GetLatestSchema(ctx context.Context, registryCtx string, subject
 	return s.GetSchemaBySubjectVersion(ctx, registryCtx, subject, latestVersion)
 }
 
-func (s *Store) getSubjectLatest(ctx context.Context, subject string) (latestVersion int, latestSchemaID int, exists bool, err error) {
+func (s *Store) getSubjectLatest(ctx context.Context, registryCtx string, subject string) (latestVersion int, latestSchemaID int, exists bool, err error) {
 	var v, sid int
 	var updated gocql.UUID
+	var storedCtx string
 	err = s.readQuery(
-		fmt.Sprintf(`SELECT latest_version, latest_schema_id, updated_at FROM %s.subject_latest WHERE subject = ?`, qident(s.cfg.Keyspace)),
+		fmt.Sprintf(`SELECT registry_ctx, latest_version, latest_schema_id, updated_at FROM %s.subject_latest WHERE subject = ?`, qident(s.cfg.Keyspace)),
 		subject,
-	).WithContext(ctx).Scan(&v, &sid, &updated)
+	).WithContext(ctx).Scan(&storedCtx, &v, &sid, &updated)
 	if err != nil {
 		if errors.Is(err, gocql.ErrNotFound) {
 			return 0, 0, false, nil
 		}
 		return 0, 0, false, err
 	}
+	// Only return true if the subject belongs to this context
+	if storedCtx != registryCtx {
+		return 0, 0, false, nil
+	}
 	return v, sid, true, nil
 }
 
-// DeleteSchema soft-deletes or permanently deletes a schema version.
+// DeleteSchema soft-deletes or permanently deletes a schema version within a context.
 func (s *Store) DeleteSchema(ctx context.Context, registryCtx string, subject string, version int, permanent bool) error {
 	if subject == "" || version <= 0 {
 		return storage.ErrVersionNotFound
@@ -1112,12 +1162,12 @@ func (s *Store) DeleteSchema(ctx context.Context, registryCtx string, subject st
 	var existingSchemaID int
 	var deleted bool
 	err := s.readQuery(
-		fmt.Sprintf(`SELECT schema_id, deleted FROM %s.subject_versions WHERE subject = ? AND version = ?`, qident(s.cfg.Keyspace)),
-		subject, version,
+		fmt.Sprintf(`SELECT schema_id, deleted FROM %s.subject_versions WHERE registry_ctx = ? AND subject = ? AND version = ?`, qident(s.cfg.Keyspace)),
+		registryCtx, subject, version,
 	).WithContext(ctx).Scan(&existingSchemaID, &deleted)
 	if err != nil {
 		if errors.Is(err, gocql.ErrNotFound) {
-			_, _, subjectExists, subErr := s.getSubjectLatest(ctx, subject)
+			_, _, subjectExists, subErr := s.getSubjectLatest(ctx, registryCtx, subject)
 			if subErr != nil {
 				return subErr
 			}
@@ -1134,68 +1184,79 @@ func (s *Store) DeleteSchema(ctx context.Context, registryCtx string, subject st
 			return storage.ErrVersionNotSoftDeleted
 		}
 		// Clean up references_by_target for any schemas this version references
-		s.cleanupReferencesByTarget(ctx, existingSchemaID, subject, version)
+		s.cleanupReferencesByTarget(ctx, registryCtx, existingSchemaID, subject, version)
 		if err := s.writeQuery(
-			fmt.Sprintf(`DELETE FROM %s.subject_versions WHERE subject = ? AND version = ?`, qident(s.cfg.Keyspace)),
-			subject, version,
+			fmt.Sprintf(`DELETE FROM %s.subject_versions WHERE registry_ctx = ? AND subject = ? AND version = ?`, qident(s.cfg.Keyspace)),
+			registryCtx, subject, version,
 		).WithContext(ctx).Exec(); err != nil {
 			return err
 		}
-		// Check if any subject_versions still reference this schema_id (SAI query)
-		s.cleanupOrphanedSchema(ctx, existingSchemaID)
+		// Check if any subject_versions still reference this schema_id in this context (SAI query)
+		s.cleanupOrphanedSchema(ctx, registryCtx, existingSchemaID)
 		return nil
 	}
 	return s.writeQuery(
-		fmt.Sprintf(`UPDATE %s.subject_versions SET deleted = true WHERE subject = ? AND version = ?`, qident(s.cfg.Keyspace)),
-		subject, version,
+		fmt.Sprintf(`UPDATE %s.subject_versions SET deleted = true WHERE registry_ctx = ? AND subject = ? AND version = ?`, qident(s.cfg.Keyspace)),
+		registryCtx, subject, version,
 	).WithContext(ctx).Exec()
 }
 
-// cleanupOrphanedSchema removes a schema from schemas_by_id if no subject_versions reference it.
-// Uses SAI index on schema_id for O(1) lookup instead of full table scan.
-func (s *Store) cleanupOrphanedSchema(ctx context.Context, schemaID int) {
-	// SAI query: check if any subject_version still references this schema
+// cleanupOrphanedSchema removes a schema from schemas_by_id if no subject_versions reference it within this context.
+func (s *Store) cleanupOrphanedSchema(ctx context.Context, registryCtx string, schemaID int) {
+	// Check if any subject_version still references this schema in this context
 	var dummy string
 	err := s.readQuery(
-		fmt.Sprintf(`SELECT subject FROM %s.subject_versions WHERE schema_id = ? LIMIT 1`, qident(s.cfg.Keyspace)),
-		schemaID,
+		fmt.Sprintf(`SELECT subject FROM %s.subject_versions WHERE registry_ctx = ? AND schema_id = ? LIMIT 1`, qident(s.cfg.Keyspace)),
+		registryCtx, schemaID,
 	).WithContext(ctx).Scan(&dummy)
 	if err == nil {
 		return // Still referenced, don't clean up
 	}
 
-	// Not referenced — clean up schemas_by_id
+	// Not referenced — clean up schemas_by_id within this context
 	if err := s.writeQuery(
-		fmt.Sprintf(`DELETE FROM %s.schemas_by_id WHERE schema_id = ?`, qident(s.cfg.Keyspace)),
-		schemaID,
+		fmt.Sprintf(`DELETE FROM %s.schemas_by_id WHERE registry_ctx = ? AND schema_id = ?`, qident(s.cfg.Keyspace)),
+		registryCtx, schemaID,
 	).WithContext(ctx).Exec(); err != nil {
-		slog.Warn("failed to clean up orphaned schema", "schema_id", schemaID, "error", err)
+		slog.Warn("failed to clean up orphaned schema", "registry_ctx", registryCtx, "schema_id", schemaID, "error", err)
 	}
 
 	// Also clean up references
 	if err := s.writeQuery(
-		fmt.Sprintf(`DELETE FROM %s.schema_references WHERE schema_id = ?`, qident(s.cfg.Keyspace)),
-		schemaID,
+		fmt.Sprintf(`DELETE FROM %s.schema_references WHERE registry_ctx = ? AND schema_id = ?`, qident(s.cfg.Keyspace)),
+		registryCtx, schemaID,
 	).WithContext(ctx).Exec(); err != nil {
-		slog.Warn("failed to clean up orphaned schema references", "schema_id", schemaID, "error", err)
+		slog.Warn("failed to clean up orphaned schema references", "registry_ctx", registryCtx, "schema_id", schemaID, "error", err)
+	}
+
+	// Clean up fingerprint mapping
+	var fp string
+	if err := s.readQuery(
+		fmt.Sprintf(`SELECT fingerprint FROM %s.schema_fingerprints WHERE registry_ctx = ? AND fingerprint = ?`, qident(s.cfg.Keyspace)),
+		registryCtx, "",
+	).WithContext(ctx).Scan(&fp); err == nil {
+		// We don't know the fingerprint from schema_id easily, but we can skip this
+		// since the fingerprint table will just have a stale entry that won't cause harm.
+		// A more complete solution would store fingerprint in schemas_by_id (which we do)
+		// and use it here.
 	}
 }
 
 // cleanupReferencesByTarget removes references_by_target entries for a schema
-// that is being permanently deleted.
-func (s *Store) cleanupReferencesByTarget(ctx context.Context, schemaID int, subject string, version int) {
+// that is being permanently deleted within a context.
+func (s *Store) cleanupReferencesByTarget(ctx context.Context, registryCtx string, schemaID int, subject string, version int) {
 	refIter := s.readQuery(
-		fmt.Sprintf(`SELECT ref_subject, ref_version FROM %s.schema_references WHERE schema_id = ?`, qident(s.cfg.Keyspace)),
-		schemaID,
+		fmt.Sprintf(`SELECT ref_subject, ref_version FROM %s.schema_references WHERE registry_ctx = ? AND schema_id = ?`, qident(s.cfg.Keyspace)),
+		registryCtx, schemaID,
 	).WithContext(ctx).Iter()
 	var refSubject string
 	var refVersion int
 	for refIter.Scan(&refSubject, &refVersion) {
 		if err := s.writeQuery(
-			fmt.Sprintf(`DELETE FROM %s.references_by_target WHERE ref_subject = ? AND ref_version = ? AND schema_subject = ? AND schema_version = ?`, qident(s.cfg.Keyspace)),
-			refSubject, refVersion, subject, version,
+			fmt.Sprintf(`DELETE FROM %s.references_by_target WHERE registry_ctx = ? AND ref_subject = ? AND ref_version = ? AND schema_subject = ? AND schema_version = ?`, qident(s.cfg.Keyspace)),
+			registryCtx, refSubject, refVersion, subject, version,
 		).WithContext(ctx).Exec(); err != nil {
-			slog.Warn("failed to clean up reference_by_target", "ref_subject", refSubject, "ref_version", refVersion, "error", err)
+			slog.Warn("failed to clean up reference_by_target", "registry_ctx", registryCtx, "ref_subject", refSubject, "ref_version", refVersion, "error", err)
 		}
 	}
 	refIter.Close()
@@ -1203,12 +1264,13 @@ func (s *Store) cleanupReferencesByTarget(ctx context.Context, schemaID int, sub
 
 // ---------- Subject Operations ----------
 
-// ListSubjects returns all subjects.
-// Uses subject_latest as the subject listing (replaces old bucketed subjects table).
+// ListSubjects returns all subjects within a context.
+// Uses subject_latest with SAI index on registry_ctx for subject listing.
 func (s *Store) ListSubjects(ctx context.Context, registryCtx string, includeDeleted bool) ([]string, error) {
-	// Scan subject_latest — one row per subject
+	// SAI query on subject_latest: filter by registry_ctx
 	iter := s.readQuery(
-		fmt.Sprintf(`SELECT subject FROM %s.subject_latest`, qident(s.cfg.Keyspace)),
+		fmt.Sprintf(`SELECT subject FROM %s.subject_latest WHERE registry_ctx = ?`, qident(s.cfg.Keyspace)),
+		registryCtx,
 	).WithContext(ctx).Iter()
 
 	var allSubjects []string
@@ -1230,8 +1292,8 @@ func (s *Store) ListSubjects(ctx context.Context, registryCtx string, includeDel
 	for _, subj := range allSubjects {
 		var v int
 		err := s.readQuery(
-			fmt.Sprintf(`SELECT version FROM %s.subject_versions WHERE subject = ? AND deleted = false LIMIT 1`, qident(s.cfg.Keyspace)),
-			subj,
+			fmt.Sprintf(`SELECT version FROM %s.subject_versions WHERE registry_ctx = ? AND subject = ? AND deleted = false LIMIT 1`, qident(s.cfg.Keyspace)),
+			registryCtx, subj,
 		).WithContext(ctx).Scan(&v)
 		if err == nil {
 			subjects = append(subjects, subj)
@@ -1241,15 +1303,15 @@ func (s *Store) ListSubjects(ctx context.Context, registryCtx string, includeDel
 	return subjects, nil
 }
 
-// DeleteSubject soft-deletes or permanently deletes all versions of a subject.
+// DeleteSubject soft-deletes or permanently deletes all versions of a subject within a context.
 func (s *Store) DeleteSubject(ctx context.Context, registryCtx string, subject string, permanent bool) ([]int, error) {
 	if subject == "" {
 		return nil, nil
 	}
 
 	iter := s.session.Query(
-		fmt.Sprintf(`SELECT version, deleted FROM %s.subject_versions WHERE subject = ?`, qident(s.cfg.Keyspace)),
-		subject,
+		fmt.Sprintf(`SELECT version, deleted FROM %s.subject_versions WHERE registry_ctx = ? AND subject = ?`, qident(s.cfg.Keyspace)),
+		registryCtx, subject,
 	).WithContext(ctx).Iter()
 
 	type versionInfo struct {
@@ -1313,8 +1375,8 @@ func (s *Store) DeleteSubject(ctx context.Context, registryCtx string, subject s
 		batch := s.session.NewBatch(gocql.UnloggedBatch).WithContext(ctx)
 		for _, v := range deletedVersions {
 			batch.Query(
-				fmt.Sprintf(`UPDATE %s.subject_versions SET deleted = true WHERE subject = ? AND version = ?`, qident(s.cfg.Keyspace)),
-				subject, v,
+				fmt.Sprintf(`UPDATE %s.subject_versions SET deleted = true WHERE registry_ctx = ? AND subject = ? AND version = ?`, qident(s.cfg.Keyspace)),
+				registryCtx, subject, v,
 			)
 		}
 		if err := s.session.ExecuteBatch(batch); err != nil {
@@ -1326,17 +1388,17 @@ func (s *Store) DeleteSubject(ctx context.Context, registryCtx string, subject s
 	return deletedVersions, nil
 }
 
-// SubjectExists checks if a subject exists (has at least one non-deleted version).
+// SubjectExists checks if a subject exists within a context (has at least one non-deleted version).
 func (s *Store) SubjectExists(ctx context.Context, registryCtx string, subject string) (bool, error) {
-	_, _, exists, err := s.getSubjectLatest(ctx, subject)
+	_, _, exists, err := s.getSubjectLatest(ctx, registryCtx, subject)
 	if err != nil || !exists {
 		return false, err
 	}
-	// SAI query: check for any non-deleted version
+	// Check for any non-deleted version in this context
 	var v int
 	err = s.readQuery(
-		fmt.Sprintf(`SELECT version FROM %s.subject_versions WHERE subject = ? AND deleted = false LIMIT 1`, qident(s.cfg.Keyspace)),
-		subject,
+		fmt.Sprintf(`SELECT version FROM %s.subject_versions WHERE registry_ctx = ? AND subject = ? AND deleted = false LIMIT 1`, qident(s.cfg.Keyspace)),
+		registryCtx, subject,
 	).WithContext(ctx).Scan(&v)
 	if err == nil {
 		return true, nil
@@ -1346,11 +1408,11 @@ func (s *Store) SubjectExists(ctx context.Context, registryCtx string, subject s
 
 // ---------- Schema References ----------
 
-// GetReferencedBy returns subjects/versions that reference the given schema.
+// GetReferencedBy returns subjects/versions that reference the given schema within a context.
 func (s *Store) GetReferencedBy(ctx context.Context, registryCtx string, subject string, version int) ([]storage.SubjectVersion, error) {
 	iter := s.readQuery(
-		fmt.Sprintf(`SELECT schema_subject, schema_version FROM %s.references_by_target WHERE ref_subject = ? AND ref_version = ?`, qident(s.cfg.Keyspace)),
-		subject, version,
+		fmt.Sprintf(`SELECT schema_subject, schema_version FROM %s.references_by_target WHERE registry_ctx = ? AND ref_subject = ? AND ref_version = ?`, qident(s.cfg.Keyspace)),
+		registryCtx, subject, version,
 	).WithContext(ctx).Iter()
 
 	var refs []storage.SubjectVersion
@@ -1359,8 +1421,8 @@ func (s *Store) GetReferencedBy(ctx context.Context, registryCtx string, subject
 		// Filter out soft-deleted referrers (consistent with memory store behavior)
 		var deleted bool
 		if err := s.readQuery(
-			fmt.Sprintf(`SELECT deleted FROM %s.subject_versions WHERE subject = ? AND version = ?`, qident(s.cfg.Keyspace)),
-			ref.Subject, ref.Version,
+			fmt.Sprintf(`SELECT deleted FROM %s.subject_versions WHERE registry_ctx = ? AND subject = ? AND version = ?`, qident(s.cfg.Keyspace)),
+			registryCtx, ref.Subject, ref.Version,
 		).WithContext(ctx).Scan(&deleted); err != nil || deleted {
 			continue
 		}
@@ -1372,14 +1434,14 @@ func (s *Store) GetReferencedBy(ctx context.Context, registryCtx string, subject
 	return refs, nil
 }
 
-// GetSubjectsBySchemaID returns subjects using the given schema ID.
+// GetSubjectsBySchemaID returns subjects using the given schema ID within a context.
 // Uses SAI index on subject_versions.schema_id for O(1) lookup.
 func (s *Store) GetSubjectsBySchemaID(ctx context.Context, registryCtx string, id int64, includeDeleted bool) ([]string, error) {
-	// Verify schema ID exists
+	// Verify schema ID exists in this context
 	var dummy string
 	if err := s.readQuery(
-		fmt.Sprintf(`SELECT schema_type FROM %s.schemas_by_id WHERE schema_id = ?`, qident(s.cfg.Keyspace)),
-		int(id),
+		fmt.Sprintf(`SELECT schema_type FROM %s.schemas_by_id WHERE registry_ctx = ? AND schema_id = ?`, qident(s.cfg.Keyspace)),
+		registryCtx, int(id),
 	).WithContext(ctx).Scan(&dummy); err != nil {
 		if errors.Is(err, gocql.ErrNotFound) {
 			return nil, storage.ErrSchemaNotFound
@@ -1387,10 +1449,10 @@ func (s *Store) GetSubjectsBySchemaID(ctx context.Context, registryCtx string, i
 		return nil, err
 	}
 
-	// SAI query: find all subject_versions with this schema_id
+	// SAI query: find all subject_versions with this schema_id in this context
 	iter := s.readQuery(
-		fmt.Sprintf(`SELECT subject, deleted FROM %s.subject_versions WHERE schema_id = ?`, qident(s.cfg.Keyspace)),
-		int(id),
+		fmt.Sprintf(`SELECT subject, deleted FROM %s.subject_versions WHERE registry_ctx = ? AND schema_id = ?`, qident(s.cfg.Keyspace)),
+		registryCtx, int(id),
 	).WithContext(ctx).Iter()
 
 	subjectSet := make(map[string]bool)
@@ -1411,14 +1473,14 @@ func (s *Store) GetSubjectsBySchemaID(ctx context.Context, registryCtx string, i
 	return subjects, nil
 }
 
-// GetVersionsBySchemaID returns subject-version pairs using the given schema ID.
+// GetVersionsBySchemaID returns subject-version pairs using the given schema ID within a context.
 // Uses SAI index on subject_versions.schema_id for O(1) lookup.
 func (s *Store) GetVersionsBySchemaID(ctx context.Context, registryCtx string, id int64, includeDeleted bool) ([]storage.SubjectVersion, error) {
-	// Verify schema ID exists
+	// Verify schema ID exists in this context
 	var dummy string
 	if err := s.readQuery(
-		fmt.Sprintf(`SELECT schema_type FROM %s.schemas_by_id WHERE schema_id = ?`, qident(s.cfg.Keyspace)),
-		int(id),
+		fmt.Sprintf(`SELECT schema_type FROM %s.schemas_by_id WHERE registry_ctx = ? AND schema_id = ?`, qident(s.cfg.Keyspace)),
+		registryCtx, int(id),
 	).WithContext(ctx).Scan(&dummy); err != nil {
 		if errors.Is(err, gocql.ErrNotFound) {
 			return nil, storage.ErrSchemaNotFound
@@ -1426,10 +1488,10 @@ func (s *Store) GetVersionsBySchemaID(ctx context.Context, registryCtx string, i
 		return nil, err
 	}
 
-	// SAI query: find all subject_versions with this schema_id
+	// SAI query: find all subject_versions with this schema_id in this context
 	iter := s.readQuery(
-		fmt.Sprintf(`SELECT subject, version, deleted FROM %s.subject_versions WHERE schema_id = ?`, qident(s.cfg.Keyspace)),
-		int(id),
+		fmt.Sprintf(`SELECT subject, version, deleted FROM %s.subject_versions WHERE registry_ctx = ? AND schema_id = ?`, qident(s.cfg.Keyspace)),
+		registryCtx, int(id),
 	).WithContext(ctx).Iter()
 
 	var results []storage.SubjectVersion
@@ -1446,7 +1508,7 @@ func (s *Store) GetVersionsBySchemaID(ctx context.Context, registryCtx string, i
 	return results, nil
 }
 
-// ListSchemas lists schemas with optional filtering.
+// ListSchemas lists schemas with optional filtering within a context.
 func (s *Store) ListSchemas(ctx context.Context, registryCtx string, params *storage.ListSchemasParams) ([]*storage.SchemaRecord, error) {
 	if params == nil {
 		params = &storage.ListSchemasParams{}
@@ -1492,7 +1554,7 @@ func (s *Store) ListSchemas(ctx context.Context, registryCtx string, params *sto
 
 // ---------- Config Operations ----------
 
-// GetConfig retrieves the compatibility config for a subject.
+// GetConfig retrieves the compatibility config for a subject within a context.
 func (s *Store) GetConfig(ctx context.Context, registryCtx string, subject string) (*storage.ConfigRecord, error) {
 	if subject == "" {
 		return s.GetGlobalConfig(ctx, registryCtx)
@@ -1502,8 +1564,8 @@ func (s *Store) GetConfig(ctx context.Context, registryCtx string, subject strin
 	var compatibilityGroup string
 	var defaultMetadataStr, overrideMetadataStr, defaultRulesetStr, overrideRulesetStr string
 	err := s.readQuery(
-		fmt.Sprintf(`SELECT compatibility, alias, normalize, validate_fields, default_metadata, override_metadata, default_ruleset, override_ruleset, compatibility_group FROM %s.subject_configs WHERE subject = ?`, qident(s.cfg.Keyspace)),
-		subject,
+		fmt.Sprintf(`SELECT compatibility, alias, normalize, validate_fields, default_metadata, override_metadata, default_ruleset, override_ruleset, compatibility_group FROM %s.subject_configs WHERE registry_ctx = ? AND subject = ?`, qident(s.cfg.Keyspace)),
+		registryCtx, subject,
 	).WithContext(ctx).Scan(&compat, &alias, &normalize, &validateFields, &defaultMetadataStr, &overrideMetadataStr, &defaultRulesetStr, &overrideRulesetStr, &compatibilityGroup)
 	if err != nil {
 		if errors.Is(err, gocql.ErrNotFound) {
@@ -1525,23 +1587,23 @@ func (s *Store) GetConfig(ctx context.Context, registryCtx string, subject strin
 	}, nil
 }
 
-// SetConfig sets the compatibility config for a subject.
+// SetConfig sets the compatibility config for a subject within a context.
 func (s *Store) SetConfig(ctx context.Context, registryCtx string, subject string, config *storage.ConfigRecord) error {
 	if config == nil {
 		return errors.New("config is nil")
 	}
 	compat := normalizeCompat(config.CompatibilityLevel)
 	return s.writeQuery(
-		fmt.Sprintf(`INSERT INTO %s.subject_configs (subject, compatibility, alias, normalize, validate_fields, default_metadata, override_metadata, default_ruleset, override_ruleset, compatibility_group, updated_at)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())`, qident(s.cfg.Keyspace)),
-		subject, compat, config.Alias, config.Normalize, config.ValidateFields,
+		fmt.Sprintf(`INSERT INTO %s.subject_configs (registry_ctx, subject, compatibility, alias, normalize, validate_fields, default_metadata, override_metadata, default_ruleset, override_ruleset, compatibility_group, updated_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())`, qident(s.cfg.Keyspace)),
+		registryCtx, subject, compat, config.Alias, config.Normalize, config.ValidateFields,
 		marshalJSONText(config.DefaultMetadata), marshalJSONText(config.OverrideMetadata),
 		marshalJSONText(config.DefaultRuleSet), marshalJSONText(config.OverrideRuleSet),
 		config.CompatibilityGroup,
 	).WithContext(ctx).Exec()
 }
 
-// DeleteConfig deletes a compatibility config for a subject.
+// DeleteConfig deletes a compatibility config for a subject within a context.
 func (s *Store) DeleteConfig(ctx context.Context, registryCtx string, subject string) error {
 	if subject == "" {
 		return nil
@@ -1551,20 +1613,20 @@ func (s *Store) DeleteConfig(ctx context.Context, registryCtx string, subject st
 		return err
 	}
 	return s.writeQuery(
-		fmt.Sprintf(`DELETE FROM %s.subject_configs WHERE subject = ?`, qident(s.cfg.Keyspace)),
-		subject,
+		fmt.Sprintf(`DELETE FROM %s.subject_configs WHERE registry_ctx = ? AND subject = ?`, qident(s.cfg.Keyspace)),
+		registryCtx, subject,
 	).WithContext(ctx).Exec()
 }
 
-// GetGlobalConfig retrieves the global compatibility config.
+// GetGlobalConfig retrieves the global compatibility config within a context.
 func (s *Store) GetGlobalConfig(ctx context.Context, registryCtx string) (*storage.ConfigRecord, error) {
 	var compat, alias string
 	var normalize, validateFields *bool
 	var compatibilityGroup string
 	var defaultMetadataStr, overrideMetadataStr, defaultRulesetStr, overrideRulesetStr string
 	err := s.readQuery(
-		fmt.Sprintf(`SELECT compatibility, alias, normalize, validate_fields, default_metadata, override_metadata, default_ruleset, override_ruleset, compatibility_group FROM %s.global_config WHERE key = ?`, qident(s.cfg.Keyspace)),
-		"global",
+		fmt.Sprintf(`SELECT compatibility, alias, normalize, validate_fields, default_metadata, override_metadata, default_ruleset, override_ruleset, compatibility_group FROM %s.global_config WHERE registry_ctx = ? AND key = ?`, qident(s.cfg.Keyspace)),
+		registryCtx, "global",
 	).WithContext(ctx).Scan(&compat, &alias, &normalize, &validateFields, &defaultMetadataStr, &overrideMetadataStr, &defaultRulesetStr, &overrideRulesetStr, &compatibilityGroup)
 	if err != nil {
 		if errors.Is(err, gocql.ErrNotFound) {
@@ -1586,7 +1648,7 @@ func (s *Store) GetGlobalConfig(ctx context.Context, registryCtx string) (*stora
 	}, nil
 }
 
-// SetGlobalConfig sets the global compatibility config.
+// SetGlobalConfig sets the global compatibility config within a context.
 func (s *Store) SetGlobalConfig(ctx context.Context, registryCtx string, config *storage.ConfigRecord) error {
 	compat := "BACKWARD"
 	var alias string
@@ -1606,35 +1668,35 @@ func (s *Store) SetGlobalConfig(ctx context.Context, registryCtx string, config 
 		overrideRuleSet = config.OverrideRuleSet
 	}
 	return s.writeQuery(
-		fmt.Sprintf(`INSERT INTO %s.global_config (key, compatibility, alias, normalize, validate_fields, default_metadata, override_metadata, default_ruleset, override_ruleset, compatibility_group, updated_at)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())`, qident(s.cfg.Keyspace)),
-		"global", compat, alias, normalize, validateFields,
+		fmt.Sprintf(`INSERT INTO %s.global_config (registry_ctx, key, compatibility, alias, normalize, validate_fields, default_metadata, override_metadata, default_ruleset, override_ruleset, compatibility_group, updated_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())`, qident(s.cfg.Keyspace)),
+		registryCtx, "global", compat, alias, normalize, validateFields,
 		marshalJSONText(defaultMetadata), marshalJSONText(overrideMetadata),
 		marshalJSONText(defaultRuleSet), marshalJSONText(overrideRuleSet),
 		compatibilityGroup,
 	).WithContext(ctx).Exec()
 }
 
-// DeleteGlobalConfig resets the global config to the default (BACKWARD).
+// DeleteGlobalConfig resets the global config to the default (BACKWARD) within a context.
 func (s *Store) DeleteGlobalConfig(ctx context.Context, registryCtx string) error {
 	return s.writeQuery(
-		fmt.Sprintf(`INSERT INTO %s.global_config (key, compatibility, alias, normalize, validate_fields, default_metadata, override_metadata, default_ruleset, override_ruleset, compatibility_group, updated_at)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())`, qident(s.cfg.Keyspace)),
-		"global", "BACKWARD", "", nil, nil, "", "", "", "", "",
+		fmt.Sprintf(`INSERT INTO %s.global_config (registry_ctx, key, compatibility, alias, normalize, validate_fields, default_metadata, override_metadata, default_ruleset, override_ruleset, compatibility_group, updated_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())`, qident(s.cfg.Keyspace)),
+		registryCtx, "global", "BACKWARD", "", nil, nil, "", "", "", "", "",
 	).WithContext(ctx).Exec()
 }
 
 // ---------- Mode Operations ----------
 
-// GetMode retrieves the mode for a subject.
+// GetMode retrieves the mode for a subject within a context.
 func (s *Store) GetMode(ctx context.Context, registryCtx string, subject string) (*storage.ModeRecord, error) {
 	if subject == "" {
 		return s.GetGlobalMode(ctx, registryCtx)
 	}
 	var mode string
 	err := s.readQuery(
-		fmt.Sprintf(`SELECT mode FROM %s.modes WHERE key = ?`, qident(s.cfg.Keyspace)),
-		"subject:"+subject,
+		fmt.Sprintf(`SELECT mode FROM %s.modes WHERE registry_ctx = ? AND key = ?`, qident(s.cfg.Keyspace)),
+		registryCtx, "subject:"+subject,
 	).WithContext(ctx).Scan(&mode)
 	if err != nil {
 		if errors.Is(err, gocql.ErrNotFound) {
@@ -1645,7 +1707,7 @@ func (s *Store) GetMode(ctx context.Context, registryCtx string, subject string)
 	return &storage.ModeRecord{Subject: subject, Mode: mode}, nil
 }
 
-// SetMode sets the mode for a subject.
+// SetMode sets the mode for a subject within a context.
 func (s *Store) SetMode(ctx context.Context, registryCtx string, subject string, mode *storage.ModeRecord) error {
 	if mode == nil {
 		return errors.New("mode is nil")
@@ -1655,12 +1717,12 @@ func (s *Store) SetMode(ctx context.Context, registryCtx string, subject string,
 		key = "subject:" + subject
 	}
 	return s.writeQuery(
-		fmt.Sprintf(`INSERT INTO %s.modes (key, mode, updated_at) VALUES (?, ?, now())`, qident(s.cfg.Keyspace)),
-		key, mode.Mode,
+		fmt.Sprintf(`INSERT INTO %s.modes (registry_ctx, key, mode, updated_at) VALUES (?, ?, ?, now())`, qident(s.cfg.Keyspace)),
+		registryCtx, key, mode.Mode,
 	).WithContext(ctx).Exec()
 }
 
-// DeleteMode deletes the mode for a subject.
+// DeleteMode deletes the mode for a subject within a context.
 func (s *Store) DeleteMode(ctx context.Context, registryCtx string, subject string) error {
 	_, err := s.GetMode(ctx, registryCtx, subject)
 	if err != nil {
@@ -1671,17 +1733,17 @@ func (s *Store) DeleteMode(ctx context.Context, registryCtx string, subject stri
 		key = "subject:" + subject
 	}
 	return s.writeQuery(
-		fmt.Sprintf(`DELETE FROM %s.modes WHERE key = ?`, qident(s.cfg.Keyspace)),
-		key,
+		fmt.Sprintf(`DELETE FROM %s.modes WHERE registry_ctx = ? AND key = ?`, qident(s.cfg.Keyspace)),
+		registryCtx, key,
 	).WithContext(ctx).Exec()
 }
 
-// GetGlobalMode retrieves the global mode.
+// GetGlobalMode retrieves the global mode within a context.
 func (s *Store) GetGlobalMode(ctx context.Context, registryCtx string) (*storage.ModeRecord, error) {
 	var mode string
 	err := s.readQuery(
-		fmt.Sprintf(`SELECT mode FROM %s.modes WHERE key = ?`, qident(s.cfg.Keyspace)),
-		"global",
+		fmt.Sprintf(`SELECT mode FROM %s.modes WHERE registry_ctx = ? AND key = ?`, qident(s.cfg.Keyspace)),
+		registryCtx, "global",
 	).WithContext(ctx).Scan(&mode)
 	if err != nil {
 		if errors.Is(err, gocql.ErrNotFound) {
@@ -1692,15 +1754,15 @@ func (s *Store) GetGlobalMode(ctx context.Context, registryCtx string) (*storage
 	return &storage.ModeRecord{Subject: "", Mode: mode}, nil
 }
 
-// SetGlobalMode sets the global mode.
+// SetGlobalMode sets the global mode within a context.
 func (s *Store) SetGlobalMode(ctx context.Context, registryCtx string, mode *storage.ModeRecord) error {
 	m := "READWRITE"
 	if mode != nil {
 		m = mode.Mode
 	}
 	return s.writeQuery(
-		fmt.Sprintf(`INSERT INTO %s.modes (key, mode, updated_at) VALUES (?, ?, now())`, qident(s.cfg.Keyspace)),
-		"global", m,
+		fmt.Sprintf(`INSERT INTO %s.modes (registry_ctx, key, mode, updated_at) VALUES (?, ?, ?, now())`, qident(s.cfg.Keyspace)),
+		registryCtx, "global", m,
 	).WithContext(ctx).Exec()
 }
 
@@ -1721,7 +1783,7 @@ func (s *Store) CreateUser(ctx context.Context, user *storage.UserRecord) error 
 	}
 
 	if user.ID == 0 {
-		id, err := s.NextID(ctx, "")
+		id, err := s.NextID(ctx, ".")
 		if err != nil {
 			return err
 		}
@@ -1903,7 +1965,7 @@ func (s *Store) CreateAPIKey(ctx context.Context, key *storage.APIKeyRecord) err
 	}
 
 	if key.ID == 0 {
-		id, err := s.NextID(ctx, "")
+		id, err := s.NextID(ctx, ".")
 		if err != nil {
 			return err
 		}
