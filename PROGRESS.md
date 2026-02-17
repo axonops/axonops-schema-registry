@@ -19,7 +19,7 @@
 | 8 | MySQL backend | DONE | Migrations 22-40, all SQL scoped by registry_ctx, ctx_id_alloc per-context IDs |
 | 9 | Cassandra backend | DONE | All tables with registry_ctx in PK, SAI indexes, block-based per-context IDs, backfill |
 | 10 | BDD tests (~72 scenarios) | DONE | 78 scenarios across 7 feature files, all 1451 BDD scenarios pass |
-| 11 | Unit tests | NOT STARTED | |
+| 11 | Unit tests | DONE | 41 new tests across 5 files (memory store, registry, handlers, middleware, server) |
 | 12 | OpenAPI spec | NOT STARTED | |
 | 13 | Documentation | NOT STARTED | |
 
@@ -147,6 +147,14 @@
 - [x] 2 new step definitions in `schema_steps.go`: variable NOT-equal comparison, array NOT-contain
 - [x] All 1451 BDD scenarios pass (78 new + 1373 existing)
 
+### Phase 11: Unit Tests
+- [x] `internal/storage/memory/store_test.go` — 9 tests: schema/subject/config/mode isolation, per-context IDs, fingerprint dedup, ListContexts, default context, delete isolation
+- [x] `internal/registry/registry_test.go` — 8 tests: RegisterSchema independent contexts, GetSchemaByID/ListSubjects/LookupSchema/CheckCompatibility context-scoped, config/mode/delete isolation
+- [x] `internal/api/handlers/context_helpers_test.go` — 8 tests: getRegistryContext default/middleware, resolveSubjectAndContext plain/qualified/URL/override
+- [x] `internal/api/context_middleware_test.go` — 8 tests: set context, normalize, default mapping, invalid rejection, dash/underscore, dot-prefix
+- [x] `internal/api/server_test.go` — 6 tests: GET /contexts default/after-registration, qualified subject register/retrieve, subject/schema ID isolation
+- [x] All 41 new tests pass with zero regressions
+
 ## Compilation & Test Status
 
 - `go build ./...` — PASSES
@@ -168,6 +176,7 @@
 | `b771bcf` | feat(contexts): complete MySQL backend context support |
 | `64a1059` | feat(contexts): complete Cassandra backend context support |
 | `609dc4d` | test(contexts): add 78 BDD scenarios for multi-tenant context support |
+| `ba37496` | test(contexts): add 41 unit tests for context isolation across all layers |
 
 ## Key Design Decisions
 
