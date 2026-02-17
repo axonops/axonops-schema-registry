@@ -25,19 +25,19 @@ import (
 
 // Config holds Cassandra connection configuration.
 type Config struct {
-	Hosts            []string      `json:"hosts" yaml:"hosts"`
-	Port             int           `json:"port" yaml:"port"`
-	Keyspace         string        `json:"keyspace" yaml:"keyspace"`
-	Username         string        `json:"username" yaml:"username"`
-	Password         string        `json:"password" yaml:"password"`
-	LocalDC          string        `json:"local_dc" yaml:"local_dc"`
-	Consistency      string        `json:"consistency" yaml:"consistency"`
-	ReadConsistency  string        `json:"read_consistency" yaml:"read_consistency"`
+	Hosts             []string      `json:"hosts" yaml:"hosts"`
+	Port              int           `json:"port" yaml:"port"`
+	Keyspace          string        `json:"keyspace" yaml:"keyspace"`
+	Username          string        `json:"username" yaml:"username"`
+	Password          string        `json:"password" yaml:"password"`
+	LocalDC           string        `json:"local_dc" yaml:"local_dc"`
+	Consistency       string        `json:"consistency" yaml:"consistency"`
+	ReadConsistency   string        `json:"read_consistency" yaml:"read_consistency"`
 	WriteConsistency  string        `json:"write_consistency" yaml:"write_consistency"`
 	SerialConsistency string        `json:"serial_consistency" yaml:"serial_consistency"`
-	Timeout          time.Duration `json:"timeout" yaml:"timeout"`
-	ConnectTimeout   time.Duration `json:"connect_timeout" yaml:"connect_timeout"`
-	Migrate          bool          `json:"migrate" yaml:"migrate"`
+	Timeout           time.Duration `json:"timeout" yaml:"timeout"`
+	ConnectTimeout    time.Duration `json:"connect_timeout" yaml:"connect_timeout"`
+	Migrate           bool          `json:"migrate" yaml:"migrate"`
 
 	// MaxRetries for CAS operations (ID allocation, version allocation)
 	MaxRetries int `json:"max_retries" yaml:"max_retries"`
