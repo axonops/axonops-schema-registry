@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strconv"
 	"strings"
 
@@ -281,7 +282,9 @@ func (r *Registry) RegisterSchemaWithID(ctx context.Context, subject string, sch
 	if err == nil && currentMax+1 > nextID {
 		nextID = currentMax + 1
 	}
-	_ = r.storage.SetNextID(ctx, nextID)
+	if err := r.storage.SetNextID(ctx, nextID); err != nil {
+		slog.Warn("failed to advance ID sequence after import", slog.Int64("next_id", nextID), slog.Any("error", err))
+	}
 
 	return record, nil
 }

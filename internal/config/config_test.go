@@ -320,6 +320,8 @@ func TestConfig_EnvOverrides_Cassandra(t *testing.T) {
 		"SCHEMA_REGISTRY_CASSANDRA_PASSWORD":           "casspass",
 		"SCHEMA_REGISTRY_CASSANDRA_TIMEOUT":            "15s",
 		"SCHEMA_REGISTRY_CASSANDRA_CONNECT_TIMEOUT":    "20s",
+		"SCHEMA_REGISTRY_CASSANDRA_MAX_RETRIES":        "100",
+		"SCHEMA_REGISTRY_CASSANDRA_ID_BLOCK_SIZE":      "200",
 	}
 	for k, v := range envVars {
 		os.Setenv(k, v)
@@ -377,6 +379,12 @@ func TestConfig_EnvOverrides_Cassandra(t *testing.T) {
 	}
 	if cfg.Storage.Cassandra.ConnectTimeout != "20s" {
 		t.Errorf("Expected 20s, got %s", cfg.Storage.Cassandra.ConnectTimeout)
+	}
+	if cfg.Storage.Cassandra.MaxRetries != 100 {
+		t.Errorf("Expected 100, got %d", cfg.Storage.Cassandra.MaxRetries)
+	}
+	if cfg.Storage.Cassandra.IDBlockSize != 200 {
+		t.Errorf("Expected 200, got %d", cfg.Storage.Cassandra.IDBlockSize)
 	}
 }
 

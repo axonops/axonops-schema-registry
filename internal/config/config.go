@@ -426,6 +426,16 @@ func (c *Config) applyEnvOverrides() {
 	if v := os.Getenv("SCHEMA_REGISTRY_CASSANDRA_CONNECT_TIMEOUT"); v != "" {
 		c.Storage.Cassandra.ConnectTimeout = v
 	}
+	if v := os.Getenv("SCHEMA_REGISTRY_CASSANDRA_MAX_RETRIES"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			c.Storage.Cassandra.MaxRetries = n
+		}
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_CASSANDRA_ID_BLOCK_SIZE"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			c.Storage.Cassandra.IDBlockSize = n
+		}
+	}
 
 	// Docs enabled override
 	if v := os.Getenv("SCHEMA_REGISTRY_DOCS_ENABLED"); v != "" {

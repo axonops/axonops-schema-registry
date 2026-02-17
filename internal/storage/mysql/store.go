@@ -201,7 +201,7 @@ func (s *Store) prepareStatements() error {
 	}
 
 	stmts.getReferencedBy, err = s.db.Prepare(
-		"SELECT s.subject, s.version FROM `schemas` s JOIN schema_references r ON r.schema_id = s.id WHERE r.ref_subject = ? AND r.ref_version = ? AND s.deleted = FALSE")
+		"SELECT s.subject, s.version FROM `schemas` s JOIN schema_fingerprints fp ON fp.fingerprint = s.fingerprint JOIN schema_references r ON r.schema_id = fp.schema_id WHERE r.ref_subject = ? AND r.ref_version = ? AND s.deleted = FALSE")
 	if err != nil {
 		return fmt.Errorf("prepare getReferencedBy: %w", err)
 	}

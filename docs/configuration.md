@@ -625,6 +625,8 @@ The following environment variables override the corresponding configuration fil
 | `SCHEMA_REGISTRY_CASSANDRA_PASSWORD` | `storage.cassandra.password` | string |
 | `SCHEMA_REGISTRY_CASSANDRA_TIMEOUT` | `storage.cassandra.timeout` | duration string |
 | `SCHEMA_REGISTRY_CASSANDRA_CONNECT_TIMEOUT` | `storage.cassandra.connect_timeout` | duration string |
+| `SCHEMA_REGISTRY_CASSANDRA_MAX_RETRIES` | `storage.cassandra.max_retries` | int |
+| `SCHEMA_REGISTRY_CASSANDRA_ID_BLOCK_SIZE` | `storage.cassandra.id_block_size` | int |
 
 ### Compatibility and Logging
 
