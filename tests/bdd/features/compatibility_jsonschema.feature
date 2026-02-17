@@ -858,3 +858,75 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"name":{"type":"integer"},"email":{"type":"string"}},"required":["name","email"]}
       """
     Then the response status should be 409
+
+  # ==========================================================================
+  # JSON Schema compatibility with external $ref — the compatibility checker
+  # must resolve external $ref references when checking compatibility of
+  # JSON Schemas that reference other schemas via the references mechanism.
+  # ==========================================================================
+
+  Scenario: JSON Schema BACKWARD compatibility with external reference (closed model)
+    Given the global compatibility level is "BACKWARD"
+    And subject "json-ref-address" has "JSON" schema:
+      """
+      {"type":"object","properties":{"street":{"type":"string"},"city":{"type":"string"}},"required":["street","city"],"additionalProperties":false}
+      """
+    When I register a "JSON" schema under subject "json-ref-person" with references:
+      """
+      {
+        "schema": "{\"type\":\"object\",\"properties\":{\"name\":{\"type\":\"string\"},\"address\":{\"$ref\":\"address.json\"}},\"required\":[\"name\"],\"additionalProperties\":false}",
+        "references": [
+          {"name": "address.json", "subject": "json-ref-address", "version": 1}
+        ]
+      }
+      """
+    Then the response status should be 200
+    When I check compatibility of "JSON" schema with reference "address.json" from subject "json-ref-address" version 1 against subject "json-ref-person":
+      """
+      {"type":"object","properties":{"name":{"type":"string"},"address":{"$ref":"address.json"},"email":{"type":"string"}},"required":["name"],"additionalProperties":false}
+      """
+    Then the compatibility check should be compatible
+
+  Scenario: JSON Schema compatibility check resolves external $ref correctly
+    Given the global compatibility level is "BACKWARD"
+    And subject "json-compat-addr" has "JSON" schema:
+      """
+      {"type":"object","properties":{"street":{"type":"string"}},"required":["street"],"additionalProperties":false}
+      """
+    When I register a "JSON" schema under subject "json-compat-person" with references:
+      """
+      {
+        "schema": "{\"type\":\"object\",\"properties\":{\"name\":{\"type\":\"string\"},\"addr\":{\"$ref\":\"addr.json\"}},\"required\":[\"name\"],\"additionalProperties\":false}",
+        "references": [
+          {"name": "addr.json", "subject": "json-compat-addr", "version": 1}
+        ]
+      }
+      """
+    Then the response status should be 200
+    When I check compatibility of "JSON" schema with reference "addr.json" from subject "json-compat-addr" version 1 against subject "json-compat-person":
+      """
+      {"type":"object","properties":{"name":{"type":"string"},"addr":{"$ref":"addr.json"}},"required":["name"],"additionalProperties":false}
+      """
+    Then the compatibility check should be compatible
+
+  Scenario: JSON Schema BACKWARD incompatible change with external reference
+    Given the global compatibility level is "BACKWARD"
+    And subject "json-incompat-addr" has "JSON" schema:
+      """
+      {"type":"object","properties":{"street":{"type":"string"}},"required":["street"],"additionalProperties":false}
+      """
+    When I register a "JSON" schema under subject "json-incompat-person" with references:
+      """
+      {
+        "schema": "{\"type\":\"object\",\"properties\":{\"name\":{\"type\":\"string\"},\"addr\":{\"$ref\":\"addr.json\"}},\"required\":[\"name\"],\"additionalProperties\":false}",
+        "references": [
+          {"name": "addr.json", "subject": "json-incompat-addr", "version": 1}
+        ]
+      }
+      """
+    Then the response status should be 200
+    When I check compatibility of "JSON" schema with reference "addr.json" from subject "json-incompat-addr" version 1 against subject "json-incompat-person":
+      """
+      {"type":"object","properties":{"name":{"type":"string"},"addr":{"$ref":"addr.json"}},"required":["name","addr"],"additionalProperties":false}
+      """
+    Then the compatibility check should be incompatible

@@ -221,3 +221,59 @@ Feature: Deletion Lifecycle (Two-Step Delete)
       {"type":"record","name":"LK1","fields":[{"name":"a","type":"string"}]}
       """
     Then the response status should be 404
+
+  # ==========================================================================
+  # Re-register after version soft-delete — re-registering the same content
+  # should create a new version (not reuse the deleted slot) and the schema
+  # ID should remain the same (content-addressed deduplication).
+  # ==========================================================================
+
+  Scenario: Re-register after version soft-delete creates new version with same ID
+    Given the global compatibility level is "NONE"
+    When I register a schema under subject "del-ver-reregister":
+      """
+      {"type":"record","name":"V1","fields":[{"name":"a","type":"string"}]}
+      """
+    Then the response status should be 200
+    And I store the response field "id" as "v1_id"
+    When I register a schema under subject "del-ver-reregister":
+      """
+      {"type":"record","name":"V2","fields":[{"name":"b","type":"string"}]}
+      """
+    Then the response status should be 200
+    And I store the response field "id" as "v2_id"
+    When I delete version 2 of subject "del-ver-reregister"
+    Then the response status should be 200
+    When I register a schema under subject "del-ver-reregister":
+      """
+      {"type":"record","name":"V2","fields":[{"name":"b","type":"string"}]}
+      """
+    Then the response status should be 200
+    And the response field "id" should equal stored "v2_id"
+    When I get the latest version of subject "del-ver-reregister"
+    Then the response status should be 200
+    And the response field "version" should be 3
+
+  Scenario: Re-register different content after version soft-delete
+    Given the global compatibility level is "NONE"
+    When I register a schema under subject "del-diff-reregister":
+      """
+      {"type":"record","name":"D1","fields":[{"name":"a","type":"string"}]}
+      """
+    Then the response status should be 200
+    When I register a schema under subject "del-diff-reregister":
+      """
+      {"type":"record","name":"D2","fields":[{"name":"b","type":"string"}]}
+      """
+    Then the response status should be 200
+    When I delete version 2 of subject "del-diff-reregister"
+    Then the response status should be 200
+    When I register a schema under subject "del-diff-reregister":
+      """
+      {"type":"record","name":"D3","fields":[{"name":"c","type":"int"}]}
+      """
+    Then the response status should be 200
+    When I get the latest version of subject "del-diff-reregister"
+    Then the response status should be 200
+    And the response field "version" should be 3
+    And the response should contain "D3"

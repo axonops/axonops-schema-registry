@@ -274,3 +274,63 @@ Feature: Schema & Subject Deletion — Exhaustive (Confluent v8.1.1 Compatibilit
     Then the response status should be 200
     When I get the config for subject "del-ex-cfg-ver"
     Then the response status should be 200
+
+  # ==========================================================================
+  # GET latest?deleted=true — when all versions of a subject are soft-deleted,
+  # GET versions/latest returns 404. With deleted=true, the highest-versioned
+  # soft-deleted schema should be returned.
+  # ==========================================================================
+
+  @axonops-only
+  Scenario: GET latest returns 404 after all versions soft-deleted
+    Given the global compatibility level is "NONE"
+    And subject "del-ex-latest-del" has schema:
+      """
+      {"type":"record","name":"LatDel1","fields":[{"name":"a","type":"string"}]}
+      """
+    And subject "del-ex-latest-del" has schema:
+      """
+      {"type":"record","name":"LatDel2","fields":[{"name":"b","type":"string"}]}
+      """
+    When I DELETE "/subjects/del-ex-latest-del"
+    Then the response status should be 200
+    When I GET "/subjects/del-ex-latest-del/versions/latest"
+    Then the response status should be 404
+    When I GET "/subjects/del-ex-latest-del/versions/latest?deleted=true"
+    Then the response status should be 200
+    And the response field "version" should be 2
+    And the response should contain "LatDel2"
+
+  Scenario: GET specific version with deleted=true after soft-delete
+    Given subject "del-ex-specific-del" has schema:
+      """
+      {"type":"record","name":"SpecDel","fields":[{"name":"a","type":"string"}]}
+      """
+    When I DELETE "/subjects/del-ex-specific-del"
+    Then the response status should be 200
+    When I GET "/subjects/del-ex-specific-del/versions/1"
+    Then the response status should be 404
+    When I GET "/subjects/del-ex-specific-del/versions/1?deleted=true"
+    Then the response status should be 200
+    And the response field "version" should be 1
+    And the response should contain "SpecDel"
+
+  Scenario: GET specific deleted version with deleted=true while active versions exist
+    Given the global compatibility level is "NONE"
+    And subject "del-ex-partial-del" has schema:
+      """
+      {"type":"record","name":"PD1","fields":[{"name":"a","type":"string"}]}
+      """
+    And subject "del-ex-partial-del" has schema:
+      """
+      {"type":"record","name":"PD2","fields":[{"name":"b","type":"string"}]}
+      """
+    When I DELETE "/subjects/del-ex-partial-del/versions/2"
+    Then the response status should be 200
+    When I get the latest version of subject "del-ex-partial-del"
+    Then the response status should be 200
+    And the response field "version" should be 1
+    When I GET "/subjects/del-ex-partial-del/versions/2?deleted=true"
+    Then the response status should be 200
+    And the response field "version" should be 2
+    And the response should contain "PD2"

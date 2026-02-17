@@ -197,3 +197,38 @@ Feature: Mode Enforcement
       """
     Then the response status should be 422
     And the response should have error code 42204
+
+  # ==========================================================================
+  # Explicit ID enforcement — explicit schema IDs in register requests
+  # are only allowed when the mode is IMPORT.
+  # ==========================================================================
+
+  Scenario: Explicit ID in READWRITE mode is rejected with 42205
+    Given the global mode is "READWRITE"
+    When I POST "/subjects/mode-rw-explicit/versions" with body:
+      """
+      {"schema": "{\"type\":\"record\",\"name\":\"ExplicitRW\",\"fields\":[{\"name\":\"a\",\"type\":\"string\"}]}", "id": 12345}
+      """
+    Then the response status should be 422
+    And the response should have error code 42205
+
+  Scenario: Explicit ID in IMPORT mode succeeds
+    Given the global mode is "IMPORT"
+    When I POST "/subjects/mode-import-explicit/versions" with body:
+      """
+      {"schema": "{\"type\":\"record\",\"name\":\"ExplicitImp\",\"fields\":[{\"name\":\"a\",\"type\":\"string\"}]}", "id": 12345}
+      """
+    Then the response status should be 200
+    And the response field "id" should be 12345
+    When I set the global mode to "READWRITE"
+
+  Scenario: Per-subject IMPORT mode allows explicit ID
+    Given the global mode is "READWRITE"
+    When I set the mode for subject "mode-subj-import" to "IMPORT"
+    Then the response status should be 200
+    When I POST "/subjects/mode-subj-import/versions" with body:
+      """
+      {"schema": "{\"type\":\"record\",\"name\":\"SubjImp\",\"fields\":[{\"name\":\"a\",\"type\":\"string\"}]}", "id": 12346}
+      """
+    Then the response status should be 200
+    And the response field "id" should be 12346

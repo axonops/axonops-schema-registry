@@ -185,3 +185,30 @@ Feature: Advanced Schema Import
     Then the response status should be 200
     And the response field "version" should be 3
     And the response should contain "email"
+
+  # ==========================================================================
+  # Bulk import requires IMPORT mode — /import/schemas must reject requests
+  # when the global mode is not IMPORT.
+  # ==========================================================================
+
+  Scenario: Bulk import rejected outside IMPORT mode
+    Given the global mode is "READWRITE"
+    When I import a schema with ID 20000 under subject "imp-bulk-rw" version 1:
+      """
+      {"type":"record","name":"BulkRW","fields":[{"name":"a","type":"string"}]}
+      """
+    Then the response status should be 422
+    And the response should have error code 42205
+
+  Scenario: Bulk import succeeds in IMPORT mode
+    Given the global mode is "IMPORT"
+    When I import a schema with ID 20000 under subject "imp-bulk-import" version 1:
+      """
+      {"type":"record","name":"BulkImp","fields":[{"name":"a","type":"string"}]}
+      """
+    Then the response status should be 200
+    And the import should have 1 imported and 0 errors
+    When I get schema by ID 20000
+    Then the response status should be 200
+    And the response should contain "BulkImp"
+    When I set the global mode to "READWRITE"
