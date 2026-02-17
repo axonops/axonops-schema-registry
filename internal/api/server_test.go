@@ -797,3 +797,207 @@ func TestServer_ImportSchemas_EmptyRequest(t *testing.T) {
 		t.Errorf("Expected status 400, got %d: %s", w.Code, w.Body.String())
 	}
 }
+
+// --- Context routing tests ---
+
+// registerSchema is a test helper that registers an Avro schema under the given
+// subject (which may be a qualified subject like ":.testctx:my-subject") and
+// returns the schema ID. It fails the test on any unexpected error.
+func registerSchema(t *testing.T, server *Server, subject, schemaStr string) int64 {
+	t.Helper()
+	body := types.RegisterSchemaRequest{Schema: schemaStr}
+	bodyBytes, _ := json.Marshal(body)
+
+	req := httptest.NewRequest("POST", "/subjects/"+subject+"/versions", bytes.NewReader(bodyBytes))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	server.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("registerSchema(%s): expected status 200, got %d: %s", subject, w.Code, w.Body.String())
+	}
+
+	var resp types.RegisterSchemaResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("registerSchema(%s): failed to decode response: %v", subject, err)
+	}
+	return resp.ID
+}
+
+func TestServer_GetContexts_Default(t *testing.T) {
+	server := setupTestServer(t)
+
+	req := httptest.NewRequest("GET", "/contexts", nil)
+	w := httptest.NewRecorder()
+	server.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("Expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var contexts []string
+	if err := json.NewDecoder(w.Body).Decode(&contexts); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	// With no schemas registered, the memory store still has the default context "."
+	if len(contexts) != 1 {
+		t.Fatalf("Expected 1 context, got %d: %v", len(contexts), contexts)
+	}
+	if contexts[0] != "." {
+		t.Errorf("Expected default context \".\", got %q", contexts[0])
+	}
+}
+
+func TestServer_GetContexts_AfterRegistration(t *testing.T) {
+	server := setupTestServer(t)
+
+	// Register a schema using a qualified subject that targets context ".testctx"
+	schema := `{"type": "record", "name": "Ctx", "fields": [{"name": "id", "type": "long"}]}`
+	registerSchema(t, server, ":.testctx:my-subject", schema)
+
+	// GET /contexts should now return both "." and ".testctx"
+	req := httptest.NewRequest("GET", "/contexts", nil)
+	w := httptest.NewRecorder()
+	server.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("Expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var contexts []string
+	if err := json.NewDecoder(w.Body).Decode(&contexts); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	if len(contexts) != 2 {
+		t.Fatalf("Expected 2 contexts, got %d: %v", len(contexts), contexts)
+	}
+
+	contextSet := make(map[string]bool, len(contexts))
+	for _, c := range contexts {
+		contextSet[c] = true
+	}
+	if !contextSet["."] {
+		t.Error("Expected default context \".\" in contexts list")
+	}
+	if !contextSet[".testctx"] {
+		t.Error("Expected context \".testctx\" in contexts list")
+	}
+}
+
+func TestServer_RegisterSchema_QualifiedSubject(t *testing.T) {
+	server := setupTestServer(t)
+
+	schema := `{"type": "record", "name": "QualTest", "fields": [{"name": "id", "type": "long"}]}`
+	body := types.RegisterSchemaRequest{Schema: schema}
+	bodyBytes, _ := json.Marshal(body)
+
+	req := httptest.NewRequest("POST", "/subjects/:.testctx:my-subject/versions", bytes.NewReader(bodyBytes))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	server.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("Expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp types.RegisterSchemaResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	if resp.ID != 1 {
+		t.Errorf("Expected schema ID 1, got %d", resp.ID)
+	}
+}
+
+func TestServer_ContextIsolation_Subjects(t *testing.T) {
+	server := setupTestServer(t)
+
+	// Register a schema in the default context
+	defaultSchema := `{"type": "record", "name": "Default", "fields": [{"name": "id", "type": "long"}]}`
+	registerSchema(t, server, "default-subject", defaultSchema)
+
+	// Register a schema in a non-default context using qualified subject
+	ctxSchema := `{"type": "record", "name": "InCtx", "fields": [{"name": "id", "type": "long"}]}`
+	registerSchema(t, server, ":.otherctx:ctx-subject", ctxSchema)
+
+	// GET /subjects at root level should return only default context subjects
+	req := httptest.NewRequest("GET", "/subjects", nil)
+	w := httptest.NewRecorder()
+	server.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("Expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var subjects []string
+	if err := json.NewDecoder(w.Body).Decode(&subjects); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	if len(subjects) != 1 {
+		t.Fatalf("Expected 1 subject in default context, got %d: %v", len(subjects), subjects)
+	}
+	if subjects[0] != "default-subject" {
+		t.Errorf("Expected \"default-subject\", got %q", subjects[0])
+	}
+}
+
+func TestServer_ContextIsolation_SchemaByID(t *testing.T) {
+	server := setupTestServer(t)
+
+	// Register a schema in context ".ctxA" — it will get ID 1 in that context
+	schema := `{"type": "record", "name": "Isolated", "fields": [{"name": "id", "type": "long"}]}`
+	id := registerSchema(t, server, ":.ctxA:isolated-subject", schema)
+
+	if id != 1 {
+		t.Fatalf("Expected schema ID 1 in context .ctxA, got %d", id)
+	}
+
+	// GET /schemas/ids/1 at root level should return not found because ID 1
+	// belongs to context ".ctxA", not the default context "."
+	req := httptest.NewRequest("GET", "/schemas/ids/1", nil)
+	w := httptest.NewRecorder()
+	server.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("Expected status 404 for schema ID 1 at root (default context), got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestServer_QualifiedSubject_GetVersion(t *testing.T) {
+	server := setupTestServer(t)
+
+	// Register a schema with a qualified subject targeting context ".ctx"
+	schema := `{"type": "record", "name": "Versioned", "fields": [{"name": "id", "type": "long"}]}`
+	registerSchema(t, server, ":.ctx:subj", schema)
+
+	// GET /subjects/:.ctx:subj/versions/1 should return the schema
+	req := httptest.NewRequest("GET", "/subjects/:.ctx:subj/versions/1", nil)
+	w := httptest.NewRecorder()
+	server.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("Expected status 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp types.SubjectVersionResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	if resp.Subject != "subj" {
+		t.Errorf("Expected subject \"subj\", got %q", resp.Subject)
+	}
+	if resp.Version != 1 {
+		t.Errorf("Expected version 1, got %d", resp.Version)
+	}
+	if resp.ID != 1 {
+		t.Errorf("Expected schema ID 1, got %d", resp.ID)
+	}
+	if resp.Schema == "" {
+		t.Error("Expected non-empty schema")
+	}
+}

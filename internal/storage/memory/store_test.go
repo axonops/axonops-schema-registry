@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/axonops/axonops-schema-registry/internal/storage"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestStore_CreateAndGetSchema(t *testing.T) {
@@ -430,4 +432,342 @@ func TestStore_ImportMultipleSchemas(t *testing.T) {
 	if len(subjects) != 3 {
 		t.Errorf("Expected 3 subjects, got %d", len(subjects))
 	}
+}
+
+func TestStore_ContextIsolation_Schemas(t *testing.T) {
+	store := NewStore()
+	ctx := context.Background()
+
+	// Register a schema in context ".ctxA"
+	record := &storage.SchemaRecord{
+		Subject:     "test-subject",
+		SchemaType:  storage.SchemaTypeAvro,
+		Schema:      `{"type": "string"}`,
+		Fingerprint: "fp-iso-schema-1",
+	}
+	err := store.CreateSchema(ctx, ".ctxA", record)
+	require.NoError(t, err)
+	require.NotZero(t, record.ID)
+
+	// Verify the schema IS visible in ".ctxA"
+	got, err := store.GetSchemaByID(ctx, ".ctxA", record.ID)
+	require.NoError(t, err)
+	assert.Equal(t, record.Schema, got.Schema)
+
+	// Verify the schema is NOT visible in ".ctxB"
+	_, err = store.GetSchemaByID(ctx, ".ctxB", record.ID)
+	assert.ErrorIs(t, err, storage.ErrSchemaNotFound)
+
+	// Also verify it's not visible in the default context "."
+	_, err = store.GetSchemaByID(ctx, ".", record.ID)
+	assert.ErrorIs(t, err, storage.ErrSchemaNotFound)
+}
+
+func TestStore_ContextIsolation_Subjects(t *testing.T) {
+	store := NewStore()
+	ctx := context.Background()
+
+	// Register schemas in ".ctxA" under subject "shared-name"
+	recA := &storage.SchemaRecord{
+		Subject:     "shared-name",
+		SchemaType:  storage.SchemaTypeAvro,
+		Schema:      `{"type": "string"}`,
+		Fingerprint: "fp-iso-subj-a",
+	}
+	err := store.CreateSchema(ctx, ".ctxA", recA)
+	require.NoError(t, err)
+
+	// Register a schema in ".ctxA" under a different subject
+	recA2 := &storage.SchemaRecord{
+		Subject:     "only-in-a",
+		SchemaType:  storage.SchemaTypeAvro,
+		Schema:      `{"type": "int"}`,
+		Fingerprint: "fp-iso-subj-a2",
+	}
+	err = store.CreateSchema(ctx, ".ctxA", recA2)
+	require.NoError(t, err)
+
+	// Register a schema in ".ctxB" under the same "shared-name" subject
+	recB := &storage.SchemaRecord{
+		Subject:     "shared-name",
+		SchemaType:  storage.SchemaTypeAvro,
+		Schema:      `{"type": "long"}`,
+		Fingerprint: "fp-iso-subj-b",
+	}
+	err = store.CreateSchema(ctx, ".ctxB", recB)
+	require.NoError(t, err)
+
+	// ListSubjects in ".ctxA" should return both subjects
+	subjectsA, err := store.ListSubjects(ctx, ".ctxA", false)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"only-in-a", "shared-name"}, subjectsA)
+
+	// ListSubjects in ".ctxB" should return only "shared-name"
+	subjectsB, err := store.ListSubjects(ctx, ".ctxB", false)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"shared-name"}, subjectsB)
+
+	// ListSubjects in default context "." should return nothing (no schemas registered there)
+	subjectsDefault, err := store.ListSubjects(ctx, ".", false)
+	require.NoError(t, err)
+	assert.Empty(t, subjectsDefault)
+}
+
+func TestStore_ContextIsolation_Config(t *testing.T) {
+	store := NewStore()
+	ctx := context.Background()
+
+	// Set global config in ".ctxA"
+	err := store.SetGlobalConfig(ctx, ".ctxA", &storage.ConfigRecord{CompatibilityLevel: "FULL"})
+	require.NoError(t, err)
+
+	// Set subject config in ".ctxA"
+	err = store.SetConfig(ctx, ".ctxA", "test-subject", &storage.ConfigRecord{CompatibilityLevel: "NONE"})
+	require.NoError(t, err)
+
+	// Verify ".ctxA" global config is FULL
+	configA, err := store.GetGlobalConfig(ctx, ".ctxA")
+	require.NoError(t, err)
+	assert.Equal(t, "FULL", configA.CompatibilityLevel)
+
+	// Verify ".ctxA" subject config is NONE
+	subjConfigA, err := store.GetConfig(ctx, ".ctxA", "test-subject")
+	require.NoError(t, err)
+	assert.Equal(t, "NONE", subjConfigA.CompatibilityLevel)
+
+	// Verify ".ctxB" global config returns default BACKWARD (context doesn't exist yet)
+	configB, err := store.GetGlobalConfig(ctx, ".ctxB")
+	require.NoError(t, err)
+	assert.Equal(t, "BACKWARD", configB.CompatibilityLevel)
+
+	// Verify ".ctxB" subject config returns ErrNotFound
+	_, err = store.GetConfig(ctx, ".ctxB", "test-subject")
+	assert.ErrorIs(t, err, storage.ErrNotFound)
+
+	// Verify default context "." still has original BACKWARD default
+	configDefault, err := store.GetGlobalConfig(ctx, ".")
+	require.NoError(t, err)
+	assert.Equal(t, "BACKWARD", configDefault.CompatibilityLevel)
+}
+
+func TestStore_ContextIsolation_Mode(t *testing.T) {
+	store := NewStore()
+	ctx := context.Background()
+
+	// Set global mode in ".ctxA" to IMPORT
+	err := store.SetGlobalMode(ctx, ".ctxA", &storage.ModeRecord{Mode: "IMPORT"})
+	require.NoError(t, err)
+
+	// Set subject mode in ".ctxA"
+	err = store.SetMode(ctx, ".ctxA", "test-subject", &storage.ModeRecord{Mode: "READONLY"})
+	require.NoError(t, err)
+
+	// Verify ".ctxA" global mode is IMPORT
+	modeA, err := store.GetGlobalMode(ctx, ".ctxA")
+	require.NoError(t, err)
+	assert.Equal(t, "IMPORT", modeA.Mode)
+
+	// Verify ".ctxA" subject mode is READONLY
+	subjModeA, err := store.GetMode(ctx, ".ctxA", "test-subject")
+	require.NoError(t, err)
+	assert.Equal(t, "READONLY", subjModeA.Mode)
+
+	// Verify ".ctxB" global mode returns default READWRITE (context doesn't exist yet)
+	modeB, err := store.GetGlobalMode(ctx, ".ctxB")
+	require.NoError(t, err)
+	assert.Equal(t, "READWRITE", modeB.Mode)
+
+	// Verify ".ctxB" subject mode returns ErrNotFound
+	_, err = store.GetMode(ctx, ".ctxB", "test-subject")
+	assert.ErrorIs(t, err, storage.ErrNotFound)
+
+	// Verify default context "." still has original READWRITE
+	modeDefault, err := store.GetGlobalMode(ctx, ".")
+	require.NoError(t, err)
+	assert.Equal(t, "READWRITE", modeDefault.Mode)
+}
+
+func TestStore_PerContextIDs(t *testing.T) {
+	store := NewStore()
+	ctx := context.Background()
+
+	// Register a schema in ".ctxA"
+	recA := &storage.SchemaRecord{
+		Subject:     "test-subject",
+		SchemaType:  storage.SchemaTypeAvro,
+		Schema:      `{"type": "string"}`,
+		Fingerprint: "fp-id-a",
+	}
+	err := store.CreateSchema(ctx, ".ctxA", recA)
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), recA.ID, "first schema in .ctxA should get ID 1")
+
+	// Register a schema in ".ctxB"
+	recB := &storage.SchemaRecord{
+		Subject:     "test-subject",
+		SchemaType:  storage.SchemaTypeAvro,
+		Schema:      `{"type": "int"}`,
+		Fingerprint: "fp-id-b",
+	}
+	err = store.CreateSchema(ctx, ".ctxB", recB)
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), recB.ID, "first schema in .ctxB should also get ID 1")
+
+	// Register a second schema in ".ctxA"
+	recA2 := &storage.SchemaRecord{
+		Subject:     "test-subject",
+		SchemaType:  storage.SchemaTypeAvro,
+		Schema:      `{"type": "long"}`,
+		Fingerprint: "fp-id-a2",
+	}
+	err = store.CreateSchema(ctx, ".ctxA", recA2)
+	require.NoError(t, err)
+	assert.Equal(t, int64(2), recA2.ID, "second schema in .ctxA should get ID 2")
+
+	// ".ctxB" ID sequence should still be at 2 (next after 1)
+	recB2 := &storage.SchemaRecord{
+		Subject:     "test-subject",
+		SchemaType:  storage.SchemaTypeAvro,
+		Schema:      `{"type": "float"}`,
+		Fingerprint: "fp-id-b2",
+	}
+	err = store.CreateSchema(ctx, ".ctxB", recB2)
+	require.NoError(t, err)
+	assert.Equal(t, int64(2), recB2.ID, "second schema in .ctxB should get ID 2")
+}
+
+func TestStore_PerContextFingerprints(t *testing.T) {
+	store := NewStore()
+	ctx := context.Background()
+
+	// Register identical schema content in ".ctxA"
+	recA := &storage.SchemaRecord{
+		Subject:     "test-subject",
+		SchemaType:  storage.SchemaTypeAvro,
+		Schema:      `{"type": "string"}`,
+		Fingerprint: "shared-fingerprint",
+	}
+	err := store.CreateSchema(ctx, ".ctxA", recA)
+	require.NoError(t, err)
+
+	// Register identical schema content in ".ctxB"
+	recB := &storage.SchemaRecord{
+		Subject:     "test-subject",
+		SchemaType:  storage.SchemaTypeAvro,
+		Schema:      `{"type": "string"}`,
+		Fingerprint: "shared-fingerprint",
+	}
+	err = store.CreateSchema(ctx, ".ctxB", recB)
+	require.NoError(t, err)
+
+	// Each context should have assigned its own ID independently
+	assert.Equal(t, int64(1), recA.ID, ".ctxA should assign ID 1")
+	assert.Equal(t, int64(1), recB.ID, ".ctxB should assign ID 1")
+
+	// Verify each context can retrieve its own schema by ID
+	gotA, err := store.GetSchemaByID(ctx, ".ctxA", recA.ID)
+	require.NoError(t, err)
+	assert.Equal(t, `{"type": "string"}`, gotA.Schema)
+
+	gotB, err := store.GetSchemaByID(ctx, ".ctxB", recB.ID)
+	require.NoError(t, err)
+	assert.Equal(t, `{"type": "string"}`, gotB.Schema)
+
+	// Fingerprint dedup is per-context: registering the same fingerprint
+	// under a different subject in the same context should reuse the ID
+	recA2 := &storage.SchemaRecord{
+		Subject:     "other-subject",
+		SchemaType:  storage.SchemaTypeAvro,
+		Schema:      `{"type": "string"}`,
+		Fingerprint: "shared-fingerprint",
+	}
+	err = store.CreateSchema(ctx, ".ctxA", recA2)
+	require.NoError(t, err)
+	assert.Equal(t, recA.ID, recA2.ID, "same fingerprint in same context should reuse ID")
+}
+
+func TestStore_ListContexts(t *testing.T) {
+	store := NewStore()
+	ctx := context.Background()
+
+	// Register schemas in multiple contexts to create them
+	contexts := []string{".ctxC", ".ctxA", ".ctxB"}
+	for i, regCtx := range contexts {
+		rec := &storage.SchemaRecord{
+			Subject:     "test-subject",
+			SchemaType:  storage.SchemaTypeAvro,
+			Schema:      `{"type": "string"}`,
+			Fingerprint: string(rune('x' + i)),
+		}
+		err := store.CreateSchema(ctx, regCtx, rec)
+		require.NoError(t, err)
+	}
+
+	// ListContexts should return all contexts sorted alphabetically
+	got, err := store.ListContexts(ctx)
+	require.NoError(t, err)
+
+	// Should include the default context "." plus the three created contexts
+	expected := []string{".", ".ctxA", ".ctxB", ".ctxC"}
+	assert.Equal(t, expected, got)
+}
+
+func TestStore_DefaultContextAlwaysPresent(t *testing.T) {
+	store := NewStore()
+	ctx := context.Background()
+
+	// A fresh store should have the default context "."
+	contexts, err := store.ListContexts(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"."}, contexts)
+}
+
+func TestStore_ContextIsolation_Delete(t *testing.T) {
+	store := NewStore()
+	ctx := context.Background()
+
+	// Register a schema in ".ctxA" under "shared-subject"
+	recA := &storage.SchemaRecord{
+		Subject:     "shared-subject",
+		SchemaType:  storage.SchemaTypeAvro,
+		Schema:      `{"type": "string"}`,
+		Fingerprint: "fp-del-a",
+	}
+	err := store.CreateSchema(ctx, ".ctxA", recA)
+	require.NoError(t, err)
+
+	// Register a schema in ".ctxB" under the same "shared-subject"
+	recB := &storage.SchemaRecord{
+		Subject:     "shared-subject",
+		SchemaType:  storage.SchemaTypeAvro,
+		Schema:      `{"type": "int"}`,
+		Fingerprint: "fp-del-b",
+	}
+	err = store.CreateSchema(ctx, ".ctxB", recB)
+	require.NoError(t, err)
+
+	// Soft-delete the subject in ".ctxA"
+	deletedVersions, err := store.DeleteSubject(ctx, ".ctxA", "shared-subject", false)
+	require.NoError(t, err)
+	assert.Equal(t, []int{1}, deletedVersions)
+
+	// Verify subject is gone from ".ctxA" (not listed without includeDeleted)
+	subjectsA, err := store.ListSubjects(ctx, ".ctxA", false)
+	require.NoError(t, err)
+	assert.Empty(t, subjectsA)
+
+	// Verify subject still exists in ".ctxB"
+	subjectsB, err := store.ListSubjects(ctx, ".ctxB", false)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"shared-subject"}, subjectsB)
+
+	// Verify the schema in ".ctxB" is still accessible
+	gotB, err := store.GetSchemaBySubjectVersion(ctx, ".ctxB", "shared-subject", 1)
+	require.NoError(t, err)
+	assert.Equal(t, `{"type": "int"}`, gotB.Schema)
+
+	// Verify the deleted subject in ".ctxA" still shows with includeDeleted=true
+	subjectsADeleted, err := store.ListSubjects(ctx, ".ctxA", true)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"shared-subject"}, subjectsADeleted)
 }

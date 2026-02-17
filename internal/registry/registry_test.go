@@ -2043,3 +2043,349 @@ func TestImportSchemas_SetNextIDFailure(t *testing.T) {
 		t.Errorf("expected 1 imported schema, got %d", result.Imported)
 	}
 }
+
+// =============================================================================
+// Context Isolation Tests
+// =============================================================================
+
+// setupTestRegistryWithContexts creates a test registry with global config
+// seeded into the default context. The memory store auto-creates non-default
+// contexts on first write, each with their own independent ID sequence.
+func setupTestRegistryWithContexts(defaultCompatibility string) *Registry {
+	return setupTestRegistry(defaultCompatibility)
+}
+
+func TestRegisterSchema_DifferentContexts(t *testing.T) {
+	reg := setupTestRegistryWithContexts("NONE")
+	ctx := context.Background()
+
+	schemaStr := `{"type":"record","name":"Test","fields":[{"name":"id","type":"int"}]}`
+
+	// Register the same schema in two different contexts
+	recA, err := reg.RegisterSchema(ctx, ".ctxA", "test-subject", schemaStr, storage.SchemaTypeAvro, nil)
+	if err != nil {
+		t.Fatalf("failed to register in .ctxA: %v", err)
+	}
+
+	recB, err := reg.RegisterSchema(ctx, ".ctxB", "test-subject", schemaStr, storage.SchemaTypeAvro, nil)
+	if err != nil {
+		t.Fatalf("failed to register in .ctxB: %v", err)
+	}
+
+	// Both should succeed — contexts are independent namespaces
+	if recA.ID != 1 {
+		t.Errorf(".ctxA: expected ID 1 (first schema in context), got %d", recA.ID)
+	}
+	if recB.ID != 1 {
+		t.Errorf(".ctxB: expected ID 1 (first schema in context), got %d", recB.ID)
+	}
+
+	// Versions should be 1 in both contexts
+	if recA.Version != 1 {
+		t.Errorf(".ctxA: expected version 1, got %d", recA.Version)
+	}
+	if recB.Version != 1 {
+		t.Errorf(".ctxB: expected version 1, got %d", recB.Version)
+	}
+}
+
+func TestGetSchemaByID_ContextScoped(t *testing.T) {
+	reg := setupTestRegistryWithContexts("NONE")
+	ctx := context.Background()
+
+	schemaStr := `{"type":"record","name":"Test","fields":[{"name":"id","type":"int"}]}`
+
+	// Register a schema in .ctxA
+	recA, err := reg.RegisterSchema(ctx, ".ctxA", "test-subject", schemaStr, storage.SchemaTypeAvro, nil)
+	if err != nil {
+		t.Fatalf("failed to register in .ctxA: %v", err)
+	}
+
+	// Should be retrievable from .ctxA
+	found, err := reg.GetSchemaByID(ctx, ".ctxA", recA.ID)
+	if err != nil {
+		t.Fatalf("failed to get schema from .ctxA: %v", err)
+	}
+	if found.Schema != schemaStr {
+		t.Errorf("schema content mismatch in .ctxA")
+	}
+
+	// Should NOT be found in .ctxB
+	_, err = reg.GetSchemaByID(ctx, ".ctxB", recA.ID)
+	if err == nil {
+		t.Error("expected error when getting schema from .ctxB, but got nil — context isolation violated")
+	}
+}
+
+func TestListSubjects_ContextScoped(t *testing.T) {
+	reg := setupTestRegistryWithContexts("NONE")
+	ctx := context.Background()
+
+	schemaA := `{"type":"record","name":"RecA","fields":[{"name":"id","type":"int"}]}`
+	schemaB := `{"type":"record","name":"RecB","fields":[{"name":"id","type":"int"}]}`
+
+	// Register subjects in different contexts
+	_, err := reg.RegisterSchema(ctx, ".ctxA", "subject-in-A", schemaA, storage.SchemaTypeAvro, nil)
+	if err != nil {
+		t.Fatalf("failed to register in .ctxA: %v", err)
+	}
+
+	_, err = reg.RegisterSchema(ctx, ".ctxB", "subject-in-B", schemaB, storage.SchemaTypeAvro, nil)
+	if err != nil {
+		t.Fatalf("failed to register in .ctxB: %v", err)
+	}
+
+	// List subjects in .ctxA — should only see subject-in-A
+	subjectsA, err := reg.ListSubjects(ctx, ".ctxA", false)
+	if err != nil {
+		t.Fatalf("failed to list subjects in .ctxA: %v", err)
+	}
+	if len(subjectsA) != 1 {
+		t.Errorf(".ctxA: expected 1 subject, got %d: %v", len(subjectsA), subjectsA)
+	}
+	if len(subjectsA) == 1 && subjectsA[0] != "subject-in-A" {
+		t.Errorf(".ctxA: expected 'subject-in-A', got %q", subjectsA[0])
+	}
+
+	// List subjects in .ctxB — should only see subject-in-B
+	subjectsB, err := reg.ListSubjects(ctx, ".ctxB", false)
+	if err != nil {
+		t.Fatalf("failed to list subjects in .ctxB: %v", err)
+	}
+	if len(subjectsB) != 1 {
+		t.Errorf(".ctxB: expected 1 subject, got %d: %v", len(subjectsB), subjectsB)
+	}
+	if len(subjectsB) == 1 && subjectsB[0] != "subject-in-B" {
+		t.Errorf(".ctxB: expected 'subject-in-B', got %q", subjectsB[0])
+	}
+
+	// List subjects in a context with no registrations — should be empty
+	subjectsC, err := reg.ListSubjects(ctx, ".ctxC", false)
+	if err != nil {
+		t.Fatalf("failed to list subjects in .ctxC: %v", err)
+	}
+	if len(subjectsC) != 0 {
+		t.Errorf(".ctxC: expected 0 subjects, got %d: %v", len(subjectsC), subjectsC)
+	}
+}
+
+func TestConfig_ContextIsolation(t *testing.T) {
+	reg := setupTestRegistryWithContexts("BACKWARD")
+	ctx := context.Background()
+
+	// Set subject config in .ctxA to FULL
+	err := reg.SetConfig(ctx, ".ctxA", "my-subject", "FULL", nil)
+	if err != nil {
+		t.Fatalf("failed to set config in .ctxA: %v", err)
+	}
+
+	// Verify .ctxA has FULL
+	levelA, err := reg.GetConfig(ctx, ".ctxA", "my-subject")
+	if err != nil {
+		t.Fatalf("failed to get config from .ctxA: %v", err)
+	}
+	if levelA != "FULL" {
+		t.Errorf(".ctxA: expected FULL, got %s", levelA)
+	}
+
+	// Verify .ctxB for the same subject still returns the default (BACKWARD)
+	// because no subject-level config was set in .ctxB, and new contexts
+	// start with the default global config seeded by the memory store.
+	levelB, err := reg.GetConfig(ctx, ".ctxB", "my-subject")
+	if err != nil {
+		t.Fatalf("failed to get config from .ctxB: %v", err)
+	}
+	if levelB == "FULL" {
+		t.Errorf(".ctxB: expected default config (not FULL), got %s — context isolation violated", levelB)
+	}
+
+	// Also test global config isolation: set global config in .ctxA to NONE
+	err = reg.SetConfig(ctx, ".ctxA", "", "NONE", nil)
+	if err != nil {
+		t.Fatalf("failed to set global config in .ctxA: %v", err)
+	}
+
+	globalA, err := reg.GetConfig(ctx, ".ctxA", "")
+	if err != nil {
+		t.Fatalf("failed to get global config from .ctxA: %v", err)
+	}
+	if globalA != "NONE" {
+		t.Errorf(".ctxA global: expected NONE, got %s", globalA)
+	}
+
+	// .ctxB global should be unaffected (default from memory store)
+	globalB, err := reg.GetConfig(ctx, ".ctxB", "")
+	if err != nil {
+		t.Fatalf("failed to get global config from .ctxB: %v", err)
+	}
+	if globalB == "NONE" {
+		t.Errorf(".ctxB global: should not be NONE — context isolation violated")
+	}
+}
+
+func TestMode_ContextIsolation(t *testing.T) {
+	reg := setupTestRegistryWithContexts("NONE")
+	ctx := context.Background()
+
+	// Set subject mode in .ctxA to READONLY
+	err := reg.SetMode(ctx, ".ctxA", "my-subject", "READONLY", false)
+	if err != nil {
+		t.Fatalf("failed to set mode in .ctxA: %v", err)
+	}
+
+	// Verify .ctxA has READONLY
+	modeA, err := reg.GetMode(ctx, ".ctxA", "my-subject")
+	if err != nil {
+		t.Fatalf("failed to get mode from .ctxA: %v", err)
+	}
+	if modeA != "READONLY" {
+		t.Errorf(".ctxA: expected READONLY, got %s", modeA)
+	}
+
+	// Verify .ctxB is unaffected — should return default READWRITE
+	modeB, err := reg.GetMode(ctx, ".ctxB", "my-subject")
+	if err != nil {
+		t.Fatalf("failed to get mode from .ctxB: %v", err)
+	}
+	if modeB != "READWRITE" {
+		t.Errorf(".ctxB: expected READWRITE (default), got %s — context isolation violated", modeB)
+	}
+
+	// Set global mode in .ctxA to IMPORT
+	err = reg.SetMode(ctx, ".ctxA", "", "IMPORT", true)
+	if err != nil {
+		t.Fatalf("failed to set global mode in .ctxA: %v", err)
+	}
+
+	globalModeA, err := reg.GetMode(ctx, ".ctxA", "")
+	if err != nil {
+		t.Fatalf("failed to get global mode from .ctxA: %v", err)
+	}
+	if globalModeA != "IMPORT" {
+		t.Errorf(".ctxA global: expected IMPORT, got %s", globalModeA)
+	}
+
+	// .ctxB global should remain READWRITE
+	globalModeB, err := reg.GetMode(ctx, ".ctxB", "")
+	if err != nil {
+		t.Fatalf("failed to get global mode from .ctxB: %v", err)
+	}
+	if globalModeB != "READWRITE" {
+		t.Errorf(".ctxB global: expected READWRITE, got %s — context isolation violated", globalModeB)
+	}
+}
+
+func TestDeleteSubject_ContextIsolation(t *testing.T) {
+	reg := setupTestRegistryWithContexts("NONE")
+	ctx := context.Background()
+
+	schemaStr := `{"type":"record","name":"Test","fields":[{"name":"id","type":"int"}]}`
+
+	// Register the same subject name in both contexts
+	_, err := reg.RegisterSchema(ctx, ".ctxA", "shared-subject", schemaStr, storage.SchemaTypeAvro, nil)
+	if err != nil {
+		t.Fatalf("failed to register in .ctxA: %v", err)
+	}
+	_, err = reg.RegisterSchema(ctx, ".ctxB", "shared-subject", schemaStr, storage.SchemaTypeAvro, nil)
+	if err != nil {
+		t.Fatalf("failed to register in .ctxB: %v", err)
+	}
+
+	// Delete subject in .ctxA
+	versions, err := reg.DeleteSubject(ctx, ".ctxA", "shared-subject", false)
+	if err != nil {
+		t.Fatalf("failed to delete subject in .ctxA: %v", err)
+	}
+	if len(versions) != 1 {
+		t.Errorf(".ctxA: expected 1 deleted version, got %d", len(versions))
+	}
+
+	// Verify .ctxA no longer lists the subject
+	subjectsA, err := reg.ListSubjects(ctx, ".ctxA", false)
+	if err != nil {
+		t.Fatalf("failed to list subjects in .ctxA: %v", err)
+	}
+	if len(subjectsA) != 0 {
+		t.Errorf(".ctxA: expected 0 subjects after delete, got %d", len(subjectsA))
+	}
+
+	// Verify .ctxB still has the subject
+	subjectsB, err := reg.ListSubjects(ctx, ".ctxB", false)
+	if err != nil {
+		t.Fatalf("failed to list subjects in .ctxB: %v", err)
+	}
+	if len(subjectsB) != 1 {
+		t.Errorf(".ctxB: expected 1 subject (unaffected by .ctxA delete), got %d", len(subjectsB))
+	}
+
+	// Verify .ctxB schema is still retrievable
+	found, err := reg.GetSchemaBySubjectVersion(ctx, ".ctxB", "shared-subject", 1)
+	if err != nil {
+		t.Fatalf("failed to get schema from .ctxB after .ctxA delete: %v", err)
+	}
+	if found.Schema != schemaStr {
+		t.Errorf(".ctxB: schema content mismatch after .ctxA delete")
+	}
+}
+
+func TestLookupSchema_ContextScoped(t *testing.T) {
+	reg := setupTestRegistryWithContexts("NONE")
+	ctx := context.Background()
+
+	schemaStr := `{"type":"record","name":"Test","fields":[{"name":"id","type":"int"}]}`
+
+	// Register in .ctxA
+	recA, err := reg.RegisterSchema(ctx, ".ctxA", "test-subject", schemaStr, storage.SchemaTypeAvro, nil)
+	if err != nil {
+		t.Fatalf("failed to register in .ctxA: %v", err)
+	}
+
+	// Lookup should succeed in .ctxA
+	foundA, err := reg.LookupSchema(ctx, ".ctxA", "test-subject", schemaStr, storage.SchemaTypeAvro, nil, false)
+	if err != nil {
+		t.Fatalf("failed to lookup in .ctxA: %v", err)
+	}
+	if foundA.ID != recA.ID {
+		t.Errorf(".ctxA: expected ID %d, got %d", recA.ID, foundA.ID)
+	}
+
+	// Lookup should fail in .ctxB — schema was never registered there
+	_, err = reg.LookupSchema(ctx, ".ctxB", "test-subject", schemaStr, storage.SchemaTypeAvro, nil, false)
+	if err == nil {
+		t.Error("expected error when looking up schema in .ctxB, but got nil — context isolation violated")
+	}
+}
+
+func TestCheckCompatibility_ContextScoped(t *testing.T) {
+	reg := setupTestRegistryWithContexts("BACKWARD")
+	ctx := context.Background()
+
+	// Register v1 in .ctxA
+	schema1 := `{"type":"record","name":"Test","fields":[{"name":"id","type":"int"}]}`
+	_, err := reg.RegisterSchema(ctx, ".ctxA", "test-subject", schema1, storage.SchemaTypeAvro, nil)
+	if err != nil {
+		t.Fatalf("failed to register v1 in .ctxA: %v", err)
+	}
+
+	// Incompatible schema (removes required field, adds new required field)
+	incompatible := `{"type":"record","name":"Test","fields":[{"name":"name","type":"string"}]}`
+
+	// In .ctxA, this should be incompatible (BACKWARD check against existing v1)
+	resultA, err := reg.CheckCompatibility(ctx, ".ctxA", "test-subject", incompatible, storage.SchemaTypeAvro, nil, "latest")
+	if err != nil {
+		t.Fatalf("failed to check compatibility in .ctxA: %v", err)
+	}
+	if resultA.IsCompatible {
+		t.Error(".ctxA: expected incompatible result, but got compatible")
+	}
+
+	// In .ctxB, there are no schemas for this subject, so it should be compatible
+	// (no prior versions to check against)
+	resultB, err := reg.CheckCompatibility(ctx, ".ctxB", "test-subject", incompatible, storage.SchemaTypeAvro, nil, "latest")
+	if err != nil {
+		t.Fatalf("failed to check compatibility in .ctxB: %v", err)
+	}
+	if !resultB.IsCompatible {
+		t.Error(".ctxB: expected compatible result (no prior schemas), but got incompatible — context isolation violated")
+	}
+}
