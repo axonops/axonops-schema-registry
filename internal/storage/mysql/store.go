@@ -425,7 +425,7 @@ func (s *Store) globalSchemaIDTx(ctx context.Context, tx *sql.Tx, fingerprint st
 // CreateSchema stores a new schema record.
 // This implementation handles concurrent insertions by retrying on conflicts.
 // MySQL deadlocks are handled as retriable errors.
-func (s *Store) CreateSchema(ctx context.Context, record *storage.SchemaRecord) error {
+func (s *Store) CreateSchema(ctx context.Context, registryCtx string, record *storage.SchemaRecord) error {
 	const maxRetries = 15
 	var lastErr error
 
@@ -569,7 +569,7 @@ func (s *Store) createSchemaAttempt(ctx context.Context, record *storage.SchemaR
 // First tries direct row lookup, then falls back to schema_fingerprints
 // for cases where the original row was permanently deleted but the content
 // still exists under other subjects.
-func (s *Store) GetSchemaByID(ctx context.Context, id int64) (*storage.SchemaRecord, error) {
+func (s *Store) GetSchemaByID(ctx context.Context, registryCtx string, id int64) (*storage.SchemaRecord, error) {
 	record := &storage.SchemaRecord{}
 	var schemaType string
 	var metadataBytes, rulesetBytes []byte
@@ -621,10 +621,10 @@ func (s *Store) GetSchemaByID(ctx context.Context, id int64) (*storage.SchemaRec
 }
 
 // GetSchemaBySubjectVersion retrieves a schema by subject and version.
-func (s *Store) GetSchemaBySubjectVersion(ctx context.Context, subject string, version int) (*storage.SchemaRecord, error) {
+func (s *Store) GetSchemaBySubjectVersion(ctx context.Context, registryCtx string, subject string, version int) (*storage.SchemaRecord, error) {
 	// Handle "latest" version (-1)
 	if version == -1 {
-		return s.GetLatestSchema(ctx, subject)
+		return s.GetLatestSchema(ctx, registryCtx, subject)
 	}
 
 	record := &storage.SchemaRecord{}
@@ -679,7 +679,7 @@ func (s *Store) GetSchemaBySubjectVersion(ctx context.Context, subject string, v
 }
 
 // GetSchemasBySubject retrieves all schemas for a subject.
-func (s *Store) GetSchemasBySubject(ctx context.Context, subject string, includeDeleted bool) ([]*storage.SchemaRecord, error) {
+func (s *Store) GetSchemasBySubject(ctx context.Context, registryCtx string, subject string, includeDeleted bool) ([]*storage.SchemaRecord, error) {
 	query := "SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at, metadata, ruleset FROM `schemas` WHERE subject = ?"
 	if !includeDeleted {
 		query += " AND deleted = FALSE"
@@ -742,7 +742,7 @@ func (s *Store) GetSchemasBySubject(ctx context.Context, subject string, include
 }
 
 // GetSchemaByFingerprint retrieves a schema by subject and fingerprint.
-func (s *Store) GetSchemaByFingerprint(ctx context.Context, subject, fingerprint string, includeDeleted bool) (*storage.SchemaRecord, error) {
+func (s *Store) GetSchemaByFingerprint(ctx context.Context, registryCtx string, subject, fingerprint string, includeDeleted bool) (*storage.SchemaRecord, error) {
 	record := &storage.SchemaRecord{}
 	var schemaType string
 	var rowID int64
@@ -801,7 +801,7 @@ func (s *Store) GetSchemaByFingerprint(ctx context.Context, subject, fingerprint
 
 // GetSchemaByGlobalFingerprint retrieves a schema by fingerprint (global lookup).
 // Returns the first matching schema regardless of subject.
-func (s *Store) GetSchemaByGlobalFingerprint(ctx context.Context, fingerprint string) (*storage.SchemaRecord, error) {
+func (s *Store) GetSchemaByGlobalFingerprint(ctx context.Context, registryCtx string, fingerprint string) (*storage.SchemaRecord, error) {
 	record := &storage.SchemaRecord{}
 	var schemaType string
 	var rowID int64
@@ -845,7 +845,7 @@ func (s *Store) GetSchemaByGlobalFingerprint(ctx context.Context, fingerprint st
 }
 
 // GetLatestSchema retrieves the latest schema for a subject.
-func (s *Store) GetLatestSchema(ctx context.Context, subject string) (*storage.SchemaRecord, error) {
+func (s *Store) GetLatestSchema(ctx context.Context, registryCtx string, subject string) (*storage.SchemaRecord, error) {
 	record := &storage.SchemaRecord{}
 	var schemaType string
 	var rowID int64
@@ -887,7 +887,7 @@ func (s *Store) GetLatestSchema(ctx context.Context, subject string) (*storage.S
 }
 
 // DeleteSchema soft-deletes or permanently deletes a schema version.
-func (s *Store) DeleteSchema(ctx context.Context, subject string, version int, permanent bool) error {
+func (s *Store) DeleteSchema(ctx context.Context, registryCtx string, subject string, version int, permanent bool) error {
 	if permanent {
 		// Check if version exists and is soft-deleted first; capture fingerprint for cleanup
 		var deleted bool
@@ -942,7 +942,7 @@ func (s *Store) DeleteSchema(ctx context.Context, subject string, version int, p
 }
 
 // ListSubjects returns all subject names.
-func (s *Store) ListSubjects(ctx context.Context, includeDeleted bool) ([]string, error) {
+func (s *Store) ListSubjects(ctx context.Context, registryCtx string, includeDeleted bool) ([]string, error) {
 	query := "SELECT DISTINCT subject FROM `schemas`"
 	if !includeDeleted {
 		query += " WHERE deleted = FALSE"
@@ -968,7 +968,7 @@ func (s *Store) ListSubjects(ctx context.Context, includeDeleted bool) ([]string
 }
 
 // DeleteSubject deletes all versions of a subject.
-func (s *Store) DeleteSubject(ctx context.Context, subject string, permanent bool) ([]int, error) {
+func (s *Store) DeleteSubject(ctx context.Context, registryCtx string, subject string, permanent bool) ([]int, error) {
 	if permanent {
 		// For permanent delete, check that all versions are soft-deleted first
 		var totalCount, deletedCount int
@@ -1061,7 +1061,7 @@ func (s *Store) DeleteSubject(ctx context.Context, subject string, permanent boo
 }
 
 // SubjectExists checks if a subject exists.
-func (s *Store) SubjectExists(ctx context.Context, subject string) (bool, error) {
+func (s *Store) SubjectExists(ctx context.Context, registryCtx string, subject string) (bool, error) {
 	var count int
 	err := s.db.QueryRowContext(ctx,
 		"SELECT COUNT(*) FROM `schemas` WHERE subject = ? AND deleted = FALSE",
@@ -1074,7 +1074,7 @@ func (s *Store) SubjectExists(ctx context.Context, subject string) (bool, error)
 }
 
 // GetConfig retrieves the compatibility configuration for a subject.
-func (s *Store) GetConfig(ctx context.Context, subject string) (*storage.ConfigRecord, error) {
+func (s *Store) GetConfig(ctx context.Context, registryCtx string, subject string) (*storage.ConfigRecord, error) {
 	config := &storage.ConfigRecord{}
 	var alias sql.NullString
 	var normalize sql.NullBool
@@ -1145,7 +1145,7 @@ func (s *Store) GetConfig(ctx context.Context, subject string) (*storage.ConfigR
 }
 
 // SetConfig sets the compatibility configuration for a subject.
-func (s *Store) SetConfig(ctx context.Context, subject string, config *storage.ConfigRecord) error {
+func (s *Store) SetConfig(ctx context.Context, registryCtx string, subject string, config *storage.ConfigRecord) error {
 	defaultMetadataJSON, err := marshalJSON(config.DefaultMetadata)
 	if err != nil {
 		return fmt.Errorf("failed to marshal default_metadata: %w", err)
@@ -1195,7 +1195,7 @@ func (s *Store) SetConfig(ctx context.Context, subject string, config *storage.C
 }
 
 // DeleteConfig deletes the compatibility configuration for a subject.
-func (s *Store) DeleteConfig(ctx context.Context, subject string) error {
+func (s *Store) DeleteConfig(ctx context.Context, registryCtx string, subject string) error {
 	result, err := s.stmts.deleteConfig.ExecContext(ctx, subject)
 	if err != nil {
 		return fmt.Errorf("failed to delete config: %w", err)
@@ -1210,17 +1210,17 @@ func (s *Store) DeleteConfig(ctx context.Context, subject string) error {
 }
 
 // GetGlobalConfig retrieves the global compatibility configuration.
-func (s *Store) GetGlobalConfig(ctx context.Context) (*storage.ConfigRecord, error) {
-	return s.GetConfig(ctx, "")
+func (s *Store) GetGlobalConfig(ctx context.Context, registryCtx string) (*storage.ConfigRecord, error) {
+	return s.GetConfig(ctx, registryCtx, "")
 }
 
 // SetGlobalConfig sets the global compatibility configuration.
-func (s *Store) SetGlobalConfig(ctx context.Context, config *storage.ConfigRecord) error {
-	return s.SetConfig(ctx, "", config)
+func (s *Store) SetGlobalConfig(ctx context.Context, registryCtx string, config *storage.ConfigRecord) error {
+	return s.SetConfig(ctx, registryCtx, "", config)
 }
 
 // GetMode retrieves the mode for a subject.
-func (s *Store) GetMode(ctx context.Context, subject string) (*storage.ModeRecord, error) {
+func (s *Store) GetMode(ctx context.Context, registryCtx string, subject string) (*storage.ModeRecord, error) {
 	mode := &storage.ModeRecord{}
 	err := s.stmts.getMode.QueryRowContext(ctx, subject).Scan(&mode.Subject, &mode.Mode)
 
@@ -1235,7 +1235,7 @@ func (s *Store) GetMode(ctx context.Context, subject string) (*storage.ModeRecor
 }
 
 // SetMode sets the mode for a subject.
-func (s *Store) SetMode(ctx context.Context, subject string, mode *storage.ModeRecord) error {
+func (s *Store) SetMode(ctx context.Context, registryCtx string, subject string, mode *storage.ModeRecord) error {
 	_, err := s.stmts.setMode.ExecContext(ctx, subject, mode.Mode)
 	if err != nil {
 		return fmt.Errorf("failed to set mode: %w", err)
@@ -1244,7 +1244,7 @@ func (s *Store) SetMode(ctx context.Context, subject string, mode *storage.ModeR
 }
 
 // DeleteMode deletes the mode for a subject.
-func (s *Store) DeleteMode(ctx context.Context, subject string) error {
+func (s *Store) DeleteMode(ctx context.Context, registryCtx string, subject string) error {
 	result, err := s.stmts.deleteMode.ExecContext(ctx, subject)
 	if err != nil {
 		return fmt.Errorf("failed to delete mode: %w", err)
@@ -1259,18 +1259,18 @@ func (s *Store) DeleteMode(ctx context.Context, subject string) error {
 }
 
 // GetGlobalMode retrieves the global mode.
-func (s *Store) GetGlobalMode(ctx context.Context) (*storage.ModeRecord, error) {
-	return s.GetMode(ctx, "")
+func (s *Store) GetGlobalMode(ctx context.Context, registryCtx string) (*storage.ModeRecord, error) {
+	return s.GetMode(ctx, registryCtx, "")
 }
 
 // SetGlobalMode sets the global mode.
-func (s *Store) SetGlobalMode(ctx context.Context, mode *storage.ModeRecord) error {
-	return s.SetMode(ctx, "", mode)
+func (s *Store) SetGlobalMode(ctx context.Context, registryCtx string, mode *storage.ModeRecord) error {
+	return s.SetMode(ctx, registryCtx, "", mode)
 }
 
 // NextID returns the next available schema ID using the id_alloc table.
 // Atomically reads the current value and increments it.
-func (s *Store) NextID(ctx context.Context) (int64, error) {
+func (s *Store) NextID(ctx context.Context, registryCtx string) (int64, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, fmt.Errorf("failed to begin transaction: %w", err)
@@ -1296,7 +1296,7 @@ func (s *Store) NextID(ctx context.Context) (int64, error) {
 }
 
 // GetMaxSchemaID returns the highest schema ID currently assigned.
-func (s *Store) GetMaxSchemaID(ctx context.Context) (int64, error) {
+func (s *Store) GetMaxSchemaID(ctx context.Context, registryCtx string) (int64, error) {
 	var maxID int64
 	err := s.db.QueryRowContext(ctx, "SELECT COALESCE(MAX(id), 0) FROM `schemas`").Scan(&maxID)
 	if err != nil {
@@ -1307,7 +1307,7 @@ func (s *Store) GetMaxSchemaID(ctx context.Context) (int64, error) {
 
 // ImportSchema inserts a schema with a specified ID (for migration).
 // Returns ErrSchemaIDConflict if the ID already exists.
-func (s *Store) ImportSchema(ctx context.Context, record *storage.SchemaRecord) error {
+func (s *Store) ImportSchema(ctx context.Context, registryCtx string, record *storage.SchemaRecord) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
@@ -1393,7 +1393,7 @@ func (s *Store) ImportSchema(ctx context.Context, record *storage.SchemaRecord) 
 
 // SetNextID sets the ID sequence to start from the given value.
 // Used after import to prevent ID conflicts.
-func (s *Store) SetNextID(ctx context.Context, id int64) error {
+func (s *Store) SetNextID(ctx context.Context, registryCtx string, id int64) error {
 	// Update the id_alloc table
 	_, err := s.db.ExecContext(ctx, "UPDATE id_alloc SET next_id = ? WHERE name = 'schema_id'", id)
 	if err != nil {
@@ -1409,7 +1409,7 @@ func (s *Store) SetNextID(ctx context.Context, id int64) error {
 }
 
 // GetReferencedBy returns subjects/versions that reference the given schema.
-func (s *Store) GetReferencedBy(ctx context.Context, subject string, version int) ([]storage.SubjectVersion, error) {
+func (s *Store) GetReferencedBy(ctx context.Context, registryCtx string, subject string, version int) ([]storage.SubjectVersion, error) {
 	rows, err := s.stmts.getReferencedBy.QueryContext(ctx, subject, version)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query references: %w", err)
@@ -1469,7 +1469,7 @@ func (s *Store) loadReferences(ctx context.Context, schemaID int64) ([]storage.R
 // GetSubjectsBySchemaID returns all subjects where the given schema ID is registered.
 // Uses fingerprint-based lookup for global deduplication: the same content registered
 // under different subjects shares the same API-visible schema ID.
-func (s *Store) GetSubjectsBySchemaID(ctx context.Context, id int64, includeDeleted bool) ([]string, error) {
+func (s *Store) GetSubjectsBySchemaID(ctx context.Context, registryCtx string, id int64, includeDeleted bool) ([]string, error) {
 	query := `SELECT DISTINCT s.subject FROM ` + "`schemas`" + ` s
 		WHERE s.fingerprint = COALESCE(
 			(SELECT fingerprint FROM schema_fingerprints WHERE schema_id = ?),
@@ -1503,7 +1503,7 @@ func (s *Store) GetSubjectsBySchemaID(ctx context.Context, id int64, includeDele
 
 // GetVersionsBySchemaID returns all subject-version pairs where the given schema ID is registered.
 // Uses fingerprint-based lookup for global deduplication.
-func (s *Store) GetVersionsBySchemaID(ctx context.Context, id int64, includeDeleted bool) ([]storage.SubjectVersion, error) {
+func (s *Store) GetVersionsBySchemaID(ctx context.Context, registryCtx string, id int64, includeDeleted bool) ([]storage.SubjectVersion, error) {
 	query := `SELECT s.subject, s.version FROM ` + "`schemas`" + ` s
 		WHERE s.fingerprint = COALESCE(
 			(SELECT fingerprint FROM schema_fingerprints WHERE schema_id = ?),
@@ -1536,7 +1536,7 @@ func (s *Store) GetVersionsBySchemaID(ctx context.Context, id int64, includeDele
 }
 
 // ListSchemas returns schemas matching the given filters.
-func (s *Store) ListSchemas(ctx context.Context, params *storage.ListSchemasParams) ([]*storage.SchemaRecord, error) {
+func (s *Store) ListSchemas(ctx context.Context, registryCtx string, params *storage.ListSchemasParams) ([]*storage.SchemaRecord, error) {
 	query := "SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at, metadata, ruleset FROM `schemas` WHERE 1=1"
 	args := []interface{}{}
 
@@ -1619,7 +1619,7 @@ func (s *Store) ListSchemas(ctx context.Context, params *storage.ListSchemasPara
 }
 
 // DeleteGlobalConfig resets the global config to default.
-func (s *Store) DeleteGlobalConfig(ctx context.Context) error {
+func (s *Store) DeleteGlobalConfig(ctx context.Context, registryCtx string) error {
 	_, err := s.db.ExecContext(ctx,
 		`INSERT INTO configs (subject, compatibility_level, alias, normalize, validate_fields, default_metadata, override_metadata, default_ruleset, override_ruleset, compatibility_group)
 		 VALUES ('', 'BACKWARD', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)
@@ -2067,6 +2067,11 @@ func contains(s, substr string) bool {
 		}
 	}
 	return false
+}
+
+// ListContexts returns all registry contexts. Currently only the default context is supported.
+func (s *Store) ListContexts(ctx context.Context) ([]string, error) {
+	return []string{"."}, nil
 }
 
 // Close closes the database connection.
