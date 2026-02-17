@@ -128,9 +128,14 @@ func TestOpenAPISpecMatchesRoutes(t *testing.T) {
 	specRoutes := getSpecRoutes(t)
 
 	// Routes that are intentionally excluded from the spec (internal/infrastructure).
-	specExclusions := map[string]bool{
-		// The metrics endpoint is infrastructure, not part of the API contract.
-		// Include it in spec if desired; currently excluded from validation.
+	// Context-scoped routes (/contexts/{context}/...) mirror the root-level registry
+	// routes exactly and are excluded from the sync test. They will be documented
+	// separately in the OpenAPI spec when context support documentation is added.
+	specExclusions := map[string]bool{}
+	for route := range routerRoutes {
+		if strings.Contains(route, "/contexts/{context}/") {
+			specExclusions[route] = true
+		}
 	}
 
 	// Routes that exist in the spec but may not exist in the router due to

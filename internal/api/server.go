@@ -116,57 +116,8 @@ func (s *Server) setupRouter() {
 			r.Use(s.rateLimiter.Middleware)
 		}
 
-		// Schema types
-		r.Get("/schemas/types", h.GetSchemaTypes)
-
-		// Schema listing
-		r.Get("/schemas", h.ListSchemas)
-
-		// Schema by ID
-		r.Get("/schemas/ids/{id}", h.GetSchemaByID)
-		r.Get("/schemas/ids/{id}/schema", h.GetRawSchemaByID)
-		r.Get("/schemas/ids/{id}/subjects", h.GetSubjectsBySchemaID)
-		r.Get("/schemas/ids/{id}/versions", h.GetVersionsBySchemaID)
-
-		// Subjects
-		r.Get("/subjects", h.ListSubjects)
-		r.Get("/subjects/{subject}/versions", h.GetVersions)
-		r.Get("/subjects/{subject}/versions/{version}", h.GetVersion)
-		r.Get("/subjects/{subject}/versions/{version}/schema", h.GetRawSchemaByVersion)
-		r.Get("/subjects/{subject}/versions/{version}/referencedby", h.GetReferencedBy)
-		r.Post("/subjects/{subject}/versions", h.RegisterSchema)
-		r.Post("/subjects/{subject}", h.LookupSchema)
-		r.Delete("/subjects/{subject}", h.DeleteSubject)
-		r.Delete("/subjects/{subject}/versions/{version}", h.DeleteVersion)
-
-		// Config
-		r.Get("/config", h.GetConfig)
-		r.Put("/config", h.SetConfig)
-		r.Delete("/config", h.DeleteGlobalConfig)
-		r.Get("/config/{subject}", h.GetConfig)
-		r.Put("/config/{subject}", h.SetConfig)
-		r.Delete("/config/{subject}", h.DeleteConfig)
-
-		// Mode
-		r.Get("/mode", h.GetMode)
-		r.Put("/mode", h.SetMode)
-		r.Get("/mode/{subject}", h.GetMode)
-		r.Put("/mode/{subject}", h.SetMode)
-		r.Delete("/mode/{subject}", h.DeleteMode)
-
-		// Import (for migration from other schema registries)
-		r.Post("/import/schemas", h.ImportSchemas)
-
-		// Compatibility
-		r.Post("/compatibility/subjects/{subject}/versions/{version}", h.CheckCompatibility)
-		r.Post("/compatibility/subjects/{subject}/versions", h.CheckCompatibility) // Check against all versions
-
-		// Contexts
-		r.Get("/contexts", h.GetContexts)
-
-		// Metadata (v1 API)
-		r.Get("/v1/metadata/id", h.GetClusterID)
-		r.Get("/v1/metadata/version", h.GetServerVersion)
+		// Mount all schema registry routes at root level (default context)
+		s.mountRegistryRoutes(r, h)
 
 		// Account endpoints (self-service, requires auth)
 		if s.authService != nil {
@@ -203,7 +154,87 @@ func (s *Server) setupRouter() {
 		}
 	})
 
+	// Context-scoped routes: /contexts/{context}/...
+	// These mirror the registry routes but scoped to a specific context.
+	r.Route("/contexts/{context}", func(r chi.Router) {
+		r.Use(contextExtractionMiddleware)
+
+		// Add auth middleware if configured
+		if s.authenticator != nil {
+			r.Use(s.authenticator.Middleware)
+		}
+
+		// Add authorization middleware if configured
+		if s.authorizer != nil {
+			r.Use(s.authorizer.AuthorizeEndpoint(auth.DefaultEndpointPermissions()))
+		}
+
+		// Add rate limiting middleware if configured
+		if s.rateLimiter != nil {
+			r.Use(s.rateLimiter.Middleware)
+		}
+
+		// Mount schema registry routes under context prefix
+		s.mountRegistryRoutes(r, h)
+	})
+
 	s.router = r
+}
+
+// mountRegistryRoutes registers all schema registry API routes on the given router.
+// This is called twice: once at root level (default context) and once under /contexts/{context}.
+func (s *Server) mountRegistryRoutes(r chi.Router, h *handlers.Handler) {
+	// Schema types
+	r.Get("/schemas/types", h.GetSchemaTypes)
+
+	// Schema listing
+	r.Get("/schemas", h.ListSchemas)
+
+	// Schema by ID
+	r.Get("/schemas/ids/{id}", h.GetSchemaByID)
+	r.Get("/schemas/ids/{id}/schema", h.GetRawSchemaByID)
+	r.Get("/schemas/ids/{id}/subjects", h.GetSubjectsBySchemaID)
+	r.Get("/schemas/ids/{id}/versions", h.GetVersionsBySchemaID)
+
+	// Subjects
+	r.Get("/subjects", h.ListSubjects)
+	r.Get("/subjects/{subject}/versions", h.GetVersions)
+	r.Get("/subjects/{subject}/versions/{version}", h.GetVersion)
+	r.Get("/subjects/{subject}/versions/{version}/schema", h.GetRawSchemaByVersion)
+	r.Get("/subjects/{subject}/versions/{version}/referencedby", h.GetReferencedBy)
+	r.Post("/subjects/{subject}/versions", h.RegisterSchema)
+	r.Post("/subjects/{subject}", h.LookupSchema)
+	r.Delete("/subjects/{subject}", h.DeleteSubject)
+	r.Delete("/subjects/{subject}/versions/{version}", h.DeleteVersion)
+
+	// Config
+	r.Get("/config", h.GetConfig)
+	r.Put("/config", h.SetConfig)
+	r.Delete("/config", h.DeleteGlobalConfig)
+	r.Get("/config/{subject}", h.GetConfig)
+	r.Put("/config/{subject}", h.SetConfig)
+	r.Delete("/config/{subject}", h.DeleteConfig)
+
+	// Mode
+	r.Get("/mode", h.GetMode)
+	r.Put("/mode", h.SetMode)
+	r.Get("/mode/{subject}", h.GetMode)
+	r.Put("/mode/{subject}", h.SetMode)
+	r.Delete("/mode/{subject}", h.DeleteMode)
+
+	// Import (for migration from other schema registries)
+	r.Post("/import/schemas", h.ImportSchemas)
+
+	// Compatibility
+	r.Post("/compatibility/subjects/{subject}/versions/{version}", h.CheckCompatibility)
+	r.Post("/compatibility/subjects/{subject}/versions", h.CheckCompatibility)
+
+	// Contexts
+	r.Get("/contexts", h.GetContexts)
+
+	// Metadata (v1 API)
+	r.Get("/v1/metadata/id", h.GetClusterID)
+	r.Get("/v1/metadata/version", h.GetServerVersion)
 }
 
 // loggingMiddleware logs HTTP requests.
