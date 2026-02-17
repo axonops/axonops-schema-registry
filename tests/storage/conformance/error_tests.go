@@ -19,7 +19,7 @@ func RunErrorTests(t *testing.T, newStore StoreFactory) {
 		defer store.Close()
 		ctx := context.Background()
 
-		_, err := store.GetSchemaByID(ctx, 999)
+		_, err := store.GetSchemaByID(ctx, ".", 999)
 		if err != storage.ErrSchemaNotFound {
 			t.Errorf("expected ErrSchemaNotFound, got %v", err)
 		}
@@ -30,7 +30,7 @@ func RunErrorTests(t *testing.T, newStore StoreFactory) {
 		defer store.Close()
 		ctx := context.Background()
 
-		_, err := store.GetSchemaBySubjectVersion(ctx, "nonexistent", 1)
+		_, err := store.GetSchemaBySubjectVersion(ctx, ".", "nonexistent", 1)
 		if err != storage.ErrSubjectNotFound {
 			t.Errorf("expected ErrSubjectNotFound, got %v", err)
 		}
@@ -42,9 +42,9 @@ func RunErrorTests(t *testing.T, newStore StoreFactory) {
 		ctx := context.Background()
 
 		rec := &storage.SchemaRecord{Subject: "s", SchemaType: storage.SchemaTypeAvro, Schema: `{"type":"string"}`, Fingerprint: "fp-vnf"}
-		store.CreateSchema(ctx, rec)
+		store.CreateSchema(ctx, ".", rec)
 
-		_, err := store.GetSchemaBySubjectVersion(ctx, "s", 99)
+		_, err := store.GetSchemaBySubjectVersion(ctx, ".", "s", 99)
 		if err != storage.ErrVersionNotFound {
 			t.Errorf("expected ErrVersionNotFound, got %v", err)
 		}
@@ -55,7 +55,7 @@ func RunErrorTests(t *testing.T, newStore StoreFactory) {
 		defer store.Close()
 		ctx := context.Background()
 
-		_, err := store.GetSchemasBySubject(ctx, "nonexistent", false)
+		_, err := store.GetSchemasBySubject(ctx, ".", "nonexistent", false)
 		if err != storage.ErrSubjectNotFound {
 			t.Errorf("expected ErrSubjectNotFound, got %v", err)
 		}
@@ -66,7 +66,7 @@ func RunErrorTests(t *testing.T, newStore StoreFactory) {
 		defer store.Close()
 		ctx := context.Background()
 
-		_, err := store.GetSchemaByFingerprint(ctx, "s", "no-such-fp", false)
+		_, err := store.GetSchemaByFingerprint(ctx, ".", "s", "no-such-fp", false)
 		// Some backends return ErrSubjectNotFound when subject doesn't exist,
 		// others return ErrSchemaNotFound. Both are acceptable.
 		if err == nil {
@@ -79,7 +79,7 @@ func RunErrorTests(t *testing.T, newStore StoreFactory) {
 		defer store.Close()
 		ctx := context.Background()
 
-		_, err := store.GetSchemaByGlobalFingerprint(ctx, "no-such-fp")
+		_, err := store.GetSchemaByGlobalFingerprint(ctx, ".", "no-such-fp")
 		if err != storage.ErrSchemaNotFound {
 			t.Errorf("expected ErrSchemaNotFound, got %v", err)
 		}
@@ -90,7 +90,7 @@ func RunErrorTests(t *testing.T, newStore StoreFactory) {
 		defer store.Close()
 		ctx := context.Background()
 
-		_, err := store.GetLatestSchema(ctx, "nonexistent")
+		_, err := store.GetLatestSchema(ctx, ".", "nonexistent")
 		if err != storage.ErrSubjectNotFound {
 			t.Errorf("expected ErrSubjectNotFound, got %v", err)
 		}
@@ -101,7 +101,7 @@ func RunErrorTests(t *testing.T, newStore StoreFactory) {
 		defer store.Close()
 		ctx := context.Background()
 
-		err := store.DeleteSchema(ctx, "nonexistent", 1, false)
+		err := store.DeleteSchema(ctx, ".", "nonexistent", 1, false)
 		if err != storage.ErrSubjectNotFound {
 			t.Errorf("expected ErrSubjectNotFound, got %v", err)
 		}
@@ -113,9 +113,9 @@ func RunErrorTests(t *testing.T, newStore StoreFactory) {
 		ctx := context.Background()
 
 		rec := &storage.SchemaRecord{Subject: "s", SchemaType: storage.SchemaTypeAvro, Schema: `{"type":"string"}`, Fingerprint: "fp-dvnf"}
-		store.CreateSchema(ctx, rec)
+		store.CreateSchema(ctx, ".", rec)
 
-		err := store.DeleteSchema(ctx, "s", 99, false)
+		err := store.DeleteSchema(ctx, ".", "s", 99, false)
 		if err != storage.ErrVersionNotFound {
 			t.Errorf("expected ErrVersionNotFound, got %v", err)
 		}
@@ -128,9 +128,9 @@ func RunErrorTests(t *testing.T, newStore StoreFactory) {
 
 		r1 := &storage.SchemaRecord{Subject: "s", SchemaType: storage.SchemaTypeAvro, Schema: `{"type":"string"}`, Fingerprint: "dup-fp"}
 		r2 := &storage.SchemaRecord{Subject: "s", SchemaType: storage.SchemaTypeAvro, Schema: `{"type":"string"}`, Fingerprint: "dup-fp"}
-		store.CreateSchema(ctx, r1)
+		store.CreateSchema(ctx, ".", r1)
 
-		err := store.CreateSchema(ctx, r2)
+		err := store.CreateSchema(ctx, ".", r2)
 		if err != storage.ErrSchemaExists {
 			t.Errorf("expected ErrSchemaExists, got %v", err)
 		}
@@ -143,9 +143,9 @@ func RunErrorTests(t *testing.T, newStore StoreFactory) {
 
 		r1 := &storage.SchemaRecord{ID: 1, Subject: "a", Version: 1, SchemaType: storage.SchemaTypeAvro, Schema: `{"type":"string"}`, Fingerprint: "fp-idc-1"}
 		r2 := &storage.SchemaRecord{ID: 1, Subject: "b", Version: 1, SchemaType: storage.SchemaTypeAvro, Schema: `{"type":"int"}`, Fingerprint: "fp-idc-2"}
-		store.ImportSchema(ctx, r1)
+		store.ImportSchema(ctx, ".", r1)
 
-		err := store.ImportSchema(ctx, r2)
+		err := store.ImportSchema(ctx, ".", r2)
 		if err != storage.ErrSchemaIDConflict {
 			t.Errorf("expected ErrSchemaIDConflict, got %v", err)
 		}
@@ -156,7 +156,7 @@ func RunErrorTests(t *testing.T, newStore StoreFactory) {
 		defer store.Close()
 		ctx := context.Background()
 
-		_, err := store.GetSubjectsBySchemaID(ctx, 999, false)
+		_, err := store.GetSubjectsBySchemaID(ctx, ".", 999, false)
 		if err != storage.ErrSchemaNotFound {
 			t.Errorf("expected ErrSchemaNotFound, got %v", err)
 		}
@@ -167,7 +167,7 @@ func RunErrorTests(t *testing.T, newStore StoreFactory) {
 		defer store.Close()
 		ctx := context.Background()
 
-		_, err := store.GetVersionsBySchemaID(ctx, 999, false)
+		_, err := store.GetVersionsBySchemaID(ctx, ".", 999, false)
 		if err != storage.ErrSchemaNotFound {
 			t.Errorf("expected ErrSchemaNotFound, got %v", err)
 		}
@@ -180,7 +180,7 @@ func RunErrorTests(t *testing.T, newStore StoreFactory) {
 		defer store.Close()
 		ctx := context.Background()
 
-		_, err := store.DeleteSubject(ctx, "nonexistent", false)
+		_, err := store.DeleteSubject(ctx, ".", "nonexistent", false)
 		if err != storage.ErrSubjectNotFound {
 			t.Errorf("expected ErrSubjectNotFound, got %v", err)
 		}
@@ -193,7 +193,7 @@ func RunErrorTests(t *testing.T, newStore StoreFactory) {
 		defer store.Close()
 		ctx := context.Background()
 
-		_, err := store.GetConfig(ctx, "nonexistent")
+		_, err := store.GetConfig(ctx, ".", "nonexistent")
 		if err != storage.ErrNotFound {
 			t.Errorf("expected ErrNotFound, got %v", err)
 		}
@@ -204,7 +204,7 @@ func RunErrorTests(t *testing.T, newStore StoreFactory) {
 		defer store.Close()
 		ctx := context.Background()
 
-		err := store.DeleteConfig(ctx, "nonexistent")
+		err := store.DeleteConfig(ctx, ".", "nonexistent")
 		if err != storage.ErrNotFound {
 			t.Errorf("expected ErrNotFound, got %v", err)
 		}
@@ -215,7 +215,7 @@ func RunErrorTests(t *testing.T, newStore StoreFactory) {
 		defer store.Close()
 		ctx := context.Background()
 
-		_, err := store.GetMode(ctx, "nonexistent")
+		_, err := store.GetMode(ctx, ".", "nonexistent")
 		if err != storage.ErrNotFound {
 			t.Errorf("expected ErrNotFound, got %v", err)
 		}
@@ -226,7 +226,7 @@ func RunErrorTests(t *testing.T, newStore StoreFactory) {
 		defer store.Close()
 		ctx := context.Background()
 
-		err := store.DeleteMode(ctx, "nonexistent")
+		err := store.DeleteMode(ctx, ".", "nonexistent")
 		if err != storage.ErrNotFound {
 			t.Errorf("expected ErrNotFound, got %v", err)
 		}

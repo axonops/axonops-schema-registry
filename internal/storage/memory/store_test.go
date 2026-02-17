@@ -18,7 +18,7 @@ func TestStore_CreateAndGetSchema(t *testing.T) {
 		Fingerprint: "abc123",
 	}
 
-	err := store.CreateSchema(ctx, record)
+	err := store.CreateSchema(ctx, ".", record)
 	if err != nil {
 		t.Fatalf("CreateSchema failed: %v", err)
 	}
@@ -31,7 +31,7 @@ func TestStore_CreateAndGetSchema(t *testing.T) {
 	}
 
 	// Get by ID
-	got, err := store.GetSchemaByID(ctx, record.ID)
+	got, err := store.GetSchemaByID(ctx, ".", record.ID)
 	if err != nil {
 		t.Fatalf("GetSchemaByID failed: %v", err)
 	}
@@ -40,7 +40,7 @@ func TestStore_CreateAndGetSchema(t *testing.T) {
 	}
 
 	// Get by subject/version
-	got, err = store.GetSchemaBySubjectVersion(ctx, "test-subject", 1)
+	got, err = store.GetSchemaBySubjectVersion(ctx, ".", "test-subject", 1)
 	if err != nil {
 		t.Fatalf("GetSchemaBySubjectVersion failed: %v", err)
 	}
@@ -60,7 +60,7 @@ func TestStore_DuplicateSchema(t *testing.T) {
 		Fingerprint: "abc123",
 	}
 
-	err := store.CreateSchema(ctx, record1)
+	err := store.CreateSchema(ctx, ".", record1)
 	if err != nil {
 		t.Fatalf("CreateSchema failed: %v", err)
 	}
@@ -73,7 +73,7 @@ func TestStore_DuplicateSchema(t *testing.T) {
 		Fingerprint: "abc123",
 	}
 
-	err = store.CreateSchema(ctx, record2)
+	err = store.CreateSchema(ctx, ".", record2)
 	if err != storage.ErrSchemaExists {
 		t.Errorf("Expected ErrSchemaExists, got %v", err)
 	}
@@ -95,7 +95,7 @@ func TestStore_MultipleVersions(t *testing.T) {
 		Schema:      `{"type": "string"}`,
 		Fingerprint: "fp1",
 	}
-	if err := store.CreateSchema(ctx, record1); err != nil {
+	if err := store.CreateSchema(ctx, ".", record1); err != nil {
 		t.Fatalf("CreateSchema v1 failed: %v", err)
 	}
 
@@ -106,7 +106,7 @@ func TestStore_MultipleVersions(t *testing.T) {
 		Schema:      `{"type": "int"}`,
 		Fingerprint: "fp2",
 	}
-	if err := store.CreateSchema(ctx, record2); err != nil {
+	if err := store.CreateSchema(ctx, ".", record2); err != nil {
 		t.Fatalf("CreateSchema v2 failed: %v", err)
 	}
 
@@ -115,7 +115,7 @@ func TestStore_MultipleVersions(t *testing.T) {
 	}
 
 	// Get latest
-	latest, err := store.GetLatestSchema(ctx, "test-subject")
+	latest, err := store.GetLatestSchema(ctx, ".", "test-subject")
 	if err != nil {
 		t.Fatalf("GetLatestSchema failed: %v", err)
 	}
@@ -137,12 +137,12 @@ func TestStore_ListSubjects(t *testing.T) {
 			Schema:      `{"type": "string"}`,
 			Fingerprint: string(rune('a' + i)),
 		}
-		if err := store.CreateSchema(ctx, record); err != nil {
+		if err := store.CreateSchema(ctx, ".", record); err != nil {
 			t.Fatalf("CreateSchema failed: %v", err)
 		}
 	}
 
-	got, err := store.ListSubjects(ctx, false)
+	got, err := store.ListSubjects(ctx, ".", false)
 	if err != nil {
 		t.Fatalf("ListSubjects failed: %v", err)
 	}
@@ -163,12 +163,12 @@ func TestStore_DeleteSubject(t *testing.T) {
 		Fingerprint: "abc123",
 	}
 
-	if err := store.CreateSchema(ctx, record); err != nil {
+	if err := store.CreateSchema(ctx, ".", record); err != nil {
 		t.Fatalf("CreateSchema failed: %v", err)
 	}
 
 	// Soft delete
-	versions, err := store.DeleteSubject(ctx, "test-subject", false)
+	versions, err := store.DeleteSubject(ctx, ".", "test-subject", false)
 	if err != nil {
 		t.Fatalf("DeleteSubject failed: %v", err)
 	}
@@ -177,13 +177,13 @@ func TestStore_DeleteSubject(t *testing.T) {
 	}
 
 	// Subject should not appear in list
-	subjects, _ := store.ListSubjects(ctx, false)
+	subjects, _ := store.ListSubjects(ctx, ".", false)
 	if len(subjects) != 0 {
 		t.Errorf("Expected 0 subjects, got %d", len(subjects))
 	}
 
 	// But should appear with deleted=true
-	subjects, _ = store.ListSubjects(ctx, true)
+	subjects, _ = store.ListSubjects(ctx, ".", true)
 	if len(subjects) != 1 {
 		t.Errorf("Expected 1 subject with deleted=true, got %d", len(subjects))
 	}
@@ -194,7 +194,7 @@ func TestStore_Config(t *testing.T) {
 	ctx := context.Background()
 
 	// Get global config (seeded default is BACKWARD)
-	config, err := store.GetGlobalConfig(ctx)
+	config, err := store.GetGlobalConfig(ctx, ".")
 	if err != nil {
 		t.Fatalf("Expected seeded default, got error %v", err)
 	}
@@ -203,23 +203,23 @@ func TestStore_Config(t *testing.T) {
 	}
 
 	// Set global config
-	err = store.SetGlobalConfig(ctx, &storage.ConfigRecord{CompatibilityLevel: "FULL"})
+	err = store.SetGlobalConfig(ctx, ".", &storage.ConfigRecord{CompatibilityLevel: "FULL"})
 	if err != nil {
 		t.Fatalf("SetGlobalConfig failed: %v", err)
 	}
 
-	config, _ = store.GetGlobalConfig(ctx)
+	config, _ = store.GetGlobalConfig(ctx, ".")
 	if config.CompatibilityLevel != "FULL" {
 		t.Errorf("Expected FULL, got %s", config.CompatibilityLevel)
 	}
 
 	// Set subject config
-	err = store.SetConfig(ctx, "test-subject", &storage.ConfigRecord{CompatibilityLevel: "NONE"})
+	err = store.SetConfig(ctx, ".", "test-subject", &storage.ConfigRecord{CompatibilityLevel: "NONE"})
 	if err != nil {
 		t.Fatalf("SetConfig failed: %v", err)
 	}
 
-	config, _ = store.GetConfig(ctx, "test-subject")
+	config, _ = store.GetConfig(ctx, ".", "test-subject")
 	if config.CompatibilityLevel != "NONE" {
 		t.Errorf("Expected NONE, got %s", config.CompatibilityLevel)
 	}
@@ -229,12 +229,12 @@ func TestStore_NotFound(t *testing.T) {
 	store := NewStore()
 	ctx := context.Background()
 
-	_, err := store.GetSchemaByID(ctx, 999)
+	_, err := store.GetSchemaByID(ctx, ".", 999)
 	if err != storage.ErrSchemaNotFound {
 		t.Errorf("Expected ErrSchemaNotFound, got %v", err)
 	}
 
-	_, err = store.GetSchemaBySubjectVersion(ctx, "nonexistent", 1)
+	_, err = store.GetSchemaBySubjectVersion(ctx, ".", "nonexistent", 1)
 	if err != storage.ErrSubjectNotFound {
 		t.Errorf("Expected ErrSubjectNotFound, got %v", err)
 	}
@@ -254,13 +254,13 @@ func TestStore_ImportSchema(t *testing.T) {
 		Fingerprint: "abc123",
 	}
 
-	err := store.ImportSchema(ctx, record)
+	err := store.ImportSchema(ctx, ".", record)
 	if err != nil {
 		t.Fatalf("ImportSchema failed: %v", err)
 	}
 
 	// Verify the schema was imported with the correct ID
-	got, err := store.GetSchemaByID(ctx, 42)
+	got, err := store.GetSchemaByID(ctx, ".", 42)
 	if err != nil {
 		t.Fatalf("GetSchemaByID failed: %v", err)
 	}
@@ -272,7 +272,7 @@ func TestStore_ImportSchema(t *testing.T) {
 	}
 
 	// Verify by subject/version
-	got, err = store.GetSchemaBySubjectVersion(ctx, "test-subject", 1)
+	got, err = store.GetSchemaBySubjectVersion(ctx, ".", "test-subject", 1)
 	if err != nil {
 		t.Fatalf("GetSchemaBySubjectVersion failed: %v", err)
 	}
@@ -294,7 +294,7 @@ func TestStore_ImportSchema_IDConflict(t *testing.T) {
 		Schema:      `{"type": "string"}`,
 		Fingerprint: "fp1",
 	}
-	if err := store.ImportSchema(ctx, record1); err != nil {
+	if err := store.ImportSchema(ctx, ".", record1); err != nil {
 		t.Fatalf("ImportSchema failed: %v", err)
 	}
 
@@ -307,7 +307,7 @@ func TestStore_ImportSchema_IDConflict(t *testing.T) {
 		Schema:      `{"type": "int"}`,
 		Fingerprint: "fp2",
 	}
-	err := store.ImportSchema(ctx, record2)
+	err := store.ImportSchema(ctx, ".", record2)
 	if err != storage.ErrSchemaIDConflict {
 		t.Errorf("Expected ErrSchemaIDConflict, got %v", err)
 	}
@@ -326,7 +326,7 @@ func TestStore_ImportSchema_VersionConflict(t *testing.T) {
 		Schema:      `{"type": "string"}`,
 		Fingerprint: "fp1",
 	}
-	if err := store.ImportSchema(ctx, record1); err != nil {
+	if err := store.ImportSchema(ctx, ".", record1); err != nil {
 		t.Fatalf("ImportSchema failed: %v", err)
 	}
 
@@ -339,7 +339,7 @@ func TestStore_ImportSchema_VersionConflict(t *testing.T) {
 		Schema:      `{"type": "int"}`,
 		Fingerprint: "fp2",
 	}
-	err := store.ImportSchema(ctx, record2)
+	err := store.ImportSchema(ctx, ".", record2)
 	if err != storage.ErrSchemaExists {
 		t.Errorf("Expected ErrSchemaExists, got %v", err)
 	}
@@ -350,13 +350,13 @@ func TestStore_SetNextID(t *testing.T) {
 	ctx := context.Background()
 
 	// Set next ID to 100
-	err := store.SetNextID(ctx, 100)
+	err := store.SetNextID(ctx, ".", 100)
 	if err != nil {
 		t.Fatalf("SetNextID failed: %v", err)
 	}
 
 	// Next ID should be 100
-	id, err := store.NextID(ctx)
+	id, err := store.NextID(ctx, ".")
 	if err != nil {
 		t.Fatalf("NextID failed: %v", err)
 	}
@@ -365,7 +365,7 @@ func TestStore_SetNextID(t *testing.T) {
 	}
 
 	// Next call should return 101
-	id, err = store.NextID(ctx)
+	id, err = store.NextID(ctx, ".")
 	if err != nil {
 		t.Fatalf("NextID failed: %v", err)
 	}
@@ -398,13 +398,13 @@ func TestStore_ImportMultipleSchemas(t *testing.T) {
 			Schema:      `{"type": "string"}`,
 			Fingerprint: string(rune(s.id)),
 		}
-		if err := store.ImportSchema(ctx, record); err != nil {
+		if err := store.ImportSchema(ctx, ".", record); err != nil {
 			t.Fatalf("ImportSchema failed for id=%d: %v", s.id, err)
 		}
 	}
 
 	// Set next ID to be after the highest imported ID
-	if err := store.SetNextID(ctx, 31); err != nil {
+	if err := store.SetNextID(ctx, ".", 31); err != nil {
 		t.Fatalf("SetNextID failed: %v", err)
 	}
 
@@ -415,7 +415,7 @@ func TestStore_ImportMultipleSchemas(t *testing.T) {
 		Schema:      `{"type": "int"}`,
 		Fingerprint: "new",
 	}
-	if err := store.CreateSchema(ctx, newRecord); err != nil {
+	if err := store.CreateSchema(ctx, ".", newRecord); err != nil {
 		t.Fatalf("CreateSchema failed: %v", err)
 	}
 	if newRecord.ID != 31 {
@@ -423,7 +423,7 @@ func TestStore_ImportMultipleSchemas(t *testing.T) {
 	}
 
 	// Verify all subjects exist
-	subjects, err := store.ListSubjects(ctx, false)
+	subjects, err := store.ListSubjects(ctx, ".", false)
 	if err != nil {
 		t.Fatalf("ListSubjects failed: %v", err)
 	}

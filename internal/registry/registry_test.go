@@ -23,7 +23,7 @@ func setupTestRegistry(defaultCompatibility string) *Registry {
 	store := memory.NewStore()
 	// Set the global config to match the requested default so the store's
 	// seeded BACKWARD doesn't override what the test expects.
-	store.SetGlobalConfig(context.Background(), &storage.ConfigRecord{CompatibilityLevel: defaultCompatibility})
+	store.SetGlobalConfig(context.Background(), ".", &storage.ConfigRecord{CompatibilityLevel: defaultCompatibility})
 
 	schemaRegistry := schema.NewRegistry()
 	schemaRegistry.Register(avro.NewParser())
@@ -37,7 +37,7 @@ func setupTestRegistry(defaultCompatibility string) *Registry {
 // setupMultiTypeRegistry creates a test registry supporting all three schema types.
 func setupMultiTypeRegistry(defaultCompatibility string) *Registry {
 	store := memory.NewStore()
-	store.SetGlobalConfig(context.Background(), &storage.ConfigRecord{CompatibilityLevel: defaultCompatibility})
+	store.SetGlobalConfig(context.Background(), ".", &storage.ConfigRecord{CompatibilityLevel: defaultCompatibility})
 
 	schemaRegistry := schema.NewRegistry()
 	schemaRegistry.Register(avro.NewParser())
@@ -59,7 +59,7 @@ func TestRegisterSchema_DefaultsToAvro(t *testing.T) {
 	ctx := context.Background()
 
 	schema := `{"type":"record","name":"Test","fields":[{"name":"id","type":"int"}]}`
-	record, err := reg.RegisterSchema(ctx, "test-subject", schema, "", nil) // empty type
+	record, err := reg.RegisterSchema(ctx, ".", "test-subject", schema, "", nil) // empty type
 	if err != nil {
 		t.Fatalf("failed to register: %v", err)
 	}
@@ -72,7 +72,7 @@ func TestRegisterSchema_UnsupportedType(t *testing.T) {
 	reg := setupTestRegistry("NONE")
 	ctx := context.Background()
 
-	_, err := reg.RegisterSchema(ctx, "test-subject", "{}", "UNKNOWN_TYPE", nil)
+	_, err := reg.RegisterSchema(ctx, ".", "test-subject", "{}", "UNKNOWN_TYPE", nil)
 	if err == nil {
 		t.Error("expected error for unsupported schema type")
 	}
@@ -82,7 +82,7 @@ func TestRegisterSchema_InvalidSchema(t *testing.T) {
 	reg := setupTestRegistry("NONE")
 	ctx := context.Background()
 
-	_, err := reg.RegisterSchema(ctx, "test-subject", "not valid avro", storage.SchemaTypeAvro, nil)
+	_, err := reg.RegisterSchema(ctx, ".", "test-subject", "not valid avro", storage.SchemaTypeAvro, nil)
 	if err == nil {
 		t.Error("expected error for invalid schema")
 	}
@@ -94,12 +94,12 @@ func TestRegisterSchema_DuplicateReturnsExisting(t *testing.T) {
 
 	schema := `{"type":"record","name":"Test","fields":[{"name":"id","type":"int"}]}`
 
-	rec1, err := reg.RegisterSchema(ctx, "test-subject", schema, storage.SchemaTypeAvro, nil)
+	rec1, err := reg.RegisterSchema(ctx, ".", "test-subject", schema, storage.SchemaTypeAvro, nil)
 	if err != nil {
 		t.Fatalf("first register failed: %v", err)
 	}
 
-	rec2, err := reg.RegisterSchema(ctx, "test-subject", schema, storage.SchemaTypeAvro, nil)
+	rec2, err := reg.RegisterSchema(ctx, ".", "test-subject", schema, storage.SchemaTypeAvro, nil)
 	if err != nil {
 		t.Fatalf("second register failed: %v", err)
 	}
@@ -114,14 +114,14 @@ func TestRegisterSchema_CompatibilityRejection(t *testing.T) {
 	ctx := context.Background()
 
 	schema1 := `{"type":"record","name":"Test","fields":[{"name":"id","type":"int"}]}`
-	_, err := reg.RegisterSchema(ctx, "test-subject", schema1, storage.SchemaTypeAvro, nil)
+	_, err := reg.RegisterSchema(ctx, ".", "test-subject", schema1, storage.SchemaTypeAvro, nil)
 	if err != nil {
 		t.Fatalf("failed to register v1: %v", err)
 	}
 
 	// Incompatible: adds required field (no default)
 	schema2 := `{"type":"record","name":"Test","fields":[{"name":"id","type":"int"},{"name":"name","type":"string"}]}`
-	_, err = reg.RegisterSchema(ctx, "test-subject", schema2, storage.SchemaTypeAvro, nil)
+	_, err = reg.RegisterSchema(ctx, ".", "test-subject", schema2, storage.SchemaTypeAvro, nil)
 	if err == nil {
 		t.Error("expected compatibility error")
 	}
@@ -135,14 +135,14 @@ func TestRegisterSchema_CompatibilityNone(t *testing.T) {
 	ctx := context.Background()
 
 	schema1 := `{"type":"record","name":"Test","fields":[{"name":"id","type":"int"}]}`
-	_, err := reg.RegisterSchema(ctx, "test-subject", schema1, storage.SchemaTypeAvro, nil)
+	_, err := reg.RegisterSchema(ctx, ".", "test-subject", schema1, storage.SchemaTypeAvro, nil)
 	if err != nil {
 		t.Fatalf("failed to register v1: %v", err)
 	}
 
 	// With NONE, any schema should pass (even incompatible ones)
 	schema2 := `{"type":"record","name":"Test","fields":[{"name":"name","type":"string"}]}`
-	_, err = reg.RegisterSchema(ctx, "test-subject", schema2, storage.SchemaTypeAvro, nil)
+	_, err = reg.RegisterSchema(ctx, ".", "test-subject", schema2, storage.SchemaTypeAvro, nil)
 	if err != nil {
 		t.Errorf("NONE compatibility should allow any schema: %v", err)
 	}
@@ -153,7 +153,7 @@ func TestRegisterSchema_JSONSchema(t *testing.T) {
 	ctx := context.Background()
 
 	schema := `{"type":"object","properties":{"name":{"type":"string"}}}`
-	record, err := reg.RegisterSchema(ctx, "json-subject", schema, storage.SchemaTypeJSON, nil)
+	record, err := reg.RegisterSchema(ctx, ".", "json-subject", schema, storage.SchemaTypeJSON, nil)
 	if err != nil {
 		t.Fatalf("failed to register JSON schema: %v", err)
 	}
@@ -167,7 +167,7 @@ func TestRegisterSchema_Protobuf(t *testing.T) {
 	ctx := context.Background()
 
 	schema := `syntax = "proto3"; message User { string name = 1; }`
-	record, err := reg.RegisterSchema(ctx, "proto-subject", schema, storage.SchemaTypeProtobuf, nil)
+	record, err := reg.RegisterSchema(ctx, ".", "proto-subject", schema, storage.SchemaTypeProtobuf, nil)
 	if err != nil {
 		t.Fatalf("failed to register Protobuf schema: %v", err)
 	}
@@ -183,12 +183,12 @@ func TestGetSchemaByID(t *testing.T) {
 	ctx := context.Background()
 
 	schema := `{"type":"record","name":"Test","fields":[{"name":"id","type":"int"}]}`
-	record, err := reg.RegisterSchema(ctx, "test-subject", schema, storage.SchemaTypeAvro, nil)
+	record, err := reg.RegisterSchema(ctx, ".", "test-subject", schema, storage.SchemaTypeAvro, nil)
 	if err != nil {
 		t.Fatalf("failed to register: %v", err)
 	}
 
-	found, err := reg.GetSchemaByID(ctx, record.ID)
+	found, err := reg.GetSchemaByID(ctx, ".", record.ID)
 	if err != nil {
 		t.Fatalf("failed to get by ID: %v", err)
 	}
@@ -207,7 +207,7 @@ func TestGetSchemaByID_NotFound(t *testing.T) {
 	reg := setupTestRegistry("NONE")
 	ctx := context.Background()
 
-	_, err := reg.GetSchemaByID(ctx, 99999)
+	_, err := reg.GetSchemaByID(ctx, ".", 99999)
 	if err == nil {
 		t.Error("expected error for non-existent ID")
 	}
@@ -220,12 +220,12 @@ func TestGetSchemaBySubjectVersion(t *testing.T) {
 	ctx := context.Background()
 
 	schema := `{"type":"record","name":"Test","fields":[{"name":"id","type":"int"}]}`
-	_, err := reg.RegisterSchema(ctx, "test-subject", schema, storage.SchemaTypeAvro, nil)
+	_, err := reg.RegisterSchema(ctx, ".", "test-subject", schema, storage.SchemaTypeAvro, nil)
 	if err != nil {
 		t.Fatalf("failed to register: %v", err)
 	}
 
-	found, err := reg.GetSchemaBySubjectVersion(ctx, "test-subject", 1)
+	found, err := reg.GetSchemaBySubjectVersion(ctx, ".", "test-subject", 1)
 	if err != nil {
 		t.Fatalf("failed to get: %v", err)
 	}
@@ -238,7 +238,7 @@ func TestGetSchemaBySubjectVersion_NotFound(t *testing.T) {
 	reg := setupTestRegistry("NONE")
 	ctx := context.Background()
 
-	_, err := reg.GetSchemaBySubjectVersion(ctx, "nonexistent", 1)
+	_, err := reg.GetSchemaBySubjectVersion(ctx, ".", "nonexistent", 1)
 	if err == nil {
 		t.Error("expected error for non-existent subject/version")
 	}
@@ -253,16 +253,16 @@ func TestGetVersions(t *testing.T) {
 	s1 := `{"type":"record","name":"Test","fields":[{"name":"id","type":"int"}]}`
 	s2 := `{"type":"record","name":"Test","fields":[{"name":"id","type":"int"},{"name":"f","type":"string","default":""}]}`
 
-	_, err := reg.RegisterSchema(ctx, "test-subject", s1, storage.SchemaTypeAvro, nil)
+	_, err := reg.RegisterSchema(ctx, ".", "test-subject", s1, storage.SchemaTypeAvro, nil)
 	if err != nil {
 		t.Fatalf("failed to register v1: %v", err)
 	}
-	_, err = reg.RegisterSchema(ctx, "test-subject", s2, storage.SchemaTypeAvro, nil)
+	_, err = reg.RegisterSchema(ctx, ".", "test-subject", s2, storage.SchemaTypeAvro, nil)
 	if err != nil {
 		t.Fatalf("failed to register v2: %v", err)
 	}
 
-	versions, err := reg.GetVersions(ctx, "test-subject", false)
+	versions, err := reg.GetVersions(ctx, ".", "test-subject", false)
 	if err != nil {
 		t.Fatalf("failed to get versions: %v", err)
 	}
@@ -275,7 +275,7 @@ func TestGetVersions_NonexistentSubject(t *testing.T) {
 	reg := setupTestRegistry("NONE")
 	ctx := context.Background()
 
-	_, err := reg.GetVersions(ctx, "nonexistent", false)
+	_, err := reg.GetVersions(ctx, ".", "nonexistent", false)
 	if err == nil {
 		t.Error("expected error for nonexistent subject")
 	}
@@ -287,7 +287,7 @@ func TestListSubjects(t *testing.T) {
 	reg := setupTestRegistry("NONE")
 	ctx := context.Background()
 
-	subjects, err := reg.ListSubjects(ctx, false)
+	subjects, err := reg.ListSubjects(ctx, ".", false)
 	if err != nil {
 		t.Fatalf("failed to list: %v", err)
 	}
@@ -296,12 +296,12 @@ func TestListSubjects(t *testing.T) {
 	}
 
 	s := `{"type":"record","name":"Test","fields":[{"name":"id","type":"int"}]}`
-	_, err = reg.RegisterSchema(ctx, "subject-1", s, storage.SchemaTypeAvro, nil)
+	_, err = reg.RegisterSchema(ctx, ".", "subject-1", s, storage.SchemaTypeAvro, nil)
 	if err != nil {
 		t.Fatalf("failed to register: %v", err)
 	}
 
-	subjects, err = reg.ListSubjects(ctx, false)
+	subjects, err = reg.ListSubjects(ctx, ".", false)
 	if err != nil {
 		t.Fatalf("failed to list: %v", err)
 	}
@@ -319,16 +319,16 @@ func TestDeleteVersion(t *testing.T) {
 	s1 := `{"type":"record","name":"Test","fields":[{"name":"id","type":"int"}]}`
 	s2 := `{"type":"record","name":"Test","fields":[{"name":"id","type":"int"},{"name":"f","type":"string","default":""}]}`
 
-	_, err := reg.RegisterSchema(ctx, "test-subject", s1, storage.SchemaTypeAvro, nil)
+	_, err := reg.RegisterSchema(ctx, ".", "test-subject", s1, storage.SchemaTypeAvro, nil)
 	if err != nil {
 		t.Fatalf("failed to register v1: %v", err)
 	}
-	_, err = reg.RegisterSchema(ctx, "test-subject", s2, storage.SchemaTypeAvro, nil)
+	_, err = reg.RegisterSchema(ctx, ".", "test-subject", s2, storage.SchemaTypeAvro, nil)
 	if err != nil {
 		t.Fatalf("failed to register v2: %v", err)
 	}
 
-	ver, err := reg.DeleteVersion(ctx, "test-subject", 1, false)
+	ver, err := reg.DeleteVersion(ctx, ".", "test-subject", 1, false)
 	if err != nil {
 		t.Fatalf("failed to delete: %v", err)
 	}
@@ -342,12 +342,12 @@ func TestDeleteVersion_NonexistentVersion(t *testing.T) {
 	ctx := context.Background()
 
 	s := `{"type":"record","name":"Test","fields":[{"name":"id","type":"int"}]}`
-	_, err := reg.RegisterSchema(ctx, "test-subject", s, storage.SchemaTypeAvro, nil)
+	_, err := reg.RegisterSchema(ctx, ".", "test-subject", s, storage.SchemaTypeAvro, nil)
 	if err != nil {
 		t.Fatalf("failed to register: %v", err)
 	}
 
-	_, err = reg.DeleteVersion(ctx, "test-subject", 999, false)
+	_, err = reg.DeleteVersion(ctx, ".", "test-subject", 999, false)
 	if err == nil {
 		t.Error("expected error for non-existent version")
 	}
@@ -359,7 +359,7 @@ func TestDeleteVersion_ReferencedBlocked(t *testing.T) {
 
 	// Register base schema
 	base := `{"type":"record","name":"Base","namespace":"test","fields":[{"name":"id","type":"int"}]}`
-	_, err := reg.RegisterSchema(ctx, "base-subject", base, storage.SchemaTypeAvro, nil)
+	_, err := reg.RegisterSchema(ctx, ".", "base-subject", base, storage.SchemaTypeAvro, nil)
 	if err != nil {
 		t.Fatalf("failed to register base: %v", err)
 	}
@@ -367,13 +367,13 @@ func TestDeleteVersion_ReferencedBlocked(t *testing.T) {
 	// Register referencing schema
 	referencing := `{"type":"record","name":"Ref","namespace":"test","fields":[{"name":"base","type":"test.Base"}]}`
 	refs := []storage.Reference{{Name: "test.Base", Subject: "base-subject", Version: 1}}
-	_, err = reg.RegisterSchema(ctx, "ref-subject", referencing, storage.SchemaTypeAvro, refs)
+	_, err = reg.RegisterSchema(ctx, ".", "ref-subject", referencing, storage.SchemaTypeAvro, refs)
 	if err != nil {
 		t.Fatalf("failed to register referencing: %v", err)
 	}
 
 	// Attempt to delete referenced version - should be blocked
-	_, err = reg.DeleteVersion(ctx, "base-subject", 1, false)
+	_, err = reg.DeleteVersion(ctx, ".", "base-subject", 1, false)
 	if err == nil {
 		t.Error("expected error when deleting referenced version")
 	}
@@ -385,7 +385,7 @@ func TestGetConfig_SubjectFallsBackToGlobal(t *testing.T) {
 	reg := setupTestRegistry("BACKWARD")
 	ctx := context.Background()
 
-	level, err := reg.GetConfig(ctx, "nonexistent-subject")
+	level, err := reg.GetConfig(ctx, ".", "nonexistent-subject")
 	if err != nil {
 		t.Fatalf("failed to get config: %v", err)
 	}
@@ -399,7 +399,7 @@ func TestGetConfig_GlobalReturnsStoredValue(t *testing.T) {
 	ctx := context.Background()
 
 	// setupTestRegistry sets the global config to match the requested default.
-	level, err := reg.GetConfig(ctx, "")
+	level, err := reg.GetConfig(ctx, ".", "")
 	if err != nil {
 		t.Fatalf("failed to get global config: %v", err)
 	}
@@ -412,12 +412,12 @@ func TestSetConfig_SubjectLevel(t *testing.T) {
 	reg := setupTestRegistry("BACKWARD")
 	ctx := context.Background()
 
-	err := reg.SetConfig(ctx, "my-subject", "FULL", nil)
+	err := reg.SetConfig(ctx, ".", "my-subject", "FULL", nil)
 	if err != nil {
 		t.Fatalf("failed to set config: %v", err)
 	}
 
-	level, err := reg.GetConfig(ctx, "my-subject")
+	level, err := reg.GetConfig(ctx, ".", "my-subject")
 	if err != nil {
 		t.Fatalf("failed to get config: %v", err)
 	}
@@ -430,12 +430,12 @@ func TestSetConfig_GlobalLevel(t *testing.T) {
 	reg := setupTestRegistry("BACKWARD")
 	ctx := context.Background()
 
-	err := reg.SetConfig(ctx, "", "NONE", nil)
+	err := reg.SetConfig(ctx, ".", "", "NONE", nil)
 	if err != nil {
 		t.Fatalf("failed to set global config: %v", err)
 	}
 
-	level, err := reg.GetConfig(ctx, "")
+	level, err := reg.GetConfig(ctx, ".", "")
 	if err != nil {
 		t.Fatalf("failed to get global config: %v", err)
 	}
@@ -448,7 +448,7 @@ func TestSetConfig_InvalidLevel(t *testing.T) {
 	reg := setupTestRegistry("BACKWARD")
 	ctx := context.Background()
 
-	err := reg.SetConfig(ctx, "test", "INVALID", nil)
+	err := reg.SetConfig(ctx, ".", "test", "INVALID", nil)
 	if err == nil {
 		t.Error("expected error for invalid compatibility level")
 	}
@@ -458,7 +458,7 @@ func TestSetConfig_CaseInsensitive(t *testing.T) {
 	reg := setupTestRegistry("BACKWARD")
 	ctx := context.Background()
 
-	err := reg.SetConfig(ctx, "test", "backward", nil)
+	err := reg.SetConfig(ctx, ".", "test", "backward", nil)
 	if err != nil {
 		t.Fatalf("expected lowercase to be accepted: %v", err)
 	}
@@ -475,7 +475,7 @@ func TestSetConfig_AllValidLevels(t *testing.T) {
 	}
 
 	for _, level := range validLevels {
-		err := reg.SetConfig(ctx, "", level, nil)
+		err := reg.SetConfig(ctx, ".", "", level, nil)
 		if err != nil {
 			t.Errorf("level %s should be valid: %v", level, err)
 		}
@@ -486,12 +486,12 @@ func TestDeleteConfig(t *testing.T) {
 	reg := setupTestRegistry("BACKWARD")
 	ctx := context.Background()
 
-	err := reg.SetConfig(ctx, "my-subject", "FULL", nil)
+	err := reg.SetConfig(ctx, ".", "my-subject", "FULL", nil)
 	if err != nil {
 		t.Fatalf("failed to set config: %v", err)
 	}
 
-	prev, err := reg.DeleteConfig(ctx, "my-subject")
+	prev, err := reg.DeleteConfig(ctx, ".", "my-subject")
 	if err != nil {
 		t.Fatalf("failed to delete config: %v", err)
 	}
@@ -500,7 +500,7 @@ func TestDeleteConfig(t *testing.T) {
 	}
 
 	// After delete, should fall back to global/default
-	level, err := reg.GetConfig(ctx, "my-subject")
+	level, err := reg.GetConfig(ctx, ".", "my-subject")
 	if err != nil {
 		t.Fatalf("failed to get config after delete: %v", err)
 	}
@@ -513,7 +513,7 @@ func TestDeleteConfig_NotFound(t *testing.T) {
 	reg := setupTestRegistry("BACKWARD")
 	ctx := context.Background()
 
-	_, err := reg.DeleteConfig(ctx, "nonexistent")
+	_, err := reg.DeleteConfig(ctx, ".", "nonexistent")
 	if err == nil {
 		t.Error("expected error when deleting non-existent config")
 	}
@@ -523,12 +523,12 @@ func TestDeleteGlobalConfig(t *testing.T) {
 	reg := setupTestRegistry("BACKWARD")
 	ctx := context.Background()
 
-	err := reg.SetConfig(ctx, "", "FULL", nil)
+	err := reg.SetConfig(ctx, ".", "", "FULL", nil)
 	if err != nil {
 		t.Fatalf("failed to set global config: %v", err)
 	}
 
-	prev, err := reg.DeleteGlobalConfig(ctx)
+	prev, err := reg.DeleteGlobalConfig(ctx, ".")
 	if err != nil {
 		t.Fatalf("failed to delete global config: %v", err)
 	}
@@ -542,7 +542,7 @@ func TestDeleteGlobalConfig_NoExistingConfig(t *testing.T) {
 	ctx := context.Background()
 
 	// When no global config is set, should return the default
-	prev, err := reg.DeleteGlobalConfig(ctx)
+	prev, err := reg.DeleteGlobalConfig(ctx, ".")
 	if err != nil {
 		t.Fatalf("delete global config should not error: %v", err)
 	}
@@ -557,7 +557,7 @@ func TestGetMode_DefaultReadWrite(t *testing.T) {
 	reg := setupTestRegistry("NONE")
 	ctx := context.Background()
 
-	mode, err := reg.GetMode(ctx, "")
+	mode, err := reg.GetMode(ctx, ".", "")
 	if err != nil {
 		t.Fatalf("failed to get mode: %v", err)
 	}
@@ -570,7 +570,7 @@ func TestGetMode_SubjectFallsBackToGlobal(t *testing.T) {
 	reg := setupTestRegistry("NONE")
 	ctx := context.Background()
 
-	mode, err := reg.GetMode(ctx, "some-subject")
+	mode, err := reg.GetMode(ctx, ".", "some-subject")
 	if err != nil {
 		t.Fatalf("failed to get mode: %v", err)
 	}
@@ -583,12 +583,12 @@ func TestSetMode(t *testing.T) {
 	reg := setupTestRegistry("NONE")
 	ctx := context.Background()
 
-	err := reg.SetMode(ctx, "my-subject", "READONLY", false)
+	err := reg.SetMode(ctx, ".", "my-subject", "READONLY", false)
 	if err != nil {
 		t.Fatalf("failed to set mode: %v", err)
 	}
 
-	mode, err := reg.GetMode(ctx, "my-subject")
+	mode, err := reg.GetMode(ctx, ".", "my-subject")
 	if err != nil {
 		t.Fatalf("failed to get mode: %v", err)
 	}
@@ -601,12 +601,12 @@ func TestSetMode_Global(t *testing.T) {
 	reg := setupTestRegistry("NONE")
 	ctx := context.Background()
 
-	err := reg.SetMode(ctx, "", "IMPORT", true)
+	err := reg.SetMode(ctx, ".", "", "IMPORT", true)
 	if err != nil {
 		t.Fatalf("failed to set global mode: %v", err)
 	}
 
-	mode, err := reg.GetMode(ctx, "")
+	mode, err := reg.GetMode(ctx, ".", "")
 	if err != nil {
 		t.Fatalf("failed to get global mode: %v", err)
 	}
@@ -619,7 +619,7 @@ func TestSetMode_Invalid(t *testing.T) {
 	reg := setupTestRegistry("NONE")
 	ctx := context.Background()
 
-	err := reg.SetMode(ctx, "", "INVALID", false)
+	err := reg.SetMode(ctx, ".", "", "INVALID", false)
 	if err == nil {
 		t.Error("expected error for invalid mode")
 	}
@@ -631,7 +631,7 @@ func TestSetMode_AllValidModes(t *testing.T) {
 
 	validModes := []string{"READWRITE", "READONLY", "IMPORT"}
 	for _, mode := range validModes {
-		err := reg.SetMode(ctx, "", mode, true)
+		err := reg.SetMode(ctx, ".", "", mode, true)
 		if err != nil {
 			t.Errorf("mode %s should be valid: %v", mode, err)
 		}
@@ -642,7 +642,7 @@ func TestSetMode_CaseInsensitive(t *testing.T) {
 	reg := setupTestRegistry("NONE")
 	ctx := context.Background()
 
-	err := reg.SetMode(ctx, "", "readonly", false)
+	err := reg.SetMode(ctx, ".", "", "readonly", false)
 	if err != nil {
 		t.Fatalf("expected lowercase to be accepted: %v", err)
 	}
@@ -652,12 +652,12 @@ func TestDeleteMode(t *testing.T) {
 	reg := setupTestRegistry("NONE")
 	ctx := context.Background()
 
-	err := reg.SetMode(ctx, "my-subject", "READONLY", false)
+	err := reg.SetMode(ctx, ".", "my-subject", "READONLY", false)
 	if err != nil {
 		t.Fatalf("failed to set mode: %v", err)
 	}
 
-	prev, err := reg.DeleteMode(ctx, "my-subject")
+	prev, err := reg.DeleteMode(ctx, ".", "my-subject")
 	if err != nil {
 		t.Fatalf("failed to delete mode: %v", err)
 	}
@@ -670,7 +670,7 @@ func TestDeleteMode_NotFound(t *testing.T) {
 	reg := setupTestRegistry("NONE")
 	ctx := context.Background()
 
-	_, err := reg.DeleteMode(ctx, "nonexistent")
+	_, err := reg.DeleteMode(ctx, ".", "nonexistent")
 	if err == nil {
 		t.Error("expected error when deleting non-existent mode")
 	}
@@ -683,12 +683,12 @@ func TestLookupSchema(t *testing.T) {
 	ctx := context.Background()
 
 	schema := `{"type":"record","name":"Test","fields":[{"name":"id","type":"int"}]}`
-	record, err := reg.RegisterSchema(ctx, "test-subject", schema, storage.SchemaTypeAvro, nil)
+	record, err := reg.RegisterSchema(ctx, ".", "test-subject", schema, storage.SchemaTypeAvro, nil)
 	if err != nil {
 		t.Fatalf("failed to register: %v", err)
 	}
 
-	found, err := reg.LookupSchema(ctx, "test-subject", schema, storage.SchemaTypeAvro, nil, false)
+	found, err := reg.LookupSchema(ctx, ".", "test-subject", schema, storage.SchemaTypeAvro, nil, false)
 	if err != nil {
 		t.Fatalf("failed to lookup: %v", err)
 	}
@@ -702,7 +702,7 @@ func TestLookupSchema_NotFound(t *testing.T) {
 	ctx := context.Background()
 
 	schema := `{"type":"record","name":"Test","fields":[{"name":"id","type":"int"}]}`
-	_, err := reg.LookupSchema(ctx, "nonexistent", schema, storage.SchemaTypeAvro, nil, false)
+	_, err := reg.LookupSchema(ctx, ".", "nonexistent", schema, storage.SchemaTypeAvro, nil, false)
 	if err == nil {
 		t.Error("expected error for nonexistent subject")
 	}
@@ -712,7 +712,7 @@ func TestLookupSchema_InvalidSchema(t *testing.T) {
 	reg := setupTestRegistry("NONE")
 	ctx := context.Background()
 
-	_, err := reg.LookupSchema(ctx, "test", "not valid avro", storage.SchemaTypeAvro, nil, false)
+	_, err := reg.LookupSchema(ctx, ".", "test", "not valid avro", storage.SchemaTypeAvro, nil, false)
 	if err == nil {
 		t.Error("expected error for invalid schema")
 	}
@@ -722,7 +722,7 @@ func TestLookupSchema_UnsupportedType(t *testing.T) {
 	reg := setupTestRegistry("NONE")
 	ctx := context.Background()
 
-	_, err := reg.LookupSchema(ctx, "test", "{}", "UNKNOWN_TYPE", nil, false)
+	_, err := reg.LookupSchema(ctx, ".", "test", "{}", "UNKNOWN_TYPE", nil, false)
 	if err == nil {
 		t.Error("expected error for unsupported type")
 	}
@@ -735,13 +735,13 @@ func TestLookupSchema_WithDeleted(t *testing.T) {
 
 	// Register a schema
 	schema := `{"type":"record","name":"Test","fields":[{"name":"id","type":"int"}]}`
-	record, err := reg.RegisterSchema(ctx, "test-subject", schema, storage.SchemaTypeAvro, nil)
+	record, err := reg.RegisterSchema(ctx, ".", "test-subject", schema, storage.SchemaTypeAvro, nil)
 	if err != nil {
 		t.Fatalf("failed to register schema: %v", err)
 	}
 
 	// Verify lookup works before delete
-	found, err := reg.LookupSchema(ctx, "test-subject", schema, storage.SchemaTypeAvro, nil, false)
+	found, err := reg.LookupSchema(ctx, ".", "test-subject", schema, storage.SchemaTypeAvro, nil, false)
 	if err != nil {
 		t.Fatalf("failed to lookup schema: %v", err)
 	}
@@ -750,19 +750,19 @@ func TestLookupSchema_WithDeleted(t *testing.T) {
 	}
 
 	// Soft delete the subject
-	_, err = reg.DeleteSubject(ctx, "test-subject", false)
+	_, err = reg.DeleteSubject(ctx, ".", "test-subject", false)
 	if err != nil {
 		t.Fatalf("failed to soft delete subject: %v", err)
 	}
 
 	// Lookup without deleted flag should fail
-	_, err = reg.LookupSchema(ctx, "test-subject", schema, storage.SchemaTypeAvro, nil, false)
+	_, err = reg.LookupSchema(ctx, ".", "test-subject", schema, storage.SchemaTypeAvro, nil, false)
 	if err == nil {
 		t.Error("expected error when looking up deleted schema without deleted flag")
 	}
 
 	// Lookup with deleted flag should succeed
-	found, err = reg.LookupSchema(ctx, "test-subject", schema, storage.SchemaTypeAvro, nil, true)
+	found, err = reg.LookupSchema(ctx, ".", "test-subject", schema, storage.SchemaTypeAvro, nil, true)
 	if err != nil {
 		t.Fatalf("failed to lookup deleted schema: %v", err)
 	}
@@ -778,12 +778,12 @@ func TestDeleteSubject_Soft(t *testing.T) {
 	ctx := context.Background()
 
 	s := `{"type":"record","name":"Test","fields":[{"name":"id","type":"int"}]}`
-	_, err := reg.RegisterSchema(ctx, "test-subject", s, storage.SchemaTypeAvro, nil)
+	_, err := reg.RegisterSchema(ctx, ".", "test-subject", s, storage.SchemaTypeAvro, nil)
 	if err != nil {
 		t.Fatalf("failed to register: %v", err)
 	}
 
-	versions, err := reg.DeleteSubject(ctx, "test-subject", false)
+	versions, err := reg.DeleteSubject(ctx, ".", "test-subject", false)
 	if err != nil {
 		t.Fatalf("failed to soft delete: %v", err)
 	}
@@ -792,7 +792,7 @@ func TestDeleteSubject_Soft(t *testing.T) {
 	}
 
 	// Subject should not appear in list
-	subjects, err := reg.ListSubjects(ctx, false)
+	subjects, err := reg.ListSubjects(ctx, ".", false)
 	if err != nil {
 		t.Fatalf("failed to list: %v", err)
 	}
@@ -801,7 +801,7 @@ func TestDeleteSubject_Soft(t *testing.T) {
 	}
 
 	// Should appear with deleted=true
-	subjects, err = reg.ListSubjects(ctx, true)
+	subjects, err = reg.ListSubjects(ctx, ".", true)
 	if err != nil {
 		t.Fatalf("failed to list with deleted: %v", err)
 	}
@@ -817,12 +817,12 @@ func TestGetRawSchemaByID(t *testing.T) {
 	ctx := context.Background()
 
 	schema := `{"type":"record","name":"Test","fields":[{"name":"id","type":"int"}]}`
-	record, err := reg.RegisterSchema(ctx, "test-subject", schema, storage.SchemaTypeAvro, nil)
+	record, err := reg.RegisterSchema(ctx, ".", "test-subject", schema, storage.SchemaTypeAvro, nil)
 	if err != nil {
 		t.Fatalf("failed to register: %v", err)
 	}
 
-	raw, err := reg.GetRawSchemaByID(ctx, record.ID)
+	raw, err := reg.GetRawSchemaByID(ctx, ".", record.ID)
 	if err != nil {
 		t.Fatalf("failed to get raw: %v", err)
 	}
@@ -835,7 +835,7 @@ func TestGetRawSchemaByID_NotFound(t *testing.T) {
 	reg := setupTestRegistry("NONE")
 	ctx := context.Background()
 
-	_, err := reg.GetRawSchemaByID(ctx, 99999)
+	_, err := reg.GetRawSchemaByID(ctx, ".", 99999)
 	if err == nil {
 		t.Error("expected error for non-existent ID")
 	}
@@ -848,12 +848,12 @@ func TestGetRawSchemaBySubjectVersion(t *testing.T) {
 	ctx := context.Background()
 
 	schema := `{"type":"record","name":"Test","fields":[{"name":"id","type":"int"}]}`
-	_, err := reg.RegisterSchema(ctx, "test-subject", schema, storage.SchemaTypeAvro, nil)
+	_, err := reg.RegisterSchema(ctx, ".", "test-subject", schema, storage.SchemaTypeAvro, nil)
 	if err != nil {
 		t.Fatalf("failed to register: %v", err)
 	}
 
-	raw, err := reg.GetRawSchemaBySubjectVersion(ctx, "test-subject", 1)
+	raw, err := reg.GetRawSchemaBySubjectVersion(ctx, ".", "test-subject", 1)
 	if err != nil {
 		t.Fatalf("failed to get raw: %v", err)
 	}
@@ -866,7 +866,7 @@ func TestGetRawSchemaBySubjectVersion_NotFound(t *testing.T) {
 	reg := setupTestRegistry("NONE")
 	ctx := context.Background()
 
-	_, err := reg.GetRawSchemaBySubjectVersion(ctx, "nonexistent", 1)
+	_, err := reg.GetRawSchemaBySubjectVersion(ctx, ".", "nonexistent", 1)
 	if err == nil {
 		t.Error("expected error")
 	}
@@ -910,12 +910,12 @@ func TestGetSubjectsBySchemaID(t *testing.T) {
 	ctx := context.Background()
 
 	schema := `{"type":"record","name":"Test","fields":[{"name":"id","type":"int"}]}`
-	record, err := reg.RegisterSchema(ctx, "subject-1", schema, storage.SchemaTypeAvro, nil)
+	record, err := reg.RegisterSchema(ctx, ".", "subject-1", schema, storage.SchemaTypeAvro, nil)
 	if err != nil {
 		t.Fatalf("failed to register: %v", err)
 	}
 
-	subjects, err := reg.GetSubjectsBySchemaID(ctx, record.ID, false)
+	subjects, err := reg.GetSubjectsBySchemaID(ctx, ".", record.ID, false)
 	if err != nil {
 		t.Fatalf("failed to get subjects: %v", err)
 	}
@@ -931,12 +931,12 @@ func TestGetVersionsBySchemaID(t *testing.T) {
 	ctx := context.Background()
 
 	schema := `{"type":"record","name":"Test","fields":[{"name":"id","type":"int"}]}`
-	record, err := reg.RegisterSchema(ctx, "subject-1", schema, storage.SchemaTypeAvro, nil)
+	record, err := reg.RegisterSchema(ctx, ".", "subject-1", schema, storage.SchemaTypeAvro, nil)
 	if err != nil {
 		t.Fatalf("failed to register: %v", err)
 	}
 
-	svs, err := reg.GetVersionsBySchemaID(ctx, record.ID, false)
+	svs, err := reg.GetVersionsBySchemaID(ctx, ".", record.ID, false)
 	if err != nil {
 		t.Fatalf("failed to get versions: %v", err)
 	}
@@ -968,7 +968,7 @@ func TestImportSchemas_Success(t *testing.T) {
 		},
 	}
 
-	result, err := reg.ImportSchemas(ctx, schemas)
+	result, err := reg.ImportSchemas(ctx, ".", schemas)
 	if err != nil {
 		t.Fatalf("failed to import: %v", err)
 	}
@@ -980,7 +980,7 @@ func TestImportSchemas_Success(t *testing.T) {
 	}
 
 	// Verify imported schemas are retrievable by subject/version
-	record, err := reg.GetSchemaBySubjectVersion(ctx, "import-subject", 1)
+	record, err := reg.GetSchemaBySubjectVersion(ctx, ".", "import-subject", 1)
 	if err != nil {
 		t.Fatalf("failed to get imported schema: %v", err)
 	}
@@ -989,7 +989,7 @@ func TestImportSchemas_Success(t *testing.T) {
 	}
 
 	// Verify second schema
-	record2, err := reg.GetSchemaBySubjectVersion(ctx, "import-subject", 2)
+	record2, err := reg.GetSchemaBySubjectVersion(ctx, ".", "import-subject", 2)
 	if err != nil {
 		t.Fatalf("failed to get imported schema v2: %v", err)
 	}
@@ -1009,7 +1009,7 @@ func TestImportSchemas_ValidationErrors(t *testing.T) {
 		{ID: 3, Subject: "test", Version: 1, Schema: ""},   // empty schema
 	}
 
-	result, err := reg.ImportSchemas(ctx, schemas)
+	result, err := reg.ImportSchemas(ctx, ".", schemas)
 	if err != nil {
 		t.Fatalf("import should not return error for validation failures: %v", err)
 	}
@@ -1035,7 +1035,7 @@ func TestImportSchemas_InvalidSchemaContent(t *testing.T) {
 		},
 	}
 
-	result, err := reg.ImportSchemas(ctx, schemas)
+	result, err := reg.ImportSchemas(ctx, ".", schemas)
 	if err != nil {
 		t.Fatalf("import should not return error: %v", err)
 	}
@@ -1058,7 +1058,7 @@ func TestImportSchemas_UnsupportedType(t *testing.T) {
 		},
 	}
 
-	result, err := reg.ImportSchemas(ctx, schemas)
+	result, err := reg.ImportSchemas(ctx, ".", schemas)
 	if err != nil {
 		t.Fatalf("import should not return error: %v", err)
 	}
@@ -1081,7 +1081,7 @@ func TestImportSchemas_DefaultsToAvro(t *testing.T) {
 		},
 	}
 
-	result, err := reg.ImportSchemas(ctx, schemas)
+	result, err := reg.ImportSchemas(ctx, ".", schemas)
 	if err != nil {
 		t.Fatalf("import failed: %v", err)
 	}
@@ -1105,7 +1105,7 @@ func TestImportSchemas_DuplicateID(t *testing.T) {
 	}
 
 	// First import
-	_, err := reg.ImportSchemas(ctx, schemas)
+	_, err := reg.ImportSchemas(ctx, ".", schemas)
 	if err != nil {
 		t.Fatalf("first import failed: %v", err)
 	}
@@ -1121,7 +1121,7 @@ func TestImportSchemas_DuplicateID(t *testing.T) {
 		},
 	}
 
-	result, err := reg.ImportSchemas(ctx, schemas2)
+	result, err := reg.ImportSchemas(ctx, ".", schemas2)
 	if err != nil {
 		t.Fatalf("second import should not error: %v", err)
 	}
@@ -1153,17 +1153,17 @@ func TestCheckCompatibility_ExplicitVersion(t *testing.T) {
 	schema2 := `{"type":"record","name":"Test","fields":[{"name":"id","type":"int"},{"name":"name","type":"string","default":""}]}`
 	schema3 := `{"type":"record","name":"Test","fields":[{"name":"id","type":"int"},{"name":"name","type":"string","default":""},{"name":"age","type":"int","default":0}]}`
 
-	_, err := reg.RegisterSchema(ctx, "test-subject", schema1, storage.SchemaTypeAvro, nil)
+	_, err := reg.RegisterSchema(ctx, ".", "test-subject", schema1, storage.SchemaTypeAvro, nil)
 	if err != nil {
 		t.Fatalf("failed to register schema v1: %v", err)
 	}
 
-	_, err = reg.RegisterSchema(ctx, "test-subject", schema2, storage.SchemaTypeAvro, nil)
+	_, err = reg.RegisterSchema(ctx, ".", "test-subject", schema2, storage.SchemaTypeAvro, nil)
 	if err != nil {
 		t.Fatalf("failed to register schema v2: %v", err)
 	}
 
-	_, err = reg.RegisterSchema(ctx, "test-subject", schema3, storage.SchemaTypeAvro, nil)
+	_, err = reg.RegisterSchema(ctx, ".", "test-subject", schema3, storage.SchemaTypeAvro, nil)
 	if err != nil {
 		t.Fatalf("failed to register schema v3: %v", err)
 	}
@@ -1172,7 +1172,7 @@ func TestCheckCompatibility_ExplicitVersion(t *testing.T) {
 	// This schema is backward compatible with v1 (adds field with default)
 	newSchema := `{"type":"record","name":"Test","fields":[{"name":"id","type":"int"},{"name":"extra","type":"string","default":""}]}`
 
-	result, err := reg.CheckCompatibility(ctx, "test-subject", newSchema, storage.SchemaTypeAvro, nil, "1")
+	result, err := reg.CheckCompatibility(ctx, ".", "test-subject", newSchema, storage.SchemaTypeAvro, nil, "1")
 	if err != nil {
 		t.Fatalf("failed to check compatibility: %v", err)
 	}
@@ -1182,7 +1182,7 @@ func TestCheckCompatibility_ExplicitVersion(t *testing.T) {
 	}
 
 	// Test: Check compatibility against "latest" (version 3)
-	result, err = reg.CheckCompatibility(ctx, "test-subject", newSchema, storage.SchemaTypeAvro, nil, "latest")
+	result, err = reg.CheckCompatibility(ctx, ".", "test-subject", newSchema, storage.SchemaTypeAvro, nil, "latest")
 	if err != nil {
 		t.Fatalf("failed to check compatibility with latest: %v", err)
 	}
@@ -1192,7 +1192,7 @@ func TestCheckCompatibility_ExplicitVersion(t *testing.T) {
 	}
 
 	// Test: Check compatibility with empty version (all versions)
-	result, err = reg.CheckCompatibility(ctx, "test-subject", newSchema, storage.SchemaTypeAvro, nil, "")
+	result, err = reg.CheckCompatibility(ctx, ".", "test-subject", newSchema, storage.SchemaTypeAvro, nil, "")
 	if err != nil {
 		t.Fatalf("failed to check compatibility with all versions: %v", err)
 	}
@@ -1209,7 +1209,7 @@ func TestCheckCompatibility_InvalidVersion(t *testing.T) {
 
 	// Register a schema
 	schema1 := `{"type":"record","name":"Test","fields":[{"name":"id","type":"int"}]}`
-	_, err := reg.RegisterSchema(ctx, "test-subject", schema1, storage.SchemaTypeAvro, nil)
+	_, err := reg.RegisterSchema(ctx, ".", "test-subject", schema1, storage.SchemaTypeAvro, nil)
 	if err != nil {
 		t.Fatalf("failed to register schema: %v", err)
 	}
@@ -1217,13 +1217,13 @@ func TestCheckCompatibility_InvalidVersion(t *testing.T) {
 	// Test: Check compatibility against non-existent version
 	newSchema := `{"type":"record","name":"Test","fields":[{"name":"id","type":"int"},{"name":"name","type":"string","default":""}]}`
 
-	_, err = reg.CheckCompatibility(ctx, "test-subject", newSchema, storage.SchemaTypeAvro, nil, "999")
+	_, err = reg.CheckCompatibility(ctx, ".", "test-subject", newSchema, storage.SchemaTypeAvro, nil, "999")
 	if err == nil {
 		t.Error("expected error for non-existent version")
 	}
 
 	// Test: Check compatibility against invalid version string
-	_, err = reg.CheckCompatibility(ctx, "test-subject", newSchema, storage.SchemaTypeAvro, nil, "invalid")
+	_, err = reg.CheckCompatibility(ctx, ".", "test-subject", newSchema, storage.SchemaTypeAvro, nil, "invalid")
 	if err == nil {
 		t.Error("expected error for invalid version string")
 	}
@@ -1236,7 +1236,7 @@ func TestCheckCompatibility_NoExistingSchemas(t *testing.T) {
 	schema := `{"type":"record","name":"Test","fields":[{"name":"id","type":"int"}]}`
 
 	// Latest on non-existent subject
-	result, err := reg.CheckCompatibility(ctx, "nonexistent", schema, storage.SchemaTypeAvro, nil, "latest")
+	result, err := reg.CheckCompatibility(ctx, ".", "nonexistent", schema, storage.SchemaTypeAvro, nil, "latest")
 	if err != nil {
 		t.Fatalf("should succeed for non-existent subject: %v", err)
 	}
@@ -1245,7 +1245,7 @@ func TestCheckCompatibility_NoExistingSchemas(t *testing.T) {
 	}
 
 	// All versions on non-existent subject
-	result, err = reg.CheckCompatibility(ctx, "nonexistent", schema, storage.SchemaTypeAvro, nil, "")
+	result, err = reg.CheckCompatibility(ctx, ".", "nonexistent", schema, storage.SchemaTypeAvro, nil, "")
 	if err != nil {
 		t.Fatalf("should succeed for non-existent subject: %v", err)
 	}
@@ -1259,14 +1259,14 @@ func TestCheckCompatibility_ModeNone(t *testing.T) {
 	ctx := context.Background()
 
 	s := `{"type":"record","name":"Test","fields":[{"name":"id","type":"int"}]}`
-	_, err := reg.RegisterSchema(ctx, "test-subject", s, storage.SchemaTypeAvro, nil)
+	_, err := reg.RegisterSchema(ctx, ".", "test-subject", s, storage.SchemaTypeAvro, nil)
 	if err != nil {
 		t.Fatalf("failed to register: %v", err)
 	}
 
 	// With NONE mode, always compatible
 	incompatible := `{"type":"record","name":"Test","fields":[{"name":"name","type":"string"}]}`
-	result, err := reg.CheckCompatibility(ctx, "test-subject", incompatible, storage.SchemaTypeAvro, nil, "latest")
+	result, err := reg.CheckCompatibility(ctx, ".", "test-subject", incompatible, storage.SchemaTypeAvro, nil, "latest")
 	if err != nil {
 		t.Fatalf("should not error: %v", err)
 	}
@@ -1279,7 +1279,7 @@ func TestCheckCompatibility_UnsupportedType(t *testing.T) {
 	reg := setupTestRegistry("BACKWARD")
 	ctx := context.Background()
 
-	_, err := reg.CheckCompatibility(ctx, "test", "{}", "UNKNOWN", nil, "latest")
+	_, err := reg.CheckCompatibility(ctx, ".", "test", "{}", "UNKNOWN", nil, "latest")
 	if err == nil {
 		t.Error("expected error for unsupported type")
 	}
@@ -1289,7 +1289,7 @@ func TestCheckCompatibility_InvalidSchema(t *testing.T) {
 	reg := setupTestRegistry("BACKWARD")
 	ctx := context.Background()
 
-	_, err := reg.CheckCompatibility(ctx, "test", "invalid", storage.SchemaTypeAvro, nil, "latest")
+	_, err := reg.CheckCompatibility(ctx, ".", "test", "invalid", storage.SchemaTypeAvro, nil, "latest")
 	if err == nil {
 		t.Error("expected error for invalid schema")
 	}
@@ -1300,14 +1300,14 @@ func TestCheckCompatibility_DefaultsToAvro(t *testing.T) {
 	ctx := context.Background()
 
 	s := `{"type":"record","name":"Test","fields":[{"name":"id","type":"int"}]}`
-	_, err := reg.RegisterSchema(ctx, "test-subject", s, storage.SchemaTypeAvro, nil)
+	_, err := reg.RegisterSchema(ctx, ".", "test-subject", s, storage.SchemaTypeAvro, nil)
 	if err != nil {
 		t.Fatalf("failed to register: %v", err)
 	}
 
 	// Empty schema type should default to Avro
 	newSchema := `{"type":"record","name":"Test","fields":[{"name":"id","type":"int"},{"name":"f","type":"string","default":""}]}`
-	result, err := reg.CheckCompatibility(ctx, "test-subject", newSchema, "", nil, "latest")
+	result, err := reg.CheckCompatibility(ctx, ".", "test-subject", newSchema, "", nil, "latest")
 	if err != nil {
 		t.Fatalf("should not error: %v", err)
 	}
@@ -1324,7 +1324,7 @@ func TestGetReferencedBy(t *testing.T) {
 
 	// Register a base schema
 	baseSchema := `{"type":"record","name":"Base","namespace":"test","fields":[{"name":"id","type":"int"}]}`
-	baseRecord, err := reg.RegisterSchema(ctx, "base-subject", baseSchema, storage.SchemaTypeAvro, nil)
+	baseRecord, err := reg.RegisterSchema(ctx, ".", "base-subject", baseSchema, storage.SchemaTypeAvro, nil)
 	if err != nil {
 		t.Fatalf("failed to register base schema: %v", err)
 	}
@@ -1334,13 +1334,13 @@ func TestGetReferencedBy(t *testing.T) {
 	refs := []storage.Reference{
 		{Name: "test.Base", Subject: "base-subject", Version: 1},
 	}
-	refRecord, err := reg.RegisterSchema(ctx, "referencing-subject", referencingSchema, storage.SchemaTypeAvro, refs)
+	refRecord, err := reg.RegisterSchema(ctx, ".", "referencing-subject", referencingSchema, storage.SchemaTypeAvro, refs)
 	if err != nil {
 		t.Fatalf("failed to register referencing schema: %v", err)
 	}
 
 	// Get schemas that reference base-subject version 1
-	referencedBy, err := reg.GetReferencedBy(ctx, "base-subject", 1)
+	referencedBy, err := reg.GetReferencedBy(ctx, ".", "base-subject", 1)
 	if err != nil {
 		t.Fatalf("failed to get referenced by: %v", err)
 	}
@@ -1359,7 +1359,7 @@ func TestGetReferencedBy(t *testing.T) {
 	}
 
 	// Verify we can get the referencing schema ID from the registry
-	refSchema, err := reg.GetSchemaBySubjectVersion(ctx, "referencing-subject", 1)
+	refSchema, err := reg.GetSchemaBySubjectVersion(ctx, ".", "referencing-subject", 1)
 	if err != nil {
 		t.Fatalf("failed to get referencing schema: %v", err)
 	}
@@ -1379,13 +1379,13 @@ func TestGetReferencedBy_NoReferences(t *testing.T) {
 
 	// Register a schema without references
 	schema := `{"type":"record","name":"NoRefs","fields":[{"name":"id","type":"int"}]}`
-	_, err := reg.RegisterSchema(ctx, "no-refs-subject", schema, storage.SchemaTypeAvro, nil)
+	_, err := reg.RegisterSchema(ctx, ".", "no-refs-subject", schema, storage.SchemaTypeAvro, nil)
 	if err != nil {
 		t.Fatalf("failed to register schema: %v", err)
 	}
 
 	// Get schemas that reference this schema (should be empty)
-	referencedBy, err := reg.GetReferencedBy(ctx, "no-refs-subject", 1)
+	referencedBy, err := reg.GetReferencedBy(ctx, ".", "no-refs-subject", 1)
 	if err != nil {
 		t.Fatalf("failed to get referenced by: %v", err)
 	}
@@ -1406,7 +1406,7 @@ func TestVersionNumbers_MonotonicallyIncreasing(t *testing.T) {
 	schema2 := `{"type":"record","name":"MonoTest","fields":[{"name":"id","type":"int"},{"name":"f2","type":"string","default":""}]}`
 	schema3 := `{"type":"record","name":"MonoTest","fields":[{"name":"id","type":"int"},{"name":"f2","type":"string","default":""},{"name":"f3","type":"int","default":0}]}`
 
-	rec1, err := reg.RegisterSchema(ctx, "version-test", schema1, storage.SchemaTypeAvro, nil)
+	rec1, err := reg.RegisterSchema(ctx, ".", "version-test", schema1, storage.SchemaTypeAvro, nil)
 	if err != nil {
 		t.Fatalf("failed to register schema 1: %v", err)
 	}
@@ -1414,7 +1414,7 @@ func TestVersionNumbers_MonotonicallyIncreasing(t *testing.T) {
 		t.Errorf("expected version 1, got %d", rec1.Version)
 	}
 
-	rec2, err := reg.RegisterSchema(ctx, "version-test", schema2, storage.SchemaTypeAvro, nil)
+	rec2, err := reg.RegisterSchema(ctx, ".", "version-test", schema2, storage.SchemaTypeAvro, nil)
 	if err != nil {
 		t.Fatalf("failed to register schema 2: %v", err)
 	}
@@ -1422,7 +1422,7 @@ func TestVersionNumbers_MonotonicallyIncreasing(t *testing.T) {
 		t.Errorf("expected version 2, got %d", rec2.Version)
 	}
 
-	rec3, err := reg.RegisterSchema(ctx, "version-test", schema3, storage.SchemaTypeAvro, nil)
+	rec3, err := reg.RegisterSchema(ctx, ".", "version-test", schema3, storage.SchemaTypeAvro, nil)
 	if err != nil {
 		t.Fatalf("failed to register schema 3: %v", err)
 	}
@@ -1431,14 +1431,14 @@ func TestVersionNumbers_MonotonicallyIncreasing(t *testing.T) {
 	}
 
 	// Delete version 2
-	_, err = reg.DeleteVersion(ctx, "version-test", 2, false)
+	_, err = reg.DeleteVersion(ctx, ".", "version-test", 2, false)
 	if err != nil {
 		t.Fatalf("failed to delete version 2: %v", err)
 	}
 
 	// Register a new schema - should be version 4, not version 2
 	schema4 := `{"type":"record","name":"MonoTest","fields":[{"name":"id","type":"int"},{"name":"f2","type":"string","default":""},{"name":"f3","type":"int","default":0},{"name":"f4","type":"long","default":0}]}`
-	rec4, err := reg.RegisterSchema(ctx, "version-test", schema4, storage.SchemaTypeAvro, nil)
+	rec4, err := reg.RegisterSchema(ctx, ".", "version-test", schema4, storage.SchemaTypeAvro, nil)
 	if err != nil {
 		t.Fatalf("failed to register schema 4: %v", err)
 	}
@@ -1447,14 +1447,14 @@ func TestVersionNumbers_MonotonicallyIncreasing(t *testing.T) {
 	}
 
 	// Delete entire subject
-	_, err = reg.DeleteSubject(ctx, "version-test", false)
+	_, err = reg.DeleteSubject(ctx, ".", "version-test", false)
 	if err != nil {
 		t.Fatalf("failed to delete subject: %v", err)
 	}
 
 	// Re-register a schema - should be version 5, not version 1
 	schema5 := `{"type":"record","name":"MonoTest","fields":[{"name":"id","type":"int"},{"name":"newfield","type":"string","default":""}]}`
-	rec5, err := reg.RegisterSchema(ctx, "version-test", schema5, storage.SchemaTypeAvro, nil)
+	rec5, err := reg.RegisterSchema(ctx, ".", "version-test", schema5, storage.SchemaTypeAvro, nil)
 	if err != nil {
 		t.Fatalf("failed to register schema 5: %v", err)
 	}
@@ -1471,7 +1471,7 @@ func TestVersionNumbers_IndependentSubjects(t *testing.T) {
 	schemaA := `{"type":"record","name":"RecordA","fields":[{"name":"id","type":"int"}]}`
 	schemaB := `{"type":"record","name":"RecordB","fields":[{"name":"id","type":"int"}]}`
 
-	recA1, err := reg.RegisterSchema(ctx, "subject-a", schemaA, storage.SchemaTypeAvro, nil)
+	recA1, err := reg.RegisterSchema(ctx, ".", "subject-a", schemaA, storage.SchemaTypeAvro, nil)
 	if err != nil {
 		t.Fatalf("failed to register schema A1: %v", err)
 	}
@@ -1479,7 +1479,7 @@ func TestVersionNumbers_IndependentSubjects(t *testing.T) {
 		t.Errorf("subject-a: expected version 1, got %d", recA1.Version)
 	}
 
-	recB1, err := reg.RegisterSchema(ctx, "subject-b", schemaB, storage.SchemaTypeAvro, nil)
+	recB1, err := reg.RegisterSchema(ctx, ".", "subject-b", schemaB, storage.SchemaTypeAvro, nil)
 	if err != nil {
 		t.Fatalf("failed to register schema B1: %v", err)
 	}
@@ -1489,7 +1489,7 @@ func TestVersionNumbers_IndependentSubjects(t *testing.T) {
 
 	// Register more schemas in subject-a (backward compatible - add field with default)
 	schemaA2 := `{"type":"record","name":"RecordA","fields":[{"name":"id","type":"int"},{"name":"name","type":"string","default":""}]}`
-	recA2, err := reg.RegisterSchema(ctx, "subject-a", schemaA2, storage.SchemaTypeAvro, nil)
+	recA2, err := reg.RegisterSchema(ctx, ".", "subject-a", schemaA2, storage.SchemaTypeAvro, nil)
 	if err != nil {
 		t.Fatalf("failed to register schema A2: %v", err)
 	}
@@ -1499,7 +1499,7 @@ func TestVersionNumbers_IndependentSubjects(t *testing.T) {
 
 	// subject-b should still get version 2, not affected by subject-a
 	schemaB2 := `{"type":"record","name":"RecordB","fields":[{"name":"id","type":"int"},{"name":"desc","type":"string","default":""}]}`
-	recB2, err := reg.RegisterSchema(ctx, "subject-b", schemaB2, storage.SchemaTypeAvro, nil)
+	recB2, err := reg.RegisterSchema(ctx, ".", "subject-b", schemaB2, storage.SchemaTypeAvro, nil)
 	if err != nil {
 		t.Fatalf("failed to register schema B2: %v", err)
 	}
@@ -1548,7 +1548,7 @@ func TestResolveReferences_EmptyRefs(t *testing.T) {
 	reg := setupTestRegistry("NONE")
 	ctx := context.Background()
 
-	resolved, err := reg.resolveReferences(ctx, nil)
+	resolved, err := reg.resolveReferences(ctx, ".", nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1556,7 +1556,7 @@ func TestResolveReferences_EmptyRefs(t *testing.T) {
 		t.Errorf("expected nil for nil refs, got %v", resolved)
 	}
 
-	resolved, err = reg.resolveReferences(ctx, []storage.Reference{})
+	resolved, err = reg.resolveReferences(ctx, ".", []storage.Reference{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1573,7 +1573,7 @@ func TestResolveReferences_NonExistentSubject(t *testing.T) {
 		{Name: "missing.avsc", Subject: "nonexistent-subject", Version: 1},
 	}
 
-	_, err := reg.resolveReferences(ctx, refs)
+	_, err := reg.resolveReferences(ctx, ".", refs)
 	if err == nil {
 		t.Error("expected error when resolving reference to non-existent subject")
 	}
@@ -1588,7 +1588,7 @@ func TestResolveReferences_PopulatesSchemaContent(t *testing.T) {
 
 	// Register a base schema
 	baseSchema := `{"type":"record","name":"Base","namespace":"test","fields":[{"name":"id","type":"int"}]}`
-	_, err := reg.RegisterSchema(ctx, "base-subject", baseSchema, storage.SchemaTypeAvro, nil)
+	_, err := reg.RegisterSchema(ctx, ".", "base-subject", baseSchema, storage.SchemaTypeAvro, nil)
 	if err != nil {
 		t.Fatalf("failed to register base: %v", err)
 	}
@@ -1597,7 +1597,7 @@ func TestResolveReferences_PopulatesSchemaContent(t *testing.T) {
 	refs := []storage.Reference{
 		{Name: "test.Base", Subject: "base-subject", Version: 1},
 	}
-	resolved, err := reg.resolveReferences(ctx, refs)
+	resolved, err := reg.resolveReferences(ctx, ".", refs)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1625,13 +1625,13 @@ func TestResolveReferences_MultipleRefs(t *testing.T) {
 
 	// Register two base schemas
 	base1 := `{"type":"record","name":"Base1","namespace":"multi","fields":[{"name":"id","type":"int"}]}`
-	_, err := reg.RegisterSchema(ctx, "multi-base1", base1, storage.SchemaTypeAvro, nil)
+	_, err := reg.RegisterSchema(ctx, ".", "multi-base1", base1, storage.SchemaTypeAvro, nil)
 	if err != nil {
 		t.Fatalf("failed to register base1: %v", err)
 	}
 
 	base2 := `{"type":"record","name":"Base2","namespace":"multi","fields":[{"name":"name","type":"string"}]}`
-	_, err = reg.RegisterSchema(ctx, "multi-base2", base2, storage.SchemaTypeAvro, nil)
+	_, err = reg.RegisterSchema(ctx, ".", "multi-base2", base2, storage.SchemaTypeAvro, nil)
 	if err != nil {
 		t.Fatalf("failed to register base2: %v", err)
 	}
@@ -1641,7 +1641,7 @@ func TestResolveReferences_MultipleRefs(t *testing.T) {
 		{Name: "multi.Base1", Subject: "multi-base1", Version: 1},
 		{Name: "multi.Base2", Subject: "multi-base2", Version: 1},
 	}
-	resolved, err := reg.resolveReferences(ctx, refs)
+	resolved, err := reg.resolveReferences(ctx, ".", refs)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1663,7 +1663,7 @@ func TestRegisterSchema_WithAvroReferences(t *testing.T) {
 
 	// Register a base schema
 	baseSchema := `{"type":"record","name":"Base","namespace":"com.example","fields":[{"name":"id","type":"int"}]}`
-	baseRec, err := reg.RegisterSchema(ctx, "base-subject", baseSchema, storage.SchemaTypeAvro, nil)
+	baseRec, err := reg.RegisterSchema(ctx, ".", "base-subject", baseSchema, storage.SchemaTypeAvro, nil)
 	if err != nil {
 		t.Fatalf("failed to register base: %v", err)
 	}
@@ -1673,7 +1673,7 @@ func TestRegisterSchema_WithAvroReferences(t *testing.T) {
 	refs := []storage.Reference{
 		{Name: "com.example.Base", Subject: "base-subject", Version: 1},
 	}
-	refRec, err := reg.RegisterSchema(ctx, "wrapper-subject", referencingSchema, storage.SchemaTypeAvro, refs)
+	refRec, err := reg.RegisterSchema(ctx, ".", "wrapper-subject", referencingSchema, storage.SchemaTypeAvro, refs)
 	if err != nil {
 		t.Fatalf("failed to register referencing schema: %v", err)
 	}
@@ -1686,7 +1686,7 @@ func TestRegisterSchema_WithAvroReferences(t *testing.T) {
 	}
 
 	// Verify stored references
-	stored, err := reg.GetSchemaBySubjectVersion(ctx, "wrapper-subject", 1)
+	stored, err := reg.GetSchemaBySubjectVersion(ctx, ".", "wrapper-subject", 1)
 	if err != nil {
 		t.Fatalf("failed to get stored schema: %v", err)
 	}
@@ -1707,7 +1707,7 @@ func TestRegisterSchema_WithReferences_FailsOnMissingRef(t *testing.T) {
 		{Name: "missing", Subject: "nonexistent", Version: 1},
 	}
 
-	_, err := reg.RegisterSchema(ctx, "test-subject", schema, storage.SchemaTypeAvro, refs)
+	_, err := reg.RegisterSchema(ctx, ".", "test-subject", schema, storage.SchemaTypeAvro, refs)
 	if err == nil {
 		t.Error("expected error when reference subject doesn't exist")
 	}
@@ -1727,7 +1727,7 @@ message Address {
   string street = 1;
   string city = 2;
 }`
-	_, err := reg.RegisterSchema(ctx, "common-address", baseSchema, storage.SchemaTypeProtobuf, nil)
+	_, err := reg.RegisterSchema(ctx, ".", "common-address", baseSchema, storage.SchemaTypeProtobuf, nil)
 	if err != nil {
 		t.Fatalf("failed to register base protobuf: %v", err)
 	}
@@ -1743,7 +1743,7 @@ message User {
 	refs := []storage.Reference{
 		{Name: "common/address.proto", Subject: "common-address", Version: 1},
 	}
-	rec, err := reg.RegisterSchema(ctx, "user-subject", referencingSchema, storage.SchemaTypeProtobuf, refs)
+	rec, err := reg.RegisterSchema(ctx, ".", "user-subject", referencingSchema, storage.SchemaTypeProtobuf, refs)
 	if err != nil {
 		t.Fatalf("failed to register referencing protobuf: %v", err)
 	}
@@ -1758,7 +1758,7 @@ func TestRegisterSchema_WithJSONSchemaReferences(t *testing.T) {
 
 	// Register a base JSON schema
 	baseSchema := `{"type":"object","properties":{"id":{"type":"integer"},"name":{"type":"string"}},"required":["id"]}`
-	_, err := reg.RegisterSchema(ctx, "base-json", baseSchema, storage.SchemaTypeJSON, nil)
+	_, err := reg.RegisterSchema(ctx, ".", "base-json", baseSchema, storage.SchemaTypeJSON, nil)
 	if err != nil {
 		t.Fatalf("failed to register base JSON schema: %v", err)
 	}
@@ -1768,7 +1768,7 @@ func TestRegisterSchema_WithJSONSchemaReferences(t *testing.T) {
 	refs := []storage.Reference{
 		{Name: "base.json", Subject: "base-json", Version: 1},
 	}
-	rec, err := reg.RegisterSchema(ctx, "wrapper-json", referencingSchema, storage.SchemaTypeJSON, refs)
+	rec, err := reg.RegisterSchema(ctx, ".", "wrapper-json", referencingSchema, storage.SchemaTypeJSON, refs)
 	if err != nil {
 		t.Fatalf("failed to register referencing JSON schema: %v", err)
 	}
@@ -1783,7 +1783,7 @@ func TestLookupSchema_WithReferences(t *testing.T) {
 
 	// Register base
 	baseSchema := `{"type":"record","name":"LookupBase","namespace":"lookup","fields":[{"name":"id","type":"int"}]}`
-	_, err := reg.RegisterSchema(ctx, "lookup-base", baseSchema, storage.SchemaTypeAvro, nil)
+	_, err := reg.RegisterSchema(ctx, ".", "lookup-base", baseSchema, storage.SchemaTypeAvro, nil)
 	if err != nil {
 		t.Fatalf("failed to register base: %v", err)
 	}
@@ -1793,13 +1793,13 @@ func TestLookupSchema_WithReferences(t *testing.T) {
 	refs := []storage.Reference{
 		{Name: "lookup.LookupBase", Subject: "lookup-base", Version: 1},
 	}
-	registered, err := reg.RegisterSchema(ctx, "lookup-ref", referencingSchema, storage.SchemaTypeAvro, refs)
+	registered, err := reg.RegisterSchema(ctx, ".", "lookup-ref", referencingSchema, storage.SchemaTypeAvro, refs)
 	if err != nil {
 		t.Fatalf("failed to register referencing: %v", err)
 	}
 
 	// Lookup the referencing schema with references
-	found, err := reg.LookupSchema(ctx, "lookup-ref", referencingSchema, storage.SchemaTypeAvro, refs, false)
+	found, err := reg.LookupSchema(ctx, ".", "lookup-ref", referencingSchema, storage.SchemaTypeAvro, refs, false)
 	if err != nil {
 		t.Fatalf("failed to lookup: %v", err)
 	}
@@ -1817,7 +1817,7 @@ func TestLookupSchema_WithReferences_FailsOnMissingRef(t *testing.T) {
 		{Name: "missing", Subject: "nonexistent", Version: 1},
 	}
 
-	_, err := reg.LookupSchema(ctx, "test", schema, storage.SchemaTypeAvro, refs, false)
+	_, err := reg.LookupSchema(ctx, ".", "test", schema, storage.SchemaTypeAvro, refs, false)
 	if err == nil {
 		t.Error("expected error when reference can't be resolved")
 	}
@@ -1829,7 +1829,7 @@ func TestCheckCompatibility_WithReferences(t *testing.T) {
 
 	// Register base schema
 	baseSchema := `{"type":"record","name":"CompatBase","namespace":"compat","fields":[{"name":"id","type":"int"}]}`
-	_, err := reg.RegisterSchema(ctx, "compat-base", baseSchema, storage.SchemaTypeAvro, nil)
+	_, err := reg.RegisterSchema(ctx, ".", "compat-base", baseSchema, storage.SchemaTypeAvro, nil)
 	if err != nil {
 		t.Fatalf("failed to register base: %v", err)
 	}
@@ -1839,14 +1839,14 @@ func TestCheckCompatibility_WithReferences(t *testing.T) {
 	refs := []storage.Reference{
 		{Name: "compat.CompatBase", Subject: "compat-base", Version: 1},
 	}
-	_, err = reg.RegisterSchema(ctx, "compat-ref", v1Schema, storage.SchemaTypeAvro, refs)
+	_, err = reg.RegisterSchema(ctx, ".", "compat-ref", v1Schema, storage.SchemaTypeAvro, refs)
 	if err != nil {
 		t.Fatalf("failed to register v1: %v", err)
 	}
 
 	// Check compatibility of a new schema version (backward compatible - adds field with default)
 	v2Schema := `{"type":"record","name":"CompatRef","namespace":"compat","fields":[{"name":"base","type":"compat.CompatBase"},{"name":"extra","type":"string","default":""}]}`
-	result, err := reg.CheckCompatibility(ctx, "compat-ref", v2Schema, storage.SchemaTypeAvro, refs, "latest")
+	result, err := reg.CheckCompatibility(ctx, ".", "compat-ref", v2Schema, storage.SchemaTypeAvro, refs, "latest")
 	if err != nil {
 		t.Fatalf("failed to check compatibility: %v", err)
 	}
@@ -1864,7 +1864,7 @@ func TestCheckCompatibility_WithReferences_FailsOnMissingRef(t *testing.T) {
 		{Name: "missing", Subject: "nonexistent", Version: 1},
 	}
 
-	_, err := reg.CheckCompatibility(ctx, "test", schema, storage.SchemaTypeAvro, refs, "latest")
+	_, err := reg.CheckCompatibility(ctx, ".", "test", schema, storage.SchemaTypeAvro, refs, "latest")
 	if err == nil {
 		t.Error("expected error when reference can't be resolved")
 	}
@@ -1884,7 +1884,7 @@ func TestImportSchemas_WithReferences(t *testing.T) {
 			Schema:     `{"type":"record","name":"ImportBase","namespace":"imp","fields":[{"name":"id","type":"int"}]}`,
 		},
 	}
-	result, err := reg.ImportSchemas(ctx, baseSchemas)
+	result, err := reg.ImportSchemas(ctx, ".", baseSchemas)
 	if err != nil {
 		t.Fatalf("failed to import base: %v", err)
 	}
@@ -1905,7 +1905,7 @@ func TestImportSchemas_WithReferences(t *testing.T) {
 			},
 		},
 	}
-	result, err = reg.ImportSchemas(ctx, refSchemas)
+	result, err = reg.ImportSchemas(ctx, ".", refSchemas)
 	if err != nil {
 		t.Fatalf("failed to import referencing schema: %v", err)
 	}
@@ -1914,7 +1914,7 @@ func TestImportSchemas_WithReferences(t *testing.T) {
 	}
 
 	// Verify stored schema
-	stored, err := reg.GetSchemaBySubjectVersion(ctx, "import-ref", 1)
+	stored, err := reg.GetSchemaBySubjectVersion(ctx, ".", "import-ref", 1)
 	if err != nil {
 		t.Fatalf("failed to get imported schema: %v", err)
 	}
@@ -1943,7 +1943,7 @@ func TestImportSchemas_WithReferences_FailsOnMissingRef(t *testing.T) {
 		},
 	}
 
-	result, err := reg.ImportSchemas(ctx, schemas)
+	result, err := reg.ImportSchemas(ctx, ".", schemas)
 	if err != nil {
 		t.Fatalf("import should not return top-level error: %v", err)
 	}
@@ -1965,16 +1965,16 @@ type failSetNextIDStore struct {
 	*memory.Store
 }
 
-func (f *failSetNextIDStore) SetNextID(_ context.Context, _ int64) error {
+func (f *failSetNextIDStore) SetNextID(_ context.Context, _ string, _ int64) error {
 	return errors.New("injected SetNextID failure")
 }
 
 func TestRegisterSchemaWithID_SetNextIDFailure(t *testing.T) {
 	underlying := memory.NewStore()
-	underlying.SetGlobalConfig(context.Background(), &storage.ConfigRecord{CompatibilityLevel: "NONE"})
+	underlying.SetGlobalConfig(context.Background(), ".", &storage.ConfigRecord{CompatibilityLevel: "NONE"})
 
 	// Put registry in IMPORT mode
-	underlying.SetGlobalMode(context.Background(), &storage.ModeRecord{Mode: "IMPORT"})
+	underlying.SetGlobalMode(context.Background(), ".", &storage.ModeRecord{Mode: "IMPORT"})
 
 	store := &failSetNextIDStore{Store: underlying}
 
@@ -1989,7 +1989,7 @@ func TestRegisterSchemaWithID_SetNextIDFailure(t *testing.T) {
 	ctx := context.Background()
 	schemaStr := `{"type":"record","name":"Test","fields":[{"name":"id","type":"int"}]}`
 
-	record, err := reg.RegisterSchemaWithID(ctx, "test-subject", schemaStr, storage.SchemaTypeAvro, nil, 100)
+	record, err := reg.RegisterSchemaWithID(ctx, ".", "test-subject", schemaStr, storage.SchemaTypeAvro, nil, 100)
 	if err == nil {
 		t.Fatal("expected error when SetNextID fails, got nil")
 	}
@@ -2007,8 +2007,8 @@ func TestRegisterSchemaWithID_SetNextIDFailure(t *testing.T) {
 
 func TestImportSchemas_SetNextIDFailure(t *testing.T) {
 	underlying := memory.NewStore()
-	underlying.SetGlobalConfig(context.Background(), &storage.ConfigRecord{CompatibilityLevel: "NONE"})
-	underlying.SetGlobalMode(context.Background(), &storage.ModeRecord{Mode: "IMPORT"})
+	underlying.SetGlobalConfig(context.Background(), ".", &storage.ConfigRecord{CompatibilityLevel: "NONE"})
+	underlying.SetGlobalMode(context.Background(), ".", &storage.ModeRecord{Mode: "IMPORT"})
 
 	store := &failSetNextIDStore{Store: underlying}
 
@@ -2031,7 +2031,7 @@ func TestImportSchemas_SetNextIDFailure(t *testing.T) {
 		},
 	}
 
-	result, err := reg.ImportSchemas(ctx, schemas)
+	result, err := reg.ImportSchemas(ctx, ".", schemas)
 	if err == nil {
 		t.Fatal("expected error when SetNextID fails during ImportSchemas")
 	}
