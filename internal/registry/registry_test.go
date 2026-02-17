@@ -1957,3 +1957,89 @@ func TestImportSchemas_WithReferences_FailsOnMissingRef(t *testing.T) {
 		t.Errorf("expected resolve references error, got: %s", result.Results[0].Error)
 	}
 }
+
+// --- RegisterSchemaWithID + SetNextID failure tests ---
+
+// failSetNextIDStore wraps a real memory store but makes SetNextID always fail.
+type failSetNextIDStore struct {
+	*memory.Store
+}
+
+func (f *failSetNextIDStore) SetNextID(_ context.Context, _ int64) error {
+	return errors.New("injected SetNextID failure")
+}
+
+func TestRegisterSchemaWithID_SetNextIDFailure(t *testing.T) {
+	underlying := memory.NewStore()
+	underlying.SetGlobalConfig(context.Background(), &storage.ConfigRecord{CompatibilityLevel: "NONE"})
+
+	// Put registry in IMPORT mode
+	underlying.SetGlobalMode(context.Background(), &storage.ModeRecord{Mode: "IMPORT"})
+
+	store := &failSetNextIDStore{Store: underlying}
+
+	schemaRegistry := schema.NewRegistry()
+	schemaRegistry.Register(avro.NewParser())
+
+	compatChecker := compatibility.NewChecker()
+	compatChecker.Register(storage.SchemaTypeAvro, avrocompat.NewChecker())
+
+	reg := New(store, schemaRegistry, compatChecker, "NONE")
+
+	ctx := context.Background()
+	schemaStr := `{"type":"record","name":"Test","fields":[{"name":"id","type":"int"}]}`
+
+	record, err := reg.RegisterSchemaWithID(ctx, "test-subject", schemaStr, storage.SchemaTypeAvro, nil, 100)
+	if err == nil {
+		t.Fatal("expected error when SetNextID fails, got nil")
+	}
+	if !strings.Contains(err.Error(), "failed to advance ID sequence") {
+		t.Errorf("expected 'failed to advance ID sequence' error, got: %v", err)
+	}
+	// The schema record should still be returned (schema was stored successfully)
+	if record == nil {
+		t.Fatal("expected non-nil record even when SetNextID fails (schema was stored)")
+	}
+	if record.ID != 100 {
+		t.Errorf("expected stored schema ID 100, got %d", record.ID)
+	}
+}
+
+func TestImportSchemas_SetNextIDFailure(t *testing.T) {
+	underlying := memory.NewStore()
+	underlying.SetGlobalConfig(context.Background(), &storage.ConfigRecord{CompatibilityLevel: "NONE"})
+	underlying.SetGlobalMode(context.Background(), &storage.ModeRecord{Mode: "IMPORT"})
+
+	store := &failSetNextIDStore{Store: underlying}
+
+	schemaRegistry := schema.NewRegistry()
+	schemaRegistry.Register(avro.NewParser())
+
+	compatChecker := compatibility.NewChecker()
+	compatChecker.Register(storage.SchemaTypeAvro, avrocompat.NewChecker())
+
+	reg := New(store, schemaRegistry, compatChecker, "NONE")
+
+	ctx := context.Background()
+	schemas := []ImportSchemaRequest{
+		{
+			ID:         200,
+			Subject:    "import-test",
+			Version:    1,
+			SchemaType: storage.SchemaTypeAvro,
+			Schema:     `{"type":"record","name":"Test","fields":[{"name":"id","type":"int"}]}`,
+		},
+	}
+
+	result, err := reg.ImportSchemas(ctx, schemas)
+	if err == nil {
+		t.Fatal("expected error when SetNextID fails during ImportSchemas")
+	}
+	if !strings.Contains(err.Error(), "failed to adjust ID sequence") {
+		t.Errorf("expected 'failed to adjust ID sequence' error, got: %v", err)
+	}
+	// Schemas were imported successfully before SetNextID failed
+	if result.Imported != 1 {
+		t.Errorf("expected 1 imported schema, got %d", result.Imported)
+	}
+}

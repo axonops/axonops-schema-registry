@@ -159,7 +159,7 @@ Feature: Schema ID Stability and Content Validation
     Then the response status should be 200
     And the response array should contain "idstab-subj-b"
 
-  Scenario: References survive permanent delete of one registration
+  Scenario: References survive permanent delete of non-referenced registration
     Given the global compatibility level is "NONE"
     When I register a schema under subject "idstab-ref-base-a":
       """
@@ -190,3 +190,51 @@ Feature: Schema ID Stability and Content Validation
     When I get schema by ID {{base_id}}
     Then the response status should be 200
     And the response should contain "RefBase"
+
+  Scenario: References survive permanent delete of canonical first-registered subject
+    # This exercises the exact regression where a SQL JOIN against the
+    # first-registered subject row would break after its permanent deletion.
+    Given the global compatibility level is "NONE"
+    When I register a schema under subject "idstab-ref-canon-a":
+      """
+      {"type":"record","name":"CanonBase","namespace":"com.idstab","fields":[{"name":"id","type":"string"}]}
+      """
+    Then the response status should be 200
+    And I store the response field "id" as "canon_id"
+    When I register a schema under subject "idstab-ref-canon-b":
+      """
+      {"type":"record","name":"CanonBase","namespace":"com.idstab","fields":[{"name":"id","type":"string"}]}
+      """
+    Then the response status should be 200
+    And the response field "id" should equal stored "canon_id"
+    When I register a schema under subject "idstab-ref-canon-consumer" with references:
+      """
+      {
+        "schema": "{\"type\":\"record\",\"name\":\"CanonConsumer\",\"namespace\":\"com.idstab\",\"fields\":[{\"name\":\"base\",\"type\":\"com.idstab.CanonBase\"}]}",
+        "references": [
+          {"name": "com.idstab.CanonBase", "subject": "idstab-ref-canon-a", "version": 1}
+        ]
+      }
+      """
+    Then the response status should be 200
+    And I store the response field "id" as "consumer_id"
+    # Permanently delete the canonical first-registered subject (the one the reference points to)
+    When I DELETE "/subjects/idstab-ref-canon-a"
+    Then the response status should be 200
+    When I DELETE "/subjects/idstab-ref-canon-a?permanent=true"
+    Then the response status should be 200
+    # Schema content must still be retrievable by global ID
+    When I get schema by ID {{canon_id}}
+    Then the response status should be 200
+    And the response should contain "CanonBase"
+    # The surviving subject must still hold the schema
+    When I get version 1 of subject "idstab-ref-canon-b"
+    Then the response status should be 200
+    And the response field "id" should equal stored "canon_id"
+    # Referencedby must still report the consumer via the surviving registration
+    When I get the referenced by for subject "idstab-ref-canon-b" version 1
+    Then the response status should be 200
+    And the response array should contain stored integer "consumer_id"
+    # The surviving referenced subject must still be delete-protected
+    When I DELETE "/subjects/idstab-ref-canon-b"
+    Then the response status should be 422
