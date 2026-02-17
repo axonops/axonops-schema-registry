@@ -170,62 +170,70 @@ type AuthStorage interface {
 
 // Storage defines the interface for schema storage backends.
 // It embeds AuthStorage so database backends can implement both.
+//
+// All schema, subject, config, mode, and ID methods accept a registryCtx parameter
+// that identifies the schema registry context (namespace). The default context is ".".
+// Schema IDs are scoped per-context: the same ID in different contexts represents
+// different schemas (Confluent-compatible multi-tenancy).
 type Storage interface {
 	AuthStorage
 
 	// Schema operations
-	CreateSchema(ctx context.Context, record *SchemaRecord) error
-	GetSchemaByID(ctx context.Context, id int64) (*SchemaRecord, error)
-	GetSchemaBySubjectVersion(ctx context.Context, subject string, version int) (*SchemaRecord, error)
-	GetSchemasBySubject(ctx context.Context, subject string, includeDeleted bool) ([]*SchemaRecord, error)
-	GetSchemaByFingerprint(ctx context.Context, subject, fingerprint string, includeDeleted bool) (*SchemaRecord, error)
-	GetSchemaByGlobalFingerprint(ctx context.Context, fingerprint string) (*SchemaRecord, error)
-	GetLatestSchema(ctx context.Context, subject string) (*SchemaRecord, error)
-	DeleteSchema(ctx context.Context, subject string, version int, permanent bool) error
+	CreateSchema(ctx context.Context, registryCtx string, record *SchemaRecord) error
+	GetSchemaByID(ctx context.Context, registryCtx string, id int64) (*SchemaRecord, error)
+	GetSchemaBySubjectVersion(ctx context.Context, registryCtx string, subject string, version int) (*SchemaRecord, error)
+	GetSchemasBySubject(ctx context.Context, registryCtx string, subject string, includeDeleted bool) ([]*SchemaRecord, error)
+	GetSchemaByFingerprint(ctx context.Context, registryCtx string, subject, fingerprint string, includeDeleted bool) (*SchemaRecord, error)
+	GetSchemaByGlobalFingerprint(ctx context.Context, registryCtx string, fingerprint string) (*SchemaRecord, error)
+	GetLatestSchema(ctx context.Context, registryCtx string, subject string) (*SchemaRecord, error)
+	DeleteSchema(ctx context.Context, registryCtx string, subject string, version int, permanent bool) error
 
 	// Subject operations
-	ListSubjects(ctx context.Context, includeDeleted bool) ([]string, error)
-	DeleteSubject(ctx context.Context, subject string, permanent bool) ([]int, error)
-	SubjectExists(ctx context.Context, subject string) (bool, error)
+	ListSubjects(ctx context.Context, registryCtx string, includeDeleted bool) ([]string, error)
+	DeleteSubject(ctx context.Context, registryCtx string, subject string, permanent bool) ([]int, error)
+	SubjectExists(ctx context.Context, registryCtx string, subject string) (bool, error)
 
-	// Config operations
-	GetConfig(ctx context.Context, subject string) (*ConfigRecord, error)
-	SetConfig(ctx context.Context, subject string, config *ConfigRecord) error
-	DeleteConfig(ctx context.Context, subject string) error
-	GetGlobalConfig(ctx context.Context) (*ConfigRecord, error)
-	SetGlobalConfig(ctx context.Context, config *ConfigRecord) error
+	// Config operations (per-context: "global" means all subjects within the context)
+	GetConfig(ctx context.Context, registryCtx string, subject string) (*ConfigRecord, error)
+	SetConfig(ctx context.Context, registryCtx string, subject string, config *ConfigRecord) error
+	DeleteConfig(ctx context.Context, registryCtx string, subject string) error
+	GetGlobalConfig(ctx context.Context, registryCtx string) (*ConfigRecord, error)
+	SetGlobalConfig(ctx context.Context, registryCtx string, config *ConfigRecord) error
 
-	// Mode operations
-	GetMode(ctx context.Context, subject string) (*ModeRecord, error)
-	SetMode(ctx context.Context, subject string, mode *ModeRecord) error
-	DeleteMode(ctx context.Context, subject string) error
-	GetGlobalMode(ctx context.Context) (*ModeRecord, error)
-	SetGlobalMode(ctx context.Context, mode *ModeRecord) error
+	// Mode operations (per-context: "global" means all subjects within the context)
+	GetMode(ctx context.Context, registryCtx string, subject string) (*ModeRecord, error)
+	SetMode(ctx context.Context, registryCtx string, subject string, mode *ModeRecord) error
+	DeleteMode(ctx context.Context, registryCtx string, subject string) error
+	GetGlobalMode(ctx context.Context, registryCtx string) (*ModeRecord, error)
+	SetGlobalMode(ctx context.Context, registryCtx string, mode *ModeRecord) error
 
-	// ID generation
-	NextID(ctx context.Context) (int64, error)
-	GetMaxSchemaID(ctx context.Context) (int64, error)
+	// ID generation (per-context: each context has its own ID sequence)
+	NextID(ctx context.Context, registryCtx string) (int64, error)
+	GetMaxSchemaID(ctx context.Context, registryCtx string) (int64, error)
 
 	// Import operations (for migration from other schema registries)
 	// ImportSchema inserts a schema with a specified ID (for migration).
 	// Returns ErrSchemaIDConflict if the ID already exists.
-	ImportSchema(ctx context.Context, record *SchemaRecord) error
+	ImportSchema(ctx context.Context, registryCtx string, record *SchemaRecord) error
 	// SetNextID sets the ID sequence to start from the given value.
 	// Used after import to prevent ID conflicts.
-	SetNextID(ctx context.Context, id int64) error
+	SetNextID(ctx context.Context, registryCtx string, id int64) error
 
 	// References
-	GetReferencedBy(ctx context.Context, subject string, version int) ([]SubjectVersion, error)
+	GetReferencedBy(ctx context.Context, registryCtx string, subject string, version int) ([]SubjectVersion, error)
 
 	// Schema ID lookups
-	GetSubjectsBySchemaID(ctx context.Context, id int64, includeDeleted bool) ([]string, error)
-	GetVersionsBySchemaID(ctx context.Context, id int64, includeDeleted bool) ([]SubjectVersion, error)
+	GetSubjectsBySchemaID(ctx context.Context, registryCtx string, id int64, includeDeleted bool) ([]string, error)
+	GetVersionsBySchemaID(ctx context.Context, registryCtx string, id int64, includeDeleted bool) ([]SubjectVersion, error)
 
 	// Schema listing
-	ListSchemas(ctx context.Context, params *ListSchemasParams) ([]*SchemaRecord, error)
+	ListSchemas(ctx context.Context, registryCtx string, params *ListSchemasParams) ([]*SchemaRecord, error)
+
+	// Context operations
+	ListContexts(ctx context.Context) ([]string, error)
 
 	// Global config delete
-	DeleteGlobalConfig(ctx context.Context) error
+	DeleteGlobalConfig(ctx context.Context, registryCtx string) error
 
 	// Lifecycle
 	Close() error

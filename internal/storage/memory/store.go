@@ -11,6 +11,9 @@ import (
 	"github.com/axonops/axonops-schema-registry/internal/storage"
 )
 
+// DefaultContext is the default registry context name.
+const DefaultContext = "."
+
 // subjectVersionInfo stores info about a schema registered under a subject.
 type subjectVersionInfo struct {
 	schemaID  int64
@@ -21,11 +24,10 @@ type subjectVersionInfo struct {
 	ruleSet   *storage.RuleSet
 }
 
-// Store implements the storage.Storage interface using in-memory data structures.
-type Store struct {
-	mu sync.RWMutex
-
-	// schemas stores schema content by ID (deduplicated globally by fingerprint)
+// contextStore holds all per-context data. Each registry context (namespace)
+// has its own schemas, subjects, IDs, configs, and modes.
+type contextStore struct {
+	// schemas stores schema content by ID (deduplicated per-context by fingerprint)
 	schemas map[int64]*storage.SchemaRecord
 
 	// subjectVersions stores version info by subject (subject → version → info)
@@ -34,8 +36,8 @@ type Store struct {
 	// nextSubjectVersion tracks the next version number for each subject (monotonically increasing)
 	nextSubjectVersion map[string]int
 
-	// globalFingerprints maps fingerprint to schema ID for global deduplication
-	globalFingerprints map[string]int64
+	// fingerprints maps fingerprint to schema ID for per-context deduplication
+	fingerprints map[string]int64
 
 	// idToSubjectVersions maps schema ID to all subject-versions using it
 	idToSubjectVersions map[int64][]storage.SubjectVersion
@@ -46,71 +48,109 @@ type Store struct {
 	// modes stores mode configurations by subject
 	modes map[string]*storage.ModeRecord
 
-	// globalConfig is the global compatibility configuration
+	// globalConfig is the context-level compatibility configuration (applies to all subjects in context)
 	globalConfig *storage.ConfigRecord
 
-	// globalMode is the global mode configuration
+	// globalMode is the context-level mode configuration (applies to all subjects in context)
 	globalMode *storage.ModeRecord
 
-	// nextID is the next schema ID to assign
+	// nextID is the next schema ID to assign within this context
 	nextID int64
-
-	// users stores user records by ID
-	users map[int64]*storage.UserRecord
-
-	// usersByUsername maps username to user ID
-	usersByUsername map[string]int64
-
-	// nextUserID is the next user ID to assign
-	nextUserID int64
-
-	// apiKeys stores API key records by ID
-	apiKeys map[int64]*storage.APIKeyRecord
-
-	// apiKeysByHash maps key hash to API key ID
-	apiKeysByHash map[string]int64
-
-	// nextAPIKeyID is the next API key ID to assign
-	nextAPIKeyID int64
 }
 
-// NewStore creates a new in-memory store.
-func NewStore() *Store {
-	return &Store{
+// newContextStore creates a new initialized context store.
+func newContextStore() *contextStore {
+	return &contextStore{
 		schemas:             make(map[int64]*storage.SchemaRecord),
 		subjectVersions:     make(map[string]map[int]*subjectVersionInfo),
 		nextSubjectVersion:  make(map[string]int),
-		globalFingerprints:  make(map[string]int64),
+		fingerprints:        make(map[string]int64),
 		idToSubjectVersions: make(map[int64][]storage.SubjectVersion),
 		configs:             make(map[string]*storage.ConfigRecord),
 		modes:               make(map[string]*storage.ModeRecord),
-		users:               make(map[int64]*storage.UserRecord),
-		usersByUsername:     make(map[string]int64),
-		apiKeys:             make(map[int64]*storage.APIKeyRecord),
-		apiKeysByHash:       make(map[string]int64),
 		globalConfig:        &storage.ConfigRecord{Subject: "", CompatibilityLevel: "BACKWARD"},
 		globalMode:          &storage.ModeRecord{Subject: "", Mode: "READWRITE"},
 		nextID:              1,
-		nextUserID:          1,
-		nextAPIKeyID:        1,
 	}
 }
 
+// Store implements the storage.Storage interface using in-memory data structures.
+// All schema, subject, config, mode, and ID operations are scoped to a registry context.
+type Store struct {
+	mu sync.RWMutex
+
+	// contexts maps registry context name to its per-context store
+	contexts map[string]*contextStore
+
+	// users stores user records by ID (global, not per-context)
+	users map[int64]*storage.UserRecord
+
+	// usersByUsername maps username to user ID (global)
+	usersByUsername map[string]int64
+
+	// nextUserID is the next user ID to assign (global)
+	nextUserID int64
+
+	// apiKeys stores API key records by ID (global)
+	apiKeys map[int64]*storage.APIKeyRecord
+
+	// apiKeysByHash maps key hash to API key ID (global)
+	apiKeysByHash map[string]int64
+
+	// nextAPIKeyID is the next API key ID to assign (global)
+	nextAPIKeyID int64
+}
+
+// NewStore creates a new in-memory store with the default context initialized.
+func NewStore() *Store {
+	s := &Store{
+		contexts:       make(map[string]*contextStore),
+		users:          make(map[int64]*storage.UserRecord),
+		usersByUsername: make(map[string]int64),
+		apiKeys:        make(map[int64]*storage.APIKeyRecord),
+		apiKeysByHash:  make(map[string]int64),
+		nextUserID:     1,
+		nextAPIKeyID:   1,
+	}
+	// Default context is always present
+	s.contexts[DefaultContext] = newContextStore()
+	return s
+}
+
+// getOrCreateContext returns the context store, creating it if it doesn't exist.
+// Must be called with s.mu held (write lock).
+func (s *Store) getOrCreateContext(registryCtx string) *contextStore {
+	cs, exists := s.contexts[registryCtx]
+	if !exists {
+		cs = newContextStore()
+		s.contexts[registryCtx] = cs
+	}
+	return cs
+}
+
+// getContext returns the context store, or nil if it doesn't exist.
+// Must be called with s.mu held (read or write lock).
+func (s *Store) getContext(registryCtx string) *contextStore {
+	return s.contexts[registryCtx]
+}
+
 // CreateSchema stores a new schema record.
-// Uses global fingerprint deduplication: same schema content = same ID across all subjects.
-func (s *Store) CreateSchema(ctx context.Context, record *storage.SchemaRecord) error {
+// Uses per-context fingerprint deduplication: same schema content = same ID within a context.
+func (s *Store) CreateSchema(ctx context.Context, registryCtx string, record *storage.SchemaRecord) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	cs := s.getOrCreateContext(registryCtx)
+
 	// Initialize subject's version map if needed
-	if s.subjectVersions[record.Subject] == nil {
-		s.subjectVersions[record.Subject] = make(map[int]*subjectVersionInfo)
+	if cs.subjectVersions[record.Subject] == nil {
+		cs.subjectVersions[record.Subject] = make(map[int]*subjectVersionInfo)
 	}
 
 	// Check if this fingerprint already exists in this subject (exact duplicate)
-	for _, info := range s.subjectVersions[record.Subject] {
+	for _, info := range cs.subjectVersions[record.Subject] {
 		if !info.deleted {
-			existingSchema := s.schemas[info.schemaID]
+			existingSchema := cs.schemas[info.schemaID]
 			if existingSchema != nil && existingSchema.Fingerprint == record.Fingerprint {
 				// Same schema already registered under this subject
 				record.ID = info.schemaID
@@ -120,18 +160,19 @@ func (s *Store) CreateSchema(ctx context.Context, record *storage.SchemaRecord) 
 		}
 	}
 
-	// Check for global fingerprint (same schema in any subject)
+	// Check for per-context fingerprint (same schema in any subject within this context)
 	var schemaID int64
-	if existingID, exists := s.globalFingerprints[record.Fingerprint]; exists {
-		// Reuse the existing schema ID (global deduplication)
+	if existingID, exists := cs.fingerprints[record.Fingerprint]; exists {
+		// Reuse the existing schema ID (per-context deduplication)
 		schemaID = existingID
 	} else {
-		// New schema, assign new ID
-		schemaID = atomic.AddInt64(&s.nextID, 1) - 1
-		s.globalFingerprints[record.Fingerprint] = schemaID
+		// New schema, assign new ID within this context
+		schemaID = cs.nextID
+		cs.nextID++
+		cs.fingerprints[record.Fingerprint] = schemaID
 
-		// Store the schema content (first time seeing this fingerprint)
-		s.schemas[schemaID] = &storage.SchemaRecord{
+		// Store the schema content (first time seeing this fingerprint in this context)
+		cs.schemas[schemaID] = &storage.SchemaRecord{
 			ID:          schemaID,
 			SchemaType:  record.SchemaType,
 			Schema:      record.Schema,
@@ -141,11 +182,11 @@ func (s *Store) CreateSchema(ctx context.Context, record *storage.SchemaRecord) 
 	}
 
 	// Determine version for this subject (monotonically increasing)
-	s.nextSubjectVersion[record.Subject]++
-	version := s.nextSubjectVersion[record.Subject]
+	cs.nextSubjectVersion[record.Subject]++
+	version := cs.nextSubjectVersion[record.Subject]
 
 	// Store the subject-version mapping
-	s.subjectVersions[record.Subject][version] = &subjectVersionInfo{
+	cs.subjectVersions[record.Subject][version] = &subjectVersionInfo{
 		schemaID:  schemaID,
 		version:   version,
 		deleted:   false,
@@ -155,7 +196,7 @@ func (s *Store) CreateSchema(ctx context.Context, record *storage.SchemaRecord) 
 	}
 
 	// Update idToSubjectVersions
-	s.idToSubjectVersions[schemaID] = append(s.idToSubjectVersions[schemaID], storage.SubjectVersion{
+	cs.idToSubjectVersions[schemaID] = append(cs.idToSubjectVersions[schemaID], storage.SubjectVersion{
 		Subject: record.Subject,
 		Version: version,
 	})
@@ -168,12 +209,17 @@ func (s *Store) CreateSchema(ctx context.Context, record *storage.SchemaRecord) 
 	return nil
 }
 
-// GetSchemaByID retrieves a schema by its global ID.
-func (s *Store) GetSchemaByID(ctx context.Context, id int64) (*storage.SchemaRecord, error) {
+// GetSchemaByID retrieves a schema by its ID within a context.
+func (s *Store) GetSchemaByID(ctx context.Context, registryCtx string, id int64) (*storage.SchemaRecord, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	schema, exists := s.schemas[id]
+	cs := s.getContext(registryCtx)
+	if cs == nil {
+		return nil, storage.ErrSchemaNotFound
+	}
+
+	schema, exists := cs.schemas[id]
 	if !exists {
 		return nil, storage.ErrSchemaNotFound
 	}
@@ -181,12 +227,17 @@ func (s *Store) GetSchemaByID(ctx context.Context, id int64) (*storage.SchemaRec
 	return schema, nil
 }
 
-// GetSchemaBySubjectVersion retrieves a schema by subject and version.
-func (s *Store) GetSchemaBySubjectVersion(ctx context.Context, subject string, version int) (*storage.SchemaRecord, error) {
+// GetSchemaBySubjectVersion retrieves a schema by subject and version within a context.
+func (s *Store) GetSchemaBySubjectVersion(ctx context.Context, registryCtx string, subject string, version int) (*storage.SchemaRecord, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	subjectVersionMap := s.subjectVersions[subject]
+	cs := s.getContext(registryCtx)
+	if cs == nil {
+		return nil, storage.ErrSubjectNotFound
+	}
+
+	subjectVersionMap := cs.subjectVersions[subject]
 	if len(subjectVersionMap) == 0 {
 		return nil, storage.ErrSubjectNotFound
 	}
@@ -215,7 +266,7 @@ func (s *Store) GetSchemaBySubjectVersion(ctx context.Context, subject string, v
 		return nil, storage.ErrVersionNotFound
 	}
 
-	schema := s.schemas[info.schemaID]
+	schema := cs.schemas[info.schemaID]
 	if schema == nil {
 		return nil, storage.ErrSchemaNotFound
 	}
@@ -236,12 +287,17 @@ func (s *Store) GetSchemaBySubjectVersion(ctx context.Context, subject string, v
 	}, nil
 }
 
-// GetSchemasBySubject retrieves all schemas for a subject.
-func (s *Store) GetSchemasBySubject(ctx context.Context, subject string, includeDeleted bool) ([]*storage.SchemaRecord, error) {
+// GetSchemasBySubject retrieves all schemas for a subject within a context.
+func (s *Store) GetSchemasBySubject(ctx context.Context, registryCtx string, subject string, includeDeleted bool) ([]*storage.SchemaRecord, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	subjectVersionMap := s.subjectVersions[subject]
+	cs := s.getContext(registryCtx)
+	if cs == nil {
+		return nil, storage.ErrSubjectNotFound
+	}
+
+	subjectVersionMap := cs.subjectVersions[subject]
 	if len(subjectVersionMap) == 0 {
 		return nil, storage.ErrSubjectNotFound
 	}
@@ -251,7 +307,7 @@ func (s *Store) GetSchemasBySubject(ctx context.Context, subject string, include
 		if !includeDeleted && info.deleted {
 			continue
 		}
-		schema := s.schemas[info.schemaID]
+		schema := cs.schemas[info.schemaID]
 		if schema != nil {
 			schemas = append(schemas, &storage.SchemaRecord{
 				ID:          schema.ID,
@@ -282,12 +338,17 @@ func (s *Store) GetSchemasBySubject(ctx context.Context, subject string, include
 	return schemas, nil
 }
 
-// GetSchemaByFingerprint retrieves a schema by subject and fingerprint.
-func (s *Store) GetSchemaByFingerprint(ctx context.Context, subject, fingerprint string, includeDeleted bool) (*storage.SchemaRecord, error) {
+// GetSchemaByFingerprint retrieves a schema by subject and fingerprint within a context.
+func (s *Store) GetSchemaByFingerprint(ctx context.Context, registryCtx string, subject, fingerprint string, includeDeleted bool) (*storage.SchemaRecord, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	subjectVersionMap, exists := s.subjectVersions[subject]
+	cs := s.getContext(registryCtx)
+	if cs == nil {
+		return nil, storage.ErrSubjectNotFound
+	}
+
+	subjectVersionMap, exists := cs.subjectVersions[subject]
 	if !exists || len(subjectVersionMap) == 0 {
 		return nil, storage.ErrSubjectNotFound
 	}
@@ -311,7 +372,7 @@ func (s *Store) GetSchemaByFingerprint(ctx context.Context, subject, fingerprint
 		if info.deleted && !includeDeleted {
 			continue
 		}
-		schema := s.schemas[info.schemaID]
+		schema := cs.schemas[info.schemaID]
 		if schema != nil && schema.Fingerprint == fingerprint {
 			return &storage.SchemaRecord{
 				ID:          schema.ID,
@@ -332,17 +393,22 @@ func (s *Store) GetSchemaByFingerprint(ctx context.Context, subject, fingerprint
 	return nil, storage.ErrSchemaNotFound
 }
 
-// GetSchemaByGlobalFingerprint retrieves a schema by fingerprint (global lookup).
-func (s *Store) GetSchemaByGlobalFingerprint(ctx context.Context, fingerprint string) (*storage.SchemaRecord, error) {
+// GetSchemaByGlobalFingerprint retrieves a schema by fingerprint within a context.
+func (s *Store) GetSchemaByGlobalFingerprint(ctx context.Context, registryCtx string, fingerprint string) (*storage.SchemaRecord, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	id, exists := s.globalFingerprints[fingerprint]
+	cs := s.getContext(registryCtx)
+	if cs == nil {
+		return nil, storage.ErrSchemaNotFound
+	}
+
+	id, exists := cs.fingerprints[fingerprint]
 	if !exists {
 		return nil, storage.ErrSchemaNotFound
 	}
 
-	schema := s.schemas[id]
+	schema := cs.schemas[id]
 	if schema == nil {
 		return nil, storage.ErrSchemaNotFound
 	}
@@ -350,12 +416,17 @@ func (s *Store) GetSchemaByGlobalFingerprint(ctx context.Context, fingerprint st
 	return schema, nil
 }
 
-// GetLatestSchema retrieves the latest schema for a subject.
-func (s *Store) GetLatestSchema(ctx context.Context, subject string) (*storage.SchemaRecord, error) {
+// GetLatestSchema retrieves the latest schema for a subject within a context.
+func (s *Store) GetLatestSchema(ctx context.Context, registryCtx string, subject string) (*storage.SchemaRecord, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	subjectVersionMap := s.subjectVersions[subject]
+	cs := s.getContext(registryCtx)
+	if cs == nil {
+		return nil, storage.ErrSubjectNotFound
+	}
+
+	subjectVersionMap := cs.subjectVersions[subject]
 	if len(subjectVersionMap) == 0 {
 		return nil, storage.ErrSubjectNotFound
 	}
@@ -374,7 +445,7 @@ func (s *Store) GetLatestSchema(ctx context.Context, subject string) (*storage.S
 		return nil, storage.ErrSubjectNotFound
 	}
 
-	schema := s.schemas[latestInfo.schemaID]
+	schema := cs.schemas[latestInfo.schemaID]
 	if schema == nil {
 		return nil, storage.ErrSchemaNotFound
 	}
@@ -394,12 +465,17 @@ func (s *Store) GetLatestSchema(ctx context.Context, subject string) (*storage.S
 	}, nil
 }
 
-// DeleteSchema soft-deletes or permanently deletes a schema version.
-func (s *Store) DeleteSchema(ctx context.Context, subject string, version int, permanent bool) error {
+// DeleteSchema soft-deletes or permanently deletes a schema version within a context.
+func (s *Store) DeleteSchema(ctx context.Context, registryCtx string, subject string, version int, permanent bool) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	subjectVersionMap := s.subjectVersions[subject]
+	cs := s.getContext(registryCtx)
+	if cs == nil {
+		return storage.ErrSubjectNotFound
+	}
+
+	subjectVersionMap := cs.subjectVersions[subject]
 	if len(subjectVersionMap) == 0 {
 		return storage.ErrSubjectNotFound
 	}
@@ -418,7 +494,7 @@ func (s *Store) DeleteSchema(ctx context.Context, subject string, version int, p
 		delete(subjectVersionMap, version)
 
 		// Remove from idToSubjectVersions
-		svs := s.idToSubjectVersions[info.schemaID]
+		svs := cs.idToSubjectVersions[info.schemaID]
 		newSvs := make([]storage.SubjectVersion, 0, len(svs))
 		for _, sv := range svs {
 			if sv.Subject != subject || sv.Version != version {
@@ -427,14 +503,14 @@ func (s *Store) DeleteSchema(ctx context.Context, subject string, version int, p
 		}
 		if len(newSvs) == 0 {
 			// No more references to this schema, can delete it
-			schema := s.schemas[info.schemaID]
+			schema := cs.schemas[info.schemaID]
 			if schema != nil {
-				delete(s.globalFingerprints, schema.Fingerprint)
+				delete(cs.fingerprints, schema.Fingerprint)
 			}
-			delete(s.schemas, info.schemaID)
-			delete(s.idToSubjectVersions, info.schemaID)
+			delete(cs.schemas, info.schemaID)
+			delete(cs.idToSubjectVersions, info.schemaID)
 		} else {
-			s.idToSubjectVersions[info.schemaID] = newSvs
+			cs.idToSubjectVersions[info.schemaID] = newSvs
 		}
 	} else {
 		info.deleted = true
@@ -443,13 +519,18 @@ func (s *Store) DeleteSchema(ctx context.Context, subject string, version int, p
 	return nil
 }
 
-// ListSubjects returns all subject names.
-func (s *Store) ListSubjects(ctx context.Context, includeDeleted bool) ([]string, error) {
+// ListSubjects returns all subject names within a context.
+func (s *Store) ListSubjects(ctx context.Context, registryCtx string, includeDeleted bool) ([]string, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
+	cs := s.getContext(registryCtx)
+	if cs == nil {
+		return []string{}, nil
+	}
+
 	var subjects []string
-	for subject, versionMap := range s.subjectVersions {
+	for subject, versionMap := range cs.subjectVersions {
 		if includeDeleted {
 			subjects = append(subjects, subject)
 			continue
@@ -468,12 +549,17 @@ func (s *Store) ListSubjects(ctx context.Context, includeDeleted bool) ([]string
 	return subjects, nil
 }
 
-// DeleteSubject deletes all versions of a subject.
-func (s *Store) DeleteSubject(ctx context.Context, subject string, permanent bool) ([]int, error) {
+// DeleteSubject deletes all versions of a subject within a context.
+func (s *Store) DeleteSubject(ctx context.Context, registryCtx string, subject string, permanent bool) ([]int, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	subjectVersionMap := s.subjectVersions[subject]
+	cs := s.getContext(registryCtx)
+	if cs == nil {
+		return nil, storage.ErrSubjectNotFound
+	}
+
+	subjectVersionMap := cs.subjectVersions[subject]
 	if len(subjectVersionMap) == 0 {
 		return nil, storage.ErrSubjectNotFound
 	}
@@ -509,7 +595,7 @@ func (s *Store) DeleteSubject(ctx context.Context, subject string, permanent boo
 
 		if permanent {
 			// Remove from idToSubjectVersions
-			svs := s.idToSubjectVersions[info.schemaID]
+			svs := cs.idToSubjectVersions[info.schemaID]
 			newSvs := make([]storage.SubjectVersion, 0, len(svs))
 			for _, sv := range svs {
 				if sv.Subject != subject || sv.Version != version {
@@ -518,14 +604,14 @@ func (s *Store) DeleteSubject(ctx context.Context, subject string, permanent boo
 			}
 			if len(newSvs) == 0 {
 				// No more references to this schema
-				schema := s.schemas[info.schemaID]
+				schema := cs.schemas[info.schemaID]
 				if schema != nil {
-					delete(s.globalFingerprints, schema.Fingerprint)
+					delete(cs.fingerprints, schema.Fingerprint)
 				}
-				delete(s.schemas, info.schemaID)
-				delete(s.idToSubjectVersions, info.schemaID)
+				delete(cs.schemas, info.schemaID)
+				delete(cs.idToSubjectVersions, info.schemaID)
 			} else {
-				s.idToSubjectVersions[info.schemaID] = newSvs
+				cs.idToSubjectVersions[info.schemaID] = newSvs
 			}
 		} else {
 			info.deleted = true
@@ -536,21 +622,26 @@ func (s *Store) DeleteSubject(ctx context.Context, subject string, permanent boo
 	sort.Ints(deletedVersions)
 
 	if permanent {
-		delete(s.subjectVersions, subject)
-		delete(s.nextSubjectVersion, subject)
-		delete(s.configs, subject)
-		delete(s.modes, subject)
+		delete(cs.subjectVersions, subject)
+		delete(cs.nextSubjectVersion, subject)
+		delete(cs.configs, subject)
+		delete(cs.modes, subject)
 	}
 
 	return deletedVersions, nil
 }
 
-// SubjectExists checks if a subject exists.
-func (s *Store) SubjectExists(ctx context.Context, subject string) (bool, error) {
+// SubjectExists checks if a subject exists within a context.
+func (s *Store) SubjectExists(ctx context.Context, registryCtx string, subject string) (bool, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	subjectVersionMap := s.subjectVersions[subject]
+	cs := s.getContext(registryCtx)
+	if cs == nil {
+		return false, nil
+	}
+
+	subjectVersionMap := cs.subjectVersions[subject]
 	for _, info := range subjectVersionMap {
 		if !info.deleted {
 			return true, nil
@@ -560,12 +651,17 @@ func (s *Store) SubjectExists(ctx context.Context, subject string) (bool, error)
 	return false, nil
 }
 
-// GetConfig retrieves the compatibility configuration for a subject.
-func (s *Store) GetConfig(ctx context.Context, subject string) (*storage.ConfigRecord, error) {
+// GetConfig retrieves the compatibility configuration for a subject within a context.
+func (s *Store) GetConfig(ctx context.Context, registryCtx string, subject string) (*storage.ConfigRecord, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	config, exists := s.configs[subject]
+	cs := s.getContext(registryCtx)
+	if cs == nil {
+		return nil, storage.ErrNotFound
+	}
+
+	config, exists := cs.configs[subject]
 	if !exists {
 		return nil, storage.ErrNotFound
 	}
@@ -573,56 +669,74 @@ func (s *Store) GetConfig(ctx context.Context, subject string) (*storage.ConfigR
 	return config, nil
 }
 
-// SetConfig sets the compatibility configuration for a subject.
-func (s *Store) SetConfig(ctx context.Context, subject string, config *storage.ConfigRecord) error {
+// SetConfig sets the compatibility configuration for a subject within a context.
+func (s *Store) SetConfig(ctx context.Context, registryCtx string, subject string, config *storage.ConfigRecord) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	cs := s.getOrCreateContext(registryCtx)
 	config.Subject = subject
-	s.configs[subject] = config
+	cs.configs[subject] = config
 	return nil
 }
 
-// DeleteConfig deletes the compatibility configuration for a subject.
-func (s *Store) DeleteConfig(ctx context.Context, subject string) error {
+// DeleteConfig deletes the compatibility configuration for a subject within a context.
+func (s *Store) DeleteConfig(ctx context.Context, registryCtx string, subject string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if _, exists := s.configs[subject]; !exists {
+	cs := s.getContext(registryCtx)
+	if cs == nil {
 		return storage.ErrNotFound
 	}
 
-	delete(s.configs, subject)
+	if _, exists := cs.configs[subject]; !exists {
+		return storage.ErrNotFound
+	}
+
+	delete(cs.configs, subject)
 	return nil
 }
 
-// GetGlobalConfig retrieves the global compatibility configuration.
-func (s *Store) GetGlobalConfig(ctx context.Context) (*storage.ConfigRecord, error) {
+// GetGlobalConfig retrieves the global compatibility configuration for a context.
+func (s *Store) GetGlobalConfig(ctx context.Context, registryCtx string) (*storage.ConfigRecord, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	if s.globalConfig == nil {
+	cs := s.getContext(registryCtx)
+	if cs == nil {
+		// Return default for non-existent context
+		return &storage.ConfigRecord{Subject: "", CompatibilityLevel: "BACKWARD"}, nil
+	}
+
+	if cs.globalConfig == nil {
 		return nil, storage.ErrNotFound
 	}
-	return s.globalConfig, nil
+	return cs.globalConfig, nil
 }
 
-// SetGlobalConfig sets the global compatibility configuration.
-func (s *Store) SetGlobalConfig(ctx context.Context, config *storage.ConfigRecord) error {
+// SetGlobalConfig sets the global compatibility configuration for a context.
+func (s *Store) SetGlobalConfig(ctx context.Context, registryCtx string, config *storage.ConfigRecord) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	cs := s.getOrCreateContext(registryCtx)
 	config.Subject = ""
-	s.globalConfig = config
+	cs.globalConfig = config
 	return nil
 }
 
-// GetMode retrieves the mode for a subject.
-func (s *Store) GetMode(ctx context.Context, subject string) (*storage.ModeRecord, error) {
+// GetMode retrieves the mode for a subject within a context.
+func (s *Store) GetMode(ctx context.Context, registryCtx string, subject string) (*storage.ModeRecord, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	mode, exists := s.modes[subject]
+	cs := s.getContext(registryCtx)
+	if cs == nil {
+		return nil, storage.ErrNotFound
+	}
+
+	mode, exists := cs.modes[subject]
 	if !exists {
 		return nil, storage.ErrNotFound
 	}
@@ -630,68 +744,97 @@ func (s *Store) GetMode(ctx context.Context, subject string) (*storage.ModeRecor
 	return mode, nil
 }
 
-// SetMode sets the mode for a subject.
-func (s *Store) SetMode(ctx context.Context, subject string, mode *storage.ModeRecord) error {
+// SetMode sets the mode for a subject within a context.
+func (s *Store) SetMode(ctx context.Context, registryCtx string, subject string, mode *storage.ModeRecord) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	cs := s.getOrCreateContext(registryCtx)
 	mode.Subject = subject
-	s.modes[subject] = mode
+	cs.modes[subject] = mode
 	return nil
 }
 
-// DeleteMode deletes the mode for a subject.
-func (s *Store) DeleteMode(ctx context.Context, subject string) error {
+// DeleteMode deletes the mode for a subject within a context.
+func (s *Store) DeleteMode(ctx context.Context, registryCtx string, subject string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if _, exists := s.modes[subject]; !exists {
+	cs := s.getContext(registryCtx)
+	if cs == nil {
 		return storage.ErrNotFound
 	}
 
-	delete(s.modes, subject)
+	if _, exists := cs.modes[subject]; !exists {
+		return storage.ErrNotFound
+	}
+
+	delete(cs.modes, subject)
 	return nil
 }
 
-// GetGlobalMode retrieves the global mode.
-func (s *Store) GetGlobalMode(ctx context.Context) (*storage.ModeRecord, error) {
+// GetGlobalMode retrieves the global mode for a context.
+func (s *Store) GetGlobalMode(ctx context.Context, registryCtx string) (*storage.ModeRecord, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	if s.globalMode == nil {
+	cs := s.getContext(registryCtx)
+	if cs == nil {
+		// Return default for non-existent context
+		return &storage.ModeRecord{Subject: "", Mode: "READWRITE"}, nil
+	}
+
+	if cs.globalMode == nil {
 		return nil, storage.ErrNotFound
 	}
-	return s.globalMode, nil
+	return cs.globalMode, nil
 }
 
-// SetGlobalMode sets the global mode.
-func (s *Store) SetGlobalMode(ctx context.Context, mode *storage.ModeRecord) error {
+// SetGlobalMode sets the global mode for a context.
+func (s *Store) SetGlobalMode(ctx context.Context, registryCtx string, mode *storage.ModeRecord) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	cs := s.getOrCreateContext(registryCtx)
 	mode.Subject = ""
-	s.globalMode = mode
+	cs.globalMode = mode
 	return nil
 }
 
-// NextID returns the next available schema ID.
-func (s *Store) NextID(ctx context.Context) (int64, error) {
-	return atomic.AddInt64(&s.nextID, 1) - 1, nil
-}
-
-// GetMaxSchemaID returns the highest schema ID currently assigned.
-func (s *Store) GetMaxSchemaID(ctx context.Context) (int64, error) {
-	return atomic.LoadInt64(&s.nextID) - 1, nil
-}
-
-// ImportSchema inserts a schema with a specified ID (for migration).
-// Returns ErrSchemaIDConflict if the ID already exists.
-func (s *Store) ImportSchema(ctx context.Context, record *storage.SchemaRecord) error {
+// NextID returns the next available schema ID for a context.
+func (s *Store) NextID(ctx context.Context, registryCtx string) (int64, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// Check if schema ID already exists
-	existingSchema, idExists := s.schemas[record.ID]
+	cs := s.getOrCreateContext(registryCtx)
+	id := cs.nextID
+	cs.nextID++
+	return id, nil
+}
+
+// GetMaxSchemaID returns the highest schema ID currently assigned in a context.
+func (s *Store) GetMaxSchemaID(ctx context.Context, registryCtx string) (int64, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	cs := s.getContext(registryCtx)
+	if cs == nil {
+		return 0, nil
+	}
+
+	return cs.nextID - 1, nil
+}
+
+// ImportSchema inserts a schema with a specified ID (for migration) within a context.
+// Returns ErrSchemaIDConflict if the ID already exists with different content.
+func (s *Store) ImportSchema(ctx context.Context, registryCtx string, record *storage.SchemaRecord) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	cs := s.getOrCreateContext(registryCtx)
+
+	// Check if schema ID already exists in this context
+	existingSchema, idExists := cs.schemas[record.ID]
 	if idExists {
 		// If same content (fingerprint), allow associating with new subject.
 		// If different content, reject — can't overwrite a schema ID.
@@ -701,18 +844,18 @@ func (s *Store) ImportSchema(ctx context.Context, record *storage.SchemaRecord) 
 	}
 
 	// Initialize subject's version map if needed
-	if s.subjectVersions[record.Subject] == nil {
-		s.subjectVersions[record.Subject] = make(map[int]*subjectVersionInfo)
+	if cs.subjectVersions[record.Subject] == nil {
+		cs.subjectVersions[record.Subject] = make(map[int]*subjectVersionInfo)
 	}
 
 	// Check if version already exists for this subject
-	if _, exists := s.subjectVersions[record.Subject][record.Version]; exists {
+	if _, exists := cs.subjectVersions[record.Subject][record.Version]; exists {
 		return storage.ErrSchemaExists
 	}
 
 	// Store the schema content (or update if same ID/fingerprint)
 	if !idExists {
-		s.schemas[record.ID] = &storage.SchemaRecord{
+		cs.schemas[record.ID] = &storage.SchemaRecord{
 			ID:          record.ID,
 			SchemaType:  record.SchemaType,
 			Schema:      record.Schema,
@@ -721,11 +864,11 @@ func (s *Store) ImportSchema(ctx context.Context, record *storage.SchemaRecord) 
 		}
 	}
 
-	// Update global fingerprint mapping
-	s.globalFingerprints[record.Fingerprint] = record.ID
+	// Update per-context fingerprint mapping
+	cs.fingerprints[record.Fingerprint] = record.ID
 
 	// Store the subject-version mapping
-	s.subjectVersions[record.Subject][record.Version] = &subjectVersionInfo{
+	cs.subjectVersions[record.Subject][record.Version] = &subjectVersionInfo{
 		schemaID:  record.ID,
 		version:   record.Version,
 		deleted:   false,
@@ -735,7 +878,7 @@ func (s *Store) ImportSchema(ctx context.Context, record *storage.SchemaRecord) 
 	}
 
 	// Update idToSubjectVersions
-	s.idToSubjectVersions[record.ID] = append(s.idToSubjectVersions[record.ID], storage.SubjectVersion{
+	cs.idToSubjectVersions[record.ID] = append(cs.idToSubjectVersions[record.ID], storage.SubjectVersion{
 		Subject: record.Subject,
 		Version: record.Version,
 	})
@@ -745,27 +888,36 @@ func (s *Store) ImportSchema(ctx context.Context, record *storage.SchemaRecord) 
 	return nil
 }
 
-// SetNextID sets the ID sequence to start from the given value.
+// SetNextID sets the ID sequence to start from the given value for a context.
 // Used after import to prevent ID conflicts.
-func (s *Store) SetNextID(ctx context.Context, id int64) error {
-	atomic.StoreInt64(&s.nextID, id)
+func (s *Store) SetNextID(ctx context.Context, registryCtx string, id int64) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	cs := s.getOrCreateContext(registryCtx)
+	cs.nextID = id
 	return nil
 }
 
-// GetReferencedBy returns subjects/versions that reference the given schema.
-func (s *Store) GetReferencedBy(ctx context.Context, subject string, version int) ([]storage.SubjectVersion, error) {
+// GetReferencedBy returns subjects/versions that reference the given schema within a context.
+func (s *Store) GetReferencedBy(ctx context.Context, registryCtx string, subject string, version int) ([]storage.SubjectVersion, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
+	cs := s.getContext(registryCtx)
+	if cs == nil {
+		return nil, nil
+	}
+
 	var refs []storage.SubjectVersion
 
-	// Check all subject-versions for references to this subject/version
-	for subj, versionMap := range s.subjectVersions {
+	// Check all subject-versions in this context for references to this subject/version
+	for subj, versionMap := range cs.subjectVersions {
 		for ver, info := range versionMap {
 			if info.deleted {
 				continue
 			}
-			schema := s.schemas[info.schemaID]
+			schema := cs.schemas[info.schemaID]
 			if schema == nil {
 				continue
 			}
@@ -784,16 +936,21 @@ func (s *Store) GetReferencedBy(ctx context.Context, subject string, version int
 	return refs, nil
 }
 
-// GetSubjectsBySchemaID returns all subjects where the given schema ID is registered.
-func (s *Store) GetSubjectsBySchemaID(ctx context.Context, id int64, includeDeleted bool) ([]string, error) {
+// GetSubjectsBySchemaID returns all subjects where the given schema ID is registered within a context.
+func (s *Store) GetSubjectsBySchemaID(ctx context.Context, registryCtx string, id int64, includeDeleted bool) ([]string, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	if _, exists := s.schemas[id]; !exists {
+	cs := s.getContext(registryCtx)
+	if cs == nil {
 		return nil, storage.ErrSchemaNotFound
 	}
 
-	svs := s.idToSubjectVersions[id]
+	if _, exists := cs.schemas[id]; !exists {
+		return nil, storage.ErrSchemaNotFound
+	}
+
+	svs := cs.idToSubjectVersions[id]
 	if len(svs) == 0 {
 		return []string{}, nil
 	}
@@ -801,7 +958,7 @@ func (s *Store) GetSubjectsBySchemaID(ctx context.Context, id int64, includeDele
 	// Collect unique subjects, filtering by deleted status
 	subjectSet := make(map[string]bool)
 	for _, sv := range svs {
-		if subjectVersionMap, ok := s.subjectVersions[sv.Subject]; ok {
+		if subjectVersionMap, ok := cs.subjectVersions[sv.Subject]; ok {
 			if info, ok := subjectVersionMap[sv.Version]; ok {
 				if includeDeleted || !info.deleted {
 					subjectSet[sv.Subject] = true
@@ -819,16 +976,21 @@ func (s *Store) GetSubjectsBySchemaID(ctx context.Context, id int64, includeDele
 	return subjects, nil
 }
 
-// GetVersionsBySchemaID returns all subject-version pairs where the given schema ID is registered.
-func (s *Store) GetVersionsBySchemaID(ctx context.Context, id int64, includeDeleted bool) ([]storage.SubjectVersion, error) {
+// GetVersionsBySchemaID returns all subject-version pairs where the given schema ID is registered within a context.
+func (s *Store) GetVersionsBySchemaID(ctx context.Context, registryCtx string, id int64, includeDeleted bool) ([]storage.SubjectVersion, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	if _, exists := s.schemas[id]; !exists {
+	cs := s.getContext(registryCtx)
+	if cs == nil {
 		return nil, storage.ErrSchemaNotFound
 	}
 
-	svs := s.idToSubjectVersions[id]
+	if _, exists := cs.schemas[id]; !exists {
+		return nil, storage.ErrSchemaNotFound
+	}
+
+	svs := cs.idToSubjectVersions[id]
 	if len(svs) == 0 {
 		return []storage.SubjectVersion{}, nil
 	}
@@ -836,7 +998,7 @@ func (s *Store) GetVersionsBySchemaID(ctx context.Context, id int64, includeDele
 	// Filter by deleted status
 	var result []storage.SubjectVersion
 	for _, sv := range svs {
-		if subjectVersionMap, ok := s.subjectVersions[sv.Subject]; ok {
+		if subjectVersionMap, ok := cs.subjectVersions[sv.Subject]; ok {
 			if info, ok := subjectVersionMap[sv.Version]; ok {
 				if includeDeleted || !info.deleted {
 					result = append(result, sv)
@@ -848,17 +1010,22 @@ func (s *Store) GetVersionsBySchemaID(ctx context.Context, id int64, includeDele
 	return result, nil
 }
 
-// ListSchemas returns schemas matching the given filters.
-func (s *Store) ListSchemas(ctx context.Context, params *storage.ListSchemasParams) ([]*storage.SchemaRecord, error) {
+// ListSchemas returns schemas matching the given filters within a context.
+func (s *Store) ListSchemas(ctx context.Context, registryCtx string, params *storage.ListSchemasParams) ([]*storage.SchemaRecord, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
+
+	cs := s.getContext(registryCtx)
+	if cs == nil {
+		return []*storage.SchemaRecord{}, nil
+	}
 
 	var results []*storage.SchemaRecord
 
 	// Track latest versions per subject if needed
 	latestVersions := make(map[string]int)
 	if params.LatestOnly {
-		for subject, versionMap := range s.subjectVersions {
+		for subject, versionMap := range cs.subjectVersions {
 			latestVersion := 0
 			for v, info := range versionMap {
 				if (params.Deleted || !info.deleted) && v > latestVersion {
@@ -871,8 +1038,8 @@ func (s *Store) ListSchemas(ctx context.Context, params *storage.ListSchemasPara
 		}
 	}
 
-	// Collect matching schemas from all subject-versions
-	for subject, versionMap := range s.subjectVersions {
+	// Collect matching schemas from all subject-versions in this context
+	for subject, versionMap := range cs.subjectVersions {
 		// Apply subject prefix filter
 		if params.SubjectPrefix != "" {
 			if len(subject) < len(params.SubjectPrefix) ||
@@ -898,7 +1065,7 @@ func (s *Store) ListSchemas(ctx context.Context, params *storage.ListSchemasPara
 				}
 			}
 
-			schema := s.schemas[info.schemaID]
+			schema := cs.schemas[info.schemaID]
 			if schema == nil {
 				continue
 			}
@@ -939,12 +1106,30 @@ func (s *Store) ListSchemas(ctx context.Context, params *storage.ListSchemasPara
 	return results, nil
 }
 
-// DeleteGlobalConfig resets the global config to default.
-func (s *Store) DeleteGlobalConfig(ctx context.Context) error {
+// ListContexts returns all registry context names, sorted alphabetically.
+func (s *Store) ListContexts(ctx context.Context) ([]string, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	contexts := make([]string, 0, len(s.contexts))
+	for name := range s.contexts {
+		contexts = append(contexts, name)
+	}
+	sort.Strings(contexts)
+	return contexts, nil
+}
+
+// DeleteGlobalConfig resets the global config to default for a context.
+func (s *Store) DeleteGlobalConfig(ctx context.Context, registryCtx string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.globalConfig = &storage.ConfigRecord{Subject: "", CompatibilityLevel: "BACKWARD"}
+	cs := s.getContext(registryCtx)
+	if cs == nil {
+		return nil
+	}
+
+	cs.globalConfig = &storage.ConfigRecord{Subject: "", CompatibilityLevel: "BACKWARD"}
 	return nil
 }
 
