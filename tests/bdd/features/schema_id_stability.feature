@@ -192,8 +192,11 @@ Feature: Schema ID Stability and Content Validation
     And the response should contain "RefBase"
 
   Scenario: References survive permanent delete of canonical first-registered subject
-    # This exercises the exact regression where a SQL JOIN against the
-    # first-registered subject row would break after its permanent deletion.
+    # The same schema is registered under two subjects (A first, B second),
+    # sharing one global ID. A consumer references subject B. We then
+    # permanently delete subject A — the canonical first-registered row in
+    # the schemas table. This exercises the SQL JOIN regression where
+    # lookups by schema_id would break after the first physical row was removed.
     Given the global compatibility level is "NONE"
     When I register a schema under subject "idstab-ref-canon-a":
       """
@@ -207,18 +210,19 @@ Feature: Schema ID Stability and Content Validation
       """
     Then the response status should be 200
     And the response field "id" should equal stored "canon_id"
+    # Reference points to subject B (the second registration)
     When I register a schema under subject "idstab-ref-canon-consumer" with references:
       """
       {
         "schema": "{\"type\":\"record\",\"name\":\"CanonConsumer\",\"namespace\":\"com.idstab\",\"fields\":[{\"name\":\"base\",\"type\":\"com.idstab.CanonBase\"}]}",
         "references": [
-          {"name": "com.idstab.CanonBase", "subject": "idstab-ref-canon-a", "version": 1}
+          {"name": "com.idstab.CanonBase", "subject": "idstab-ref-canon-b", "version": 1}
         ]
       }
       """
     Then the response status should be 200
     And I store the response field "id" as "consumer_id"
-    # Permanently delete the canonical first-registered subject (the one the reference points to)
+    # Permanently delete subject A — the canonical first-registered row
     When I DELETE "/subjects/idstab-ref-canon-a"
     Then the response status should be 200
     When I DELETE "/subjects/idstab-ref-canon-a?permanent=true"
