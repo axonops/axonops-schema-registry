@@ -87,7 +87,7 @@ Unlike Confluent Schema Registry, which uses Kafka itself (a special `_schemas` 
 | **Prometheus Metrics** | ✅ | ✅ | ✅ | ✅ |
 | **REST Proxy** | ❌ | Separate | Separate | ✅ |
 | **Schema Validation** | ✅ | ✅ | ✅ | ✅ |
-| **Multi-Tenant Contexts** | [Planned](https://github.com/axonops/axonops-schema-registry/issues/264) | ✅ | ✅ | ❌ |
+| **Multi-Tenant Contexts** | ✅ | ✅ | ✅ | ❌ |
 | **Schema Linking** | ❌ | ❌ | ✅ | ❌ |
 | **Single Binary** | ✅ | ❌ | ❌ | ❌ |
 | **Memory Footprint** | ~50MB | ~500MB+ | ~500MB+ | ~200MB+ |
@@ -210,7 +210,7 @@ AxonOps Schema Registry implements the Confluent Schema Registry REST API v1:
 
 **Known differences:**
 
-- **Contexts** -- In Confluent Schema Registry, contexts are a multi-tenancy feature that allows multiple schemas with the same subject names and IDs to coexist in separate namespaces (e.g. `".team-a"`, `".team-b"`). Subjects are qualified with a context prefix (e.g. `:.mycontext:my-subject`), and schema IDs are unique within each context. This is primarily used for Schema Linking and enterprise multi-tenant deployments. AxonOps Schema Registry operates as a single-tenant registry -- the `GET /contexts` endpoint always returns `["."]` (the default context only), and context-qualified subject names are not supported. See [#264](https://github.com/axonops/axonops-schema-registry/issues/264) for the feature request to add context support.
+- **Contexts** -- Both Confluent and AxonOps Schema Registry support contexts for multi-tenancy. Subjects can be qualified with a context prefix (e.g., `:.mycontext:my-subject`), and schema IDs are unique within each context. AxonOps also supports URL prefix routing (`/contexts/.mycontext/subjects/...`) as an alternative. See the [Contexts](docs/contexts.md) guide for full documentation.
 - **Cluster coordination** -- Confluent uses Kafka's group protocol for leader election between registry instances. AxonOps instances are fully stateless with no leader election -- database-level constraints (transactions, LWTs) handle coordination instead.
 
 ---
@@ -228,6 +228,7 @@ AxonOps Schema Registry implements the Confluent Schema Registry REST API v1:
 | [Storage Backends](docs/storage-backends.md) | PostgreSQL, MySQL, Cassandra, and in-memory backend setup and tuning |
 | [Schema Types](docs/schema-types.md) | Avro, Protobuf, and JSON Schema support with reference examples |
 | [Compatibility](docs/compatibility.md) | All 7 compatibility modes with per-type rules and configuration |
+| [Contexts](docs/contexts.md) | Multi-tenancy via contexts: namespace isolation, qualified subjects, URL routing |
 | [API Reference](docs/api-reference.md) | All 47+ endpoints with parameters, examples, and error codes |
 | [Authentication](docs/authentication.md) | All 6 auth methods, RBAC, user management, and admin CLI |
 | [Security](docs/security.md) | TLS, rate limiting, audit logging, credential storage, and hardening checklist |

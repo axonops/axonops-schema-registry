@@ -5,7 +5,7 @@
 **Plan:** `/Users/johnny/.claude/plans/eventual-plotting-garden.md`
 **Last Updated:** 2026-02-17
 
-## Overall Status
+## Overall Status: ALL PHASES COMPLETE
 
 | Phase | Description | Status | Notes |
 |-------|-------------|--------|-------|
@@ -20,8 +20,8 @@
 | 9 | Cassandra backend | DONE | All tables with registry_ctx in PK, SAI indexes, block-based per-context IDs, backfill |
 | 10 | BDD tests (~72 scenarios) | DONE | 78 scenarios across 7 feature files, all 1451 BDD scenarios pass |
 | 11 | Unit tests | DONE | 41 new tests across 5 files (memory store, registry, handlers, middleware, server) |
-| 12 | OpenAPI spec | NOT STARTED | |
-| 13 | Documentation | NOT STARTED | |
+| 12 | OpenAPI spec | DONE | Updated GET /contexts description, added Contexts tag, updated examples |
+| 13 | Documentation | DONE | docs/contexts.md (341 lines), README.md updated |
 
 ## What's Working
 
@@ -177,6 +177,8 @@
 | `64a1059` | feat(contexts): complete Cassandra backend context support |
 | `609dc4d` | test(contexts): add 78 BDD scenarios for multi-tenant context support |
 | `ba37496` | test(contexts): add 41 unit tests for context isolation across all layers |
+| `ec7aa9f` | docs(contexts): update OpenAPI spec with context support documentation |
+| `TBD` | docs(contexts): add comprehensive context documentation and update README |
 
 ## Key Design Decisions
 
