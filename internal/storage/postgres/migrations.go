@@ -130,4 +130,93 @@ var migrations = []string{
 	`INSERT INTO schema_fingerprints (fingerprint, schema_id)
 	 SELECT fingerprint, MIN(id) FROM schemas GROUP BY fingerprint
 	 ON CONFLICT (fingerprint) DO NOTHING`,
+
+	// ---------------------------------------------------------------
+	// Migrations 17+: Multi-tenant context support (issue #264)
+	// Adds registry_ctx column to all schema/config/mode tables.
+	// Schema IDs become per-context. Default context is ".".
+	// ---------------------------------------------------------------
+
+	// Migration 17: Add registry_ctx column to schemas table.
+	`ALTER TABLE schemas ADD COLUMN IF NOT EXISTS registry_ctx VARCHAR(255) NOT NULL DEFAULT '.'`,
+
+	// Migration 18: Drop old unique constraints that don't include registry_ctx.
+	// New context-scoped constraints are added in migration 19.
+	`ALTER TABLE schemas DROP CONSTRAINT IF EXISTS schemas_subject_version_key`,
+
+	// Migration 19: Drop old fingerprint unique constraint.
+	`ALTER TABLE schemas DROP CONSTRAINT IF EXISTS schemas_subject_fingerprint_key`,
+
+	// Migration 20: Create context-scoped unique indexes on schemas.
+	`CREATE UNIQUE INDEX IF NOT EXISTS idx_schemas_ctx_subj_ver ON schemas(registry_ctx, subject, version)`,
+
+	// Migration 21: Create context-scoped fingerprint uniqueness.
+	`CREATE UNIQUE INDEX IF NOT EXISTS idx_schemas_ctx_subj_fp ON schemas(registry_ctx, subject, fingerprint)`,
+
+	// Migration 22: Add registry_ctx to schema_fingerprints.
+	`ALTER TABLE schema_fingerprints ADD COLUMN IF NOT EXISTS registry_ctx VARCHAR(255) NOT NULL DEFAULT '.'`,
+
+	// Migration 23: Drop old schema_fingerprints primary key (fingerprint only).
+	`ALTER TABLE schema_fingerprints DROP CONSTRAINT IF EXISTS schema_fingerprints_pkey`,
+
+	// Migration 24: Add new compound primary key to schema_fingerprints.
+	`ALTER TABLE schema_fingerprints ADD CONSTRAINT schema_fingerprints_pkey PRIMARY KEY (registry_ctx, fingerprint)`,
+
+	// Migration 25: Drop old UNIQUE constraint on schema_id (IDs are now per-context).
+	`ALTER TABLE schema_fingerprints DROP CONSTRAINT IF EXISTS schema_fingerprints_schema_id_key`,
+
+	// Migration 26: Add per-context unique constraint on schema_id.
+	`CREATE UNIQUE INDEX IF NOT EXISTS idx_schema_fp_ctx_id ON schema_fingerprints(registry_ctx, schema_id)`,
+
+	// Migration 27: Add registry_ctx to configs.
+	`ALTER TABLE configs ADD COLUMN IF NOT EXISTS registry_ctx VARCHAR(255) NOT NULL DEFAULT '.'`,
+
+	// Migration 28: Drop old configs primary key (subject only).
+	`ALTER TABLE configs DROP CONSTRAINT IF EXISTS configs_pkey`,
+
+	// Migration 29: Add new compound primary key to configs.
+	`ALTER TABLE configs ADD CONSTRAINT configs_pkey PRIMARY KEY (registry_ctx, subject)`,
+
+	// Migration 30: Add registry_ctx to modes.
+	`ALTER TABLE modes ADD COLUMN IF NOT EXISTS registry_ctx VARCHAR(255) NOT NULL DEFAULT '.'`,
+
+	// Migration 31: Drop old modes primary key (subject only).
+	`ALTER TABLE modes DROP CONSTRAINT IF EXISTS modes_pkey`,
+
+	// Migration 32: Add new compound primary key to modes.
+	`ALTER TABLE modes ADD CONSTRAINT modes_pkey PRIMARY KEY (registry_ctx, subject)`,
+
+	// Migration 33: Per-context ID allocation table.
+	// Each context has its own ID sequence starting at 1.
+	`CREATE TABLE IF NOT EXISTS ctx_id_alloc (
+		registry_ctx VARCHAR(255) PRIMARY KEY,
+		next_id BIGINT NOT NULL DEFAULT 1
+	)`,
+
+	// Migration 34: Seed ctx_id_alloc for default context with current max ID.
+	`INSERT INTO ctx_id_alloc (registry_ctx, next_id)
+	 SELECT '.', COALESCE(MAX(schema_id), 0) + 1 FROM schema_fingerprints WHERE registry_ctx = '.'
+	 ON CONFLICT (registry_ctx) DO NOTHING`,
+
+	// Migration 35: Contexts tracking table.
+	`CREATE TABLE IF NOT EXISTS contexts (
+		registry_ctx VARCHAR(255) PRIMARY KEY,
+		created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+	)`,
+
+	// Migration 36: Seed default context.
+	`INSERT INTO contexts (registry_ctx) VALUES ('.') ON CONFLICT DO NOTHING`,
+
+	// Migration 37: Add registry_ctx to schema_references.
+	`ALTER TABLE schema_references ADD COLUMN IF NOT EXISTS registry_ctx VARCHAR(255) NOT NULL DEFAULT '.'`,
+
+	// Migration 38: Index for context-scoped queries on schemas.
+	`CREATE INDEX IF NOT EXISTS idx_schemas_registry_ctx ON schemas(registry_ctx)`,
+
+	// Migration 39: Update schema_versions view to include registry_ctx.
+	`CREATE OR REPLACE VIEW schema_versions AS
+	SELECT registry_ctx, subject, MAX(version) as latest_version, COUNT(*) as version_count
+	FROM schemas
+	WHERE deleted = FALSE
+	GROUP BY registry_ctx, subject`,
 }
