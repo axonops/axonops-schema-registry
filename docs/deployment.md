@@ -120,9 +120,11 @@ storage:
       - cassandra-dc1-node1
       - cassandra-dc1-node2
     keyspace: schema_registry
+    local_dc: dc1
     consistency: LOCAL_QUORUM
     read_consistency: LOCAL_ONE
     write_consistency: LOCAL_QUORUM
+    serial_consistency: LOCAL_SERIAL
 ```
 
 Requirements:

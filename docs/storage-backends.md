@@ -167,6 +167,7 @@ The Cassandra backend uses 15 tables:
 **Tunable consistency.** Read and write consistency levels can be configured independently:
 - `write_consistency`: `LOCAL_QUORUM` is recommended for production.
 - `read_consistency`: `LOCAL_ONE` for lower latency, `LOCAL_QUORUM` for read-your-writes guarantees.
+- `serial_consistency`: Controls the Paxos consensus scope for LWT operations. `LOCAL_SERIAL` (default) restricts Paxos coordination to the local datacenter. Use `SERIAL` only if cross-datacenter linearizability is required for LWT operations.
 - If neither `read_consistency` nor `write_consistency` is specified, the `consistency` value is used for both (default: `LOCAL_QUORUM`).
 
 **Datacenter-aware routing.** When `local_dc` is configured, the driver uses `DCAwareRoundRobinPolicy` to prefer local nodes.
@@ -196,17 +197,19 @@ storage:
       - cassandra-node1
       - cassandra-node2
       - cassandra-node3
+    port: 9042
     keyspace: axonops_schema_registry
+    local_dc: dc1
     consistency: LOCAL_QUORUM
     read_consistency: LOCAL_ONE
     write_consistency: LOCAL_QUORUM
+    serial_consistency: LOCAL_SERIAL
     username: cassandra
     password: cassandra
-    local_dc: dc1
-    id_block_size: 50       # IDs reserved per LWT call (default: 50)
-    max_retries: 50         # Retries for CAS operations (default: 50)
     timeout: 10s
     connect_timeout: 10s
+    id_block_size: 50       # IDs reserved per LWT call (default: 50)
+    max_retries: 50         # Retries for CAS operations (default: 50)
 ```
 
 ## Memory

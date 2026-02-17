@@ -306,6 +306,80 @@ func TestConfig_EnvOverrides_MySQL(t *testing.T) {
 	}
 }
 
+func TestConfig_EnvOverrides_Cassandra(t *testing.T) {
+	envVars := map[string]string{
+		"SCHEMA_REGISTRY_CASSANDRA_HOSTS":              "node1, node2, node3",
+		"SCHEMA_REGISTRY_CASSANDRA_PORT":               "9043",
+		"SCHEMA_REGISTRY_CASSANDRA_KEYSPACE":           "my_keyspace",
+		"SCHEMA_REGISTRY_CASSANDRA_LOCAL_DC":            "dc1",
+		"SCHEMA_REGISTRY_CASSANDRA_CONSISTENCY":         "QUORUM",
+		"SCHEMA_REGISTRY_CASSANDRA_READ_CONSISTENCY":    "LOCAL_ONE",
+		"SCHEMA_REGISTRY_CASSANDRA_WRITE_CONSISTENCY":   "LOCAL_QUORUM",
+		"SCHEMA_REGISTRY_CASSANDRA_SERIAL_CONSISTENCY":  "LOCAL_SERIAL",
+		"SCHEMA_REGISTRY_CASSANDRA_USERNAME":            "cassuser",
+		"SCHEMA_REGISTRY_CASSANDRA_PASSWORD":            "casspass",
+		"SCHEMA_REGISTRY_CASSANDRA_TIMEOUT":             "15s",
+		"SCHEMA_REGISTRY_CASSANDRA_CONNECT_TIMEOUT":     "20s",
+	}
+	for k, v := range envVars {
+		os.Setenv(k, v)
+	}
+	defer func() {
+		for k := range envVars {
+			os.Unsetenv(k)
+		}
+	}()
+
+	cfg, err := Load("")
+	if err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+
+	// Hosts should be split and trimmed
+	if len(cfg.Storage.Cassandra.Hosts) != 3 {
+		t.Errorf("Expected 3 hosts, got %d", len(cfg.Storage.Cassandra.Hosts))
+	}
+	if cfg.Storage.Cassandra.Hosts[0] != "node1" {
+		t.Errorf("Expected node1, got %s", cfg.Storage.Cassandra.Hosts[0])
+	}
+	if cfg.Storage.Cassandra.Hosts[1] != "node2" {
+		t.Errorf("Expected node2, got %s", cfg.Storage.Cassandra.Hosts[1])
+	}
+	if cfg.Storage.Cassandra.Port != 9043 {
+		t.Errorf("Expected 9043, got %d", cfg.Storage.Cassandra.Port)
+	}
+	if cfg.Storage.Cassandra.Keyspace != "my_keyspace" {
+		t.Errorf("Expected my_keyspace, got %s", cfg.Storage.Cassandra.Keyspace)
+	}
+	if cfg.Storage.Cassandra.LocalDC != "dc1" {
+		t.Errorf("Expected dc1, got %s", cfg.Storage.Cassandra.LocalDC)
+	}
+	if cfg.Storage.Cassandra.Consistency != "QUORUM" {
+		t.Errorf("Expected QUORUM, got %s", cfg.Storage.Cassandra.Consistency)
+	}
+	if cfg.Storage.Cassandra.ReadConsistency != "LOCAL_ONE" {
+		t.Errorf("Expected LOCAL_ONE, got %s", cfg.Storage.Cassandra.ReadConsistency)
+	}
+	if cfg.Storage.Cassandra.WriteConsistency != "LOCAL_QUORUM" {
+		t.Errorf("Expected LOCAL_QUORUM, got %s", cfg.Storage.Cassandra.WriteConsistency)
+	}
+	if cfg.Storage.Cassandra.SerialConsistency != "LOCAL_SERIAL" {
+		t.Errorf("Expected LOCAL_SERIAL, got %s", cfg.Storage.Cassandra.SerialConsistency)
+	}
+	if cfg.Storage.Cassandra.Username != "cassuser" {
+		t.Errorf("Expected cassuser, got %s", cfg.Storage.Cassandra.Username)
+	}
+	if cfg.Storage.Cassandra.Password != "casspass" {
+		t.Errorf("Expected casspass, got %s", cfg.Storage.Cassandra.Password)
+	}
+	if cfg.Storage.Cassandra.Timeout != "15s" {
+		t.Errorf("Expected 15s, got %s", cfg.Storage.Cassandra.Timeout)
+	}
+	if cfg.Storage.Cassandra.ConnectTimeout != "20s" {
+		t.Errorf("Expected 20s, got %s", cfg.Storage.Cassandra.ConnectTimeout)
+	}
+}
+
 func TestConfig_EnvOverrides_Bootstrap(t *testing.T) {
 	envVars := map[string]string{
 		"SCHEMA_REGISTRY_BOOTSTRAP_ENABLED":  "true",

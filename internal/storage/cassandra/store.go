@@ -33,7 +33,8 @@ type Config struct {
 	LocalDC          string        `json:"local_dc" yaml:"local_dc"`
 	Consistency      string        `json:"consistency" yaml:"consistency"`
 	ReadConsistency  string        `json:"read_consistency" yaml:"read_consistency"`
-	WriteConsistency string        `json:"write_consistency" yaml:"write_consistency"`
+	WriteConsistency  string        `json:"write_consistency" yaml:"write_consistency"`
+	SerialConsistency string        `json:"serial_consistency" yaml:"serial_consistency"`
 	Timeout          time.Duration `json:"timeout" yaml:"timeout"`
 	ConnectTimeout   time.Duration `json:"connect_timeout" yaml:"connect_timeout"`
 	Migrate          bool          `json:"migrate" yaml:"migrate"`
@@ -148,6 +149,17 @@ func NewStore(ctx context.Context, cfg Config) (*Store, error) {
 		}
 		writeConsistency = c
 	}
+
+	// Parse serial consistency (for LWT operations: IF NOT EXISTS, IF ... = ?)
+	serialConsistency := gocql.LocalSerial
+	if cfg.SerialConsistency != "" {
+		c, err := parseSerialConsistency(cfg.SerialConsistency)
+		if err != nil {
+			return nil, err
+		}
+		serialConsistency = c
+	}
+	cluster.SerialConsistency = serialConsistency
 
 	session, err := cluster.CreateSession()
 	if err != nil {
@@ -2156,6 +2168,17 @@ func parseConsistency(v string) (gocql.Consistency, error) {
 		return gocql.EachQuorum, nil
 	default:
 		return 0, fmt.Errorf("unknown cassandra consistency: %q", v)
+	}
+}
+
+func parseSerialConsistency(v string) (gocql.Consistency, error) {
+	switch strings.ToUpper(strings.TrimSpace(v)) {
+	case "SERIAL":
+		return gocql.Serial, nil
+	case "LOCAL_SERIAL":
+		return gocql.LocalSerial, nil
+	default:
+		return 0, fmt.Errorf("invalid cassandra serial consistency: %q (must be SERIAL or LOCAL_SERIAL)", v)
 	}
 }
 

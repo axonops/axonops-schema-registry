@@ -375,16 +375,36 @@ func createStorage(cfg *config.Config, logger *slog.Logger) (storage.Storage, er
 		logger.Info("connecting to Cassandra",
 			slog.Any("hosts", cfg.Storage.Cassandra.Hosts),
 			slog.String("keyspace", cfg.Storage.Cassandra.Keyspace),
+			slog.String("local_dc", cfg.Storage.Cassandra.LocalDC),
 		)
 		cassCfg := cassandra.Config{
-			Hosts:            cfg.Storage.Cassandra.Hosts,
-			Keyspace:         cfg.Storage.Cassandra.Keyspace,
-			Username:         cfg.Storage.Cassandra.Username,
-			Password:         cfg.Storage.Cassandra.Password,
-			Consistency:      cfg.Storage.Cassandra.Consistency,
-			ReadConsistency:  cfg.Storage.Cassandra.ReadConsistency,
-			WriteConsistency: cfg.Storage.Cassandra.WriteConsistency,
-			Migrate:          true,
+			Hosts:             cfg.Storage.Cassandra.Hosts,
+			Port:              cfg.Storage.Cassandra.Port,
+			Keyspace:          cfg.Storage.Cassandra.Keyspace,
+			LocalDC:           cfg.Storage.Cassandra.LocalDC,
+			Username:          cfg.Storage.Cassandra.Username,
+			Password:          cfg.Storage.Cassandra.Password,
+			Consistency:       cfg.Storage.Cassandra.Consistency,
+			ReadConsistency:   cfg.Storage.Cassandra.ReadConsistency,
+			WriteConsistency:  cfg.Storage.Cassandra.WriteConsistency,
+			SerialConsistency: cfg.Storage.Cassandra.SerialConsistency,
+			MaxRetries:        cfg.Storage.Cassandra.MaxRetries,
+			IDBlockSize:       cfg.Storage.Cassandra.IDBlockSize,
+			Migrate:           true,
+		}
+		if cfg.Storage.Cassandra.Timeout != "" {
+			d, err := time.ParseDuration(cfg.Storage.Cassandra.Timeout)
+			if err != nil {
+				return nil, fmt.Errorf("invalid cassandra timeout %q: %w", cfg.Storage.Cassandra.Timeout, err)
+			}
+			cassCfg.Timeout = d
+		}
+		if cfg.Storage.Cassandra.ConnectTimeout != "" {
+			d, err := time.ParseDuration(cfg.Storage.Cassandra.ConnectTimeout)
+			if err != nil {
+				return nil, fmt.Errorf("invalid cassandra connect_timeout %q: %w", cfg.Storage.Cassandra.ConnectTimeout, err)
+			}
+			cassCfg.ConnectTimeout = d
 		}
 		if len(cassCfg.Hosts) == 0 {
 			cassCfg.Hosts = []string{"localhost"}

@@ -175,12 +175,19 @@ storage:
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | `storage.cassandra.hosts` | list of strings | `["localhost"]` | Cassandra contact points. |
+| `storage.cassandra.port` | int | `9042` | Cassandra native transport port. |
 | `storage.cassandra.keyspace` | string | `"schema_registry"` | Keyspace name. Created automatically with migrations. |
+| `storage.cassandra.local_dc` | string | `""` | Local datacenter name. When set, enables datacenter-aware routing (`DCAwareRoundRobinPolicy`). REQUIRED for multi-datacenter deployments. |
 | `storage.cassandra.consistency` | string | `"LOCAL_QUORUM"` | Default consistency level for all operations. Used when `read_consistency` or `write_consistency` is not set. |
 | `storage.cassandra.read_consistency` | string | `""` (falls back to `consistency`) | Consistency level for read operations. Useful in multi-datacenter deployments where read latency matters (e.g., `LOCAL_ONE`). |
 | `storage.cassandra.write_consistency` | string | `""` (falls back to `consistency`) | Consistency level for write operations. Set independently for durability requirements (e.g., `LOCAL_QUORUM`). |
+| `storage.cassandra.serial_consistency` | string | `"LOCAL_SERIAL"` | Serial consistency level for Lightweight Transactions (LWT). Controls the Paxos consensus scope for `IF NOT EXISTS` and conditional update operations. Values: `SERIAL` (cross-datacenter) or `LOCAL_SERIAL` (local datacenter only). `LOCAL_SERIAL` is strongly RECOMMENDED for multi-datacenter deployments to avoid cross-DC Paxos latency. |
 | `storage.cassandra.username` | string | `""` | Authentication username. |
 | `storage.cassandra.password` | string | `""` | Authentication password. |
+| `storage.cassandra.timeout` | duration | `"10s"` | Timeout for query operations. |
+| `storage.cassandra.connect_timeout` | duration | `"10s"` | Timeout for initial connection establishment. |
+| `storage.cassandra.max_retries` | int | `50` | Maximum retry attempts for CAS (compare-and-swap) operations during ID allocation and fingerprint deduplication. |
+| `storage.cassandra.id_block_size` | int | `50` | Number of schema IDs reserved per LWT call. Higher values reduce LWT frequency but MAY leave gaps in the ID sequence on crash. |
 
 Schema migrations run automatically on startup.
 
@@ -192,12 +199,17 @@ storage:
       - node1.cassandra.local
       - node2.cassandra.local
       - node3.cassandra.local
+    port: 9042
     keyspace: schema_registry
+    local_dc: dc1
     consistency: LOCAL_QUORUM
     read_consistency: LOCAL_ONE
     write_consistency: LOCAL_QUORUM
+    serial_consistency: LOCAL_SERIAL
     username: registry
     password: ${CASSANDRA_PASSWORD}
+    timeout: 10s
+    connect_timeout: 10s
 ```
 
 ### HashiCorp Vault (Auth Storage)
@@ -597,6 +609,23 @@ The following environment variables override the corresponding configuration fil
 | `SCHEMA_REGISTRY_MYSQL_PASSWORD` | `storage.mysql.password` | string |
 | `SCHEMA_REGISTRY_MYSQL_TLS` | `storage.mysql.tls` | string |
 
+### Cassandra
+
+| Variable | Overrides | Type |
+|----------|-----------|------|
+| `SCHEMA_REGISTRY_CASSANDRA_HOSTS` | `storage.cassandra.hosts` | comma-separated string |
+| `SCHEMA_REGISTRY_CASSANDRA_PORT` | `storage.cassandra.port` | int |
+| `SCHEMA_REGISTRY_CASSANDRA_KEYSPACE` | `storage.cassandra.keyspace` | string |
+| `SCHEMA_REGISTRY_CASSANDRA_LOCAL_DC` | `storage.cassandra.local_dc` | string |
+| `SCHEMA_REGISTRY_CASSANDRA_CONSISTENCY` | `storage.cassandra.consistency` | string |
+| `SCHEMA_REGISTRY_CASSANDRA_READ_CONSISTENCY` | `storage.cassandra.read_consistency` | string |
+| `SCHEMA_REGISTRY_CASSANDRA_WRITE_CONSISTENCY` | `storage.cassandra.write_consistency` | string |
+| `SCHEMA_REGISTRY_CASSANDRA_SERIAL_CONSISTENCY` | `storage.cassandra.serial_consistency` | string |
+| `SCHEMA_REGISTRY_CASSANDRA_USERNAME` | `storage.cassandra.username` | string |
+| `SCHEMA_REGISTRY_CASSANDRA_PASSWORD` | `storage.cassandra.password` | string |
+| `SCHEMA_REGISTRY_CASSANDRA_TIMEOUT` | `storage.cassandra.timeout` | duration string |
+| `SCHEMA_REGISTRY_CASSANDRA_CONNECT_TIMEOUT` | `storage.cassandra.connect_timeout` | duration string |
+
 ### Compatibility and Logging
 
 | Variable | Overrides | Type |
@@ -674,12 +703,19 @@ storage:
   cassandra:
     hosts:
       - localhost
+    port: 9042
     keyspace: schema_registry
-    consistency: LOCAL_QUORUM         # Default for all operations
-    read_consistency: ""              # Override for reads (e.g., LOCAL_ONE)
-    write_consistency: ""             # Override for writes (e.g., LOCAL_QUORUM)
+    local_dc: ""                        # Set for multi-DC (e.g., dc1)
+    consistency: LOCAL_QUORUM           # Default for all operations
+    read_consistency: ""                # Override for reads (e.g., LOCAL_ONE)
+    write_consistency: ""               # Override for writes (e.g., LOCAL_QUORUM)
+    serial_consistency: LOCAL_SERIAL    # For LWT: LOCAL_SERIAL or SERIAL
     username: ""
     password: ""
+    timeout: 10s                        # Query timeout
+    connect_timeout: 10s                # Connection timeout
+    max_retries: 50                     # CAS operation retry limit
+    id_block_size: 50                   # IDs per LWT allocation
 
   vault:
     address: ""                       # e.g., https://vault.internal:8200
