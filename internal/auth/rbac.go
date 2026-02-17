@@ -184,6 +184,23 @@ func DefaultEndpointPermissions() []EndpointPermission {
 	}
 }
 
+// normalizePathForRBAC strips the /contexts/{context} prefix from a URL path
+// so that context-scoped routes match the same RBAC permissions as root routes.
+// For example, /contexts/.TestContext/subjects/foo → /subjects/foo.
+func normalizePathForRBAC(path string) string {
+	const prefix = "/contexts/"
+	if strings.HasPrefix(path, prefix) {
+		// Find the end of the context name (next slash after /contexts/)
+		rest := path[len(prefix):]
+		idx := strings.Index(rest, "/")
+		if idx >= 0 {
+			return rest[idx:] // Return everything after /contexts/{context}
+		}
+		return "/" // Context path with no sub-path
+	}
+	return path
+}
+
 // AuthorizeEndpoint returns middleware that checks endpoint-based permissions.
 func (a *Authorizer) AuthorizeEndpoint(permissions []EndpointPermission) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
@@ -195,9 +212,13 @@ func (a *Authorizer) AuthorizeEndpoint(permissions []EndpointPermission) func(ht
 
 			user := GetUser(r.Context())
 
+			// Normalize path to strip /contexts/{context} prefix so that
+			// context-scoped routes match the same permissions as root routes.
+			normalizedPath := normalizePathForRBAC(r.URL.Path)
+
 			// Find matching permission
 			for _, ep := range permissions {
-				if r.Method == ep.Method && strings.HasPrefix(r.URL.Path, ep.PathPrefix) {
+				if r.Method == ep.Method && strings.HasPrefix(normalizedPath, ep.PathPrefix) {
 					if user == nil {
 						http.Error(w, "Unauthorized", http.StatusUnauthorized)
 						return

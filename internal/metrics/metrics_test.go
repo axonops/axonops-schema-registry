@@ -168,6 +168,20 @@ func TestNormalizePath(t *testing.T) {
 		{"/mode", "/mode"},
 		{"/mode/my-topic", "/mode/{subject}"},
 		{"/compatibility/subjects/my-topic/versions/1", "/compatibility/subjects/{subject}/versions/{version}"},
+
+		// Context-scoped routes should be normalized with {context} placeholder
+		{"/contexts/.TestContext/subjects", "/contexts/{context}/subjects"},
+		{"/contexts/.TestContext/subjects/my-topic", "/contexts/{context}/subjects/{subject}"},
+		{"/contexts/.TestContext/subjects/my-topic/versions", "/contexts/{context}/subjects/{subject}/versions"},
+		{"/contexts/.TestContext/subjects/my-topic/versions/1", "/contexts/{context}/subjects/{subject}/versions/{version}"},
+		{"/contexts/.TestContext/schemas/ids/123", "/contexts/{context}/schemas/ids/{id}"},
+		{"/contexts/.TestContext/config", "/contexts/{context}/config"},
+		{"/contexts/.TestContext/config/my-topic", "/contexts/{context}/config/{subject}"},
+		{"/contexts/.TestContext/mode", "/contexts/{context}/mode"},
+		{"/contexts/.TestContext/mode/my-topic", "/contexts/{context}/mode/{subject}"},
+		{"/contexts/.TestContext/compatibility/subjects/my-topic/versions/1", "/contexts/{context}/compatibility/subjects/{subject}/versions/{version}"},
+		{"/contexts/.production/subjects/my-topic", "/contexts/{context}/subjects/{subject}"},
+		{"/contexts/:.:/subjects", "/contexts/{context}/subjects"},
 	}
 
 	for _, tt := range tests {
