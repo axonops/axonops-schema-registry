@@ -18,7 +18,6 @@ formats for schema management.
   - [Authentication](#authentication)
 - [Authentication](#authentication)
 - [Default](#default)
-  - [Health check](#health-check)
   - [Prometheus metrics](#prometheus-metrics)
 - [Schemas](#schemas)
   - [Get supported schema types](#get-supported-schema-types)
@@ -76,6 +75,11 @@ formats for schema management.
   - [Revoke an API key](#revoke-an-api-key)
   - [Rotate an API key](#rotate-an-api-key)
   - [List available roles](#list-available-roles)
+- [Health](#health)
+  - [Health check (legacy)](#health-check-legacy)
+  - [Liveness check](#liveness-check)
+  - [Readiness check](#readiness-check)
+  - [Startup check](#startup-check)
 - [Documentation](#documentation)
   - [Swagger UI](#swagger-ui)
   - [OpenAPI specification](#openapi-specification)
@@ -120,6 +124,7 @@ formats for schema management.
   - [RotateAPIKeyResponse](#rotateapikeyresponse)
   - [RoleInfo](#roleinfo)
   - [RolesListResponse](#roleslistresponse)
+  - [HealthResponse](#healthresponse)
 
 ## Key Concepts
 
@@ -174,49 +179,6 @@ License: [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0)
 - HTTP Authentication, scheme: bearer JWT bearer token authentication. Tokens may be issued by the configured OIDC provider or the registry itself.
 
 # Default
-
-## Health check
-
-
-> Code samples
-
-```shell
-# You can also use wget
-curl -X GET http://localhost:8081/ \
-  -H 'Accept: application/json'
-
-```
-
-`GET /`
-
-Returns an empty JSON object to indicate the service is healthy and accepting requests. This endpoint does not require authentication.
-
-> Example responses
-
-> 200 Response
-
-```json
-{}
-```
-
-### Responses
-
-|Status|Meaning|Description|Schema|
-|---|---|---|---|
-|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The service is healthy.|Inline|
-
-### Response Schema
-
-Status Code **200**
-
-*An empty JSON object.*
-
-|Name|Type|Required|Restrictions|Description|
-|---|---|---|---|---|
-
-> **Success:** 
-This operation does not require authentication
-
 
 ## Prometheus metrics
 
@@ -5224,6 +5186,181 @@ To perform this operation, you must be authenticated by means of one of the foll
 basicAuth, apiKey, bearerAuth
 
 
+# Health
+
+Kubernetes-style health check endpoints for liveness, readiness, and startup probes. These endpoints are unauthenticated and SHOULD be used for Kubernetes pod lifecycle management. The liveness probe confirms the process is alive, the readiness probe confirms the service can handle traffic (storage backend is reachable), and the startup probe confirms initialization is complete.
+
+## Health check (legacy)
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/ \
+  -H 'Accept: application/json'
+
+```
+
+`GET /`
+
+Returns an empty JSON object to indicate the service is healthy and accepting requests. This endpoint does not require authentication. It is retained for backward compatibility with the Confluent Schema Registry API. For Kubernetes deployments, prefer the dedicated `/health/live`, `/health/ready`, and `/health/startup` endpoints.
+
+> Example responses
+
+> 200 Response
+
+```json
+{}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The service is healthy.|Inline|
+
+### Response Schema
+
+Status Code **200**
+
+*An empty JSON object.*
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+
+> **Success:** 
+This operation does not require authentication
+
+
+## Liveness check
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/health/live \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`GET /health/live`
+
+Returns HTTP 200 unconditionally to confirm the process is alive and not deadlocked. This endpoint SHOULD be used as the Kubernetes `livenessProbe` target. It does not check storage backend connectivity — a liveness probe that depends on external services can cause unnecessary pod restarts during transient database outages.
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "status": "UP"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The process is alive.|[HealthResponse](#schemahealthresponse)|
+
+> **Success:** 
+This operation does not require authentication
+
+
+## Readiness check
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/health/ready \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`GET /health/ready`
+
+Returns HTTP 200 when the service is ready to handle traffic, or HTTP 503 when the storage backend is unreachable. This endpoint SHOULD be used as the Kubernetes `readinessProbe` target. When the probe fails, Kubernetes removes the pod from Service endpoints so that traffic is routed only to healthy instances.
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "status": "UP"
+}
+```
+
+> 503 Response
+
+```json
+{
+  "status": "DOWN",
+  "reason": "storage backend unavailable"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The service is ready to handle traffic.|[HealthResponse](#schemahealthresponse)|
+|503|[Service Unavailable](https://tools.ietf.org/html/rfc7231#section-6.6.4)|The service is not ready (storage backend unavailable).|[HealthResponse](#schemahealthresponse)|
+
+> **Success:** 
+This operation does not require authentication
+
+
+## Startup check
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/health/startup \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`GET /health/startup`
+
+Returns HTTP 200 when initialization is complete (storage backend connected and migrations applied), or HTTP 503 while the service is still starting up. This endpoint SHOULD be used as the Kubernetes `startupProbe` target. The startup probe prevents liveness and readiness probes from running until the service has finished initializing, avoiding premature pod restarts during slow Cassandra migrations or initial database connections.
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "status": "UP"
+}
+```
+
+> 503 Response
+
+```json
+{
+  "status": "DOWN",
+  "reason": "storage backend unavailable"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Initialization is complete.|[HealthResponse](#schemahealthresponse)|
+|503|[Service Unavailable](https://tools.ietf.org/html/rfc7231#section-6.6.4)|The service is still initializing.|[HealthResponse](#schemahealthresponse)|
+
+> **Success:** 
+This operation does not require authentication
+
+
 # Documentation
 
 Endpoints for serving the interactive API documentation (Swagger UI) and the raw OpenAPI specification. Available only when the server is configured with docs_enabled.
@@ -7115,3 +7252,30 @@ The response for listing available roles.
 |Name|Type|Required|Restrictions|Description|
 |---|---|---|---|---|
 |roles|[[RoleInfo](#schemaroleinfo)]|true|none|The list of available roles.|
+
+## HealthResponse
+<!-- backwards compatibility -->
+
+```json
+{
+  "status": "UP",
+  "reason": "storage backend unavailable"
+}
+
+```
+
+Health check response indicating the service status. The `status` field is always present. The `reason` field is included only when the status is `DOWN`.
+
+### Properties
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|status|string|true|none|The health status of the service. `UP` indicates healthy, `DOWN` indicates unhealthy.|
+|reason|string|false|none|A human-readable reason for the unhealthy status. Only present when `status` is `DOWN`.|
+
+#### Enumerated Values
+
+|Property|Value|
+|---|---|
+|status|UP|
+|status|DOWN|

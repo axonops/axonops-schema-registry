@@ -89,8 +89,11 @@ func (s *Server) setupRouter() {
 	// Create handlers
 	h := handlers.New(s.registry)
 
-	// Public endpoints (no auth required) - health check, metrics, and documentation
+	// Public endpoints (no auth required) - health checks, metrics, and documentation
 	r.Get("/", h.HealthCheck)
+	r.Get("/health/live", h.LivenessCheck)
+	r.Get("/health/ready", h.ReadinessCheck)
+	r.Get("/health/startup", h.StartupCheck)
 	r.Get("/metrics", func(w http.ResponseWriter, r *http.Request) {
 		s.metrics.Handler().ServeHTTP(w, r)
 	})

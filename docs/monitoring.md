@@ -34,34 +34,53 @@ The registry exposes Prometheus metrics, structured logging, and health check en
 
 ## Health Check
 
-`GET /` returns an empty JSON object with HTTP 200 when the service is healthy:
+The registry provides Kubernetes-style health check endpoints alongside the legacy `GET /` endpoint:
+
+| Endpoint | Purpose | Checks |
+|----------|---------|--------|
+| `GET /health/live` | Liveness probe | Always returns 200 (process is alive) |
+| `GET /health/ready` | Readiness probe | Returns 200 when storage is healthy, 503 when not |
+| `GET /health/startup` | Startup probe | Returns 200 when storage is connected, 503 during initialization |
+| `GET /` | Legacy health check | Returns 200 with empty JSON object (Confluent API compatible) |
 
 ```bash
-curl -s http://localhost:8081/ | jq .
-```
+# Liveness check (always UP)
+curl -s http://localhost:8081/health/live | jq .
+# {"status": "UP"}
 
-```json
-{}
+# Readiness check (depends on storage backend)
+curl -s http://localhost:8081/health/ready | jq .
+# {"status": "UP"}  or  {"status": "DOWN", "reason": "storage backend unavailable"}
 ```
-
-This endpoint verifies database connectivity and is suitable for load balancer health probes and container orchestrator liveness checks (Kubernetes `livenessProbe`, ECS health check, etc.).
 
 Example Kubernetes probe configuration:
 
 ```yaml
+startupProbe:
+  httpGet:
+    path: /health/startup
+    port: 8081
+  initialDelaySeconds: 5
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 12    # 60s total startup window
 livenessProbe:
   httpGet:
-    path: /
+    path: /health/live
     port: 8081
-  initialDelaySeconds: 5
   periodSeconds: 10
+  timeoutSeconds: 3
+  failureThreshold: 3
 readinessProbe:
   httpGet:
-    path: /
+    path: /health/ready
     port: 8081
-  initialDelaySeconds: 5
-  periodSeconds: 10
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 2
 ```
+
+See the [Deployment](deployment.md) guide for a full explanation of why separate health endpoints matter and the recommended probe configuration.
 
 ## Prometheus Metrics
 
