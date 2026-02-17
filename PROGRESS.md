@@ -178,7 +178,7 @@
 | `609dc4d` | test(contexts): add 78 BDD scenarios for multi-tenant context support |
 | `ba37496` | test(contexts): add 41 unit tests for context isolation across all layers |
 | `ec7aa9f` | docs(contexts): update OpenAPI spec with context support documentation |
-| `TBD` | docs(contexts): add comprehensive context documentation and update README |
+| `6dedc3c` | docs(contexts): add comprehensive context documentation and update README |
 
 ## Key Design Decisions
 
