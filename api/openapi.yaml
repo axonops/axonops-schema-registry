@@ -84,6 +84,13 @@ tags:
     description: >-
       Operations for bulk-importing schemas from another schema registry, preserving original
       schema IDs. This is used for migration scenarios.
+  - name: Contexts
+    description: >-
+      Operations for managing schema registry contexts. Contexts provide multi-tenant schema
+      isolation — each context has its own independent schema IDs, subjects, versions,
+      compatibility config, and modes. Subjects are qualified with a context prefix using the
+      Confluent-compatible format `:.contextname:subject`. All standard registry routes are
+      also available under `/contexts/{context}/...` for context-scoped access.
   - name: Metadata
     description: >-
       Operations for retrieving registry metadata such as the cluster ID and server version.
@@ -1634,28 +1641,34 @@ paths:
     get:
       summary: Get schema registry contexts
       description: >-
-        Returns the list of contexts defined in the registry.
+        Returns the list of **contexts** defined in the registry. Contexts provide
+        multi-tenant schema isolation — each context has its own independent schema
+        IDs, subjects, versions, compatibility config, and modes.
 
 
-        In Confluent Schema Registry, **contexts** are a multi-tenancy feature that
-        allows multiple schemas with the same subject names and IDs to coexist in
-        separate namespaces (e.g. `.team-a`, `.team-b`). Subjects are qualified with
-        a context prefix (e.g. `:.mycontext:my-subject`), and schema IDs are unique
-        within each context. This is primarily used for Schema Linking and enterprise
-        multi-tenant deployments.
+        The default context `"."` is always present, even when no schemas have been
+        registered. Additional contexts are created implicitly when a schema is
+        registered with a context-qualified subject name (e.g.
+        `:.team-a:my-subject`).
 
 
-        AxonOps Schema Registry operates as a single-tenant registry. This endpoint
-        always returns `["."]` (the default context only). Context-qualified subject
-        names are not supported. See
-        [#264](https://github.com/axonops/axonops-schema-registry/issues/264) for the
-        feature request to add context support.
+        **Context-qualified subject format:** `:.contextname:subject`
+        (Confluent-compatible). All standard registry endpoints accept qualified
+        subjects. Alternatively, all registry routes are available under the
+        `/contexts/{context}/...` URL prefix for context-scoped access.
+
+
+        > Context names MUST match `^[a-zA-Z0-9._-]+$` and MUST NOT exceed 255
+        characters. Names are normalized with a leading dot (e.g. `team-a` becomes
+        `.team-a`). Context names are case-sensitive.
       operationId: getContexts
       tags:
-        - Metadata
+        - Contexts
       responses:
         '200':
-          description: A list of context strings.
+          description: >-
+            A sorted list of context name strings. Always includes `"."` (the
+            default context). Additional contexts appear as schemas are registered.
           content:
             application/vnd.schemaregistry.v1+json:
               schema:
@@ -1664,6 +1677,8 @@ paths:
                   type: string
                 example:
                   - "."
+                  - ".team-a"
+                  - ".team-b"
 
   /v1/metadata/id:
     get:
