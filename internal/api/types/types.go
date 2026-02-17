@@ -8,6 +8,9 @@ type RegisterSchemaRequest struct {
 	Schema     string              `json:"schema"`
 	SchemaType string              `json:"schemaType,omitempty"`
 	References []storage.Reference `json:"references,omitempty"`
+	ID         int64               `json:"id,omitempty"`
+	Metadata   *storage.Metadata   `json:"metadata,omitempty"`
+	RuleSet    *storage.RuleSet    `json:"ruleSet,omitempty"`
 }
 
 // RegisterSchemaResponse is the response for registering a schema.
@@ -18,15 +21,18 @@ type RegisterSchemaResponse struct {
 // SchemaResponse is the response for getting a schema.
 type SchemaResponse struct {
 	Schema     string              `json:"schema"`
-	SchemaType string              `json:"schemaType,omitempty"`
+	SchemaType string              `json:"schemaType"`
 	References []storage.Reference `json:"references,omitempty"`
 }
 
 // SchemaByIDResponse is the response for getting a schema by ID.
 type SchemaByIDResponse struct {
 	Schema     string              `json:"schema"`
-	SchemaType string              `json:"schemaType,omitempty"`
+	SchemaType string              `json:"schemaType"`
 	References []storage.Reference `json:"references,omitempty"`
+	Metadata   *storage.Metadata   `json:"metadata,omitempty"`
+	RuleSet    *storage.RuleSet    `json:"ruleSet,omitempty"`
+	MaxId      *int64              `json:"maxId,omitempty"`
 }
 
 // SubjectVersionResponse is the response for getting a subject version.
@@ -37,6 +43,8 @@ type SubjectVersionResponse struct {
 	SchemaType string              `json:"schemaType"`
 	Schema     string              `json:"schema"`
 	References []storage.Reference `json:"references,omitempty"`
+	Metadata   *storage.Metadata   `json:"metadata,omitempty"`
+	RuleSet    *storage.RuleSet    `json:"ruleSet,omitempty"`
 }
 
 // LookupSchemaRequest is the request body for looking up a schema.
@@ -54,16 +62,34 @@ type LookupSchemaResponse struct {
 	SchemaType string              `json:"schemaType"`
 	Schema     string              `json:"schema"`
 	References []storage.Reference `json:"references,omitempty"`
+	Metadata   *storage.Metadata   `json:"metadata,omitempty"`
+	RuleSet    *storage.RuleSet    `json:"ruleSet,omitempty"`
 }
 
 // ConfigResponse is the response for getting configuration.
 type ConfigResponse struct {
-	CompatibilityLevel string `json:"compatibilityLevel"`
+	CompatibilityLevel string            `json:"compatibilityLevel"`
+	Normalize          *bool             `json:"normalize,omitempty"`
+	ValidateFields     *bool             `json:"validateFields,omitempty"`
+	Alias              string            `json:"alias,omitempty"`
+	CompatibilityGroup string            `json:"compatibilityGroup,omitempty"`
+	DefaultMetadata    *storage.Metadata `json:"defaultMetadata,omitempty"`
+	OverrideMetadata   *storage.Metadata `json:"overrideMetadata,omitempty"`
+	DefaultRuleSet     *storage.RuleSet  `json:"defaultRuleSet,omitempty"`
+	OverrideRuleSet    *storage.RuleSet  `json:"overrideRuleSet,omitempty"`
 }
 
 // ConfigRequest is the request body for setting configuration.
 type ConfigRequest struct {
-	Compatibility string `json:"compatibility"`
+	Compatibility      string            `json:"compatibility"`
+	Normalize          *bool             `json:"normalize,omitempty"`
+	ValidateFields     *bool             `json:"validateFields,omitempty"`
+	Alias              string            `json:"alias,omitempty"`
+	CompatibilityGroup string            `json:"compatibilityGroup,omitempty"`
+	DefaultMetadata    *storage.Metadata `json:"defaultMetadata,omitempty"`
+	OverrideMetadata   *storage.Metadata `json:"overrideMetadata,omitempty"`
+	DefaultRuleSet     *storage.RuleSet  `json:"defaultRuleSet,omitempty"`
+	OverrideRuleSet    *storage.RuleSet  `json:"overrideRuleSet,omitempty"`
 }
 
 // ModeResponse is the response for getting mode.
@@ -106,9 +132,11 @@ type SchemaListItem struct {
 	Subject    string              `json:"subject"`
 	Version    int                 `json:"version"`
 	ID         int64               `json:"id"`
-	SchemaType string              `json:"schemaType,omitempty"`
+	SchemaType string              `json:"schemaType"`
 	Schema     string              `json:"schema"`
 	References []storage.Reference `json:"references,omitempty"`
+	Metadata   *storage.Metadata   `json:"metadata,omitempty"`
+	RuleSet    *storage.RuleSet    `json:"ruleSet,omitempty"`
 }
 
 // ServerClusterIDResponse is the response for getting cluster ID.
@@ -131,9 +159,12 @@ const (
 	ErrorCodeSubjectSoftDeleted        = 40404
 	ErrorCodeSubjectNotSoftDeleted     = 40405
 	ErrorCodeSchemaVersionSoftDeleted  = 40406
+	ErrorCodeVersionNotSoftDeleted     = 40407
+	ErrorCodeSubjectCompatNotFound     = 40408
+	ErrorCodeSubjectModeNotFound       = 40409
 	ErrorCodeIncompatibleSchema        = 409
 	ErrorCodeInvalidSchema             = 42201
-	ErrorCodeInvalidSchemaType         = 42202
+	ErrorCodeInvalidVersion            = 42202
 	ErrorCodeInvalidCompatibilityLevel = 42203
 	ErrorCodeInvalidMode               = 42204
 	ErrorCodeOperationNotPermitted     = 42205

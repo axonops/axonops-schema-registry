@@ -17,6 +17,8 @@ type subjectVersionInfo struct {
 	version   int
 	deleted   bool
 	createdAt time.Time
+	metadata  *storage.Metadata
+	ruleSet   *storage.RuleSet
 }
 
 // Store implements the storage.Storage interface using in-memory data structures.
@@ -86,15 +88,11 @@ func NewStore() *Store {
 		usersByUsername:     make(map[string]int64),
 		apiKeys:             make(map[int64]*storage.APIKeyRecord),
 		apiKeysByHash:       make(map[string]int64),
-		globalConfig: &storage.ConfigRecord{
-			CompatibilityLevel: "BACKWARD",
-		},
-		globalMode: &storage.ModeRecord{
-			Mode: "READWRITE",
-		},
-		nextID:       1,
-		nextUserID:   1,
-		nextAPIKeyID: 1,
+		globalConfig:        &storage.ConfigRecord{Subject: "", CompatibilityLevel: "BACKWARD"},
+		globalMode:          &storage.ModeRecord{Subject: "", Mode: "READWRITE"},
+		nextID:              1,
+		nextUserID:          1,
+		nextAPIKeyID:        1,
 	}
 }
 
@@ -152,6 +150,8 @@ func (s *Store) CreateSchema(ctx context.Context, record *storage.SchemaRecord) 
 		version:   version,
 		deleted:   false,
 		createdAt: time.Now(),
+		metadata:  record.Metadata,
+		ruleSet:   record.RuleSet,
 	}
 
 	// Update idToSubjectVersions
@@ -228,6 +228,8 @@ func (s *Store) GetSchemaBySubjectVersion(ctx context.Context, subject string, v
 		SchemaType:  schema.SchemaType,
 		Schema:      schema.Schema,
 		References:  schema.References,
+		Metadata:    info.metadata,
+		RuleSet:     info.ruleSet,
 		Fingerprint: schema.Fingerprint,
 		Deleted:     info.deleted,
 		CreatedAt:   info.createdAt,
@@ -258,11 +260,18 @@ func (s *Store) GetSchemasBySubject(ctx context.Context, subject string, include
 				SchemaType:  schema.SchemaType,
 				Schema:      schema.Schema,
 				References:  schema.References,
+				Metadata:    info.metadata,
+				RuleSet:     info.ruleSet,
 				Fingerprint: schema.Fingerprint,
 				Deleted:     info.deleted,
 				CreatedAt:   info.createdAt,
 			})
 		}
+	}
+
+	// If no schemas matched (all were deleted and includeDeleted=false), return not found
+	if len(schemas) == 0 {
+		return nil, storage.ErrSubjectNotFound
 	}
 
 	// Sort by version
@@ -278,9 +287,23 @@ func (s *Store) GetSchemaByFingerprint(ctx context.Context, subject, fingerprint
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	subjectVersionMap := s.subjectVersions[subject]
-	if len(subjectVersionMap) == 0 {
-		return nil, storage.ErrSchemaNotFound
+	subjectVersionMap, exists := s.subjectVersions[subject]
+	if !exists || len(subjectVersionMap) == 0 {
+		return nil, storage.ErrSubjectNotFound
+	}
+
+	// Check if subject has any non-deleted versions (if not including deleted)
+	if !includeDeleted {
+		hasActive := false
+		for _, info := range subjectVersionMap {
+			if !info.deleted {
+				hasActive = true
+				break
+			}
+		}
+		if !hasActive {
+			return nil, storage.ErrSubjectNotFound
+		}
 	}
 
 	// Find a version in this subject with the matching fingerprint
@@ -297,6 +320,8 @@ func (s *Store) GetSchemaByFingerprint(ctx context.Context, subject, fingerprint
 				SchemaType:  schema.SchemaType,
 				Schema:      schema.Schema,
 				References:  schema.References,
+				Metadata:    info.metadata,
+				RuleSet:     info.ruleSet,
 				Fingerprint: schema.Fingerprint,
 				Deleted:     info.deleted,
 				CreatedAt:   info.createdAt,
@@ -361,6 +386,8 @@ func (s *Store) GetLatestSchema(ctx context.Context, subject string) (*storage.S
 		SchemaType:  schema.SchemaType,
 		Schema:      schema.Schema,
 		References:  schema.References,
+		Metadata:    latestInfo.metadata,
+		RuleSet:     latestInfo.ruleSet,
 		Fingerprint: schema.Fingerprint,
 		Deleted:     latestInfo.deleted,
 		CreatedAt:   latestInfo.createdAt,
@@ -380,6 +407,10 @@ func (s *Store) DeleteSchema(ctx context.Context, subject string, version int, p
 	info, exists := subjectVersionMap[version]
 	if !exists {
 		return storage.ErrVersionNotFound
+	}
+
+	if permanent && !info.deleted {
+		return storage.ErrVersionNotSoftDeleted
 	}
 
 	if permanent {
@@ -447,6 +478,27 @@ func (s *Store) DeleteSubject(ctx context.Context, subject string, permanent boo
 		return nil, storage.ErrSubjectNotFound
 	}
 
+	// Check if all versions are already soft-deleted
+	allDeleted := true
+	for _, info := range subjectVersionMap {
+		if !info.deleted {
+			allDeleted = false
+			break
+		}
+	}
+
+	if permanent {
+		// For permanent delete, verify all versions are already soft-deleted
+		if !allDeleted {
+			return nil, storage.ErrSubjectNotSoftDeleted
+		}
+	} else {
+		// For soft-delete, if all versions already soft-deleted → subject is already deleted
+		if allDeleted {
+			return nil, storage.ErrSubjectDeleted
+		}
+	}
+
 	var deletedVersions []int
 	for version, info := range subjectVersionMap {
 		if info.deleted && !permanent {
@@ -485,6 +537,7 @@ func (s *Store) DeleteSubject(ctx context.Context, subject string, permanent boo
 
 	if permanent {
 		delete(s.subjectVersions, subject)
+		delete(s.nextSubjectVersion, subject)
 		delete(s.configs, subject)
 		delete(s.modes, subject)
 	}
@@ -548,6 +601,9 @@ func (s *Store) GetGlobalConfig(ctx context.Context) (*storage.ConfigRecord, err
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
+	if s.globalConfig == nil {
+		return nil, storage.ErrNotFound
+	}
 	return s.globalConfig, nil
 }
 
@@ -602,6 +658,9 @@ func (s *Store) GetGlobalMode(ctx context.Context) (*storage.ModeRecord, error) 
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
+	if s.globalMode == nil {
+		return nil, storage.ErrNotFound
+	}
 	return s.globalMode, nil
 }
 
@@ -620,6 +679,11 @@ func (s *Store) NextID(ctx context.Context) (int64, error) {
 	return atomic.AddInt64(&s.nextID, 1) - 1, nil
 }
 
+// GetMaxSchemaID returns the highest schema ID currently assigned.
+func (s *Store) GetMaxSchemaID(ctx context.Context) (int64, error) {
+	return atomic.LoadInt64(&s.nextID) - 1, nil
+}
+
 // ImportSchema inserts a schema with a specified ID (for migration).
 // Returns ErrSchemaIDConflict if the ID already exists.
 func (s *Store) ImportSchema(ctx context.Context, record *storage.SchemaRecord) error {
@@ -627,8 +691,13 @@ func (s *Store) ImportSchema(ctx context.Context, record *storage.SchemaRecord) 
 	defer s.mu.Unlock()
 
 	// Check if schema ID already exists
-	if _, exists := s.schemas[record.ID]; exists {
-		return storage.ErrSchemaIDConflict
+	existingSchema, idExists := s.schemas[record.ID]
+	if idExists {
+		// If same content (fingerprint), allow associating with new subject.
+		// If different content, reject — can't overwrite a schema ID.
+		if existingSchema.Fingerprint != record.Fingerprint {
+			return storage.ErrSchemaIDConflict
+		}
 	}
 
 	// Initialize subject's version map if needed
@@ -641,13 +710,15 @@ func (s *Store) ImportSchema(ctx context.Context, record *storage.SchemaRecord) 
 		return storage.ErrSchemaExists
 	}
 
-	// Store the schema content
-	s.schemas[record.ID] = &storage.SchemaRecord{
-		ID:          record.ID,
-		SchemaType:  record.SchemaType,
-		Schema:      record.Schema,
-		References:  record.References,
-		Fingerprint: record.Fingerprint,
+	// Store the schema content (or update if same ID/fingerprint)
+	if !idExists {
+		s.schemas[record.ID] = &storage.SchemaRecord{
+			ID:          record.ID,
+			SchemaType:  record.SchemaType,
+			Schema:      record.Schema,
+			References:  record.References,
+			Fingerprint: record.Fingerprint,
+		}
 	}
 
 	// Update global fingerprint mapping
@@ -659,6 +730,8 @@ func (s *Store) ImportSchema(ctx context.Context, record *storage.SchemaRecord) 
 		version:   record.Version,
 		deleted:   false,
 		createdAt: time.Now(),
+		metadata:  record.Metadata,
+		ruleSet:   record.RuleSet,
 	}
 
 	// Update idToSubjectVersions
@@ -837,6 +910,8 @@ func (s *Store) ListSchemas(ctx context.Context, params *storage.ListSchemasPara
 				SchemaType:  schema.SchemaType,
 				Schema:      schema.Schema,
 				References:  schema.References,
+				Metadata:    info.metadata,
+				RuleSet:     info.ruleSet,
 				Fingerprint: schema.Fingerprint,
 				Deleted:     info.deleted,
 				CreatedAt:   info.createdAt,
@@ -869,9 +944,7 @@ func (s *Store) DeleteGlobalConfig(ctx context.Context) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.globalConfig = &storage.ConfigRecord{
-		CompatibilityLevel: "BACKWARD",
-	}
+	s.globalConfig = &storage.ConfigRecord{Subject: "", CompatibilityLevel: "BACKWARD"}
 	return nil
 }
 

@@ -193,13 +193,13 @@ func TestStore_Config(t *testing.T) {
 	store := NewStore()
 	ctx := context.Background()
 
-	// Get global config (default)
+	// Get global config (seeded default is BACKWARD)
 	config, err := store.GetGlobalConfig(ctx)
 	if err != nil {
-		t.Fatalf("GetGlobalConfig failed: %v", err)
+		t.Fatalf("Expected seeded default, got error %v", err)
 	}
 	if config.CompatibilityLevel != "BACKWARD" {
-		t.Errorf("Expected BACKWARD, got %s", config.CompatibilityLevel)
+		t.Errorf("Expected BACKWARD default, got %s", config.CompatibilityLevel)
 	}
 
 	// Set global config

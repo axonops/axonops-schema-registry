@@ -1,0 +1,27 @@
+# Cassandra backend for BDD tests.
+# Usage:
+#   docker compose -f docker-compose.base.yml -f docker-compose.cassandra.yml up -d --build --wait
+
+services:
+  schema-registry:
+    command: ["--config", "/etc/schema-registry/config.cassandra.yaml"]
+    environment:
+      REGISTRY_CONFIG: /etc/schema-registry/config.cassandra.yaml
+    depends_on:
+      cassandra:
+        condition: service_healthy
+
+  cassandra:
+    image: cassandra:5.0
+    environment:
+      CASSANDRA_CLUSTER_NAME: bdd-cluster
+      MAX_HEAP_SIZE: 256M
+      HEAP_NEWSIZE: 128M
+    ports:
+      - "${CASSANDRA_PORT:-19042}:9042"
+    healthcheck:
+      test: ["CMD-SHELL", "cqlsh -e \"CREATE KEYSPACE IF NOT EXISTS schemaregistry WITH replication = {'class':'SimpleStrategy','replication_factor':1}\" && cqlsh -e 'DESCRIBE KEYSPACE schemaregistry'"]
+      interval: 10s
+      timeout: 10s
+      start_period: 60s
+      retries: 30

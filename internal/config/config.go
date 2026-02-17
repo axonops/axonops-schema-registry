@@ -25,6 +25,7 @@ type ServerConfig struct {
 	Port         int    `yaml:"port"`
 	ReadTimeout  int    `yaml:"read_timeout"`
 	WriteTimeout int    `yaml:"write_timeout"`
+	DocsEnabled  bool   `yaml:"docs_enabled"`
 }
 
 // StorageConfig represents storage backend configuration.
@@ -65,13 +66,20 @@ type MySQLConfig struct {
 
 // CassandraConfig represents Cassandra connection configuration.
 type CassandraConfig struct {
-	Hosts            []string `yaml:"hosts"`
-	Keyspace         string   `yaml:"keyspace"`
-	Consistency      string   `yaml:"consistency"`       // Default consistency (used if read/write not specified)
-	ReadConsistency  string   `yaml:"read_consistency"`  // Consistency for read operations (e.g., LOCAL_ONE)
-	WriteConsistency string   `yaml:"write_consistency"` // Consistency for write operations (e.g., LOCAL_QUORUM)
-	Username         string   `yaml:"username"`
-	Password         string   `yaml:"password"`
+	Hosts             []string `yaml:"hosts"`
+	Port              int      `yaml:"port"`
+	Keyspace          string   `yaml:"keyspace"`
+	LocalDC           string   `yaml:"local_dc"`
+	Consistency       string   `yaml:"consistency"`        // Default consistency (used if read/write not specified)
+	ReadConsistency   string   `yaml:"read_consistency"`   // Consistency for read operations (e.g., LOCAL_ONE)
+	WriteConsistency  string   `yaml:"write_consistency"`  // Consistency for write operations (e.g., LOCAL_QUORUM)
+	SerialConsistency string   `yaml:"serial_consistency"` // Serial consistency for LWT operations (SERIAL or LOCAL_SERIAL)
+	Username          string   `yaml:"username"`
+	Password          string   `yaml:"password"`
+	Timeout           string   `yaml:"timeout"`         // Query timeout (e.g., "10s")
+	ConnectTimeout    string   `yaml:"connect_timeout"` // Connection timeout (e.g., "10s")
+	MaxRetries        int      `yaml:"max_retries"`     // Max retries for CAS operations
+	IDBlockSize       int      `yaml:"id_block_size"`   // IDs reserved per LWT call
 }
 
 // VaultConfig represents HashiCorp Vault connection configuration.
@@ -184,7 +192,7 @@ type OIDCConfig struct {
 	Enabled           bool              `yaml:"enabled"`
 	IssuerURL         string            `yaml:"issuer_url"`         // https://auth.example.com
 	ClientID          string            `yaml:"client_id"`          // For token validation
-	ClientSecret      string            `yaml:"client_secret"`      // Optional, for code flow
+	ClientSecret      string            `yaml:"client_secret"`      // #nosec G117 -- OIDC config field, not a hardcoded secret
 	RedirectURL       string            `yaml:"redirect_url"`       // Callback URL
 	Scopes            []string          `yaml:"scopes"`             // openid, profile, email
 	UsernameClaim     string            `yaml:"username_claim"`     // sub, preferred_username, email
@@ -373,6 +381,65 @@ func (c *Config) applyEnvOverrides() {
 	}
 	if v := os.Getenv("SCHEMA_REGISTRY_MYSQL_TLS"); v != "" {
 		c.Storage.MySQL.TLS = v
+	}
+
+	// Cassandra overrides
+	if v := os.Getenv("SCHEMA_REGISTRY_CASSANDRA_HOSTS"); v != "" {
+		hosts := strings.Split(v, ",")
+		for i := range hosts {
+			hosts[i] = strings.TrimSpace(hosts[i])
+		}
+		c.Storage.Cassandra.Hosts = hosts
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_CASSANDRA_PORT"); v != "" {
+		if port, err := strconv.Atoi(v); err == nil {
+			c.Storage.Cassandra.Port = port
+		}
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_CASSANDRA_KEYSPACE"); v != "" {
+		c.Storage.Cassandra.Keyspace = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_CASSANDRA_LOCAL_DC"); v != "" {
+		c.Storage.Cassandra.LocalDC = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_CASSANDRA_CONSISTENCY"); v != "" {
+		c.Storage.Cassandra.Consistency = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_CASSANDRA_READ_CONSISTENCY"); v != "" {
+		c.Storage.Cassandra.ReadConsistency = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_CASSANDRA_WRITE_CONSISTENCY"); v != "" {
+		c.Storage.Cassandra.WriteConsistency = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_CASSANDRA_SERIAL_CONSISTENCY"); v != "" {
+		c.Storage.Cassandra.SerialConsistency = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_CASSANDRA_USERNAME"); v != "" {
+		c.Storage.Cassandra.Username = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_CASSANDRA_PASSWORD"); v != "" {
+		c.Storage.Cassandra.Password = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_CASSANDRA_TIMEOUT"); v != "" {
+		c.Storage.Cassandra.Timeout = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_CASSANDRA_CONNECT_TIMEOUT"); v != "" {
+		c.Storage.Cassandra.ConnectTimeout = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_CASSANDRA_MAX_RETRIES"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			c.Storage.Cassandra.MaxRetries = n
+		}
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_CASSANDRA_ID_BLOCK_SIZE"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			c.Storage.Cassandra.IDBlockSize = n
+		}
+	}
+
+	// Docs enabled override
+	if v := os.Getenv("SCHEMA_REGISTRY_DOCS_ENABLED"); v != "" {
+		c.Server.DocsEnabled = strings.ToLower(v) == "true" || v == "1"
 	}
 
 	// Auth type override

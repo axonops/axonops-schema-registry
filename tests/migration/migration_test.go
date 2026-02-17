@@ -111,6 +111,16 @@ func parseResponse(t *testing.T, resp *http.Response, target interface{}) {
 	}
 }
 
+// setMode sets the global registry mode via the REST API.
+func setMode(t *testing.T, server *httptest.Server, mode string) {
+	t.Helper()
+	resp := doRequest(t, server, "PUT", "/mode", map[string]string{"mode": mode})
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("Failed to set mode to %s: status %d", mode, resp.StatusCode)
+	}
+}
+
 // TestMigrationFromConfluent simulates a complete migration from Confluent Schema Registry
 // to AxonOps Schema Registry, verifying that:
 // 1. Schema IDs are preserved
@@ -188,11 +198,15 @@ func TestMigrationFromConfluent(t *testing.T) {
 			var schemaInfo map[string]interface{}
 			parseResponse(t, resp, &schemaInfo)
 
+			schemaType := "AVRO"
+			if st, ok := schemaInfo["schemaType"].(string); ok && st != "" {
+				schemaType = st
+			}
 			exportedSchemas = append(exportedSchemas, types.ImportSchemaRequest{
 				ID:         int64(schemaInfo["id"].(float64)),
 				Subject:    subject,
 				Version:    int(schemaInfo["version"].(float64)),
-				SchemaType: schemaInfo["schemaType"].(string),
+				SchemaType: schemaType,
 				Schema:     schemaInfo["schema"].(string),
 			})
 		}
@@ -207,6 +221,9 @@ func TestMigrationFromConfluent(t *testing.T) {
 
 	// Step 3: Import schemas to target
 	t.Log("Step 3: Importing schemas to target (AxonOps SR)")
+
+	// Set IMPORT mode on target before importing
+	setMode(t, targetServer, "IMPORT")
 
 	importReq := types.ImportSchemasRequest{Schemas: exportedSchemas}
 	resp = doRequest(t, targetServer, "POST", "/import/schemas", importReq)
@@ -228,6 +245,9 @@ func TestMigrationFromConfluent(t *testing.T) {
 	}
 
 	t.Logf("  Imported %d schemas with 0 errors", importResult.Imported)
+
+	// Restore READWRITE mode for subsequent registrations and queries
+	setMode(t, targetServer, "READWRITE")
 
 	// Step 4: Verify schema IDs match
 	t.Log("Step 4: Verifying schema IDs match")
@@ -297,10 +317,14 @@ func TestMigrationFromConfluent(t *testing.T) {
 			continue
 		}
 
-		// Verify schema type matches
-		if targetSchema["schemaType"].(string) != exported.SchemaType {
+		// Verify schema type matches (schemaType omitted for AVRO)
+		targetSchemaType := "AVRO"
+		if st, ok := targetSchema["schemaType"].(string); ok && st != "" {
+			targetSchemaType = st
+		}
+		if targetSchemaType != exported.SchemaType {
 			t.Errorf("Schema type mismatch for ID %d: expected %s, got %s",
-				exported.ID, exported.SchemaType, targetSchema["schemaType"])
+				exported.ID, exported.SchemaType, targetSchemaType)
 		}
 
 		// Verify schema content is present (not comparing exact content due to normalization)
@@ -313,12 +337,17 @@ func TestMigrationFromConfluent(t *testing.T) {
 	t.Log("Migration test PASSED!")
 }
 
-// TestImportWithDuplicateIDs verifies that duplicate IDs are rejected
+// TestImportWithDuplicateIDs verifies that duplicate IDs are handled correctly:
+// - Same schema content with same ID (different subject) is allowed (reuse)
+// - Different schema content with same ID is rejected
 func TestImportWithDuplicateIDs(t *testing.T) {
 	server, _ := createTestServer()
 	defer server.Close()
 
-	// Import first batch
+	setMode(t, server, "IMPORT")
+	defer setMode(t, server, "READWRITE")
+
+	// Import first schema
 	importReq := types.ImportSchemasRequest{
 		Schemas: []types.ImportSchemaRequest{
 			{
@@ -339,13 +368,23 @@ func TestImportWithDuplicateIDs(t *testing.T) {
 		t.Fatalf("First import should succeed, got %d errors", result.Errors)
 	}
 
-	// Try to import same ID again
+	// Same schema content, same ID, different subject — should succeed (reuse)
 	importReq.Schemas[0].Subject = "different-subject"
 	resp = doRequest(t, server, "POST", "/import/schemas", importReq)
 	parseResponse(t, resp, &result)
 
+	if result.Errors != 0 {
+		t.Errorf("Same content with same ID in different subject should succeed, got %d errors", result.Errors)
+	}
+
+	// Different schema content with same ID — should be rejected
+	importReq.Schemas[0].Subject = "another-subject"
+	importReq.Schemas[0].Schema = `{"type":"int"}`
+	resp = doRequest(t, server, "POST", "/import/schemas", importReq)
+	parseResponse(t, resp, &result)
+
 	if result.Errors != 1 {
-		t.Errorf("Duplicate ID should be rejected, got %d errors", result.Errors)
+		t.Errorf("Different content with same ID should be rejected, got %d errors", result.Errors)
 	}
 
 	if result.Results[0].Error != "schema ID already exists" {
@@ -357,6 +396,9 @@ func TestImportWithDuplicateIDs(t *testing.T) {
 func TestImportWithReferences(t *testing.T) {
 	server, store := createTestServer()
 	defer server.Close()
+
+	setMode(t, server, "IMPORT")
+	defer setMode(t, server, "READWRITE")
 
 	// Import base schema first
 	baseSchema := `{"type":"record","name":"Address","namespace":"com.example","fields":[{"name":"street","type":"string"}]}`
@@ -431,6 +473,8 @@ func TestImportMultipleVersions(t *testing.T) {
 	server, _ := createTestServer()
 	defer server.Close()
 
+	setMode(t, server, "IMPORT")
+
 	// Import multiple versions in order
 	importReq := types.ImportSchemasRequest{
 		Schemas: []types.ImportSchemaRequest{
@@ -470,6 +514,8 @@ func TestImportMultipleVersions(t *testing.T) {
 		t.Errorf("Expected 3 imported, got %d", result.Imported)
 	}
 
+	setMode(t, server, "READWRITE")
+
 	// Verify versions
 	resp = doRequest(t, server, "GET", "/subjects/multi-version/versions", nil)
 	var versions []int
@@ -497,6 +543,9 @@ func TestImportMultipleVersions(t *testing.T) {
 func TestImportPreservesSchemaTypes(t *testing.T) {
 	server, store := createTestServer()
 	defer server.Close()
+
+	setMode(t, server, "IMPORT")
+	defer setMode(t, server, "READWRITE")
 
 	importReq := types.ImportSchemasRequest{
 		Schemas: []types.ImportSchemaRequest{

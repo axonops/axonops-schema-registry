@@ -89,11 +89,15 @@ func (s *Server) setupRouter() {
 	// Create handlers
 	h := handlers.New(s.registry)
 
-	// Public endpoints (no auth required) - health check and metrics
+	// Public endpoints (no auth required) - health check, metrics, and documentation
 	r.Get("/", h.HealthCheck)
 	r.Get("/metrics", func(w http.ResponseWriter, r *http.Request) {
 		s.metrics.Handler().ServeHTTP(w, r)
 	})
+	if s.config.Server.DocsEnabled {
+		r.Get("/docs", handleSwaggerUI)
+		r.Get("/openapi.yaml", handleOpenAPISpec)
+	}
 
 	// Protected routes group (auth required when configured)
 	r.Group(func(r chi.Router) {

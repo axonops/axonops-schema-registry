@@ -1,0 +1,37 @@
+[
+  {
+    "id": "kill-backend",
+    "execute-command": "/etc/webhook/scripts/kill-backend.sh",
+    "include-command-output-in-response": true
+  },
+  {
+    "id": "restart-service",
+    "execute-command": "/etc/webhook/scripts/restart-service.sh",
+    "include-command-output-in-response": true
+  },
+  {
+    "id": "restart-backend",
+    "execute-command": "/etc/webhook/scripts/restart-backend.sh",
+    "include-command-output-in-response": true
+  },
+  {
+    "id": "pause-service",
+    "execute-command": "/etc/webhook/scripts/pause-service.sh",
+    "include-command-output-in-response": true
+  },
+  {
+    "id": "unpause-service",
+    "execute-command": "/etc/webhook/scripts/unpause-service.sh",
+    "include-command-output-in-response": true
+  },
+  {
+    "id": "stop-service",
+    "execute-command": "/etc/webhook/scripts/stop-service.sh",
+    "include-command-output-in-response": true
+  },
+  {
+    "id": "start-service",
+    "execute-command": "/etc/webhook/scripts/start-service.sh",
+    "include-command-output-in-response": true
+  }
+]

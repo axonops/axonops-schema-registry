@@ -1,0 +1,26 @@
+# PostgreSQL backend for BDD tests.
+# Usage:
+#   docker compose -f docker-compose.base.yml -f docker-compose.postgres.yml up -d --build --wait
+
+services:
+  schema-registry:
+    command: ["--config", "/etc/schema-registry/config.postgres.yaml"]
+    environment:
+      REGISTRY_CONFIG: /etc/schema-registry/config.postgres.yaml
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: schemaregistry
+      POSTGRES_PASSWORD: schemaregistry
+      POSTGRES_DB: schemaregistry
+    ports:
+      - "${POSTGRES_PORT:-15432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U schemaregistry"]
+      interval: 5s
+      timeout: 3s
+      retries: 10

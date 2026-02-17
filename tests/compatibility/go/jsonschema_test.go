@@ -225,7 +225,8 @@ func TestJSONSchemaEvolution(t *testing.T) {
 				"name": {"type": "string"},
 				"value": {"type": "string"}
 			},
-			"required": ["name", "value"]
+			"required": ["name", "value"],
+			"additionalProperties": false
 		}`
 
 		v2Schema := `{
@@ -237,7 +238,8 @@ func TestJSONSchemaEvolution(t *testing.T) {
 				"value": {"type": "string"},
 				"description": {"type": "string"}
 			},
-			"required": ["name", "value"]
+			"required": ["name", "value"],
+			"additionalProperties": false
 		}`
 
 		subject := "go-json-evolution-value"

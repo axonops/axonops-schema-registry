@@ -2,7 +2,14 @@ package jsonschema
 
 import (
 	"testing"
+
+	"github.com/axonops/axonops-schema-registry/internal/compatibility"
 )
+
+// s creates a SchemaWithRefs with no references for convenience.
+func s(schema string) compatibility.SchemaWithRefs {
+	return compatibility.SchemaWithRefs{Schema: schema}
+}
 
 func TestChecker_CompatibleSchemas(t *testing.T) {
 	checker := NewChecker()
@@ -25,15 +32,16 @@ func TestChecker_CompatibleSchemas(t *testing.T) {
 		"required": ["name"]
 	}`
 
-	result := checker.Check(newSchema, oldSchema)
+	result := checker.Check(s(newSchema), s(oldSchema))
 	if !result.IsCompatible {
 		t.Errorf("Expected compatible, got messages: %v", result.Messages)
 	}
 }
 
-func TestChecker_AddOptionalProperty_Compatible(t *testing.T) {
+func TestChecker_AddOptionalProperty_OpenModel_Incompatible(t *testing.T) {
 	checker := NewChecker()
 
+	// No additionalProperties = open content model (default)
 	oldSchema := `{
 		"type": "object",
 		"properties": {
@@ -51,9 +59,9 @@ func TestChecker_AddOptionalProperty_Compatible(t *testing.T) {
 		"required": ["name"]
 	}`
 
-	result := checker.Check(newSchema, oldSchema)
-	if !result.IsCompatible {
-		t.Errorf("Adding optional property should be compatible: %v", result.Messages)
+	result := checker.Check(s(newSchema), s(oldSchema))
+	if result.IsCompatible {
+		t.Error("Adding optional property to open content model should be incompatible (old writer could have used 'age' as additional property with any type)")
 	}
 }
 
@@ -77,15 +85,16 @@ func TestChecker_AddRequiredProperty_Incompatible(t *testing.T) {
 		"required": ["name", "age"]
 	}`
 
-	result := checker.Check(newSchema, oldSchema)
+	result := checker.Check(s(newSchema), s(oldSchema))
 	if result.IsCompatible {
 		t.Error("Adding required property should be incompatible")
 	}
 }
 
-func TestChecker_RemoveProperty_Incompatible(t *testing.T) {
+func TestChecker_RemoveProperty_OpenModel_Compatible(t *testing.T) {
 	checker := NewChecker()
 
+	// No additionalProperties = open content model
 	oldSchema := `{
 		"type": "object",
 		"properties": {
@@ -101,9 +110,9 @@ func TestChecker_RemoveProperty_Incompatible(t *testing.T) {
 		}
 	}`
 
-	result := checker.Check(newSchema, oldSchema)
-	if result.IsCompatible {
-		t.Error("Removing property should be incompatible")
+	result := checker.Check(s(newSchema), s(oldSchema))
+	if !result.IsCompatible {
+		t.Errorf("Removing property from open content model should be compatible (property becomes additional): %v", result.Messages)
 	}
 }
 
@@ -124,7 +133,7 @@ func TestChecker_ChangePropertyType_Incompatible(t *testing.T) {
 		}
 	}`
 
-	result := checker.Check(newSchema, oldSchema)
+	result := checker.Check(s(newSchema), s(oldSchema))
 	if result.IsCompatible {
 		t.Error("Changing property type should be incompatible")
 	}
@@ -151,7 +160,7 @@ func TestChecker_MakeOptionalRequired_Incompatible(t *testing.T) {
 		"required": ["name", "age"]
 	}`
 
-	result := checker.Check(newSchema, oldSchema)
+	result := checker.Check(s(newSchema), s(oldSchema))
 	if result.IsCompatible {
 		t.Error("Making optional property required should be incompatible")
 	}
@@ -178,7 +187,7 @@ func TestChecker_MakeRequiredOptional_Compatible(t *testing.T) {
 		"required": ["name"]
 	}`
 
-	result := checker.Check(newSchema, oldSchema)
+	result := checker.Check(s(newSchema), s(oldSchema))
 	if !result.IsCompatible {
 		t.Errorf("Making required property optional should be compatible: %v", result.Messages)
 	}
@@ -197,7 +206,7 @@ func TestChecker_RemoveEnumValue_Incompatible(t *testing.T) {
 		"enum": ["red", "green"]
 	}`
 
-	result := checker.Check(newSchema, oldSchema)
+	result := checker.Check(s(newSchema), s(oldSchema))
 	if result.IsCompatible {
 		t.Error("Removing enum value should be incompatible")
 	}
@@ -216,7 +225,7 @@ func TestChecker_AddEnumValue_Compatible(t *testing.T) {
 		"enum": ["red", "green", "blue"]
 	}`
 
-	result := checker.Check(newSchema, oldSchema)
+	result := checker.Check(s(newSchema), s(oldSchema))
 	if !result.IsCompatible {
 		t.Errorf("Adding enum value should be compatible: %v", result.Messages)
 	}
@@ -234,7 +243,7 @@ func TestChecker_RemoveEnumConstraint_Compatible(t *testing.T) {
 		"type": "string"
 	}`
 
-	result := checker.Check(newSchema, oldSchema)
+	result := checker.Check(s(newSchema), s(oldSchema))
 	if !result.IsCompatible {
 		t.Errorf("Removing enum constraint should be compatible (less restrictive): %v", result.Messages)
 	}
@@ -258,7 +267,7 @@ func TestChecker_ForbidAdditionalProperties_Incompatible(t *testing.T) {
 		"additionalProperties": false
 	}`
 
-	result := checker.Check(newSchema, oldSchema)
+	result := checker.Check(s(newSchema), s(oldSchema))
 	if result.IsCompatible {
 		t.Error("Forbidding additionalProperties should be incompatible")
 	}
@@ -283,15 +292,16 @@ func TestChecker_AllowAdditionalProperties_Compatible(t *testing.T) {
 		"additionalProperties": true
 	}`
 
-	result := checker.Check(newSchema, oldSchema)
+	result := checker.Check(s(newSchema), s(oldSchema))
 	if !result.IsCompatible {
 		t.Errorf("Allowing additionalProperties should be compatible: %v", result.Messages)
 	}
 }
 
-func TestChecker_NestedPropertyChange_Incompatible(t *testing.T) {
+func TestChecker_NestedPropertyRemoval_OpenModel_Compatible(t *testing.T) {
 	checker := NewChecker()
 
+	// Nested object also has open content model (no additionalProperties)
 	oldSchema := `{
 		"type": "object",
 		"properties": {
@@ -317,9 +327,9 @@ func TestChecker_NestedPropertyChange_Incompatible(t *testing.T) {
 		}
 	}`
 
-	result := checker.Check(newSchema, oldSchema)
-	if result.IsCompatible {
-		t.Error("Removing nested property should be incompatible")
+	result := checker.Check(s(newSchema), s(oldSchema))
+	if !result.IsCompatible {
+		t.Errorf("Removing nested property from open content model should be compatible: %v", result.Messages)
 	}
 }
 
@@ -336,7 +346,7 @@ func TestChecker_ArrayItemsChange_Incompatible(t *testing.T) {
 		"items": {"type": "integer"}
 	}`
 
-	result := checker.Check(newSchema, oldSchema)
+	result := checker.Check(s(newSchema), s(oldSchema))
 	if result.IsCompatible {
 		t.Error("Changing array items type should be incompatible")
 	}
@@ -357,7 +367,7 @@ func TestChecker_TightenMinItems_Incompatible(t *testing.T) {
 		"minItems": 5
 	}`
 
-	result := checker.Check(newSchema, oldSchema)
+	result := checker.Check(s(newSchema), s(oldSchema))
 	if result.IsCompatible {
 		t.Error("Tightening minItems should be incompatible")
 	}
@@ -378,7 +388,7 @@ func TestChecker_TightenMaxItems_Incompatible(t *testing.T) {
 		"maxItems": 5
 	}`
 
-	result := checker.Check(newSchema, oldSchema)
+	result := checker.Check(s(newSchema), s(oldSchema))
 	if result.IsCompatible {
 		t.Error("Tightening maxItems should be incompatible")
 	}
@@ -399,7 +409,7 @@ func TestChecker_LoosenMinItems_Compatible(t *testing.T) {
 		"minItems": 1
 	}`
 
-	result := checker.Check(newSchema, oldSchema)
+	result := checker.Check(s(newSchema), s(oldSchema))
 	if !result.IsCompatible {
 		t.Errorf("Loosening minItems should be compatible: %v", result.Messages)
 	}
@@ -411,7 +421,7 @@ func TestChecker_ChangeRootType_Incompatible(t *testing.T) {
 	oldSchema := `{"type": "object"}`
 	newSchema := `{"type": "array"}`
 
-	result := checker.Check(newSchema, oldSchema)
+	result := checker.Check(s(newSchema), s(oldSchema))
 	if result.IsCompatible {
 		t.Error("Changing root type should be incompatible")
 	}
@@ -423,7 +433,7 @@ func TestChecker_AddTypeToUnion_Compatible(t *testing.T) {
 	oldSchema := `{"type": "string"}`
 	newSchema := `{"type": ["string", "null"]}`
 
-	result := checker.Check(newSchema, oldSchema)
+	result := checker.Check(s(newSchema), s(oldSchema))
 	if !result.IsCompatible {
 		t.Errorf("Adding type to union should be compatible: %v", result.Messages)
 	}
@@ -435,7 +445,7 @@ func TestChecker_RemoveTypeFromUnion_Incompatible(t *testing.T) {
 	oldSchema := `{"type": ["string", "null"]}`
 	newSchema := `{"type": "string"}`
 
-	result := checker.Check(newSchema, oldSchema)
+	result := checker.Check(s(newSchema), s(oldSchema))
 	if result.IsCompatible {
 		t.Error("Removing type from union should be incompatible")
 	}
@@ -447,12 +457,12 @@ func TestChecker_InvalidSchema(t *testing.T) {
 	validSchema := `{"type": "object"}`
 	invalidSchema := `{not valid json}`
 
-	result := checker.Check(invalidSchema, validSchema)
+	result := checker.Check(s(invalidSchema), s(validSchema))
 	if result.IsCompatible {
 		t.Error("Invalid new schema should return incompatible")
 	}
 
-	result = checker.Check(validSchema, invalidSchema)
+	result = checker.Check(s(validSchema), s(invalidSchema))
 	if result.IsCompatible {
 		t.Error("Invalid old schema should return incompatible")
 	}
@@ -465,7 +475,7 @@ func TestChecker_EmptySchemas_Compatible(t *testing.T) {
 	oldSchema := `{}`
 	newSchema := `{}`
 
-	result := checker.Check(newSchema, oldSchema)
+	result := checker.Check(s(newSchema), s(oldSchema))
 	if !result.IsCompatible {
 		t.Errorf("Empty schemas should be compatible: %v", result.Messages)
 	}
@@ -478,7 +488,7 @@ func TestChecker_AddTypeConstraint(t *testing.T) {
 	oldSchema := `{}`
 	newSchema := `{"type": "string"}`
 
-	result := checker.Check(newSchema, oldSchema)
+	result := checker.Check(s(newSchema), s(oldSchema))
 	// Adding type constraint to empty schema is compatible
 	// because new schema is more restrictive, but still accepts valid old data
 	_ = result // Result depends on compatibility mode interpretation
@@ -551,5 +561,214 @@ func TestPathOrRoot(t *testing.T) {
 	}
 	if pathOrRoot("user.name") != "user.name" {
 		t.Error("Non-empty path should be returned as-is")
+	}
+}
+
+// ============================================================================
+// NEW TESTS: Open vs closed content model (J1, J2)
+// ============================================================================
+
+func TestChecker_HasOpenContentModel(t *testing.T) {
+	tests := []struct {
+		name     string
+		schema   map[string]interface{}
+		expected bool
+	}{
+		{"no additionalProperties", map[string]interface{}{"type": "object"}, true},
+		{"additionalProperties true", map[string]interface{}{"additionalProperties": true}, true},
+		{"additionalProperties false", map[string]interface{}{"additionalProperties": false}, false},
+		{"additionalProperties schema", map[string]interface{}{"additionalProperties": map[string]interface{}{"type": "string"}}, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := hasOpenContentModel(tt.schema)
+			if result != tt.expected {
+				t.Errorf("hasOpenContentModel() = %v, want %v", result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestChecker_AddOptionalProperty_ClosedModel_Compatible(t *testing.T) {
+	checker := NewChecker()
+
+	oldSchema := `{
+		"type": "object",
+		"properties": {
+			"name": {"type": "string"}
+		},
+		"additionalProperties": false
+	}`
+
+	newSchema := `{
+		"type": "object",
+		"properties": {
+			"name": {"type": "string"},
+			"age": {"type": "integer"}
+		},
+		"additionalProperties": false
+	}`
+
+	result := checker.Check(s(newSchema), s(oldSchema))
+	if !result.IsCompatible {
+		t.Errorf("Adding optional property to closed model should be compatible (old writer can't have produced this property): %v", result.Messages)
+	}
+}
+
+func TestChecker_RemoveProperty_ClosedModel_Incompatible(t *testing.T) {
+	checker := NewChecker()
+
+	oldSchema := `{
+		"type": "object",
+		"properties": {
+			"name": {"type": "string"},
+			"age": {"type": "integer"}
+		},
+		"additionalProperties": false
+	}`
+
+	newSchema := `{
+		"type": "object",
+		"properties": {
+			"name": {"type": "string"}
+		},
+		"additionalProperties": false
+	}`
+
+	result := checker.Check(s(newSchema), s(oldSchema))
+	if result.IsCompatible {
+		t.Error("Removing property from closed model should be incompatible (old data with 'age' would be rejected)")
+	}
+}
+
+func TestChecker_NestedAddProperty_OpenModel_Incompatible(t *testing.T) {
+	checker := NewChecker()
+
+	oldSchema := `{
+		"type": "object",
+		"properties": {
+			"user": {
+				"type": "object",
+				"properties": {
+					"name": {"type": "string"}
+				}
+			}
+		}
+	}`
+
+	newSchema := `{
+		"type": "object",
+		"properties": {
+			"user": {
+				"type": "object",
+				"properties": {
+					"name": {"type": "string"},
+					"age": {"type": "integer"}
+				}
+			}
+		}
+	}`
+
+	result := checker.Check(s(newSchema), s(oldSchema))
+	if result.IsCompatible {
+		t.Error("Adding property to nested open content model should be incompatible")
+	}
+}
+
+func TestChecker_NestedRemoveProperty_OpenModel_Compatible(t *testing.T) {
+	checker := NewChecker()
+
+	oldSchema := `{
+		"type": "object",
+		"properties": {
+			"user": {
+				"type": "object",
+				"properties": {
+					"name": {"type": "string"},
+					"age": {"type": "integer"}
+				}
+			}
+		}
+	}`
+
+	newSchema := `{
+		"type": "object",
+		"properties": {
+			"user": {
+				"type": "object",
+				"properties": {
+					"name": {"type": "string"}
+				}
+			}
+		}
+	}`
+
+	result := checker.Check(s(newSchema), s(oldSchema))
+	if !result.IsCompatible {
+		t.Errorf("Removing property from nested open content model should be compatible: %v", result.Messages)
+	}
+}
+
+// ============================================================================
+// NEW TESTS: Array items schema removal (J3)
+// ============================================================================
+
+func TestChecker_ArrayItemsSchemaRemoval_Compatible(t *testing.T) {
+	checker := NewChecker()
+
+	oldSchema := `{
+		"type": "array",
+		"items": {"type": "string"}
+	}`
+
+	newSchema := `{
+		"type": "array"
+	}`
+
+	result := checker.Check(s(newSchema), s(oldSchema))
+	if !result.IsCompatible {
+		t.Errorf("Removing array items schema should be compatible (relaxation): %v", result.Messages)
+	}
+}
+
+// ============================================================================
+// NEW TESTS: Mixed content models
+// ============================================================================
+
+func TestChecker_AddProperty_ClosedModel_NestedOpen_Incompatible(t *testing.T) {
+	checker := NewChecker()
+
+	// Root is closed, but nested "user" is open
+	oldSchema := `{
+		"type": "object",
+		"properties": {
+			"user": {
+				"type": "object",
+				"properties": {
+					"name": {"type": "string"}
+				}
+			}
+		},
+		"additionalProperties": false
+	}`
+
+	newSchema := `{
+		"type": "object",
+		"properties": {
+			"user": {
+				"type": "object",
+				"properties": {
+					"name": {"type": "string"},
+					"age": {"type": "integer"}
+				}
+			}
+		},
+		"additionalProperties": false
+	}`
+
+	result := checker.Check(s(newSchema), s(oldSchema))
+	if result.IsCompatible {
+		t.Error("Adding property to nested open model (even if root is closed) should be incompatible")
 	}
 }

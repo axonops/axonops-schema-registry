@@ -2,6 +2,9 @@ package auth
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/base64"
 	"net/http"
 	"net/http/httptest"
@@ -271,5 +274,380 @@ func TestConstantTimeCompare(t *testing.T) {
 
 	if ConstantTimeCompare("test", "other") {
 		t.Error("Expected false for different strings")
+	}
+}
+
+func TestGetUserID(t *testing.T) {
+	ctx := context.WithValue(context.Background(), UserIDContextKey, int64(42))
+	if id := GetUserID(ctx); id != 42 {
+		t.Errorf("Expected 42, got %d", id)
+	}
+
+	if id := GetUserID(context.Background()); id != 0 {
+		t.Errorf("Expected 0 for missing ID, got %d", id)
+	}
+}
+
+func TestAuthenticator_MTLSAuth(t *testing.T) {
+	cfg := config.AuthConfig{
+		Enabled: true,
+		Methods: []string{"mtls"},
+		RBAC: config.RBACConfig{
+			DefaultRole: "developer",
+		},
+	}
+
+	auth := NewAuthenticator(cfg)
+
+	t.Run("valid client cert", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/subjects", nil)
+		req.TLS = &tls.ConnectionState{
+			PeerCertificates: []*x509.Certificate{
+				{Subject: pkix.Name{CommonName: "client-app"}},
+			},
+		}
+
+		var capturedUser *User
+		handler := auth.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			capturedUser = GetUser(r.Context())
+			w.WriteHeader(http.StatusOK)
+		}))
+
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Errorf("Expected 200, got %d", rr.Code)
+		}
+		if capturedUser == nil {
+			t.Fatal("Expected user in context")
+		}
+		if capturedUser.Username != "client-app" {
+			t.Errorf("Expected username 'client-app', got %s", capturedUser.Username)
+		}
+		if capturedUser.Method != "mtls" {
+			t.Errorf("Expected method 'mtls', got %s", capturedUser.Method)
+		}
+		if capturedUser.Role != "developer" {
+			t.Errorf("Expected role 'developer', got %s", capturedUser.Role)
+		}
+	})
+
+	t.Run("no TLS", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/subjects", nil)
+		// req.TLS is nil
+
+		handler := auth.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		}))
+
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusUnauthorized {
+			t.Errorf("Expected 401, got %d", rr.Code)
+		}
+	})
+
+	t.Run("TLS but no peer certs", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/subjects", nil)
+		req.TLS = &tls.ConnectionState{}
+
+		handler := auth.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		}))
+
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusUnauthorized {
+			t.Errorf("Expected 401, got %d", rr.Code)
+		}
+	})
+
+	t.Run("empty CN", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/subjects", nil)
+		req.TLS = &tls.ConnectionState{
+			PeerCertificates: []*x509.Certificate{
+				{Subject: pkix.Name{CommonName: ""}},
+			},
+		}
+
+		handler := auth.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		}))
+
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusUnauthorized {
+			t.Errorf("Expected 401 for empty CN, got %d", rr.Code)
+		}
+	})
+}
+
+func TestAuthenticator_Unauthorized_ChallengeHeaders(t *testing.T) {
+	tests := []struct {
+		name     string
+		methods  []string
+		expected []string
+	}{
+		{
+			name:     "basic auth challenge",
+			methods:  []string{"basic"},
+			expected: []string{"Basic"},
+		},
+		{
+			name:     "basic with custom realm",
+			methods:  []string{"basic"},
+			expected: []string{`Basic realm="Custom Realm"`},
+		},
+		{
+			name:     "api_key challenge",
+			methods:  []string{"api_key"},
+			expected: []string{"API-Key"},
+		},
+		{
+			name:     "jwt challenge",
+			methods:  []string{"jwt"},
+			expected: []string{"Bearer"},
+		},
+		{
+			name:     "oidc challenge",
+			methods:  []string{"oidc"},
+			expected: []string{"Bearer"},
+		},
+		{
+			name:     "multiple methods",
+			methods:  []string{"basic", "api_key", "jwt"},
+			expected: []string{"Basic", "API-Key", "Bearer"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			realm := ""
+			if tt.name == "basic with custom realm" {
+				realm = "Custom Realm"
+			}
+			cfg := config.AuthConfig{
+				Enabled: true,
+				Methods: tt.methods,
+				Basic:   config.BasicAuthConfig{Realm: realm},
+			}
+			auth := NewAuthenticator(cfg)
+
+			req := httptest.NewRequest("GET", "/subjects", nil)
+			handler := auth.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusOK)
+			}))
+
+			rr := httptest.NewRecorder()
+			handler.ServeHTTP(rr, req)
+
+			if rr.Code != http.StatusUnauthorized {
+				t.Errorf("Expected 401, got %d", rr.Code)
+			}
+
+			authHeaders := rr.Header().Values("WWW-Authenticate")
+			if len(authHeaders) != len(tt.expected) {
+				t.Errorf("Expected %d WWW-Authenticate headers, got %d: %v", len(tt.expected), len(authHeaders), authHeaders)
+			}
+		})
+	}
+}
+
+func TestAuthenticator_Middleware_StoresUserID(t *testing.T) {
+	cfg := config.AuthConfig{
+		Enabled: true,
+		Methods: []string{"api_key"},
+		APIKey:  config.APIKeyConfig{Header: "X-API-Key"},
+	}
+
+	auth := NewAuthenticator(cfg)
+	auth.AddAPIKey(&APIKey{
+		Key:      "test-key",
+		Username: "apiuser",
+		Role:     "admin",
+	})
+
+	req := httptest.NewRequest("GET", "/subjects", nil)
+	req.Header.Set("X-API-Key", "test-key")
+
+	var capturedRole string
+	handler := auth.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedRole = GetRole(r.Context())
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	if capturedRole != "admin" {
+		t.Errorf("Expected role 'admin' from context, got '%s'", capturedRole)
+	}
+}
+
+func TestAuthenticator_UnknownMethod(t *testing.T) {
+	cfg := config.AuthConfig{
+		Enabled: true,
+		Methods: []string{"unknown_method"},
+	}
+
+	auth := NewAuthenticator(cfg)
+	req := httptest.NewRequest("GET", "/subjects", nil)
+
+	handler := auth.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusUnauthorized {
+		t.Errorf("Expected 401 for unknown method, got %d", rr.Code)
+	}
+}
+
+func TestAuthenticator_BasicAuth_InvalidBase64(t *testing.T) {
+	cfg := config.AuthConfig{
+		Enabled: true,
+		Methods: []string{"basic"},
+	}
+
+	auth := NewAuthenticator(cfg)
+	req := httptest.NewRequest("GET", "/subjects", nil)
+	req.Header.Set("Authorization", "Basic not-valid-base64!!!")
+
+	handler := auth.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusUnauthorized {
+		t.Errorf("Expected 401 for invalid base64, got %d", rr.Code)
+	}
+}
+
+func TestAuthenticator_BasicAuth_NoColon(t *testing.T) {
+	cfg := config.AuthConfig{
+		Enabled: true,
+		Methods: []string{"basic"},
+	}
+
+	auth := NewAuthenticator(cfg)
+	req := httptest.NewRequest("GET", "/subjects", nil)
+	credentials := base64.StdEncoding.EncodeToString([]byte("no-colon"))
+	req.Header.Set("Authorization", "Basic "+credentials)
+
+	handler := auth.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusUnauthorized {
+		t.Errorf("Expected 401 for missing colon, got %d", rr.Code)
+	}
+}
+
+func TestAuthenticator_BasicAuth_APIKeyViaBasic(t *testing.T) {
+	cfg := config.AuthConfig{
+		Enabled: true,
+		Methods: []string{"basic"},
+		APIKey:  config.APIKeyConfig{Header: "X-API-Key"},
+	}
+
+	auth := NewAuthenticator(cfg)
+	auth.AddAPIKey(&APIKey{
+		Key:      "my-api-key",
+		Username: "apiuser",
+		Role:     "readwrite",
+	})
+
+	// Confluent-compatible: API key as username, any password
+	req := httptest.NewRequest("GET", "/subjects", nil)
+	credentials := base64.StdEncoding.EncodeToString([]byte("my-api-key:any-secret"))
+	req.Header.Set("Authorization", "Basic "+credentials)
+
+	var capturedUser *User
+	handler := auth.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedUser = GetUser(r.Context())
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("Expected 200, got %d", rr.Code)
+	}
+	if capturedUser == nil {
+		t.Fatal("Expected user")
+	}
+	if capturedUser.Method != "api_key" {
+		t.Errorf("Expected method 'api_key', got %s", capturedUser.Method)
+	}
+}
+
+func TestAuthenticator_JWT_NoBearerPrefix(t *testing.T) {
+	cfg := config.AuthConfig{
+		Enabled: true,
+		Methods: []string{"jwt"},
+	}
+
+	auth := NewAuthenticator(cfg)
+	req := httptest.NewRequest("GET", "/subjects", nil)
+	req.Header.Set("Authorization", "Token some-token")
+
+	handler := auth.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusUnauthorized {
+		t.Errorf("Expected 401 for non-Bearer prefix, got %d", rr.Code)
+	}
+}
+
+func TestAuthenticator_JWT_NoProvider(t *testing.T) {
+	cfg := config.AuthConfig{
+		Enabled: true,
+		Methods: []string{"jwt"},
+	}
+
+	auth := NewAuthenticator(cfg)
+	req := httptest.NewRequest("GET", "/subjects", nil)
+	req.Header.Set("Authorization", "Bearer some-token")
+
+	handler := auth.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusUnauthorized {
+		t.Errorf("Expected 401 when JWT provider is nil, got %d", rr.Code)
+	}
+}
+
+func TestAuthenticator_SetProviders(t *testing.T) {
+	auth := NewAuthenticator(config.AuthConfig{})
+
+	// These are simple setters - verify they don't panic
+	auth.SetService(nil)
+	auth.SetLDAPProvider(nil)
+	auth.SetOIDCProvider(nil)
+	auth.SetJWTProvider(nil)
+
+	auth.AddAPIKey(&APIKey{Key: "k", Username: "u", Role: "r"})
+	if _, ok := auth.apiKeys["k"]; !ok {
+		t.Error("Expected API key to be added")
 	}
 }

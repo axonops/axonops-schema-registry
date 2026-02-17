@@ -1,0 +1,499 @@
+//go:build bdd
+
+package steps
+
+import (
+	"encoding/json"
+	"fmt"
+	"regexp"
+	"strconv"
+	"strings"
+
+	"github.com/cucumber/godog"
+)
+
+// RegisterSchemaSteps registers all schema-related step definitions.
+func RegisterSchemaSteps(ctx *godog.ScenarioContext, tc *TestContext) {
+	// --- Given steps ---
+	ctx.Step(`^the schema registry is running$`, func() error {
+		return tc.GET("/")
+	})
+	ctx.Step(`^no subjects exist$`, func() error {
+		// The server starts fresh for each scenario (memory backend)
+		return nil
+	})
+	ctx.Step(`^subject "([^"]*)" has schema:$`, func(subject string, schema *godog.DocString) error {
+		body := map[string]interface{}{"schema": schema.Content}
+		if err := tc.POST("/subjects/"+subject+"/versions", body); err != nil {
+			return err
+		}
+		if tc.LastStatusCode != 200 {
+			return fmt.Errorf("expected 200 registering schema, got %d: %s", tc.LastStatusCode, string(tc.LastBody))
+		}
+		return nil
+	})
+	ctx.Step(`^subject "([^"]*)" has "([^"]*)" schema:$`, func(subject, schemaType string, schema *godog.DocString) error {
+		body := map[string]interface{}{
+			"schema":     schema.Content,
+			"schemaType": schemaType,
+		}
+		if err := tc.POST("/subjects/"+subject+"/versions", body); err != nil {
+			return err
+		}
+		if tc.LastStatusCode != 200 {
+			return fmt.Errorf("expected 200 registering %s schema, got %d: %s", schemaType, tc.LastStatusCode, string(tc.LastBody))
+		}
+		return nil
+	})
+	ctx.Step(`^the global compatibility level is "([^"]*)"$`, func(level string) error {
+		body := map[string]interface{}{"compatibility": level}
+		return tc.PUT("/config", body)
+	})
+	ctx.Step(`^I set the global compatibility level to "([^"]*)"$`, func(level string) error {
+		body := map[string]interface{}{"compatibility": level}
+		return tc.PUT("/config", body)
+	})
+	ctx.Step(`^subject "([^"]*)" has compatibility level "([^"]*)"$`, func(subject, level string) error {
+		body := map[string]interface{}{"compatibility": level}
+		return tc.PUT("/config/"+subject, body)
+	})
+
+	// --- Generic HTTP steps ---
+	ctx.Step(`^I GET "([^"]*)"$`, func(path string) error {
+		return tc.GET(path)
+	})
+	ctx.Step(`^I POST "([^"]*)" with body:$`, func(path string, body *godog.DocString) error {
+		var req interface{}
+		if err := json.Unmarshal([]byte(body.Content), &req); err != nil {
+			return fmt.Errorf("invalid JSON body: %w", err)
+		}
+		return tc.POST(path, req)
+	})
+	ctx.Step(`^I PUT "([^"]*)" with body:$`, func(path string, body *godog.DocString) error {
+		var req interface{}
+		if err := json.Unmarshal([]byte(body.Content), &req); err != nil {
+			return fmt.Errorf("invalid JSON body: %w", err)
+		}
+		return tc.PUT(path, req)
+	})
+	ctx.Step(`^I DELETE "([^"]*)"$`, func(path string) error {
+		return tc.DELETE(path)
+	})
+
+	// --- When steps ---
+	ctx.Step(`^I register a schema under subject "([^"]*)":$`, func(subject string, schema *godog.DocString) error {
+		body := map[string]interface{}{"schema": schema.Content}
+		return tc.POST("/subjects/"+subject+"/versions", body)
+	})
+	ctx.Step(`^I register a "([^"]*)" schema under subject "([^"]*)":$`, func(schemaType, subject string, schema *godog.DocString) error {
+		body := map[string]interface{}{
+			"schema":     schema.Content,
+			"schemaType": schemaType,
+		}
+		return tc.POST("/subjects/"+subject+"/versions", body)
+	})
+	ctx.Step(`^I get schema by ID (.+)$`, func(idStr string) error {
+		resolved := tc.resolveVars(idStr)
+		return tc.GET("/schemas/ids/" + resolved)
+	})
+	ctx.Step(`^I get the stored schema by ID$`, func() error {
+		id, ok := tc.StoredValues["schema_id"]
+		if !ok {
+			return fmt.Errorf("no stored schema_id")
+		}
+		return tc.GET(fmt.Sprintf("/schemas/ids/%v", id))
+	})
+	ctx.Step(`^I get version (\d+) of subject "([^"]*)"$`, func(version int, subject string) error {
+		return tc.GET(fmt.Sprintf("/subjects/%s/versions/%d", subject, version))
+	})
+	ctx.Step(`^I get the latest version of subject "([^"]*)"$`, func(subject string) error {
+		return tc.GET(fmt.Sprintf("/subjects/%s/versions/latest", subject))
+	})
+	ctx.Step(`^I list all subjects$`, func() error {
+		return tc.GET("/subjects")
+	})
+	ctx.Step(`^I list versions of subject "([^"]*)"$`, func(subject string) error {
+		return tc.GET("/subjects/" + subject + "/versions")
+	})
+	ctx.Step(`^I delete subject "([^"]*)"$`, func(subject string) error {
+		return tc.DELETE("/subjects/" + subject)
+	})
+	ctx.Step(`^I permanently delete subject "([^"]*)"$`, func(subject string) error {
+		return tc.DoRequest("DELETE", "/subjects/"+subject+"?permanent=true", nil)
+	})
+	ctx.Step(`^I delete version (\d+) of subject "([^"]*)"$`, func(version int, subject string) error {
+		return tc.DELETE(fmt.Sprintf("/subjects/%s/versions/%d", subject, version))
+	})
+	ctx.Step(`^I get the schema types$`, func() error {
+		return tc.GET("/schemas/types")
+	})
+	ctx.Step(`^I lookup schema in subject "([^"]*)":$`, func(subject string, schema *godog.DocString) error {
+		body := map[string]interface{}{"schema": schema.Content}
+		return tc.POST("/subjects/"+subject, body)
+	})
+	ctx.Step(`^I lookup a "([^"]*)" schema in subject "([^"]*)":$`, func(schemaType, subject string, schema *godog.DocString) error {
+		body := map[string]interface{}{
+			"schema":     schema.Content,
+			"schemaType": schemaType,
+		}
+		return tc.POST("/subjects/"+subject, body)
+	})
+	ctx.Step(`^I lookup schema in subject "([^"]*)" with deleted:$`, func(subject string, schema *godog.DocString) error {
+		body := map[string]interface{}{"schema": schema.Content}
+		return tc.POST("/subjects/"+subject+"?deleted=true", body)
+	})
+	ctx.Step(`^I check compatibility of schema against subject "([^"]*)":$`, func(subject string, schema *godog.DocString) error {
+		body := map[string]interface{}{"schema": schema.Content}
+		return tc.POST("/compatibility/subjects/"+subject+"/versions/latest", body)
+	})
+	ctx.Step(`^I check compatibility of "([^"]*)" schema against subject "([^"]*)":$`, func(schemaType, subject string, schema *godog.DocString) error {
+		body := map[string]interface{}{
+			"schema":     schema.Content,
+			"schemaType": schemaType,
+		}
+		return tc.POST("/compatibility/subjects/"+subject+"/versions/latest", body)
+	})
+	ctx.Step(`^I get the global config$`, func() error {
+		return tc.GET("/config")
+	})
+	ctx.Step(`^I set the global config to "([^"]*)"$`, func(level string) error {
+		body := map[string]interface{}{"compatibility": level}
+		return tc.PUT("/config", body)
+	})
+	ctx.Step(`^I get the config for subject "([^"]*)"$`, func(subject string) error {
+		return tc.GET("/config/" + subject)
+	})
+	ctx.Step(`^I set the config for subject "([^"]*)" to "([^"]*)"$`, func(subject, level string) error {
+		body := map[string]interface{}{"compatibility": level}
+		return tc.PUT("/config/"+subject, body)
+	})
+	ctx.Step(`^I delete the config for subject "([^"]*)"$`, func(subject string) error {
+		return tc.DELETE("/config/" + subject)
+	})
+	ctx.Step(`^I get the global mode$`, func() error {
+		return tc.GET("/mode")
+	})
+	ctx.Step(`^I set the global mode to "([^"]*)"$`, func(mode string) error {
+		body := map[string]interface{}{"mode": mode}
+		return tc.PUT("/mode?force=true", body)
+	})
+	ctx.Step(`^I get the subjects for schema ID (.+)$`, func(idStr string) error {
+		resolved := tc.resolveVars(idStr)
+		return tc.GET("/schemas/ids/" + resolved + "/subjects")
+	})
+	ctx.Step(`^I get the subjects for the stored schema ID$`, func() error {
+		id, ok := tc.StoredValues["schema_id"]
+		if !ok {
+			return fmt.Errorf("no stored schema_id")
+		}
+		return tc.GET(fmt.Sprintf("/schemas/ids/%v/subjects", id))
+	})
+	ctx.Step(`^I list all schemas$`, func() error {
+		return tc.GET("/schemas")
+	})
+
+	// --- Then steps ---
+	ctx.Step(`^the response status should be (\d+)$`, func(expected int) error {
+		if tc.LastStatusCode != expected {
+			return fmt.Errorf("expected status %d, got %d: %s", expected, tc.LastStatusCode, string(tc.LastBody))
+		}
+		return nil
+	})
+	ctx.Step(`^the response should contain "([^"]*)"$`, func(expected string) error {
+		if !strings.Contains(string(tc.LastBody), expected) {
+			return fmt.Errorf("response does not contain %q: %s", expected, string(tc.LastBody))
+		}
+		return nil
+	})
+	ctx.Step(`^the response should have field "([^"]*)"$`, func(field string) error {
+		_, err := tc.JSONField(field)
+		return err
+	})
+	ctx.Step(`^the response field "([^"]*)" should be "([^"]*)"$`, func(field, expected string) error {
+		val, err := tc.JSONFieldString(field)
+		if err != nil {
+			return err
+		}
+		if val != expected {
+			return fmt.Errorf("field %q: expected %q, got %q", field, expected, val)
+		}
+		return nil
+	})
+	ctx.Step(`^the response field "([^"]*)" should be (\d+)$`, func(field string, expected int) error {
+		val, err := tc.JSONFieldInt(field)
+		if err != nil {
+			return err
+		}
+		if val != expected {
+			return fmt.Errorf("field %q: expected %d, got %d", field, expected, val)
+		}
+		return nil
+	})
+	ctx.Step(`^the response should be an array of length (\d+)$`, func(expected int) error {
+		// Handle null/empty body as empty array
+		if expected == 0 {
+			body := strings.TrimSpace(string(tc.LastBody))
+			if body == "null" || body == "" || body == "[]" {
+				return nil
+			}
+			if tc.LastJSONArray != nil && len(tc.LastJSONArray) == 0 {
+				return nil
+			}
+			if tc.LastJSONArray != nil {
+				return fmt.Errorf("expected empty array, got length %d: %s", len(tc.LastJSONArray), body)
+			}
+			return fmt.Errorf("expected empty array, got: %s", body)
+		}
+		if tc.LastJSONArray == nil {
+			return fmt.Errorf("response is not a JSON array: %s", string(tc.LastBody))
+		}
+		if len(tc.LastJSONArray) != expected {
+			return fmt.Errorf("expected array length %d, got %d: %s", expected, len(tc.LastJSONArray), string(tc.LastBody))
+		}
+		return nil
+	})
+	ctx.Step(`^the response array should contain "([^"]*)"$`, func(expected string) error {
+		if tc.LastJSONArray == nil {
+			return fmt.Errorf("response is not a JSON array")
+		}
+		for _, v := range tc.LastJSONArray {
+			if fmt.Sprintf("%v", v) == expected {
+				return nil
+			}
+		}
+		return fmt.Errorf("array does not contain %q: %s", expected, string(tc.LastBody))
+	})
+	ctx.Step(`^the response should have error code (\d+)$`, func(code int) error {
+		val, err := tc.JSONFieldInt("error_code")
+		if err != nil {
+			return err
+		}
+		if val != code {
+			return fmt.Errorf("expected error_code %d, got %d", code, val)
+		}
+		return nil
+	})
+	ctx.Step(`^I store the response field "([^"]*)" as "([^"]*)"$`, func(field, key string) error {
+		val, err := tc.JSONField(field)
+		if err != nil {
+			return err
+		}
+		tc.StoredValues[key] = val
+		return nil
+	})
+	ctx.Step(`^the compatibility check should be compatible$`, func() error {
+		if tc.LastStatusCode != 200 {
+			return fmt.Errorf("expected 200, got %d: %s", tc.LastStatusCode, string(tc.LastBody))
+		}
+		val, err := tc.JSONField("is_compatible")
+		if err != nil {
+			return err
+		}
+		if val != true {
+			return fmt.Errorf("expected is_compatible=true, got %v", val)
+		}
+		return nil
+	})
+	ctx.Step(`^the compatibility check should be incompatible$`, func() error {
+		if tc.LastStatusCode != 200 {
+			return fmt.Errorf("expected 200, got %d: %s", tc.LastStatusCode, string(tc.LastBody))
+		}
+		val, err := tc.JSONField("is_compatible")
+		if err != nil {
+			return err
+		}
+		if val != false {
+			return fmt.Errorf("expected is_compatible=false, got %v", val)
+		}
+		return nil
+	})
+	ctx.Step(`^the response should be valid JSON$`, func() error {
+		var obj interface{}
+		if err := json.Unmarshal(tc.LastBody, &obj); err != nil {
+			return fmt.Errorf("invalid JSON: %w\n%s", err, string(tc.LastBody))
+		}
+		return nil
+	})
+	ctx.Step(`^the response field "([^"]*)" should be (true|false)$`, func(field, expected string) error {
+		val, err := tc.JSONField(field)
+		if err != nil {
+			return err
+		}
+		expectedBool := expected == "true"
+		if val != expectedBool {
+			return fmt.Errorf("field %q: expected %v, got %v", field, expectedBool, val)
+		}
+		return nil
+	})
+	ctx.Step(`^the response should not have field "([^"]*)"$`, func(field string) error {
+		if tc.LastJSON == nil {
+			return nil // no JSON object means field is absent
+		}
+		_, ok := tc.LastJSON[field]
+		if ok {
+			return fmt.Errorf("field %q should not be present in response: %s", field, string(tc.LastBody))
+		}
+		return nil
+	})
+	ctx.Step(`^the response body should contain "([^"]*)"$`, func(expected string) error {
+		if !strings.Contains(string(tc.LastBody), expected) {
+			return fmt.Errorf("response body does not contain %q: %s", expected, string(tc.LastBody))
+		}
+		return nil
+	})
+	ctx.Step(`^the response body should not contain "([^"]*)"$`, func(expected string) error {
+		if strings.Contains(string(tc.LastBody), expected) {
+			return fmt.Errorf("response body should not contain %q but does: %s", expected, string(tc.LastBody))
+		}
+		return nil
+	})
+	ctx.Step(`^the response should contain error message matching "([^"]*)"$`, func(pattern string) error {
+		re, err := regexp.Compile(pattern)
+		if err != nil {
+			return fmt.Errorf("invalid regex %q: %w", pattern, err)
+		}
+		msg, msgErr := tc.JSONFieldString("message")
+		if msgErr != nil {
+			return fmt.Errorf("no message field in response: %s", string(tc.LastBody))
+		}
+		if !re.MatchString(msg) {
+			return fmt.Errorf("message %q does not match pattern %q", msg, pattern)
+		}
+		return nil
+	})
+
+	// --- Additional assertion steps ---
+
+	// Response body is a plain integer (e.g., delete version returns just "1")
+	ctx.Step(`^the response should be an integer with value (\d+)$`, func(expected int) error {
+		body := strings.TrimSpace(string(tc.LastBody))
+		actual, err := strconv.Atoi(body)
+		if err != nil {
+			return fmt.Errorf("response body is not an integer: %q", body)
+		}
+		if actual != expected {
+			return fmt.Errorf("expected integer %d, got %d", expected, actual)
+		}
+		return nil
+	})
+
+	// Response array contains a specific integer (e.g., [1, 2, 3] contains 2)
+	ctx.Step(`^the response array should contain integer (\d+)$`, func(expected int) error {
+		if tc.LastJSONArray == nil {
+			return fmt.Errorf("response is not a JSON array: %s", string(tc.LastBody))
+		}
+		for _, v := range tc.LastJSONArray {
+			if num, ok := v.(float64); ok && int(num) == expected {
+				return nil
+			}
+		}
+		return fmt.Errorf("array does not contain integer %d: %s", expected, string(tc.LastBody))
+	})
+
+	// Response field is an array
+	ctx.Step(`^the response field "([^"]*)" should be an array$`, func(field string) error {
+		val, err := tc.JSONField(field)
+		if err != nil {
+			return err
+		}
+		if _, ok := val.([]interface{}); !ok {
+			return fmt.Errorf("field %q is not an array: %T = %v", field, val, val)
+		}
+		return nil
+	})
+
+	// Response field is an array of specific length
+	ctx.Step(`^the response field "([^"]*)" should be an array of length (\d+)$`, func(field string, expected int) error {
+		val, err := tc.JSONField(field)
+		if err != nil {
+			return err
+		}
+		arr, ok := val.([]interface{})
+		if !ok {
+			return fmt.Errorf("field %q is not an array: %T = %v", field, val, val)
+		}
+		if len(arr) != expected {
+			return fmt.Errorf("field %q array length: expected %d, got %d", field, expected, len(arr))
+		}
+		return nil
+	})
+
+	// Response header check
+	ctx.Step(`^the response header "([^"]*)" should contain "([^"]*)"$`, func(header, expected string) error {
+		if tc.LastResponse == nil {
+			return fmt.Errorf("no response available")
+		}
+		actual := tc.LastResponse.Header.Get(header)
+		if !strings.Contains(actual, expected) {
+			return fmt.Errorf("header %q = %q does not contain %q", header, actual, expected)
+		}
+		return nil
+	})
+
+	// Send raw POST with a raw string body (not JSON-marshaled)
+	ctx.Step(`^I POST "([^"]*)" with raw body "([^"]*)"$`, func(path, body string) error {
+		return tc.DoRawRequest("POST", path, body)
+	})
+
+	// Variable-resolved integer field comparison: the response field "id" should equal stored "first_id"
+	ctx.Step(`^the response field "([^"]*)" should equal stored "([^"]*)"$`, func(field, varName string) error {
+		storedVal, ok := tc.StoredValues[varName]
+		if !ok {
+			return fmt.Errorf("no stored value %q", varName)
+		}
+		actual, err := tc.JSONField(field)
+		if err != nil {
+			return err
+		}
+		// Compare as numbers if both are numeric
+		storedNum, storedIsNum := storedVal.(float64)
+		actualNum, actualIsNum := actual.(float64)
+		if storedIsNum && actualIsNum {
+			if int(storedNum) != int(actualNum) {
+				return fmt.Errorf("field %q: expected %d (from %q), got %d", field, int(storedNum), varName, int(actualNum))
+			}
+			return nil
+		}
+		if fmt.Sprintf("%v", actual) != fmt.Sprintf("%v", storedVal) {
+			return fmt.Errorf("field %q: expected %v (from %q), got %v", field, storedVal, varName, actual)
+		}
+		return nil
+	})
+
+	// Stored value numeric comparison: the stored "new_id" should be greater than 50000
+	ctx.Step(`^the stored "([^"]*)" should be greater than (\d+)$`, func(key string, threshold int) error {
+		val, ok := tc.StoredValues[key]
+		if !ok {
+			return fmt.Errorf("no stored value %q", key)
+		}
+		num, ok := val.(float64)
+		if !ok {
+			return fmt.Errorf("stored %q is not numeric: %T = %v", key, val, val)
+		}
+		if int(num) <= threshold {
+			return fmt.Errorf("stored %q = %d, expected > %d", key, int(num), threshold)
+		}
+		return nil
+	})
+
+	// Variable-resolved integer array containment: the response array should contain stored integer "use1_id"
+	ctx.Step(`^the response array should contain stored integer "([^"]*)"$`, func(varName string) error {
+		storedVal, ok := tc.StoredValues[varName]
+		if !ok {
+			return fmt.Errorf("no stored value %q", varName)
+		}
+		expected, ok := storedVal.(float64)
+		if !ok {
+			return fmt.Errorf("stored value %q is not numeric: %T = %v", varName, storedVal, storedVal)
+		}
+		if tc.LastJSONArray == nil {
+			return fmt.Errorf("response is not a JSON array: %s", string(tc.LastBody))
+		}
+		for _, v := range tc.LastJSONArray {
+			if num, ok := v.(float64); ok && int(num) == int(expected) {
+				return nil
+			}
+		}
+		return fmt.Errorf("array does not contain integer %d (from %q): %s", int(expected), varName, string(tc.LastBody))
+	})
+}

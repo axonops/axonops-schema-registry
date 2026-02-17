@@ -299,7 +299,7 @@ func doRequest(method, path string, body interface{}) (map[string]interface{}, e
 	}
 
 	client := &http.Client{Timeout: 30 * time.Second}
-	resp, err := client.Do(req)
+	resp, err := client.Do(req) // #nosec G704 -- admin CLI tool; URL is from user-provided --server flag
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %w", err)
 	}

@@ -9,25 +9,28 @@ import (
 
 // Common errors
 var (
-	ErrNotFound         = errors.New("not found")
-	ErrSubjectNotFound  = errors.New("subject not found")
-	ErrSchemaNotFound   = errors.New("schema not found")
-	ErrVersionNotFound  = errors.New("version not found")
-	ErrInvalidVersion   = errors.New("invalid version")
-	ErrSubjectDeleted   = errors.New("subject has been deleted")
-	ErrSchemaExists     = errors.New("schema already exists")
-	ErrUserNotFound     = errors.New("user not found")
-	ErrUserExists       = errors.New("user already exists")
-	ErrAPIKeyNotFound   = errors.New("API key not found")
-	ErrAPIKeyExists     = errors.New("API key already exists")
-	ErrAPIKeyNameExists = errors.New("API key name already exists for this user")
-	ErrInvalidAPIKey    = errors.New("invalid API key")
-	ErrAPIKeyExpired    = errors.New("API key has expired")
-	ErrAPIKeyDisabled   = errors.New("API key is disabled")
-	ErrUserDisabled     = errors.New("user is disabled")
-	ErrInvalidRole      = errors.New("invalid role")
-	ErrPermissionDenied = errors.New("permission denied")
-	ErrSchemaIDConflict = errors.New("schema ID already exists")
+	ErrNotFound              = errors.New("not found")
+	ErrSubjectNotFound       = errors.New("subject not found")
+	ErrSchemaNotFound        = errors.New("schema not found")
+	ErrVersionNotFound       = errors.New("version not found")
+	ErrInvalidVersion        = errors.New("invalid version")
+	ErrSubjectDeleted        = errors.New("subject has been deleted")
+	ErrSubjectNotSoftDeleted = errors.New("subject must be soft-deleted before being permanently deleted")
+	ErrVersionNotSoftDeleted = errors.New("version must be soft-deleted before being permanently deleted")
+	ErrSchemaExists          = errors.New("schema already exists")
+	ErrUserNotFound          = errors.New("user not found")
+	ErrUserExists            = errors.New("user already exists")
+	ErrAPIKeyNotFound        = errors.New("API key not found")
+	ErrAPIKeyExists          = errors.New("API key already exists")
+	ErrAPIKeyNameExists      = errors.New("API key name already exists for this user")
+	ErrInvalidAPIKey         = errors.New("invalid API key")
+	ErrAPIKeyExpired         = errors.New("API key has expired")
+	ErrAPIKeyDisabled        = errors.New("API key is disabled")
+	ErrUserDisabled          = errors.New("user is disabled")
+	ErrInvalidRole           = errors.New("invalid role")
+	ErrPermissionDenied      = errors.New("permission denied")
+	ErrSchemaIDConflict      = errors.New("schema ID already exists")
+	ErrOperationNotPermitted = errors.New("Cannot import since found existing subjects")
 )
 
 // SchemaType represents the type of schema.
@@ -39,6 +42,34 @@ const (
 	SchemaTypeJSON     SchemaType = "JSON"
 )
 
+// Metadata represents schema metadata for data contracts.
+type Metadata struct {
+	Tags       map[string][]string `json:"tags,omitempty"`
+	Properties map[string]string   `json:"properties,omitempty"`
+	Sensitive  []string            `json:"sensitive,omitempty"`
+}
+
+// RuleSet represents a set of data contract rules.
+type RuleSet struct {
+	MigrationRules []Rule `json:"migrationRules,omitempty"`
+	DomainRules    []Rule `json:"domainRules,omitempty"`
+}
+
+// Rule represents a single data contract rule.
+type Rule struct {
+	Name      string            `json:"name"`
+	Doc       string            `json:"doc,omitempty"`
+	Kind      string            `json:"kind"`
+	Mode      string            `json:"mode"`
+	Type      string            `json:"type,omitempty"`
+	Tags      []string          `json:"tags,omitempty"`
+	Params    map[string]string `json:"params,omitempty"`
+	Expr      string            `json:"expr,omitempty"`
+	OnSuccess string            `json:"onSuccess,omitempty"`
+	OnFailure string            `json:"onFailure,omitempty"`
+	Disabled  bool              `json:"disabled,omitempty"`
+}
+
 // SchemaRecord represents a stored schema.
 type SchemaRecord struct {
 	ID          int64       `json:"id"`
@@ -47,6 +78,8 @@ type SchemaRecord struct {
 	SchemaType  SchemaType  `json:"schemaType"`
 	Schema      string      `json:"schema"`
 	References  []Reference `json:"references,omitempty"`
+	Metadata    *Metadata   `json:"metadata,omitempty"`
+	RuleSet     *RuleSet    `json:"ruleSet,omitempty"`
 	Fingerprint string      `json:"-"`
 	Deleted     bool        `json:"-"`
 	CreatedAt   time.Time   `json:"-"`
@@ -57,6 +90,7 @@ type Reference struct {
 	Name    string `json:"name"`
 	Subject string `json:"subject"`
 	Version int    `json:"version"`
+	Schema  string `json:"-"` // Resolved schema content; not serialized to API responses
 }
 
 // SubjectVersion represents a subject-version pair.
@@ -67,8 +101,16 @@ type SubjectVersion struct {
 
 // ConfigRecord represents a compatibility configuration.
 type ConfigRecord struct {
-	Subject            string `json:"subject,omitempty"` // Empty for global config
-	CompatibilityLevel string `json:"compatibilityLevel"`
+	Subject            string    `json:"subject,omitempty"` // Empty for global config
+	CompatibilityLevel string    `json:"compatibilityLevel"`
+	Normalize          *bool     `json:"normalize,omitempty"`
+	ValidateFields     *bool     `json:"validateFields,omitempty"`
+	Alias              string    `json:"alias,omitempty"`
+	CompatibilityGroup string    `json:"compatibilityGroup,omitempty"`
+	DefaultMetadata    *Metadata `json:"defaultMetadata,omitempty"`
+	OverrideMetadata   *Metadata `json:"overrideMetadata,omitempty"`
+	DefaultRuleSet     *RuleSet  `json:"defaultRuleSet,omitempty"`
+	OverrideRuleSet    *RuleSet  `json:"overrideRuleSet,omitempty"`
 }
 
 // ModeRecord represents a mode configuration.
@@ -162,6 +204,7 @@ type Storage interface {
 
 	// ID generation
 	NextID(ctx context.Context) (int64, error)
+	GetMaxSchemaID(ctx context.Context) (int64, error)
 
 	// Import operations (for migration from other schema registries)
 	// ImportSchema inserts a schema with a specified ID (for migration).

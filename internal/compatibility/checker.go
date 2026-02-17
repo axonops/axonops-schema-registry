@@ -4,10 +4,16 @@ import (
 	"github.com/axonops/axonops-schema-registry/internal/storage"
 )
 
+// SchemaWithRefs bundles a schema string with its resolved references.
+type SchemaWithRefs struct {
+	Schema     string
+	References []storage.Reference
+}
+
 // SchemaChecker is the interface for type-specific compatibility checkers.
 type SchemaChecker interface {
 	// Check checks compatibility between reader and writer schemas.
-	Check(readerSchema, writerSchema string) *Result
+	Check(reader, writer SchemaWithRefs) *Result
 }
 
 // Checker orchestrates compatibility checking across schema types.
@@ -30,7 +36,7 @@ func (c *Checker) Register(schemaType storage.SchemaType, checker SchemaChecker)
 // Check checks if a new schema is compatible with existing schemas.
 // The mode determines what compatibility checks are performed.
 // existingSchemas should be ordered from oldest to newest.
-func (c *Checker) Check(mode Mode, schemaType storage.SchemaType, newSchema string, existingSchemas []string) *Result {
+func (c *Checker) Check(mode Mode, schemaType storage.SchemaType, newSchema SchemaWithRefs, existingSchemas []SchemaWithRefs) *Result {
 	// NONE mode always passes
 	if mode == ModeNone {
 		return NewCompatibleResult()
@@ -49,13 +55,13 @@ func (c *Checker) Check(mode Mode, schemaType storage.SchemaType, newSchema stri
 	result := NewCompatibleResult()
 
 	// Determine which schemas to check against
-	var schemasToCheck []string
+	var schemasToCheck []SchemaWithRefs
 	if mode.IsTransitive() {
 		// Check against all previous schemas
 		schemasToCheck = existingSchemas
 	} else {
 		// Check only against the latest schema
-		schemasToCheck = []string{existingSchemas[len(existingSchemas)-1]}
+		schemasToCheck = []SchemaWithRefs{existingSchemas[len(existingSchemas)-1]}
 	}
 
 	for i, existingSchema := range schemasToCheck {
@@ -86,6 +92,6 @@ func (c *Checker) Check(mode Mode, schemaType storage.SchemaType, newSchema stri
 }
 
 // CheckPair checks compatibility between two specific schemas.
-func (c *Checker) CheckPair(mode Mode, schemaType storage.SchemaType, newSchema, existingSchema string) *Result {
-	return c.Check(mode, schemaType, newSchema, []string{existingSchema})
+func (c *Checker) CheckPair(mode Mode, schemaType storage.SchemaType, newSchema, existingSchema SchemaWithRefs) *Result {
+	return c.Check(mode, schemaType, newSchema, []SchemaWithRefs{existingSchema})
 }

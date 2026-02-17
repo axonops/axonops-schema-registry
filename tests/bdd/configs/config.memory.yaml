@@ -1,0 +1,11 @@
+server:
+  host: "0.0.0.0"
+  port: 8081
+  docs_enabled: true
+storage:
+  type: memory
+compatibility:
+  default_level: BACKWARD
+logging:
+  level: info
+  format: json

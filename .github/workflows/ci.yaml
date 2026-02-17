@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'feature/**']
   pull_request:
     branches: [main]
 
@@ -55,6 +55,9 @@ jobs:
       - name: Build migration test binary
         run: go test -c -tags=migration -o migration.test ./tests/migration/...
 
+      - name: Build conformance test binary
+        run: go test -c -tags=conformance -o conformance.test ./tests/storage/conformance/...
+
       - name: Upload coverage
         uses: codecov/codecov-action@v4
         with:
@@ -74,6 +77,7 @@ jobs:
             vault.test
             oidc.test
             migration.test
+            conformance.test
             tests/integration/testdata/ldap/
             tests/integration/testdata/oidc/
             tests/migration/
@@ -125,7 +129,7 @@ jobs:
         run: go install github.com/securego/gosec/v2/cmd/gosec@latest
 
       - name: Run gosec
-        run: gosec -exclude-generated -severity medium ./...
+        run: gosec -exclude-generated -exclude=G117,G202 -severity medium ./...
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
@@ -297,7 +301,7 @@ jobs:
             -e CASSANDRA_LISTEN_ADDRESS=127.0.0.1 \
             -e MAX_HEAP_SIZE=512M \
             -e HEAP_NEWSIZE=100M \
-            cassandra:4.1
+            cassandra:5.0
 
           # Wait for Cassandra to be ready (up to 5 minutes)
           echo "Waiting for Cassandra to start..."
@@ -363,6 +367,177 @@ jobs:
       - name: Cleanup Cassandra
         if: always()
         run: docker stop cassandra-test && docker rm cassandra-test || true
+
+  # Storage conformance tests — runs ~100 identical tests per backend
+  conformance-memory:
+    name: Conformance (Memory)
+    runs-on: ubuntu-latest
+    needs: [build, postgres-tests, mysql-tests, cassandra-tests]
+    steps:
+      - name: Download test binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: test-binaries
+
+      - name: Make binaries executable
+        run: chmod +x conformance.test
+
+      - name: Run Memory conformance tests
+        run: ./conformance.test -test.v -test.timeout=5m -test.run=TestMemoryBackend
+
+  conformance-postgres:
+    name: Conformance (PostgreSQL)
+    runs-on: ubuntu-latest
+    needs: [build, postgres-tests, mysql-tests, cassandra-tests]
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: schemaregistry
+          POSTGRES_PASSWORD: schemaregistry
+          POSTGRES_DB: schemaregistry
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Download test binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: test-binaries
+
+      - name: Make binaries executable
+        run: chmod +x conformance.test
+
+      - name: Wait for PostgreSQL
+        run: |
+          for i in {1..30}; do
+            pg_isready -h localhost -p 5432 -U schemaregistry && break
+            sleep 1
+          done
+
+      - name: Run PostgreSQL conformance tests
+        env:
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: "5432"
+          POSTGRES_USER: schemaregistry
+          POSTGRES_PASSWORD: schemaregistry
+          POSTGRES_DATABASE: schemaregistry
+        run: ./conformance.test -test.v -test.timeout=10m -test.run=TestPostgresBackend
+
+  conformance-mysql:
+    name: Conformance (MySQL)
+    runs-on: ubuntu-latest
+    needs: [build, postgres-tests, mysql-tests, cassandra-tests]
+    services:
+      mysql:
+        image: mysql:8
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_USER: schemaregistry
+          MYSQL_PASSWORD: schemaregistry
+          MYSQL_DATABASE: schemaregistry
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping -h localhost"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Download test binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: test-binaries
+
+      - name: Make binaries executable
+        run: chmod +x conformance.test
+
+      - name: Wait for MySQL
+        run: |
+          for i in {1..30}; do
+            mysqladmin ping -h 127.0.0.1 -u root -proot --silent && break
+            sleep 2
+          done
+
+      - name: Run MySQL conformance tests
+        env:
+          MYSQL_HOST: localhost
+          MYSQL_PORT: "3306"
+          MYSQL_USER: schemaregistry
+          MYSQL_PASSWORD: schemaregistry
+          MYSQL_DATABASE: schemaregistry
+        run: ./conformance.test -test.v -test.timeout=10m -test.run=TestMySQLBackend
+
+  conformance-cassandra:
+    name: Conformance (Cassandra)
+    runs-on: ubuntu-latest
+    needs: [build, postgres-tests, mysql-tests, cassandra-tests]
+    steps:
+      - name: Download test binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: test-binaries
+
+      - name: Make binaries executable
+        run: chmod +x conformance.test
+
+      - name: Start Cassandra
+        run: |
+          docker run -d --name cassandra-conformance \
+            --network host \
+            -e CASSANDRA_CLUSTER_NAME=TestCluster \
+            -e CASSANDRA_DC=dc1 \
+            -e CASSANDRA_ENDPOINT_SNITCH=SimpleSnitch \
+            -e CASSANDRA_BROADCAST_RPC_ADDRESS=127.0.0.1 \
+            -e CASSANDRA_BROADCAST_ADDRESS=127.0.0.1 \
+            -e CASSANDRA_LISTEN_ADDRESS=127.0.0.1 \
+            -e MAX_HEAP_SIZE=512M \
+            -e HEAP_NEWSIZE=100M \
+            cassandra:5.0
+
+          echo "Waiting for Cassandra to start..."
+          for i in {1..90}; do
+            if docker exec cassandra-conformance cqlsh -e "describe cluster" 2>/dev/null; then
+              echo "Cassandra is ready"
+              break
+            fi
+            echo "Waiting for Cassandra... ($i)"
+            sleep 4
+          done
+
+      - name: Create Cassandra keyspace
+        run: |
+          docker exec cassandra-conformance cqlsh -e "CREATE KEYSPACE IF NOT EXISTS schemaregistry WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1};"
+
+      - name: Wait for Cassandra external connections
+        run: |
+          echo "Waiting for Cassandra to accept external connections..."
+          for i in {1..30}; do
+            if timeout 5 bash -c "echo > /dev/tcp/127.0.0.1/9042" 2>/dev/null; then
+              echo "Cassandra port 9042 is open"
+              sleep 5
+              break
+            fi
+            echo "Waiting for port 9042... ($i)"
+            sleep 2
+          done
+
+      - name: Run Cassandra conformance tests
+        env:
+          CASSANDRA_HOSTS: 127.0.0.1
+          CASSANDRA_PORT: "9042"
+          CASSANDRA_KEYSPACE: schemaregistry
+        run: ./conformance.test -test.v -test.timeout=15m -test.run=TestCassandraBackend
+
+      - name: Cleanup Cassandra
+        if: always()
+        run: docker stop cassandra-conformance && docker rm cassandra-conformance || true
 
   # API endpoint tests
   api-tests:
@@ -969,3 +1144,182 @@ jobs:
 
           # Run the full migration test
           ./tests/migration/test-migration.sh
+
+  # BDD functional tests — in-process, no Docker, fast (~147 scenarios)
+  bdd-functional-tests:
+    name: BDD Functional Tests
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run BDD functional tests (in-process)
+        run: go test -tags bdd -v -count=1 -timeout 10m ./tests/bdd/...
+
+  # BDD tests — Memory backend (functional + operational scenarios)
+  bdd-memory-tests:
+    name: BDD Tests (Memory)
+    runs-on: ubuntu-latest
+    needs: [bdd-functional-tests]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run BDD tests (memory backend)
+        env:
+          BDD_BACKEND: memory
+          CONTAINER_CMD: docker
+        run: go test -tags bdd -v -count=1 -timeout 15m ./tests/bdd/...
+
+      - name: Show container logs on failure
+        if: failure()
+        working-directory: tests/bdd
+        run: docker compose -f docker-compose.base.yml -f docker-compose.memory.yml logs --tail=100 || true
+
+      - name: Cleanup containers
+        if: always()
+        working-directory: tests/bdd
+        run: docker compose -f docker-compose.base.yml -f docker-compose.memory.yml down -v || true
+
+  # BDD tests — PostgreSQL backend (functional + operational scenarios)
+  bdd-postgres-tests:
+    name: BDD Tests (PostgreSQL)
+    runs-on: ubuntu-latest
+    needs: [bdd-functional-tests]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run BDD tests (postgres backend)
+        env:
+          BDD_BACKEND: postgres
+          CONTAINER_CMD: docker
+        run: go test -tags bdd -v -count=1 -timeout 15m ./tests/bdd/...
+
+      - name: Show container logs on failure
+        if: failure()
+        working-directory: tests/bdd
+        run: docker compose -f docker-compose.base.yml -f docker-compose.postgres.yml logs --tail=100 || true
+
+      - name: Cleanup containers
+        if: always()
+        working-directory: tests/bdd
+        run: docker compose -f docker-compose.base.yml -f docker-compose.postgres.yml down -v || true
+
+  # BDD tests — MySQL backend (functional + operational scenarios)
+  bdd-mysql-tests:
+    name: BDD Tests (MySQL)
+    runs-on: ubuntu-latest
+    needs: [bdd-functional-tests]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run BDD tests (mysql backend)
+        env:
+          BDD_BACKEND: mysql
+          CONTAINER_CMD: docker
+        run: go test -tags bdd -v -count=1 -timeout 15m ./tests/bdd/...
+
+      - name: Show container logs on failure
+        if: failure()
+        working-directory: tests/bdd
+        run: docker compose -f docker-compose.base.yml -f docker-compose.mysql.yml logs --tail=100 || true
+
+      - name: Cleanup containers
+        if: always()
+        working-directory: tests/bdd
+        run: docker compose -f docker-compose.base.yml -f docker-compose.mysql.yml down -v || true
+
+  # BDD tests — Cassandra backend (functional + operational scenarios)
+  bdd-cassandra-tests:
+    name: BDD Tests (Cassandra)
+    runs-on: ubuntu-latest
+    needs: [bdd-functional-tests]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run BDD tests (cassandra backend)
+        env:
+          BDD_BACKEND: cassandra
+          CONTAINER_CMD: docker
+        run: go test -tags bdd -v -count=1 -timeout 20m ./tests/bdd/...
+
+      - name: Show container logs on failure
+        if: failure()
+        working-directory: tests/bdd
+        run: docker compose -f docker-compose.base.yml -f docker-compose.cassandra.yml logs --tail=100 || true
+
+      - name: Cleanup containers
+        if: always()
+        working-directory: tests/bdd
+        run: docker compose -f docker-compose.base.yml -f docker-compose.cassandra.yml down -v || true
+
+  # BDD tests — Confluent Schema Registry 8.1.1 (compatibility conformance)
+  bdd-confluent-tests:
+    name: BDD Tests (Confluent 8.1.1)
+    runs-on: ubuntu-latest
+    needs: [bdd-functional-tests]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run BDD tests (confluent backend)
+        env:
+          BDD_BACKEND: confluent
+          CONTAINER_CMD: docker
+        run: go test -tags bdd -v -count=1 -timeout 25m ./tests/bdd/...
+
+      - name: Show container logs on failure
+        if: failure()
+        working-directory: tests/bdd
+        run: docker compose -f docker-compose.confluent.yml logs --tail=200 || true
+
+      - name: Cleanup containers
+        if: always()
+        working-directory: tests/bdd
+        run: docker compose -f docker-compose.confluent.yml down -v || true

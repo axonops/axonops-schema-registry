@@ -46,11 +46,13 @@ func (p *Parser) Parse(schemaStr string, refs []storage.Reference) (schema.Parse
 	compiler := jsonschema.NewCompiler()
 	compiler.Draft = jsonschema.Draft7
 
-	// Add referenced schemas
+	// Add referenced schemas as resources so $ref can resolve them
 	for _, ref := range refs {
-		// References would be added here with their content
-		// For now, we support inline schemas
-		_ = ref
+		if ref.Schema != "" {
+			if err := compiler.AddResource(ref.Name, strings.NewReader(ref.Schema)); err != nil {
+				return nil, fmt.Errorf("failed to add reference %q: %w", ref.Name, err)
+			}
+		}
 	}
 
 	// Add the main schema
@@ -101,6 +103,33 @@ func (p *ParsedJSONSchema) Fingerprint() string {
 // RawSchema returns the underlying schema object.
 func (p *ParsedJSONSchema) RawSchema() interface{} {
 	return p.schemaMap
+}
+
+// Normalize returns a normalized copy of this schema with deterministic key ordering.
+func (p *ParsedJSONSchema) Normalize() schema.ParsedSchema {
+	return &ParsedJSONSchema{
+		raw:        p.CanonicalString(),
+		schemaMap:  p.schemaMap,
+		compiled:   p.compiled,
+		references: p.references,
+	}
+}
+
+// HasTopLevelField reports whether the JSON Schema "properties" object
+// contains a key with the given name.
+func (p *ParsedJSONSchema) HasTopLevelField(field string) bool {
+	props, ok := p.schemaMap["properties"].(map[string]interface{})
+	if !ok {
+		return false
+	}
+	_, exists := props[field]
+	return exists
+}
+
+// FormattedString returns the schema in the requested format.
+// JSON Schema does not support special format values; always returns canonical string.
+func (p *ParsedJSONSchema) FormattedString(format string) string {
+	return p.CanonicalString()
 }
 
 // Raw returns the original schema string.

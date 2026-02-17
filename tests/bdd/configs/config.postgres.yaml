@@ -1,0 +1,18 @@
+server:
+  host: "0.0.0.0"
+  port: 8081
+  docs_enabled: true
+storage:
+  type: postgresql
+  postgresql:
+    host: postgres
+    port: 5432
+    database: schemaregistry
+    user: schemaregistry
+    password: schemaregistry
+    ssl_mode: disable
+compatibility:
+  default_level: BACKWARD
+logging:
+  level: info
+  format: json

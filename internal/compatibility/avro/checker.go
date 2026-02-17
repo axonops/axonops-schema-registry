@@ -20,18 +20,34 @@ func NewChecker() *Checker {
 // Check checks compatibility between reader and writer schemas.
 // For BACKWARD compatibility: reader=new schema, writer=old schema
 // For FORWARD compatibility: reader=old schema, writer=new schema
-func (c *Checker) Check(readerSchema, writerSchema string) *compatibility.Result {
-	reader, err := avro.Parse(readerSchema)
+func (c *Checker) Check(reader, writer compatibility.SchemaWithRefs) *compatibility.Result {
+	readerSchema, err := c.parseSchema(reader)
 	if err != nil {
 		return compatibility.NewIncompatibleResult(fmt.Sprintf("invalid reader schema: %v", err))
 	}
 
-	writer, err := avro.Parse(writerSchema)
+	writerSchema, err := c.parseSchema(writer)
 	if err != nil {
 		return compatibility.NewIncompatibleResult(fmt.Sprintf("invalid writer schema: %v", err))
 	}
 
-	return c.checkSchemas(reader, writer, "")
+	return c.checkSchemas(readerSchema, writerSchema, "")
+}
+
+// parseSchema parses a schema string with optional reference resolution.
+func (c *Checker) parseSchema(s compatibility.SchemaWithRefs) (avro.Schema, error) {
+	if len(s.References) > 0 {
+		cache := &avro.SchemaCache{}
+		for _, ref := range s.References {
+			if ref.Schema != "" {
+				if _, err := avro.ParseWithCache(ref.Schema, "", cache); err != nil {
+					return nil, fmt.Errorf("invalid reference schema %q: %w", ref.Name, err)
+				}
+			}
+		}
+		return avro.ParseWithCache(s.Schema, "", cache)
+	}
+	return avro.Parse(s.Schema)
 }
 
 // checkSchemas recursively checks compatibility between two schemas.
@@ -86,25 +102,30 @@ func (c *Checker) checkSchemas(reader, writer avro.Schema, path string) *compati
 func (c *Checker) checkRecord(reader, writer *avro.RecordSchema, path string) *compatibility.Result {
 	result := compatibility.NewCompatibleResult()
 
-	// Check that names match
-	if reader.FullName() != writer.FullName() {
+	// Check that names match (considering aliases)
+	if !c.recordNamesMatch(reader, writer) {
 		result.AddMessage("%s: record name mismatch: reader has %s, writer has %s",
 			pathOrRoot(path), reader.FullName(), writer.FullName())
 		return result
 	}
 
-	// Build a map of writer fields
+	// Build maps of writer fields by name and aliases
 	writerFields := make(map[string]*avro.Field)
 	for _, f := range writer.Fields() {
 		writerFields[f.Name()] = f
+		for _, alias := range f.Aliases() {
+			writerFields[alias] = f
+		}
 	}
 
 	// Check each reader field
 	for _, rf := range reader.Fields() {
 		fieldPath := appendPath(path, rf.Name())
-		wf, exists := writerFields[rf.Name()]
 
-		if !exists {
+		// Try to find matching writer field by name or reader's aliases
+		wf := c.findWriterField(rf, writerFields)
+
+		if wf == nil {
 			// Field doesn't exist in writer - reader must have a default
 			if !rf.HasDefault() {
 				result.AddMessage("%s: reader field '%s' has no default and is missing from writer",
@@ -119,6 +140,43 @@ func (c *Checker) checkRecord(reader, writer *avro.RecordSchema, path string) *c
 	}
 
 	return result
+}
+
+// recordNamesMatch checks if reader and writer record names match,
+// considering aliases on both sides per the Avro specification.
+func (c *Checker) recordNamesMatch(reader, writer *avro.RecordSchema) bool {
+	if reader.FullName() == writer.FullName() {
+		return true
+	}
+	// Check if reader name matches any writer alias
+	for _, alias := range writer.Aliases() {
+		if reader.FullName() == alias {
+			return true
+		}
+	}
+	// Check if writer name matches any reader alias
+	for _, alias := range reader.Aliases() {
+		if writer.FullName() == alias {
+			return true
+		}
+	}
+	return false
+}
+
+// findWriterField finds a matching writer field for a reader field,
+// checking by name and aliases per the Avro specification.
+func (c *Checker) findWriterField(readerField *avro.Field, writerFields map[string]*avro.Field) *avro.Field {
+	// Direct name match (also matches writer field aliases via the map)
+	if wf, exists := writerFields[readerField.Name()]; exists {
+		return wf
+	}
+	// Check reader field aliases against writer field names/aliases
+	for _, alias := range readerField.Aliases() {
+		if wf, exists := writerFields[alias]; exists {
+			return wf
+		}
+	}
+	return nil
 }
 
 // checkEnum checks compatibility between two enum schemas.

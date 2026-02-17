@@ -1,5 +1,10 @@
 # Schema Registry LDAP Test Data
 # This file is used to bootstrap the OpenLDAP server for integration tests.
+#
+# IMPORTANT: Users must be created BEFORE groups. The memberOf overlay
+# intercepts group creation and writes memberOf attributes onto the
+# referenced user entries. If users don't exist when groups are added,
+# the memberOf attribute is never populated.
 
 # Create organizational units
 dn: ou=Users,dc=example,dc=org
@@ -10,27 +15,9 @@ dn: ou=Groups,dc=example,dc=org
 objectClass: organizationalUnit
 ou: Groups
 
-# Create groups first (referenced by users via memberOf)
-dn: cn=SchemaRegistryAdmins,ou=Groups,dc=example,dc=org
-objectClass: groupOfNames
-cn: SchemaRegistryAdmins
-description: Schema Registry Administrators
-member: uid=admin,ou=Users,dc=example,dc=org
+# Create users first (must exist before groups reference them)
 
-dn: cn=Developers,ou=Groups,dc=example,dc=org
-objectClass: groupOfNames
-cn: Developers
-description: Schema Registry Developers
-member: uid=developer,ou=Users,dc=example,dc=org
-
-dn: cn=ReadonlyUsers,ou=Groups,dc=example,dc=org
-objectClass: groupOfNames
-cn: ReadonlyUsers
-description: Schema Registry Readonly Users
-member: uid=readonly,ou=Users,dc=example,dc=org
-
-# Create users
-# Admin user - member of SchemaRegistryAdmins
+# Admin user - will be member of SchemaRegistryAdmins
 dn: uid=admin,ou=Users,dc=example,dc=org
 objectClass: inetOrgPerson
 objectClass: posixAccount
@@ -46,7 +33,7 @@ gidNumber: 1000
 homeDirectory: /home/admin
 loginShell: /bin/bash
 
-# Developer user - member of Developers
+# Developer user - will be member of Developers
 dn: uid=developer,ou=Users,dc=example,dc=org
 objectClass: inetOrgPerson
 objectClass: posixAccount
@@ -62,7 +49,7 @@ gidNumber: 1000
 homeDirectory: /home/developer
 loginShell: /bin/bash
 
-# Readonly user - member of ReadonlyUsers
+# Readonly user - will be member of ReadonlyUsers
 dn: uid=readonly,ou=Users,dc=example,dc=org
 objectClass: inetOrgPerson
 objectClass: posixAccount
@@ -93,3 +80,22 @@ uidNumber: 1003
 gidNumber: 1000
 homeDirectory: /home/nogroup
 loginShell: /bin/bash
+
+# Create groups after users (memberOf overlay requires referenced users to exist)
+dn: cn=SchemaRegistryAdmins,ou=Groups,dc=example,dc=org
+objectClass: groupOfNames
+cn: SchemaRegistryAdmins
+description: Schema Registry Administrators
+member: uid=admin,ou=Users,dc=example,dc=org
+
+dn: cn=Developers,ou=Groups,dc=example,dc=org
+objectClass: groupOfNames
+cn: Developers
+description: Schema Registry Developers
+member: uid=developer,ou=Users,dc=example,dc=org
+
+dn: cn=ReadonlyUsers,ou=Groups,dc=example,dc=org
+objectClass: groupOfNames
+cn: ReadonlyUsers
+description: Schema Registry Readonly Users
+member: uid=readonly,ou=Users,dc=example,dc=org

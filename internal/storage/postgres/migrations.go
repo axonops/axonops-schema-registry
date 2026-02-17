@@ -91,4 +91,43 @@ var migrations = []string{
 	`CREATE INDEX IF NOT EXISTS idx_api_keys_user_id ON api_keys(user_id)`,
 	`CREATE INDEX IF NOT EXISTS idx_api_keys_key_hash ON api_keys(key_hash)`,
 	`CREATE INDEX IF NOT EXISTS idx_api_keys_role ON api_keys(role)`,
+
+	// Migration 10: Add metadata and ruleset columns to schemas
+	`ALTER TABLE schemas ADD COLUMN IF NOT EXISTS metadata JSONB`,
+	`ALTER TABLE schemas ADD COLUMN IF NOT EXISTS ruleset JSONB`,
+
+	// Migration 11: Add metadata/ruleset/alias/normalize columns to configs
+	`ALTER TABLE configs ADD COLUMN IF NOT EXISTS alias VARCHAR(255)`,
+	`ALTER TABLE configs ADD COLUMN IF NOT EXISTS normalize BOOLEAN`,
+	`ALTER TABLE configs ADD COLUMN IF NOT EXISTS default_metadata JSONB`,
+	`ALTER TABLE configs ADD COLUMN IF NOT EXISTS override_metadata JSONB`,
+	`ALTER TABLE configs ADD COLUMN IF NOT EXISTS default_ruleset JSONB`,
+	`ALTER TABLE configs ADD COLUMN IF NOT EXISTS override_ruleset JSONB`,
+
+	// Migration 12: Add compatibility_group column to configs
+	`ALTER TABLE configs ADD COLUMN IF NOT EXISTS compatibility_group VARCHAR(255)`,
+
+	// Migration 13: Add validate_fields column to configs
+	`ALTER TABLE configs ADD COLUMN IF NOT EXISTS validate_fields BOOLEAN`,
+
+	// Migration 14: schema_fingerprints table for stable global ID resolution.
+	// Maps each unique schema fingerprint to an immutable schema_id, matching
+	// the Cassandra backend's approach. Replaces the previous MIN(id) query
+	// which was mutable when the lowest-ID row was permanently deleted.
+	`CREATE TABLE IF NOT EXISTS schema_fingerprints (
+		fingerprint VARCHAR(64) PRIMARY KEY,
+		schema_id BIGINT NOT NULL UNIQUE
+	)`,
+
+	// Migration 15: Remove ON DELETE CASCADE from schema_references FK.
+	// References are now keyed by the stable schema_fingerprints.schema_id,
+	// not by a specific schemas row id. Cascade deletion would destroy
+	// references when any single schemas row is permanently deleted.
+	`ALTER TABLE schema_references DROP CONSTRAINT IF EXISTS schema_references_schema_id_fkey`,
+
+	// Migration 16: Backfill schema_fingerprints from existing schemas data.
+	// Uses MIN(id) to preserve the same global IDs that were previously returned.
+	`INSERT INTO schema_fingerprints (fingerprint, schema_id)
+	 SELECT fingerprint, MIN(id) FROM schemas GROUP BY fingerprint
+	 ON CONFLICT (fingerprint) DO NOTHING`,
 }

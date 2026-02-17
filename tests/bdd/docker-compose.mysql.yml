@@ -1,0 +1,28 @@
+# MySQL backend for BDD tests.
+# Usage:
+#   docker compose -f docker-compose.base.yml -f docker-compose.mysql.yml up -d --build --wait
+
+services:
+  schema-registry:
+    command: ["--config", "/etc/schema-registry/config.mysql.yaml"]
+    environment:
+      REGISTRY_CONFIG: /etc/schema-registry/config.mysql.yaml
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_DATABASE: schemaregistry
+      MYSQL_USER: schemaregistry
+      MYSQL_PASSWORD: schemaregistry
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "${MYSQL_PORT:-13306}:3306"
+    healthcheck:
+      test: ["CMD-SHELL", "mysql -h 127.0.0.1 -uschemaregistry -pschemaregistry -e 'SELECT 1' 2>/dev/null"]
+      interval: 5s
+      timeout: 3s
+      start_period: 30s
+      retries: 20

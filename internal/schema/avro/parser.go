@@ -30,8 +30,23 @@ func (p *Parser) Type() storage.SchemaType {
 
 // Parse parses an Avro schema string.
 func (p *Parser) Parse(schemaStr string, references []storage.Reference) (schema.ParsedSchema, error) {
-	// Parse the schema using hamba/avro
-	avroSchema, err := avro.Parse(schemaStr)
+	var avroSchema avro.Schema
+	var err error
+
+	if len(references) > 0 {
+		// Use a schema cache to register referenced named types first
+		cache := &avro.SchemaCache{}
+		for _, ref := range references {
+			if ref.Schema != "" {
+				if _, refErr := avro.ParseWithCache(ref.Schema, "", cache); refErr != nil {
+					return nil, fmt.Errorf("invalid reference schema %q: %w", ref.Name, refErr)
+				}
+			}
+		}
+		avroSchema, err = avro.ParseWithCache(schemaStr, "", cache)
+	} else {
+		avroSchema, err = avro.Parse(schemaStr)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("invalid Avro schema: %w", err)
 	}
@@ -77,6 +92,43 @@ func (s *ParsedSchema) Fingerprint() string {
 // RawSchema returns the underlying Avro schema.
 func (s *ParsedSchema) RawSchema() interface{} {
 	return s.rawSchema
+}
+
+// Normalize returns a normalized copy of this schema using canonical form.
+func (s *ParsedSchema) Normalize() schema.ParsedSchema {
+	return &ParsedSchema{
+		schemaType:  s.schemaType,
+		canonical:   s.canonical,
+		fingerprint: s.fingerprint,
+		rawSchema:   s.rawSchema,
+	}
+}
+
+// HasTopLevelField reports whether the Avro record schema contains a field
+// with the given name. Returns false for non-record schemas.
+func (s *ParsedSchema) HasTopLevelField(field string) bool {
+	if rs, ok := s.rawSchema.(*avro.RecordSchema); ok {
+		for _, f := range rs.Fields() {
+			if f.Name() == field {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// FormattedString returns the schema in the requested format.
+// Supported formats: "resolved" (inlines all references), "default" (canonical).
+func (s *ParsedSchema) FormattedString(format string) string {
+	switch strings.ToLower(strings.TrimSpace(format)) {
+	case "resolved":
+		if s.rawSchema != nil {
+			return s.rawSchema.String()
+		}
+		return s.canonical
+	default:
+		return s.canonical
+	}
 }
 
 // canonicalize converts an Avro schema to its canonical form.
@@ -191,12 +243,18 @@ func canonicalizeObject(obj map[string]interface{}) string {
 func canonicalizeField(field map[string]interface{}) string {
 	parts := make([]string, 0)
 
-	// Field order: name, type
+	// Field order: name, type, default
+	// Note: default is included for fingerprinting so that schemas differing
+	// only in default values are treated as distinct (important for compatibility).
 	if name, ok := field["name"]; ok {
 		parts = append(parts, fmt.Sprintf(`"name":"%v"`, name))
 	}
 	if typ, ok := field["type"]; ok {
 		parts = append(parts, fmt.Sprintf(`"type":%s`, canonicalizeValue(typ)))
+	}
+	if def, ok := field["default"]; ok {
+		defBytes, _ := json.Marshal(def)
+		parts = append(parts, fmt.Sprintf(`"default":%s`, string(defBytes)))
 	}
 
 	return "{" + strings.Join(parts, ",") + "}"
