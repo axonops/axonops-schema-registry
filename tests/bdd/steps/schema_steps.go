@@ -476,6 +476,44 @@ func RegisterSchemaSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 		return nil
 	})
 
+	// Variable-resolved integer field NOT-equal comparison: the response field "id" should not equal stored "ctx_a_id"
+	ctx.Step(`^the response field "([^"]*)" should not equal stored "([^"]*)"$`, func(field, varName string) error {
+		storedVal, ok := tc.StoredValues[varName]
+		if !ok {
+			return fmt.Errorf("no stored value %q", varName)
+		}
+		actual, err := tc.JSONField(field)
+		if err != nil {
+			return err
+		}
+		// Compare as numbers if both are numeric
+		storedNum, storedIsNum := storedVal.(float64)
+		actualNum, actualIsNum := actual.(float64)
+		if storedIsNum && actualIsNum {
+			if int(storedNum) == int(actualNum) {
+				return fmt.Errorf("field %q: expected NOT %d (from %q), but got %d", field, int(storedNum), varName, int(actualNum))
+			}
+			return nil
+		}
+		if fmt.Sprintf("%v", actual) == fmt.Sprintf("%v", storedVal) {
+			return fmt.Errorf("field %q: expected NOT %v (from %q), but got %v", field, storedVal, varName, actual)
+		}
+		return nil
+	})
+
+	// Response array should not contain a string value
+	ctx.Step(`^the response array should not contain "([^"]*)"$`, func(unexpected string) error {
+		if tc.LastJSONArray == nil {
+			return nil // no array means it doesn't contain the value
+		}
+		for _, v := range tc.LastJSONArray {
+			if fmt.Sprintf("%v", v) == unexpected {
+				return fmt.Errorf("array should not contain %q but does: %s", unexpected, string(tc.LastBody))
+			}
+		}
+		return nil
+	})
+
 	// Variable-resolved integer array containment: the response array should contain stored integer "use1_id"
 	ctx.Step(`^the response array should contain stored integer "([^"]*)"$`, func(varName string) error {
 		storedVal, ok := tc.StoredValues[varName]
