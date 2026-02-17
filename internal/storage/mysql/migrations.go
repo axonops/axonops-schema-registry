@@ -129,4 +129,75 @@ var migrations = []string{
 		"schema_id BIGINT NOT NULL," +
 		"UNIQUE KEY idx_schema_fingerprints_schema_id (schema_id)" +
 		") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+
+	// ---------------------------------------------------------------
+	// Migrations 22+: Multi-tenant context support (issue #264)
+	// Adds registry_ctx column to all schema/config/mode tables.
+	// Schema IDs become per-context. Default context is ".".
+	// ---------------------------------------------------------------
+
+	// Migration 22: Add registry_ctx column to schemas table.
+	"ALTER TABLE `schemas` ADD COLUMN registry_ctx VARCHAR(255) NOT NULL DEFAULT '.'",
+
+	// Migration 23: Drop old unique constraints that don't include registry_ctx.
+	// MySQL uses DROP INDEX for unique keys.
+	"ALTER TABLE `schemas` DROP INDEX idx_subject_version",
+
+	// Migration 24: Drop old fingerprint unique constraint.
+	"ALTER TABLE `schemas` DROP INDEX idx_subject_fingerprint",
+
+	// Migration 25: Create context-scoped unique indexes on schemas.
+	"CREATE UNIQUE INDEX idx_schemas_ctx_subj_ver ON `schemas`(registry_ctx, subject, version)",
+
+	// Migration 26: Create context-scoped fingerprint uniqueness.
+	"CREATE UNIQUE INDEX idx_schemas_ctx_subj_fp ON `schemas`(registry_ctx, subject, fingerprint)",
+
+	// Migration 27: Add registry_ctx to schema_fingerprints.
+	"ALTER TABLE schema_fingerprints ADD COLUMN registry_ctx VARCHAR(255) NOT NULL DEFAULT '.'",
+
+	// Migration 28: Drop old schema_fingerprints primary key (fingerprint only).
+	"ALTER TABLE schema_fingerprints DROP PRIMARY KEY, ADD PRIMARY KEY (registry_ctx, fingerprint)",
+
+	// Migration 29: Drop old UNIQUE constraint on schema_id (IDs are now per-context).
+	"ALTER TABLE schema_fingerprints DROP INDEX idx_schema_fingerprints_schema_id",
+
+	// Migration 30: Add per-context unique constraint on schema_id.
+	"CREATE UNIQUE INDEX idx_schema_fp_ctx_id ON schema_fingerprints(registry_ctx, schema_id)",
+
+	// Migration 31: Add registry_ctx to configs.
+	"ALTER TABLE configs ADD COLUMN registry_ctx VARCHAR(255) NOT NULL DEFAULT '.'",
+
+	// Migration 32: Drop old configs primary key (subject only) and add compound key.
+	"ALTER TABLE configs DROP PRIMARY KEY, ADD PRIMARY KEY (registry_ctx, subject)",
+
+	// Migration 33: Add registry_ctx to modes.
+	"ALTER TABLE modes ADD COLUMN registry_ctx VARCHAR(255) NOT NULL DEFAULT '.'",
+
+	// Migration 34: Drop old modes primary key (subject only) and add compound key.
+	"ALTER TABLE modes DROP PRIMARY KEY, ADD PRIMARY KEY (registry_ctx, subject)",
+
+	// Migration 35: Per-context ID allocation table.
+	// Each context has its own ID sequence starting at 1.
+	"CREATE TABLE IF NOT EXISTS ctx_id_alloc (" +
+		"registry_ctx VARCHAR(255) PRIMARY KEY," +
+		"next_id BIGINT NOT NULL DEFAULT 1" +
+		") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+
+	// Migration 36: Seed ctx_id_alloc for default context with current max ID.
+	"INSERT IGNORE INTO ctx_id_alloc (registry_ctx, next_id) SELECT '.', COALESCE(MAX(schema_id), 0) + 1 FROM schema_fingerprints WHERE registry_ctx = '.'",
+
+	// Migration 37: Contexts tracking table.
+	"CREATE TABLE IF NOT EXISTS contexts (" +
+		"registry_ctx VARCHAR(255) PRIMARY KEY," +
+		"created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP" +
+		") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+
+	// Migration 38: Seed default context.
+	"INSERT IGNORE INTO contexts (registry_ctx) VALUES ('.')",
+
+	// Migration 39: Add registry_ctx to schema_references.
+	"ALTER TABLE schema_references ADD COLUMN registry_ctx VARCHAR(255) NOT NULL DEFAULT '.'",
+
+	// Migration 40: Index for context-scoped queries on schemas.
+	"CREATE INDEX idx_schemas_registry_ctx ON `schemas`(registry_ctx)",
 }

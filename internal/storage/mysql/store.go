@@ -63,7 +63,7 @@ type Store struct {
 
 // preparedStatements holds all prepared SQL statements.
 type preparedStatements struct {
-	// Schema statements
+	// Schema statements — all scoped by registry_ctx
 	getSchemaByID          *sql.Stmt
 	getSchemaBySubjectVer  *sql.Stmt
 	getSchemaByFingerprint *sql.Stmt
@@ -72,19 +72,21 @@ type preparedStatements struct {
 	hardDeleteSchema       *sql.Stmt
 	countSchemasBySubject  *sql.Stmt
 	loadReferences         *sql.Stmt
+	getSubjectsBySchemaID  *sql.Stmt
+	getVersionsBySchemaID  *sql.Stmt
 	getReferencedBy        *sql.Stmt
 
-	// Config statements
+	// Config statements — scoped by registry_ctx
 	getConfig    *sql.Stmt
 	setConfig    *sql.Stmt
 	deleteConfig *sql.Stmt
 
-	// Mode statements
+	// Mode statements — scoped by registry_ctx
 	getMode    *sql.Stmt
 	setMode    *sql.Stmt
 	deleteMode *sql.Stmt
 
-	// User statements
+	// User statements (global scope — NOT scoped by registry_ctx)
 	createUser        *sql.Stmt
 	getUserByID       *sql.Stmt
 	getUserByUsername *sql.Stmt
@@ -92,7 +94,7 @@ type preparedStatements struct {
 	deleteUser        *sql.Stmt
 	listUsers         *sql.Stmt
 
-	// API Key statements
+	// API Key statements (global scope — NOT scoped by registry_ctx)
 	createAPIKey           *sql.Stmt
 	getAPIKeyByID          *sql.Stmt
 	getAPIKeyByHash        *sql.Stmt
@@ -151,100 +153,119 @@ func (s *Store) prepareStatements() error {
 	var err error
 	stmts := &preparedStatements{}
 
-	// Schema statements
+	// Schema statements — all scoped by registry_ctx
 	stmts.getSchemaByID, err = s.db.Prepare(
-		"SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at, metadata, ruleset FROM `schemas` WHERE id = ?")
+		"SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at, metadata, ruleset FROM `schemas` WHERE registry_ctx = ? AND id = ?")
 	if err != nil {
 		return fmt.Errorf("prepare getSchemaByID: %w", err)
 	}
 
 	stmts.getSchemaBySubjectVer, err = s.db.Prepare(
-		"SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at, metadata, ruleset FROM `schemas` WHERE subject = ? AND version = ?")
+		"SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at, metadata, ruleset FROM `schemas` WHERE registry_ctx = ? AND subject = ? AND version = ?")
 	if err != nil {
 		return fmt.Errorf("prepare getSchemaBySubjectVer: %w", err)
 	}
 
 	stmts.getSchemaByFingerprint, err = s.db.Prepare(
-		"SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at, metadata, ruleset FROM `schemas` WHERE subject = ? AND fingerprint = ? AND deleted = FALSE")
+		"SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at, metadata, ruleset FROM `schemas` WHERE registry_ctx = ? AND subject = ? AND fingerprint = ? AND deleted = FALSE")
 	if err != nil {
 		return fmt.Errorf("prepare getSchemaByFingerprint: %w", err)
 	}
 
 	stmts.getLatestSchema, err = s.db.Prepare(
-		"SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at, metadata, ruleset FROM `schemas` WHERE subject = ? AND deleted = FALSE ORDER BY version DESC LIMIT 1")
+		"SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at, metadata, ruleset FROM `schemas` WHERE registry_ctx = ? AND subject = ? AND deleted = FALSE ORDER BY version DESC LIMIT 1")
 	if err != nil {
 		return fmt.Errorf("prepare getLatestSchema: %w", err)
 	}
 
 	stmts.softDeleteSchema, err = s.db.Prepare(
-		"UPDATE `schemas` SET deleted = TRUE WHERE subject = ? AND version = ?")
+		"UPDATE `schemas` SET deleted = TRUE WHERE registry_ctx = ? AND subject = ? AND version = ?")
 	if err != nil {
 		return fmt.Errorf("prepare softDeleteSchema: %w", err)
 	}
 
 	stmts.hardDeleteSchema, err = s.db.Prepare(
-		"DELETE FROM `schemas` WHERE subject = ? AND version = ?")
+		"DELETE FROM `schemas` WHERE registry_ctx = ? AND subject = ? AND version = ?")
 	if err != nil {
 		return fmt.Errorf("prepare hardDeleteSchema: %w", err)
 	}
 
 	stmts.countSchemasBySubject, err = s.db.Prepare(
-		"SELECT COUNT(*) FROM `schemas` WHERE subject = ? AND deleted = FALSE")
+		"SELECT COUNT(*) FROM `schemas` WHERE registry_ctx = ? AND subject = ? AND deleted = FALSE")
 	if err != nil {
 		return fmt.Errorf("prepare countSchemasBySubject: %w", err)
 	}
 
 	stmts.loadReferences, err = s.db.Prepare(
-		"SELECT name, ref_subject, ref_version FROM schema_references WHERE schema_id = ?")
+		"SELECT name, ref_subject, ref_version FROM schema_references WHERE registry_ctx = ? AND schema_id = ?")
 	if err != nil {
 		return fmt.Errorf("prepare loadReferences: %w", err)
 	}
 
+	stmts.getSubjectsBySchemaID, err = s.db.Prepare(
+		"SELECT DISTINCT s.subject FROM `schemas` s" +
+			" JOIN schema_fingerprints fp ON fp.registry_ctx = s.registry_ctx AND fp.fingerprint = s.fingerprint" +
+			" WHERE s.registry_ctx = ? AND fp.schema_id = ? AND s.deleted = FALSE")
+	if err != nil {
+		return fmt.Errorf("prepare getSubjectsBySchemaID: %w", err)
+	}
+
+	stmts.getVersionsBySchemaID, err = s.db.Prepare(
+		"SELECT s.subject, s.version FROM `schemas` s" +
+			" JOIN schema_fingerprints fp ON fp.registry_ctx = s.registry_ctx AND fp.fingerprint = s.fingerprint" +
+			" WHERE s.registry_ctx = ? AND fp.schema_id = ? AND s.deleted = FALSE")
+	if err != nil {
+		return fmt.Errorf("prepare getVersionsBySchemaID: %w", err)
+	}
+
 	stmts.getReferencedBy, err = s.db.Prepare(
-		"SELECT s.subject, s.version FROM `schemas` s JOIN schema_fingerprints fp ON fp.fingerprint = s.fingerprint JOIN schema_references r ON r.schema_id = fp.schema_id WHERE r.ref_subject = ? AND r.ref_version = ? AND s.deleted = FALSE")
+		"SELECT s.subject, s.version FROM `schemas` s" +
+			" JOIN schema_fingerprints fp ON fp.registry_ctx = s.registry_ctx AND fp.fingerprint = s.fingerprint" +
+			" JOIN schema_references r ON r.registry_ctx = fp.registry_ctx AND r.schema_id = fp.schema_id" +
+			" WHERE s.registry_ctx = ? AND r.ref_subject = ? AND r.ref_version = ? AND s.deleted = FALSE")
 	if err != nil {
 		return fmt.Errorf("prepare getReferencedBy: %w", err)
 	}
 
-	// Config statements
+	// Config statements — scoped by registry_ctx
 	stmts.getConfig, err = s.db.Prepare(
-		"SELECT subject, compatibility_level, alias, normalize, validate_fields, default_metadata, override_metadata, default_ruleset, override_ruleset, compatibility_group FROM configs WHERE subject = ?")
+		"SELECT subject, compatibility_level, alias, normalize, validate_fields, default_metadata, override_metadata, default_ruleset, override_ruleset, compatibility_group FROM configs WHERE registry_ctx = ? AND subject = ?")
 	if err != nil {
 		return fmt.Errorf("prepare getConfig: %w", err)
 	}
 
 	stmts.setConfig, err = s.db.Prepare(
-		"INSERT INTO configs (subject, compatibility_level, alias, normalize, validate_fields, default_metadata, override_metadata, default_ruleset, override_ruleset, compatibility_group) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE compatibility_level = VALUES(compatibility_level), alias = VALUES(alias), normalize = VALUES(normalize), validate_fields = VALUES(validate_fields), default_metadata = VALUES(default_metadata), override_metadata = VALUES(override_metadata), default_ruleset = VALUES(default_ruleset), override_ruleset = VALUES(override_ruleset), compatibility_group = VALUES(compatibility_group)")
+		"INSERT INTO configs (registry_ctx, subject, compatibility_level, alias, normalize, validate_fields, default_metadata, override_metadata, default_ruleset, override_ruleset, compatibility_group) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE compatibility_level = VALUES(compatibility_level), alias = VALUES(alias), normalize = VALUES(normalize), validate_fields = VALUES(validate_fields), default_metadata = VALUES(default_metadata), override_metadata = VALUES(override_metadata), default_ruleset = VALUES(default_ruleset), override_ruleset = VALUES(override_ruleset), compatibility_group = VALUES(compatibility_group)")
 	if err != nil {
 		return fmt.Errorf("prepare setConfig: %w", err)
 	}
 
 	stmts.deleteConfig, err = s.db.Prepare(
-		"DELETE FROM configs WHERE subject = ?")
+		"DELETE FROM configs WHERE registry_ctx = ? AND subject = ?")
 	if err != nil {
 		return fmt.Errorf("prepare deleteConfig: %w", err)
 	}
 
-	// Mode statements
+	// Mode statements — scoped by registry_ctx
 	stmts.getMode, err = s.db.Prepare(
-		"SELECT subject, mode FROM modes WHERE subject = ?")
+		"SELECT subject, mode FROM modes WHERE registry_ctx = ? AND subject = ?")
 	if err != nil {
 		return fmt.Errorf("prepare getMode: %w", err)
 	}
 
 	stmts.setMode, err = s.db.Prepare(
-		"INSERT INTO modes (subject, mode) VALUES (?, ?) ON DUPLICATE KEY UPDATE mode = VALUES(mode)")
+		"INSERT INTO modes (registry_ctx, subject, mode) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE mode = VALUES(mode)")
 	if err != nil {
 		return fmt.Errorf("prepare setMode: %w", err)
 	}
 
 	stmts.deleteMode, err = s.db.Prepare(
-		"DELETE FROM modes WHERE subject = ?")
+		"DELETE FROM modes WHERE registry_ctx = ? AND subject = ?")
 	if err != nil {
 		return fmt.Errorf("prepare deleteMode: %w", err)
 	}
 
-	// User statements
+	// User statements (global scope)
 	stmts.createUser, err = s.db.Prepare(
 		"INSERT INTO users (username, email, password_hash, role, enabled, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)")
 	if err != nil {
@@ -281,7 +302,7 @@ func (s *Store) prepareStatements() error {
 		return fmt.Errorf("prepare listUsers: %w", err)
 	}
 
-	// API Key statements
+	// API Key statements (global scope)
 	stmts.createAPIKey, err = s.db.Prepare(
 		"INSERT INTO api_keys (user_id, key_hash, key_prefix, name, role, enabled, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
 	if err != nil {
@@ -349,7 +370,8 @@ func (s *Store) closeStatements() {
 	stmts := []*sql.Stmt{
 		s.stmts.getSchemaByID, s.stmts.getSchemaBySubjectVer, s.stmts.getSchemaByFingerprint,
 		s.stmts.getLatestSchema, s.stmts.softDeleteSchema, s.stmts.hardDeleteSchema,
-		s.stmts.countSchemasBySubject, s.stmts.loadReferences, s.stmts.getReferencedBy,
+		s.stmts.countSchemasBySubject, s.stmts.loadReferences, s.stmts.getSubjectsBySchemaID,
+		s.stmts.getVersionsBySchemaID, s.stmts.getReferencedBy,
 		s.stmts.getConfig, s.stmts.setConfig, s.stmts.deleteConfig,
 		s.stmts.getMode, s.stmts.setMode, s.stmts.deleteMode,
 		s.stmts.createUser, s.stmts.getUserByID, s.stmts.getUserByUsername,
@@ -375,6 +397,10 @@ func (s *Store) migrate(ctx context.Context) error {
 			if isMySQLDuplicateColumnError(err) {
 				continue
 			}
+			// Ignore "Can't DROP" errors when index/key was already removed
+			if isMySQLCantDropError(err) {
+				continue
+			}
 			return fmt.Errorf("migration %d failed: %w", i+1, err)
 		}
 	}
@@ -385,7 +411,7 @@ func (s *Store) migrate(ctx context.Context) error {
 	_, _ = s.db.ExecContext(ctx, "ALTER TABLE schema_references DROP FOREIGN KEY schema_references_ibfk_1")
 
 	// Backfill schema_fingerprints from existing data (first ID per fingerprint wins)
-	_, _ = s.db.ExecContext(ctx, "INSERT IGNORE INTO schema_fingerprints (fingerprint, schema_id) SELECT fingerprint, MIN(id) FROM `schemas` GROUP BY fingerprint")
+	_, _ = s.db.ExecContext(ctx, "INSERT IGNORE INTO schema_fingerprints (registry_ctx, fingerprint, schema_id) SELECT registry_ctx, fingerprint, MIN(id) FROM `schemas` GROUP BY registry_ctx, fingerprint")
 
 	return nil
 }
@@ -399,38 +425,55 @@ func isMySQLDuplicateColumnError(err error) bool {
 	return contains(errStr, "Duplicate column") || contains(errStr, "1060")
 }
 
-// globalSchemaID returns the stable global schema ID for a fingerprint.
-// Looks up the immutable fingerprint→schema_id mapping in schema_fingerprints.
-func (s *Store) globalSchemaID(ctx context.Context, fingerprint string) (int64, error) {
+// isMySQLCantDropError checks if the error is a MySQL "Can't DROP" error (error code 1091).
+// This happens when trying to drop an index or key that doesn't exist.
+func isMySQLCantDropError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errStr := err.Error()
+	return contains(errStr, "Can't DROP") || contains(errStr, "1091")
+}
+
+// globalSchemaID returns the stable per-context schema ID for a fingerprint.
+// Looks up the immutable (registry_ctx, fingerprint) -> schema_id mapping in schema_fingerprints.
+func (s *Store) globalSchemaID(ctx context.Context, registryCtx, fingerprint string) (int64, error) {
 	var globalID int64
 	err := s.db.QueryRowContext(ctx,
-		"SELECT schema_id FROM schema_fingerprints WHERE fingerprint = ?", fingerprint).Scan(&globalID)
+		"SELECT schema_id FROM schema_fingerprints WHERE registry_ctx = ? AND fingerprint = ?", registryCtx, fingerprint).Scan(&globalID)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get global schema ID: %w", err)
 	}
 	return globalID, nil
 }
 
-// globalSchemaIDTx returns the stable global schema ID within a transaction.
-func (s *Store) globalSchemaIDTx(ctx context.Context, tx *sql.Tx, fingerprint string) (int64, error) {
+// globalSchemaIDTx returns the stable per-context schema ID within a transaction.
+func (s *Store) globalSchemaIDTx(ctx context.Context, tx *sql.Tx, registryCtx, fingerprint string) (int64, error) {
 	var globalID int64
 	err := tx.QueryRowContext(ctx,
-		"SELECT schema_id FROM schema_fingerprints WHERE fingerprint = ?", fingerprint).Scan(&globalID)
+		"SELECT schema_id FROM schema_fingerprints WHERE registry_ctx = ? AND fingerprint = ?", registryCtx, fingerprint).Scan(&globalID)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get global schema ID: %w", err)
 	}
 	return globalID, nil
+}
+
+// ensureContext ensures a context exists in the contexts tracking table.
+func (s *Store) ensureContext(ctx context.Context, registryCtx string) {
+	_, _ = s.db.ExecContext(ctx,
+		"INSERT IGNORE INTO contexts (registry_ctx) VALUES (?)", registryCtx)
 }
 
 // CreateSchema stores a new schema record.
 // This implementation handles concurrent insertions by retrying on conflicts.
 // MySQL deadlocks are handled as retriable errors.
 func (s *Store) CreateSchema(ctx context.Context, registryCtx string, record *storage.SchemaRecord) error {
+	s.ensureContext(ctx, registryCtx)
 	const maxRetries = 15
 	var lastErr error
 
 	for attempt := 0; attempt < maxRetries; attempt++ {
-		err := s.createSchemaAttempt(ctx, record)
+		err := s.createSchemaAttempt(ctx, registryCtx, record)
 		if err == nil {
 			return nil
 		}
@@ -458,7 +501,7 @@ func (s *Store) CreateSchema(ctx context.Context, registryCtx string, record *st
 }
 
 // createSchemaAttempt performs a single attempt to create a schema.
-func (s *Store) createSchemaAttempt(ctx context.Context, record *storage.SchemaRecord) error {
+func (s *Store) createSchemaAttempt(ctx context.Context, registryCtx string, record *storage.SchemaRecord) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
@@ -469,13 +512,13 @@ func (s *Store) createSchemaAttempt(ctx context.Context, record *storage.SchemaR
 	var existingVersion int
 	var existingDeleted bool
 	err = tx.QueryRowContext(ctx,
-		"SELECT version, deleted FROM `schemas` WHERE subject = ? AND fingerprint = ?",
-		record.Subject, record.Fingerprint,
+		"SELECT version, deleted FROM `schemas` WHERE registry_ctx = ? AND subject = ? AND fingerprint = ?",
+		registryCtx, record.Subject, record.Fingerprint,
 	).Scan(&existingVersion, &existingDeleted)
 
 	if err == nil && !existingDeleted {
-		// Schema already exists in this subject - resolve global ID
-		globalID, gErr := s.globalSchemaIDTx(ctx, tx, record.Fingerprint)
+		// Schema already exists in this subject - resolve per-context ID
+		globalID, gErr := s.globalSchemaIDTx(ctx, tx, registryCtx, record.Fingerprint)
 		if gErr != nil {
 			return gErr
 		}
@@ -487,8 +530,8 @@ func (s *Store) createSchemaAttempt(ctx context.Context, record *storage.SchemaR
 	// Get next version for this subject (no locking - rely on unique constraint)
 	var nextVersion int
 	err = tx.QueryRowContext(ctx,
-		"SELECT COALESCE(MAX(version), 0) + 1 FROM `schemas` WHERE subject = ?",
-		record.Subject,
+		"SELECT COALESCE(MAX(version), 0) + 1 FROM `schemas` WHERE registry_ctx = ? AND subject = ?",
+		registryCtx, record.Subject,
 	).Scan(&nextVersion)
 	if err != nil {
 		return fmt.Errorf("failed to get next version: %w", err)
@@ -505,18 +548,18 @@ func (s *Store) createSchemaAttempt(ctx context.Context, record *storage.SchemaR
 	}
 
 	// If a soft-deleted row with the same fingerprint exists, remove it first
-	// to avoid violating the unique constraint on (subject, fingerprint).
+	// to avoid violating the unique constraint on (registry_ctx, subject, fingerprint).
 	if existingDeleted {
 		_, _ = tx.ExecContext(ctx,
-			"DELETE FROM `schemas` WHERE subject = ? AND fingerprint = ?",
-			record.Subject, record.Fingerprint,
+			"DELETE FROM `schemas` WHERE registry_ctx = ? AND subject = ? AND fingerprint = ?",
+			registryCtx, record.Subject, record.Fingerprint,
 		)
 	}
 
-	// Insert schema - unique constraint on (subject, version) prevents duplicates
+	// Insert schema - unique constraint on (registry_ctx, subject, version) prevents duplicates
 	result, err := tx.ExecContext(ctx,
-		"INSERT INTO `schemas` (subject, version, schema_type, schema_text, fingerprint, created_at, metadata, ruleset) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-		record.Subject, nextVersion, record.SchemaType, record.Schema, record.Fingerprint, time.Now(), metadataJSON, rulesetJSON,
+		"INSERT INTO `schemas` (registry_ctx, subject, version, schema_type, schema_text, fingerprint, created_at, metadata, ruleset) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+		registryCtx, record.Subject, nextVersion, record.SchemaType, record.Schema, record.Fingerprint, time.Now(), metadataJSON, rulesetJSON,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to insert schema: %w", err)
@@ -525,14 +568,14 @@ func (s *Store) createSchemaAttempt(ctx context.Context, record *storage.SchemaR
 	// Get the auto-generated ID of the inserted row
 	newRowID, _ := result.LastInsertId()
 
-	// Claim fingerprint in schema_fingerprints (first writer wins)
+	// Claim fingerprint in schema_fingerprints (first writer wins, per-context)
 	_, _ = tx.ExecContext(ctx,
-		"INSERT IGNORE INTO schema_fingerprints (fingerprint, schema_id) VALUES (?, ?)",
-		record.Fingerprint, newRowID,
+		"INSERT IGNORE INTO schema_fingerprints (registry_ctx, fingerprint, schema_id) VALUES (?, ?, ?)",
+		registryCtx, record.Fingerprint, newRowID,
 	)
 
-	// Resolve stable global ID from schema_fingerprints
-	globalID, err := s.globalSchemaIDTx(ctx, tx, record.Fingerprint)
+	// Resolve stable per-context ID from schema_fingerprints
+	globalID, err := s.globalSchemaIDTx(ctx, tx, registryCtx, record.Fingerprint)
 	if err != nil {
 		return fmt.Errorf("failed to get global schema ID: %w", err)
 	}
@@ -541,19 +584,18 @@ func (s *Store) createSchemaAttempt(ctx context.Context, record *storage.SchemaR
 	record.Version = nextVersion
 	record.CreatedAt = time.Now()
 
-	// Insert references using the global ID.
-	// Only insert if no references exist yet for this global ID (avoids duplicates
+	// Insert references using the per-context ID.
+	// Only insert if no references exist yet for this ID (avoids duplicates
 	// when same content is registered under multiple subjects).
 	if len(record.References) > 0 {
 		var refCount int
 		_ = tx.QueryRowContext(ctx,
-			"SELECT COUNT(*) FROM schema_references WHERE schema_id = ?", globalID).Scan(&refCount)
+			"SELECT COUNT(*) FROM schema_references WHERE registry_ctx = ? AND schema_id = ?", registryCtx, globalID).Scan(&refCount)
 		if refCount == 0 {
 			for _, ref := range record.References {
 				_, err = tx.ExecContext(ctx,
-					`INSERT INTO schema_references (schema_id, name, ref_subject, ref_version)
-					 VALUES (?, ?, ?, ?)`,
-					globalID, ref.Name, ref.Subject, ref.Version,
+					"INSERT INTO schema_references (registry_ctx, schema_id, name, ref_subject, ref_version) VALUES (?, ?, ?, ?, ?)",
+					registryCtx, globalID, ref.Name, ref.Subject, ref.Version,
 				)
 				if err != nil {
 					return fmt.Errorf("failed to insert reference: %w", err)
@@ -566,43 +608,39 @@ func (s *Store) createSchemaAttempt(ctx context.Context, record *storage.SchemaR
 }
 
 // GetSchemaByID retrieves a schema by its global ID.
-// First tries direct row lookup, then falls back to schema_fingerprints
-// for cases where the original row was permanently deleted but the content
-// still exists under other subjects.
+// Uses schema_fingerprints for per-context ID lookup, then finds the schema
+// row by fingerprint within the same context.
 func (s *Store) GetSchemaByID(ctx context.Context, registryCtx string, id int64) (*storage.SchemaRecord, error) {
 	record := &storage.SchemaRecord{}
 	var schemaType string
 	var metadataBytes, rulesetBytes []byte
 
-	err := s.stmts.getSchemaByID.QueryRowContext(ctx, id).Scan(
+	// Look up the per-context schema ID via schema_fingerprints first.
+	var fingerprint string
+	fpErr := s.db.QueryRowContext(ctx,
+		"SELECT fingerprint FROM schema_fingerprints WHERE registry_ctx = ? AND schema_id = ?", registryCtx, id).Scan(&fingerprint)
+	if fpErr != nil {
+		return nil, storage.ErrSchemaNotFound
+	}
+
+	// Find the schema row by context + fingerprint
+	err := s.db.QueryRowContext(ctx,
+		"SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at, metadata, ruleset"+
+			" FROM `schemas` WHERE registry_ctx = ? AND fingerprint = ? AND deleted = FALSE ORDER BY id LIMIT 1",
+		registryCtx, fingerprint).Scan(
 		&record.ID, &record.Subject, &record.Version, &schemaType,
 		&record.Schema, &record.Fingerprint, &record.Deleted, &record.CreatedAt,
 		&metadataBytes, &rulesetBytes)
 
 	if err == sql.ErrNoRows {
-		// Direct row not found — try schema_fingerprints fallback.
-		var fingerprint string
-		fpErr := s.db.QueryRowContext(ctx,
-			"SELECT fingerprint FROM schema_fingerprints WHERE schema_id = ?", id).Scan(&fingerprint)
-		if fpErr != nil {
-			return nil, storage.ErrSchemaNotFound
-		}
-
-		fpErr = s.db.QueryRowContext(ctx,
-			"SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at, metadata, ruleset FROM `schemas` WHERE fingerprint = ? ORDER BY id LIMIT 1",
-			fingerprint).Scan(
-			&record.ID, &record.Subject, &record.Version, &schemaType,
-			&record.Schema, &record.Fingerprint, &record.Deleted, &record.CreatedAt,
-			&metadataBytes, &rulesetBytes)
-		if fpErr != nil {
-			return nil, storage.ErrSchemaNotFound
-		}
-
-		// Use the stable global ID, not the row's auto-generated ID
-		record.ID = id
-	} else if err != nil {
+		return nil, storage.ErrSchemaNotFound
+	}
+	if err != nil {
 		return nil, fmt.Errorf("failed to get schema: %w", err)
 	}
+
+	// Use the per-context schema ID, not the row's auto-generated ID
+	record.ID = id
 
 	record.SchemaType = storage.SchemaType(schemaType)
 
@@ -610,8 +648,8 @@ func (s *Store) GetSchemaByID(ctx context.Context, registryCtx string, id int64)
 		return nil, err
 	}
 
-	// Load references using the stable global ID
-	refs, err := s.loadReferences(ctx, id)
+	// Load references using the per-context schema ID
+	refs, err := s.loadReferences(ctx, registryCtx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -632,7 +670,7 @@ func (s *Store) GetSchemaBySubjectVersion(ctx context.Context, registryCtx strin
 	var rowID int64
 	var metadataBytes, rulesetBytes []byte
 
-	err := s.stmts.getSchemaBySubjectVer.QueryRowContext(ctx, subject, version).Scan(
+	err := s.stmts.getSchemaBySubjectVer.QueryRowContext(ctx, registryCtx, subject, version).Scan(
 		&rowID, &record.Subject, &record.Version, &schemaType,
 		&record.Schema, &record.Fingerprint, &record.Deleted, &record.CreatedAt,
 		&metadataBytes, &rulesetBytes)
@@ -640,7 +678,7 @@ func (s *Store) GetSchemaBySubjectVersion(ctx context.Context, registryCtx strin
 	if err == sql.ErrNoRows {
 		// Check if subject exists
 		var count int
-		_ = s.stmts.countSchemasBySubject.QueryRowContext(ctx, subject).Scan(&count)
+		_ = s.stmts.countSchemasBySubject.QueryRowContext(ctx, registryCtx, subject).Scan(&count)
 		if count == 0 {
 			return nil, storage.ErrSubjectNotFound
 		}
@@ -660,16 +698,16 @@ func (s *Store) GetSchemaBySubjectVersion(ctx context.Context, registryCtx strin
 		return nil, err
 	}
 
-	// Resolve global ID
-	globalID, err := s.globalSchemaID(ctx, record.Fingerprint)
+	// Resolve per-context ID
+	globalID, err := s.globalSchemaID(ctx, registryCtx, record.Fingerprint)
 	if err != nil {
 		record.ID = rowID // fallback
 	} else {
 		record.ID = globalID
 	}
 
-	// Load references using global ID
-	refs, err := s.loadReferences(ctx, record.ID)
+	// Load references using per-context ID
+	refs, err := s.loadReferences(ctx, registryCtx, record.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -680,13 +718,13 @@ func (s *Store) GetSchemaBySubjectVersion(ctx context.Context, registryCtx strin
 
 // GetSchemasBySubject retrieves all schemas for a subject.
 func (s *Store) GetSchemasBySubject(ctx context.Context, registryCtx string, subject string, includeDeleted bool) ([]*storage.SchemaRecord, error) {
-	query := "SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at, metadata, ruleset FROM `schemas` WHERE subject = ?"
+	query := "SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at, metadata, ruleset FROM `schemas` WHERE registry_ctx = ? AND subject = ?"
 	if !includeDeleted {
 		query += " AND deleted = FALSE"
 	}
 	query += " ORDER BY version"
 
-	rows, err := s.db.QueryContext(ctx, query, subject)
+	rows, err := s.db.QueryContext(ctx, query, registryCtx, subject)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query schemas: %w", err)
 	}
@@ -710,14 +748,14 @@ func (s *Store) GetSchemasBySubject(ctx context.Context, registryCtx string, sub
 		}
 
 		// Resolve global ID
-		if globalID, gErr := s.globalSchemaID(ctx, record.Fingerprint); gErr == nil {
+		if globalID, gErr := s.globalSchemaID(ctx, registryCtx, record.Fingerprint); gErr == nil {
 			record.ID = globalID
 		} else {
 			record.ID = rowID
 		}
 
 		// Load references using global ID
-		refs, err := s.loadReferences(ctx, record.ID)
+		refs, err := s.loadReferences(ctx, registryCtx, record.ID)
 		if err != nil {
 			return nil, err
 		}
@@ -730,7 +768,7 @@ func (s *Store) GetSchemasBySubject(ctx context.Context, registryCtx string, sub
 		// Check if subject exists at all (including deleted versions)
 		var count int
 		_ = s.db.QueryRowContext(ctx,
-			"SELECT COUNT(*) FROM `schemas` WHERE subject = ?", subject).Scan(&count)
+			"SELECT COUNT(*) FROM `schemas` WHERE registry_ctx = ? AND subject = ?", registryCtx, subject).Scan(&count)
 		if count == 0 {
 			return nil, storage.ErrSubjectNotFound
 		}
@@ -750,13 +788,13 @@ func (s *Store) GetSchemaByFingerprint(ctx context.Context, registryCtx string, 
 	var err error
 
 	if includeDeleted {
-		query := "SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at, metadata, ruleset FROM `schemas` WHERE subject = ? AND fingerprint = ?"
-		err = s.db.QueryRowContext(ctx, query, subject, fingerprint).Scan(
+		query := "SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at, metadata, ruleset FROM `schemas` WHERE registry_ctx = ? AND subject = ? AND fingerprint = ?"
+		err = s.db.QueryRowContext(ctx, query, registryCtx, subject, fingerprint).Scan(
 			&rowID, &record.Subject, &record.Version, &schemaType,
 			&record.Schema, &record.Fingerprint, &record.Deleted, &record.CreatedAt,
 			&metadataBytes, &rulesetBytes)
 	} else {
-		err = s.stmts.getSchemaByFingerprint.QueryRowContext(ctx, subject, fingerprint).Scan(
+		err = s.stmts.getSchemaByFingerprint.QueryRowContext(ctx, registryCtx, subject, fingerprint).Scan(
 			&rowID, &record.Subject, &record.Version, &schemaType,
 			&record.Schema, &record.Fingerprint, &record.Deleted, &record.CreatedAt,
 			&metadataBytes, &rulesetBytes)
@@ -766,7 +804,7 @@ func (s *Store) GetSchemaByFingerprint(ctx context.Context, registryCtx string, 
 		// Check if subject exists at all
 		var count int
 		_ = s.db.QueryRowContext(ctx,
-			"SELECT COUNT(*) FROM `schemas` WHERE subject = ?", subject).Scan(&count)
+			"SELECT COUNT(*) FROM `schemas` WHERE registry_ctx = ? AND subject = ?", registryCtx, subject).Scan(&count)
 		if count == 0 {
 			return nil, storage.ErrSubjectNotFound
 		}
@@ -783,14 +821,14 @@ func (s *Store) GetSchemaByFingerprint(ctx context.Context, registryCtx string, 
 	}
 
 	// Resolve global ID
-	if globalID, gErr := s.globalSchemaID(ctx, record.Fingerprint); gErr == nil {
+	if globalID, gErr := s.globalSchemaID(ctx, registryCtx, record.Fingerprint); gErr == nil {
 		record.ID = globalID
 	} else {
 		record.ID = rowID
 	}
 
 	// Load references using global ID
-	refs, err := s.loadReferences(ctx, record.ID)
+	refs, err := s.loadReferences(ctx, registryCtx, record.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -807,9 +845,9 @@ func (s *Store) GetSchemaByGlobalFingerprint(ctx context.Context, registryCtx st
 	var rowID int64
 	var metadataBytes, rulesetBytes []byte
 
-	// Query for any schema with this fingerprint (global deduplication)
-	query := "SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at, metadata, ruleset FROM `schemas` WHERE fingerprint = ? AND deleted = false LIMIT 1"
-	err := s.db.QueryRowContext(ctx, query, fingerprint).Scan(
+	// Query for any schema with this fingerprint within this context
+	query := "SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at, metadata, ruleset FROM `schemas` WHERE registry_ctx = ? AND fingerprint = ? AND deleted = false LIMIT 1"
+	err := s.db.QueryRowContext(ctx, query, registryCtx, fingerprint).Scan(
 		&rowID, &record.Subject, &record.Version, &schemaType,
 		&record.Schema, &record.Fingerprint, &record.Deleted, &record.CreatedAt,
 		&metadataBytes, &rulesetBytes)
@@ -828,14 +866,14 @@ func (s *Store) GetSchemaByGlobalFingerprint(ctx context.Context, registryCtx st
 	}
 
 	// Resolve global ID
-	if globalID, gErr := s.globalSchemaID(ctx, record.Fingerprint); gErr == nil {
+	if globalID, gErr := s.globalSchemaID(ctx, registryCtx, record.Fingerprint); gErr == nil {
 		record.ID = globalID
 	} else {
 		record.ID = rowID
 	}
 
 	// Load references using global ID
-	refs, err := s.loadReferences(ctx, record.ID)
+	refs, err := s.loadReferences(ctx, registryCtx, record.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -851,7 +889,7 @@ func (s *Store) GetLatestSchema(ctx context.Context, registryCtx string, subject
 	var rowID int64
 	var metadataBytes, rulesetBytes []byte
 
-	err := s.stmts.getLatestSchema.QueryRowContext(ctx, subject).Scan(
+	err := s.stmts.getLatestSchema.QueryRowContext(ctx, registryCtx, subject).Scan(
 		&rowID, &record.Subject, &record.Version, &schemaType,
 		&record.Schema, &record.Fingerprint, &record.Deleted, &record.CreatedAt,
 		&metadataBytes, &rulesetBytes)
@@ -870,14 +908,14 @@ func (s *Store) GetLatestSchema(ctx context.Context, registryCtx string, subject
 	}
 
 	// Resolve global ID
-	if globalID, gErr := s.globalSchemaID(ctx, record.Fingerprint); gErr == nil {
+	if globalID, gErr := s.globalSchemaID(ctx, registryCtx, record.Fingerprint); gErr == nil {
 		record.ID = globalID
 	} else {
 		record.ID = rowID
 	}
 
 	// Load references using global ID
-	refs, err := s.loadReferences(ctx, record.ID)
+	refs, err := s.loadReferences(ctx, registryCtx, record.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -893,13 +931,13 @@ func (s *Store) DeleteSchema(ctx context.Context, registryCtx string, subject st
 		var deleted bool
 		var fingerprint string
 		err := s.db.QueryRowContext(ctx,
-			"SELECT deleted, fingerprint FROM `schemas` WHERE subject = ? AND version = ?",
-			subject, version).Scan(&deleted, &fingerprint)
+			"SELECT deleted, fingerprint FROM `schemas` WHERE registry_ctx = ? AND subject = ? AND version = ?",
+			registryCtx, subject, version).Scan(&deleted, &fingerprint)
 		if err == sql.ErrNoRows {
 			// Check if subject exists at all
 			var count int
 			_ = s.db.QueryRowContext(ctx,
-				"SELECT COUNT(*) FROM `schemas` WHERE subject = ?", subject).Scan(&count)
+				"SELECT COUNT(*) FROM `schemas` WHERE registry_ctx = ? AND subject = ?", registryCtx, subject).Scan(&count)
 			if count == 0 {
 				return storage.ErrSubjectNotFound
 			}
@@ -911,18 +949,18 @@ func (s *Store) DeleteSchema(ctx context.Context, registryCtx string, subject st
 		if !deleted {
 			return storage.ErrVersionNotSoftDeleted
 		}
-		_, err = s.stmts.hardDeleteSchema.ExecContext(ctx, subject, version)
+		_, err = s.stmts.hardDeleteSchema.ExecContext(ctx, registryCtx, subject, version)
 		if err != nil {
 			return fmt.Errorf("failed to delete schema: %w", err)
 		}
 
 		// Clean up orphaned schema_fingerprints and schema_references
-		s.cleanupOrphanedFingerprint(ctx, fingerprint)
+		s.cleanupOrphanedFingerprint(ctx, registryCtx, fingerprint)
 
 		return nil
 	}
 
-	result, err := s.stmts.softDeleteSchema.ExecContext(ctx, subject, version)
+	result, err := s.stmts.softDeleteSchema.ExecContext(ctx, registryCtx, subject, version)
 	if err != nil {
 		return fmt.Errorf("failed to delete schema: %w", err)
 	}
@@ -931,7 +969,7 @@ func (s *Store) DeleteSchema(ctx context.Context, registryCtx string, subject st
 	if rowsAffected == 0 {
 		// Check if subject exists
 		var count int
-		_ = s.stmts.countSchemasBySubject.QueryRowContext(ctx, subject).Scan(&count)
+		_ = s.stmts.countSchemasBySubject.QueryRowContext(ctx, registryCtx, subject).Scan(&count)
 		if count == 0 {
 			return storage.ErrSubjectNotFound
 		}
@@ -943,13 +981,13 @@ func (s *Store) DeleteSchema(ctx context.Context, registryCtx string, subject st
 
 // ListSubjects returns all subject names.
 func (s *Store) ListSubjects(ctx context.Context, registryCtx string, includeDeleted bool) ([]string, error) {
-	query := "SELECT DISTINCT subject FROM `schemas`"
+	query := "SELECT DISTINCT subject FROM `schemas` WHERE registry_ctx = ?"
 	if !includeDeleted {
-		query += " WHERE deleted = FALSE"
+		query += " AND deleted = FALSE"
 	}
 	query += " ORDER BY subject"
 
-	rows, err := s.db.QueryContext(ctx, query)
+	rows, err := s.db.QueryContext(ctx, query, registryCtx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query subjects: %w", err)
 	}
@@ -973,8 +1011,8 @@ func (s *Store) DeleteSubject(ctx context.Context, registryCtx string, subject s
 		// For permanent delete, check that all versions are soft-deleted first
 		var totalCount, deletedCount int
 		err := s.db.QueryRowContext(ctx,
-			"SELECT COUNT(*), COALESCE(SUM(CASE WHEN deleted THEN 1 ELSE 0 END), 0) FROM `schemas` WHERE subject = ?",
-			subject).Scan(&totalCount, &deletedCount)
+			"SELECT COUNT(*), COALESCE(SUM(CASE WHEN deleted THEN 1 ELSE 0 END), 0) FROM `schemas` WHERE registry_ctx = ? AND subject = ?",
+			registryCtx, subject).Scan(&totalCount, &deletedCount)
 		if err != nil {
 			return nil, fmt.Errorf("failed to check subject: %w", err)
 		}
@@ -987,7 +1025,7 @@ func (s *Store) DeleteSubject(ctx context.Context, registryCtx string, subject s
 
 		// Get all versions and unique fingerprints for cleanup
 		rows, err := s.db.QueryContext(ctx,
-			"SELECT version, fingerprint FROM `schemas` WHERE subject = ? ORDER BY version", subject)
+			"SELECT version, fingerprint FROM `schemas` WHERE registry_ctx = ? AND subject = ? ORDER BY version", registryCtx, subject)
 		if err != nil {
 			return nil, fmt.Errorf("failed to query versions: %w", err)
 		}
@@ -1005,16 +1043,16 @@ func (s *Store) DeleteSubject(ctx context.Context, registryCtx string, subject s
 		}
 		rows.Close()
 
-		_, err = s.db.ExecContext(ctx, "DELETE FROM `schemas` WHERE subject = ?", subject)
+		_, err = s.db.ExecContext(ctx, "DELETE FROM `schemas` WHERE registry_ctx = ? AND subject = ?", registryCtx, subject)
 		if err != nil {
 			return nil, fmt.Errorf("failed to delete schemas: %w", err)
 		}
-		_, _ = s.db.ExecContext(ctx, "DELETE FROM configs WHERE subject = ?", subject)
-		_, _ = s.db.ExecContext(ctx, "DELETE FROM modes WHERE subject = ?", subject)
+		_, _ = s.db.ExecContext(ctx, "DELETE FROM configs WHERE registry_ctx = ? AND subject = ?", registryCtx, subject)
+		_, _ = s.db.ExecContext(ctx, "DELETE FROM modes WHERE registry_ctx = ? AND subject = ?", registryCtx, subject)
 
 		// Clean up orphaned schema_fingerprints and schema_references
 		for fp := range fingerprintSet {
-			s.cleanupOrphanedFingerprint(ctx, fp)
+			s.cleanupOrphanedFingerprint(ctx, registryCtx, fp)
 		}
 
 		return versions, nil
@@ -1022,7 +1060,7 @@ func (s *Store) DeleteSubject(ctx context.Context, registryCtx string, subject s
 
 	// Soft-delete: get non-deleted versions
 	rows, err := s.db.QueryContext(ctx,
-		"SELECT version FROM `schemas` WHERE subject = ? AND deleted = FALSE ORDER BY version", subject)
+		"SELECT version FROM `schemas` WHERE registry_ctx = ? AND subject = ? AND deleted = FALSE ORDER BY version", registryCtx, subject)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query versions: %w", err)
 	}
@@ -1042,7 +1080,7 @@ func (s *Store) DeleteSubject(ctx context.Context, registryCtx string, subject s
 		// Check if subject exists but is already soft-deleted
 		var count int
 		_ = s.db.QueryRowContext(ctx,
-			"SELECT COUNT(*) FROM `schemas` WHERE subject = ?", subject).Scan(&count)
+			"SELECT COUNT(*) FROM `schemas` WHERE registry_ctx = ? AND subject = ?", registryCtx, subject).Scan(&count)
 		if count > 0 {
 			return nil, storage.ErrSubjectDeleted
 		}
@@ -1050,8 +1088,8 @@ func (s *Store) DeleteSubject(ctx context.Context, registryCtx string, subject s
 	}
 
 	_, err = s.db.ExecContext(ctx,
-		"UPDATE `schemas` SET deleted = TRUE WHERE subject = ?",
-		subject,
+		"UPDATE `schemas` SET deleted = TRUE WHERE registry_ctx = ? AND subject = ?",
+		registryCtx, subject,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to soft-delete schemas: %w", err)
@@ -1063,10 +1101,7 @@ func (s *Store) DeleteSubject(ctx context.Context, registryCtx string, subject s
 // SubjectExists checks if a subject exists.
 func (s *Store) SubjectExists(ctx context.Context, registryCtx string, subject string) (bool, error) {
 	var count int
-	err := s.db.QueryRowContext(ctx,
-		"SELECT COUNT(*) FROM `schemas` WHERE subject = ? AND deleted = FALSE",
-		subject,
-	).Scan(&count)
+	err := s.stmts.countSchemasBySubject.QueryRowContext(ctx, registryCtx, subject).Scan(&count)
 	if err != nil {
 		return false, fmt.Errorf("failed to check subject: %w", err)
 	}
@@ -1083,7 +1118,7 @@ func (s *Store) GetConfig(ctx context.Context, registryCtx string, subject strin
 	var defaultMetadataBytes, overrideMetadataBytes []byte
 	var defaultRuleSetBytes, overrideRuleSetBytes []byte
 
-	err := s.stmts.getConfig.QueryRowContext(ctx, subject).Scan(
+	err := s.stmts.getConfig.QueryRowContext(ctx, registryCtx, subject).Scan(
 		&config.Subject, &config.CompatibilityLevel,
 		&alias, &normalize, &validateFields,
 		&defaultMetadataBytes, &overrideMetadataBytes,
@@ -1183,7 +1218,7 @@ func (s *Store) SetConfig(ctx context.Context, registryCtx string, subject strin
 		compatGroupParam = config.CompatibilityGroup
 	}
 
-	_, err = s.stmts.setConfig.ExecContext(ctx, subject, config.CompatibilityLevel,
+	_, err = s.stmts.setConfig.ExecContext(ctx, registryCtx, subject, config.CompatibilityLevel,
 		aliasParam, normalizeParam, validateFieldsParam,
 		defaultMetadataJSON, overrideMetadataJSON,
 		defaultRuleSetJSON, overrideRuleSetJSON,
@@ -1196,7 +1231,7 @@ func (s *Store) SetConfig(ctx context.Context, registryCtx string, subject strin
 
 // DeleteConfig deletes the compatibility configuration for a subject.
 func (s *Store) DeleteConfig(ctx context.Context, registryCtx string, subject string) error {
-	result, err := s.stmts.deleteConfig.ExecContext(ctx, subject)
+	result, err := s.stmts.deleteConfig.ExecContext(ctx, registryCtx, subject)
 	if err != nil {
 		return fmt.Errorf("failed to delete config: %w", err)
 	}
@@ -1222,7 +1257,7 @@ func (s *Store) SetGlobalConfig(ctx context.Context, registryCtx string, config 
 // GetMode retrieves the mode for a subject.
 func (s *Store) GetMode(ctx context.Context, registryCtx string, subject string) (*storage.ModeRecord, error) {
 	mode := &storage.ModeRecord{}
-	err := s.stmts.getMode.QueryRowContext(ctx, subject).Scan(&mode.Subject, &mode.Mode)
+	err := s.stmts.getMode.QueryRowContext(ctx, registryCtx, subject).Scan(&mode.Subject, &mode.Mode)
 
 	if err == sql.ErrNoRows {
 		return nil, storage.ErrNotFound
@@ -1236,7 +1271,7 @@ func (s *Store) GetMode(ctx context.Context, registryCtx string, subject string)
 
 // SetMode sets the mode for a subject.
 func (s *Store) SetMode(ctx context.Context, registryCtx string, subject string, mode *storage.ModeRecord) error {
-	_, err := s.stmts.setMode.ExecContext(ctx, subject, mode.Mode)
+	_, err := s.stmts.setMode.ExecContext(ctx, registryCtx, subject, mode.Mode)
 	if err != nil {
 		return fmt.Errorf("failed to set mode: %w", err)
 	}
@@ -1245,7 +1280,7 @@ func (s *Store) SetMode(ctx context.Context, registryCtx string, subject string,
 
 // DeleteMode deletes the mode for a subject.
 func (s *Store) DeleteMode(ctx context.Context, registryCtx string, subject string) error {
-	result, err := s.stmts.deleteMode.ExecContext(ctx, subject)
+	result, err := s.stmts.deleteMode.ExecContext(ctx, registryCtx, subject)
 	if err != nil {
 		return fmt.Errorf("failed to delete mode: %w", err)
 	}
@@ -1268,8 +1303,8 @@ func (s *Store) SetGlobalMode(ctx context.Context, registryCtx string, mode *sto
 	return s.SetMode(ctx, registryCtx, "", mode)
 }
 
-// NextID returns the next available schema ID using the id_alloc table.
-// Atomically reads the current value and increments it.
+// NextID returns the next available per-context schema ID.
+// Uses the ctx_id_alloc table for per-context ID allocation.
 func (s *Store) NextID(ctx context.Context, registryCtx string) (int64, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -1277,13 +1312,16 @@ func (s *Store) NextID(ctx context.Context, registryCtx string) (int64, error) {
 	}
 	defer func() { _ = tx.Rollback() }()
 
+	// Ensure the row exists for this context
+	_, _ = tx.ExecContext(ctx, "INSERT IGNORE INTO ctx_id_alloc (registry_ctx, next_id) VALUES (?, 1)", registryCtx)
+
 	var id int64
-	err = tx.QueryRowContext(ctx, "SELECT next_id FROM id_alloc WHERE name = 'schema_id' FOR UPDATE").Scan(&id)
+	err = tx.QueryRowContext(ctx, "SELECT next_id FROM ctx_id_alloc WHERE registry_ctx = ? FOR UPDATE", registryCtx).Scan(&id)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get next ID: %w", err)
 	}
 
-	_, err = tx.ExecContext(ctx, "UPDATE id_alloc SET next_id = next_id + 1 WHERE name = 'schema_id'")
+	_, err = tx.ExecContext(ctx, "UPDATE ctx_id_alloc SET next_id = next_id + 1 WHERE registry_ctx = ?", registryCtx)
 	if err != nil {
 		return 0, fmt.Errorf("failed to increment next ID: %w", err)
 	}
@@ -1295,10 +1333,12 @@ func (s *Store) NextID(ctx context.Context, registryCtx string) (int64, error) {
 	return id, nil
 }
 
-// GetMaxSchemaID returns the highest schema ID currently assigned.
+// GetMaxSchemaID returns the highest per-context schema ID currently assigned.
 func (s *Store) GetMaxSchemaID(ctx context.Context, registryCtx string) (int64, error) {
 	var maxID int64
-	err := s.db.QueryRowContext(ctx, "SELECT COALESCE(MAX(id), 0) FROM `schemas`").Scan(&maxID)
+	err := s.db.QueryRowContext(ctx,
+		"SELECT COALESCE(MAX(schema_id), 0) FROM schema_fingerprints WHERE registry_ctx = ?",
+		registryCtx).Scan(&maxID)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get max schema ID: %w", err)
 	}
@@ -1306,18 +1346,22 @@ func (s *Store) GetMaxSchemaID(ctx context.Context, registryCtx string) (int64, 
 }
 
 // ImportSchema inserts a schema with a specified ID (for migration).
-// Returns ErrSchemaIDConflict if the ID already exists.
+// Returns ErrSchemaIDConflict if the ID already exists with different content.
 func (s *Store) ImportSchema(ctx context.Context, registryCtx string, record *storage.SchemaRecord) error {
+	s.ensureContext(ctx, registryCtx)
+
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	// Check if schema ID already exists
+	// Check if per-context schema ID already exists
 	var existingFingerprint string
 	idExists := false
-	err = tx.QueryRowContext(ctx, "SELECT fingerprint FROM `schemas` WHERE id = ?", record.ID).Scan(&existingFingerprint)
+	err = tx.QueryRowContext(ctx,
+		"SELECT fingerprint FROM schema_fingerprints WHERE registry_ctx = ? AND schema_id = ?",
+		registryCtx, record.ID).Scan(&existingFingerprint)
 	if err == nil {
 		// ID exists — allow if same content (fingerprint), reject if different
 		if existingFingerprint != record.Fingerprint {
@@ -1328,11 +1372,11 @@ func (s *Store) ImportSchema(ctx context.Context, registryCtx string, record *st
 		return fmt.Errorf("failed to check existing schema: %w", err)
 	}
 
-	// Check if version already exists for this subject
+	// Check if version already exists for this subject in this context
 	var existingVersion int
 	err = tx.QueryRowContext(ctx,
-		"SELECT version FROM `schemas` WHERE subject = ? AND version = ?",
-		record.Subject, record.Version,
+		"SELECT version FROM `schemas` WHERE registry_ctx = ? AND subject = ? AND version = ?",
+		registryCtx, record.Subject, record.Version,
 	).Scan(&existingVersion)
 	if err == nil {
 		return storage.ErrSchemaExists
@@ -1351,38 +1395,47 @@ func (s *Store) ImportSchema(ctx context.Context, registryCtx string, record *st
 		return fmt.Errorf("failed to marshal ruleset: %w", rErr)
 	}
 
-	if idExists {
-		// Same content, different subject — insert a new row (auto-id).
-		// schema_fingerprints already has the mapping from a previous import.
-		_, err = tx.ExecContext(ctx,
-			"INSERT INTO `schemas` (subject, version, schema_type, schema_text, fingerprint, created_at, metadata, ruleset) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-			record.Subject, record.Version, record.SchemaType, record.Schema, record.Fingerprint, time.Now(), metadataJSON, rulesetJSON,
-		)
-	} else {
-		// New ID — insert with explicit ID
-		_, err = tx.ExecContext(ctx,
-			"INSERT INTO `schemas` (id, subject, version, schema_type, schema_text, fingerprint, created_at, metadata, ruleset) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-			record.ID, record.Subject, record.Version, record.SchemaType, record.Schema, record.Fingerprint, time.Now(), metadataJSON, rulesetJSON,
-		)
-	}
+	// Insert schema row (always auto-id for the row; the per-context ID is in schema_fingerprints)
+	_, err = tx.ExecContext(ctx,
+		"INSERT INTO `schemas` (registry_ctx, subject, version, schema_type, schema_text, fingerprint, created_at, metadata, ruleset) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+		registryCtx, record.Subject, record.Version, record.SchemaType, record.Schema, record.Fingerprint, time.Now(), metadataJSON, rulesetJSON,
+	)
 	if err != nil {
 		return fmt.Errorf("failed to insert schema: %w", err)
 	}
 
-	// Claim fingerprint in schema_fingerprints (first writer wins, preserves imported ID)
-	_, _ = tx.ExecContext(ctx,
-		"INSERT IGNORE INTO schema_fingerprints (fingerprint, schema_id) VALUES (?, ?)",
-		record.Fingerprint, record.ID,
-	)
-
-	// Insert references using the stable global ID
-	for _, ref := range record.References {
+	if !idExists {
+		// Claim per-context fingerprint -> schema_id mapping with the imported ID
 		_, err = tx.ExecContext(ctx,
-			"INSERT INTO schema_references (schema_id, name, ref_subject, ref_version) VALUES (?, ?, ?, ?)",
-			record.ID, ref.Name, ref.Subject, ref.Version,
+			"INSERT IGNORE INTO schema_fingerprints (registry_ctx, fingerprint, schema_id) VALUES (?, ?, ?)",
+			registryCtx, record.Fingerprint, record.ID,
 		)
 		if err != nil {
-			return fmt.Errorf("failed to insert reference: %w", err)
+			return fmt.Errorf("failed to insert fingerprint mapping: %w", err)
+		}
+
+		// Advance ctx_id_alloc past the imported ID if needed
+		_, _ = tx.ExecContext(ctx,
+			"INSERT INTO ctx_id_alloc (registry_ctx, next_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE next_id = GREATEST(next_id, VALUES(next_id))",
+			registryCtx, record.ID+1,
+		)
+	}
+
+	// Insert references using the per-context ID
+	if len(record.References) > 0 {
+		var refCount int
+		_ = tx.QueryRowContext(ctx,
+			"SELECT COUNT(*) FROM schema_references WHERE registry_ctx = ? AND schema_id = ?", registryCtx, record.ID).Scan(&refCount)
+		if refCount == 0 {
+			for _, ref := range record.References {
+				_, err = tx.ExecContext(ctx,
+					"INSERT INTO schema_references (registry_ctx, schema_id, name, ref_subject, ref_version) VALUES (?, ?, ?, ?, ?)",
+					registryCtx, record.ID, ref.Name, ref.Subject, ref.Version,
+				)
+				if err != nil {
+					return fmt.Errorf("failed to insert reference: %w", err)
+				}
+			}
 		}
 	}
 
@@ -1391,26 +1444,21 @@ func (s *Store) ImportSchema(ctx context.Context, registryCtx string, record *st
 	return tx.Commit()
 }
 
-// SetNextID sets the ID sequence to start from the given value.
+// SetNextID sets the per-context ID allocator to start from the given value.
 // Used after import to prevent ID conflicts.
 func (s *Store) SetNextID(ctx context.Context, registryCtx string, id int64) error {
-	// Update the id_alloc table
-	_, err := s.db.ExecContext(ctx, "UPDATE id_alloc SET next_id = ? WHERE name = 'schema_id'", id)
+	_, err := s.db.ExecContext(ctx,
+		"INSERT INTO ctx_id_alloc (registry_ctx, next_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE next_id = VALUES(next_id)",
+		registryCtx, id)
 	if err != nil {
-		return fmt.Errorf("failed to set next ID in id_alloc: %w", err)
-	}
-
-	// Also update AUTO_INCREMENT so CreateSchema (which uses AUTO_INCREMENT) stays in sync
-	_, err = s.db.ExecContext(ctx, fmt.Sprintf("ALTER TABLE `schemas` AUTO_INCREMENT = %d", id))
-	if err != nil {
-		return fmt.Errorf("failed to set AUTO_INCREMENT: %w", err)
+		return fmt.Errorf("failed to set next ID: %w", err)
 	}
 	return nil
 }
 
 // GetReferencedBy returns subjects/versions that reference the given schema.
 func (s *Store) GetReferencedBy(ctx context.Context, registryCtx string, subject string, version int) ([]storage.SubjectVersion, error) {
-	rows, err := s.stmts.getReferencedBy.QueryContext(ctx, subject, version)
+	rows, err := s.stmts.getReferencedBy.QueryContext(ctx, registryCtx, subject, version)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query references: %w", err)
 	}
@@ -1428,27 +1476,28 @@ func (s *Store) GetReferencedBy(ctx context.Context, registryCtx string, subject
 	return refs, nil
 }
 
-// loadReferences loads references for a schema.
 // cleanupOrphanedFingerprint removes schema_fingerprints and schema_references entries
-// when no more schemas rows exist for a given fingerprint. Called after permanent deletes.
-func (s *Store) cleanupOrphanedFingerprint(ctx context.Context, fingerprint string) {
+// when no more schemas rows exist for a given fingerprint within this context.
+// Called after permanent deletes.
+func (s *Store) cleanupOrphanedFingerprint(ctx context.Context, registryCtx, fingerprint string) {
 	var remaining int
 	err := s.db.QueryRowContext(ctx,
-		"SELECT COUNT(*) FROM `schemas` WHERE fingerprint = ?", fingerprint).Scan(&remaining)
+		"SELECT COUNT(*) FROM `schemas` WHERE registry_ctx = ? AND fingerprint = ?", registryCtx, fingerprint).Scan(&remaining)
 	if err != nil || remaining > 0 {
 		return
 	}
-	// No schemas rows left — clean up the stable ID mapping and references
+	// No schemas rows left in this context — clean up the stable ID mapping and references
 	var schemaID int64
 	if err := s.db.QueryRowContext(ctx,
-		"SELECT schema_id FROM schema_fingerprints WHERE fingerprint = ?", fingerprint).Scan(&schemaID); err == nil {
-		_, _ = s.db.ExecContext(ctx, "DELETE FROM schema_references WHERE schema_id = ?", schemaID)
-		_, _ = s.db.ExecContext(ctx, "DELETE FROM schema_fingerprints WHERE fingerprint = ?", fingerprint)
+		"SELECT schema_id FROM schema_fingerprints WHERE registry_ctx = ? AND fingerprint = ?", registryCtx, fingerprint).Scan(&schemaID); err == nil {
+		_, _ = s.db.ExecContext(ctx, "DELETE FROM schema_references WHERE registry_ctx = ? AND schema_id = ?", registryCtx, schemaID)
+		_, _ = s.db.ExecContext(ctx, "DELETE FROM schema_fingerprints WHERE registry_ctx = ? AND fingerprint = ?", registryCtx, fingerprint)
 	}
 }
 
-func (s *Store) loadReferences(ctx context.Context, schemaID int64) ([]storage.Reference, error) {
-	rows, err := s.stmts.loadReferences.QueryContext(ctx, schemaID)
+// loadReferences loads references for a schema within a context.
+func (s *Store) loadReferences(ctx context.Context, registryCtx string, schemaID int64) ([]storage.Reference, error) {
+	rows, err := s.stmts.loadReferences.QueryContext(ctx, registryCtx, schemaID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query references: %w", err)
 	}
@@ -1466,20 +1515,10 @@ func (s *Store) loadReferences(ctx context.Context, schemaID int64) ([]storage.R
 	return refs, nil
 }
 
-// GetSubjectsBySchemaID returns all subjects where the given schema ID is registered.
-// Uses fingerprint-based lookup for global deduplication: the same content registered
-// under different subjects shares the same API-visible schema ID.
+// GetSubjectsBySchemaID returns all subjects where the given per-context schema ID is registered.
+// Uses fingerprint-based lookup via schema_fingerprints for global deduplication.
 func (s *Store) GetSubjectsBySchemaID(ctx context.Context, registryCtx string, id int64, includeDeleted bool) ([]string, error) {
-	query := `SELECT DISTINCT s.subject FROM ` + "`schemas`" + ` s
-		WHERE s.fingerprint = COALESCE(
-			(SELECT fingerprint FROM schema_fingerprints WHERE schema_id = ?),
-			(SELECT fingerprint FROM ` + "`schemas`" + ` WHERE id = ? LIMIT 1)
-		)`
-	if !includeDeleted {
-		query += " AND s.deleted = FALSE"
-	}
-
-	rows, err := s.db.QueryContext(ctx, query, id, id)
+	rows, err := s.stmts.getSubjectsBySchemaID.QueryContext(ctx, registryCtx, id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query subjects: %w", err)
 	}
@@ -1494,6 +1533,25 @@ func (s *Store) GetSubjectsBySchemaID(ctx context.Context, registryCtx string, i
 		subjects = append(subjects, subject)
 	}
 
+	if includeDeleted && len(subjects) == 0 {
+		// Try including deleted schemas
+		query := "SELECT DISTINCT s.subject FROM `schemas` s" +
+			" JOIN schema_fingerprints fp ON fp.registry_ctx = s.registry_ctx AND fp.fingerprint = s.fingerprint" +
+			" WHERE s.registry_ctx = ? AND fp.schema_id = ?"
+		rows2, err := s.db.QueryContext(ctx, query, registryCtx, id)
+		if err != nil {
+			return nil, fmt.Errorf("failed to query subjects: %w", err)
+		}
+		defer rows2.Close()
+		for rows2.Next() {
+			var subject string
+			if err := rows2.Scan(&subject); err != nil {
+				return nil, fmt.Errorf("failed to scan row: %w", err)
+			}
+			subjects = append(subjects, subject)
+		}
+	}
+
 	if len(subjects) == 0 {
 		return nil, storage.ErrSchemaNotFound
 	}
@@ -1501,19 +1559,10 @@ func (s *Store) GetSubjectsBySchemaID(ctx context.Context, registryCtx string, i
 	return subjects, nil
 }
 
-// GetVersionsBySchemaID returns all subject-version pairs where the given schema ID is registered.
-// Uses fingerprint-based lookup for global deduplication.
+// GetVersionsBySchemaID returns all subject-version pairs where the given per-context schema ID is registered.
+// Uses fingerprint-based lookup via schema_fingerprints for global deduplication.
 func (s *Store) GetVersionsBySchemaID(ctx context.Context, registryCtx string, id int64, includeDeleted bool) ([]storage.SubjectVersion, error) {
-	query := `SELECT s.subject, s.version FROM ` + "`schemas`" + ` s
-		WHERE s.fingerprint = COALESCE(
-			(SELECT fingerprint FROM schema_fingerprints WHERE schema_id = ?),
-			(SELECT fingerprint FROM ` + "`schemas`" + ` WHERE id = ? LIMIT 1)
-		)`
-	if !includeDeleted {
-		query += " AND s.deleted = FALSE"
-	}
-
-	rows, err := s.db.QueryContext(ctx, query, id, id)
+	rows, err := s.stmts.getVersionsBySchemaID.QueryContext(ctx, registryCtx, id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query versions: %w", err)
 	}
@@ -1528,6 +1577,25 @@ func (s *Store) GetVersionsBySchemaID(ctx context.Context, registryCtx string, i
 		versions = append(versions, sv)
 	}
 
+	if includeDeleted && len(versions) == 0 {
+		// Try including deleted schemas
+		query := "SELECT s.subject, s.version FROM `schemas` s" +
+			" JOIN schema_fingerprints fp ON fp.registry_ctx = s.registry_ctx AND fp.fingerprint = s.fingerprint" +
+			" WHERE s.registry_ctx = ? AND fp.schema_id = ?"
+		rows2, err := s.db.QueryContext(ctx, query, registryCtx, id)
+		if err != nil {
+			return nil, fmt.Errorf("failed to query versions: %w", err)
+		}
+		defer rows2.Close()
+		for rows2.Next() {
+			var sv storage.SubjectVersion
+			if err := rows2.Scan(&sv.Subject, &sv.Version); err != nil {
+				return nil, fmt.Errorf("failed to scan row: %w", err)
+			}
+			versions = append(versions, sv)
+		}
+	}
+
 	if len(versions) == 0 {
 		return nil, storage.ErrSchemaNotFound
 	}
@@ -1535,10 +1603,10 @@ func (s *Store) GetVersionsBySchemaID(ctx context.Context, registryCtx string, i
 	return versions, nil
 }
 
-// ListSchemas returns schemas matching the given filters.
+// ListSchemas returns schemas matching the given filters, scoped to a context.
 func (s *Store) ListSchemas(ctx context.Context, registryCtx string, params *storage.ListSchemasParams) ([]*storage.SchemaRecord, error) {
-	query := "SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at, metadata, ruleset FROM `schemas` WHERE 1=1"
-	args := []interface{}{}
+	query := "SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at, metadata, ruleset FROM `schemas` WHERE registry_ctx = ?"
+	args := []interface{}{registryCtx}
 
 	if !params.Deleted {
 		query += " AND deleted = ?"
@@ -1551,8 +1619,8 @@ func (s *Store) ListSchemas(ctx context.Context, registryCtx string, params *sto
 	}
 
 	if params.LatestOnly {
-		args = []interface{}{}
-		query = "SELECT s.id, s.subject, s.version, s.schema_type, s.schema_text, s.fingerprint, s.deleted, s.created_at, s.metadata, s.ruleset FROM `schemas` s INNER JOIN (SELECT subject, MAX(version) as max_version FROM `schemas` WHERE 1=1"
+		args = []interface{}{registryCtx}
+		query = "SELECT s.id, s.subject, s.version, s.schema_type, s.schema_text, s.fingerprint, s.deleted, s.created_at, s.metadata, s.ruleset FROM `schemas` s INNER JOIN (SELECT subject, MAX(version) as max_version FROM `schemas` WHERE registry_ctx = ?"
 		if !params.Deleted {
 			query += " AND deleted = FALSE"
 		}
@@ -1561,8 +1629,10 @@ func (s *Store) ListSchemas(ctx context.Context, registryCtx string, params *sto
 			args = append(args, params.SubjectPrefix+"%")
 		}
 		query += " GROUP BY subject) latest ON s.subject = latest.subject AND s.version = latest.max_version"
+		query += " WHERE s.registry_ctx = ?"
+		args = append(args, registryCtx)
 		if !params.Deleted {
-			query += " WHERE s.deleted = FALSE"
+			query += " AND s.deleted = FALSE"
 		}
 	}
 
@@ -1606,7 +1676,7 @@ func (s *Store) ListSchemas(ctx context.Context, registryCtx string, params *sto
 		}
 
 		// Resolve global ID
-		if globalID, gErr := s.globalSchemaID(ctx, record.Fingerprint); gErr == nil {
+		if globalID, gErr := s.globalSchemaID(ctx, registryCtx, record.Fingerprint); gErr == nil {
 			record.ID = globalID
 		} else {
 			record.ID = rowID
@@ -1618,17 +1688,37 @@ func (s *Store) ListSchemas(ctx context.Context, registryCtx string, params *sto
 	return schemas, nil
 }
 
-// DeleteGlobalConfig resets the global config to default.
+// DeleteGlobalConfig resets the global config to default within a context.
 func (s *Store) DeleteGlobalConfig(ctx context.Context, registryCtx string) error {
 	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO configs (subject, compatibility_level, alias, normalize, validate_fields, default_metadata, override_metadata, default_ruleset, override_ruleset, compatibility_group)
-		 VALUES ('', 'BACKWARD', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)
-		 ON DUPLICATE KEY UPDATE compatibility_level = 'BACKWARD', alias = NULL, normalize = NULL, validate_fields = NULL, default_metadata = NULL, override_metadata = NULL, default_ruleset = NULL, override_ruleset = NULL, compatibility_group = NULL`,
+		"INSERT INTO configs (registry_ctx, subject, compatibility_level, alias, normalize, validate_fields, default_metadata, override_metadata, default_ruleset, override_ruleset, compatibility_group)"+
+			" VALUES (?, '', 'BACKWARD', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)"+
+			" ON DUPLICATE KEY UPDATE compatibility_level = 'BACKWARD', alias = NULL, normalize = NULL, validate_fields = NULL, default_metadata = NULL, override_metadata = NULL, default_ruleset = NULL, override_ruleset = NULL, compatibility_group = NULL",
+		registryCtx,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to reset global config: %w", err)
 	}
 	return nil
+}
+
+// ListContexts returns all registry contexts from the database.
+func (s *Store) ListContexts(ctx context.Context) ([]string, error) {
+	rows, err := s.db.QueryContext(ctx, "SELECT registry_ctx FROM contexts ORDER BY registry_ctx")
+	if err != nil {
+		return nil, fmt.Errorf("failed to query contexts: %w", err)
+	}
+	defer rows.Close()
+
+	var contexts []string
+	for rows.Next() {
+		var c string
+		if err := rows.Scan(&c); err != nil {
+			return nil, fmt.Errorf("failed to scan row: %w", err)
+		}
+		contexts = append(contexts, c)
+	}
+	return contexts, nil
 }
 
 // CreateUser creates a new user record.
@@ -2067,11 +2157,6 @@ func contains(s, substr string) bool {
 		}
 	}
 	return false
-}
-
-// ListContexts returns all registry contexts. Currently only the default context is supported.
-func (s *Store) ListContexts(ctx context.Context) ([]string, error) {
-	return []string{"."}, nil
 }
 
 // Close closes the database connection.
