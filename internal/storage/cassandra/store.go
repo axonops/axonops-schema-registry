@@ -1677,12 +1677,13 @@ func (s *Store) SetGlobalConfig(ctx context.Context, registryCtx string, config 
 	).WithContext(ctx).Exec()
 }
 
-// DeleteGlobalConfig resets the global config to the default (BACKWARD) within a context.
+// DeleteGlobalConfig deletes the global config row within a context.
+// After deletion, GetGlobalConfig will return ErrNotFound, enabling the
+// 4-tier fallback chain to work correctly.
 func (s *Store) DeleteGlobalConfig(ctx context.Context, registryCtx string) error {
 	return s.writeQuery(
-		fmt.Sprintf(`INSERT INTO %s.global_config (registry_ctx, key, compatibility, alias, normalize, validate_fields, default_metadata, override_metadata, default_ruleset, override_ruleset, compatibility_group, updated_at)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())`, qident(s.cfg.Keyspace)),
-		registryCtx, "global", "BACKWARD", "", nil, nil, "", "", "", "", "",
+		fmt.Sprintf(`DELETE FROM %s.global_config WHERE registry_ctx = ? AND key = ?`, qident(s.cfg.Keyspace)),
+		registryCtx, "global",
 	).WithContext(ctx).Exec()
 }
 
@@ -1763,6 +1764,19 @@ func (s *Store) SetGlobalMode(ctx context.Context, registryCtx string, mode *sto
 	return s.writeQuery(
 		fmt.Sprintf(`INSERT INTO %s.modes (registry_ctx, key, mode, updated_at) VALUES (?, ?, ?, now())`, qident(s.cfg.Keyspace)),
 		registryCtx, "global", m,
+	).WithContext(ctx).Exec()
+}
+
+// DeleteGlobalMode deletes the global mode within a context.
+// After deletion, GetGlobalMode will return ErrNotFound.
+func (s *Store) DeleteGlobalMode(ctx context.Context, registryCtx string) error {
+	_, err := s.GetGlobalMode(ctx, registryCtx)
+	if err != nil {
+		return err
+	}
+	return s.writeQuery(
+		fmt.Sprintf(`DELETE FROM %s.modes WHERE registry_ctx = ? AND key = ?`, qident(s.cfg.Keyspace)),
+		registryCtx, "global",
 	).WithContext(ctx).Exec()
 }
 

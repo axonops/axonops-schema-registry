@@ -1688,17 +1688,35 @@ func (s *Store) ListSchemas(ctx context.Context, registryCtx string, params *sto
 	return schemas, nil
 }
 
-// DeleteGlobalConfig resets the global config to default within a context.
+// DeleteGlobalConfig deletes the global config row within a context.
+// After deletion, GetGlobalConfig will return ErrNotFound.
 func (s *Store) DeleteGlobalConfig(ctx context.Context, registryCtx string) error {
-	_, err := s.db.ExecContext(ctx,
-		"INSERT INTO configs (registry_ctx, subject, compatibility_level, alias, normalize, validate_fields, default_metadata, override_metadata, default_ruleset, override_ruleset, compatibility_group)"+
-			" VALUES (?, '', 'BACKWARD', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)"+
-			" ON DUPLICATE KEY UPDATE compatibility_level = 'BACKWARD', alias = NULL, normalize = NULL, validate_fields = NULL, default_metadata = NULL, override_metadata = NULL, default_ruleset = NULL, override_ruleset = NULL, compatibility_group = NULL",
-		registryCtx,
-	)
+	result, err := s.stmts.deleteConfig.ExecContext(ctx, registryCtx, "")
 	if err != nil {
-		return fmt.Errorf("failed to reset global config: %w", err)
+		return fmt.Errorf("failed to delete global config: %w", err)
 	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return storage.ErrNotFound
+	}
+
+	return nil
+}
+
+// DeleteGlobalMode deletes the global mode row within a context.
+// After deletion, GetGlobalMode will return ErrNotFound.
+func (s *Store) DeleteGlobalMode(ctx context.Context, registryCtx string) error {
+	result, err := s.stmts.deleteMode.ExecContext(ctx, registryCtx, "")
+	if err != nil {
+		return fmt.Errorf("failed to delete global mode: %w", err)
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return storage.ErrNotFound
+	}
+
 	return nil
 }
 

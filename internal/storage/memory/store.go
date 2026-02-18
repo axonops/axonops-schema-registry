@@ -68,8 +68,8 @@ func newContextStore() *contextStore {
 		idToSubjectVersions: make(map[int64][]storage.SubjectVersion),
 		configs:             make(map[string]*storage.ConfigRecord),
 		modes:               make(map[string]*storage.ModeRecord),
-		globalConfig:        &storage.ConfigRecord{Subject: "", CompatibilityLevel: "BACKWARD"},
-		globalMode:          &storage.ModeRecord{Subject: "", Mode: "READWRITE"},
+		globalConfig:        nil,
+		globalMode:          nil,
 		nextID:              1,
 	}
 }
@@ -705,8 +705,7 @@ func (s *Store) GetGlobalConfig(ctx context.Context, registryCtx string) (*stora
 
 	cs := s.getContext(registryCtx)
 	if cs == nil {
-		// Return default for non-existent context
-		return &storage.ConfigRecord{Subject: "", CompatibilityLevel: "BACKWARD"}, nil
+		return nil, storage.ErrNotFound
 	}
 
 	if cs.globalConfig == nil {
@@ -780,8 +779,7 @@ func (s *Store) GetGlobalMode(ctx context.Context, registryCtx string) (*storage
 
 	cs := s.getContext(registryCtx)
 	if cs == nil {
-		// Return default for non-existent context
-		return &storage.ModeRecord{Subject: "", Mode: "READWRITE"}, nil
+		return nil, storage.ErrNotFound
 	}
 
 	if cs.globalMode == nil {
@@ -798,6 +796,20 @@ func (s *Store) SetGlobalMode(ctx context.Context, registryCtx string, mode *sto
 	cs := s.getOrCreateContext(registryCtx)
 	mode.Subject = ""
 	cs.globalMode = mode
+	return nil
+}
+
+// DeleteGlobalMode resets the global mode for a context by removing it.
+func (s *Store) DeleteGlobalMode(ctx context.Context, registryCtx string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	cs := s.getContext(registryCtx)
+	if cs == nil {
+		return nil
+	}
+
+	cs.globalMode = nil
 	return nil
 }
 
@@ -1129,7 +1141,7 @@ func (s *Store) DeleteGlobalConfig(ctx context.Context, registryCtx string) erro
 		return nil
 	}
 
-	cs.globalConfig = &storage.ConfigRecord{Subject: "", CompatibilityLevel: "BACKWARD"}
+	cs.globalConfig = nil
 	return nil
 }
 

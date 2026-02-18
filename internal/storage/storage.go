@@ -206,6 +206,7 @@ type Storage interface {
 	DeleteMode(ctx context.Context, registryCtx string, subject string) error
 	GetGlobalMode(ctx context.Context, registryCtx string) (*ModeRecord, error)
 	SetGlobalMode(ctx context.Context, registryCtx string, mode *ModeRecord) error
+	DeleteGlobalMode(ctx context.Context, registryCtx string) error
 
 	// ID generation (per-context: each context has its own ID sequence)
 	NextID(ctx context.Context, registryCtx string) (int64, error)

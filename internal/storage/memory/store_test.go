@@ -195,13 +195,10 @@ func TestStore_Config(t *testing.T) {
 	store := NewStore()
 	ctx := context.Background()
 
-	// Get global config (seeded default is BACKWARD)
-	config, err := store.GetGlobalConfig(ctx, ".")
-	if err != nil {
-		t.Fatalf("Expected seeded default, got error %v", err)
-	}
-	if config.CompatibilityLevel != "BACKWARD" {
-		t.Errorf("Expected BACKWARD default, got %s", config.CompatibilityLevel)
+	// Get global config (no default seeded — returns ErrNotFound)
+	_, err := store.GetGlobalConfig(ctx, ".")
+	if err != storage.ErrNotFound {
+		t.Fatalf("Expected ErrNotFound for unset global config, got %v", err)
 	}
 
 	// Set global config
@@ -210,7 +207,7 @@ func TestStore_Config(t *testing.T) {
 		t.Fatalf("SetGlobalConfig failed: %v", err)
 	}
 
-	config, _ = store.GetGlobalConfig(ctx, ".")
+	config, _ := store.GetGlobalConfig(ctx, ".")
 	if config.CompatibilityLevel != "FULL" {
 		t.Errorf("Expected FULL, got %s", config.CompatibilityLevel)
 	}
@@ -535,19 +532,17 @@ func TestStore_ContextIsolation_Config(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "NONE", subjConfigA.CompatibilityLevel)
 
-	// Verify ".ctxB" global config returns default BACKWARD (context doesn't exist yet)
-	configB, err := store.GetGlobalConfig(ctx, ".ctxB")
-	require.NoError(t, err)
-	assert.Equal(t, "BACKWARD", configB.CompatibilityLevel)
+	// Verify ".ctxB" global config returns ErrNotFound (context doesn't exist yet)
+	_, err = store.GetGlobalConfig(ctx, ".ctxB")
+	assert.ErrorIs(t, err, storage.ErrNotFound)
 
 	// Verify ".ctxB" subject config returns ErrNotFound
 	_, err = store.GetConfig(ctx, ".ctxB", "test-subject")
 	assert.ErrorIs(t, err, storage.ErrNotFound)
 
-	// Verify default context "." still has original BACKWARD default
-	configDefault, err := store.GetGlobalConfig(ctx, ".")
-	require.NoError(t, err)
-	assert.Equal(t, "BACKWARD", configDefault.CompatibilityLevel)
+	// Verify default context "." has no explicit config set (ErrNotFound)
+	_, err = store.GetGlobalConfig(ctx, ".")
+	assert.ErrorIs(t, err, storage.ErrNotFound)
 }
 
 func TestStore_ContextIsolation_Mode(t *testing.T) {
@@ -572,19 +567,17 @@ func TestStore_ContextIsolation_Mode(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "READONLY", subjModeA.Mode)
 
-	// Verify ".ctxB" global mode returns default READWRITE (context doesn't exist yet)
-	modeB, err := store.GetGlobalMode(ctx, ".ctxB")
-	require.NoError(t, err)
-	assert.Equal(t, "READWRITE", modeB.Mode)
+	// Verify ".ctxB" global mode returns ErrNotFound (context doesn't exist yet)
+	_, err = store.GetGlobalMode(ctx, ".ctxB")
+	assert.ErrorIs(t, err, storage.ErrNotFound)
 
 	// Verify ".ctxB" subject mode returns ErrNotFound
 	_, err = store.GetMode(ctx, ".ctxB", "test-subject")
 	assert.ErrorIs(t, err, storage.ErrNotFound)
 
-	// Verify default context "." still has original READWRITE
-	modeDefault, err := store.GetGlobalMode(ctx, ".")
-	require.NoError(t, err)
-	assert.Equal(t, "READWRITE", modeDefault.Mode)
+	// Verify default context "." has no explicit mode set (ErrNotFound)
+	_, err = store.GetGlobalMode(ctx, ".")
+	assert.ErrorIs(t, err, storage.ErrNotFound)
 }
 
 func TestStore_PerContextIDs(t *testing.T) {
@@ -1210,14 +1203,13 @@ func TestStore_DeleteGlobalConfig_ContextIsolation(t *testing.T) {
 	err = store.SetGlobalConfig(ctx, ".ctx2", &storage.ConfigRecord{CompatibilityLevel: "NONE"})
 	require.NoError(t, err)
 
-	// Delete global config in ".ctx1" (resets to BACKWARD default)
+	// Delete global config in ".ctx1" (removes it entirely)
 	err = store.DeleteGlobalConfig(ctx, ".ctx1")
 	require.NoError(t, err)
 
-	// Verify ".ctx1" global config is back to default BACKWARD
-	config1, err := store.GetGlobalConfig(ctx, ".ctx1")
-	require.NoError(t, err)
-	assert.Equal(t, "BACKWARD", config1.CompatibilityLevel)
+	// Verify ".ctx1" global config returns ErrNotFound after deletion
+	_, err = store.GetGlobalConfig(ctx, ".ctx1")
+	assert.ErrorIs(t, err, storage.ErrNotFound)
 
 	// Verify ".ctx2" global config is still NONE (unaffected)
 	config2, err := store.GetGlobalConfig(ctx, ".ctx2")

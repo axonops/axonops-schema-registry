@@ -722,7 +722,12 @@ func (r *Registry) SetConfig(ctx context.Context, registryCtx string, subject st
 }
 
 // DeleteConfig deletes the compatibility configuration for a subject within a context.
+// When subject is empty, this deletes the context-level global config.
 func (r *Registry) DeleteConfig(ctx context.Context, registryCtx string, subject string) (string, error) {
+	if subject == "" {
+		return r.DeleteGlobalConfig(ctx, registryCtx)
+	}
+
 	config, err := r.storage.GetConfig(ctx, registryCtx, subject)
 	if err != nil {
 		return "", err
@@ -1126,7 +1131,12 @@ func (r *Registry) DeleteGlobalConfig(ctx context.Context, registryCtx string) (
 }
 
 // DeleteMode deletes the mode configuration for a subject within a context.
+// When subject is empty, this deletes the context-level global mode.
 func (r *Registry) DeleteMode(ctx context.Context, registryCtx string, subject string) (string, error) {
+	if subject == "" {
+		return r.DeleteGlobalMode(ctx, registryCtx)
+	}
+
 	mode, err := r.storage.GetMode(ctx, registryCtx, subject)
 	if err != nil {
 		return "", err
@@ -1134,6 +1144,22 @@ func (r *Registry) DeleteMode(ctx context.Context, registryCtx string, subject s
 	prevMode := mode.Mode
 
 	if err := r.storage.DeleteMode(ctx, registryCtx, subject); err != nil {
+		return "", err
+	}
+
+	return prevMode, nil
+}
+
+// DeleteGlobalMode resets the global mode for a context by removing it.
+func (r *Registry) DeleteGlobalMode(ctx context.Context, registryCtx string) (string, error) {
+	mode, err := r.storage.GetGlobalMode(ctx, registryCtx)
+	if err != nil {
+		// If no mode, use default
+		mode = &storage.ModeRecord{Mode: "READWRITE"}
+	}
+	prevMode := mode.Mode
+
+	if err := r.storage.DeleteGlobalMode(ctx, registryCtx); err != nil {
 		return "", err
 	}
 
