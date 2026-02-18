@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 
@@ -87,11 +88,16 @@ func (r *Registry) RegisterSchema(ctx context.Context, registryCtx string, subje
 		schemaStr = parsed.CanonicalString()
 	}
 
-	// Check if schema already exists with same fingerprint
+	// Check if schema already exists with same fingerprint AND same metadata/ruleSet.
+	// Confluent behavior: same schema text + different metadata = new version (same global ID).
+	// Only deduplicate when both the schema text AND metadata/ruleSet match.
+	// Note: confluent:version is stripped from both sides during comparison (it's a CAS property).
 	existing, err := r.storage.GetSchemaByFingerprint(ctx, registryCtx, subject, parsed.Fingerprint(), false)
 	if err == nil && existing != nil {
-		// Schema already exists, return existing
-		return existing, nil
+		if metadataEqualForDedup(existing.Metadata, opt.Metadata) && ruleSetEqual(existing.RuleSet, opt.RuleSet) {
+			return autoPopulateConfluentVersion(existing), nil
+		}
+		// Same schema text but different metadata/ruleSet — fall through to create new version
 	}
 
 	// Get compatibility level for this subject
@@ -148,6 +154,15 @@ func (r *Registry) RegisterSchema(ctx context.Context, registryCtx string, subje
 		return nil, err
 	}
 
+	// Apply config default/override merge for metadata and ruleSet (Confluent 3-layer merge).
+	// This merges: config.default → request-specific (or previous version) → config.override.
+	prevSchema, _ := r.storage.GetLatestSchema(ctx, registryCtx, subject)
+	r.maybeSetMetadataRuleSet(ctx, registryCtx, subject, &opt, prevSchema)
+
+	// Strip confluent:version from metadata before storage — it's a CAS control property,
+	// not a permanent metadata field. Will be auto-populated in the response.
+	opt.Metadata = stripConfluentVersion(opt.Metadata)
+
 	// Create new schema record
 	record := &storage.SchemaRecord{
 		Subject:     subject,
@@ -162,16 +177,16 @@ func (r *Registry) RegisterSchema(ctx context.Context, registryCtx string, subje
 	// Store the schema
 	if err := r.storage.CreateSchema(ctx, registryCtx, record); err != nil {
 		if errors.Is(err, storage.ErrSchemaExists) {
-			// Get the existing schema
+			// Storage detected same fingerprint+metadata — return existing
 			existing, _ := r.storage.GetSchemaByFingerprint(ctx, registryCtx, subject, parsed.Fingerprint(), false)
-			if existing != nil {
-				return existing, nil
+			if existing != nil && metadataEqual(existing.Metadata, opt.Metadata) && ruleSetEqual(existing.RuleSet, opt.RuleSet) {
+				return autoPopulateConfluentVersion(existing), nil
 			}
 		}
 		return nil, fmt.Errorf("failed to store schema: %w", err)
 	}
 
-	return record, nil
+	return autoPopulateConfluentVersion(record), nil
 }
 
 // ErrVersionConflict is returned when confluent:version compare-and-set fails.
@@ -181,6 +196,8 @@ var ErrVersionConflict = errors.New("version conflict")
 // When set to a positive integer, it enforces that the version matches the expected
 // next version for the subject (optimistic concurrency control).
 // Values of 0 or -1 mean auto-increment (no check).
+// Includes soft-deleted versions when determining the latest version, since
+// soft-deleted versions still occupy the version number space.
 func (r *Registry) checkConfluentVersion(ctx context.Context, registryCtx string, subject string, metadata *storage.Metadata) error {
 	if metadata == nil || metadata.Properties == nil {
 		return nil
@@ -197,10 +214,12 @@ func (r *Registry) checkConfluentVersion(ctx context.Context, registryCtx string
 		return nil // 0 or -1 = auto-increment
 	}
 
-	latest, err := r.storage.GetLatestSchema(ctx, registryCtx, subject)
+	// Include soft-deleted versions to get the true latest version number.
+	// Soft-deleted versions still occupy the version sequence (Confluent behavior).
+	allSchemas, err := r.storage.GetSchemasBySubject(ctx, registryCtx, subject, true)
 	if err != nil {
 		if errors.Is(err, storage.ErrSubjectNotFound) {
-			// New subject — only version 1 is valid
+			// Truly new subject — only version 1 is valid
 			if cv != 1 {
 				return fmt.Errorf("%w: confluent:version %d but subject is new (expected 1)", ErrVersionConflict, cv)
 			}
@@ -208,8 +227,25 @@ func (r *Registry) checkConfluentVersion(ctx context.Context, registryCtx string
 		}
 		return err
 	}
-	if cv != latest.Version+1 {
-		return fmt.Errorf("%w: confluent:version %d but latest version is %d (expected %d)", ErrVersionConflict, cv, latest.Version, latest.Version+1)
+
+	if len(allSchemas) == 0 {
+		// No versions at all — only version 1 is valid
+		if cv != 1 {
+			return fmt.Errorf("%w: confluent:version %d but subject is new (expected 1)", ErrVersionConflict, cv)
+		}
+		return nil
+	}
+
+	// Find the highest version number (including soft-deleted)
+	maxVersion := 0
+	for _, s := range allSchemas {
+		if s.Version > maxVersion {
+			maxVersion = s.Version
+		}
+	}
+
+	if cv != maxVersion+1 {
+		return fmt.Errorf("%w: confluent:version %d but latest version is %d (expected %d)", ErrVersionConflict, cv, maxVersion, maxVersion+1)
 	}
 	return nil
 }
@@ -1329,4 +1365,252 @@ func (r *Registry) resolveReferences(ctx context.Context, registryCtx string, re
 		}
 	}
 	return resolved, nil
+}
+
+// metadataEqual compares two Metadata pointers for equality.
+// Both nil = equal. One nil, one non-nil = not equal (unless non-nil is empty).
+func metadataEqual(a, b *storage.Metadata) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a == nil {
+		a = &storage.Metadata{}
+	}
+	if b == nil {
+		b = &storage.Metadata{}
+	}
+	return reflect.DeepEqual(a, b)
+}
+
+// metadataEqualForDedup compares two Metadata pointers for dedup purposes,
+// ignoring the confluent:version property which is a transient CAS control property.
+func metadataEqualForDedup(a, b *storage.Metadata) bool {
+	return metadataEqual(stripConfluentVersion(a), stripConfluentVersion(b))
+}
+
+// ruleSetEqual compares two RuleSet pointers for equality.
+func ruleSetEqual(a, b *storage.RuleSet) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a == nil {
+		a = &storage.RuleSet{}
+	}
+	if b == nil {
+		b = &storage.RuleSet{}
+	}
+	return reflect.DeepEqual(a, b)
+}
+
+// stripConfluentVersion returns a copy of the metadata without the confluent:version property.
+// Returns nil if the result would be empty.
+func stripConfluentVersion(meta *storage.Metadata) *storage.Metadata {
+	if meta == nil || meta.Properties == nil {
+		return meta
+	}
+	if _, ok := meta.Properties["confluent:version"]; !ok {
+		return meta
+	}
+	// Make a copy to avoid mutating the original
+	result := *meta
+	newProps := make(map[string]string, len(meta.Properties))
+	for k, v := range meta.Properties {
+		if k != "confluent:version" {
+			newProps[k] = v
+		}
+	}
+	if len(newProps) == 0 {
+		newProps = nil
+	}
+	result.Properties = newProps
+	// If the result is effectively empty, return nil
+	if result.Properties == nil && result.Tags == nil && result.Sensitive == nil {
+		return nil
+	}
+	return &result
+}
+
+// autoPopulateConfluentVersion returns a copy of the record with confluent:version
+// set in metadata to the actual assigned version number. This matches Confluent's
+// behavior where confluent:version is auto-populated in the response after registration.
+// The original record is not mutated.
+func autoPopulateConfluentVersion(record *storage.SchemaRecord) *storage.SchemaRecord {
+	if record == nil || record.Version <= 0 {
+		return record
+	}
+	// Make a shallow copy of the record to avoid mutating stored data
+	copy := *record
+	// Deep copy the metadata to avoid mutating the stored version
+	if copy.Metadata != nil {
+		metaCopy := *copy.Metadata
+		if metaCopy.Properties != nil {
+			newProps := make(map[string]string, len(metaCopy.Properties)+1)
+			for k, v := range metaCopy.Properties {
+				newProps[k] = v
+			}
+			metaCopy.Properties = newProps
+		} else {
+			metaCopy.Properties = make(map[string]string, 1)
+		}
+		copy.Metadata = &metaCopy
+	} else {
+		copy.Metadata = &storage.Metadata{
+			Properties: make(map[string]string, 1),
+		}
+	}
+	copy.Metadata.Properties["confluent:version"] = strconv.Itoa(copy.Version)
+	return &copy
+}
+
+// maybeSetMetadataRuleSet implements Confluent's 3-layer metadata/ruleSet merge
+// during schema registration: merge(merge(config.default, specific), config.override).
+// If the request doesn't specify metadata/ruleSet, it inherits from the previous schema version.
+func (r *Registry) maybeSetMetadataRuleSet(ctx context.Context, registryCtx, subject string, opts *RegisterOpts, prevSchema *storage.SchemaRecord) {
+	config, err := r.GetConfigFull(ctx, registryCtx, subject)
+	if err != nil {
+		return
+	}
+
+	// Determine specific metadata (from request, or inherit from previous version)
+	specificMeta := opts.Metadata
+	if specificMeta == nil && prevSchema != nil {
+		specificMeta = prevSchema.Metadata
+	}
+
+	// 3-layer merge: default → specific → override
+	merged := mergeMetadata(config.DefaultMetadata, specificMeta)
+	merged = mergeMetadata(merged, config.OverrideMetadata)
+	if merged != nil {
+		opts.Metadata = merged
+	}
+
+	// Same for RuleSet
+	specificRules := opts.RuleSet
+	if specificRules == nil && prevSchema != nil {
+		specificRules = prevSchema.RuleSet
+	}
+
+	mergedRules := mergeRuleSet(config.DefaultRuleSet, specificRules)
+	mergedRules = mergeRuleSet(mergedRules, config.OverrideRuleSet)
+	if mergedRules != nil {
+		opts.RuleSet = mergedRules
+	}
+}
+
+// mergeMetadata merges two Metadata objects. The override takes precedence
+// for conflicting keys. Returns nil if both are nil.
+func mergeMetadata(base, override *storage.Metadata) *storage.Metadata {
+	if base == nil && override == nil {
+		return nil
+	}
+	if base == nil {
+		return override
+	}
+	if override == nil {
+		return base
+	}
+
+	result := &storage.Metadata{}
+
+	// Merge properties
+	if base.Properties != nil || override.Properties != nil {
+		result.Properties = make(map[string]string)
+		for k, v := range base.Properties {
+			result.Properties[k] = v
+		}
+		for k, v := range override.Properties {
+			result.Properties[k] = v
+		}
+	}
+
+	// Merge tags
+	if base.Tags != nil || override.Tags != nil {
+		result.Tags = make(map[string][]string)
+		for k, v := range base.Tags {
+			result.Tags[k] = v
+		}
+		for k, v := range override.Tags {
+			result.Tags[k] = v
+		}
+	}
+
+	// Merge sensitive — union of both lists (deduplicated)
+	if base.Sensitive != nil || override.Sensitive != nil {
+		seen := make(map[string]bool)
+		for _, s := range base.Sensitive {
+			if !seen[s] {
+				result.Sensitive = append(result.Sensitive, s)
+				seen[s] = true
+			}
+		}
+		for _, s := range override.Sensitive {
+			if !seen[s] {
+				result.Sensitive = append(result.Sensitive, s)
+				seen[s] = true
+			}
+		}
+	}
+
+	return result
+}
+
+// mergeRuleSet merges two RuleSet objects. The override's rules are appended
+// to the base's rules (override rules take precedence by name).
+func mergeRuleSet(base, override *storage.RuleSet) *storage.RuleSet {
+	if base == nil && override == nil {
+		return nil
+	}
+	if base == nil {
+		return override
+	}
+	if override == nil {
+		return base
+	}
+
+	result := &storage.RuleSet{
+		MigrationRules: mergeRules(base.MigrationRules, override.MigrationRules),
+		DomainRules:    mergeRules(base.DomainRules, override.DomainRules),
+		EncodingRules:  mergeRules(base.EncodingRules, override.EncodingRules),
+	}
+
+	return result
+}
+
+// mergeRules merges two rule slices. Override rules replace base rules with the same name.
+func mergeRules(base, override []storage.Rule) []storage.Rule {
+	if len(base) == 0 && len(override) == 0 {
+		return nil
+	}
+	if len(base) == 0 {
+		return override
+	}
+	if len(override) == 0 {
+		return base
+	}
+
+	// Build map of override rules by name
+	overrideMap := make(map[string]storage.Rule, len(override))
+	for _, r := range override {
+		overrideMap[r.Name] = r
+	}
+
+	// Start with base rules, replacing any that have overrides
+	var result []storage.Rule
+	seen := make(map[string]bool)
+	for _, r := range base {
+		if or, ok := overrideMap[r.Name]; ok {
+			result = append(result, or)
+			seen[r.Name] = true
+		} else {
+			result = append(result, r)
+		}
+	}
+	// Append override rules not already in base
+	for _, r := range override {
+		if !seen[r.Name] {
+			result = append(result, r)
+		}
+	}
+
+	return result
 }

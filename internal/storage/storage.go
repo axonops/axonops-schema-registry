@@ -53,6 +53,7 @@ type Metadata struct {
 type RuleSet struct {
 	MigrationRules []Rule `json:"migrationRules,omitempty"`
 	DomainRules    []Rule `json:"domainRules,omitempty"`
+	EncodingRules  []Rule `json:"encodingRules,omitempty"`
 }
 
 // Rule represents a single data contract rule.

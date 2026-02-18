@@ -200,4 +200,11 @@ var migrations = []string{
 
 	// Migration 40: Index for context-scoped queries on schemas.
 	"CREATE INDEX idx_schemas_registry_ctx ON `schemas`(registry_ctx)",
+
+	// Migration 41: Relax fingerprint uniqueness per subject.
+	// The same schema text (fingerprint) can now appear in multiple versions of
+	// the same subject when metadata or ruleSet differ (Confluent compatibility).
+	// Drop the unique index and replace with a non-unique index for lookups.
+	"DROP INDEX idx_schemas_ctx_subj_fp ON `schemas`",
+	"CREATE INDEX idx_schemas_ctx_subj_fp ON `schemas`(registry_ctx, subject, fingerprint)",
 }

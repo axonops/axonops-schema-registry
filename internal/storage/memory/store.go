@@ -3,6 +3,7 @@ package memory
 
 import (
 	"context"
+	"reflect"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -147,15 +148,22 @@ func (s *Store) CreateSchema(ctx context.Context, registryCtx string, record *st
 		cs.subjectVersions[record.Subject] = make(map[int]*subjectVersionInfo)
 	}
 
-	// Check if this fingerprint already exists in this subject (exact duplicate)
+	// Check if this fingerprint already exists in this subject (exact duplicate).
+	// Confluent behavior: same schema text + same metadata/ruleSet = duplicate (return existing).
+	// Same schema text + different metadata/ruleSet = new version with same global ID.
 	for _, info := range cs.subjectVersions[record.Subject] {
 		if !info.deleted {
 			existingSchema := cs.schemas[info.schemaID]
 			if existingSchema != nil && existingSchema.Fingerprint == record.Fingerprint {
-				// Same schema already registered under this subject
-				record.ID = info.schemaID
-				record.Version = info.version
-				return storage.ErrSchemaExists
+				// Check if metadata and ruleSet also match
+				if reflect.DeepEqual(normalizeMetadata(info.metadata), normalizeMetadata(record.Metadata)) &&
+					reflect.DeepEqual(normalizeRuleSet(info.ruleSet), normalizeRuleSet(record.RuleSet)) {
+					// Full duplicate — same schema, same metadata, same ruleSet
+					record.ID = info.schemaID
+					record.Version = info.version
+					return storage.ErrSchemaExists
+				}
+				// Same schema text but different metadata/ruleSet — fall through to create new version
 			}
 		}
 	}
@@ -1434,4 +1442,20 @@ func (s *Store) UpdateAPIKeyLastUsed(ctx context.Context, id int64) error {
 	key.LastUsed = &now
 
 	return nil
+}
+
+// normalizeMetadata returns a non-nil Metadata for consistent comparison.
+func normalizeMetadata(m *storage.Metadata) *storage.Metadata {
+	if m == nil {
+		return &storage.Metadata{}
+	}
+	return m
+}
+
+// normalizeRuleSet returns a non-nil RuleSet for consistent comparison.
+func normalizeRuleSet(r *storage.RuleSet) *storage.RuleSet {
+	if r == nil {
+		return &storage.RuleSet{}
+	}
+	return r
 }

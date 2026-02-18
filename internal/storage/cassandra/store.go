@@ -547,11 +547,16 @@ func (s *Store) CreateSchema(ctx context.Context, registryCtx string, record *st
 
 	// Check if subject already has this schema (SAI on schema_id)
 	if existing, err := s.findSchemaInSubject(ctx, registryCtx, record.Subject, schemaID); err == nil && existing != nil {
-		record.ID = existing.ID
-		record.Version = existing.Version
-		record.Fingerprint = fp
-		record.CreatedAt = existing.CreatedAt
-		return storage.ErrSchemaExists
+		// Only treat as duplicate if metadata and ruleSet also match
+		if reflect.DeepEqual(normalizeMetadata(existing.Metadata), normalizeMetadata(record.Metadata)) &&
+			reflect.DeepEqual(normalizeRuleSet(existing.RuleSet), normalizeRuleSet(record.RuleSet)) {
+			record.ID = existing.ID
+			record.Version = existing.Version
+			record.Fingerprint = fp
+			record.CreatedAt = existing.CreatedAt
+			return storage.ErrSchemaExists
+		}
+		// Same schema text but different metadata/ruleSet — fall through to create new version
 	}
 
 	// Allocate next subject version and persist atomically.
@@ -559,11 +564,16 @@ func (s *Store) CreateSchema(ctx context.Context, registryCtx string, record *st
 		// Re-check on retry: a concurrent writer may have registered this schema
 		if attempt > 0 {
 			if existing, err := s.findSchemaInSubject(ctx, registryCtx, record.Subject, schemaID); err == nil && existing != nil {
-				record.ID = existing.ID
-				record.Version = existing.Version
-				record.Fingerprint = fp
-				record.CreatedAt = existing.CreatedAt
-				return storage.ErrSchemaExists
+				// Only treat as duplicate if metadata and ruleSet also match
+				if reflect.DeepEqual(normalizeMetadata(existing.Metadata), normalizeMetadata(record.Metadata)) &&
+					reflect.DeepEqual(normalizeRuleSet(existing.RuleSet), normalizeRuleSet(record.RuleSet)) {
+					record.ID = existing.ID
+					record.Version = existing.Version
+					record.Fingerprint = fp
+					record.CreatedAt = existing.CreatedAt
+					return storage.ErrSchemaExists
+				}
+				// Same schema text but different metadata/ruleSet — fall through to create new version
 			}
 		}
 
@@ -2328,4 +2338,20 @@ func unmarshalJSONText[T any](s string) *T {
 		return nil
 	}
 	return &v
+}
+
+// normalizeMetadata returns a non-nil Metadata for consistent comparison.
+func normalizeMetadata(m *storage.Metadata) *storage.Metadata {
+	if m == nil {
+		return &storage.Metadata{}
+	}
+	return m
+}
+
+// normalizeRuleSet returns a non-nil RuleSet for consistent comparison.
+func normalizeRuleSet(r *storage.RuleSet) *storage.RuleSet {
+	if r == nil {
+		return &storage.RuleSet{}
+	}
+	return r
 }

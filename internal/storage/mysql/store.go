@@ -508,24 +508,50 @@ func (s *Store) createSchemaAttempt(ctx context.Context, registryCtx string, rec
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	// Check for existing schema with same fingerprint in this subject (idempotent check)
-	var existingVersion int
+	// Check for existing schemas with same fingerprint (idempotent check).
+	// With metadata/ruleSet support, multiple versions of the same subject can share
+	// a fingerprint (same schema text, different metadata/ruleSet), so we must check all rows.
 	var existingDeleted bool
-	err = tx.QueryRowContext(ctx,
-		"SELECT version, deleted FROM `schemas` WHERE registry_ctx = ? AND subject = ? AND fingerprint = ?",
+	fpRows, err := tx.QueryContext(ctx,
+		"SELECT version, deleted, metadata, ruleset FROM `schemas` WHERE registry_ctx = ? AND subject = ? AND fingerprint = ?",
 		registryCtx, record.Subject, record.Fingerprint,
-	).Scan(&existingVersion, &existingDeleted)
-
-	if err == nil && !existingDeleted {
-		// Schema already exists in this subject - resolve per-context ID
-		globalID, gErr := s.globalSchemaIDTx(ctx, tx, registryCtx, record.Fingerprint)
-		if gErr != nil {
-			return gErr
-		}
-		record.ID = globalID
-		record.Version = existingVersion
-		return storage.ErrSchemaExists
+	)
+	if err != nil {
+		return fmt.Errorf("failed to check existing fingerprint: %w", err)
 	}
+	for fpRows.Next() {
+		var rowVersion int
+		var rowDeleted bool
+		var rowMetadataJSON, rowRulesetJSON []byte
+		if scanErr := fpRows.Scan(&rowVersion, &rowDeleted, &rowMetadataJSON, &rowRulesetJSON); scanErr != nil {
+			fpRows.Close()
+			return fmt.Errorf("failed to scan fingerprint row: %w", scanErr)
+		}
+		if rowDeleted {
+			existingDeleted = true
+			continue
+		}
+		// Fingerprint matches on a non-deleted row — check metadata and ruleSet.
+		// Confluent behavior: same schema text + same metadata/ruleSet = duplicate (return existing).
+		// Same schema text + different metadata/ruleSet = new version with same global ID.
+		existingMetadata, _ := unmarshalMetadata(rowMetadataJSON)
+		existingRuleSet, _ := unmarshalRuleSet(rowRulesetJSON)
+
+		if reflect.DeepEqual(normalizeMetadata(existingMetadata), normalizeMetadata(record.Metadata)) &&
+			reflect.DeepEqual(normalizeRuleSet(existingRuleSet), normalizeRuleSet(record.RuleSet)) {
+			fpRows.Close()
+			// Full duplicate — same schema, same metadata, same ruleSet
+			globalID, gErr := s.globalSchemaIDTx(ctx, tx, registryCtx, record.Fingerprint)
+			if gErr != nil {
+				return gErr
+			}
+			record.ID = globalID
+			record.Version = rowVersion
+			return storage.ErrSchemaExists
+		}
+		// Same schema text but different metadata/ruleSet — continue checking other rows
+	}
+	fpRows.Close()
 
 	// Get next version for this subject (no locking - rely on unique constraint)
 	var nextVersion int
@@ -547,11 +573,10 @@ func (s *Store) createSchemaAttempt(ctx context.Context, registryCtx string, rec
 		return fmt.Errorf("failed to marshal ruleset: %w", err)
 	}
 
-	// If a soft-deleted row with the same fingerprint exists, remove it first
-	// to avoid violating the unique constraint on (registry_ctx, subject, fingerprint).
+	// If a soft-deleted row with the same fingerprint exists, remove it first.
 	if existingDeleted {
 		_, _ = tx.ExecContext(ctx,
-			"DELETE FROM `schemas` WHERE registry_ctx = ? AND subject = ? AND fingerprint = ?",
+			"DELETE FROM `schemas` WHERE registry_ctx = ? AND subject = ? AND fingerprint = ? AND deleted = TRUE",
 			registryCtx, record.Subject, record.Fingerprint,
 		)
 	}
@@ -2145,6 +2170,22 @@ func scanSchemaMetadata(record *storage.SchemaRecord, metadataBytes, rulesetByte
 		record.RuleSet = r
 	}
 	return nil
+}
+
+// normalizeMetadata returns a non-nil Metadata for consistent comparison.
+func normalizeMetadata(m *storage.Metadata) *storage.Metadata {
+	if m == nil {
+		return &storage.Metadata{}
+	}
+	return m
+}
+
+// normalizeRuleSet returns a non-nil RuleSet for consistent comparison.
+func normalizeRuleSet(r *storage.RuleSet) *storage.RuleSet {
+	if r == nil {
+		return &storage.RuleSet{}
+	}
+	return r
 }
 
 // isMySQLDuplicateError checks if the error is a MySQL duplicate entry error.

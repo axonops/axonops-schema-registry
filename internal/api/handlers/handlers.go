@@ -363,7 +363,7 @@ func (h *Handler) GetVersion(w http.ResponseWriter, r *http.Request) {
 		Version:    schema.Version,
 		SchemaType: schemaTypeForResponse(schema.SchemaType),
 		Schema:     schemaStr,
-		Metadata:   schema.Metadata,
+		Metadata:   withConfluentVersion(schema.Metadata, schema.Version),
 		RuleSet:    schema.RuleSet,
 	}
 	if len(schema.References) > 0 {
@@ -371,6 +371,31 @@ func (h *Handler) GetVersion(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, resp)
+}
+
+// withConfluentVersion returns a copy of the metadata with confluent:version set
+// to the given version number. This matches Confluent's behavior where the version
+// is auto-populated in schema responses. Returns nil if version <= 0.
+func withConfluentVersion(meta *storage.Metadata, version int) *storage.Metadata {
+	if version <= 0 {
+		return meta
+	}
+	if meta == nil {
+		return &storage.Metadata{
+			Properties: map[string]string{
+				"confluent:version": strconv.Itoa(version),
+			},
+		}
+	}
+	// Make a copy to avoid mutating stored data
+	result := *meta
+	newProps := make(map[string]string, len(meta.Properties)+1)
+	for k, v := range meta.Properties {
+		newProps[k] = v
+	}
+	newProps["confluent:version"] = strconv.Itoa(version)
+	result.Properties = newProps
+	return &result
 }
 
 // findDeletedVersion looks up a soft-deleted version by iterating all versions including deleted.
@@ -501,7 +526,7 @@ func (h *Handler) RegisterSchema(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if errors.Is(err, registry.ErrVersionConflict) {
-			writeError(w, http.StatusConflict, types.ErrorCodeIncompatibleSchema, err.Error())
+			writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidSchema, err.Error())
 			return
 		}
 		if errors.Is(err, registry.ErrImportIDConflict) {
@@ -568,7 +593,7 @@ func (h *Handler) LookupSchema(w http.ResponseWriter, r *http.Request) {
 		Version:    schema.Version,
 		SchemaType: schemaTypeForResponse(schema.SchemaType),
 		Schema:     schema.Schema,
-		Metadata:   schema.Metadata,
+		Metadata:   withConfluentVersion(schema.Metadata, schema.Version),
 		RuleSet:    schema.RuleSet,
 	}
 	if len(schema.References) > 0 {
@@ -747,6 +772,16 @@ func (h *Handler) GetConfig(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) SetConfig(w http.ResponseWriter, r *http.Request) {
 	registryCtx, subject := resolveSubjectAndContext(r)
 
+	// Check mode enforcement — Confluent blocks config writes in READONLY mode
+	if mode, modeErr := h.checkModeForWrite(r, registryCtx, subject); modeErr != nil {
+		writeError(w, http.StatusInternalServerError, types.ErrorCodeStorageError, modeErr.Error())
+		return
+	} else if mode != "" {
+		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeOperationNotPermitted,
+			fmt.Sprintf("Subject '%s' is in %s mode", subject, mode))
+		return
+	}
+
 	var req types.ConfigRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, types.ErrorCodeInvalidCompatibilityLevel, "Invalid request body")
@@ -799,6 +834,16 @@ func (h *Handler) SetConfig(w http.ResponseWriter, r *http.Request) {
 // DeleteConfig handles DELETE /config/{subject}
 func (h *Handler) DeleteConfig(w http.ResponseWriter, r *http.Request) {
 	registryCtx, subject := resolveSubjectAndContext(r)
+
+	// Check mode enforcement — Confluent blocks config writes in READONLY mode
+	if mode, modeErr := h.checkModeForWrite(r, registryCtx, subject); modeErr != nil {
+		writeError(w, http.StatusInternalServerError, types.ErrorCodeStorageError, modeErr.Error())
+		return
+	} else if mode != "" {
+		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeOperationNotPermitted,
+			fmt.Sprintf("Subject '%s' is in %s mode", subject, mode))
+		return
+	}
 
 	level, err := h.registry.DeleteConfig(r.Context(), registryCtx, subject)
 	if err != nil {
@@ -1370,6 +1415,16 @@ func (h *Handler) GetRawSchemaByVersion(w http.ResponseWriter, r *http.Request) 
 // DeleteGlobalConfig handles DELETE /config
 func (h *Handler) DeleteGlobalConfig(w http.ResponseWriter, r *http.Request) {
 	registryCtx := getRegistryContext(r)
+
+	// Check mode enforcement — Confluent blocks config writes in READONLY mode
+	if mode, modeErr := h.checkModeForWrite(r, registryCtx, ""); modeErr != nil {
+		writeError(w, http.StatusInternalServerError, types.ErrorCodeStorageError, modeErr.Error())
+		return
+	} else if mode != "" {
+		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeOperationNotPermitted,
+			fmt.Sprintf("Global config is in %s mode", mode))
+		return
+	}
 
 	level, err := h.registry.DeleteGlobalConfig(r.Context(), registryCtx)
 	if err != nil {

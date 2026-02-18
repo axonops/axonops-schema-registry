@@ -1,10 +1,9 @@
 @functional
 Feature: READONLY Enforcement and Permanent Delete Restrictions
   READONLY and READONLY_OVERRIDE modes block data mutations (schema registration,
-  subject deletion, version deletion) but do NOT block config or mode changes.
-  Note: Confluent Schema Registry blocks config writes in READONLY mode but
-  allows mode changes. AxonOps intentionally allows both config and mode
-  changes in READONLY mode (marked @axonops-only where behavior diverges).
+  subject deletion, version deletion) AND config changes (set/delete config).
+  Mode changes are always allowed (otherwise you'd get stuck in READONLY).
+  This matches Confluent Schema Registry behavior.
 
   Additionally, permanent delete of version "latest" should not be allowed —
   only explicit numeric version numbers can be permanently deleted.
@@ -13,30 +12,33 @@ Feature: READONLY Enforcement and Permanent Delete Restrictions
     Given the schema registry is running
 
   # ==========================================================================
-  # READONLY MODE — CONFIG AND MODE CHANGES STILL ALLOWED
+  # READONLY MODE — BLOCKS CONFIG CHANGES (MATCHES CONFLUENT)
   # ==========================================================================
 
-  @axonops-only
-  Scenario: READONLY mode allows setting subject config
-    Given subject "ro-cfg-allowed" has schema:
+  Scenario: READONLY mode blocks setting subject config
+    Given subject "ro-cfg-blocked" has schema:
       """
       {"type":"record","name":"ROCfg","fields":[{"name":"a","type":"string"}]}
       """
     When I set the global mode to "READONLY"
-    And I set the config for subject "ro-cfg-allowed" to "NONE"
-    Then the response status should be 200
+    And I PUT "/config/ro-cfg-blocked" with body:
+      """
+      {"compatibility": "NONE"}
+      """
+    Then the response status should be 422
+    And the response should have error code 42205
     When I set the global mode to "READWRITE"
 
-  @axonops-only
-  Scenario: READONLY mode allows deleting subject config
-    Given subject "ro-cfgdel-allowed" has schema:
+  Scenario: READONLY mode blocks deleting subject config
+    Given subject "ro-cfgdel-blocked" has schema:
       """
       {"type":"record","name":"ROCfgDel","fields":[{"name":"a","type":"string"}]}
       """
-    And I set the config for subject "ro-cfgdel-allowed" to "NONE"
+    And I set the config for subject "ro-cfgdel-blocked" to "NONE"
     When I set the global mode to "READONLY"
-    And I delete the config for subject "ro-cfgdel-allowed"
-    Then the response status should be 200
+    And I DELETE "/config/ro-cfgdel-blocked"
+    Then the response status should be 422
+    And the response should have error code 42205
     When I set the global mode to "READWRITE"
 
   Scenario: READONLY mode allows setting mode
@@ -55,18 +57,21 @@ Feature: READONLY Enforcement and Permanent Delete Restrictions
     When I set the global mode to "READWRITE"
 
   # ==========================================================================
-  # READONLY_OVERRIDE — ALSO ALLOWS CONFIG AND MODE CHANGES
+  # READONLY_OVERRIDE — ALSO BLOCKS CONFIG CHANGES
   # ==========================================================================
 
-  @axonops-only
-  Scenario: READONLY_OVERRIDE allows setting subject config
-    Given subject "override-cfg-allowed" has schema:
+  Scenario: READONLY_OVERRIDE blocks setting subject config
+    Given subject "override-cfg-blocked" has schema:
       """
       {"type":"record","name":"OverrideCfg","fields":[{"name":"a","type":"string"}]}
       """
     When I set the global mode to "READONLY_OVERRIDE"
-    And I set the config for subject "override-cfg-allowed" to "NONE"
-    Then the response status should be 200
+    And I PUT "/config/override-cfg-blocked" with body:
+      """
+      {"compatibility": "NONE"}
+      """
+    Then the response status should be 422
+    And the response should have error code 42205
     When I set the global mode to "READWRITE"
 
   Scenario: READONLY_OVERRIDE allows changing mode back to READWRITE

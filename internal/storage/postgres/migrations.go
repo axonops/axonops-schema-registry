@@ -219,4 +219,11 @@ var migrations = []string{
 	FROM schemas
 	WHERE deleted = FALSE
 	GROUP BY registry_ctx, subject`,
+
+	// Migration 40: Relax fingerprint uniqueness per subject.
+	// The same schema text (fingerprint) can now appear in multiple versions of
+	// the same subject when metadata or ruleSet differ (Confluent compatibility).
+	// Drop the unique index and replace with a non-unique index for lookups.
+	`DROP INDEX IF EXISTS idx_schemas_ctx_subj_fp`,
+	`CREATE INDEX IF NOT EXISTS idx_schemas_ctx_subj_fp ON schemas(registry_ctx, subject, fingerprint)`,
 }
