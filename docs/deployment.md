@@ -346,19 +346,25 @@ spec:
             - name: config
               mountPath: /etc/axonops-schema-registry
               readOnly: true
+          startupProbe:
+            httpGet:
+              path: /health/startup
+              port: 8081
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 12    # 60s total startup window
           livenessProbe:
             httpGet:
-              path: /
+              path: /health/live
               port: 8081
-            initialDelaySeconds: 10
             periodSeconds: 10
             timeoutSeconds: 3
             failureThreshold: 3
           readinessProbe:
             httpGet:
-              path: /
+              path: /health/ready
               port: 8081
-            initialDelaySeconds: 5
             periodSeconds: 5
             timeoutSeconds: 3
             failureThreshold: 2
@@ -544,24 +550,67 @@ curl http://localhost:8081/
 
 ## Health Checks
 
-The health check endpoint is `GET /`, which returns an empty JSON object with HTTP 200 when the server is ready to accept requests:
+The registry provides four health check endpoints. Three are Kubernetes-style endpoints designed for pod lifecycle management, and one is the legacy endpoint for backward compatibility with the Confluent Schema Registry API.
 
-```bash
-curl http://localhost:8081/
-```
+All health endpoints are unauthenticated.
+
+### Kubernetes Health Endpoints
+
+| Endpoint | Purpose | K8s Probe | Checks |
+|----------|---------|-----------|--------|
+| `GET /health/live` | Process is alive | `livenessProbe` | Always returns 200 (shallow check) |
+| `GET /health/ready` | Ready to serve traffic | `readinessProbe` | Calls `storage.IsHealthy()`, returns 200 if healthy, 503 if not |
+| `GET /health/startup` | Initialization complete | `startupProbe` | Same as readiness (confirms storage is connected and migrations are done) |
+| `GET /` | Backward compatible | -- | Returns 200 with empty JSON object (Confluent API compatibility) |
+
+**Response format:**
 
 ```json
-{}
+// 200 OK
+{"status": "UP"}
+
+// 503 Service Unavailable (readiness/startup only)
+{"status": "DOWN", "reason": "storage backend unavailable"}
 ```
 
-The health check verifies database connectivity. A non-200 response indicates the server cannot reach its storage backend.
+**Why separate endpoints matter:**
 
-Use this endpoint for:
+- **Liveness (`/health/live`)** is a shallow check that always returns 200. If the liveness probe checks the database and the database is temporarily unavailable, Kubernetes will restart the pod unnecessarily, potentially causing cascading failures across all replicas.
+- **Readiness (`/health/ready`)** checks storage backend connectivity via `IsHealthy()`. When the database is unreachable, the pod is removed from Service endpoints so traffic is routed only to healthy instances. The pod is not restarted -- it remains running and is re-added when the database recovers.
+- **Startup (`/health/startup`)** prevents liveness and readiness probes from running until initialization is complete. This avoids premature pod restarts during slow Cassandra migrations or initial database connections.
 
-- **Load balancer health checks** -- configure your load balancer (HAProxy, Nginx, ALB) to poll `GET /` and remove unhealthy instances from rotation.
-- **Kubernetes probes** -- use as both liveness and readiness probe targets (see the Kubernetes Deployment manifest above).
-- **Docker HEALTHCHECK** -- use `wget --spider -q http://localhost:8081/` or `curl -f http://localhost:8081/` in Docker health check definitions.
-- **Monitoring alerts** -- poll from your monitoring system and alert on non-200 responses.
+### Recommended Kubernetes Probe Configuration
+
+```yaml
+startupProbe:
+  httpGet:
+    path: /health/startup
+    port: 8081
+  initialDelaySeconds: 5
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 12    # 60s total startup window
+livenessProbe:
+  httpGet:
+    path: /health/live
+    port: 8081
+  periodSeconds: 10
+  timeoutSeconds: 3
+  failureThreshold: 3
+readinessProbe:
+  httpGet:
+    path: /health/ready
+    port: 8081
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 2
+```
+
+### Other Uses
+
+- **Load balancer health checks** -- configure your load balancer (HAProxy, Nginx, ALB) to poll `GET /health/ready` and remove unhealthy instances from rotation.
+- **Docker HEALTHCHECK** -- use `wget --spider -q http://localhost:8081/health/ready` or `curl -f http://localhost:8081/health/ready` in Docker health check definitions.
+- **Monitoring alerts** -- poll `/health/ready` from your monitoring system and alert on 503 responses.
 
 ---
 

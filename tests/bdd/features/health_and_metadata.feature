@@ -6,6 +6,24 @@ Feature: Health and Metadata
     When I GET "/"
     Then the response status should be 200
 
+  @axonops-only
+  Scenario: Liveness endpoint returns UP
+    When I GET "/health/live"
+    Then the response status should be 200
+    And the response field "status" should be "UP"
+
+  @axonops-only
+  Scenario: Readiness endpoint returns UP when healthy
+    When I GET "/health/ready"
+    Then the response status should be 200
+    And the response field "status" should be "UP"
+
+  @axonops-only
+  Scenario: Startup endpoint returns UP when healthy
+    When I GET "/health/startup"
+    Then the response status should be 200
+    And the response field "status" should be "UP"
+
   Scenario: Schema types endpoint returns supported types
     When I get the schema types
     Then the response status should be 200

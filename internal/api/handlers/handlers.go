@@ -103,6 +103,38 @@ func (h *Handler) HealthCheck(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{})
 }
 
+// LivenessCheck handles GET /health/live
+// Always returns 200 — confirms the process is alive and not deadlocked.
+func (h *Handler) LivenessCheck(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]string{"status": "UP"})
+}
+
+// ReadinessCheck handles GET /health/ready
+// Returns 200 when storage is healthy, 503 when not.
+func (h *Handler) ReadinessCheck(w http.ResponseWriter, r *http.Request) {
+	if h.registry.IsHealthy(r.Context()) {
+		writeJSON(w, http.StatusOK, map[string]string{"status": "UP"})
+		return
+	}
+	writeJSON(w, http.StatusServiceUnavailable, map[string]string{
+		"status": "DOWN",
+		"reason": "storage backend unavailable",
+	})
+}
+
+// StartupCheck handles GET /health/startup
+// Returns 200 when storage is connected and ready, 503 during initialization.
+func (h *Handler) StartupCheck(w http.ResponseWriter, r *http.Request) {
+	if h.registry.IsHealthy(r.Context()) {
+		writeJSON(w, http.StatusOK, map[string]string{"status": "UP"})
+		return
+	}
+	writeJSON(w, http.StatusServiceUnavailable, map[string]string{
+		"status": "DOWN",
+		"reason": "storage backend unavailable",
+	})
+}
+
 // GetSchemaTypes handles GET /schemas/types
 func (h *Handler) GetSchemaTypes(w http.ResponseWriter, r *http.Request) {
 	types := h.registry.GetSchemaTypes()

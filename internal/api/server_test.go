@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
@@ -999,5 +1000,162 @@ func TestServer_QualifiedSubject_GetVersion(t *testing.T) {
 	}
 	if resp.Schema == "" {
 		t.Error("Expected non-empty schema")
+	}
+}
+
+// --- Health check tests ---
+
+// unhealthyStore wraps memory.Store but always reports unhealthy.
+type unhealthyStore struct {
+	*memory.Store
+}
+
+func (u *unhealthyStore) IsHealthy(_ context.Context) bool {
+	return false
+}
+
+// setupUnhealthyTestServer creates a server whose storage reports unhealthy.
+func setupUnhealthyTestServer(t *testing.T) *Server {
+	t.Helper()
+
+	cfg := config.DefaultConfig()
+	store := &unhealthyStore{Store: memory.NewStore()}
+
+	schemaRegistry := schema.NewRegistry()
+	schemaRegistry.Register(avro.NewParser())
+
+	compatChecker := compatibility.NewChecker()
+	compatChecker.Register(storage.SchemaTypeAvro, avrocompat.NewChecker())
+
+	reg := registry.New(store, schemaRegistry, compatChecker, cfg.Compatibility.DefaultLevel)
+
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+	return NewServer(cfg, reg, logger)
+}
+
+func TestServer_LivenessCheck(t *testing.T) {
+	server := setupTestServer(t)
+
+	req := httptest.NewRequest("GET", "/health/live", nil)
+	w := httptest.NewRecorder()
+	server.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d", w.Code)
+	}
+
+	var resp map[string]string
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+	if resp["status"] != "UP" {
+		t.Errorf("Expected status UP, got %q", resp["status"])
+	}
+}
+
+func TestServer_ReadinessCheck_Healthy(t *testing.T) {
+	server := setupTestServer(t)
+
+	req := httptest.NewRequest("GET", "/health/ready", nil)
+	w := httptest.NewRecorder()
+	server.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d", w.Code)
+	}
+
+	var resp map[string]string
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+	if resp["status"] != "UP" {
+		t.Errorf("Expected status UP, got %q", resp["status"])
+	}
+}
+
+func TestServer_ReadinessCheck_Unhealthy(t *testing.T) {
+	server := setupUnhealthyTestServer(t)
+
+	req := httptest.NewRequest("GET", "/health/ready", nil)
+	w := httptest.NewRecorder()
+	server.ServeHTTP(w, req)
+
+	if w.Code != http.StatusServiceUnavailable {
+		t.Errorf("Expected status 503, got %d", w.Code)
+	}
+
+	var resp map[string]string
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+	if resp["status"] != "DOWN" {
+		t.Errorf("Expected status DOWN, got %q", resp["status"])
+	}
+	if resp["reason"] == "" {
+		t.Error("Expected non-empty reason field")
+	}
+}
+
+func TestServer_StartupCheck_Healthy(t *testing.T) {
+	server := setupTestServer(t)
+
+	req := httptest.NewRequest("GET", "/health/startup", nil)
+	w := httptest.NewRecorder()
+	server.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d", w.Code)
+	}
+
+	var resp map[string]string
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+	if resp["status"] != "UP" {
+		t.Errorf("Expected status UP, got %q", resp["status"])
+	}
+}
+
+func TestServer_StartupCheck_Unhealthy(t *testing.T) {
+	server := setupUnhealthyTestServer(t)
+
+	req := httptest.NewRequest("GET", "/health/startup", nil)
+	w := httptest.NewRecorder()
+	server.ServeHTTP(w, req)
+
+	if w.Code != http.StatusServiceUnavailable {
+		t.Errorf("Expected status 503, got %d", w.Code)
+	}
+
+	var resp map[string]string
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+	if resp["status"] != "DOWN" {
+		t.Errorf("Expected status DOWN, got %q", resp["status"])
+	}
+	if resp["reason"] == "" {
+		t.Error("Expected non-empty reason field")
+	}
+}
+
+func TestServer_LivenessCheck_AlwaysUp(t *testing.T) {
+	// Liveness should return 200 even when storage is unhealthy
+	server := setupUnhealthyTestServer(t)
+
+	req := httptest.NewRequest("GET", "/health/live", nil)
+	w := httptest.NewRecorder()
+	server.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status 200 even with unhealthy storage, got %d", w.Code)
+	}
+
+	var resp map[string]string
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+	if resp["status"] != "UP" {
+		t.Errorf("Expected status UP, got %q", resp["status"])
 	}
 }
