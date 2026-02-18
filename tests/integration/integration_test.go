@@ -808,7 +808,7 @@ func TestDatabaseValidation_SchemaStorage(t *testing.T) {
 	schemaID := int64(registerResult["id"].(float64))
 
 	// Validate: Query database directly to verify schema is stored correctly
-	dbSchema, err := testStore.GetSchemaByID(ctx, schemaID)
+	dbSchema, err := testStore.GetSchemaByID(ctx, ".", schemaID)
 	if err != nil {
 		t.Fatalf("Database query failed - GetSchemaByID: %v", err)
 	}
@@ -862,7 +862,7 @@ func TestDatabaseValidation_SubjectListing(t *testing.T) {
 	resp.Body.Close()
 
 	// Validate: Query database directly to verify subject exists
-	subjects, err := testStore.ListSubjects(ctx, false)
+	subjects, err := testStore.ListSubjects(ctx, ".", false)
 	if err != nil {
 		t.Fatalf("Database query failed - ListSubjects: %v", err)
 	}
@@ -880,7 +880,7 @@ func TestDatabaseValidation_SubjectListing(t *testing.T) {
 	}
 
 	// Validate: SubjectExists returns true
-	exists, err := testStore.SubjectExists(ctx, subject)
+	exists, err := testStore.SubjectExists(ctx, ".", subject)
 	if err != nil {
 		t.Fatalf("Database query failed - SubjectExists: %v", err)
 	}
@@ -914,7 +914,7 @@ func TestDatabaseValidation_ConfigPersistence(t *testing.T) {
 	resp.Body.Close()
 
 	// Validate: Query database directly to verify config is stored
-	config, err := testStore.GetConfig(ctx, subject)
+	config, err := testStore.GetConfig(ctx, ".", subject)
 	if err != nil {
 		t.Fatalf("Database query failed - GetConfig: %v", err)
 	}
@@ -951,7 +951,7 @@ func TestDatabaseValidation_SchemaVersions(t *testing.T) {
 	resp.Body.Close()
 
 	// Validate: Query database directly to verify both versions exist
-	schemas, err := testStore.GetSchemasBySubject(ctx, subject, false)
+	schemas, err := testStore.GetSchemasBySubject(ctx, ".", subject, false)
 	if err != nil {
 		t.Fatalf("Database query failed - GetSchemasBySubject: %v", err)
 	}
@@ -971,7 +971,7 @@ func TestDatabaseValidation_SchemaVersions(t *testing.T) {
 	}
 
 	// Validate: GetLatestSchema returns version 2
-	latest, err := testStore.GetLatestSchema(ctx, subject)
+	latest, err := testStore.GetLatestSchema(ctx, ".", subject)
 	if err != nil {
 		t.Fatalf("Database query failed - GetLatestSchema: %v", err)
 	}
@@ -998,7 +998,7 @@ func TestDatabaseValidation_SoftDelete(t *testing.T) {
 	resp.Body.Close()
 
 	// Verify subject exists before delete
-	existsBefore, err := testStore.SubjectExists(ctx, subject)
+	existsBefore, err := testStore.SubjectExists(ctx, ".", subject)
 	if err != nil {
 		t.Fatalf("Database query failed - SubjectExists (before): %v", err)
 	}
@@ -1014,7 +1014,7 @@ func TestDatabaseValidation_SoftDelete(t *testing.T) {
 	resp.Body.Close()
 
 	// Validate: Subject should not appear in non-deleted list
-	subjects, err := testStore.ListSubjects(ctx, false)
+	subjects, err := testStore.ListSubjects(ctx, ".", false)
 	if err != nil {
 		t.Fatalf("Database query failed - ListSubjects: %v", err)
 	}
@@ -1026,7 +1026,7 @@ func TestDatabaseValidation_SoftDelete(t *testing.T) {
 	}
 
 	// Validate: Subject should appear in deleted list
-	subjectsWithDeleted, err := testStore.ListSubjects(ctx, true)
+	subjectsWithDeleted, err := testStore.ListSubjects(ctx, ".", true)
 	if err != nil {
 		t.Fatalf("Database query failed - ListSubjects (with deleted): %v", err)
 	}
@@ -1058,7 +1058,7 @@ func TestDatabaseValidation_GlobalConfig(t *testing.T) {
 	resp.Body.Close()
 
 	// Validate: Query database directly
-	config, err := testStore.GetGlobalConfig(ctx)
+	config, err := testStore.GetGlobalConfig(ctx, ".")
 	if err != nil {
 		t.Fatalf("Database query failed - GetGlobalConfig: %v", err)
 	}
@@ -1095,7 +1095,7 @@ func TestDatabaseValidation_SchemaByFingerprint(t *testing.T) {
 	schemaID := int64(registerResult["id"].(float64))
 
 	// Get the schema to find its fingerprint
-	dbSchema, err := testStore.GetSchemaByID(ctx, schemaID)
+	dbSchema, err := testStore.GetSchemaByID(ctx, ".", schemaID)
 	if err != nil {
 		t.Fatalf("Database query failed - GetSchemaByID: %v", err)
 	}
@@ -1106,7 +1106,7 @@ func TestDatabaseValidation_SchemaByFingerprint(t *testing.T) {
 	}
 
 	// Validate: Query by fingerprint
-	schemaByFP, err := testStore.GetSchemaByFingerprint(ctx, subject, dbSchema.Fingerprint, false)
+	schemaByFP, err := testStore.GetSchemaByFingerprint(ctx, ".", subject, dbSchema.Fingerprint, false)
 	if err != nil {
 		t.Fatalf("Database query failed - GetSchemaByFingerprint: %v", err)
 	}

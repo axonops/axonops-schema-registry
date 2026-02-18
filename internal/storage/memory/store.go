@@ -105,13 +105,13 @@ type Store struct {
 // NewStore creates a new in-memory store with the default context initialized.
 func NewStore() *Store {
 	s := &Store{
-		contexts:       make(map[string]*contextStore),
-		users:          make(map[int64]*storage.UserRecord),
+		contexts:        make(map[string]*contextStore),
+		users:           make(map[int64]*storage.UserRecord),
 		usersByUsername: make(map[string]int64),
-		apiKeys:        make(map[int64]*storage.APIKeyRecord),
-		apiKeysByHash:  make(map[string]int64),
-		nextUserID:     1,
-		nextAPIKeyID:   1,
+		apiKeys:         make(map[int64]*storage.APIKeyRecord),
+		apiKeysByHash:   make(map[string]int64),
+		nextUserID:      1,
+		nextAPIKeyID:    1,
 	}
 	// Default context is always present
 	s.contexts[DefaultContext] = newContextStore()

@@ -16,14 +16,19 @@ import (
 // Design notes:
 // - schema_id is INT to match Confluent wire format (4-byte schema id)
 // - Schemas are stored with SAI indexes for efficient secondary lookups:
+//
 //   - schemas_by_id: primary lookup by global ID, SAI on fingerprint for dedup
+//
 //   - subject_versions: versions within a subject, SAI on schema_id + deleted
+//
 //   - subject_latest: track latest version per subject (also used for subject listing)
 //
-// - Block-based ID allocation reduces LWT contention
-// - TimeUUID for timestamps (Cassandra-native)
-// - All data tables include registry_ctx for multi-tenant context support.
-//   registry_ctx is part of the partition key so that queries are scoped to a single context.
+//   - Block-based ID allocation reduces LWT contention
+//
+//   - TimeUUID for timestamps (Cassandra-native)
+//
+//   - All data tables include registry_ctx for multi-tenant context support.
+//     registry_ctx is part of the partition key so that queries are scoped to a single context.
 func Migrate(session *gocql.Session, keyspace string) error {
 	stmts := []string{
 		// Keyspace creation

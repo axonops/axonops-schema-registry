@@ -7,10 +7,10 @@ import (
 	"testing"
 
 	"github.com/axonops/axonops-schema-registry/internal/compatibility"
-	registrycontext "github.com/axonops/axonops-schema-registry/internal/context"
 	avrocompat "github.com/axonops/axonops-schema-registry/internal/compatibility/avro"
 	jsonschemacompat "github.com/axonops/axonops-schema-registry/internal/compatibility/jsonschema"
 	protobufcompat "github.com/axonops/axonops-schema-registry/internal/compatibility/protobuf"
+	registrycontext "github.com/axonops/axonops-schema-registry/internal/context"
 	"github.com/axonops/axonops-schema-registry/internal/schema"
 	"github.com/axonops/axonops-schema-registry/internal/schema/avro"
 	"github.com/axonops/axonops-schema-registry/internal/schema/jsonschema"
