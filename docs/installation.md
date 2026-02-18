@@ -476,19 +476,25 @@ spec:
             - name: config
               mountPath: /etc/axonops-schema-registry
               readOnly: true
+          startupProbe:
+            httpGet:
+              path: /health/startup
+              port: 8081
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 12    # 60s total startup window
           livenessProbe:
             httpGet:
-              path: /
+              path: /health/live
               port: 8081
-            initialDelaySeconds: 10
             periodSeconds: 10
             timeoutSeconds: 3
             failureThreshold: 3
           readinessProbe:
             httpGet:
-              path: /
+              path: /health/ready
               port: 8081
-            initialDelaySeconds: 5
             periodSeconds: 5
             timeoutSeconds: 3
             failureThreshold: 2

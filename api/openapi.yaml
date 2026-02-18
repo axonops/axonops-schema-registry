@@ -95,6 +95,13 @@ tags:
     description: >-
       Administrative endpoints for managing users, API keys, and roles. These endpoints
       require admin-level permissions.
+  - name: Health
+    description: >-
+      Kubernetes-style health check endpoints for liveness, readiness, and startup probes.
+      These endpoints are unauthenticated and SHOULD be used for Kubernetes pod lifecycle
+      management. The liveness probe confirms the process is alive, the readiness probe
+      confirms the service can handle traffic (storage backend is reachable), and the
+      startup probe confirms initialization is complete.
   - name: Documentation
     description: >-
       Endpoints for serving the interactive API documentation (Swagger UI) and the raw
@@ -108,11 +115,16 @@ security:
 paths:
   /:
     get:
-      summary: Health check
+      summary: Health check (legacy)
       description: >-
         Returns an empty JSON object to indicate the service is healthy and accepting
-        requests. This endpoint does not require authentication.
+        requests. This endpoint does not require authentication. It is retained for
+        backward compatibility with the Confluent Schema Registry API. For Kubernetes
+        deployments, prefer the dedicated `/health/live`, `/health/ready`, and
+        `/health/startup` endpoints.
       operationId: healthCheck
+      tags:
+        - Health
       security: []
       responses:
         '200':
@@ -123,6 +135,94 @@ paths:
                 type: object
                 description: An empty JSON object.
                 example: {}
+
+  /health/live:
+    get:
+      summary: Liveness check
+      description: >-
+        Returns HTTP 200 unconditionally to confirm the process is alive and not
+        deadlocked. This endpoint SHOULD be used as the Kubernetes `livenessProbe`
+        target. It does not check storage backend connectivity — a liveness probe
+        that depends on external services can cause unnecessary pod restarts during
+        transient database outages.
+      operationId: livenessCheck
+      tags:
+        - Health
+      security: []
+      responses:
+        '200':
+          description: The process is alive.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                status: UP
+
+  /health/ready:
+    get:
+      summary: Readiness check
+      description: >-
+        Returns HTTP 200 when the service is ready to handle traffic, or HTTP 503
+        when the storage backend is unreachable. This endpoint SHOULD be used as the
+        Kubernetes `readinessProbe` target. When the probe fails, Kubernetes removes
+        the pod from Service endpoints so that traffic is routed only to healthy
+        instances.
+      operationId: readinessCheck
+      tags:
+        - Health
+      security: []
+      responses:
+        '200':
+          description: The service is ready to handle traffic.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                status: UP
+        '503':
+          description: The service is not ready (storage backend unavailable).
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                status: DOWN
+                reason: storage backend unavailable
+
+  /health/startup:
+    get:
+      summary: Startup check
+      description: >-
+        Returns HTTP 200 when initialization is complete (storage backend connected
+        and migrations applied), or HTTP 503 while the service is still starting up.
+        This endpoint SHOULD be used as the Kubernetes `startupProbe` target. The
+        startup probe prevents liveness and readiness probes from running until the
+        service has finished initializing, avoiding premature pod restarts during
+        slow Cassandra migrations or initial database connections.
+      operationId: startupCheck
+      tags:
+        - Health
+      security: []
+      responses:
+        '200':
+          description: Initialization is complete.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                status: UP
+        '503':
+          description: The service is still initializing.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                status: DOWN
+                reason: storage backend unavailable
 
   /metrics:
     get:
@@ -3592,6 +3692,30 @@ components:
           description: The list of available roles.
           items:
             $ref: '#/components/schemas/RoleInfo'
+
+    HealthResponse:
+      type: object
+      description: >-
+        Health check response indicating the service status. The `status` field is
+        always present. The `reason` field is included only when the status is `DOWN`.
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          description: >-
+            The health status of the service. `UP` indicates healthy, `DOWN` indicates
+            unhealthy.
+          enum:
+            - UP
+            - DOWN
+          example: UP
+        reason:
+          type: string
+          description: >-
+            A human-readable reason for the unhealthy status. Only present when `status`
+            is `DOWN`.
+          example: storage backend unavailable
 
   responses:
     InternalServerError:
