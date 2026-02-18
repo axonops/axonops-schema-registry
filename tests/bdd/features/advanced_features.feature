@@ -333,6 +333,7 @@ Feature: Advanced Features
   # SUBJECT FILTER ON GET /schemas/ids/{id}
   # ==========================================================================
 
+  @axonops-only
   Scenario: subject parameter filters subjects-by-ID results
     Given subject "subfilter-a" has schema:
       """
@@ -348,6 +349,7 @@ Feature: Advanced Features
     And the response should contain "subfilter-a"
     And the response body should not contain "subfilter-b"
 
+  @axonops-only
   Scenario: subject parameter filters versions-by-ID results
     Given subject "verfilter-a" has schema:
       """

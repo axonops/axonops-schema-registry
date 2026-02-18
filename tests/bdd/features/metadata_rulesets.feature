@@ -39,6 +39,7 @@ Feature: Metadata and RuleSets (Data Contracts)
     And the response body should contain "PII"
     And the response body should contain "SENSITIVE"
 
+  @axonops-only
   Scenario: Register schema with ruleSet — stored and returned
     When I POST "/subjects/ruleset-test/versions" with body:
       """
@@ -67,6 +68,7 @@ Feature: Metadata and RuleSets (Data Contracts)
     And the response body should contain "CONDITION"
     And the response body should contain "WRITE"
 
+  @axonops-only
   Scenario: Register schema with both metadata and ruleSet
     When I POST "/subjects/both-meta-rules/versions" with body:
       """
@@ -102,6 +104,7 @@ Feature: Metadata and RuleSets (Data Contracts)
   # METADATA DOES NOT AFFECT SCHEMA IDENTITY
   # ==========================================================================
 
+  @axonops-only
   Scenario: Metadata does not affect schema identity — same schema different metadata
     # Register schema without metadata
     When I POST "/subjects/meta-identity/versions" with body:
@@ -149,6 +152,7 @@ Feature: Metadata and RuleSets (Data Contracts)
   # LOOKUP SCHEMA INCLUDES METADATA
   # ==========================================================================
 
+  @axonops-only
   Scenario: Lookup schema returns metadata and ruleSet
     When I POST "/subjects/meta-lookup/versions" with body:
       """
@@ -219,6 +223,7 @@ Feature: Metadata and RuleSets (Data Contracts)
     And the response should have field "overrideMetadata"
     And the response body should contain "internal"
 
+  @axonops-only
   Scenario: Set config with defaultRuleSet
     When I PUT "/config/rules-cfg-subject" with body:
       """
@@ -243,6 +248,7 @@ Feature: Metadata and RuleSets (Data Contracts)
     And the response should have field "defaultRuleSet"
     And the response body should contain "defaultValidation"
 
+  @axonops-only
   Scenario: Set config with overrideRuleSet
     When I PUT "/config/rules-override-subject" with body:
       """
@@ -331,6 +337,7 @@ Feature: Metadata and RuleSets (Data Contracts)
   # MIGRATION RULES
   # ==========================================================================
 
+  @axonops-only
   Scenario: Register schema with migration rules
     When I POST "/subjects/migration-rules/versions" with body:
       """

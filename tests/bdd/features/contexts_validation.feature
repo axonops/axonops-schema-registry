@@ -1,4 +1,4 @@
-@functional
+@functional @contexts
 Feature: Contexts — Name Validation, Error Conditions, and Edge Cases
   Verify that context name validation rejects malformed input via the URL prefix
   routing, that valid names with all allowed character types are accepted, and

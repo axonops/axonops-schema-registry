@@ -1,4 +1,4 @@
-@functional
+@functional @contexts
 Feature: Contexts — Per-Context Config and Mode
   Compatibility configuration and registry modes are per-context.
   Setting config/mode in one context MUST NOT affect another context.

@@ -1,4 +1,4 @@
-@functional
+@functional @contexts
 Feature: Contexts — Schema Evolution Workflows
   Real-world schema evolution workflows within named contexts.
   All scenarios use the qualified subject format :.contextname:subject

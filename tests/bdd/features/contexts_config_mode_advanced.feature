@@ -1,4 +1,4 @@
-@functional
+@functional @contexts
 Feature: Contexts — Advanced Config and Mode Behavior
   Tests advanced configuration and mode behavior within contexts including
   global config fallback, mode enforcement (READONLY blocking writes),

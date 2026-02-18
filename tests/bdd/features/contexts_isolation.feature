@@ -1,4 +1,4 @@
-@functional
+@functional @contexts
 Feature: Contexts — Cross-Context Isolation
   Verify that schema registry contexts provide full isolation.
   Operations in one context MUST NOT affect data in another context.

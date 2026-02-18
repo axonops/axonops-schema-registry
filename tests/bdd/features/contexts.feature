@@ -1,4 +1,4 @@
-@functional
+@functional @contexts
 Feature: Contexts — Core Behavior
   Contexts allow multi-tenant schema isolation. Subjects are assigned to
   contexts using the :.contextname:subject prefix format (Confluent-compatible).

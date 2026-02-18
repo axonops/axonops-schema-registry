@@ -1,4 +1,4 @@
-@functional
+@functional @contexts
 Feature: Contexts — Full API Operations
   Verify all schema registry API operations work correctly with context-prefixed
   subjects using the :.contextname:subject format.

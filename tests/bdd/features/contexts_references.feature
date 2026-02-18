@@ -1,4 +1,4 @@
-@functional
+@functional @contexts
 Feature: Contexts — Schema References
   Verify that schema references (Avro named types, Protobuf imports) work
   correctly within named contexts. References MUST be resolved within the

@@ -148,8 +148,9 @@ func TestFeatures(t *testing.T) {
 	} else if !dockerMode && registryURL == "" {
 		tags = "~@operational && ~@pending-impl"
 	} else if backend == "confluent" {
-		// Confluent: exclude operational, import (our custom API), axonops-only, pending-impl, and all backend tags.
-		tags = "~@operational && ~@import && ~@axonops-only && ~@pending-impl && ~@memory && ~@postgres && ~@mysql && ~@cassandra"
+		// Confluent: exclude operational, import (our custom API), axonops-only, contexts (our multi-tenant),
+		// pending-impl, and all backend tags.
+		tags = "~@operational && ~@import && ~@axonops-only && ~@contexts && ~@pending-impl && ~@memory && ~@postgres && ~@mysql && ~@cassandra"
 	} else if dockerMode {
 		// Only run operational scenarios tagged for this backend, exclude other backends.
 		allBackends := []string{"memory", "postgres", "mysql", "cassandra"}

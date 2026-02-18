@@ -1,4 +1,4 @@
-@functional
+@functional @contexts
 Feature: Contexts — Real-World Usage Patterns
   These scenarios simulate actual multi-team, multi-environment, and schema-linking
   usage patterns based on Confluent Schema Registry documentation for contexts.

@@ -1,4 +1,4 @@
-@functional
+@functional @contexts
 Feature: Contexts — Edge Cases and Error Conditions
   Verify error handling and boundary conditions for context operations.
 

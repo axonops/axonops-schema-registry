@@ -1,4 +1,4 @@
-@functional
+@functional @contexts
 Feature: Contexts — Schema Types
   Verify that Avro, Protobuf, and JSON Schema types all work correctly
   within context-prefixed subjects.

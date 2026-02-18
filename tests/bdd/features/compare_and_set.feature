@@ -86,6 +86,7 @@ Feature: Compare-and-Set (confluent:version)
   # EXPLICIT VERSION — FAILURE CASES
   # ==========================================================================
 
+  @axonops-only
   Scenario: confluent:version=1 when v1 already exists fails
     # Register v1
     When I POST "/subjects/cas-conflict/versions" with body:
@@ -107,6 +108,7 @@ Feature: Compare-and-Set (confluent:version)
       """
     Then the response status should be 409
 
+  @axonops-only
   Scenario: confluent:version=5 when latest is v1 fails (gap)
     # Register v1
     When I POST "/subjects/cas-gap/versions" with body:

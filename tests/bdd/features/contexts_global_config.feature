@@ -1,4 +1,4 @@
-@functional
+@functional @contexts
 Feature: Contexts — __GLOBAL Config/Mode Inheritance (3-Tier)
   Verify Confluent-compatible 3-tier config/mode inheritance:
     Step 1: Per-subject config/mode

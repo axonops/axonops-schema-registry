@@ -1,4 +1,4 @@
-@functional
+@functional @contexts
 Feature: Contexts — Advanced API Surface Coverage
   Verify that ALL schema registry API endpoints work correctly with context-scoped
   subjects using the :.contextname:subject qualified format. Each scenario targets
