@@ -1870,6 +1870,97 @@ func TestCheckCompatibility_WithReferences_FailsOnMissingRef(t *testing.T) {
 	}
 }
 
+// --- ListContexts tests ---
+
+func TestListContexts(t *testing.T) {
+	reg := setupTestRegistryWithContexts("NONE")
+	ctx := context.Background()
+
+	// Register a schema in the default context "."
+	schemaDefault := `{"type":"record","name":"DefaultRec","fields":[{"name":"id","type":"int"}]}`
+	_, err := reg.RegisterSchema(ctx, ".", "default-subject", schemaDefault, storage.SchemaTypeAvro, nil)
+	if err != nil {
+		t.Fatalf("failed to register in default context: %v", err)
+	}
+
+	// Register a schema in a named context ".myctx"
+	schemaCtx := `{"type":"record","name":"CtxRec","fields":[{"name":"id","type":"int"}]}`
+	_, err = reg.RegisterSchema(ctx, ".myctx", "ctx-subject", schemaCtx, storage.SchemaTypeAvro, nil)
+	if err != nil {
+		t.Fatalf("failed to register in .myctx: %v", err)
+	}
+
+	// ListContexts should return both contexts
+	contexts, err := reg.ListContexts(ctx)
+	if err != nil {
+		t.Fatalf("failed to list contexts: %v", err)
+	}
+
+	// Expect at least "." and ".myctx"
+	contextSet := make(map[string]bool)
+	for _, c := range contexts {
+		contextSet[c] = true
+	}
+
+	if !contextSet["."] {
+		t.Errorf("expected default context '.' in results, got: %v", contexts)
+	}
+	if !contextSet[".myctx"] {
+		t.Errorf("expected context '.myctx' in results, got: %v", contexts)
+	}
+}
+
+// --- GetSchemasBySubject context isolation tests ---
+
+func TestGetSchemasBySubject_ContextScoped(t *testing.T) {
+	reg := setupTestRegistryWithContexts("NONE")
+	ctx := context.Background()
+
+	// Register two versions of a subject in .ctxA
+	schemaA1 := `{"type":"record","name":"Test","fields":[{"name":"id","type":"int"}]}`
+	schemaA2 := `{"type":"record","name":"Test","fields":[{"name":"id","type":"int"},{"name":"f","type":"string","default":""}]}`
+
+	_, err := reg.RegisterSchema(ctx, ".ctxA", "shared-subject", schemaA1, storage.SchemaTypeAvro, nil)
+	if err != nil {
+		t.Fatalf("failed to register v1 in .ctxA: %v", err)
+	}
+	_, err = reg.RegisterSchema(ctx, ".ctxA", "shared-subject", schemaA2, storage.SchemaTypeAvro, nil)
+	if err != nil {
+		t.Fatalf("failed to register v2 in .ctxA: %v", err)
+	}
+
+	// Register one version of the same subject name in .ctxB
+	schemaB1 := `{"type":"record","name":"Test","fields":[{"name":"name","type":"string"}]}`
+	_, err = reg.RegisterSchema(ctx, ".ctxB", "shared-subject", schemaB1, storage.SchemaTypeAvro, nil)
+	if err != nil {
+		t.Fatalf("failed to register v1 in .ctxB: %v", err)
+	}
+
+	// GetSchemasBySubject in .ctxA should return 2 schemas
+	schemasA, err := reg.GetSchemasBySubject(ctx, ".ctxA", "shared-subject", false)
+	if err != nil {
+		t.Fatalf("failed to get schemas from .ctxA: %v", err)
+	}
+	if len(schemasA) != 2 {
+		t.Errorf(".ctxA: expected 2 schemas, got %d", len(schemasA))
+	}
+
+	// GetSchemasBySubject in .ctxB should return 1 schema
+	schemasB, err := reg.GetSchemasBySubject(ctx, ".ctxB", "shared-subject", false)
+	if err != nil {
+		t.Fatalf("failed to get schemas from .ctxB: %v", err)
+	}
+	if len(schemasB) != 1 {
+		t.Errorf(".ctxB: expected 1 schema, got %d", len(schemasB))
+	}
+
+	// GetSchemasBySubject in a context with no registrations should fail
+	_, err = reg.GetSchemasBySubject(ctx, ".ctxC", "shared-subject", false)
+	if err == nil {
+		t.Error("expected error when getting schemas from empty context, but got nil")
+	}
+}
+
 func TestImportSchemas_WithReferences(t *testing.T) {
 	reg := setupTestRegistry("NONE")
 	ctx := context.Background()

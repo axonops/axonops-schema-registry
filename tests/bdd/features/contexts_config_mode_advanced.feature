@@ -9,42 +9,38 @@ Feature: Contexts — Advanced Config and Mode Behavior
     Given the schema registry is running
 
   # ==========================================================================
-  # SCENARIO 1: GLOBAL CONFIG FALLBACK INTO CONTEXTS
+  # SCENARIO 1: PER-CONTEXT CONFIG IS ENFORCED WITHIN THE CONTEXT
   # ==========================================================================
 
-  Scenario: Global config serves as default for context subjects
-    # Set global compatibility to FULL (requires both backward and forward compat)
-    When I PUT "/config" with body:
+  Scenario: Per-context config is enforced within the context
+    # Set per-subject compatibility to FULL for a subject in context .cfgm1
+    # Note: PUT /config (root) only sets global config for the default context.
+    # Named contexts do NOT inherit it — they fall back to the server default (BACKWARD).
+    # To control compatibility in a named context, use per-subject config.
+    When I PUT "/config/:.cfgm1:ctx-cfg" with body:
       """
       {"compatibility": "FULL"}
       """
     Then the response status should be 200
-    # Register v1 in .cfgm1 context
-    When I POST "/subjects/:.cfgm1:global-fb/versions" with body:
+    # Register v1
+    When I POST "/subjects/:.cfgm1:ctx-cfg/versions" with body:
       """
-      {"schema": "{\"type\":\"record\",\"name\":\"GlobalFb\",\"namespace\":\"com.cfgm.s1\",\"fields\":[{\"name\":\"name\",\"type\":\"string\"}]}"}
+      {"schema": "{\"type\":\"record\",\"name\":\"CtxCfg\",\"namespace\":\"com.cfgm.s1\",\"fields\":[{\"name\":\"name\",\"type\":\"string\"}]}"}
       """
     Then the response status should be 200
-    # Try to register v2 with incompatible field type change (string -> int)
-    # FULL checks both directions — changing a field type breaks both backward and forward
-    When I POST "/subjects/:.cfgm1:global-fb/versions" with body:
+    # Try v2 with incompatible field type change — FULL rejects this
+    When I POST "/subjects/:.cfgm1:ctx-cfg/versions" with body:
       """
-      {"schema": "{\"type\":\"record\",\"name\":\"GlobalFb\",\"namespace\":\"com.cfgm.s1\",\"fields\":[{\"name\":\"name\",\"type\":\"int\"}]}"}
+      {"schema": "{\"type\":\"record\",\"name\":\"CtxCfg\",\"namespace\":\"com.cfgm.s1\",\"fields\":[{\"name\":\"name\",\"type\":\"int\"}]}"}
       """
     Then the response status should be 409
-    # This proves the global FULL config applies within the named context
 
   # ==========================================================================
-  # SCENARIO 2: PER-SUBJECT CONFIG OVERRIDES GLOBAL
+  # SCENARIO 2: PER-SUBJECT CONFIG OVERRIDES DEFAULT COMPATIBILITY
   # ==========================================================================
 
-  Scenario: Per-subject config in context overrides global
-    # Set global compatibility to BACKWARD
-    When I PUT "/config" with body:
-      """
-      {"compatibility": "BACKWARD"}
-      """
-    Then the response status should be 200
+  Scenario: Per-subject config in context overrides default compatibility
+    # The server default compatibility is BACKWARD.
     # Override per-subject config to NONE for a subject in .cfgm2
     When I PUT "/config/:.cfgm2:flexible" with body:
       """
@@ -73,16 +69,14 @@ Feature: Contexts — Advanced Config and Mode Behavior
     And the response should be an array of length 2
 
   # ==========================================================================
-  # SCENARIO 3: DELETE PER-SUBJECT CONFIG FALLS BACK TO GLOBAL
+  # SCENARIO 3: DELETE PER-SUBJECT CONFIG FALLS BACK TO SERVER DEFAULT
   # ==========================================================================
 
-  Scenario: Delete per-subject config falls back to global
-    # Set global compatibility to BACKWARD
-    When I PUT "/config" with body:
-      """
-      {"compatibility": "BACKWARD"}
-      """
-    Then the response status should be 200
+  Scenario: Delete per-subject config falls back to server default
+    # The fallback chain for compatibility is:
+    #   per-subject config → per-context global config → server default (BACKWARD)
+    # Since no per-context global config is set, deleting per-subject config
+    # will fall back to the server default (BACKWARD).
     # Set per-subject config to NONE
     When I PUT "/config/:.cfgm3:fallback" with body:
       """
@@ -101,7 +95,7 @@ Feature: Contexts — Advanced Config and Mode Behavior
       {"schema": "{\"type\":\"record\",\"name\":\"Fallback\",\"namespace\":\"com.cfgm.s3\",\"fields\":[{\"name\":\"name\",\"type\":\"int\"}]}"}
       """
     Then the response status should be 200
-    # Delete per-subject config — should fall back to global BACKWARD
+    # Delete per-subject config — should fall back to server default BACKWARD
     When I DELETE "/config/:.cfgm3:fallback"
     Then the response status should be 200
     # Check compatibility of another incompatible schema — should now be incompatible (BACKWARD)
@@ -224,12 +218,7 @@ Feature: Contexts — Advanced Config and Mode Behavior
   # ==========================================================================
 
   Scenario: Config set in one context does not leak to another
-    # Set global to BACKWARD so .cfgm7b will use it
-    When I PUT "/config" with body:
-      """
-      {"compatibility": "BACKWARD"}
-      """
-    Then the response status should be 200
+    # .cfgm7b has no per-subject config, so it falls back to the server default (BACKWARD).
     # Set NONE for subject in .cfgm7a
     When I PUT "/config/:.cfgm7a:cfg-leak" with body:
       """
@@ -242,7 +231,7 @@ Feature: Contexts — Advanced Config and Mode Behavior
       {"schema": "{\"type\":\"record\",\"name\":\"CfgLeakA\",\"namespace\":\"com.cfgm.s7a\",\"fields\":[{\"name\":\"name\",\"type\":\"string\"}]}"}
       """
     Then the response status should be 200
-    # Register v1 in .cfgm7b (no per-subject config — uses global BACKWARD)
+    # Register v1 in .cfgm7b (no per-subject config — uses server default BACKWARD)
     When I POST "/subjects/:.cfgm7b:cfg-leak/versions" with body:
       """
       {"schema": "{\"type\":\"record\",\"name\":\"CfgLeakB\",\"namespace\":\"com.cfgm.s7b\",\"fields\":[{\"name\":\"name\",\"type\":\"string\"}]}"}

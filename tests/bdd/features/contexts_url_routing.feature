@@ -1,4 +1,4 @@
-@functional @axonops-only
+@functional
 Feature: Contexts — URL Prefix Routing
   Verify that the /contexts/{context}/... URL prefix routes work correctly.
   All schema registry operations should be accessible via URL prefix routing
