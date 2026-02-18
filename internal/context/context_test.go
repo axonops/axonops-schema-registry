@@ -37,13 +37,33 @@ func TestResolveSubject_DefaultContext(t *testing.T) {
 }
 
 func TestResolveSubject_EmptySubjectAfterContext(t *testing.T) {
-	// :.TestContext: with empty subject after the second colon
+	// :.TestContext: with empty subject → context-level operation
 	ctx, subject := ResolveSubject(":.TestContext:")
-	if ctx != DefaultContext {
-		t.Errorf("expected default context for empty subject, got %s", ctx)
+	if ctx != ".TestContext" {
+		t.Errorf("expected .TestContext for context-level op, got %s", ctx)
 	}
-	if subject != ":.TestContext:" {
-		t.Errorf("expected raw subject, got %s", subject)
+	if subject != "" {
+		t.Errorf("expected empty subject for context-level op, got %s", subject)
+	}
+}
+
+func TestResolveSubject_GlobalContext(t *testing.T) {
+	ctx, subject := ResolveSubject(":.__GLOBAL:")
+	if ctx != ".__GLOBAL" {
+		t.Errorf("expected .__GLOBAL, got %s", ctx)
+	}
+	if subject != "" {
+		t.Errorf("expected empty subject, got %s", subject)
+	}
+}
+
+func TestResolveSubject_GlobalContextWithSubject(t *testing.T) {
+	ctx, subject := ResolveSubject(":.__GLOBAL:some-subject")
+	if ctx != ".__GLOBAL" {
+		t.Errorf("expected .__GLOBAL, got %s", ctx)
+	}
+	if subject != "some-subject" {
+		t.Errorf("expected some-subject, got %s", subject)
 	}
 }
 
@@ -155,5 +175,40 @@ func TestRegistryContextFromRequest_EmptyString(t *testing.T) {
 	got := RegistryContextFromRequest(ctx)
 	if got != DefaultContext {
 		t.Errorf("expected default context for empty string, got %s", got)
+	}
+}
+
+func TestGlobalContextConstant(t *testing.T) {
+	if GlobalContext != ".__GLOBAL" {
+		t.Errorf("expected .__GLOBAL, got %s", GlobalContext)
+	}
+}
+
+func TestIsGlobalContext(t *testing.T) {
+	tests := []struct {
+		name   string
+		input  string
+		expect bool
+	}{
+		{"global context", ".__GLOBAL", true},
+		{"default context", ".", false},
+		{"named context", ".myctx", false},
+		{"empty", "", false},
+		{"similar name", ".__GLOBAL2", false},
+		{"no dot prefix", "__GLOBAL", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := IsGlobalContext(tt.input); got != tt.expect {
+				t.Errorf("IsGlobalContext(%q) = %v, want %v", tt.input, got, tt.expect)
+			}
+		})
+	}
+}
+
+func TestIsValidContextName_GlobalContext(t *testing.T) {
+	// __GLOBAL should be a valid context name (it uses alphanumeric, underscore, dot)
+	if !IsValidContextName(GlobalContext) {
+		t.Errorf("expected GlobalContext %q to be a valid context name", GlobalContext)
 	}
 }

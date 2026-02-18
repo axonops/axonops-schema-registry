@@ -12,6 +12,11 @@ import (
 // DefaultContext is the name of the default registry context.
 const DefaultContext = "."
 
+// GlobalContext is the special cross-context config/mode namespace.
+// Confluent-compatible: only config and mode operations are allowed on this context.
+// Schemas and subjects CANNOT be registered under __GLOBAL.
+const GlobalContext = ".__GLOBAL"
+
 // RegistryContextKey is the context key for storing the registry context name in request context.
 type registryContextKeyType string
 
@@ -45,12 +50,10 @@ func ResolveSubject(subject string) (registryCtx, resolvedSubject string) {
 		rest := subject[2:] // everything after ":."
 		idx := strings.Index(rest, ":")
 		if idx > 0 {
-			// :.contextname:subject
+			// :.contextname:subject (subject may be empty for context-level operations)
 			ctxName := "." + rest[:idx] // prepend dot for display form
 			subj := rest[idx+1:]
-			if subj != "" {
-				return ctxName, subj
-			}
+			return ctxName, subj
 		}
 	}
 	return DefaultContext, subject
@@ -99,6 +102,11 @@ func NormalizeContextName(name string) string {
 		return "." + name
 	}
 	return name
+}
+
+// IsGlobalContext returns true if the context name is the special __GLOBAL context.
+func IsGlobalContext(name string) bool {
+	return name == GlobalContext
 }
 
 func isAlphaNumeric(c rune) bool {

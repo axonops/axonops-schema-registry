@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/axonops/axonops-schema-registry/internal/compatibility"
+	registrycontext "github.com/axonops/axonops-schema-registry/internal/context"
 	"github.com/axonops/axonops-schema-registry/internal/schema"
 	"github.com/axonops/axonops-schema-registry/internal/storage"
 )
@@ -586,25 +587,40 @@ func (r *Registry) DeleteVersion(ctx context.Context, registryCtx string, subjec
 }
 
 // GetConfig gets the compatibility configuration for a subject within a context.
+// Uses the Confluent-compatible 4-tier fallback chain:
+//
+//	Step 1: Per-subject config
+//	Step 2: Context-level global config
+//	Step 3: __GLOBAL context config (cross-context default)
+//	Step 4: Server hardcoded default
 func (r *Registry) GetConfig(ctx context.Context, registryCtx string, subject string) (string, error) {
-	if subject == "" {
-		config, err := r.storage.GetGlobalConfig(ctx, registryCtx)
-		if err != nil {
-			return r.defaultConfig, nil
+	// Step 1: Per-subject config
+	if subject != "" {
+		config, err := r.storage.GetConfig(ctx, registryCtx, subject)
+		if err == nil {
+			return config.CompatibilityLevel, nil
 		}
+		if !errors.Is(err, storage.ErrNotFound) {
+			return "", err
+		}
+	}
+
+	// Step 2: Context-level global config
+	config, err := r.storage.GetGlobalConfig(ctx, registryCtx)
+	if err == nil {
 		return config.CompatibilityLevel, nil
 	}
 
-	config, err := r.storage.GetConfig(ctx, registryCtx, subject)
-	if err != nil {
-		if errors.Is(err, storage.ErrNotFound) {
-			// Fall back to global config
-			return r.GetConfig(ctx, registryCtx, "")
+	// Step 3: __GLOBAL context config (skip if already querying __GLOBAL)
+	if registryCtx != registrycontext.GlobalContext {
+		config, err = r.storage.GetGlobalConfig(ctx, registrycontext.GlobalContext)
+		if err == nil {
+			return config.CompatibilityLevel, nil
 		}
-		return "", err
 	}
 
-	return config.CompatibilityLevel, nil
+	// Step 4: Server hardcoded default
+	return r.defaultConfig, nil
 }
 
 // GetSubjectConfig gets the compatibility configuration for a specific subject only,
@@ -623,24 +639,45 @@ func (r *Registry) GetSubjectConfigFull(ctx context.Context, registryCtx string,
 	return r.storage.GetConfig(ctx, registryCtx, subject)
 }
 
-// GetConfigFull gets the full configuration record with global fallback.
+// GetConfigFull gets the full configuration record using the 4-tier fallback chain.
 func (r *Registry) GetConfigFull(ctx context.Context, registryCtx string, subject string) (*storage.ConfigRecord, error) {
-	if subject == "" {
-		config, err := r.storage.GetGlobalConfig(ctx, registryCtx)
-		if err != nil {
-			return &storage.ConfigRecord{CompatibilityLevel: r.defaultConfig}, nil
+	// Step 1: Per-subject config
+	if subject != "" {
+		config, err := r.storage.GetConfig(ctx, registryCtx, subject)
+		if err == nil {
+			return config, nil
 		}
+		if !errors.Is(err, storage.ErrNotFound) {
+			return nil, err
+		}
+	}
+
+	// Step 2: Context-level global config
+	config, err := r.storage.GetGlobalConfig(ctx, registryCtx)
+	if err == nil {
 		return config, nil
 	}
 
-	config, err := r.storage.GetConfig(ctx, registryCtx, subject)
-	if err != nil {
-		if errors.Is(err, storage.ErrNotFound) {
-			return r.GetConfigFull(ctx, registryCtx, "")
+	// Step 3: __GLOBAL context config (skip if already querying __GLOBAL)
+	if registryCtx != registrycontext.GlobalContext {
+		config, err = r.storage.GetGlobalConfig(ctx, registrycontext.GlobalContext)
+		if err == nil {
+			return config, nil
 		}
-		return nil, err
 	}
-	return config, nil
+
+	// Step 4: Server hardcoded default
+	return &storage.ConfigRecord{CompatibilityLevel: r.defaultConfig}, nil
+}
+
+// GetGlobalConfigDirect returns the context's global config without the __GLOBAL fallback.
+// Used by the API handler when defaultToGlobal=false and subject is empty.
+func (r *Registry) GetGlobalConfigDirect(ctx context.Context, registryCtx string) (*storage.ConfigRecord, error) {
+	config, err := r.storage.GetGlobalConfig(ctx, registryCtx)
+	if err == nil {
+		return config, nil
+	}
+	return &storage.ConfigRecord{CompatibilityLevel: r.defaultConfig}, nil
 }
 
 // SetConfigOpts holds optional fields for configuration updates.
@@ -698,30 +735,77 @@ func (r *Registry) DeleteConfig(ctx context.Context, registryCtx string, subject
 	return config.CompatibilityLevel, nil
 }
 
-// GetMode gets the mode for a subject within a context (with fallback to global).
+// GetMode gets the mode for a subject within a context using the 4-tier fallback chain.
+// Also implements the Confluent READONLY_OVERRIDE kill switch: if the default context's
+// resolved global mode is READONLY_OVERRIDE, it overrides all per-subject/per-context modes.
 func (r *Registry) GetMode(ctx context.Context, registryCtx string, subject string) (string, error) {
-	if subject == "" {
-		mode, err := r.storage.GetGlobalMode(ctx, registryCtx)
-		if err != nil {
-			if errors.Is(err, storage.ErrNotFound) {
-				// No global mode configured: default to READWRITE
-				return "READWRITE", nil
-			}
-			// Storage error: propagate rather than fail open
-			return "", fmt.Errorf("failed to get global mode: %w", err)
+	// Confluent behavior: READONLY_OVERRIDE on default context global is a kill switch
+	// that overrides everything. Check it first.
+	globalMode := r.resolveGlobalMode(ctx)
+	if globalMode == "READONLY_OVERRIDE" {
+		return "READONLY_OVERRIDE", nil
+	}
+
+	// Step 1: Per-subject mode
+	if subject != "" {
+		mode, err := r.storage.GetMode(ctx, registryCtx, subject)
+		if err == nil {
+			return mode.Mode, nil
 		}
+		if !errors.Is(err, storage.ErrNotFound) {
+			return "", err
+		}
+	}
+
+	// Step 2: Context-level global mode
+	mode, err := r.storage.GetGlobalMode(ctx, registryCtx)
+	if err == nil {
 		return mode.Mode, nil
 	}
-
-	mode, err := r.storage.GetMode(ctx, registryCtx, subject)
-	if err != nil {
-		if errors.Is(err, storage.ErrNotFound) {
-			return r.GetMode(ctx, registryCtx, "")
-		}
-		return "", err
+	if !errors.Is(err, storage.ErrNotFound) {
+		return "", fmt.Errorf("failed to get global mode: %w", err)
 	}
 
-	return mode.Mode, nil
+	// Step 3: __GLOBAL context mode (skip if already querying __GLOBAL)
+	if registryCtx != registrycontext.GlobalContext {
+		mode, err = r.storage.GetGlobalMode(ctx, registrycontext.GlobalContext)
+		if err == nil {
+			return mode.Mode, nil
+		}
+	}
+
+	// Step 4: Default
+	return "READWRITE", nil
+}
+
+// resolveGlobalMode resolves the "global" mode by walking the default context chain.
+// This is used for the READONLY_OVERRIDE kill switch check (Confluent compatibility).
+// Chain: default context global mode → __GLOBAL context mode → READWRITE
+func (r *Registry) resolveGlobalMode(ctx context.Context) string {
+	// Default context global mode
+	mode, err := r.storage.GetGlobalMode(ctx, registrycontext.DefaultContext)
+	if err == nil {
+		return mode.Mode
+	}
+	// __GLOBAL context mode
+	mode, err = r.storage.GetGlobalMode(ctx, registrycontext.GlobalContext)
+	if err == nil {
+		return mode.Mode
+	}
+	return "READWRITE"
+}
+
+// GetGlobalModeDirect returns the context's global mode without the __GLOBAL fallback.
+// Used by the API handler when defaultToGlobal=false and subject is empty.
+func (r *Registry) GetGlobalModeDirect(ctx context.Context, registryCtx string) (string, error) {
+	mode, err := r.storage.GetGlobalMode(ctx, registryCtx)
+	if err == nil {
+		return mode.Mode, nil
+	}
+	if errors.Is(err, storage.ErrNotFound) {
+		return "READWRITE", nil
+	}
+	return "", fmt.Errorf("failed to get global mode: %w", err)
 }
 
 // GetSubjectMode gets the mode for a specific subject only,
@@ -767,20 +851,28 @@ func (r *Registry) SetMode(ctx context.Context, registryCtx string, subject stri
 	return r.storage.SetMode(ctx, registryCtx, subject, modeRecord)
 }
 
-// isNormalizeEnabled checks if normalization is enabled for a subject via config.
+// isNormalizeEnabled checks if normalization is enabled for a subject via the 4-tier config chain.
 func (r *Registry) isNormalizeEnabled(ctx context.Context, registryCtx string, subject string) bool {
-	// Check subject config first
+	// Step 1: Per-subject config
 	if subject != "" {
 		config, err := r.storage.GetConfig(ctx, registryCtx, subject)
 		if err == nil && config != nil && config.Normalize != nil {
 			return *config.Normalize
 		}
 	}
-	// Fall back to global config
+	// Step 2: Context-level global config
 	config, err := r.storage.GetGlobalConfig(ctx, registryCtx)
 	if err == nil && config != nil && config.Normalize != nil {
 		return *config.Normalize
 	}
+	// Step 3: __GLOBAL context config
+	if registryCtx != registrycontext.GlobalContext {
+		config, err = r.storage.GetGlobalConfig(ctx, registrycontext.GlobalContext)
+		if err == nil && config != nil && config.Normalize != nil {
+			return *config.Normalize
+		}
+	}
+	// Step 4: Default
 	return false
 }
 
@@ -837,8 +929,20 @@ func (r *Registry) ListSchemas(ctx context.Context, registryCtx string, params *
 }
 
 // ListContexts returns all registry context names.
+// The __GLOBAL context is filtered out as it is not a real schema context
+// (Confluent-compatible: __GLOBAL only holds config/mode settings).
 func (r *Registry) ListContexts(ctx context.Context) ([]string, error) {
-	return r.storage.ListContexts(ctx)
+	contexts, err := r.storage.ListContexts(ctx)
+	if err != nil {
+		return nil, err
+	}
+	filtered := make([]string, 0, len(contexts))
+	for _, c := range contexts {
+		if c != registrycontext.GlobalContext {
+			filtered = append(filtered, c)
+		}
+	}
+	return filtered, nil
 }
 
 // ImportSchemaRequest represents a single schema to import with a specified ID.
@@ -1100,20 +1204,28 @@ func (r *Registry) filterByCompatibilityGroup(ctx context.Context, registryCtx s
 	return filtered
 }
 
-// isValidateFieldsEnabled checks if reserved field validation is enabled for a subject.
+// isValidateFieldsEnabled checks if reserved field validation is enabled via the 4-tier config chain.
 func (r *Registry) isValidateFieldsEnabled(ctx context.Context, registryCtx string, subject string) bool {
-	// Check subject config first
+	// Step 1: Per-subject config
 	if subject != "" {
 		config, err := r.storage.GetConfig(ctx, registryCtx, subject)
 		if err == nil && config != nil && config.ValidateFields != nil {
 			return *config.ValidateFields
 		}
 	}
-	// Fall back to global config
+	// Step 2: Context-level global config
 	config, err := r.storage.GetGlobalConfig(ctx, registryCtx)
 	if err == nil && config != nil && config.ValidateFields != nil {
 		return *config.ValidateFields
 	}
+	// Step 3: __GLOBAL context config
+	if registryCtx != registrycontext.GlobalContext {
+		config, err = r.storage.GetGlobalConfig(ctx, registrycontext.GlobalContext)
+		if err == nil && config != nil && config.ValidateFields != nil {
+			return *config.ValidateFields
+		}
+	}
+	// Step 4: Default
 	return false
 }
 
