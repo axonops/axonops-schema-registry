@@ -488,7 +488,8 @@ func (h *Handler) RegisterSchema(w http.ResponseWriter, r *http.Request) {
 	var schema *storage.SchemaRecord
 	var err error
 
-	// Explicit ID requires IMPORT mode (Confluent behavior)
+	// Confluent behavior: IMPORT mode requires explicit ID, READWRITE mode requires no ID.
+	// These are mutually exclusive operational modes.
 	if req.ID > 0 {
 		mode, modeErr := h.registry.GetMode(r.Context(), registryCtx, subject)
 		if modeErr != nil {
@@ -500,8 +501,19 @@ func (h *Handler) RegisterSchema(w http.ResponseWriter, r *http.Request) {
 				fmt.Sprintf("Subject '%s' is not in import mode. Registering schemas with explicit IDs requires IMPORT mode.", subject))
 			return
 		}
-		schema, err = h.registry.RegisterSchemaWithID(r.Context(), registryCtx, subject, req.Schema, schemaType, req.References, req.ID)
+		schema, err = h.registry.RegisterSchemaWithID(r.Context(), registryCtx, subject, req.Schema, schemaType, req.References, req.ID, req.Version)
 	} else {
+		// Normal registration requires READWRITE mode
+		mode, modeErr := h.registry.GetMode(r.Context(), registryCtx, subject)
+		if modeErr != nil {
+			writeError(w, http.StatusInternalServerError, types.ErrorCodeStorageError, "Failed to check mode")
+			return
+		}
+		if mode == "IMPORT" {
+			writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeOperationNotPermitted,
+				fmt.Sprintf("Subject '%s' is not in read-write mode", subject))
+			return
+		}
 		schema, err = h.registry.RegisterSchema(r.Context(), registryCtx, subject, req.Schema, schemaType, req.References, registry.RegisterOpts{
 			Normalize: normalizeSchema,
 			Metadata:  req.Metadata,

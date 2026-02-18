@@ -251,11 +251,11 @@ func (r *Registry) checkConfluentVersion(ctx context.Context, registryCtx string
 }
 
 // RegisterSchemaWithID registers a schema with a specific ID (for IMPORT mode).
-// It validates the schema, determines the next version, and stores it with the given ID.
+// If version > 0, that exact version number is used; otherwise the next sequential version is assigned.
 // Confluent behavior: if the ID already exists with the same schema content, the schema
 // is associated with the new subject (succeeds). If the ID exists with different content,
 // returns error code 42205.
-func (r *Registry) RegisterSchemaWithID(ctx context.Context, registryCtx string, subject string, schemaStr string, schemaType storage.SchemaType, refs []storage.Reference, id int64) (*storage.SchemaRecord, error) {
+func (r *Registry) RegisterSchemaWithID(ctx context.Context, registryCtx string, subject string, schemaStr string, schemaType storage.SchemaType, refs []storage.Reference, id int64, version int) (*storage.SchemaRecord, error) {
 	if schemaType == "" {
 		schemaType = storage.SchemaTypeAvro
 	}
@@ -281,15 +281,18 @@ func (r *Registry) RegisterSchemaWithID(ctx context.Context, registryCtx string,
 		return existing, nil
 	}
 
-	// Determine next version for this subject.
+	// Determine version: use explicit version if provided, otherwise auto-assign next sequential.
 	// Include soft-deleted versions to avoid version number conflicts
 	// with rows that still physically exist in storage.
-	nextVersion := 1
-	existingSchemas, err := r.storage.GetSchemasBySubject(ctx, registryCtx, subject, true)
-	if err == nil && len(existingSchemas) > 0 {
-		for _, s := range existingSchemas {
-			if s.Version >= nextVersion {
-				nextVersion = s.Version + 1
+	assignedVersion := version
+	if assignedVersion <= 0 {
+		assignedVersion = 1
+		existingSchemas, err := r.storage.GetSchemasBySubject(ctx, registryCtx, subject, true)
+		if err == nil && len(existingSchemas) > 0 {
+			for _, s := range existingSchemas {
+				if s.Version >= assignedVersion {
+					assignedVersion = s.Version + 1
+				}
 			}
 		}
 	}
@@ -297,7 +300,7 @@ func (r *Registry) RegisterSchemaWithID(ctx context.Context, registryCtx string,
 	record := &storage.SchemaRecord{
 		ID:          id,
 		Subject:     subject,
-		Version:     nextVersion,
+		Version:     assignedVersion,
 		SchemaType:  schemaType,
 		Schema:      schemaStr,
 		References:  refs,
@@ -307,6 +310,9 @@ func (r *Registry) RegisterSchemaWithID(ctx context.Context, registryCtx string,
 	if err := r.storage.ImportSchema(ctx, registryCtx, record); err != nil {
 		if errors.Is(err, storage.ErrSchemaIDConflict) {
 			return nil, fmt.Errorf("overwrite schema with id %d: %w", id, ErrImportIDConflict)
+		}
+		if errors.Is(err, storage.ErrSchemaExists) {
+			return nil, fmt.Errorf("version %d already exists for subject %s: %w", record.Version, subject, ErrImportIDConflict)
 		}
 		return nil, fmt.Errorf("failed to store schema: %w", err)
 	}

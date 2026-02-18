@@ -897,6 +897,12 @@ func (s *Store) ImportSchema(ctx context.Context, registryCtx string, record *st
 		ruleSet:   record.RuleSet,
 	}
 
+	// Advance the subject version counter so future CreateSchema calls
+	// don't collide with imported versions.
+	if record.Version >= cs.nextSubjectVersion[record.Subject] {
+		cs.nextSubjectVersion[record.Subject] = record.Version
+	}
+
 	// Update idToSubjectVersions
 	cs.idToSubjectVersions[record.ID] = append(cs.idToSubjectVersions[record.ID], storage.SubjectVersion{
 		Subject: record.Subject,

@@ -2081,7 +2081,7 @@ func TestRegisterSchemaWithID_SetNextIDFailure(t *testing.T) {
 	ctx := context.Background()
 	schemaStr := `{"type":"record","name":"Test","fields":[{"name":"id","type":"int"}]}`
 
-	record, err := reg.RegisterSchemaWithID(ctx, ".", "test-subject", schemaStr, storage.SchemaTypeAvro, nil, 100)
+	record, err := reg.RegisterSchemaWithID(ctx, ".", "test-subject", schemaStr, storage.SchemaTypeAvro, nil, 100, 0)
 	if err == nil {
 		t.Fatal("expected error when SetNextID fails, got nil")
 	}

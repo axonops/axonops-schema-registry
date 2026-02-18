@@ -9,6 +9,7 @@ type RegisterSchemaRequest struct {
 	SchemaType string              `json:"schemaType,omitempty"`
 	References []storage.Reference `json:"references,omitempty"`
 	ID         int64               `json:"id,omitempty"`
+	Version    int                 `json:"version,omitempty"`
 	Metadata   *storage.Metadata   `json:"metadata,omitempty"`
 	RuleSet    *storage.RuleSet    `json:"ruleSet,omitempty"`
 }
