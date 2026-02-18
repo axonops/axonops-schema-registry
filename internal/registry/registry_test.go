@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/axonops/axonops-schema-registry/internal/compatibility"
+	registrycontext "github.com/axonops/axonops-schema-registry/internal/context"
 	avrocompat "github.com/axonops/axonops-schema-registry/internal/compatibility/avro"
 	jsonschemacompat "github.com/axonops/axonops-schema-registry/internal/compatibility/jsonschema"
 	protobufcompat "github.com/axonops/axonops-schema-registry/internal/compatibility/protobuf"
@@ -2478,5 +2479,578 @@ func TestCheckCompatibility_ContextScoped(t *testing.T) {
 	}
 	if !resultB.IsCompatible {
 		t.Error(".ctxB: expected compatible result (no prior schemas), but got incompatible — context isolation violated")
+	}
+}
+
+// --- 4-Tier Config Fallback Chain Tests ---
+
+func TestGetConfig_4Tier_SubjectOverridesAll(t *testing.T) {
+	reg := setupTestRegistry("BACKWARD")
+	ctx := context.Background()
+
+	// Set __GLOBAL config
+	reg.SetConfig(ctx, registrycontext.GlobalContext, "", "NONE", nil)
+	// Set context-level config for .myctx
+	reg.SetConfig(ctx, ".myctx", "", "FULL", nil)
+	// Set per-subject config
+	reg.SetConfig(ctx, ".myctx", "my-subject", "FORWARD", nil)
+
+	level, err := reg.GetConfig(ctx, ".myctx", "my-subject")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if level != "FORWARD" {
+		t.Errorf("expected FORWARD (per-subject), got %s", level)
+	}
+}
+
+func TestGetConfig_4Tier_ContextOverridesGlobal(t *testing.T) {
+	reg := setupTestRegistry("BACKWARD")
+	ctx := context.Background()
+
+	// Set __GLOBAL config
+	reg.SetConfig(ctx, registrycontext.GlobalContext, "", "NONE", nil)
+	// Set context-level config
+	reg.SetConfig(ctx, ".myctx", "", "FULL", nil)
+
+	level, err := reg.GetConfig(ctx, ".myctx", "my-subject")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if level != "FULL" {
+		t.Errorf("expected FULL (context-level), got %s", level)
+	}
+}
+
+func TestGetConfig_4Tier_GlobalContextFallback(t *testing.T) {
+	reg := setupTestRegistry("BACKWARD")
+	ctx := context.Background()
+
+	// Only set __GLOBAL config, no context-level config for .myctx
+	reg.SetConfig(ctx, registrycontext.GlobalContext, "", "NONE", nil)
+
+	level, err := reg.GetConfig(ctx, ".myctx", "my-subject")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if level != "NONE" {
+		t.Errorf("expected NONE (__GLOBAL fallback), got %s", level)
+	}
+}
+
+func TestGetConfig_4Tier_ServerDefault(t *testing.T) {
+	reg := setupTestRegistry("BACKWARD")
+	ctx := context.Background()
+
+	// No config set anywhere for .myctx or __GLOBAL
+	level, err := reg.GetConfig(ctx, ".myctx", "my-subject")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if level != "BACKWARD" {
+		t.Errorf("expected BACKWARD (server default), got %s", level)
+	}
+}
+
+func TestGetConfig_4Tier_SkipsGlobalWhenQueryingGlobal(t *testing.T) {
+	reg := setupTestRegistry("BACKWARD")
+	ctx := context.Background()
+
+	// Set __GLOBAL config
+	reg.SetConfig(ctx, registrycontext.GlobalContext, "", "NONE", nil)
+
+	// When querying __GLOBAL context itself with no subject, Step 2 returns the __GLOBAL config directly
+	level, err := reg.GetConfig(ctx, registrycontext.GlobalContext, "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if level != "NONE" {
+		t.Errorf("expected NONE (__GLOBAL's own config), got %s", level)
+	}
+}
+
+func TestGetConfig_4Tier_DeleteSubjectFallsToContext(t *testing.T) {
+	reg := setupTestRegistry("BACKWARD")
+	ctx := context.Background()
+
+	reg.SetConfig(ctx, registrycontext.GlobalContext, "", "NONE", nil)
+	reg.SetConfig(ctx, ".myctx", "", "FULL", nil)
+	reg.SetConfig(ctx, ".myctx", "my-subject", "FORWARD", nil)
+
+	// Delete subject config
+	_, err := reg.DeleteConfig(ctx, ".myctx", "my-subject")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	level, err := reg.GetConfig(ctx, ".myctx", "my-subject")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if level != "FULL" {
+		t.Errorf("expected FULL (context-level after subject delete), got %s", level)
+	}
+}
+
+func TestGetConfig_4Tier_DeleteContextFallsToGlobal(t *testing.T) {
+	reg := setupTestRegistry("BACKWARD")
+	ctx := context.Background()
+
+	reg.SetConfig(ctx, registrycontext.GlobalContext, "", "NONE", nil)
+	reg.SetConfig(ctx, ".myctx", "", "FULL", nil)
+
+	// Delete context-level config (subject="" routes to DeleteGlobalConfig)
+	_, err := reg.DeleteConfig(ctx, ".myctx", "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	level, err := reg.GetConfig(ctx, ".myctx", "my-subject")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if level != "NONE" {
+		t.Errorf("expected NONE (__GLOBAL after context delete), got %s", level)
+	}
+}
+
+func TestGetConfig_4Tier_DeleteGlobalFallsToDefault(t *testing.T) {
+	reg := setupTestRegistry("BACKWARD")
+	ctx := context.Background()
+
+	reg.SetConfig(ctx, registrycontext.GlobalContext, "", "NONE", nil)
+
+	// Delete __GLOBAL config
+	_, err := reg.DeleteConfig(ctx, registrycontext.GlobalContext, "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	level, err := reg.GetConfig(ctx, ".myctx", "my-subject")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if level != "BACKWARD" {
+		t.Errorf("expected BACKWARD (server default after __GLOBAL delete), got %s", level)
+	}
+}
+
+// --- 4-Tier Mode Fallback Chain Tests ---
+
+func TestGetMode_4Tier_SubjectOverridesAll(t *testing.T) {
+	reg := setupTestRegistry("NONE")
+	ctx := context.Background()
+
+	reg.SetMode(ctx, registrycontext.GlobalContext, "", "READONLY", true)
+	reg.SetMode(ctx, ".myctx", "", "IMPORT", true)
+	reg.SetMode(ctx, ".myctx", "my-subject", "READWRITE", false)
+
+	mode, err := reg.GetMode(ctx, ".myctx", "my-subject")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if mode != "READWRITE" {
+		t.Errorf("expected READWRITE (per-subject), got %s", mode)
+	}
+}
+
+func TestGetMode_4Tier_ContextOverridesGlobal(t *testing.T) {
+	reg := setupTestRegistry("NONE")
+	ctx := context.Background()
+
+	reg.SetMode(ctx, registrycontext.GlobalContext, "", "READONLY", true)
+	reg.SetMode(ctx, ".myctx", "", "IMPORT", true)
+
+	mode, err := reg.GetMode(ctx, ".myctx", "my-subject")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if mode != "IMPORT" {
+		t.Errorf("expected IMPORT (context-level), got %s", mode)
+	}
+}
+
+func TestGetMode_4Tier_GlobalContextFallback(t *testing.T) {
+	reg := setupTestRegistry("NONE")
+	ctx := context.Background()
+
+	// Only set __GLOBAL mode
+	reg.SetMode(ctx, registrycontext.GlobalContext, "", "READONLY", true)
+
+	mode, err := reg.GetMode(ctx, ".myctx", "my-subject")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if mode != "READONLY" {
+		t.Errorf("expected READONLY (__GLOBAL fallback), got %s", mode)
+	}
+}
+
+func TestGetMode_4Tier_ServerDefault(t *testing.T) {
+	reg := setupTestRegistry("NONE")
+	ctx := context.Background()
+
+	// No mode set anywhere
+	mode, err := reg.GetMode(ctx, ".myctx", "my-subject")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if mode != "READWRITE" {
+		t.Errorf("expected READWRITE (server default), got %s", mode)
+	}
+}
+
+func TestGetMode_4Tier_DeleteSubjectFallsToContext(t *testing.T) {
+	reg := setupTestRegistry("NONE")
+	ctx := context.Background()
+
+	reg.SetMode(ctx, ".myctx", "", "IMPORT", true)
+	reg.SetMode(ctx, ".myctx", "my-subject", "READONLY", false)
+
+	_, err := reg.DeleteMode(ctx, ".myctx", "my-subject")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	mode, err := reg.GetMode(ctx, ".myctx", "my-subject")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if mode != "IMPORT" {
+		t.Errorf("expected IMPORT (context-level after subject delete), got %s", mode)
+	}
+}
+
+func TestGetMode_4Tier_DeleteContextFallsToGlobal(t *testing.T) {
+	reg := setupTestRegistry("NONE")
+	ctx := context.Background()
+
+	reg.SetMode(ctx, registrycontext.GlobalContext, "", "READONLY", true)
+	reg.SetMode(ctx, ".myctx", "", "IMPORT", true)
+
+	_, err := reg.DeleteMode(ctx, ".myctx", "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	mode, err := reg.GetMode(ctx, ".myctx", "my-subject")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if mode != "READONLY" {
+		t.Errorf("expected READONLY (__GLOBAL after context delete), got %s", mode)
+	}
+}
+
+func TestGetMode_4Tier_DeleteGlobalFallsToDefault(t *testing.T) {
+	reg := setupTestRegistry("NONE")
+	ctx := context.Background()
+
+	reg.SetMode(ctx, registrycontext.GlobalContext, "", "READONLY", true)
+
+	_, err := reg.DeleteMode(ctx, registrycontext.GlobalContext, "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	mode, err := reg.GetMode(ctx, ".myctx", "my-subject")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if mode != "READWRITE" {
+		t.Errorf("expected READWRITE (server default after __GLOBAL delete), got %s", mode)
+	}
+}
+
+// --- READONLY_OVERRIDE Kill Switch Tests ---
+
+func TestGetMode_ReadOnlyOverride_OverridesEverything(t *testing.T) {
+	reg := setupTestRegistry("NONE")
+	ctx := context.Background()
+
+	// Set READONLY_OVERRIDE on default context global mode
+	reg.SetMode(ctx, ".", "", "READONLY_OVERRIDE", true)
+	// Set per-subject mode on a named context
+	reg.SetMode(ctx, ".myctx", "my-subject", "READWRITE", false)
+
+	mode, err := reg.GetMode(ctx, ".myctx", "my-subject")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if mode != "READONLY_OVERRIDE" {
+		t.Errorf("expected READONLY_OVERRIDE (kill switch), got %s", mode)
+	}
+}
+
+func TestGetMode_ReadOnlyOverride_OverridesGlobalContext(t *testing.T) {
+	reg := setupTestRegistry("NONE")
+	ctx := context.Background()
+
+	// Set READONLY_OVERRIDE on default context
+	reg.SetMode(ctx, ".", "", "READONLY_OVERRIDE", true)
+	// Set __GLOBAL mode
+	reg.SetMode(ctx, registrycontext.GlobalContext, "", "READWRITE", true)
+
+	mode, err := reg.GetMode(ctx, ".anyctx", "any-subject")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if mode != "READONLY_OVERRIDE" {
+		t.Errorf("expected READONLY_OVERRIDE (kill switch), got %s", mode)
+	}
+}
+
+func TestGetMode_ReadOnlyOverride_ViaGlobalContextChain(t *testing.T) {
+	reg := setupTestRegistry("NONE")
+	ctx := context.Background()
+
+	// Set READONLY_OVERRIDE on __GLOBAL context (resolveGlobalMode checks default ctx → __GLOBAL)
+	reg.SetMode(ctx, registrycontext.GlobalContext, "", "READONLY_OVERRIDE", true)
+
+	mode, err := reg.GetMode(ctx, ".myctx", "my-subject")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if mode != "READONLY_OVERRIDE" {
+		t.Errorf("expected READONLY_OVERRIDE (kill switch via __GLOBAL), got %s", mode)
+	}
+}
+
+func TestGetMode_ReadOnlyOverride_NotActiveWhenNotSet(t *testing.T) {
+	reg := setupTestRegistry("NONE")
+	ctx := context.Background()
+
+	// Set READONLY on default context (NOT READONLY_OVERRIDE)
+	reg.SetMode(ctx, ".", "", "READONLY", true)
+	// Set READWRITE on named context subject
+	reg.SetMode(ctx, ".myctx", "my-subject", "READWRITE", false)
+
+	mode, err := reg.GetMode(ctx, ".myctx", "my-subject")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// READONLY (not OVERRIDE) should NOT trigger the kill switch
+	if mode != "READWRITE" {
+		t.Errorf("expected READWRITE (READONLY is not override), got %s", mode)
+	}
+}
+
+// --- GetGlobalConfigDirect / GetGlobalModeDirect Tests ---
+
+func TestGetGlobalConfigDirect_ReturnsContextConfig(t *testing.T) {
+	reg := setupTestRegistry("BACKWARD")
+	ctx := context.Background()
+
+	reg.SetConfig(ctx, ".myctx", "", "FULL", nil)
+	reg.SetConfig(ctx, registrycontext.GlobalContext, "", "NONE", nil)
+
+	config, err := reg.GetGlobalConfigDirect(ctx, ".myctx")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if config.CompatibilityLevel != "FULL" {
+		t.Errorf("expected FULL (context config, no __GLOBAL fallback), got %s", config.CompatibilityLevel)
+	}
+}
+
+func TestGetGlobalConfigDirect_ReturnsDefaultWhenUnset(t *testing.T) {
+	reg := setupTestRegistry("BACKWARD")
+	ctx := context.Background()
+
+	// Set __GLOBAL config but NOT context-level
+	reg.SetConfig(ctx, registrycontext.GlobalContext, "", "NONE", nil)
+
+	config, err := reg.GetGlobalConfigDirect(ctx, ".myctx")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// Should return server default, NOT __GLOBAL
+	if config.CompatibilityLevel != "BACKWARD" {
+		t.Errorf("expected BACKWARD (server default, no __GLOBAL fallback), got %s", config.CompatibilityLevel)
+	}
+}
+
+func TestGetGlobalModeDirect_ReturnsContextMode(t *testing.T) {
+	reg := setupTestRegistry("NONE")
+	ctx := context.Background()
+
+	reg.SetMode(ctx, ".myctx", "", "IMPORT", true)
+	reg.SetMode(ctx, registrycontext.GlobalContext, "", "READONLY", true)
+
+	mode, err := reg.GetGlobalModeDirect(ctx, ".myctx")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if mode != "IMPORT" {
+		t.Errorf("expected IMPORT (context mode, no __GLOBAL fallback), got %s", mode)
+	}
+}
+
+func TestGetGlobalModeDirect_ReturnsDefaultWhenUnset(t *testing.T) {
+	reg := setupTestRegistry("NONE")
+	ctx := context.Background()
+
+	// Set __GLOBAL mode but NOT context-level
+	reg.SetMode(ctx, registrycontext.GlobalContext, "", "READONLY", true)
+
+	mode, err := reg.GetGlobalModeDirect(ctx, ".myctx")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// Should return server default, NOT __GLOBAL
+	if mode != "READWRITE" {
+		t.Errorf("expected READWRITE (server default, no __GLOBAL fallback), got %s", mode)
+	}
+}
+
+// --- ListContexts Filtering Tests ---
+
+func TestListContexts_FiltersGlobal(t *testing.T) {
+	reg := setupTestRegistry("NONE")
+	ctx := context.Background()
+
+	// Create schemas in named contexts to make them appear in list
+	schema := `{"type":"record","name":"Test","fields":[{"name":"id","type":"int"}]}`
+	reg.RegisterSchema(ctx, ".ctxA", "test-subject", schema, storage.SchemaTypeAvro, nil)
+	reg.RegisterSchema(ctx, ".ctxB", "test-subject", schema, storage.SchemaTypeAvro, nil)
+
+	// Set config on __GLOBAL (creates the context in storage)
+	reg.SetConfig(ctx, registrycontext.GlobalContext, "", "FULL", nil)
+
+	contexts, err := reg.ListContexts(ctx)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	for _, c := range contexts {
+		if c == registrycontext.GlobalContext {
+			t.Error("ListContexts should not include __GLOBAL context")
+		}
+	}
+}
+
+func TestListContexts_IncludesNamedContexts(t *testing.T) {
+	reg := setupTestRegistry("NONE")
+	ctx := context.Background()
+
+	schema := `{"type":"record","name":"Test","fields":[{"name":"id","type":"int"}]}`
+	reg.RegisterSchema(ctx, ".ctxA", "test-subject", schema, storage.SchemaTypeAvro, nil)
+	reg.RegisterSchema(ctx, ".ctxB", "test-subject", schema, storage.SchemaTypeAvro, nil)
+
+	contexts, err := reg.ListContexts(ctx)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	found := make(map[string]bool)
+	for _, c := range contexts {
+		found[c] = true
+	}
+	if !found[".ctxA"] {
+		t.Error("expected .ctxA in contexts list")
+	}
+	if !found[".ctxB"] {
+		t.Error("expected .ctxB in contexts list")
+	}
+}
+
+// --- DeleteConfig/DeleteMode Empty Subject Routing Tests ---
+
+func TestDeleteConfig_EmptySubjectRoutesToGlobal(t *testing.T) {
+	reg := setupTestRegistry("BACKWARD")
+	ctx := context.Background()
+
+	reg.SetConfig(ctx, ".myctx", "", "FULL", nil)
+
+	prev, err := reg.DeleteConfig(ctx, ".myctx", "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if prev != "FULL" {
+		t.Errorf("expected FULL as previous config, got %s", prev)
+	}
+
+	// After delete, should fall through to server default
+	level, err := reg.GetConfig(ctx, ".myctx", "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if level != "BACKWARD" {
+		t.Errorf("expected BACKWARD (server default after delete), got %s", level)
+	}
+}
+
+func TestDeleteMode_EmptySubjectRoutesToGlobal(t *testing.T) {
+	reg := setupTestRegistry("NONE")
+	ctx := context.Background()
+
+	reg.SetMode(ctx, ".myctx", "", "READONLY", true)
+
+	prev, err := reg.DeleteMode(ctx, ".myctx", "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if prev != "READONLY" {
+		t.Errorf("expected READONLY as previous mode, got %s", prev)
+	}
+
+	// After delete, should fall through to server default
+	mode, err := reg.GetMode(ctx, ".myctx", "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if mode != "READWRITE" {
+		t.Errorf("expected READWRITE (server default after delete), got %s", mode)
+	}
+}
+
+// --- GetConfigFull 4-Tier Tests ---
+
+func TestGetConfigFull_4Tier_FullChain(t *testing.T) {
+	reg := setupTestRegistry("BACKWARD")
+	ctx := context.Background()
+
+	// Set up full chain
+	reg.SetConfig(ctx, registrycontext.GlobalContext, "", "NONE", nil)
+	reg.SetConfig(ctx, ".myctx", "", "FULL", nil)
+	reg.SetConfig(ctx, ".myctx", "my-subject", "FORWARD", nil)
+
+	// Should get subject-level
+	config, err := reg.GetConfigFull(ctx, ".myctx", "my-subject")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if config.CompatibilityLevel != "FORWARD" {
+		t.Errorf("expected FORWARD (subject-level), got %s", config.CompatibilityLevel)
+	}
+
+	// Delete subject config, should get context-level
+	reg.DeleteConfig(ctx, ".myctx", "my-subject")
+	config, err = reg.GetConfigFull(ctx, ".myctx", "my-subject")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if config.CompatibilityLevel != "FULL" {
+		t.Errorf("expected FULL (context-level), got %s", config.CompatibilityLevel)
+	}
+
+	// Delete context config, should get __GLOBAL
+	reg.DeleteConfig(ctx, ".myctx", "")
+	config, err = reg.GetConfigFull(ctx, ".myctx", "my-subject")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if config.CompatibilityLevel != "NONE" {
+		t.Errorf("expected NONE (__GLOBAL), got %s", config.CompatibilityLevel)
+	}
+
+	// Delete __GLOBAL config, should get server default
+	reg.DeleteConfig(ctx, registrycontext.GlobalContext, "")
+	config, err = reg.GetConfigFull(ctx, ".myctx", "my-subject")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if config.CompatibilityLevel != "BACKWARD" {
+		t.Errorf("expected BACKWARD (server default), got %s", config.CompatibilityLevel)
 	}
 }

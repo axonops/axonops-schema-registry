@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/go-chi/chi/v5"
@@ -187,6 +188,113 @@ func TestResolveSubjectAndContext_EmptySubject(t *testing.T) {
 	gotCtx, gotSubject := resolveSubjectAndContext(req)
 	if gotCtx != registrycontext.DefaultContext {
 		t.Errorf("expected default context %q, got %q", registrycontext.DefaultContext, gotCtx)
+	}
+	if gotSubject != "" {
+		t.Errorf("expected empty subject, got %q", gotSubject)
+	}
+}
+
+// --- rejectGlobalContext ---
+
+func TestRejectGlobalContext_BlocksGlobal(t *testing.T) {
+	w := httptest.NewRecorder()
+	blocked := rejectGlobalContext(w, registrycontext.GlobalContext)
+	if !blocked {
+		t.Error("expected rejectGlobalContext to return true for __GLOBAL context")
+	}
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected status 400, got %d", w.Code)
+	}
+	// Check that the response body contains the error message
+	body := w.Body.String()
+	if !strings.Contains(body, "not permitted") {
+		t.Errorf("expected error message to contain 'not permitted', got: %s", body)
+	}
+}
+
+func TestRejectGlobalContext_AllowsDefault(t *testing.T) {
+	w := httptest.NewRecorder()
+	blocked := rejectGlobalContext(w, registrycontext.DefaultContext)
+	if blocked {
+		t.Error("expected rejectGlobalContext to return false for default context")
+	}
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200 (no write), got %d", w.Code)
+	}
+}
+
+func TestRejectGlobalContext_AllowsNamedContext(t *testing.T) {
+	w := httptest.NewRecorder()
+	blocked := rejectGlobalContext(w, ".production")
+	if blocked {
+		t.Error("expected rejectGlobalContext to return false for named context")
+	}
+}
+
+// --- resolveSubjectAndContext with __GLOBAL qualified subject ---
+
+func TestResolveSubjectAndContext_GlobalContextQualified(t *testing.T) {
+	// A qualified subject ":.__GLOBAL:my-subject" should resolve to the
+	// __GLOBAL context with "my-subject" as the subject.
+	r := chi.NewRouter()
+	var gotCtx, gotSubject string
+	r.Get("/subjects/{subject}/versions", func(w http.ResponseWriter, r *http.Request) {
+		gotCtx, gotSubject = resolveSubjectAndContext(r)
+		w.WriteHeader(http.StatusOK)
+	})
+
+	req := httptest.NewRequest("GET", "/subjects/:.__GLOBAL:my-subject/versions", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if gotCtx != registrycontext.GlobalContext {
+		t.Errorf("expected __GLOBAL context %q, got %q", registrycontext.GlobalContext, gotCtx)
+	}
+	if gotSubject != "my-subject" {
+		t.Errorf("expected subject %q, got %q", "my-subject", gotSubject)
+	}
+}
+
+func TestResolveSubjectAndContext_QualifiedEmptySubject(t *testing.T) {
+	// A qualified subject ":.myctx:" (empty subject) should resolve to
+	// context ".myctx" with empty subject. This is used for context-level
+	// config/mode operations via qualified subject names.
+	r := chi.NewRouter()
+	var gotCtx, gotSubject string
+	r.Get("/config/{subject}", func(w http.ResponseWriter, r *http.Request) {
+		gotCtx, gotSubject = resolveSubjectAndContext(r)
+		w.WriteHeader(http.StatusOK)
+	})
+
+	req := httptest.NewRequest("GET", "/config/:.myctx:", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if gotCtx != ".myctx" {
+		t.Errorf("expected context %q, got %q", ".myctx", gotCtx)
+	}
+	if gotSubject != "" {
+		t.Errorf("expected empty subject, got %q", gotSubject)
+	}
+}
+
+func TestResolveSubjectAndContext_GlobalContextEmptySubject(t *testing.T) {
+	// A qualified subject ":.__GLOBAL:" should resolve to __GLOBAL context
+	// with empty subject. This is how config/mode operations are performed
+	// on the __GLOBAL context via the root endpoint.
+	r := chi.NewRouter()
+	var gotCtx, gotSubject string
+	r.Get("/config/{subject}", func(w http.ResponseWriter, r *http.Request) {
+		gotCtx, gotSubject = resolveSubjectAndContext(r)
+		w.WriteHeader(http.StatusOK)
+	})
+
+	req := httptest.NewRequest("GET", "/config/:.__GLOBAL:", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if gotCtx != registrycontext.GlobalContext {
+		t.Errorf("expected __GLOBAL context %q, got %q", registrycontext.GlobalContext, gotCtx)
 	}
 	if gotSubject != "" {
 		t.Errorf("expected empty subject, got %q", gotSubject)
