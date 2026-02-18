@@ -144,6 +144,9 @@ func (h *Handler) GetSchemaTypes(w http.ResponseWriter, r *http.Request) {
 // GetSchemaByID handles GET /schemas/ids/{id}
 func (h *Handler) GetSchemaByID(w http.ResponseWriter, r *http.Request) {
 	registryCtx := getRegistryContext(r)
+	if rejectGlobalContext(w, registryCtx) {
+		return
+	}
 
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
@@ -188,6 +191,9 @@ func (h *Handler) GetSchemaByID(w http.ResponseWriter, r *http.Request) {
 // ListSubjects handles GET /subjects
 func (h *Handler) ListSubjects(w http.ResponseWriter, r *http.Request) {
 	registryCtx := getRegistryContext(r)
+	if rejectGlobalContext(w, registryCtx) {
+		return
+	}
 	deleted := r.URL.Query().Get("deleted") == "true"
 	deletedOnly := r.URL.Query().Get("deletedOnly") == "true"
 	subjectPrefix := r.URL.Query().Get("subjectPrefix")
@@ -258,6 +264,9 @@ func (h *Handler) ListSubjects(w http.ResponseWriter, r *http.Request) {
 // GetVersions handles GET /subjects/{subject}/versions
 func (h *Handler) GetVersions(w http.ResponseWriter, r *http.Request) {
 	registryCtx, subject := resolveSubjectAndContext(r)
+	if rejectGlobalContext(w, registryCtx) {
+		return
+	}
 	subject = h.resolveAlias(r.Context(), registryCtx, subject)
 	deleted := r.URL.Query().Get("deleted") == "true"
 	deletedOnly := r.URL.Query().Get("deletedOnly") == "true"
@@ -302,6 +311,9 @@ func (h *Handler) GetVersions(w http.ResponseWriter, r *http.Request) {
 // GetVersion handles GET /subjects/{subject}/versions/{version}
 func (h *Handler) GetVersion(w http.ResponseWriter, r *http.Request) {
 	registryCtx, subject := resolveSubjectAndContext(r)
+	if rejectGlobalContext(w, registryCtx) {
+		return
+	}
 	subject = h.resolveAlias(r.Context(), registryCtx, subject)
 	versionStr := chi.URLParam(r, "version")
 
@@ -415,6 +427,9 @@ func (h *Handler) isSubjectFullyDeleted(ctx context.Context, registryCtx string,
 // RegisterSchema handles POST /subjects/{subject}/versions
 func (h *Handler) RegisterSchema(w http.ResponseWriter, r *http.Request) {
 	registryCtx, subject := resolveSubjectAndContext(r)
+	if rejectGlobalContext(w, registryCtx) {
+		return
+	}
 	subject = h.resolveAlias(r.Context(), registryCtx, subject)
 
 	// Check mode enforcement
@@ -506,6 +521,9 @@ func (h *Handler) RegisterSchema(w http.ResponseWriter, r *http.Request) {
 // LookupSchema handles POST /subjects/{subject}
 func (h *Handler) LookupSchema(w http.ResponseWriter, r *http.Request) {
 	registryCtx, subject := resolveSubjectAndContext(r)
+	if rejectGlobalContext(w, registryCtx) {
+		return
+	}
 	subject = h.resolveAlias(r.Context(), registryCtx, subject)
 	deleted := r.URL.Query().Get("deleted") == "true"
 
@@ -563,6 +581,9 @@ func (h *Handler) LookupSchema(w http.ResponseWriter, r *http.Request) {
 // DeleteSubject handles DELETE /subjects/{subject}
 func (h *Handler) DeleteSubject(w http.ResponseWriter, r *http.Request) {
 	registryCtx, subject := resolveSubjectAndContext(r)
+	if rejectGlobalContext(w, registryCtx) {
+		return
+	}
 	subject = h.resolveAlias(r.Context(), registryCtx, subject)
 	permanent := r.URL.Query().Get("permanent") == "true"
 
@@ -606,6 +627,9 @@ func (h *Handler) DeleteSubject(w http.ResponseWriter, r *http.Request) {
 // DeleteVersion handles DELETE /subjects/{subject}/versions/{version}
 func (h *Handler) DeleteVersion(w http.ResponseWriter, r *http.Request) {
 	registryCtx, subject := resolveSubjectAndContext(r)
+	if rejectGlobalContext(w, registryCtx) {
+		return
+	}
 	subject = h.resolveAlias(r.Context(), registryCtx, subject)
 	versionStr := chi.URLParam(r, "version")
 	permanent := r.URL.Query().Get("permanent") == "true"
@@ -666,7 +690,7 @@ func (h *Handler) GetConfig(w http.ResponseWriter, r *http.Request) {
 	defaultToGlobal := r.URL.Query().Get("defaultToGlobal") == "true"
 
 	if subject != "" && !defaultToGlobal {
-		// Subject-specific config only, no fallback to global
+		// Subject-specific config only, no fallback
 		config, err := h.registry.GetSubjectConfigFull(r.Context(), registryCtx, subject)
 		if err != nil {
 			if errors.Is(err, storage.ErrNotFound) {
@@ -691,7 +715,16 @@ func (h *Handler) GetConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	config, err := h.registry.GetConfigFull(r.Context(), registryCtx, subject)
+	// When subject is empty and defaultToGlobal is false, return context's direct
+	// global config without the __GLOBAL fallback (Confluent-compatible).
+	// When defaultToGlobal is true (or subject is non-empty), use the full 4-tier chain.
+	var config *storage.ConfigRecord
+	var err error
+	if subject == "" && !defaultToGlobal {
+		config, err = h.registry.GetGlobalConfigDirect(r.Context(), registryCtx)
+	} else {
+		config, err = h.registry.GetConfigFull(r.Context(), registryCtx, subject)
+	}
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
 		return
@@ -785,6 +818,9 @@ func (h *Handler) DeleteConfig(w http.ResponseWriter, r *http.Request) {
 // CheckCompatibility handles POST /compatibility/subjects/{subject}/versions/{version}
 func (h *Handler) CheckCompatibility(w http.ResponseWriter, r *http.Request) {
 	registryCtx, subject := resolveSubjectAndContext(r)
+	if rejectGlobalContext(w, registryCtx) {
+		return
+	}
 	subject = h.resolveAlias(r.Context(), registryCtx, subject)
 	versionStr := chi.URLParam(r, "version")
 
@@ -847,6 +883,9 @@ func (h *Handler) CheckCompatibility(w http.ResponseWriter, r *http.Request) {
 // GetReferencedBy handles GET /subjects/{subject}/versions/{version}/referencedby
 func (h *Handler) GetReferencedBy(w http.ResponseWriter, r *http.Request) {
 	registryCtx, subject := resolveSubjectAndContext(r)
+	if rejectGlobalContext(w, registryCtx) {
+		return
+	}
 	subject = h.resolveAlias(r.Context(), registryCtx, subject)
 	versionStr := chi.URLParam(r, "version")
 
@@ -915,7 +954,15 @@ func (h *Handler) GetMode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	mode, err := h.registry.GetMode(r.Context(), registryCtx, subject)
+	// When subject is empty and defaultToGlobal is false, return context's direct
+	// global mode without the __GLOBAL fallback (Confluent-compatible).
+	var mode string
+	var err error
+	if subject == "" && !defaultToGlobal {
+		mode, err = h.registry.GetGlobalModeDirect(r.Context(), registryCtx)
+	} else {
+		mode, err = h.registry.GetMode(r.Context(), registryCtx, subject)
+	}
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
 		return
@@ -1017,6 +1064,9 @@ func writeError(w http.ResponseWriter, status int, code int, message string) {
 // GetRawSchemaByID handles GET /schemas/ids/{id}/schema
 func (h *Handler) GetRawSchemaByID(w http.ResponseWriter, r *http.Request) {
 	registryCtx := getRegistryContext(r)
+	if rejectGlobalContext(w, registryCtx) {
+		return
+	}
 
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
@@ -1049,6 +1099,9 @@ func (h *Handler) GetRawSchemaByID(w http.ResponseWriter, r *http.Request) {
 // GetSubjectsBySchemaID handles GET /schemas/ids/{id}/subjects
 func (h *Handler) GetSubjectsBySchemaID(w http.ResponseWriter, r *http.Request) {
 	registryCtx := getRegistryContext(r)
+	if rejectGlobalContext(w, registryCtx) {
+		return
+	}
 
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
@@ -1092,6 +1145,9 @@ func (h *Handler) GetSubjectsBySchemaID(w http.ResponseWriter, r *http.Request) 
 // GetVersionsBySchemaID handles GET /schemas/ids/{id}/versions
 func (h *Handler) GetVersionsBySchemaID(w http.ResponseWriter, r *http.Request) {
 	registryCtx := getRegistryContext(r)
+	if rejectGlobalContext(w, registryCtx) {
+		return
+	}
 
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
@@ -1133,6 +1189,9 @@ func (h *Handler) GetVersionsBySchemaID(w http.ResponseWriter, r *http.Request) 
 // ListSchemas handles GET /schemas
 func (h *Handler) ListSchemas(w http.ResponseWriter, r *http.Request) {
 	registryCtx := getRegistryContext(r)
+	if rejectGlobalContext(w, registryCtx) {
+		return
+	}
 
 	params := &storage.ListSchemasParams{
 		SubjectPrefix: r.URL.Query().Get("subjectPrefix"),
@@ -1177,6 +1236,9 @@ func (h *Handler) ListSchemas(w http.ResponseWriter, r *http.Request) {
 // ImportSchemas handles POST /import/schemas
 func (h *Handler) ImportSchemas(w http.ResponseWriter, r *http.Request) {
 	registryCtx := getRegistryContext(r)
+	if rejectGlobalContext(w, registryCtx) {
+		return
+	}
 
 	// Bulk import requires IMPORT mode (Confluent behavior)
 	mode, modeErr := h.registry.GetMode(r.Context(), registryCtx, "")
@@ -1263,6 +1325,9 @@ func (h *Handler) ImportSchemas(w http.ResponseWriter, r *http.Request) {
 // GetRawSchemaByVersion handles GET /subjects/{subject}/versions/{version}/schema
 func (h *Handler) GetRawSchemaByVersion(w http.ResponseWriter, r *http.Request) {
 	registryCtx, subject := resolveSubjectAndContext(r)
+	if rejectGlobalContext(w, registryCtx) {
+		return
+	}
 	subject = h.resolveAlias(r.Context(), registryCtx, subject)
 	versionStr := chi.URLParam(r, "version")
 

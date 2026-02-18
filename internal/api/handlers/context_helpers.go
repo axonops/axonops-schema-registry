@@ -1,10 +1,12 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/axonops/axonops-schema-registry/internal/api/types"
 	registrycontext "github.com/axonops/axonops-schema-registry/internal/context"
 )
 
@@ -36,4 +38,16 @@ func resolveSubjectAndContext(r *http.Request) (registryCtx string, subject stri
 
 	// Fall back to URL path context (from middleware) or default
 	return getRegistryContext(r), rawSubject
+}
+
+// rejectGlobalContext returns true (and writes an error response) if the registry context
+// is the __GLOBAL context. Schema and subject operations are not permitted on __GLOBAL;
+// only config and mode operations are allowed (Confluent-compatible).
+func rejectGlobalContext(w http.ResponseWriter, registryCtx string) bool {
+	if registrycontext.IsGlobalContext(registryCtx) {
+		writeError(w, http.StatusBadRequest, types.ErrorCodeOperationNotPermitted,
+			fmt.Sprintf("Subject operations are not permitted on the %s context", registrycontext.GlobalContext))
+		return true
+	}
+	return false
 }
