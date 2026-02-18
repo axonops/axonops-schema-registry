@@ -3,7 +3,7 @@
 **Branch:** `feature/contextsupport`
 **Issue:** https://github.com/axonops/axonops-schema-registry/issues/264
 **Plan:** `/Users/johnny/.claude/plans/eventual-plotting-garden.md`
-**Last Updated:** 2026-02-17
+**Last Updated:** 2026-02-18
 
 ## Overall Status: ALL PHASES COMPLETE
 
@@ -18,8 +18,8 @@
 | 7 | PostgreSQL backend | DONE | 23 migrations (17-39), all SQL queries scoped by registry_ctx, per-context IDs via ctx_id_alloc |
 | 8 | MySQL backend | DONE | Migrations 22-40, all SQL scoped by registry_ctx, ctx_id_alloc per-context IDs |
 | 9 | Cassandra backend | DONE | All tables with registry_ctx in PK, SAI indexes, block-based per-context IDs, backfill |
-| 10 | BDD tests (~72 scenarios) | DONE | 78 scenarios across 7 feature files, all 1451 BDD scenarios pass |
-| 11 | Unit tests | DONE | 41 new tests across 5 files (memory store, registry, handlers, middleware, server) |
+| 10 | BDD tests (155 scenarios) | DONE | 155 scenarios across 13 feature files, all 1535 BDD scenarios pass |
+| 11 | Unit tests (56 tests) | DONE | 56 new tests across 5 files (memory store, registry, handlers, middleware, server) |
 | 12 | OpenAPI spec | DONE | Updated GET /contexts description, added Contexts tag, updated examples |
 | 13 | Documentation | DONE | docs/contexts.md (341 lines), README.md updated |
 
@@ -136,31 +136,58 @@
 ### Conformance Tests
 - [x] All 5 conformance test files updated with `registryCtx` parameter (`"."`)
 
-### Phase 10: BDD Tests
+### Phase 10: BDD Tests (155 scenarios across 13 feature files)
 - [x] `contexts.feature` — 10 scenarios: core behavior, context listing, implicit creation, sorted list, case-sensitivity, basic isolation, delete
 - [x] `contexts_isolation.feature` — 12 scenarios: schema ID isolation, version isolation, subject listing scoped, delete isolation, permanent delete isolation, lookup isolation, soft-delete isolation, fingerprint dedup per-context, default vs named context isolation
 - [x] `contexts_operations.feature` — 15 scenarios: register/retrieve, latest version, list versions, lookup, soft delete, permanent delete, version delete, compatibility check, subjects by schema ID, idempotent re-registration, 404 cases, schema types
 - [x] `contexts_config_mode.feature` — 9 scenarios: set/get/delete config, set/get/delete mode, config isolation between contexts, backward enforcement, incompatible rejection, NONE allows any
 - [x] `contexts_schema_types.feature` — 8 scenarios: Avro/Protobuf/JSON Schema registration and compat in contexts, mixed types, cross-context same type
 - [x] `contexts_edge_cases.feature` — 11 scenarios: valid context names (alphanumeric, hyphens, dots, underscores), schema dedup, 404 on non-existent context subjects, sequential IDs
-- [x] `contexts_url_routing.feature` — 13 scenarios (`@axonops-only`): register/retrieve/latest/list/lookup/delete via URL prefix, config/mode via URL prefix, compat via URL prefix, schema by ID via URL prefix, cross-validation
+- [x] `contexts_url_routing.feature` — 13 scenarios: register/retrieve/latest/list/lookup/delete via URL prefix, config/mode via URL prefix, compat via URL prefix, schema by ID via URL prefix, cross-validation (Confluent-compatible, `@axonops-only` removed)
+- [x] `contexts_schema_evolution.feature` — 11 scenarios: multi-version Avro evolution, BACKWARD/FORWARD/FULL/TRANSITIVE enforcement, version deletion, independent evolution paths, idempotent re-registration, compat checks against specific/latest/all versions
+- [x] `contexts_references.feature` — 8 scenarios: Avro/Protobuf references within contexts, referencedby endpoint, cross-context reference isolation, delete blocked by references, raw schema endpoint, schema version detail with references
+- [x] `contexts_advanced_api.feature` — 17 scenarios: raw schema endpoint, lookup, cross-context lookup isolation, deleted subjects listing, fingerprint dedup, latest version tracking, version listing, subject scoping, schema types, compatibility checks, 404 errors
+- [x] `contexts_config_mode_advanced.feature` — 12 scenarios: per-context config enforcement, per-subject override, config delete fallback to server default, READONLY mode enforcement, READWRITE after mode change, mode isolation, config leak prevention, global mode on default context, per-subject mode override, mode delete restore, compat check respects config, BACKWARD enforcement
+- [x] `contexts_real_world.feature` — 12 scenarios: multi-team isolation, environment separation (dev/staging/prod), schema linking simulation, hierarchical context naming, default context coexistence, large context count (10+), migration workflow, context cleanup lifecycle, different evolution speed, config/mode isolation real-world
+- [x] `contexts_validation.feature` — 17 scenarios: invalid context names (!, space, @, #, %), valid characters, default context behavior, implicit context creation, error conditions (404 for subjects/versions/config/mode/compat)
 - [x] 2 new step definitions in `schema_steps.go`: variable NOT-equal comparison, array NOT-contain
-- [x] All 1451 BDD scenarios pass (78 new + 1373 existing)
+- [x] All 1535 BDD scenarios pass (155 context + 1380 existing)
+- [x] All 155 context scenarios are Confluent-compatible (`@functional` only, no `@axonops-only`)
 
-### Phase 11: Unit Tests
-- [x] `internal/storage/memory/store_test.go` — 9 tests: schema/subject/config/mode isolation, per-context IDs, fingerprint dedup, ListContexts, default context, delete isolation
-- [x] `internal/registry/registry_test.go` — 8 tests: RegisterSchema independent contexts, GetSchemaByID/ListSubjects/LookupSchema/CheckCompatibility context-scoped, config/mode/delete isolation
+### Phase 11: Unit Tests (56 tests across 5 files)
+- [x] `internal/storage/memory/store_test.go` — 22 tests: schema/subject/config/mode isolation, per-context IDs, fingerprint dedup, ListContexts, default context, delete isolation, GetSchemasBySubject, DeleteSchema, SubjectExists, DeleteConfig, DeleteMode, GetSchemaByFingerprint, GetSchemaByGlobalFingerprint, GetReferencedBy, GetSubjectsBySchemaID, GetVersionsBySchemaID, ListSchemas, DeleteGlobalConfig, GetMaxSchemaID
+- [x] `internal/registry/registry_test.go` — 10 tests: RegisterSchema independent contexts, GetSchemaByID/ListSubjects/LookupSchema/CheckCompatibility context-scoped, config/mode/delete isolation, ListContexts, GetSchemasBySubject context-scoped
 - [x] `internal/api/handlers/context_helpers_test.go` — 8 tests: getRegistryContext default/middleware, resolveSubjectAndContext plain/qualified/URL/override
 - [x] `internal/api/context_middleware_test.go` — 8 tests: set context, normalize, default mapping, invalid rejection, dash/underscore, dot-prefix
 - [x] `internal/api/server_test.go` — 6 tests: GET /contexts default/after-registration, qualified subject register/retrieve, subject/schema ID isolation
-- [x] All 41 new tests pass with zero regressions
+- [x] Plus 2 extra tests in server_test.go from main merge (health check)
+- [x] All 56 new context tests pass with zero regressions
 
 ## Compilation & Test Status
 
 - `go build ./...` — PASSES
-- `go test ./internal/...` — ALL PASS
-- `go test -tags bdd ./tests/bdd/...` — ALL 1451 SCENARIOS PASS
+- `go test ./internal/...` — ALL PASS (56 new context unit tests)
+- `go test -tags bdd ./tests/bdd/...` — ALL 1535 SCENARIOS PASS (155 context BDD scenarios)
 - Tests only exercise memory store (no DB backend tests without running databases)
+
+## Unit Test Coverage (context-related packages)
+
+| Package | Coverage |
+|---------|----------|
+| `internal/context/` | 100% |
+| `internal/api/` | 78% |
+| `internal/registry/` | 63.1% |
+| `internal/storage/memory/` | 62.0% |
+
+Key context functions all at 100%: `WithRegistryContext`, `RegistryContextFromRequest`, `ResolveSubject`, `FormatSubject`, `IsValidContextName`, `NormalizeContextName`, `contextExtractionMiddleware`, `newContextStore`, `getOrCreateContext`, `getContext`, `ListContexts`, `SubjectExists`, `GetMaxSchemaID`
+
+## Behavioral Findings
+
+1. **Global config/mode is per-context, NOT truly global** — `PUT /config` and `PUT /mode` at root only affect the default context `"."`. Named contexts do NOT inherit root-level global config/mode. When a named context has no per-subject config and no per-context global config, the fallback is the server startup default (`BACKWARD` for compat, `READWRITE` for mode). This matches Confluent's statement: "there is no global compatibility across contexts."
+
+2. **API returns plain subject names** — `GET /subjects/:.ctx:subj/versions/1` returns `"subject": "subj"` (plain), not `"subject": ":.ctx:subj"` (qualified). The context is separate from the subject name.
+
+3. **Compat check on non-existent subject with "latest" returns is_compatible:true** — When there are no existing versions, there's nothing to be incompatible with (vacuous truth). Using a specific version (e.g., `/versions/1`) correctly returns 404.
 
 ## Git Commits
 
@@ -179,6 +206,9 @@
 | `ba37496` | test(contexts): add 41 unit tests for context isolation across all layers |
 | `ec7aa9f` | docs(contexts): update OpenAPI spec with context support documentation |
 | `6dedc3c` | docs(contexts): add comprehensive context documentation and update README |
+| `432c6b4` | Merge remote-tracking branch 'origin/main' into feature/contextsupport |
+| `4af351c` | test(contexts): add 77 BDD scenarios for comprehensive context coverage |
+| `6cdac44` | fix(contexts): correct BDD scenarios, add 15 unit tests, enable URL routing for Confluent |
 
 ## Key Design Decisions
 
