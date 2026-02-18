@@ -2,8 +2,9 @@
 Feature: READONLY Enforcement and Permanent Delete Restrictions
   READONLY and READONLY_OVERRIDE modes block data mutations (schema registration,
   subject deletion, version deletion) but do NOT block config or mode changes.
-  This matches Confluent Schema Registry behavior where mode/config endpoints
-  remain writable even in READONLY mode.
+  Note: Confluent Schema Registry blocks config writes in READONLY mode but
+  allows mode changes. AxonOps intentionally allows both config and mode
+  changes in READONLY mode (marked @axonops-only where behavior diverges).
 
   Additionally, permanent delete of version "latest" should not be allowed —
   only explicit numeric version numbers can be permanently deleted.

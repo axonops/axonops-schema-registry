@@ -57,7 +57,6 @@ Feature: Schema & Subject Deletion — Exhaustive (Confluent v8.1.1 Compatibilit
       """
     Then the response status should be 404
 
-  @axonops-only
   Scenario: Lookup soft-deleted schema succeeds with deleted=true
     Given subject "del-ex-lookup2" has schema:
       """
@@ -281,7 +280,6 @@ Feature: Schema & Subject Deletion — Exhaustive (Confluent v8.1.1 Compatibilit
   # soft-deleted schema should be returned.
   # ==========================================================================
 
-  @axonops-only
   Scenario: GET latest returns 404 after all versions soft-deleted
     Given the global compatibility level is "NONE"
     And subject "del-ex-latest-del" has schema:
