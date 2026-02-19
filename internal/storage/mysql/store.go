@@ -401,6 +401,11 @@ func (s *Store) migrate(ctx context.Context) error {
 			if isMySQLCantDropError(err) {
 				continue
 			}
+			// Ignore "Duplicate key name" errors from CREATE INDEX
+			// when re-running migrations on an already-migrated database.
+			if isMySQLDuplicateKeyNameError(err) {
+				continue
+			}
 			return fmt.Errorf("migration %d failed: %w", i+1, err)
 		}
 	}
@@ -433,6 +438,16 @@ func isMySQLCantDropError(err error) bool {
 	}
 	errStr := err.Error()
 	return contains(errStr, "Can't DROP") || contains(errStr, "1091")
+}
+
+// isMySQLDuplicateKeyNameError checks if the error is a MySQL "Duplicate key name" error (error code 1061).
+// This happens when trying to CREATE INDEX on an index that already exists.
+func isMySQLDuplicateKeyNameError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errStr := err.Error()
+	return contains(errStr, "Duplicate key name") || contains(errStr, "1061")
 }
 
 // globalSchemaID returns the stable per-context schema ID for a fingerprint.

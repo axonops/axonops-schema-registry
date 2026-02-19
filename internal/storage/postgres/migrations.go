@@ -40,7 +40,9 @@ var migrations = []string{
 	)`,
 
 	// Migration 4: Global configuration (using empty string as subject)
-	`INSERT INTO configs (subject, compatibility_level) VALUES ('', 'BACKWARD') ON CONFLICT (subject) DO NOTHING`,
+	// Uses WHERE NOT EXISTS instead of ON CONFLICT to stay idempotent after the
+	// primary key is later changed from (subject) to (registry_ctx, subject).
+	`INSERT INTO configs (subject, compatibility_level) SELECT '', 'BACKWARD' WHERE NOT EXISTS (SELECT 1 FROM configs WHERE subject = '')`,
 
 	// Migration 5: Mode configuration
 	`CREATE TABLE IF NOT EXISTS modes (
@@ -49,7 +51,7 @@ var migrations = []string{
 	)`,
 
 	// Migration 6: Global mode
-	`INSERT INTO modes (subject, mode) VALUES ('', 'READWRITE') ON CONFLICT (subject) DO NOTHING`,
+	`INSERT INTO modes (subject, mode) SELECT '', 'READWRITE' WHERE NOT EXISTS (SELECT 1 FROM modes WHERE subject = '')`,
 
 	// Migration 7: Schema versions view for efficient lookups
 	`CREATE OR REPLACE VIEW schema_versions AS
@@ -213,14 +215,18 @@ var migrations = []string{
 	// Migration 38: Index for context-scoped queries on schemas.
 	`CREATE INDEX IF NOT EXISTS idx_schemas_registry_ctx ON schemas(registry_ctx)`,
 
-	// Migration 39: Update schema_versions view to include registry_ctx.
-	`CREATE OR REPLACE VIEW schema_versions AS
+	// Migration 39: Drop the old schema_versions view before recreating.
+	// PostgreSQL cannot rename columns via CREATE OR REPLACE VIEW.
+	`DROP VIEW IF EXISTS schema_versions`,
+
+	// Migration 40: Recreate schema_versions view with registry_ctx.
+	`CREATE VIEW schema_versions AS
 	SELECT registry_ctx, subject, MAX(version) as latest_version, COUNT(*) as version_count
 	FROM schemas
 	WHERE deleted = FALSE
 	GROUP BY registry_ctx, subject`,
 
-	// Migration 40: Relax fingerprint uniqueness per subject.
+	// Migration 41: Relax fingerprint uniqueness per subject.
 	// The same schema text (fingerprint) can now appear in multiple versions of
 	// the same subject when metadata or ruleSet differ (Confluent compatibility).
 	// Drop the unique index and replace with a non-unique index for lookups.

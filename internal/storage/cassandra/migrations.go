@@ -308,6 +308,9 @@ func Migrate(session *gocql.Session, keyspace string) error {
 		fmt.Sprintf(`CREATE CUSTOM INDEX IF NOT EXISTS idx_sv_deleted ON %s.subject_versions (deleted) USING 'StorageAttachedIndex'`, qident(keyspace)),
 		// Registry context lookup on subject_latest — enables listing subjects within a context
 		fmt.Sprintf(`CREATE CUSTOM INDEX IF NOT EXISTS idx_sl_registry_ctx ON %s.subject_latest (registry_ctx) USING 'StorageAttachedIndex'`, qident(keyspace)),
+		// Registry context lookup on subject_versions — enables queries by registryCtx+schema_id
+		// without providing the full partition key (registry_ctx, subject).
+		fmt.Sprintf(`CREATE CUSTOM INDEX IF NOT EXISTS idx_sv_registry_ctx ON %s.subject_versions (registry_ctx) USING 'StorageAttachedIndex'`, qident(keyspace)),
 	}
 	for _, stmt := range saiStmts {
 		if err := session.Query(stmt).Exec(); err != nil {
