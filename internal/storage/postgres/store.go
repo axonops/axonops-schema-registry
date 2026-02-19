@@ -591,20 +591,30 @@ func (s *Store) createSchemaAttempt(ctx context.Context, registryCtx string, rec
 	}
 
 	// Insert schema - unique constraint on (registry_ctx, subject, version) prevents duplicates
-	var newRowID int64
-	err = tx.QueryRowContext(ctx,
+	_, err = tx.ExecContext(ctx,
 		`INSERT INTO schemas (registry_ctx, subject, version, schema_type, schema_text, fingerprint, created_at, metadata, ruleset)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
 		registryCtx, record.Subject, nextVersion, record.SchemaType, record.Schema, record.Fingerprint, time.Now(), metadataJSON, rulesetJSON,
-	).Scan(&newRowID)
+	)
 	if err != nil {
 		return fmt.Errorf("failed to insert schema: %w", err)
+	}
+
+	// Allocate per-context schema ID from ctx_id_alloc (within the same tx)
+	var nextCtxID int64
+	err = tx.QueryRowContext(ctx,
+		`INSERT INTO ctx_id_alloc (registry_ctx, next_id)
+		 VALUES ($1, 2)
+		 ON CONFLICT (registry_ctx) DO UPDATE SET next_id = ctx_id_alloc.next_id + 1
+		 RETURNING next_id - 1`, registryCtx).Scan(&nextCtxID)
+	if err != nil {
+		return fmt.Errorf("failed to allocate schema ID: %w", err)
 	}
 
 	// Claim fingerprint in schema_fingerprints (first writer wins, per-context)
 	_, _ = tx.ExecContext(ctx,
 		`INSERT INTO schema_fingerprints (registry_ctx, fingerprint, schema_id) VALUES ($1, $2, $3) ON CONFLICT (registry_ctx, fingerprint) DO NOTHING`,
-		registryCtx, record.Fingerprint, newRowID,
+		registryCtx, record.Fingerprint, nextCtxID,
 	)
 
 	// Resolve stable per-context ID from schema_fingerprints
@@ -658,10 +668,12 @@ func (s *Store) GetSchemaByID(ctx context.Context, registryCtx string, id int64)
 		return nil, storage.ErrSchemaNotFound
 	}
 
-	// Find the schema row by context + fingerprint
+	// Find the schema row by context + fingerprint.
+	// Prefer non-deleted rows but fall back to deleted ones — schema content
+	// must remain accessible by ID even after all subjects are soft-deleted.
 	err := s.db.QueryRowContext(ctx,
 		`SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at, metadata, ruleset
-		 FROM schemas WHERE registry_ctx = $1 AND fingerprint = $2 AND deleted = FALSE ORDER BY id LIMIT 1`,
+		 FROM schemas WHERE registry_ctx = $1 AND fingerprint = $2 ORDER BY deleted ASC, id ASC LIMIT 1`,
 		registryCtx, fingerprint).Scan(
 		&record.ID, &record.Subject, &record.Version, &schemaType,
 		&record.Schema, &record.Fingerprint, &record.Deleted, &record.CreatedAt,

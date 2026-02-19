@@ -260,8 +260,11 @@ func cleanPostgres() error {
 	defer db.Close()
 
 	stmts := []string{
-		"TRUNCATE TABLE api_keys, users, schema_references, schema_fingerprints, schemas, modes, configs CASCADE",
+		"TRUNCATE TABLE api_keys, users, schema_references, schema_fingerprints, schemas, modes, configs, ctx_id_alloc, contexts CASCADE",
 		"ALTER SEQUENCE schemas_id_seq RESTART WITH 1",
+		// Re-seed per-context ID allocation and context for default context
+		"INSERT INTO ctx_id_alloc (registry_ctx, next_id) VALUES ('.', 1) ON CONFLICT (registry_ctx) DO NOTHING",
+		"INSERT INTO contexts (registry_ctx) VALUES ('.') ON CONFLICT DO NOTHING",
 	}
 	for _, s := range stmts {
 		if _, err := db.Exec(s); err != nil {
@@ -281,7 +284,7 @@ func cleanMySQL() error {
 	}
 	defer db.Close()
 
-	tables := []string{"api_keys", "users", "schema_references", "schema_fingerprints", "schemas", "modes", "configs"}
+	tables := []string{"api_keys", "users", "schema_references", "schema_fingerprints", "schemas", "modes", "configs", "ctx_id_alloc", "contexts"}
 	if _, err := db.Exec("SET FOREIGN_KEY_CHECKS = 0"); err != nil {
 		return fmt.Errorf("disable FK checks: %w", err)
 	}
@@ -292,6 +295,13 @@ func cleanMySQL() error {
 	}
 	if _, err := db.Exec("SET FOREIGN_KEY_CHECKS = 1"); err != nil {
 		return fmt.Errorf("enable FK checks: %w", err)
+	}
+	// Re-seed per-context ID allocation and context for default context
+	if _, err := db.Exec("INSERT IGNORE INTO `ctx_id_alloc` (registry_ctx, next_id) VALUES ('.', 1)"); err != nil {
+		return fmt.Errorf("seed ctx_id_alloc: %w", err)
+	}
+	if _, err := db.Exec("INSERT IGNORE INTO `contexts` (registry_ctx) VALUES ('.')"); err != nil {
+		return fmt.Errorf("seed contexts: %w", err)
 	}
 	return nil
 }
@@ -331,7 +341,7 @@ func cleanCassandra() error {
 		"id_alloc", "modes", "global_config", "subject_configs",
 		"references_by_target", "schema_references",
 		"subject_latest", "subject_versions",
-		"schemas_by_id",
+		"schemas_by_id", "contexts",
 	}
 	for _, t := range tables {
 		if err := session.Query("TRUNCATE " + t).Exec(); err != nil {
@@ -346,11 +356,14 @@ func cleanCassandra() error {
 		}
 	}
 
-	// Re-seed id_alloc so GetMaxSchemaID works (block-based allocator
-	// caches IDs in-process, but GetMaxSchemaID reads from the table).
-	if err := session.Query("INSERT INTO id_alloc (name, next_id) VALUES (?, ?)",
-		"schema_id", 1).Exec(); err != nil {
+	// Re-seed id_alloc and default context for the default "." context.
+	if err := session.Query("INSERT INTO id_alloc (registry_ctx, name, next_id) VALUES (?, ?, ?)",
+		".", "schema_id", 1).Exec(); err != nil {
 		return fmt.Errorf("seed id_alloc: %w", err)
+	}
+	if err := session.Query("INSERT INTO contexts (registry_ctx, created_at) VALUES (?, toTimestamp(now()))",
+		".").Exec(); err != nil {
+		return fmt.Errorf("seed contexts: %w", err)
 	}
 	return nil
 }

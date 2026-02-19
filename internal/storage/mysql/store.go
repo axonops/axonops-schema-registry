@@ -597,7 +597,7 @@ func (s *Store) createSchemaAttempt(ctx context.Context, registryCtx string, rec
 	}
 
 	// Insert schema - unique constraint on (registry_ctx, subject, version) prevents duplicates
-	result, err := tx.ExecContext(ctx,
+	_, err = tx.ExecContext(ctx,
 		"INSERT INTO `schemas` (registry_ctx, subject, version, schema_type, schema_text, fingerprint, created_at, metadata, ruleset) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
 		registryCtx, record.Subject, nextVersion, record.SchemaType, record.Schema, record.Fingerprint, time.Now(), metadataJSON, rulesetJSON,
 	)
@@ -605,13 +605,22 @@ func (s *Store) createSchemaAttempt(ctx context.Context, registryCtx string, rec
 		return fmt.Errorf("failed to insert schema: %w", err)
 	}
 
-	// Get the auto-generated ID of the inserted row
-	newRowID, _ := result.LastInsertId()
+	// Allocate per-context schema ID from ctx_id_alloc (within the same tx)
+	_, _ = tx.ExecContext(ctx, "INSERT IGNORE INTO ctx_id_alloc (registry_ctx, next_id) VALUES (?, 1)", registryCtx)
+	var nextCtxID int64
+	err = tx.QueryRowContext(ctx, "SELECT next_id FROM ctx_id_alloc WHERE registry_ctx = ? FOR UPDATE", registryCtx).Scan(&nextCtxID)
+	if err != nil {
+		return fmt.Errorf("failed to allocate schema ID: %w", err)
+	}
+	_, err = tx.ExecContext(ctx, "UPDATE ctx_id_alloc SET next_id = next_id + 1 WHERE registry_ctx = ?", registryCtx)
+	if err != nil {
+		return fmt.Errorf("failed to increment schema ID: %w", err)
+	}
 
 	// Claim fingerprint in schema_fingerprints (first writer wins, per-context)
 	_, _ = tx.ExecContext(ctx,
 		"INSERT IGNORE INTO schema_fingerprints (registry_ctx, fingerprint, schema_id) VALUES (?, ?, ?)",
-		registryCtx, record.Fingerprint, newRowID,
+		registryCtx, record.Fingerprint, nextCtxID,
 	)
 
 	// Resolve stable per-context ID from schema_fingerprints
@@ -663,10 +672,12 @@ func (s *Store) GetSchemaByID(ctx context.Context, registryCtx string, id int64)
 		return nil, storage.ErrSchemaNotFound
 	}
 
-	// Find the schema row by context + fingerprint
+	// Find the schema row by context + fingerprint.
+	// Prefer non-deleted rows but fall back to deleted ones — schema content
+	// must remain accessible by ID even after all subjects are soft-deleted.
 	err := s.db.QueryRowContext(ctx,
 		"SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at, metadata, ruleset"+
-			" FROM `schemas` WHERE registry_ctx = ? AND fingerprint = ? AND deleted = FALSE ORDER BY id LIMIT 1",
+			" FROM `schemas` WHERE registry_ctx = ? AND fingerprint = ? ORDER BY deleted ASC, id ASC LIMIT 1",
 		registryCtx, fingerprint).Scan(
 		&record.ID, &record.Subject, &record.Version, &schemaType,
 		&record.Schema, &record.Fingerprint, &record.Deleted, &record.CreatedAt,
