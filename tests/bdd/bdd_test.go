@@ -361,7 +361,7 @@ func cleanCassandra() error {
 		".", "schema_id", 1).Exec(); err != nil {
 		return fmt.Errorf("seed id_alloc: %w", err)
 	}
-	if err := session.Query("INSERT INTO contexts (registry_ctx, created_at) VALUES (?, toTimestamp(now()))",
+	if err := session.Query("INSERT INTO contexts (registry_ctx, created_at) VALUES (?, now())",
 		".").Exec(); err != nil {
 		return fmt.Errorf("seed contexts: %w", err)
 	}

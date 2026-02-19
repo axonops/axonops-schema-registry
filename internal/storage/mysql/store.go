@@ -1569,7 +1569,17 @@ func (s *Store) loadReferences(ctx context.Context, registryCtx string, schemaID
 // GetSubjectsBySchemaID returns all subjects where the given per-context schema ID is registered.
 // Uses fingerprint-based lookup via schema_fingerprints for global deduplication.
 func (s *Store) GetSubjectsBySchemaID(ctx context.Context, registryCtx string, id int64, includeDeleted bool) ([]string, error) {
-	rows, err := s.stmts.getSubjectsBySchemaID.QueryContext(ctx, registryCtx, id)
+	var rows *sql.Rows
+	var err error
+	if includeDeleted {
+		// Include all subjects (both deleted and non-deleted)
+		rows, err = s.db.QueryContext(ctx,
+			"SELECT DISTINCT s.subject FROM `schemas` s"+
+				" JOIN schema_fingerprints fp ON fp.registry_ctx = s.registry_ctx AND fp.fingerprint = s.fingerprint"+
+				" WHERE s.registry_ctx = ? AND fp.schema_id = ?", registryCtx, id)
+	} else {
+		rows, err = s.stmts.getSubjectsBySchemaID.QueryContext(ctx, registryCtx, id)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to query subjects: %w", err)
 	}
@@ -1584,25 +1594,6 @@ func (s *Store) GetSubjectsBySchemaID(ctx context.Context, registryCtx string, i
 		subjects = append(subjects, subject)
 	}
 
-	if includeDeleted && len(subjects) == 0 {
-		// Try including deleted schemas
-		query := "SELECT DISTINCT s.subject FROM `schemas` s" +
-			" JOIN schema_fingerprints fp ON fp.registry_ctx = s.registry_ctx AND fp.fingerprint = s.fingerprint" +
-			" WHERE s.registry_ctx = ? AND fp.schema_id = ?"
-		rows2, err := s.db.QueryContext(ctx, query, registryCtx, id)
-		if err != nil {
-			return nil, fmt.Errorf("failed to query subjects: %w", err)
-		}
-		defer rows2.Close()
-		for rows2.Next() {
-			var subject string
-			if err := rows2.Scan(&subject); err != nil {
-				return nil, fmt.Errorf("failed to scan row: %w", err)
-			}
-			subjects = append(subjects, subject)
-		}
-	}
-
 	if len(subjects) == 0 {
 		return nil, storage.ErrSchemaNotFound
 	}
@@ -1613,7 +1604,17 @@ func (s *Store) GetSubjectsBySchemaID(ctx context.Context, registryCtx string, i
 // GetVersionsBySchemaID returns all subject-version pairs where the given per-context schema ID is registered.
 // Uses fingerprint-based lookup via schema_fingerprints for global deduplication.
 func (s *Store) GetVersionsBySchemaID(ctx context.Context, registryCtx string, id int64, includeDeleted bool) ([]storage.SubjectVersion, error) {
-	rows, err := s.stmts.getVersionsBySchemaID.QueryContext(ctx, registryCtx, id)
+	var rows *sql.Rows
+	var err error
+	if includeDeleted {
+		// Include all versions (both deleted and non-deleted)
+		rows, err = s.db.QueryContext(ctx,
+			"SELECT s.subject, s.version FROM `schemas` s"+
+				" JOIN schema_fingerprints fp ON fp.registry_ctx = s.registry_ctx AND fp.fingerprint = s.fingerprint"+
+				" WHERE s.registry_ctx = ? AND fp.schema_id = ?", registryCtx, id)
+	} else {
+		rows, err = s.stmts.getVersionsBySchemaID.QueryContext(ctx, registryCtx, id)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to query versions: %w", err)
 	}
@@ -1626,25 +1627,6 @@ func (s *Store) GetVersionsBySchemaID(ctx context.Context, registryCtx string, i
 			return nil, fmt.Errorf("failed to scan row: %w", err)
 		}
 		versions = append(versions, sv)
-	}
-
-	if includeDeleted && len(versions) == 0 {
-		// Try including deleted schemas
-		query := "SELECT s.subject, s.version FROM `schemas` s" +
-			" JOIN schema_fingerprints fp ON fp.registry_ctx = s.registry_ctx AND fp.fingerprint = s.fingerprint" +
-			" WHERE s.registry_ctx = ? AND fp.schema_id = ?"
-		rows2, err := s.db.QueryContext(ctx, query, registryCtx, id)
-		if err != nil {
-			return nil, fmt.Errorf("failed to query versions: %w", err)
-		}
-		defer rows2.Close()
-		for rows2.Next() {
-			var sv storage.SubjectVersion
-			if err := rows2.Scan(&sv.Subject, &sv.Version); err != nil {
-				return nil, fmt.Errorf("failed to scan row: %w", err)
-			}
-			versions = append(versions, sv)
-		}
 	}
 
 	if len(versions) == 0 {

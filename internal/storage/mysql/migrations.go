@@ -207,4 +207,15 @@ var migrations = []string{
 	// Drop the unique index and replace with a non-unique index for lookups.
 	"DROP INDEX idx_schemas_ctx_subj_fp ON `schemas`",
 	"CREATE INDEX idx_schemas_ctx_subj_fp ON `schemas`(registry_ctx, subject, fingerprint)",
+
+	// Migration 42: Make registry_ctx case-sensitive across all tables.
+	// MySQL's default utf8mb4_unicode_ci collation is case-insensitive,
+	// but context names must be case-sensitive for Confluent compatibility.
+	"ALTER TABLE `schemas` MODIFY COLUMN registry_ctx VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL DEFAULT '.'",
+	"ALTER TABLE schema_fingerprints MODIFY COLUMN registry_ctx VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL DEFAULT '.'",
+	"ALTER TABLE configs MODIFY COLUMN registry_ctx VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL DEFAULT '.'",
+	"ALTER TABLE modes MODIFY COLUMN registry_ctx VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL DEFAULT '.'",
+	"ALTER TABLE ctx_id_alloc MODIFY COLUMN registry_ctx VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL DEFAULT '.'",
+	"ALTER TABLE contexts MODIFY COLUMN registry_ctx VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL",
+	"ALTER TABLE schema_references MODIFY COLUMN registry_ctx VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL DEFAULT '.'",
 }

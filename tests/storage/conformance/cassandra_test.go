@@ -67,11 +67,11 @@ func truncateCassandra(t *testing.T, cfg cassandra.Config) {
 
 	// Re-seed ID allocation and context but NOT global config/mode — the
 	// conformance tests start from a clean state and set their own.
-	if err := session.Query("INSERT INTO id_alloc (name, next_id) VALUES (?, ?)",
-		"schema_id", 1).Exec(); err != nil {
+	if err := session.Query("INSERT INTO id_alloc (registry_ctx, name, next_id) VALUES (?, ?, ?)",
+		".", "schema_id", 1).Exec(); err != nil {
 		t.Fatalf("Failed to seed default id_alloc: %v", err)
 	}
-	if err := session.Query("INSERT INTO contexts (registry_ctx, created_at) VALUES (?, toTimestamp(now()))",
+	if err := session.Query("INSERT INTO contexts (registry_ctx, created_at) VALUES (?, now())",
 		".").Exec(); err != nil {
 		t.Fatalf("Failed to seed default context: %v", err)
 	}
