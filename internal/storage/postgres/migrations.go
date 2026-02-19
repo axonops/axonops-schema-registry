@@ -53,8 +53,12 @@ var migrations = []string{
 	// Migration 6: Global mode
 	`INSERT INTO modes (subject, mode) SELECT '', 'READWRITE' WHERE NOT EXISTS (SELECT 1 FROM modes WHERE subject = '')`,
 
-	// Migration 7: Schema versions view for efficient lookups
-	`CREATE OR REPLACE VIEW schema_versions AS
+	// Migration 7: Schema versions view for efficient lookups.
+	// Uses DROP+CREATE instead of CREATE OR REPLACE because later migrations
+	// add registry_ctx to the view, and PostgreSQL cannot add/drop columns
+	// via CREATE OR REPLACE VIEW on re-run.
+	`DROP VIEW IF EXISTS schema_versions`,
+	`CREATE VIEW schema_versions AS
 	SELECT subject, MAX(version) as latest_version, COUNT(*) as version_count
 	FROM schemas
 	WHERE deleted = FALSE

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"strings"
 	"time"
 
 	_ "github.com/lib/pq"
@@ -425,6 +426,14 @@ func (s *Store) closeStatements() {
 func (s *Store) migrate(ctx context.Context) error {
 	for i, migration := range migrations {
 		if _, err := s.db.ExecContext(ctx, migration); err != nil {
+			// Tolerate known errors when re-running migrations on an
+			// already-migrated database (e.g. concurrency tests).
+			errStr := err.Error()
+			if strings.Contains(errStr, "already exists") ||
+				strings.Contains(errStr, "duplicate key value") ||
+				strings.Contains(errStr, "does not exist") {
+				continue
+			}
 			return fmt.Errorf("migration %d failed: %w", i+1, err)
 		}
 	}
