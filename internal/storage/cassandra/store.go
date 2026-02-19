@@ -1053,12 +1053,39 @@ func (s *Store) GetSchemaByFingerprint(ctx context.Context, registryCtx string, 
 	for iter.Scan(&version, &deleted) {
 		if includeDeleted || !deleted {
 			iter.Close()
-			// Use GetSchemaBySubjectVersion (reads metadata/ruleSet from subject_versions)
-			// rather than GetSchemaByID (schemas_by_id doesn't store per-version metadata).
-			rec, err := s.GetSchemaBySubjectVersion(ctx, registryCtx, subject, version)
+			if !deleted {
+				// Non-deleted: use GetSchemaBySubjectVersion (reads metadata/ruleSet from subject_versions)
+				rec, err := s.GetSchemaBySubjectVersion(ctx, registryCtx, subject, version)
+				if err != nil {
+					return nil, err
+				}
+				rec.Fingerprint = fp
+				return rec, nil
+			}
+			// Deleted version with includeDeleted=true: GetSchemaBySubjectVersion rejects
+			// deleted versions, so read metadata directly from subject_versions.
+			rec, err := s.GetSchemaByID(ctx, registryCtx, globalRec.ID)
 			if err != nil {
 				return nil, err
 			}
+			// Overlay per-version metadata from subject_versions
+			var metadataStr, rulesetStr string
+			var createdUUID gocql.UUID
+			if svErr := s.readQuery(
+				fmt.Sprintf(`SELECT created_at, metadata, ruleset FROM %s.subject_versions WHERE registry_ctx = ? AND subject = ? AND version = ?`, qident(s.cfg.Keyspace)),
+				registryCtx, subject, version,
+			).WithContext(ctx).Scan(&createdUUID, &metadataStr, &rulesetStr); svErr == nil {
+				rec.CreatedAt = createdUUID.Time()
+				if m := unmarshalJSONText[storage.Metadata](metadataStr); m != nil {
+					rec.Metadata = m
+				}
+				if r := unmarshalJSONText[storage.RuleSet](rulesetStr); r != nil {
+					rec.RuleSet = r
+				}
+			}
+			rec.Subject = subject
+			rec.Version = version
+			rec.Deleted = true
 			rec.Fingerprint = fp
 			return rec, nil
 		}
