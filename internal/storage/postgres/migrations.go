@@ -133,9 +133,12 @@ var migrations = []string{
 
 	// Migration 16: Backfill schema_fingerprints from existing schemas data.
 	// Uses MIN(id) to preserve the same global IDs that were previously returned.
+	// Uses WHERE NOT EXISTS instead of ON CONFLICT to stay idempotent after the
+	// primary key is later changed from (fingerprint) to (registry_ctx, fingerprint).
 	`INSERT INTO schema_fingerprints (fingerprint, schema_id)
-	 SELECT fingerprint, MIN(id) FROM schemas GROUP BY fingerprint
-	 ON CONFLICT (fingerprint) DO NOTHING`,
+	 SELECT s.fingerprint, MIN(s.id) FROM schemas s
+	 WHERE NOT EXISTS (SELECT 1 FROM schema_fingerprints sf WHERE sf.fingerprint = s.fingerprint)
+	 GROUP BY s.fingerprint`,
 
 	// ---------------------------------------------------------------
 	// Migrations 17+: Multi-tenant context support (issue #264)
