@@ -88,14 +88,24 @@ func (r *Registry) RegisterSchema(ctx context.Context, registryCtx string, subje
 		schemaStr = parsed.CanonicalString()
 	}
 
+	// Extract confluent:version target before dedup — used for soft CAS below.
+	cvTarget := extractConfluentVersionTarget(opt.Metadata)
+
 	// Check if schema already exists with same fingerprint AND same metadata/ruleSet.
 	// Confluent behavior: same schema text + different metadata = new version (same global ID).
 	// Only deduplicate when both the schema text AND metadata/ruleSet match.
 	// Note: confluent:version is stripped from both sides during comparison (it's a CAS property).
+	//
+	// Soft CAS: if confluent:version is specified and doesn't match the existing version,
+	// dedup is skipped and a new version is created. This matches Confluent's behavior
+	// where confluent:version acts as a hint — mismatches never produce errors.
 	existing, err := r.storage.GetSchemaByFingerprint(ctx, registryCtx, subject, parsed.Fingerprint(), false)
 	if err == nil && existing != nil {
 		if metadataEqualForDedup(existing.Metadata, opt.Metadata) && ruleSetEqual(existing.RuleSet, opt.RuleSet) {
-			return autoPopulateConfluentVersion(existing), nil
+			if cvTarget <= 0 || cvTarget == existing.Version {
+				return autoPopulateConfluentVersion(existing), nil
+			}
+			// confluent:version mismatch — skip dedup, create new version
 		}
 		// Same schema text but different metadata/ruleSet — fall through to create new version
 	}
@@ -149,10 +159,7 @@ func (r *Registry) RegisterSchema(ctx context.Context, registryCtx string, subje
 		}
 	}
 
-	// Check confluent:version (compare-and-set) if present in metadata
-	if err := r.checkConfluentVersion(ctx, registryCtx, subject, opt.Metadata); err != nil {
-		return nil, err
-	}
+	// confluent:version soft CAS is handled in the dedup check above — no separate check needed.
 
 	// Apply config default/override merge for metadata and ruleSet (Confluent 3-layer merge).
 	// This merges: config.default → request-specific (or previous version) → config.override.
@@ -177,10 +184,13 @@ func (r *Registry) RegisterSchema(ctx context.Context, registryCtx string, subje
 	// Store the schema
 	if err := r.storage.CreateSchema(ctx, registryCtx, record); err != nil {
 		if errors.Is(err, storage.ErrSchemaExists) {
-			// Storage detected same fingerprint+metadata — return existing
+			// Storage detected same fingerprint+metadata — return existing,
+			// but only if confluent:version soft CAS also matches.
 			existing, _ := r.storage.GetSchemaByFingerprint(ctx, registryCtx, subject, parsed.Fingerprint(), false)
 			if existing != nil && metadataEqual(existing.Metadata, opt.Metadata) && ruleSetEqual(existing.RuleSet, opt.RuleSet) {
-				return autoPopulateConfluentVersion(existing), nil
+				if cvTarget <= 0 || cvTarget == existing.Version {
+					return autoPopulateConfluentVersion(existing), nil
+				}
 			}
 		}
 		return nil, fmt.Errorf("failed to store schema: %w", err)
@@ -189,65 +199,23 @@ func (r *Registry) RegisterSchema(ctx context.Context, registryCtx string, subje
 	return autoPopulateConfluentVersion(record), nil
 }
 
-// ErrVersionConflict is returned when confluent:version compare-and-set fails.
-var ErrVersionConflict = errors.New("version conflict")
-
-// checkConfluentVersion validates the confluent:version metadata property if present.
-// When set to a positive integer, it enforces that the version matches the expected
-// next version for the subject (optimistic concurrency control).
-// Values of 0 or -1 mean auto-increment (no check).
-// Includes soft-deleted versions when determining the latest version, since
-// soft-deleted versions still occupy the version number space.
-func (r *Registry) checkConfluentVersion(ctx context.Context, registryCtx string, subject string, metadata *storage.Metadata) error {
-	if metadata == nil || metadata.Properties == nil {
-		return nil
+// extractConfluentVersionTarget extracts the confluent:version target from metadata.
+// Returns the target version number (positive integer), or 0 if not specified,
+// non-numeric, or auto-increment (0 or -1). A return value of 0 means
+// "no CAS constraint — normal dedup applies".
+func extractConfluentVersionTarget(meta *storage.Metadata) int {
+	if meta == nil || meta.Properties == nil {
+		return 0
 	}
-	cvStr, ok := metadata.Properties["confluent:version"]
+	cvStr, ok := meta.Properties["confluent:version"]
 	if !ok {
-		return nil
+		return 0
 	}
 	cv, err := strconv.Atoi(cvStr)
-	if err != nil {
-		return nil // Non-numeric value, ignore
+	if err != nil || cv <= 0 {
+		return 0
 	}
-	if cv <= 0 {
-		return nil // 0 or -1 = auto-increment
-	}
-
-	// Include soft-deleted versions to get the true latest version number.
-	// Soft-deleted versions still occupy the version sequence (Confluent behavior).
-	allSchemas, err := r.storage.GetSchemasBySubject(ctx, registryCtx, subject, true)
-	if err != nil {
-		if errors.Is(err, storage.ErrSubjectNotFound) {
-			// Truly new subject — only version 1 is valid
-			if cv != 1 {
-				return fmt.Errorf("%w: confluent:version %d but subject is new (expected 1)", ErrVersionConflict, cv)
-			}
-			return nil
-		}
-		return err
-	}
-
-	if len(allSchemas) == 0 {
-		// No versions at all — only version 1 is valid
-		if cv != 1 {
-			return fmt.Errorf("%w: confluent:version %d but subject is new (expected 1)", ErrVersionConflict, cv)
-		}
-		return nil
-	}
-
-	// Find the highest version number (including soft-deleted)
-	maxVersion := 0
-	for _, s := range allSchemas {
-		if s.Version > maxVersion {
-			maxVersion = s.Version
-		}
-	}
-
-	if cv != maxVersion+1 {
-		return fmt.Errorf("%w: confluent:version %d but latest version is %d (expected %d)", ErrVersionConflict, cv, maxVersion, maxVersion+1)
-	}
-	return nil
+	return cv
 }
 
 // RegisterSchemaWithID registers a schema with a specific ID (for IMPORT mode).
@@ -312,7 +280,13 @@ func (r *Registry) RegisterSchemaWithID(ctx context.Context, registryCtx string,
 			return nil, fmt.Errorf("overwrite schema with id %d: %w", id, ErrImportIDConflict)
 		}
 		if errors.Is(err, storage.ErrSchemaExists) {
-			return nil, fmt.Errorf("version %d already exists for subject %s: %w", record.Version, subject, ErrImportIDConflict)
+			// Confluent allows duplicate version imports — return the existing version.
+			// This enables idempotent migration replays.
+			existing, getErr := r.storage.GetSchemaBySubjectVersion(ctx, registryCtx, subject, record.Version)
+			if getErr == nil && existing != nil {
+				return existing, nil
+			}
+			return nil, fmt.Errorf("failed to store schema: %w", err)
 		}
 		return nil, fmt.Errorf("failed to store schema: %w", err)
 	}
@@ -597,6 +571,25 @@ func (r *Registry) DeleteVersion(ctx context.Context, registryCtx string, subjec
 		// For permanent delete, the version must already be soft-deleted.
 		// The storage layer validates this (returns ErrVersionNotSoftDeleted if not).
 		// We skip GetSchemaBySubjectVersion because it filters out soft-deleted versions.
+
+		// Resolve "latest" (-1) for permanent delete by finding the highest soft-deleted version.
+		if version == -1 {
+			schemas, err := r.storage.GetSchemasBySubject(ctx, registryCtx, subject, true)
+			if err != nil {
+				return 0, err
+			}
+			resolved := -1
+			for _, s := range schemas {
+				if s.Deleted && s.Version > resolved {
+					resolved = s.Version
+				}
+			}
+			if resolved == -1 {
+				return 0, storage.ErrVersionNotFound
+			}
+			version = resolved
+		}
+
 		if err := r.storage.DeleteSchema(ctx, registryCtx, subject, version, permanent); err != nil {
 			return 0, err
 		}

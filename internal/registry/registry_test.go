@@ -3054,3 +3054,284 @@ func TestGetConfigFull_4Tier_FullChain(t *testing.T) {
 		t.Errorf("expected BACKWARD (server default), got %s", config.CompatibilityLevel)
 	}
 }
+
+// --- Schema Dedup with Metadata Tests ---
+
+func TestRegisterSchema_SameTextDifferentMetadata_CreatesNewVersion(t *testing.T) {
+	reg := setupTestRegistry("NONE")
+	ctx := context.Background()
+
+	schemaStr := `{"type":"record","name":"Dedup","fields":[{"name":"id","type":"int"}]}`
+
+	// Register without metadata
+	rec1, err := reg.RegisterSchema(ctx, ".", "dedup-meta", schemaStr, storage.SchemaTypeAvro, nil)
+	if err != nil {
+		t.Fatalf("first register failed: %v", err)
+	}
+
+	// Register same schema text with different metadata — should create new version
+	rec2, err := reg.RegisterSchema(ctx, ".", "dedup-meta", schemaStr, storage.SchemaTypeAvro, nil, RegisterOpts{
+		Metadata: &storage.Metadata{Properties: map[string]string{"owner": "team-b"}},
+	})
+	if err != nil {
+		t.Fatalf("second register failed: %v", err)
+	}
+
+	// Same global ID (content-addressed), but different version
+	if rec1.ID != rec2.ID {
+		t.Errorf("expected same global ID (content-addressed), got %d and %d", rec1.ID, rec2.ID)
+	}
+	if rec1.Version == rec2.Version {
+		t.Errorf("expected different versions for different metadata, both got version %d", rec1.Version)
+	}
+}
+
+func TestRegisterSchema_SameTextSameMetadata_ReturnsSameID(t *testing.T) {
+	reg := setupTestRegistry("NONE")
+	ctx := context.Background()
+
+	schemaStr := `{"type":"record","name":"DedupSame","fields":[{"name":"id","type":"int"}]}`
+	meta := &storage.Metadata{Properties: map[string]string{"owner": "team-a"}}
+
+	rec1, err := reg.RegisterSchema(ctx, ".", "dedup-same", schemaStr, storage.SchemaTypeAvro, nil, RegisterOpts{Metadata: meta})
+	if err != nil {
+		t.Fatalf("first register failed: %v", err)
+	}
+
+	// Register identical schema + metadata — should deduplicate
+	rec2, err := reg.RegisterSchema(ctx, ".", "dedup-same", schemaStr, storage.SchemaTypeAvro, nil, RegisterOpts{Metadata: meta})
+	if err != nil {
+		t.Fatalf("second register failed: %v", err)
+	}
+
+	if rec1.ID != rec2.ID {
+		t.Errorf("expected same ID, got %d and %d", rec1.ID, rec2.ID)
+	}
+	if rec1.Version != rec2.Version {
+		t.Errorf("expected same version, got %d and %d", rec1.Version, rec2.Version)
+	}
+}
+
+func TestRegisterSchema_SameTextDifferentRuleSet_CreatesNewVersion(t *testing.T) {
+	reg := setupTestRegistry("NONE")
+	ctx := context.Background()
+
+	schemaStr := `{"type":"record","name":"DedupRules","fields":[{"name":"id","type":"int"}]}`
+
+	rec1, err := reg.RegisterSchema(ctx, ".", "dedup-rules", schemaStr, storage.SchemaTypeAvro, nil)
+	if err != nil {
+		t.Fatalf("first register failed: %v", err)
+	}
+
+	// Register same schema text with ruleSet — should create new version
+	rec2, err := reg.RegisterSchema(ctx, ".", "dedup-rules", schemaStr, storage.SchemaTypeAvro, nil, RegisterOpts{
+		RuleSet: &storage.RuleSet{
+			DomainRules: []storage.Rule{{Name: "validate", Kind: "CONDITION", Mode: "WRITE", Type: "CEL", Expr: "true"}},
+		},
+	})
+	if err != nil {
+		t.Fatalf("second register failed: %v", err)
+	}
+
+	if rec1.ID != rec2.ID {
+		t.Errorf("expected same global ID, got %d and %d", rec1.ID, rec2.ID)
+	}
+	if rec1.Version == rec2.Version {
+		t.Errorf("expected different versions for different ruleSet, both got %d", rec1.Version)
+	}
+}
+
+// --- Confluent:version CAS Tests ---
+
+func TestRegisterSchema_ConfluentVersionAutoPopulated(t *testing.T) {
+	reg := setupTestRegistry("NONE")
+	ctx := context.Background()
+
+	schemaStr := `{"type":"record","name":"CVAuto","fields":[{"name":"id","type":"int"}]}`
+
+	rec, err := reg.RegisterSchema(ctx, ".", "cv-auto", schemaStr, storage.SchemaTypeAvro, nil)
+	if err != nil {
+		t.Fatalf("register failed: %v", err)
+	}
+
+	// confluent:version should be auto-populated in the response
+	if rec.Metadata == nil {
+		t.Fatal("expected metadata with confluent:version, got nil")
+	}
+	cv, ok := rec.Metadata.Properties["confluent:version"]
+	if !ok {
+		t.Fatal("expected confluent:version in metadata properties")
+	}
+	if cv != "1" {
+		t.Errorf("expected confluent:version=1, got %s", cv)
+	}
+}
+
+func TestRegisterSchema_ConfluentVersionSoftCAS_NoError(t *testing.T) {
+	reg := setupTestRegistry("NONE")
+	ctx := context.Background()
+
+	schemaStr := `{"type":"record","name":"CVSoft","fields":[{"name":"id","type":"int"}]}`
+
+	// Register v1
+	_, err := reg.RegisterSchema(ctx, ".", "cv-soft", schemaStr, storage.SchemaTypeAvro, nil)
+	if err != nil {
+		t.Fatalf("first register failed: %v", err)
+	}
+
+	// Register different schema with confluent:version=99 (mismatch) — should NOT error
+	schemaStr2 := `{"type":"record","name":"CVSoft2","fields":[{"name":"name","type":"string"}]}`
+	rec, err := reg.RegisterSchema(ctx, ".", "cv-soft", schemaStr2, storage.SchemaTypeAvro, nil, RegisterOpts{
+		Metadata: &storage.Metadata{Properties: map[string]string{"confluent:version": "99"}},
+	})
+	if err != nil {
+		t.Fatalf("CAS mismatch should not error, got: %v", err)
+	}
+	if rec.Version != 2 {
+		t.Errorf("expected version 2 for new schema, got %d", rec.Version)
+	}
+}
+
+func TestRegisterSchema_ConfluentVersionMatchTriggersDedup(t *testing.T) {
+	reg := setupTestRegistry("NONE")
+	ctx := context.Background()
+
+	schemaStr := `{"type":"record","name":"CVMatch","fields":[{"name":"id","type":"int"}]}`
+
+	rec1, err := reg.RegisterSchema(ctx, ".", "cv-match", schemaStr, storage.SchemaTypeAvro, nil)
+	if err != nil {
+		t.Fatalf("first register failed: %v", err)
+	}
+
+	// Register same schema with confluent:version=1 (matches) — should dedup
+	rec2, err := reg.RegisterSchema(ctx, ".", "cv-match", schemaStr, storage.SchemaTypeAvro, nil, RegisterOpts{
+		Metadata: &storage.Metadata{Properties: map[string]string{"confluent:version": "1"}},
+	})
+	if err != nil {
+		t.Fatalf("second register failed: %v", err)
+	}
+
+	if rec1.ID != rec2.ID || rec1.Version != rec2.Version {
+		t.Errorf("expected dedup (same ID/version), got ID=%d/%d version=%d/%d", rec1.ID, rec2.ID, rec1.Version, rec2.Version)
+	}
+}
+
+// --- Config Merge (Metadata/RuleSet) Tests ---
+
+func TestRegisterSchema_ConfigDefaultMetadataMerge(t *testing.T) {
+	reg := setupTestRegistry("NONE")
+	ctx := context.Background()
+
+	// Set config with defaultMetadata
+	err := reg.SetConfig(ctx, ".", "merge-meta", "NONE", nil, SetConfigOpts{
+		DefaultMetadata: &storage.Metadata{Properties: map[string]string{"team": "platform"}},
+	})
+	if err != nil {
+		t.Fatalf("SetConfig failed: %v", err)
+	}
+
+	// Register schema without metadata — should inherit from config default
+	schemaStr := `{"type":"record","name":"MergeMeta","fields":[{"name":"id","type":"int"}]}`
+	rec, err := reg.RegisterSchema(ctx, ".", "merge-meta", schemaStr, storage.SchemaTypeAvro, nil)
+	if err != nil {
+		t.Fatalf("register failed: %v", err)
+	}
+
+	if rec.Metadata == nil {
+		t.Fatal("expected metadata from config default, got nil")
+	}
+	if rec.Metadata.Properties["team"] != "platform" {
+		t.Errorf("expected team=platform from default, got %v", rec.Metadata.Properties)
+	}
+}
+
+func TestRegisterSchema_ConfigOverrideMetadataWins(t *testing.T) {
+	reg := setupTestRegistry("NONE")
+	ctx := context.Background()
+
+	// Set config with override metadata
+	err := reg.SetConfig(ctx, ".", "merge-override", "NONE", nil, SetConfigOpts{
+		OverrideMetadata: &storage.Metadata{Properties: map[string]string{"env": "production"}},
+	})
+	if err != nil {
+		t.Fatalf("SetConfig failed: %v", err)
+	}
+
+	// Register schema with its own metadata — override should win
+	schemaStr := `{"type":"record","name":"MergeOverride","fields":[{"name":"id","type":"int"}]}`
+	rec, err := reg.RegisterSchema(ctx, ".", "merge-override", schemaStr, storage.SchemaTypeAvro, nil, RegisterOpts{
+		Metadata: &storage.Metadata{Properties: map[string]string{"env": "staging", "owner": "team-a"}},
+	})
+	if err != nil {
+		t.Fatalf("register failed: %v", err)
+	}
+
+	if rec.Metadata == nil {
+		t.Fatal("expected merged metadata, got nil")
+	}
+	// Override wins for "env"
+	if rec.Metadata.Properties["env"] != "production" {
+		t.Errorf("expected env=production (override), got %s", rec.Metadata.Properties["env"])
+	}
+	// Request-specific "owner" is preserved
+	if rec.Metadata.Properties["owner"] != "team-a" {
+		t.Errorf("expected owner=team-a (request), got %s", rec.Metadata.Properties["owner"])
+	}
+}
+
+func TestRegisterSchema_ConfigDefaultRuleSetMerge(t *testing.T) {
+	reg := setupTestRegistry("NONE")
+	ctx := context.Background()
+
+	// Set config with defaultRuleSet
+	err := reg.SetConfig(ctx, ".", "merge-rules", "NONE", nil, SetConfigOpts{
+		DefaultRuleSet: &storage.RuleSet{
+			DomainRules: []storage.Rule{{Name: "defaultRule", Kind: "CONDITION", Mode: "WRITE", Type: "CEL", Expr: "true"}},
+		},
+	})
+	if err != nil {
+		t.Fatalf("SetConfig failed: %v", err)
+	}
+
+	// Register schema without ruleSet — should inherit from config default
+	schemaStr := `{"type":"record","name":"MergeRules","fields":[{"name":"id","type":"int"}]}`
+	rec, err := reg.RegisterSchema(ctx, ".", "merge-rules", schemaStr, storage.SchemaTypeAvro, nil)
+	if err != nil {
+		t.Fatalf("register failed: %v", err)
+	}
+
+	if rec.RuleSet == nil {
+		t.Fatal("expected ruleSet from config default, got nil")
+	}
+	if len(rec.RuleSet.DomainRules) != 1 || rec.RuleSet.DomainRules[0].Name != "defaultRule" {
+		t.Errorf("expected defaultRule from config, got %+v", rec.RuleSet)
+	}
+}
+
+func TestRegisterSchema_PreviousSchemaMetadataInheritance(t *testing.T) {
+	reg := setupTestRegistry("NONE")
+	ctx := context.Background()
+
+	// Register v1 with metadata
+	schemaStr1 := `{"type":"record","name":"Inherit","fields":[{"name":"id","type":"int"}]}`
+	_, err := reg.RegisterSchema(ctx, ".", "inherit-meta", schemaStr1, storage.SchemaTypeAvro, nil, RegisterOpts{
+		Metadata: &storage.Metadata{Properties: map[string]string{"owner": "team-a", "env": "prod"}},
+	})
+	if err != nil {
+		t.Fatalf("v1 register failed: %v", err)
+	}
+
+	// Register v2 without metadata — should inherit from previous version
+	schemaStr2 := `{"type":"record","name":"Inherit","fields":[{"name":"id","type":"int"},{"name":"name","type":["null","string"],"default":null}]}`
+	rec2, err := reg.RegisterSchema(ctx, ".", "inherit-meta", schemaStr2, storage.SchemaTypeAvro, nil)
+	if err != nil {
+		t.Fatalf("v2 register failed: %v", err)
+	}
+
+	if rec2.Metadata == nil {
+		t.Fatal("expected metadata inherited from v1, got nil")
+	}
+	if rec2.Metadata.Properties["owner"] != "team-a" {
+		t.Errorf("expected owner=team-a inherited from v1, got %s", rec2.Metadata.Properties["owner"])
+	}
+}

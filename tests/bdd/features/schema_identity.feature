@@ -127,6 +127,7 @@ Feature: Schema Identity — metadata and ruleSet do not affect global ID
   # 4. SAME SCHEMA + DIFFERENT RULESET = SAME ID, NEW VERSION
   # ==========================================================================
 
+  @data-contracts
   Scenario: Same schema with different ruleSet gets same global ID but new version
     # Register schema with ruleSet A (v1)
     When I POST "/subjects/identity-rules-diff/versions" with body:
@@ -520,6 +521,7 @@ Feature: Schema Identity — metadata and ruleSet do not affect global ID
   # 12. METADATA + RULESET COMBINED CHANGE = SAME ID, NEW VERSION
   # ==========================================================================
 
+  @data-contracts
   Scenario: Same schema with combined metadata and ruleSet changes gets same ID, new version
     # v1: schema with metadata only
     When I POST "/subjects/identity-combo/versions" with body:
@@ -576,6 +578,7 @@ Feature: Schema Identity — metadata and ruleSet do not affect global ID
   # 13. SAME RULESET REGISTERED TWICE = DEDUP
   # ==========================================================================
 
+  @data-contracts
   Scenario: Same schema with identical ruleSet registered twice is deduplicated
     When I POST "/subjects/identity-rules-same/versions" with body:
       """

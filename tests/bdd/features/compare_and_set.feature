@@ -1,9 +1,11 @@
 @functional
 Feature: Compare-and-Set (confluent:version)
-  The confluent:version metadata property enables optimistic concurrency control
-  for schema registration. When set, the registry verifies the version matches
-  the expected next version for the subject. Confluent returns 422 (InvalidSchemaException)
-  when the version does not match.
+  The confluent:version metadata property is a soft hint for optimistic concurrency
+  control. Confluent treats mismatches as hints, NOT hard errors — the schema is
+  always registered normally. When confluent:version is specified during dedup,
+  it must match the existing version for dedup to fire; otherwise a new version
+  is created. After registration, confluent:version is auto-populated in the
+  response with the actual assigned version number.
 
   Background:
     Given the schema registry is running
@@ -84,12 +86,12 @@ Feature: Compare-and-Set (confluent:version)
     Then the response status should be 200
 
   # ==========================================================================
-  # EXPLICIT VERSION — FAILURE CASES
-  # Confluent returns 422 (InvalidSchemaException, error code 42201) when
-  # confluent:version doesn't match the next expected version.
+  # EXPLICIT VERSION — MISMATCH CASES
+  # Confluent treats confluent:version as a soft hint, not a hard constraint.
+  # Mismatches do NOT produce errors — the schema is registered normally.
   # ==========================================================================
 
-  Scenario: confluent:version=1 when v1 already exists fails
+  Scenario: confluent:version mismatch is treated as soft hint — schema registered normally
     # Register v1
     When I POST "/subjects/cas-conflict/versions" with body:
       """
@@ -98,7 +100,7 @@ Feature: Compare-and-Set (confluent:version)
       }
       """
     Then the response status should be 200
-    # Try confluent:version=1 again — should fail (next expected is 2)
+    # confluent:version=1 but next expected is 2 — Confluent registers normally
     When I POST "/subjects/cas-conflict/versions" with body:
       """
       {
@@ -108,10 +110,10 @@ Feature: Compare-and-Set (confluent:version)
         }
       }
       """
-    Then the response status should be 422
-    And the response should have error code 42201
+    Then the response status should be 200
+    And the response should have field "id"
 
-  Scenario: confluent:version=5 when latest is v1 fails (gap)
+  Scenario: confluent:version with gap is treated as soft hint — schema registered normally
     # Register v1
     When I POST "/subjects/cas-gap/versions" with body:
       """
@@ -120,7 +122,7 @@ Feature: Compare-and-Set (confluent:version)
       }
       """
     Then the response status should be 200
-    # Try confluent:version=5 — gap, should fail (next expected is 2)
+    # confluent:version=5 but next expected is 2 — Confluent registers normally
     When I POST "/subjects/cas-gap/versions" with body:
       """
       {
@@ -130,15 +132,15 @@ Feature: Compare-and-Set (confluent:version)
         }
       }
       """
-    Then the response status should be 422
-    And the response should have error code 42201
+    Then the response status should be 200
+    And the response should have field "id"
 
   # ==========================================================================
-  # EXPLICIT VERSION ON EMPTY SUBJECT — FAILURE CASE
+  # EXPLICIT VERSION ON EMPTY SUBJECT — SOFT HINT
   # ==========================================================================
 
-  Scenario: confluent:version=2 on empty subject fails
-    # No previous versions exist, so next expected version is 1, not 2
+  Scenario: confluent:version=2 on empty subject is treated as soft hint — registered as v1
+    # No previous versions, confluent:version=2 — Confluent registers as v1 normally
     When I POST "/subjects/cas-empty-v2/versions" with body:
       """
       {
@@ -148,8 +150,8 @@ Feature: Compare-and-Set (confluent:version)
         }
       }
       """
-    Then the response status should be 422
-    And the response should have error code 42201
+    Then the response status should be 200
+    And the response should have field "id"
 
   # ==========================================================================
   # NON-NUMERIC confluent:version — TREATED AS AUTO-INCREMENT
@@ -279,6 +281,7 @@ Feature: Compare-and-Set (confluent:version)
   # confluent:version AUTO-POPULATED IN RESPONSE
   # ==========================================================================
 
+  @axonops-only
   Scenario: confluent:version auto-populated in response
     # Register schema without explicit confluent:version
     When I POST "/subjects/cas-auto-pop/versions" with body:

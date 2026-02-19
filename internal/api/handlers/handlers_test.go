@@ -1656,3 +1656,154 @@ func TestGetReferencedBy_InvalidVersion(t *testing.T) {
 		t.Errorf("expected 422, got %d", w.Code)
 	}
 }
+
+// --- READONLY Mode Blocks Config Changes ---
+
+func setReadOnlyMode(t *testing.T, h *Handler) {
+	t.Helper()
+	modeReq := types.ModeRequest{Mode: "READONLY"}
+	modeBytes, _ := json.Marshal(modeReq)
+
+	r := chi.NewRouter()
+	r.Put("/mode", h.SetMode)
+
+	req := httptest.NewRequest("PUT", "/mode?force=true", bytes.NewReader(modeBytes))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("setReadOnlyMode failed: %d %s", w.Code, w.Body.String())
+	}
+}
+
+func setReadWriteMode(t *testing.T, h *Handler) {
+	t.Helper()
+	modeReq := types.ModeRequest{Mode: "READWRITE"}
+	modeBytes, _ := json.Marshal(modeReq)
+
+	r := chi.NewRouter()
+	r.Put("/mode", h.SetMode)
+
+	req := httptest.NewRequest("PUT", "/mode?force=true", bytes.NewReader(modeBytes))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("setReadWriteMode failed: %d %s", w.Code, w.Body.String())
+	}
+}
+
+func TestSetConfig_BlockedByReadOnlyMode(t *testing.T) {
+	h := setupTestHandler(t)
+
+	// Register a schema so subject exists
+	registerSchema(t, h, "ro-config-test", `{"type":"record","name":"ROConfig","fields":[{"name":"a","type":"string"}]}`)
+
+	// Set mode to READONLY
+	setReadOnlyMode(t, h)
+	defer setReadWriteMode(t, h)
+
+	// Try to set config — should be blocked
+	configReq := types.ConfigRequest{Compatibility: "NONE"}
+	configBytes, _ := json.Marshal(configReq)
+
+	r := chi.NewRouter()
+	r.Put("/config/{subject}", h.SetConfig)
+
+	req := httptest.NewRequest("PUT", "/config/ro-config-test", bytes.NewReader(configBytes))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusUnprocessableEntity {
+		t.Errorf("expected 422, got %d: %s", w.Code, w.Body.String())
+	}
+
+	resp := decodeErrorResponse(t, w)
+	if resp.ErrorCode != types.ErrorCodeOperationNotPermitted {
+		t.Errorf("expected error code %d, got %d", types.ErrorCodeOperationNotPermitted, resp.ErrorCode)
+	}
+}
+
+func TestDeleteConfig_BlockedByReadOnlyMode(t *testing.T) {
+	h := setupTestHandler(t)
+
+	// Register a schema and set a config first
+	registerSchema(t, h, "ro-cfgdel-test", `{"type":"record","name":"ROCfgDel","fields":[{"name":"a","type":"string"}]}`)
+
+	// Set config first
+	configReq := types.ConfigRequest{Compatibility: "NONE"}
+	configBytes, _ := json.Marshal(configReq)
+	{
+		r := chi.NewRouter()
+		r.Put("/config/{subject}", h.SetConfig)
+		req := httptest.NewRequest("PUT", "/config/ro-cfgdel-test", bytes.NewReader(configBytes))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		if w.Code != http.StatusOK {
+			t.Fatalf("SetConfig failed: %d %s", w.Code, w.Body.String())
+		}
+	}
+
+	// Set mode to READONLY
+	setReadOnlyMode(t, h)
+	defer setReadWriteMode(t, h)
+
+	// Try to delete config — should be blocked
+	r := chi.NewRouter()
+	r.Delete("/config/{subject}", h.DeleteConfig)
+
+	req := httptest.NewRequest("DELETE", "/config/ro-cfgdel-test", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusUnprocessableEntity {
+		t.Errorf("expected 422, got %d: %s", w.Code, w.Body.String())
+	}
+
+	resp := decodeErrorResponse(t, w)
+	if resp.ErrorCode != types.ErrorCodeOperationNotPermitted {
+		t.Errorf("expected error code %d, got %d", types.ErrorCodeOperationNotPermitted, resp.ErrorCode)
+	}
+}
+
+func TestSetConfig_BlockedByReadOnlyOverrideMode(t *testing.T) {
+	h := setupTestHandler(t)
+
+	registerSchema(t, h, "roo-config-test", `{"type":"record","name":"ROOConfig","fields":[{"name":"a","type":"string"}]}`)
+
+	// Set mode to READONLY_OVERRIDE
+	modeReq := types.ModeRequest{Mode: "READONLY_OVERRIDE"}
+	modeBytes, _ := json.Marshal(modeReq)
+	{
+		r := chi.NewRouter()
+		r.Put("/mode", h.SetMode)
+		req := httptest.NewRequest("PUT", "/mode?force=true", bytes.NewReader(modeBytes))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		if w.Code != http.StatusOK {
+			t.Fatalf("setMode failed: %d %s", w.Code, w.Body.String())
+		}
+	}
+	defer setReadWriteMode(t, h)
+
+	// Try to set config — should be blocked
+	configReq := types.ConfigRequest{Compatibility: "NONE"}
+	configBytes, _ := json.Marshal(configReq)
+
+	r := chi.NewRouter()
+	r.Put("/config/{subject}", h.SetConfig)
+
+	req := httptest.NewRequest("PUT", "/config/roo-config-test", bytes.NewReader(configBytes))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusUnprocessableEntity {
+		t.Errorf("expected 422, got %d: %s", w.Code, w.Body.String())
+	}
+}

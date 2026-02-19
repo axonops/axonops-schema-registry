@@ -83,21 +83,20 @@ Feature: READONLY Enforcement and Permanent Delete Restrictions
     Then the response field "mode" should be "READWRITE"
 
   # ==========================================================================
-  # PERMANENT DELETE OF "LATEST" BLOCKED
+  # PERMANENT DELETE OF "LATEST" RESOLVES AND PROCEEDS
   # ==========================================================================
 
-  @axonops-only
-  Scenario: Permanent delete of version "latest" is not allowed
+  Scenario: Permanent delete of version "latest" resolves to actual version
     Given subject "perm-del-latest" has schema:
       """
       {"type":"record","name":"PermDelLatest","fields":[{"name":"a","type":"string"}]}
       """
-    # Soft-delete first
+    # Soft-delete first (required before permanent delete)
     When I DELETE "/subjects/perm-del-latest/versions/1"
     Then the response status should be 200
-    # Try permanent delete of "latest" — should fail
+    # Permanent delete of "latest" — Confluent resolves to actual version and proceeds
     When I DELETE "/subjects/perm-del-latest/versions/latest?permanent=true"
-    Then the response status should be 422
+    Then the response status should be 200
 
   Scenario: Permanent delete with explicit version number works
     Given subject "perm-del-explicit" has schema:

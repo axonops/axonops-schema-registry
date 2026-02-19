@@ -264,18 +264,19 @@ Feature: Mode Management — Exhaustive (Confluent v8.1.1 Compatibility)
     Then the response status should be 200
     And the response field "id" should be 631
 
-  Scenario: Import with duplicate version for same subject fails
+  Scenario: Import with duplicate version returns existing version
     When I set the global mode to "IMPORT"
     When I POST "/subjects/mode-ex-ver-dup/versions" with body:
       """
       {"schema": "{\"type\":\"string\"}", "id": 640, "version": 1}
       """
     Then the response status should be 200
+    # Same version, different schema — Confluent allows this (returns existing)
     When I POST "/subjects/mode-ex-ver-dup/versions" with body:
       """
       {"schema": "{\"type\":\"int\"}", "id": 641, "version": 1}
       """
-    Then the response status should be 422
+    Then the response status should be 200
     When I set the global mode to "READWRITE"
 
   # ==========================================================================

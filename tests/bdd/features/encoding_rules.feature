@@ -1,4 +1,4 @@
-@functional
+@functional @data-contracts
 Feature: EncodingRules Support in RuleSet
   The RuleSet struct supports three types of rules: migrationRules, domainRules,
   and encodingRules. EncodingRules allow defining data encoding transformations

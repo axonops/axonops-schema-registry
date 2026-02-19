@@ -39,6 +39,7 @@ Feature: Metadata and RuleSets (Data Contracts)
     And the response body should contain "PII"
     And the response body should contain "SENSITIVE"
 
+  @data-contracts
   Scenario: Register schema with ruleSet — stored and returned
     When I POST "/subjects/ruleset-test/versions" with body:
       """
@@ -67,6 +68,7 @@ Feature: Metadata and RuleSets (Data Contracts)
     And the response body should contain "CONDITION"
     And the response body should contain "WRITE"
 
+  @data-contracts
   Scenario: Register schema with both metadata and ruleSet
     When I POST "/subjects/both-meta-rules/versions" with body:
       """
@@ -149,6 +151,7 @@ Feature: Metadata and RuleSets (Data Contracts)
   # LOOKUP SCHEMA INCLUDES METADATA
   # ==========================================================================
 
+  @data-contracts
   Scenario: Lookup schema returns metadata and ruleSet
     When I POST "/subjects/meta-lookup/versions" with body:
       """
@@ -219,6 +222,7 @@ Feature: Metadata and RuleSets (Data Contracts)
     And the response should have field "overrideMetadata"
     And the response body should contain "internal"
 
+  @data-contracts
   Scenario: Set config with defaultRuleSet
     When I PUT "/config/rules-cfg-subject" with body:
       """
@@ -243,6 +247,7 @@ Feature: Metadata and RuleSets (Data Contracts)
     And the response should have field "defaultRuleSet"
     And the response body should contain "defaultValidation"
 
+  @data-contracts
   Scenario: Set config with overrideRuleSet
     When I PUT "/config/rules-override-subject" with body:
       """
@@ -314,6 +319,7 @@ Feature: Metadata and RuleSets (Data Contracts)
   # SCHEMA WITHOUT METADATA — FIELDS OMITTED
   # ==========================================================================
 
+  @axonops-only
   Scenario: Schema without metadata has only confluent:version in response
     When I POST "/subjects/no-meta/versions" with body:
       """
@@ -331,6 +337,7 @@ Feature: Metadata and RuleSets (Data Contracts)
   # MIGRATION RULES
   # ==========================================================================
 
+  @data-contracts
   Scenario: Register schema with migration rules
     When I POST "/subjects/migration-rules/versions" with body:
       """

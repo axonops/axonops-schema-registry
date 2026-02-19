@@ -97,6 +97,21 @@ func (h *Handler) resolveAlias(ctx context.Context, registryCtx string, subject 
 	return subject
 }
 
+// parseSchemaType validates and returns the schema type from a request.
+// Confluent is case-sensitive: only "AVRO", "PROTOBUF", and "JSON" are accepted.
+// Empty string defaults to AVRO. Returns empty string and false for invalid types.
+func parseSchemaType(raw string) (storage.SchemaType, bool) {
+	if raw == "" {
+		return storage.SchemaTypeAvro, true
+	}
+	switch storage.SchemaType(raw) {
+	case storage.SchemaTypeAvro, storage.SchemaTypeProtobuf, storage.SchemaTypeJSON:
+		return storage.SchemaType(raw), true
+	default:
+		return "", false
+	}
+}
+
 // HealthCheck handles GET /
 func (h *Handler) HealthCheck(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
@@ -478,9 +493,11 @@ func (h *Handler) RegisterSchema(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	schemaType := storage.SchemaType(strings.ToUpper(req.SchemaType))
-	if schemaType == "" {
-		schemaType = storage.SchemaTypeAvro
+	schemaType, ok := parseSchemaType(req.SchemaType)
+	if !ok {
+		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidSchema,
+			fmt.Sprintf("Invalid schema type '%s'. Accepted types are AVRO, PROTOBUF, and JSON", req.SchemaType))
+		return
 	}
 
 	normalizeSchema := r.URL.Query().Get("normalize") == "true"
@@ -503,15 +520,21 @@ func (h *Handler) RegisterSchema(w http.ResponseWriter, r *http.Request) {
 		}
 		schema, err = h.registry.RegisterSchemaWithID(r.Context(), registryCtx, subject, req.Schema, schemaType, req.References, req.ID, req.Version)
 	} else {
-		// Normal registration requires READWRITE mode
+		// Normal registration (no explicit ID): blocked by READONLY, READONLY_OVERRIDE, and IMPORT modes.
+		// Confluent behavior: IMPORT mode requires explicit ID — normal registration is rejected with 42205.
 		mode, modeErr := h.registry.GetMode(r.Context(), registryCtx, subject)
 		if modeErr != nil {
-			writeError(w, http.StatusInternalServerError, types.ErrorCodeStorageError, "Failed to check mode")
+			writeError(w, http.StatusInternalServerError, types.ErrorCodeStorageError, modeErr.Error())
+			return
+		}
+		if mode == "READONLY" || mode == "READONLY_OVERRIDE" {
+			writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeOperationNotPermitted,
+				fmt.Sprintf("Subject '%s' is in read-only mode", subject))
 			return
 		}
 		if mode == "IMPORT" {
 			writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeOperationNotPermitted,
-				fmt.Sprintf("Subject '%s' is not in read-write mode", subject))
+				"Subject is in import mode. Normal registration (without explicit ID) is not permitted in IMPORT mode.")
 			return
 		}
 		schema, err = h.registry.RegisterSchema(r.Context(), registryCtx, subject, req.Schema, schemaType, req.References, registry.RegisterOpts{
@@ -535,10 +558,6 @@ func (h *Handler) RegisterSchema(w http.ResponseWriter, r *http.Request) {
 		}
 		if errors.Is(err, registry.ErrIncompatibleSchema) {
 			writeError(w, http.StatusConflict, types.ErrorCodeIncompatibleSchema, err.Error())
-			return
-		}
-		if errors.Is(err, registry.ErrVersionConflict) {
-			writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidSchema, err.Error())
 			return
 		}
 		if errors.Is(err, registry.ErrImportIDConflict) {
@@ -575,9 +594,11 @@ func (h *Handler) LookupSchema(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	schemaType := storage.SchemaType(strings.ToUpper(req.SchemaType))
-	if schemaType == "" {
-		schemaType = storage.SchemaTypeAvro
+	schemaType, ok := parseSchemaType(req.SchemaType)
+	if !ok {
+		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidSchema,
+			fmt.Sprintf("Invalid schema type '%s'. Accepted types are AVRO, PROTOBUF, and JSON", req.SchemaType))
+		return
 	}
 
 	normalizeSchema := r.URL.Query().Get("normalize") == "true"
@@ -678,13 +699,6 @@ func (h *Handler) DeleteVersion(w http.ResponseWriter, r *http.Request) {
 	} else if mode != "" {
 		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeOperationNotPermitted,
 			fmt.Sprintf("Subject '%s' is in %s mode", subject, mode))
-		return
-	}
-
-	// Permanent delete of "latest" or "-1" is not allowed — must use explicit version number
-	if permanent && (versionStr == "latest" || versionStr == "-1") {
-		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidVersion,
-			fmt.Sprintf("The specified version '%s' is not a valid version id for permanent delete. Use an explicit version number.", versionStr))
 		return
 	}
 
@@ -892,9 +906,11 @@ func (h *Handler) CheckCompatibility(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	schemaType := storage.SchemaType(strings.ToUpper(req.SchemaType))
-	if schemaType == "" {
-		schemaType = storage.SchemaTypeAvro
+	schemaType, ok := parseSchemaType(req.SchemaType)
+	if !ok {
+		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidSchema,
+			fmt.Sprintf("Invalid schema type: %s", req.SchemaType))
+		return
 	}
 
 	normalizeSchema := r.URL.Query().Get("normalize") == "true"
@@ -1038,6 +1054,25 @@ func (h *Handler) SetMode(w http.ResponseWriter, r *http.Request) {
 	var req types.ModeRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, types.ErrorCodeInvalidMode, "Invalid request body")
+		return
+	}
+
+	// Confluent behavior: empty mode in request body deletes the mode setting
+	// (resets to global default). This matches Confluent's ModeResource.updateMode
+	// where Optional.empty() mode results in a tombstone write.
+	if req.Mode == "" {
+		if subject != "" {
+			if _, err := h.registry.DeleteMode(r.Context(), registryCtx, subject); err != nil && !errors.Is(err, storage.ErrNotFound) {
+				writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+				return
+			}
+		} else {
+			if _, err := h.registry.DeleteGlobalMode(r.Context(), registryCtx); err != nil && !errors.Is(err, storage.ErrNotFound) {
+				writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+				return
+			}
+		}
+		writeJSON(w, http.StatusOK, types.ModeResponse{})
 		return
 	}
 

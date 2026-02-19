@@ -127,6 +127,7 @@ Feature: 3-layer metadata/ruleSet merge during schema registration
   # DEFAULT RULESET MERGE
   # ==========================================================================
 
+  @data-contracts
   Scenario: Default ruleSet applied when registration has no ruleSet
     # Set subject config with defaultRuleSet
     When I PUT "/config/cfg-merge-defrule" with body:
@@ -166,6 +167,7 @@ Feature: 3-layer metadata/ruleSet merge during schema registration
   # OVERRIDE RULESET MERGE
   # ==========================================================================
 
+  @data-contracts
   Scenario: Override ruleSet merged with request ruleSet
     # Set subject config with overrideRuleSet
     When I PUT "/config/cfg-merge-ovrrule" with body:
@@ -254,6 +256,7 @@ Feature: 3-layer metadata/ruleSet merge during schema registration
   # RULESET INHERITANCE FROM PREVIOUS VERSION
   # ==========================================================================
 
+  @data-contracts
   Scenario: RuleSet inherited from previous version when not specified in request
     # Register v1 with ruleSet
     When I PUT "/config/cfg-merge-ruleinh" with body:
@@ -402,6 +405,7 @@ Feature: 3-layer metadata/ruleSet merge during schema registration
   # NO CONFIG, NO METADATA — SCHEMA HAS NO METADATA
   # ==========================================================================
 
+  @axonops-only
   Scenario: No config and no metadata — response has only confluent:version in metadata
     # Register schema with no metadata, no config set for subject
     # Confluent behavior: confluent:version is always auto-populated
@@ -546,6 +550,7 @@ Feature: 3-layer metadata/ruleSet merge during schema registration
   # OVERRIDE RULESET REPLACES SAME-NAME RULES
   # ==========================================================================
 
+  @data-contracts
   Scenario: Override ruleSet replaces rules with same name from request
     # Set override ruleSet with a rule named "validate"
     When I PUT "/config/cfg-merge-ruleovr" with body:
@@ -605,6 +610,7 @@ Feature: 3-layer metadata/ruleSet merge during schema registration
   # 3-LAYER MERGE WITH RULESET
   # ==========================================================================
 
+  @data-contracts
   Scenario: 3-layer ruleSet merge — default + specific + override
     # Set default and override ruleSets
     When I PUT "/config/cfg-merge-3rule" with body:

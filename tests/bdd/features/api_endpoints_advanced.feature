@@ -16,18 +16,15 @@ Feature: API Endpoint Behaviors Advanced
     Then the response status should be 200
     And the response field "schemaType" should be "AVRO"
 
-  # --- Schema type accepted in any case ---
+  # --- Schema type is case-sensitive (Confluent rejects lowercase) ---
 
-  @axonops-only
-  Scenario: Schema type is accepted in any case
+  Scenario: Schema type with lowercase is rejected (case-sensitive)
     When I POST "/subjects/case-type-lower/versions" with body:
       """
       {"schema": "{\"type\":\"record\",\"name\":\"CaseLower\",\"fields\":[{\"name\":\"id\",\"type\":\"string\"}]}", "schemaType": "avro"}
       """
-    Then the response status should be 200
-    When I get version 1 of subject "case-type-lower"
-    Then the response status should be 200
-    And the response field "schemaType" should be "AVRO"
+    Then the response status should be 422
+    And the response should have error code 42201
 
   # --- GET /schemas/types returns all three types ---
 

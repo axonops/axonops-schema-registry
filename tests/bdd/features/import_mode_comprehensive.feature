@@ -22,14 +22,14 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     And the response should have error code 42205
     When I set the global mode to "READWRITE"
 
-  Scenario: IMPORT mode rejects schema lookup (POST without ID to subject)
+  Scenario: IMPORT mode rejects re-registration of existing schema without explicit ID
     When I set the global mode to "READWRITE"
     And subject "imp-comp-lookup-prep" has schema:
       """
       {"type":"record","name":"LookupPrep","fields":[{"name":"a","type":"string"}]}
       """
     When I set the global mode to "IMPORT"
-    # Lookup is a POST to /subjects/{subject} — treated as registration without ID
+    # POST without explicit ID in IMPORT mode — Confluent rejects even for existing schemas
     When I POST "/subjects/imp-comp-lookup-prep/versions" with body:
       """
       {"schema": "{\"type\":\"record\",\"name\":\"LookupPrep\",\"fields\":[{\"name\":\"a\",\"type\":\"string\"}]}"}
@@ -305,19 +305,19 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     Then the response status should be 200
     And the response field "id" should be 71051
 
-  Scenario: Duplicate version for same subject is rejected
+  Scenario: Duplicate version import returns existing version
     When I set the global mode to "IMPORT"
     When I POST "/subjects/imp-comp-ver-dup/versions" with body:
       """
       {"schema": "{\"type\":\"string\"}", "id": 71060, "version": 1}
       """
     Then the response status should be 200
-    # Same version, different schema, different ID — should fail
+    # Same version number, different schema — Confluent allows this (returns existing)
     When I POST "/subjects/imp-comp-ver-dup/versions" with body:
       """
       {"schema": "{\"type\":\"int\"}", "id": 71061, "version": 1}
       """
-    Then the response status should be 422
+    Then the response status should be 200
     When I set the global mode to "READWRITE"
 
   Scenario: Same version number in different subjects succeeds
@@ -954,4 +954,4 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     And the response should be an array of length 3
     When I get version 3 of subject "imp-comp-cont"
     Then the response status should be 200
-    And the response should contain "\"c\""
+    And the response body should contain "c"
