@@ -70,12 +70,14 @@ func Migrate(session *gocql.Session, keyspace string) error {
 
 		// Table 3: subject_latest - track latest version per subject, scoped by context
 		// Avoids scanning partitions to find latest. Also serves as subject listing.
+		// Partitioned by (registry_ctx, subject) so different contexts can use the same subject name.
 		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s.subject_latest (
 			registry_ctx     text,
-			subject          text PRIMARY KEY,
+			subject          text,
 			latest_version   int,
 			latest_schema_id int,
-			updated_at       timeuuid
+			updated_at       timeuuid,
+			PRIMARY KEY ((registry_ctx, subject))
 		)`, qident(keyspace)),
 
 		// Table 4: schema_references - schema dependencies, scoped by context
@@ -326,6 +328,26 @@ func Migrate(session *gocql.Session, keyspace string) error {
 	dropStmts := []string{
 		fmt.Sprintf(`DROP TABLE IF EXISTS %s.schemas_by_fingerprint`, qident(keyspace)),
 		fmt.Sprintf(`DROP TABLE IF EXISTS %s.subjects`, qident(keyspace)),
+	}
+
+	// Migration: subject_latest needs (registry_ctx, subject) as partition key for
+	// multi-context support. If the old table has subject-only PK, drop and recreate.
+	// Detection: try to query with registry_ctx in the partition key. If it fails, the
+	// table has the old schema. Simpler: just check if registry_ctx is in the PK by
+	// attempting a query — but the safest approach is to always recreate on this branch.
+	var pkCheck string
+	if err := session.Query(
+		fmt.Sprintf(`SELECT subject FROM %s.subject_latest WHERE registry_ctx = ? AND subject = ?`, qident(keyspace)),
+		"__pk_check__", "__pk_check__",
+	).Scan(&pkCheck); err != nil {
+		// If the error mentions "registry_ctx" as invalid or not part of the PK,
+		// the old table schema exists — drop it so CREATE TABLE IF NOT EXISTS can recreate.
+		if strings.Contains(err.Error(), "registry_ctx") ||
+			strings.Contains(err.Error(), "partition key") ||
+			strings.Contains(err.Error(), "PRIMARY KEY") {
+			dropStmts = append(dropStmts, fmt.Sprintf(`DROP TABLE IF EXISTS %s.subject_latest`, qident(keyspace)))
+		}
+		// ErrNotFound is fine — means the table has the correct PK
 	}
 	for _, stmt := range dropStmts {
 		if err := session.Query(stmt).Exec(); err != nil {

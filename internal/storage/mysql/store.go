@@ -523,6 +523,21 @@ func (s *Store) createSchemaAttempt(ctx context.Context, registryCtx string, rec
 	}
 	defer func() { _ = tx.Rollback() }()
 
+	// Get next version for this subject FIRST.
+	// In READ COMMITTED (MySQL REPEATABLE READ default uses consistent snapshot,
+	// but within a transaction each statement still sees committed data after locks).
+	// By running this before the fingerprint check, we ensure the fingerprint check
+	// uses a same-or-newer snapshot, preventing TOCTOU races where the fingerprint
+	// check misses a concurrent commit that MAX(version) would see.
+	var nextVersion int
+	err = tx.QueryRowContext(ctx,
+		"SELECT COALESCE(MAX(version), 0) + 1 FROM `schemas` WHERE registry_ctx = ? AND subject = ?",
+		registryCtx, record.Subject,
+	).Scan(&nextVersion)
+	if err != nil {
+		return fmt.Errorf("failed to get next version: %w", err)
+	}
+
 	// Check for existing schemas with same fingerprint (idempotent check).
 	// With metadata/ruleSet support, multiple versions of the same subject can share
 	// a fingerprint (same schema text, different metadata/ruleSet), so we must check all rows.
@@ -567,16 +582,6 @@ func (s *Store) createSchemaAttempt(ctx context.Context, registryCtx string, rec
 		// Same schema text but different metadata/ruleSet — continue checking other rows
 	}
 	fpRows.Close()
-
-	// Get next version for this subject (no locking - rely on unique constraint)
-	var nextVersion int
-	err = tx.QueryRowContext(ctx,
-		"SELECT COALESCE(MAX(version), 0) + 1 FROM `schemas` WHERE registry_ctx = ? AND subject = ?",
-		registryCtx, record.Subject,
-	).Scan(&nextVersion)
-	if err != nil {
-		return fmt.Errorf("failed to get next version: %w", err)
-	}
 
 	// Serialize metadata and ruleset as JSON
 	metadataJSON, err := marshalJSON(record.Metadata)

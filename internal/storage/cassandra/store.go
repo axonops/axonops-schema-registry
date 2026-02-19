@@ -321,29 +321,29 @@ func (s *Store) reserveIDBlock(ctx context.Context, registryCtx string, blockSiz
 }
 
 // GetMaxSchemaID returns the highest per-context schema ID currently assigned.
-// Queries the schema_fingerprints table for the given context.
+// Uses the id_alloc table (next_id - 1) which is the definitive source of truth
+// for per-context ID allocation.
 func (s *Store) GetMaxSchemaID(ctx context.Context, registryCtx string) (int64, error) {
-	// Query all schema_ids in schema_fingerprints for this context and find the max
-	iter := s.readQuery(
-		fmt.Sprintf(`SELECT schema_id FROM %s.schemas_by_id WHERE registry_ctx = ?`, qident(s.cfg.Keyspace)),
-		registryCtx,
-	).WithContext(ctx).Iter()
-
-	var maxID int64
-	var sid int
-	for iter.Scan(&sid) {
-		if int64(sid) > maxID {
-			maxID = int64(sid)
+	var nextID int
+	err := s.readQuery(
+		fmt.Sprintf(`SELECT next_id FROM %s.id_alloc WHERE registry_ctx = ? AND name = ?`, qident(s.cfg.Keyspace)),
+		registryCtx, "schema_id",
+	).WithContext(ctx).Scan(&nextID)
+	if err != nil {
+		if errors.Is(err, gocql.ErrNotFound) {
+			return 0, nil
 		}
-	}
-	if err := iter.Close(); err != nil {
 		return 0, fmt.Errorf("failed to get max schema ID: %w", err)
 	}
-	return maxID, nil
+	if nextID <= 1 {
+		return 0, nil
+	}
+	return int64(nextID - 1), nil
 }
 
 // SetNextID sets the per-context ID sequence to start from the given value.
 // Used after import to prevent ID conflicts.
+// Guards against rewinding: if the current value is already >= id, this is a no-op.
 func (s *Store) SetNextID(ctx context.Context, registryCtx string, id int64) error {
 	// Use LWT to set the next_id value
 	for attempt := 0; attempt < s.cfg.MaxRetries; attempt++ {
@@ -371,6 +371,11 @@ func (s *Store) SetNextID(ctx context.Context, registryCtx string, id int64) err
 		}
 		if err != nil {
 			return err
+		}
+
+		// Guard against rewinding: only advance, never go backward
+		if int64(current) >= id {
+			return nil
 		}
 
 		applied, err := casApplied(
@@ -488,9 +493,9 @@ func (s *Store) ImportSchema(ctx context.Context, registryCtx string, record *st
 	}
 	if !exists || record.Version > latestVersion {
 		batch.Query(
-			fmt.Sprintf(`INSERT INTO %s.subject_latest (subject, registry_ctx, latest_version, latest_schema_id, updated_at)
+			fmt.Sprintf(`INSERT INTO %s.subject_latest (registry_ctx, subject, latest_version, latest_schema_id, updated_at)
 				VALUES (?, ?, ?, ?, now())`, qident(s.cfg.Keyspace)),
-			record.Subject, registryCtx, record.Version, int(record.ID),
+			registryCtx, record.Subject, record.Version, int(record.ID),
 		)
 	}
 
@@ -621,17 +626,17 @@ func (s *Store) CreateSchema(ctx context.Context, registryCtx string, record *st
 		if !exists {
 			applied, err = casApplied(
 				s.session.Query(
-					fmt.Sprintf(`INSERT INTO %s.subject_latest (subject, registry_ctx, latest_version, latest_schema_id, updated_at)
+					fmt.Sprintf(`INSERT INTO %s.subject_latest (registry_ctx, subject, latest_version, latest_schema_id, updated_at)
 						VALUES (?, ?, ?, ?, now()) IF NOT EXISTS`, qident(s.cfg.Keyspace)),
-					record.Subject, registryCtx, newVersion, int(schemaID),
+					registryCtx, record.Subject, newVersion, int(schemaID),
 				).WithContext(ctx),
 			)
 		} else {
 			applied, err = casApplied(
 				s.session.Query(
-					fmt.Sprintf(`UPDATE %s.subject_latest SET registry_ctx = ?, latest_version = ?, latest_schema_id = ?, updated_at = now()
-						WHERE subject = ? IF latest_version = ? AND latest_schema_id = ?`, qident(s.cfg.Keyspace)),
-					registryCtx, newVersion, int(schemaID), record.Subject, latestVersion, latestSchemaID,
+					fmt.Sprintf(`UPDATE %s.subject_latest SET latest_version = ?, latest_schema_id = ?, updated_at = now()
+						WHERE registry_ctx = ? AND subject = ? IF latest_version = ? AND latest_schema_id = ?`, qident(s.cfg.Keyspace)),
+					newVersion, int(schemaID), registryCtx, record.Subject, latestVersion, latestSchemaID,
 				).WithContext(ctx),
 			)
 		}
@@ -1048,13 +1053,12 @@ func (s *Store) GetSchemaByFingerprint(ctx context.Context, registryCtx string, 
 	for iter.Scan(&version, &deleted) {
 		if includeDeleted || !deleted {
 			iter.Close()
-			rec, err := s.GetSchemaByID(ctx, registryCtx, globalRec.ID)
+			// Use GetSchemaBySubjectVersion (reads metadata/ruleSet from subject_versions)
+			// rather than GetSchemaByID (schemas_by_id doesn't store per-version metadata).
+			rec, err := s.GetSchemaBySubjectVersion(ctx, registryCtx, subject, version)
 			if err != nil {
 				return nil, err
 			}
-			rec.Subject = subject
-			rec.Version = version
-			rec.Deleted = deleted
 			rec.Fingerprint = fp
 			return rec, nil
 		}
@@ -1145,20 +1149,15 @@ func (s *Store) GetLatestSchema(ctx context.Context, registryCtx string, subject
 func (s *Store) getSubjectLatest(ctx context.Context, registryCtx string, subject string) (latestVersion int, latestSchemaID int, exists bool, err error) {
 	var v, sid int
 	var updated gocql.UUID
-	var storedCtx string
 	err = s.readQuery(
-		fmt.Sprintf(`SELECT registry_ctx, latest_version, latest_schema_id, updated_at FROM %s.subject_latest WHERE subject = ?`, qident(s.cfg.Keyspace)),
-		subject,
-	).WithContext(ctx).Scan(&storedCtx, &v, &sid, &updated)
+		fmt.Sprintf(`SELECT latest_version, latest_schema_id, updated_at FROM %s.subject_latest WHERE registry_ctx = ? AND subject = ?`, qident(s.cfg.Keyspace)),
+		registryCtx, subject,
+	).WithContext(ctx).Scan(&v, &sid, &updated)
 	if err != nil {
 		if errors.Is(err, gocql.ErrNotFound) {
 			return 0, 0, false, nil
 		}
 		return 0, 0, false, err
-	}
-	// Only return true if the subject belongs to this context
-	if storedCtx != registryCtx {
-		return 0, 0, false, nil
 	}
 	return v, sid, true, nil
 }
@@ -1375,8 +1374,8 @@ func (s *Store) DeleteSubject(ctx context.Context, registryCtx string, subject s
 		}
 		// Remove from subject_latest
 		if err := s.writeQuery(
-			fmt.Sprintf(`DELETE FROM %s.subject_latest WHERE subject = ?`, qident(s.cfg.Keyspace)),
-			subject,
+			fmt.Sprintf(`DELETE FROM %s.subject_latest WHERE registry_ctx = ? AND subject = ?`, qident(s.cfg.Keyspace)),
+			registryCtx, subject,
 		).WithContext(ctx).Exec(); err != nil {
 			slog.Warn("failed to delete subject_latest", "subject", subject, "error", err)
 		}
