@@ -26,6 +26,12 @@ formats for schema management.
   - [Get raw schema string by global ID](#get-raw-schema-string-by-global-id)
   - [Get subjects associated with a schema ID](#get-subjects-associated-with-a-schema-id)
   - [Get subject-version pairs for a schema ID](#get-subject-version-pairs-for-a-schema-id)
+  - [[Context-scoped] Get supported schema types](#context-scoped-get-supported-schema-types)
+  - [[Context-scoped] List schemas](#context-scoped-list-schemas)
+  - [[Context-scoped] Get schema by global ID](#context-scoped-get-schema-by-global-id)
+  - [[Context-scoped] Get raw schema string by global ID](#context-scoped-get-raw-schema-string-by-global-id)
+  - [[Context-scoped] Get subjects associated with a schema ID](#context-scoped-get-subjects-associated-with-a-schema-id)
+  - [[Context-scoped] Get subject-version pairs for a schema ID](#context-scoped-get-subject-version-pairs-for-a-schema-id)
 - [Subjects](#subjects)
   - [List subjects](#list-subjects)
   - [List versions under a subject](#list-versions-under-a-subject)
@@ -36,6 +42,15 @@ formats for schema management.
   - [Get schema IDs that reference this version](#get-schema-ids-that-reference-this-version)
   - [Look up schema under a subject](#look-up-schema-under-a-subject)
   - [Delete a subject](#delete-a-subject)
+  - [[Context-scoped] List subjects](#context-scoped-list-subjects)
+  - [[Context-scoped] List versions under a subject](#context-scoped-list-versions-under-a-subject)
+  - [[Context-scoped] Register a new schema under a subject](#context-scoped-register-a-new-schema-under-a-subject)
+  - [[Context-scoped] Get a specific version of a subject](#context-scoped-get-a-specific-version-of-a-subject)
+  - [[Context-scoped] Delete a specific version of a subject](#context-scoped-delete-a-specific-version-of-a-subject)
+  - [[Context-scoped] Get raw schema string by subject version](#context-scoped-get-raw-schema-string-by-subject-version)
+  - [[Context-scoped] Get schema IDs that reference this version](#context-scoped-get-schema-ids-that-reference-this-version)
+  - [[Context-scoped] Look up schema under a subject](#context-scoped-look-up-schema-under-a-subject)
+  - [[Context-scoped] Delete a subject](#context-scoped-delete-a-subject)
 - [Config](#config)
   - [Get global compatibility configuration](#get-global-compatibility-configuration)
   - [Set global compatibility configuration](#set-global-compatibility-configuration)
@@ -43,19 +58,37 @@ formats for schema management.
   - [Get subject-level compatibility configuration](#get-subject-level-compatibility-configuration)
   - [Set subject-level compatibility configuration](#set-subject-level-compatibility-configuration)
   - [Delete subject-level compatibility configuration](#delete-subject-level-compatibility-configuration)
+  - [[Context-scoped] Get global compatibility configuration](#context-scoped-get-global-compatibility-configuration)
+  - [[Context-scoped] Set global compatibility configuration](#context-scoped-set-global-compatibility-configuration)
+  - [[Context-scoped] Delete global compatibility configuration](#context-scoped-delete-global-compatibility-configuration)
+  - [[Context-scoped] Get subject-level compatibility configuration](#context-scoped-get-subject-level-compatibility-configuration)
+  - [[Context-scoped] Set subject-level compatibility configuration](#context-scoped-set-subject-level-compatibility-configuration)
+  - [[Context-scoped] Delete subject-level compatibility configuration](#context-scoped-delete-subject-level-compatibility-configuration)
 - [Mode](#mode)
   - [Get global mode](#get-global-mode)
   - [Set global mode](#set-global-mode)
   - [Get subject-level mode](#get-subject-level-mode)
   - [Set subject-level mode](#set-subject-level-mode)
   - [Delete subject-level mode](#delete-subject-level-mode)
+  - [[Context-scoped] Get global mode](#context-scoped-get-global-mode)
+  - [[Context-scoped] Set global mode](#context-scoped-set-global-mode)
+  - [[Context-scoped] Get subject-level mode](#context-scoped-get-subject-level-mode)
+  - [[Context-scoped] Set subject-level mode](#context-scoped-set-subject-level-mode)
+  - [[Context-scoped] Delete subject-level mode](#context-scoped-delete-subject-level-mode)
 - [Compatibility](#compatibility)
   - [Check compatibility against a specific version](#check-compatibility-against-a-specific-version)
   - [Check compatibility against all versions](#check-compatibility-against-all-versions)
+  - [[Context-scoped] Check compatibility against a specific version](#context-scoped-check-compatibility-against-a-specific-version)
+  - [[Context-scoped] Check compatibility against all versions](#context-scoped-check-compatibility-against-all-versions)
 - [Import](#import)
   - [Bulk import schemas](#bulk-import-schemas)
-- [Metadata](#metadata)
+  - [[Context-scoped] Bulk import schemas](#context-scoped-bulk-import-schemas)
+- [Contexts](#contexts)
   - [Get schema registry contexts](#get-schema-registry-contexts)
+  - [[Context-scoped] Get schema registry contexts](#context-scoped-get-schema-registry-contexts)
+- [Metadata](#metadata)
+  - [[Context-scoped] Get cluster ID](#context-scoped-get-cluster-id)
+  - [[Context-scoped] Get server version](#context-scoped-get-server-version)
   - [Get cluster ID](#get-cluster-id)
   - [Get server version](#get-server-version)
 - [Account](#account)
@@ -370,6 +403,26 @@ Returns a list of all schemas registered in the registry. Results MAY be filtere
           "onFailure": "string",
           "disabled": false
         }
+      ],
+      "encodingRules": [
+        {
+          "name": "checkSensitiveFields",
+          "doc": "Ensures PII fields are encrypted",
+          "kind": "CONDITION",
+          "mode": "WRITE",
+          "type": "CEL",
+          "tags": [
+            "string"
+          ],
+          "params": {
+            "property1": "string",
+            "property2": "string"
+          },
+          "expr": "message.ssn != ''",
+          "onSuccess": "string",
+          "onFailure": "string",
+          "disabled": false
+        }
       ]
     }
   }
@@ -414,7 +467,7 @@ Status Code **200**
 |»» properties|object|false|none|A map of property names to string values. Used for attaching arbitrary metadata to schemas.|
 |»»» **additionalProperties**|string|false|none|none|
 |»» sensitive|[string]|false|none|A list of field names that contain sensitive data (e.g. PII). Schema processing tools MAY use this to apply data masking or encryption.|
-|» ruleSet|[RuleSet](#schemaruleset)|false|none|A set of data contract rules attached to a schema. Contains migration rules (applied during schema evolution) and domain rules (applied during data processing).|
+|» ruleSet|[RuleSet](#schemaruleset)|false|none|A set of data contract rules attached to a schema. Contains migration rules (applied during schema evolution), domain rules (applied during data processing), and encoding rules (applied during serialization/deserialization).|
 |»» migrationRules|[[Rule](#schemarule)]|false|none|Rules applied during schema migration (evolution). These rules govern how data written with an older schema version is transformed when read with a newer version, or vice versa.|
 |»»» name|string|true|none|The unique name of this rule.|
 |»»» doc|string|false|none|A human-readable description of the rule's purpose.|
@@ -429,6 +482,7 @@ Status Code **200**
 |»»» onFailure|string|false|none|Action to take when the rule evaluation fails (e.g. NONE, ERROR, DLQ).|
 |»»» disabled|boolean|false|none|Whether the rule is currently disabled.|
 |»» domainRules|[[Rule](#schemarule)]|false|none|Rules applied during normal data processing. These rules define validation conditions and data transformations.|
+|»» encodingRules|[[Rule](#schemarule)]|false|none|Rules applied during serialization and deserialization. These rules govern encoding-specific transformations such as compression, encryption, or format conversion.|
 
 #### Enumerated Values
 
@@ -526,6 +580,26 @@ Retrieves a schema by its globally unique ID. The response includes the schema s
       }
     ],
     "domainRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ],
+    "encodingRules": [
       {
         "name": "checkSensitiveFields",
         "doc": "Ensures PII fields are encrypted",
@@ -734,6 +808,629 @@ Returns all subject-version pairs where the schema identified by the given globa
 |id|path|integer(int64)|true|The globally unique integer ID of the schema.|
 |deleted|query|boolean|false|When set to `true`, includes soft-deleted subject-version pairs.|
 |subject|query|string|false|An optional subject name to filter results to only versions under that subject.|
+
+> Example responses
+
+> 200 Response
+
+```json
+[
+  {
+    "subject": "my-topic-value",
+    "version": 1
+  }
+]
+```
+
+> 404 Response
+
+```json
+{
+  "error_code": 40403,
+  "message": "Schema not found"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|A list of subject-version pairs.|Inline|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|Schema not found.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+Status Code **200**
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|*anonymous*|[[SubjectVersionPair](#schemasubjectversionpair)]|false|none|[A pair identifying a specific subject and version.]|
+|» subject|string|true|none|The subject name.|
+|» version|integer|true|none|The version number.|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] Get supported schema types
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/contexts/{context}/schemas/types \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`GET /contexts/{context}/schemas/types`
+
+Context-scoped version of `/schemas/types`. See the root-level operation for full documentation.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+
+> Example responses
+
+> 200 Response
+
+```json
+[
+  "AVRO",
+  "PROTOBUF",
+  "JSON"
+]
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|A list of supported schema type strings.|Inline|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] List schemas
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/contexts/{context}/schemas \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`GET /contexts/{context}/schemas`
+
+Context-scoped version of `/schemas`. See the root-level operation for full documentation.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+|subjectPrefix|query|string|false|Filter results to schemas whose subject name starts with this prefix.|
+|deleted|query|boolean|false|When set to `true`, soft-deleted schemas are included in the results.|
+|latestOnly|query|boolean|false|When set to `true`, only the latest version of each subject is returned.|
+|offset|query|integer|false|The number of results to skip for pagination.|
+|limit|query|integer|false|The maximum number of results to return. If omitted or set to 0, all results are returned.|
+
+> Example responses
+
+> 200 Response
+
+```json
+[
+  {
+    "subject": "string",
+    "version": 0,
+    "id": 0,
+    "schemaType": "AVRO",
+    "schema": "string",
+    "references": [
+      {
+        "name": "com.example.Address",
+        "subject": "address-value",
+        "version": 1
+      }
+    ],
+    "metadata": {
+      "tags": {
+        "team": [
+          "platform",
+          "data-eng"
+        ]
+      },
+      "properties": {
+        "owner": "data-platform-team",
+        "classification": "internal"
+      },
+      "sensitive": [
+        "ssn",
+        "email"
+      ]
+    },
+    "ruleSet": {
+      "migrationRules": [
+        {
+          "name": "checkSensitiveFields",
+          "doc": "Ensures PII fields are encrypted",
+          "kind": "CONDITION",
+          "mode": "WRITE",
+          "type": "CEL",
+          "tags": [
+            "string"
+          ],
+          "params": {
+            "property1": "string",
+            "property2": "string"
+          },
+          "expr": "message.ssn != ''",
+          "onSuccess": "string",
+          "onFailure": "string",
+          "disabled": false
+        }
+      ],
+      "domainRules": [
+        {
+          "name": "checkSensitiveFields",
+          "doc": "Ensures PII fields are encrypted",
+          "kind": "CONDITION",
+          "mode": "WRITE",
+          "type": "CEL",
+          "tags": [
+            "string"
+          ],
+          "params": {
+            "property1": "string",
+            "property2": "string"
+          },
+          "expr": "message.ssn != ''",
+          "onSuccess": "string",
+          "onFailure": "string",
+          "disabled": false
+        }
+      ],
+      "encodingRules": [
+        {
+          "name": "checkSensitiveFields",
+          "doc": "Ensures PII fields are encrypted",
+          "kind": "CONDITION",
+          "mode": "WRITE",
+          "type": "CEL",
+          "tags": [
+            "string"
+          ],
+          "params": {
+            "property1": "string",
+            "property2": "string"
+          },
+          "expr": "message.ssn != ''",
+          "onSuccess": "string",
+          "onFailure": "string",
+          "disabled": false
+        }
+      ]
+    }
+  }
+]
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|A list of schema records.|Inline|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+Status Code **200**
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|*anonymous*|[[SchemaListItem](#schemaschemalistitem)]|false|none|[A single schema in the list schemas response.]|
+|» subject|string|true|none|The subject name.|
+|» version|integer|true|none|The version number.|
+|» id|integer(int64)|true|none|The globally unique schema ID.|
+|» schemaType|string|true|none|The type of the schema.|
+|» schema|string|true|none|The schema definition as a string.|
+|» references|[[Reference](#schemareference)]|false|none|References to other schemas.|
+|»» name|string|true|none|The reference name. For Avro, this is the fully-qualified name of the referenced type. For Protobuf, this is the import path. For JSON Schema, this is the $ref URI.|
+|»» subject|string|true|none|The subject under which the referenced schema is registered.|
+|»» version|integer|true|none|The version of the referenced schema.|
+|» metadata|[Metadata](#schemametadata)|false|none|Metadata associated with a schema for data contract management. Contains tags for categorization, properties for key-value data, and a list of field names that contain sensitive information.|
+|»» tags|object|false|none|A map of tag names to arrays of tag values. Used for categorizing schemas.|
+|»»» **additionalProperties**|[string]|false|none|none|
+|»» properties|object|false|none|A map of property names to string values. Used for attaching arbitrary metadata to schemas.|
+|»»» **additionalProperties**|string|false|none|none|
+|»» sensitive|[string]|false|none|A list of field names that contain sensitive data (e.g. PII). Schema processing tools MAY use this to apply data masking or encryption.|
+|» ruleSet|[RuleSet](#schemaruleset)|false|none|A set of data contract rules attached to a schema. Contains migration rules (applied during schema evolution), domain rules (applied during data processing), and encoding rules (applied during serialization/deserialization).|
+|»» migrationRules|[[Rule](#schemarule)]|false|none|Rules applied during schema migration (evolution). These rules govern how data written with an older schema version is transformed when read with a newer version, or vice versa.|
+|»»» name|string|true|none|The unique name of this rule.|
+|»»» doc|string|false|none|A human-readable description of the rule's purpose.|
+|»»» kind|string|true|none|The kind of rule. Common values include CONDITION (validation) and TRANSFORM (data transformation).|
+|»»» mode|string|true|none|When the rule is applied in the data flow. Common values include WRITE (applied on produce), READ (applied on consume), and WRITEREAD (applied on both).|
+|»»» type|string|false|none|The rule engine type (e.g. CEL, AVRO, JSONATA).|
+|»»» tags|[string]|false|none|Tags that this rule applies to.|
+|»»» params|object|false|none|Key-value parameters passed to the rule engine.|
+|»»»» **additionalProperties**|string|false|none|none|
+|»»» expr|string|false|none|The rule expression to evaluate. The syntax depends on the rule `type`.|
+|»»» onSuccess|string|false|none|Action to take when the rule evaluates successfully (e.g. NONE, ERROR).|
+|»»» onFailure|string|false|none|Action to take when the rule evaluation fails (e.g. NONE, ERROR, DLQ).|
+|»»» disabled|boolean|false|none|Whether the rule is currently disabled.|
+|»» domainRules|[[Rule](#schemarule)]|false|none|Rules applied during normal data processing. These rules define validation conditions and data transformations.|
+|»» encodingRules|[[Rule](#schemarule)]|false|none|Rules applied during serialization and deserialization. These rules govern encoding-specific transformations such as compression, encryption, or format conversion.|
+
+#### Enumerated Values
+
+|Property|Value|
+|---|---|
+|schemaType|AVRO|
+|schemaType|PROTOBUF|
+|schemaType|JSON|
+|kind|CONDITION|
+|kind|TRANSFORM|
+|mode|WRITE|
+|mode|READ|
+|mode|WRITEREAD|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] Get schema by global ID
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/contexts/{context}/schemas/ids/{id} \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`GET /contexts/{context}/schemas/ids/{id}`
+
+Context-scoped version of `/schemas/ids/{id}`. See the root-level operation for full documentation.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+|id|path|integer(int64)|true|The globally unique integer ID of the schema.|
+|format|query|string|false|An optional format hint for the returned schema string.|
+|fetchMaxId|query|boolean|false|When set to `true`, the response includes a `maxId` field containing the current highest schema ID in the registry.|
+|subject|query|string|false|An optional subject name filter.|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "schema": "string",
+  "schemaType": "AVRO",
+  "references": [
+    {
+      "name": "com.example.Address",
+      "subject": "address-value",
+      "version": 1
+    }
+  ],
+  "metadata": {
+    "tags": {
+      "team": [
+        "platform",
+        "data-eng"
+      ]
+    },
+    "properties": {
+      "owner": "data-platform-team",
+      "classification": "internal"
+    },
+    "sensitive": [
+      "ssn",
+      "email"
+    ]
+  },
+  "ruleSet": {
+    "migrationRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ],
+    "domainRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ],
+    "encodingRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ]
+  },
+  "maxId": 0
+}
+```
+
+> 404 Response
+
+```json
+{
+  "error_code": 40403,
+  "message": "Schema not found"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The schema identified by the given global ID.|[SchemaByIDResponse](#schemaschemabyidresponse)|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|Schema not found.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] Get raw schema string by global ID
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/contexts/{context}/schemas/ids/{id}/schema \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`GET /contexts/{context}/schemas/ids/{id}/schema`
+
+Context-scoped version of `/schemas/ids/{id}/schema`. See the root-level operation for full documentation.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+|id|path|integer(int64)|true|The globally unique integer ID of the schema.|
+|format|query|string|false|An optional format hint for the returned schema string.|
+
+> Example responses
+
+> 200 Response
+
+```json
+"string"
+```
+
+> 404 Response
+
+```json
+{
+  "error_code": 40403,
+  "message": "Schema not found"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The raw schema string.|string|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|Schema not found.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] Get subjects associated with a schema ID
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/contexts/{context}/schemas/ids/{id}/subjects \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`GET /contexts/{context}/schemas/ids/{id}/subjects`
+
+Context-scoped version of `/schemas/ids/{id}/subjects`. See the root-level operation for full documentation.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+|id|path|integer(int64)|true|The globally unique integer ID of the schema.|
+|deleted|query|boolean|false|When set to `true`, includes subjects that have been soft-deleted.|
+|subject|query|string|false|An optional subject name to filter the result to only that subject.|
+
+> Example responses
+
+> 200 Response
+
+```json
+[
+  "my-topic-value",
+  "other-topic-value"
+]
+```
+
+> 404 Response
+
+```json
+{
+  "error_code": 40403,
+  "message": "Schema not found"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|A list of subject names.|Inline|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|Schema not found.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] Get subject-version pairs for a schema ID
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/contexts/{context}/schemas/ids/{id}/versions \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`GET /contexts/{context}/schemas/ids/{id}/versions`
+
+Context-scoped version of `/schemas/ids/{id}/versions`. See the root-level operation for full documentation.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+|id|path|integer(int64)|true|The globally unique integer ID of the schema.|
+|deleted|query|boolean|false|When set to `true`, includes soft-deleted subject-version pairs.|
+|subject|query|string|false|An optional subject name to filter results.|
 
 > Example responses
 
@@ -1015,6 +1712,26 @@ The subject's mode MUST be READWRITE or IMPORT for this operation to succeed. If
         "onFailure": "string",
         "disabled": false
       }
+    ],
+    "encodingRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
     ]
   }
 }
@@ -1161,6 +1878,26 @@ When `deleted=true` is set, soft-deleted versions are also returned. The optiona
       }
     ],
     "domainRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ],
+    "encodingRules": [
       {
         "name": "checkSensitiveFields",
         "doc": "Ensures PII fields are encrypted",
@@ -1599,6 +2336,26 @@ The `deleted` query parameter controls whether soft-deleted versions are conside
         "onFailure": "string",
         "disabled": false
       }
+    ],
+    "encodingRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
     ]
   }
 }
@@ -1744,6 +2501,857 @@ To perform this operation, you must be authenticated by means of one of the foll
 basicAuth, apiKey, bearerAuth
 
 
+## [Context-scoped] List subjects
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/contexts/{context}/subjects \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`GET /contexts/{context}/subjects`
+
+Context-scoped version of `/subjects`. See the root-level operation for full documentation.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+|deleted|query|boolean|false|When set to `true`, includes soft-deleted subjects alongside active ones.|
+|deletedOnly|query|boolean|false|When set to `true`, returns only subjects that have been soft-deleted.|
+|subjectPrefix|query|string|false|Filters the results to subjects whose name starts with the given prefix.|
+|offset|query|integer|false|The number of results to skip for pagination.|
+|limit|query|integer|false|The maximum number of results to return.|
+
+> Example responses
+
+> 200 Response
+
+```json
+[
+  "my-topic-value",
+  "other-topic-key"
+]
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|A JSON array of subject name strings.|Inline|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] List versions under a subject
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/contexts/{context}/subjects/{subject}/versions \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`GET /contexts/{context}/subjects/{subject}/versions`
+
+Context-scoped version of `/subjects/{subject}/versions`. See the root-level operation for full documentation.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+|subject|path|string|true|The name of the subject. Subjects typically correspond to Kafka topic names with a `-key` or `-value` suffix (e.g. `my-topic-value`).|
+|deleted|query|boolean|false|When set to `true`, includes soft-deleted versions alongside active ones.|
+|deletedOnly|query|boolean|false|When set to `true`, returns only versions that have been soft-deleted.|
+|offset|query|integer|false|The number of results to skip for pagination.|
+|limit|query|integer|false|The maximum number of results to return.|
+
+> Example responses
+
+> 200 Response
+
+```json
+[
+  1,
+  2,
+  3
+]
+```
+
+> 404 Response
+
+```json
+{
+  "error_code": 40401,
+  "message": "Subject not found"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|A JSON array of version numbers (integers).|Inline|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|Subject not found.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] Register a new schema under a subject
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X POST http://localhost:8081/contexts/{context}/subjects/{subject}/versions \
+  -H 'Content-Type: application/vnd.schemaregistry.v1+json' \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`POST /contexts/{context}/subjects/{subject}/versions`
+
+Context-scoped version of `POST /subjects/{subject}/versions`. See the root-level operation for full documentation.
+
+> Body parameter
+
+```json
+{
+  "schema": "{\"type\":\"record\",\"name\":\"User\",\"fields\":[{\"name\":\"name\",\"type\":\"string\"}]}",
+  "schemaType": "AVRO",
+  "references": [
+    {
+      "name": "com.example.Address",
+      "subject": "address-value",
+      "version": 1
+    }
+  ],
+  "id": 0,
+  "metadata": {
+    "tags": {
+      "team": [
+        "platform",
+        "data-eng"
+      ]
+    },
+    "properties": {
+      "owner": "data-platform-team",
+      "classification": "internal"
+    },
+    "sensitive": [
+      "ssn",
+      "email"
+    ]
+  },
+  "ruleSet": {
+    "migrationRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ],
+    "domainRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ],
+    "encodingRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ]
+  }
+}
+```
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+|subject|path|string|true|The name of the subject. Subjects typically correspond to Kafka topic names with a `-key` or `-value` suffix (e.g. `my-topic-value`).|
+|normalize|query|boolean|false|When set to `true`, the schema is canonicalized before storage and fingerprinting.|
+|body|body|[RegisterSchemaRequest](#schemaregisterschemarequest)|true|none|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "id": 1
+}
+```
+
+> 409 Response
+
+```json
+{
+  "error_code": 409,
+  "message": "Schema being registered is incompatible with an earlier schema"
+}
+```
+
+> 422 Response
+
+```json
+{
+  "error_code": 42201,
+  "message": "Invalid schema"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The schema was registered successfully (or an identical schema already existed). Returns the globally unique schema ID.|[RegisterSchemaResponse](#schemaregisterschemaresponse)|
+|409|[Conflict](https://tools.ietf.org/html/rfc7231#section-6.5.8)|The schema is incompatible with an existing version under this subject.|[ErrorResponse](#schemaerrorresponse)|
+|422|[Unprocessable Entity](https://tools.ietf.org/html/rfc2518#section-10.3)|The schema is invalid, the schema type is unsupported, or the operation is not permitted in the current mode.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] Get a specific version of a subject
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/contexts/{context}/subjects/{subject}/versions/{version} \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`GET /contexts/{context}/subjects/{subject}/versions/{version}`
+
+Context-scoped version of `/subjects/{subject}/versions/{version}`. See the root-level operation for full documentation.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+|subject|path|string|true|The name of the subject. Subjects typically correspond to Kafka topic names with a `-key` or `-value` suffix (e.g. `my-topic-value`).|
+|version|path|any|true|The version number to operate on. MUST be a positive integer (1 through 2^31-1) or the string `latest` to refer to the most recently registered version. The value `-1` is also accepted as an alias for `latest`.|
+|deleted|query|boolean|false|When set to `true`, soft-deleted versions are also retrievable.|
+|format|query|string|false|An optional format hint for the returned schema string.|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "subject": "my-topic-value",
+  "id": 1,
+  "version": 1,
+  "schemaType": "AVRO",
+  "schema": "string",
+  "references": [
+    {
+      "name": "com.example.Address",
+      "subject": "address-value",
+      "version": 1
+    }
+  ],
+  "metadata": {
+    "tags": {
+      "team": [
+        "platform",
+        "data-eng"
+      ]
+    },
+    "properties": {
+      "owner": "data-platform-team",
+      "classification": "internal"
+    },
+    "sensitive": [
+      "ssn",
+      "email"
+    ]
+  },
+  "ruleSet": {
+    "migrationRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ],
+    "domainRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ],
+    "encodingRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ]
+  }
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The schema version detail.|[SubjectVersionResponse](#schemasubjectversionresponse)|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|Subject or version not found.|[ErrorResponse](#schemaerrorresponse)|
+|422|[Unprocessable Entity](https://tools.ietf.org/html/rfc2518#section-10.3)|Invalid version identifier.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] Delete a specific version of a subject
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X DELETE http://localhost:8081/contexts/{context}/subjects/{subject}/versions/{version} \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`DELETE /contexts/{context}/subjects/{subject}/versions/{version}`
+
+Context-scoped version of `DELETE /subjects/{subject}/versions/{version}`. See the root-level operation for full documentation.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+|subject|path|string|true|The name of the subject. Subjects typically correspond to Kafka topic names with a `-key` or `-value` suffix (e.g. `my-topic-value`).|
+|version|path|any|true|The version number to operate on. MUST be a positive integer (1 through 2^31-1) or the string `latest` to refer to the most recently registered version. The value `-1` is also accepted as an alias for `latest`.|
+|permanent|query|boolean|false|When set to `true`, permanently removes the version from storage.|
+
+> Example responses
+
+> 200 Response
+
+```json
+3
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The version was deleted. Returns the version number that was deleted.|integer|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|Subject or version not found.|[ErrorResponse](#schemaerrorresponse)|
+|422|[Unprocessable Entity](https://tools.ietf.org/html/rfc2518#section-10.3)|Invalid version, operation not permitted, or referenced by other schemas.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] Get raw schema string by subject version
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/contexts/{context}/subjects/{subject}/versions/{version}/schema \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`GET /contexts/{context}/subjects/{subject}/versions/{version}/schema`
+
+Context-scoped version of `/subjects/{subject}/versions/{version}/schema`. See the root-level operation for full documentation.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+|subject|path|string|true|The name of the subject. Subjects typically correspond to Kafka topic names with a `-key` or `-value` suffix (e.g. `my-topic-value`).|
+|version|path|any|true|The version number to operate on. MUST be a positive integer (1 through 2^31-1) or the string `latest` to refer to the most recently registered version. The value `-1` is also accepted as an alias for `latest`.|
+|format|query|string|false|An optional format hint for the returned schema string.|
+
+> Example responses
+
+> 200 Response
+
+```json
+"string"
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The raw schema string.|string|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|Subject or version not found.|[ErrorResponse](#schemaerrorresponse)|
+|422|[Unprocessable Entity](https://tools.ietf.org/html/rfc2518#section-10.3)|Invalid version identifier.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] Get schema IDs that reference this version
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/contexts/{context}/subjects/{subject}/versions/{version}/referencedby \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`GET /contexts/{context}/subjects/{subject}/versions/{version}/referencedby`
+
+Context-scoped version of `/subjects/{subject}/versions/{version}/referencedby`. See the root-level operation for full documentation.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+|subject|path|string|true|The name of the subject. Subjects typically correspond to Kafka topic names with a `-key` or `-value` suffix (e.g. `my-topic-value`).|
+|version|path|any|true|The version number to operate on. MUST be a positive integer (1 through 2^31-1) or the string `latest` to refer to the most recently registered version. The value `-1` is also accepted as an alias for `latest`.|
+
+> Example responses
+
+> 200 Response
+
+```json
+[
+  5,
+  12
+]
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|A JSON array of schema IDs (integers) that reference this schema version.|Inline|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|Subject or version not found.|[ErrorResponse](#schemaerrorresponse)|
+|422|[Unprocessable Entity](https://tools.ietf.org/html/rfc2518#section-10.3)|Invalid version identifier.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] Look up schema under a subject
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X POST http://localhost:8081/contexts/{context}/subjects/{subject} \
+  -H 'Content-Type: application/vnd.schemaregistry.v1+json' \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`POST /contexts/{context}/subjects/{subject}`
+
+Context-scoped version of `POST /subjects/{subject}`. See the root-level operation for full documentation.
+
+> Body parameter
+
+```json
+{
+  "schema": "string",
+  "schemaType": "AVRO",
+  "references": [
+    {
+      "name": "com.example.Address",
+      "subject": "address-value",
+      "version": 1
+    }
+  ]
+}
+```
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+|subject|path|string|true|The name of the subject. Subjects typically correspond to Kafka topic names with a `-key` or `-value` suffix (e.g. `my-topic-value`).|
+|deleted|query|boolean|false|When set to `true`, also searches among soft-deleted versions.|
+|normalize|query|boolean|false|When set to `true`, the provided schema is canonicalized before comparison.|
+|body|body|[LookupSchemaRequest](#schemalookupschemarequest)|true|none|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "subject": "string",
+  "id": 0,
+  "version": 0,
+  "schemaType": "AVRO",
+  "schema": "string",
+  "references": [
+    {
+      "name": "com.example.Address",
+      "subject": "address-value",
+      "version": 1
+    }
+  ],
+  "metadata": {
+    "tags": {
+      "team": [
+        "platform",
+        "data-eng"
+      ]
+    },
+    "properties": {
+      "owner": "data-platform-team",
+      "classification": "internal"
+    },
+    "sensitive": [
+      "ssn",
+      "email"
+    ]
+  },
+  "ruleSet": {
+    "migrationRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ],
+    "domainRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ],
+    "encodingRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ]
+  }
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The schema was found under the given subject.|[LookupSchemaResponse](#schemalookupschemaresponse)|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|Subject or schema not found.|[ErrorResponse](#schemaerrorresponse)|
+|422|[Unprocessable Entity](https://tools.ietf.org/html/rfc2518#section-10.3)|Invalid schema.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] Delete a subject
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X DELETE http://localhost:8081/contexts/{context}/subjects/{subject} \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`DELETE /contexts/{context}/subjects/{subject}`
+
+Context-scoped version of `DELETE /subjects/{subject}`. See the root-level operation for full documentation.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+|subject|path|string|true|The name of the subject. Subjects typically correspond to Kafka topic names with a `-key` or `-value` suffix (e.g. `my-topic-value`).|
+|permanent|query|boolean|false|When set to `true`, permanently removes the subject and all its versions.|
+
+> Example responses
+
+> 200 Response
+
+```json
+[
+  1,
+  2,
+  3
+]
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The subject was deleted. Returns a JSON array of the version numbers that were deleted.|Inline|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|Subject not found or not in the expected delete state.|[ErrorResponse](#schemaerrorresponse)|
+|422|[Unprocessable Entity](https://tools.ietf.org/html/rfc2518#section-10.3)|Referenced by other schemas or operation not permitted.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
 # Config
 
 Operations for managing compatibility configuration at the global and per-subject level. The compatibility level determines what changes are permitted when registering a new schema version. Supported levels are NONE, BACKWARD, BACKWARD_TRANSITIVE, FORWARD, FORWARD_TRANSITIVE, FULL, and FULL_TRANSITIVE.
@@ -1853,6 +3461,26 @@ Returns the global compatibility configuration for the registry. The `defaultToG
         "onFailure": "string",
         "disabled": false
       }
+    ],
+    "encodingRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
     ]
   },
   "overrideRuleSet": {
@@ -1877,6 +3505,26 @@ Returns the global compatibility configuration for the registry. The `defaultToG
       }
     ],
     "domainRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ],
+    "encodingRules": [
       {
         "name": "checkSensitiveFields",
         "doc": "Ensures PII fields are encrypted",
@@ -2019,6 +3667,26 @@ Updates the global compatibility configuration for the registry. The `compatibil
         "onFailure": "string",
         "disabled": false
       }
+    ],
+    "encodingRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
     ]
   },
   "overrideRuleSet": {
@@ -2043,6 +3711,26 @@ Updates the global compatibility configuration for the registry. The `compatibil
       }
     ],
     "domainRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ],
+    "encodingRules": [
       {
         "name": "checkSensitiveFields",
         "doc": "Ensures PII fields are encrypted",
@@ -2155,6 +3843,26 @@ Updates the global compatibility configuration for the registry. The `compatibil
         "onFailure": "string",
         "disabled": false
       }
+    ],
+    "encodingRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
     ]
   },
   "overrideRuleSet": {
@@ -2179,6 +3887,26 @@ Updates the global compatibility configuration for the registry. The `compatibil
       }
     ],
     "domainRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ],
+    "encodingRules": [
       {
         "name": "checkSensitiveFields",
         "doc": "Ensures PII fields are encrypted",
@@ -2332,6 +4060,26 @@ Deletes the global compatibility configuration, resetting it to the server defau
         "onFailure": "string",
         "disabled": false
       }
+    ],
+    "encodingRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
     ]
   },
   "overrideRuleSet": {
@@ -2356,6 +4104,26 @@ Deletes the global compatibility configuration, resetting it to the server defau
       }
     ],
     "domainRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ],
+    "encodingRules": [
       {
         "name": "checkSensitiveFields",
         "doc": "Ensures PII fields are encrypted",
@@ -2506,6 +4274,26 @@ Returns the compatibility configuration for the specified subject. If the subjec
         "onFailure": "string",
         "disabled": false
       }
+    ],
+    "encodingRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
     ]
   },
   "overrideRuleSet": {
@@ -2530,6 +4318,26 @@ Returns the compatibility configuration for the specified subject. If the subjec
       }
     ],
     "domainRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ],
+    "encodingRules": [
       {
         "name": "checkSensitiveFields",
         "doc": "Ensures PII fields are encrypted",
@@ -2682,6 +4490,26 @@ Updates the compatibility configuration for the specified subject. The `compatib
         "onFailure": "string",
         "disabled": false
       }
+    ],
+    "encodingRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
     ]
   },
   "overrideRuleSet": {
@@ -2706,6 +4534,26 @@ Updates the compatibility configuration for the specified subject. The `compatib
       }
     ],
     "domainRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ],
+    "encodingRules": [
       {
         "name": "checkSensitiveFields",
         "doc": "Ensures PII fields are encrypted",
@@ -2819,6 +4667,26 @@ Updates the compatibility configuration for the specified subject. The `compatib
         "onFailure": "string",
         "disabled": false
       }
+    ],
+    "encodingRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
     ]
   },
   "overrideRuleSet": {
@@ -2843,6 +4711,26 @@ Updates the compatibility configuration for the specified subject. The `compatib
       }
     ],
     "domainRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ],
+    "encodingRules": [
       {
         "name": "checkSensitiveFields",
         "doc": "Ensures PII fields are encrypted",
@@ -3002,6 +4890,26 @@ Deletes the subject-level compatibility configuration for the specified subject,
         "onFailure": "string",
         "disabled": false
       }
+    ],
+    "encodingRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
     ]
   },
   "overrideRuleSet": {
@@ -3026,6 +4934,1689 @@ Deletes the subject-level compatibility configuration for the specified subject,
       }
     ],
     "domainRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ],
+    "encodingRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ]
+  }
+}
+```
+
+> 404 Response
+
+```json
+{
+  "error_code": 40401,
+  "message": "Config not found for subject"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The compatibility level that was in effect before deletion.|[ConfigResponse](#schemaconfigresponse)|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|No subject-level config found for this subject.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] Get global compatibility configuration
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/contexts/{context}/config \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`GET /contexts/{context}/config`
+
+Context-scoped version of `/config`. See the root-level operation for full documentation.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+|defaultToGlobal|query|boolean|false|Accepted for compatibility. Has no effect on the global config endpoint.|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "compatibilityLevel": "BACKWARD",
+  "normalize": true,
+  "validateFields": true,
+  "alias": "string",
+  "compatibilityGroup": "string",
+  "defaultMetadata": {
+    "tags": {
+      "team": [
+        "platform",
+        "data-eng"
+      ]
+    },
+    "properties": {
+      "owner": "data-platform-team",
+      "classification": "internal"
+    },
+    "sensitive": [
+      "ssn",
+      "email"
+    ]
+  },
+  "overrideMetadata": {
+    "tags": {
+      "team": [
+        "platform",
+        "data-eng"
+      ]
+    },
+    "properties": {
+      "owner": "data-platform-team",
+      "classification": "internal"
+    },
+    "sensitive": [
+      "ssn",
+      "email"
+    ]
+  },
+  "defaultRuleSet": {
+    "migrationRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ],
+    "domainRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ],
+    "encodingRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ]
+  },
+  "overrideRuleSet": {
+    "migrationRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ],
+    "domainRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ],
+    "encodingRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ]
+  }
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The global compatibility configuration.|[ConfigResponse](#schemaconfigresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] Set global compatibility configuration
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X PUT http://localhost:8081/contexts/{context}/config \
+  -H 'Content-Type: application/vnd.schemaregistry.v1+json' \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`PUT /contexts/{context}/config`
+
+Context-scoped version of `PUT /config`. See the root-level operation for full documentation.
+
+> Body parameter
+
+```json
+{
+  "compatibility": "NONE",
+  "normalize": true,
+  "validateFields": true,
+  "alias": "string",
+  "compatibilityGroup": "string",
+  "defaultMetadata": {
+    "tags": {
+      "team": [
+        "platform",
+        "data-eng"
+      ]
+    },
+    "properties": {
+      "owner": "data-platform-team",
+      "classification": "internal"
+    },
+    "sensitive": [
+      "ssn",
+      "email"
+    ]
+  },
+  "overrideMetadata": {
+    "tags": {
+      "team": [
+        "platform",
+        "data-eng"
+      ]
+    },
+    "properties": {
+      "owner": "data-platform-team",
+      "classification": "internal"
+    },
+    "sensitive": [
+      "ssn",
+      "email"
+    ]
+  },
+  "defaultRuleSet": {
+    "migrationRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ],
+    "domainRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ],
+    "encodingRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ]
+  },
+  "overrideRuleSet": {
+    "migrationRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ],
+    "domainRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ],
+    "encodingRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ]
+  }
+}
+```
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+|body|body|[ConfigRequest](#schemaconfigrequest)|true|none|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "compatibility": "NONE",
+  "normalize": true,
+  "validateFields": true,
+  "alias": "string",
+  "compatibilityGroup": "string",
+  "defaultMetadata": {
+    "tags": {
+      "team": [
+        "platform",
+        "data-eng"
+      ]
+    },
+    "properties": {
+      "owner": "data-platform-team",
+      "classification": "internal"
+    },
+    "sensitive": [
+      "ssn",
+      "email"
+    ]
+  },
+  "overrideMetadata": {
+    "tags": {
+      "team": [
+        "platform",
+        "data-eng"
+      ]
+    },
+    "properties": {
+      "owner": "data-platform-team",
+      "classification": "internal"
+    },
+    "sensitive": [
+      "ssn",
+      "email"
+    ]
+  },
+  "defaultRuleSet": {
+    "migrationRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ],
+    "domainRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ],
+    "encodingRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ]
+  },
+  "overrideRuleSet": {
+    "migrationRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ],
+    "domainRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ],
+    "encodingRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ]
+  }
+}
+```
+
+> 422 Response
+
+```json
+{
+  "error_code": 42203,
+  "message": "Invalid compatibility level"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The updated global compatibility configuration.|[ConfigRequest](#schemaconfigrequest)|
+|422|[Unprocessable Entity](https://tools.ietf.org/html/rfc2518#section-10.3)|Invalid compatibility level.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] Delete global compatibility configuration
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X DELETE http://localhost:8081/contexts/{context}/config \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`DELETE /contexts/{context}/config`
+
+Context-scoped version of `DELETE /config`. See the root-level operation for full documentation.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "compatibilityLevel": "BACKWARD",
+  "normalize": true,
+  "validateFields": true,
+  "alias": "string",
+  "compatibilityGroup": "string",
+  "defaultMetadata": {
+    "tags": {
+      "team": [
+        "platform",
+        "data-eng"
+      ]
+    },
+    "properties": {
+      "owner": "data-platform-team",
+      "classification": "internal"
+    },
+    "sensitive": [
+      "ssn",
+      "email"
+    ]
+  },
+  "overrideMetadata": {
+    "tags": {
+      "team": [
+        "platform",
+        "data-eng"
+      ]
+    },
+    "properties": {
+      "owner": "data-platform-team",
+      "classification": "internal"
+    },
+    "sensitive": [
+      "ssn",
+      "email"
+    ]
+  },
+  "defaultRuleSet": {
+    "migrationRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ],
+    "domainRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ],
+    "encodingRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ]
+  },
+  "overrideRuleSet": {
+    "migrationRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ],
+    "domainRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ],
+    "encodingRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ]
+  }
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The compatibility level that was in effect before deletion.|[ConfigResponse](#schemaconfigresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] Get subject-level compatibility configuration
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/contexts/{context}/config/{subject} \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`GET /contexts/{context}/config/{subject}`
+
+Context-scoped version of `/config/{subject}`. See the root-level operation for full documentation.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+|subject|path|string|true|The name of the subject. Subjects typically correspond to Kafka topic names with a `-key` or `-value` suffix (e.g. `my-topic-value`).|
+|defaultToGlobal|query|boolean|false|When set to `true`, falls back to the global compatibility configuration.|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "compatibilityLevel": "BACKWARD",
+  "normalize": true,
+  "validateFields": true,
+  "alias": "string",
+  "compatibilityGroup": "string",
+  "defaultMetadata": {
+    "tags": {
+      "team": [
+        "platform",
+        "data-eng"
+      ]
+    },
+    "properties": {
+      "owner": "data-platform-team",
+      "classification": "internal"
+    },
+    "sensitive": [
+      "ssn",
+      "email"
+    ]
+  },
+  "overrideMetadata": {
+    "tags": {
+      "team": [
+        "platform",
+        "data-eng"
+      ]
+    },
+    "properties": {
+      "owner": "data-platform-team",
+      "classification": "internal"
+    },
+    "sensitive": [
+      "ssn",
+      "email"
+    ]
+  },
+  "defaultRuleSet": {
+    "migrationRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ],
+    "domainRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ],
+    "encodingRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ]
+  },
+  "overrideRuleSet": {
+    "migrationRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ],
+    "domainRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ],
+    "encodingRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ]
+  }
+}
+```
+
+> 404 Response
+
+```json
+{
+  "error_code": 40408,
+  "message": "Subject does not have subject-level compatibility configured"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The subject-level compatibility configuration.|[ConfigResponse](#schemaconfigresponse)|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|Subject does not have subject-level compatibility configured.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] Set subject-level compatibility configuration
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X PUT http://localhost:8081/contexts/{context}/config/{subject} \
+  -H 'Content-Type: application/vnd.schemaregistry.v1+json' \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`PUT /contexts/{context}/config/{subject}`
+
+Context-scoped version of `PUT /config/{subject}`. See the root-level operation for full documentation.
+
+> Body parameter
+
+```json
+{
+  "compatibility": "NONE",
+  "normalize": true,
+  "validateFields": true,
+  "alias": "string",
+  "compatibilityGroup": "string",
+  "defaultMetadata": {
+    "tags": {
+      "team": [
+        "platform",
+        "data-eng"
+      ]
+    },
+    "properties": {
+      "owner": "data-platform-team",
+      "classification": "internal"
+    },
+    "sensitive": [
+      "ssn",
+      "email"
+    ]
+  },
+  "overrideMetadata": {
+    "tags": {
+      "team": [
+        "platform",
+        "data-eng"
+      ]
+    },
+    "properties": {
+      "owner": "data-platform-team",
+      "classification": "internal"
+    },
+    "sensitive": [
+      "ssn",
+      "email"
+    ]
+  },
+  "defaultRuleSet": {
+    "migrationRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ],
+    "domainRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ],
+    "encodingRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ]
+  },
+  "overrideRuleSet": {
+    "migrationRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ],
+    "domainRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ],
+    "encodingRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ]
+  }
+}
+```
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+|subject|path|string|true|The name of the subject. Subjects typically correspond to Kafka topic names with a `-key` or `-value` suffix (e.g. `my-topic-value`).|
+|body|body|[ConfigRequest](#schemaconfigrequest)|true|none|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "compatibility": "NONE",
+  "normalize": true,
+  "validateFields": true,
+  "alias": "string",
+  "compatibilityGroup": "string",
+  "defaultMetadata": {
+    "tags": {
+      "team": [
+        "platform",
+        "data-eng"
+      ]
+    },
+    "properties": {
+      "owner": "data-platform-team",
+      "classification": "internal"
+    },
+    "sensitive": [
+      "ssn",
+      "email"
+    ]
+  },
+  "overrideMetadata": {
+    "tags": {
+      "team": [
+        "platform",
+        "data-eng"
+      ]
+    },
+    "properties": {
+      "owner": "data-platform-team",
+      "classification": "internal"
+    },
+    "sensitive": [
+      "ssn",
+      "email"
+    ]
+  },
+  "defaultRuleSet": {
+    "migrationRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ],
+    "domainRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ],
+    "encodingRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ]
+  },
+  "overrideRuleSet": {
+    "migrationRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ],
+    "domainRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ],
+    "encodingRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ]
+  }
+}
+```
+
+> 422 Response
+
+```json
+{
+  "error_code": 42203,
+  "message": "Invalid compatibility level"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The updated subject-level compatibility configuration.|[ConfigRequest](#schemaconfigrequest)|
+|422|[Unprocessable Entity](https://tools.ietf.org/html/rfc2518#section-10.3)|Invalid compatibility level.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] Delete subject-level compatibility configuration
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X DELETE http://localhost:8081/contexts/{context}/config/{subject} \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`DELETE /contexts/{context}/config/{subject}`
+
+Context-scoped version of `DELETE /config/{subject}`. See the root-level operation for full documentation.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+|subject|path|string|true|The name of the subject. Subjects typically correspond to Kafka topic names with a `-key` or `-value` suffix (e.g. `my-topic-value`).|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "compatibilityLevel": "BACKWARD",
+  "normalize": true,
+  "validateFields": true,
+  "alias": "string",
+  "compatibilityGroup": "string",
+  "defaultMetadata": {
+    "tags": {
+      "team": [
+        "platform",
+        "data-eng"
+      ]
+    },
+    "properties": {
+      "owner": "data-platform-team",
+      "classification": "internal"
+    },
+    "sensitive": [
+      "ssn",
+      "email"
+    ]
+  },
+  "overrideMetadata": {
+    "tags": {
+      "team": [
+        "platform",
+        "data-eng"
+      ]
+    },
+    "properties": {
+      "owner": "data-platform-team",
+      "classification": "internal"
+    },
+    "sensitive": [
+      "ssn",
+      "email"
+    ]
+  },
+  "defaultRuleSet": {
+    "migrationRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ],
+    "domainRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ],
+    "encodingRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ]
+  },
+  "overrideRuleSet": {
+    "migrationRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ],
+    "domainRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
+    ],
+    "encodingRules": [
       {
         "name": "checkSensitiveFields",
         "doc": "Ensures PII fields are encrypted",
@@ -3403,6 +6994,319 @@ To perform this operation, you must be authenticated by means of one of the foll
 basicAuth, apiKey, bearerAuth
 
 
+## [Context-scoped] Get global mode
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/contexts/{context}/mode \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`GET /contexts/{context}/mode`
+
+Context-scoped version of `/mode`. See the root-level operation for full documentation.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "mode": "READWRITE"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The global mode.|[ModeResponse](#schemamoderesponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] Set global mode
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X PUT http://localhost:8081/contexts/{context}/mode \
+  -H 'Content-Type: application/vnd.schemaregistry.v1+json' \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`PUT /contexts/{context}/mode`
+
+Context-scoped version of `PUT /mode`. See the root-level operation for full documentation.
+
+> Body parameter
+
+```json
+{
+  "mode": "READWRITE"
+}
+```
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+|force|query|boolean|false|When set to `true`, forces the mode change.|
+|body|body|[ModeRequest](#schemamoderequest)|true|none|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "mode": "READWRITE"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The updated global mode.|[ModeResponse](#schemamoderesponse)|
+|422|[Unprocessable Entity](https://tools.ietf.org/html/rfc2518#section-10.3)|Invalid mode or operation not permitted.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] Get subject-level mode
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/contexts/{context}/mode/{subject} \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`GET /contexts/{context}/mode/{subject}`
+
+Context-scoped version of `/mode/{subject}`. See the root-level operation for full documentation.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+|subject|path|string|true|The name of the subject. Subjects typically correspond to Kafka topic names with a `-key` or `-value` suffix (e.g. `my-topic-value`).|
+|defaultToGlobal|query|boolean|false|When set to `true`, falls back to the global mode.|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "mode": "READWRITE"
+}
+```
+
+> 404 Response
+
+```json
+{
+  "error_code": 40409,
+  "message": "Subject does not have subject-level mode configured"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The subject-level mode.|[ModeResponse](#schemamoderesponse)|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|Subject does not have a subject-level mode configured.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] Set subject-level mode
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X PUT http://localhost:8081/contexts/{context}/mode/{subject} \
+  -H 'Content-Type: application/vnd.schemaregistry.v1+json' \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`PUT /contexts/{context}/mode/{subject}`
+
+Context-scoped version of `PUT /mode/{subject}`. See the root-level operation for full documentation.
+
+> Body parameter
+
+```json
+{
+  "mode": "READWRITE"
+}
+```
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+|subject|path|string|true|The name of the subject. Subjects typically correspond to Kafka topic names with a `-key` or `-value` suffix (e.g. `my-topic-value`).|
+|force|query|boolean|false|When set to `true`, forces the mode change.|
+|body|body|[ModeRequest](#schemamoderequest)|true|none|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "mode": "READWRITE"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The updated subject-level mode.|[ModeResponse](#schemamoderesponse)|
+|422|[Unprocessable Entity](https://tools.ietf.org/html/rfc2518#section-10.3)|Invalid mode or operation not permitted.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] Delete subject-level mode
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X DELETE http://localhost:8081/contexts/{context}/mode/{subject} \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`DELETE /contexts/{context}/mode/{subject}`
+
+Context-scoped version of `DELETE /mode/{subject}`. See the root-level operation for full documentation.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+|subject|path|string|true|The name of the subject. Subjects typically correspond to Kafka topic names with a `-key` or `-value` suffix (e.g. `my-topic-value`).|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "mode": "READWRITE"
+}
+```
+
+> 404 Response
+
+```json
+{
+  "error_code": 40401,
+  "message": "Mode not found for subject"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The mode that was in effect before deletion.|[ModeResponse](#schemamoderesponse)|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|No subject-level mode found for this subject.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
 # Compatibility
 
 Operations for testing whether a candidate schema is compatible with existing schema versions under a subject, without actually registering it.
@@ -3591,6 +7495,174 @@ To perform this operation, you must be authenticated by means of one of the foll
 basicAuth, apiKey, bearerAuth
 
 
+## [Context-scoped] Check compatibility against a specific version
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X POST http://localhost:8081/contexts/{context}/compatibility/subjects/{subject}/versions/{version} \
+  -H 'Content-Type: application/vnd.schemaregistry.v1+json' \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`POST /contexts/{context}/compatibility/subjects/{subject}/versions/{version}`
+
+Context-scoped version of `POST /compatibility/subjects/{subject}/versions/{version}`. See the root-level operation for full documentation.
+
+> Body parameter
+
+```json
+{
+  "schema": "string",
+  "schemaType": "AVRO",
+  "references": [
+    {
+      "name": "com.example.Address",
+      "subject": "address-value",
+      "version": 1
+    }
+  ]
+}
+```
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+|subject|path|string|true|The name of the subject. Subjects typically correspond to Kafka topic names with a `-key` or `-value` suffix (e.g. `my-topic-value`).|
+|version|path|any|true|The version number to operate on. MUST be a positive integer (1 through 2^31-1) or the string `latest` to refer to the most recently registered version. The value `-1` is also accepted as an alias for `latest`.|
+|verbose|query|boolean|false|When set to `true`, the response includes detailed compatibility messages.|
+|normalize|query|boolean|false|When set to `true`, the candidate schema is canonicalized before comparison.|
+|body|body|[CompatibilityCheckRequest](#schemacompatibilitycheckrequest)|true|none|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "is_compatible": true,
+  "messages": [
+    "string"
+  ]
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The compatibility check result.|[CompatibilityCheckResponse](#schemacompatibilitycheckresponse)|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|Subject or version not found.|[ErrorResponse](#schemaerrorresponse)|
+|422|[Unprocessable Entity](https://tools.ietf.org/html/rfc2518#section-10.3)|Invalid schema or invalid version.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] Check compatibility against all versions
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X POST http://localhost:8081/contexts/{context}/compatibility/subjects/{subject}/versions \
+  -H 'Content-Type: application/vnd.schemaregistry.v1+json' \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`POST /contexts/{context}/compatibility/subjects/{subject}/versions`
+
+Context-scoped version of `POST /compatibility/subjects/{subject}/versions`. See the root-level operation for full documentation.
+
+> Body parameter
+
+```json
+{
+  "schema": "string",
+  "schemaType": "AVRO",
+  "references": [
+    {
+      "name": "com.example.Address",
+      "subject": "address-value",
+      "version": 1
+    }
+  ]
+}
+```
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+|subject|path|string|true|The name of the subject. Subjects typically correspond to Kafka topic names with a `-key` or `-value` suffix (e.g. `my-topic-value`).|
+|verbose|query|boolean|false|When set to `true`, the response includes detailed compatibility messages.|
+|normalize|query|boolean|false|When set to `true`, the candidate schema is canonicalized before comparison.|
+|body|body|[CompatibilityCheckRequest](#schemacompatibilitycheckrequest)|true|none|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "is_compatible": true,
+  "messages": [
+    "string"
+  ]
+}
+```
+
+> 404 Response
+
+```json
+{
+  "error_code": 40401,
+  "message": "Subject not found"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The compatibility check result.|[CompatibilityCheckResponse](#schemacompatibilitycheckresponse)|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|Subject not found.|[ErrorResponse](#schemaerrorresponse)|
+|422|[Unprocessable Entity](https://tools.ietf.org/html/rfc2518#section-10.3)|Invalid schema.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
 # Import
 
 Operations for bulk-importing schemas from another schema registry, preserving original schema IDs. This is used for migration scenarios.
@@ -3684,9 +7756,98 @@ To perform this operation, you must be authenticated by means of one of the foll
 basicAuth, apiKey, bearerAuth
 
 
-# Metadata
+## [Context-scoped] Bulk import schemas
 
-Operations for retrieving registry metadata such as the cluster ID and server version.
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X POST http://localhost:8081/contexts/{context}/import/schemas \
+  -H 'Content-Type: application/vnd.schemaregistry.v1+json' \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`POST /contexts/{context}/import/schemas`
+
+Context-scoped version of `POST /import/schemas`. See the root-level operation for full documentation.
+
+> Body parameter
+
+```json
+{
+  "schemas": [
+    {
+      "id": 0,
+      "subject": "string",
+      "version": 0,
+      "schemaType": "AVRO",
+      "schema": "string",
+      "references": [
+        {
+          "name": "com.example.Address",
+          "subject": "address-value",
+          "version": 1
+        }
+      ]
+    }
+  ]
+}
+```
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+|body|body|[ImportSchemasRequest](#schemaimportschemasrequest)|true|none|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "imported": 10,
+  "errors": 2,
+  "results": [
+    {
+      "id": 0,
+      "subject": "string",
+      "version": 0,
+      "success": true,
+      "error": "string"
+    }
+  ]
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Import completed. Check the `imported` and `errors` counts and the individual `results` to determine whether all schemas were imported successfully.|[ImportSchemasResponse](#schemaimportschemasresponse)|
+|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Invalid request body or no schemas provided.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+# Contexts
+
+Operations for managing schema registry contexts. Contexts provide multi-tenant schema isolation — each context has its own independent schema IDs, subjects, versions, compatibility config, and modes. Subjects are qualified with a context prefix using the Confluent-compatible format `:.contextname:subject`. All standard registry routes are also available under `/contexts/{context}/...` for context-scoped access.
 
 ## Get schema registry contexts
 
@@ -3702,11 +7863,13 @@ curl -X GET http://localhost:8081/contexts \
 
 `GET /contexts`
 
-Returns the list of contexts defined in the registry.
+Returns the list of **contexts** defined in the registry. Contexts provide multi-tenant schema isolation — each context has its own independent schema IDs, subjects, versions, compatibility config, and modes.
 
-In Confluent Schema Registry, **contexts** are a multi-tenancy feature that allows multiple schemas with the same subject names and IDs to coexist in separate namespaces (e.g. `.team-a`, `.team-b`). Subjects are qualified with a context prefix (e.g. `:.mycontext:my-subject`), and schema IDs are unique within each context. This is primarily used for Schema Linking and enterprise multi-tenant deployments.
+The default context `"."` is always present, even when no schemas have been registered. Additional contexts are created implicitly when a schema is registered with a context-qualified subject name (e.g. `:.team-a:my-subject`).
 
-AxonOps Schema Registry operates as a single-tenant registry. This endpoint always returns `["."]` (the default context only). Context-qualified subject names are not supported. See [#264](https://github.com/axonops/axonops-schema-registry/issues/264) for the feature request to add context support.
+**Context-qualified subject format:** `:.contextname:subject` (Confluent-compatible). All standard registry endpoints accept qualified subjects. Alternatively, all registry routes are available under the `/contexts/{context}/...` URL prefix for context-scoped access.
+
+> Context names MUST match `^[a-zA-Z0-9._-]+$` and MUST NOT exceed 255 characters. Names are normalized with a leading dot (e.g. `team-a` becomes `.team-a`). Context names are case-sensitive.
 
 > Example responses
 
@@ -3714,7 +7877,9 @@ AxonOps Schema Registry operates as a single-tenant registry. This endpoint alwa
 
 ```json
 [
-  "."
+  ".",
+  ".team-a",
+  ".team-b"
 ]
 ```
 
@@ -3722,9 +7887,148 @@ AxonOps Schema Registry operates as a single-tenant registry. This endpoint alwa
 
 |Status|Meaning|Description|Schema|
 |---|---|---|---|
-|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|A list of context strings.|Inline|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|A sorted list of context name strings. Always includes `"."` (the default context). Additional contexts appear as schemas are registered.|Inline|
 
 ### Response Schema
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] Get schema registry contexts
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/contexts/{context}/contexts \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`GET /contexts/{context}/contexts`
+
+Context-scoped version of `/contexts`. See the root-level operation for full documentation.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+
+> Example responses
+
+> 200 Response
+
+```json
+[
+  ".",
+  ".team-a",
+  ".team-b"
+]
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|A sorted list of context name strings. Always includes `"."` (the default context).|Inline|
+
+### Response Schema
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+# Metadata
+
+Operations for retrieving registry metadata such as the cluster ID and server version.
+
+## [Context-scoped] Get cluster ID
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/contexts/{context}/v1/metadata/id \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`GET /contexts/{context}/v1/metadata/id`
+
+Context-scoped version of `/v1/metadata/id`. See the root-level operation for full documentation.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "id": "default-cluster"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The cluster ID.|[ServerClusterIDResponse](#schemaserverclusteridresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] Get server version
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/contexts/{context}/v1/metadata/version \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`GET /contexts/{context}/v1/metadata/version`
+
+Context-scoped version of `/v1/metadata/version`. See the root-level operation for full documentation.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "version": "1.0.0",
+  "commit": "abc123def",
+  "build_time": "2025-01-15T10:30:00Z"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The server version information.|[ServerVersionResponse](#schemaserverversionresponse)|
 
 > **Warning:** 
 To perform this operation, you must be authenticated by means of one of the following methods:
@@ -5591,12 +9895,32 @@ A single data contract rule. Rules define validations, transformations, or gover
       "onFailure": "string",
       "disabled": false
     }
+  ],
+  "encodingRules": [
+    {
+      "name": "checkSensitiveFields",
+      "doc": "Ensures PII fields are encrypted",
+      "kind": "CONDITION",
+      "mode": "WRITE",
+      "type": "CEL",
+      "tags": [
+        "string"
+      ],
+      "params": {
+        "property1": "string",
+        "property2": "string"
+      },
+      "expr": "message.ssn != ''",
+      "onSuccess": "string",
+      "onFailure": "string",
+      "disabled": false
+    }
   ]
 }
 
 ```
 
-A set of data contract rules attached to a schema. Contains migration rules (applied during schema evolution) and domain rules (applied during data processing).
+A set of data contract rules attached to a schema. Contains migration rules (applied during schema evolution), domain rules (applied during data processing), and encoding rules (applied during serialization/deserialization).
 
 ### Properties
 
@@ -5604,6 +9928,7 @@ A set of data contract rules attached to a schema. Contains migration rules (app
 |---|---|---|---|---|
 |migrationRules|[[Rule](#schemarule)]|false|none|Rules applied during schema migration (evolution). These rules govern how data written with an older schema version is transformed when read with a newer version, or vice versa.|
 |domainRules|[[Rule](#schemarule)]|false|none|Rules applied during normal data processing. These rules define validation conditions and data transformations.|
+|encodingRules|[[Rule](#schemarule)]|false|none|Rules applied during serialization and deserialization. These rules govern encoding-specific transformations such as compression, encryption, or format conversion.|
 
 ## RegisterSchemaRequest
 <!-- backwards compatibility -->
@@ -5676,6 +10001,26 @@ A set of data contract rules attached to a schema. Contains migration rules (app
         "onFailure": "string",
         "disabled": false
       }
+    ],
+    "encodingRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
     ]
   }
 }
@@ -5693,7 +10038,7 @@ The request body for registering a new schema under a subject.
 |references|[[Reference](#schemareference)]|false|none|References to other schemas that this schema depends on.|
 |id|integer(int64)|false|none|An explicit schema ID to assign. This is used in IMPORT mode for migrating schemas while preserving their original IDs.|
 |metadata|[Metadata](#schemametadata)|false|none|Metadata associated with a schema for data contract management. Contains tags for categorization, properties for key-value data, and a list of field names that contain sensitive information.|
-|ruleSet|[RuleSet](#schemaruleset)|false|none|A set of data contract rules attached to a schema. Contains migration rules (applied during schema evolution) and domain rules (applied during data processing).|
+|ruleSet|[RuleSet](#schemaruleset)|false|none|A set of data contract rules attached to a schema. Contains migration rules (applied during schema evolution), domain rules (applied during data processing), and encoding rules (applied during serialization/deserialization).|
 
 #### Enumerated Values
 
@@ -5791,6 +10136,26 @@ The response returned after successfully registering a schema. Contains the glob
         "onFailure": "string",
         "disabled": false
       }
+    ],
+    "encodingRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
     ]
   },
   "maxId": 0
@@ -5808,7 +10173,7 @@ The full response when retrieving a schema by its global ID.
 |schemaType|string|true|none|The type of the schema (AVRO, PROTOBUF, or JSON).|
 |references|[[Reference](#schemareference)]|false|none|References to other schemas that this schema depends on.|
 |metadata|[Metadata](#schemametadata)|false|none|Metadata associated with a schema for data contract management. Contains tags for categorization, properties for key-value data, and a list of field names that contain sensitive information.|
-|ruleSet|[RuleSet](#schemaruleset)|false|none|A set of data contract rules attached to a schema. Contains migration rules (applied during schema evolution) and domain rules (applied during data processing).|
+|ruleSet|[RuleSet](#schemaruleset)|false|none|A set of data contract rules attached to a schema. Contains migration rules (applied during schema evolution), domain rules (applied during data processing), and encoding rules (applied during serialization/deserialization).|
 |maxId|integer(int64)|false|none|The current maximum schema ID in the registry. Only present when the `fetchMaxId=true` query parameter is set.|
 
 #### Enumerated Values
@@ -5928,6 +10293,26 @@ A schema response containing the schema string, type, and references.
         "onFailure": "string",
         "disabled": false
       }
+    ],
+    "encodingRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
     ]
   }
 }
@@ -5947,7 +10332,7 @@ The detailed response for a specific subject version, including the subject name
 |schema|string|true|none|The schema definition as a string.|
 |references|[[Reference](#schemareference)]|false|none|References to other schemas.|
 |metadata|[Metadata](#schemametadata)|false|none|Metadata associated with a schema for data contract management. Contains tags for categorization, properties for key-value data, and a list of field names that contain sensitive information.|
-|ruleSet|[RuleSet](#schemaruleset)|false|none|A set of data contract rules attached to a schema. Contains migration rules (applied during schema evolution) and domain rules (applied during data processing).|
+|ruleSet|[RuleSet](#schemaruleset)|false|none|A set of data contract rules attached to a schema. Contains migration rules (applied during schema evolution), domain rules (applied during data processing), and encoding rules (applied during serialization/deserialization).|
 
 #### Enumerated Values
 
@@ -6066,6 +10451,26 @@ The request body for looking up whether a schema exists under a subject.
         "onFailure": "string",
         "disabled": false
       }
+    ],
+    "encodingRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
     ]
   }
 }
@@ -6085,7 +10490,7 @@ The response when a schema lookup finds a match under the specified subject.
 |schema|string|true|none|The schema definition as a string.|
 |references|[[Reference](#schemareference)]|false|none|References to other schemas.|
 |metadata|[Metadata](#schemametadata)|false|none|Metadata associated with a schema for data contract management. Contains tags for categorization, properties for key-value data, and a list of field names that contain sensitive information.|
-|ruleSet|[RuleSet](#schemaruleset)|false|none|A set of data contract rules attached to a schema. Contains migration rules (applied during schema evolution) and domain rules (applied during data processing).|
+|ruleSet|[RuleSet](#schemaruleset)|false|none|A set of data contract rules attached to a schema. Contains migration rules (applied during schema evolution), domain rules (applied during data processing), and encoding rules (applied during serialization/deserialization).|
 
 #### Enumerated Values
 
@@ -6168,6 +10573,26 @@ The response when a schema lookup finds a match under the specified subject.
         "onFailure": "string",
         "disabled": false
       }
+    ],
+    "encodingRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
     ]
   }
 }
@@ -6187,7 +10612,7 @@ A single schema in the list schemas response.
 |schema|string|true|none|The schema definition as a string.|
 |references|[[Reference](#schemareference)]|false|none|References to other schemas.|
 |metadata|[Metadata](#schemametadata)|false|none|Metadata associated with a schema for data contract management. Contains tags for categorization, properties for key-value data, and a list of field names that contain sensitive information.|
-|ruleSet|[RuleSet](#schemaruleset)|false|none|A set of data contract rules attached to a schema. Contains migration rules (applied during schema evolution) and domain rules (applied during data processing).|
+|ruleSet|[RuleSet](#schemaruleset)|false|none|A set of data contract rules attached to a schema. Contains migration rules (applied during schema evolution), domain rules (applied during data processing), and encoding rules (applied during serialization/deserialization).|
 
 #### Enumerated Values
 
@@ -6299,6 +10724,26 @@ A pair identifying a specific subject and version.
         "onFailure": "string",
         "disabled": false
       }
+    ],
+    "encodingRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
     ]
   },
   "overrideRuleSet": {
@@ -6341,6 +10786,26 @@ A pair identifying a specific subject and version.
         "onFailure": "string",
         "disabled": false
       }
+    ],
+    "encodingRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
     ]
   }
 }
@@ -6360,8 +10825,8 @@ The compatibility configuration for a subject or the global default.
 |compatibilityGroup|string|false|none|A group name used to partition compatibility checks. Schemas in the same group are checked for compatibility independently from other groups.|
 |defaultMetadata|[Metadata](#schemametadata)|false|none|Metadata associated with a schema for data contract management. Contains tags for categorization, properties for key-value data, and a list of field names that contain sensitive information.|
 |overrideMetadata|[Metadata](#schemametadata)|false|none|Metadata associated with a schema for data contract management. Contains tags for categorization, properties for key-value data, and a list of field names that contain sensitive information.|
-|defaultRuleSet|[RuleSet](#schemaruleset)|false|none|A set of data contract rules attached to a schema. Contains migration rules (applied during schema evolution) and domain rules (applied during data processing).|
-|overrideRuleSet|[RuleSet](#schemaruleset)|false|none|A set of data contract rules attached to a schema. Contains migration rules (applied during schema evolution) and domain rules (applied during data processing).|
+|defaultRuleSet|[RuleSet](#schemaruleset)|false|none|A set of data contract rules attached to a schema. Contains migration rules (applied during schema evolution), domain rules (applied during data processing), and encoding rules (applied during serialization/deserialization).|
+|overrideRuleSet|[RuleSet](#schemaruleset)|false|none|A set of data contract rules attached to a schema. Contains migration rules (applied during schema evolution), domain rules (applied during data processing), and encoding rules (applied during serialization/deserialization).|
 
 #### Enumerated Values
 
@@ -6457,6 +10922,26 @@ The compatibility configuration for a subject or the global default.
         "onFailure": "string",
         "disabled": false
       }
+    ],
+    "encodingRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
     ]
   },
   "overrideRuleSet": {
@@ -6499,6 +10984,26 @@ The compatibility configuration for a subject or the global default.
         "onFailure": "string",
         "disabled": false
       }
+    ],
+    "encodingRules": [
+      {
+        "name": "checkSensitiveFields",
+        "doc": "Ensures PII fields are encrypted",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "tags": [
+          "string"
+        ],
+        "params": {
+          "property1": "string",
+          "property2": "string"
+        },
+        "expr": "message.ssn != ''",
+        "onSuccess": "string",
+        "onFailure": "string",
+        "disabled": false
+      }
     ]
   }
 }
@@ -6518,8 +11023,8 @@ The request body for setting compatibility configuration.
 |compatibilityGroup|string|false|none|A group name used to partition compatibility checks.|
 |defaultMetadata|[Metadata](#schemametadata)|false|none|Metadata associated with a schema for data contract management. Contains tags for categorization, properties for key-value data, and a list of field names that contain sensitive information.|
 |overrideMetadata|[Metadata](#schemametadata)|false|none|Metadata associated with a schema for data contract management. Contains tags for categorization, properties for key-value data, and a list of field names that contain sensitive information.|
-|defaultRuleSet|[RuleSet](#schemaruleset)|false|none|A set of data contract rules attached to a schema. Contains migration rules (applied during schema evolution) and domain rules (applied during data processing).|
-|overrideRuleSet|[RuleSet](#schemaruleset)|false|none|A set of data contract rules attached to a schema. Contains migration rules (applied during schema evolution) and domain rules (applied during data processing).|
+|defaultRuleSet|[RuleSet](#schemaruleset)|false|none|A set of data contract rules attached to a schema. Contains migration rules (applied during schema evolution), domain rules (applied during data processing), and encoding rules (applied during serialization/deserialization).|
+|overrideRuleSet|[RuleSet](#schemaruleset)|false|none|A set of data contract rules attached to a schema. Contains migration rules (applied during schema evolution), domain rules (applied during data processing), and encoding rules (applied during serialization/deserialization).|
 
 #### Enumerated Values
 

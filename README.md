@@ -87,6 +87,7 @@ Unlike Confluent Schema Registry, which uses Kafka itself (a special `_schemas` 
 | **Prometheus Metrics** | ✅ | ✅ | ✅ | ✅ |
 | **REST Proxy** | ❌ | Separate | Separate | ✅ |
 | **Schema Validation** | ✅ | ✅ | ✅ | ✅ |
+| **Data Contracts** | ✅ | ❌ | ✅ | ❌ |
 | **Multi-Tenant Contexts** | ✅ | ✅ | ✅ | ❌ |
 | **Schema Linking** | ❌ | ❌ | ✅ | ❌ |
 | **Single Binary** | ✅ | ❌ | ❌ | ❌ |
@@ -127,6 +128,8 @@ See the [Getting Started](docs/getting-started.md) guide for Kafka client integr
 - **7 Compatibility Modes** -- NONE, BACKWARD, FORWARD, FULL, and transitive variants
 - **Normalization** -- canonical form generation for content-addressed deduplication
 - **Soft Delete** -- recoverable deletion with permanent delete option
+- **Multi-Tenant Contexts** -- namespace isolation with independent schema IDs, subjects, compatibility config, and modes per context ([docs](docs/contexts.md))
+- **Data Contracts** -- schema metadata (tags, properties, sensitive fields), rule sets (domain rules, migration rules, encoding rules), and config-level defaults/overrides with 3-layer merge ([docs](docs/data-contracts.md))
 
 ### Storage Backends
 
@@ -229,6 +232,7 @@ AxonOps Schema Registry implements the Confluent Schema Registry REST API v1:
 | [Schema Types](docs/schema-types.md) | Avro, Protobuf, and JSON Schema support with reference examples |
 | [Compatibility](docs/compatibility.md) | All 7 compatibility modes with per-type rules and configuration |
 | [Contexts](docs/contexts.md) | Multi-tenancy via contexts: namespace isolation, qualified subjects, URL routing |
+| [Data Contracts](docs/data-contracts.md) | Metadata, rule sets, config defaults/overrides, and governance policies |
 | [API Reference](docs/api-reference.md) | All 47+ endpoints with parameters, examples, and error codes |
 | [Authentication](docs/authentication.md) | All 6 auth methods, RBAC, user management, and admin CLI |
 | [Security](docs/security.md) | TLS, rate limiting, audit logging, credential storage, and hardening checklist |

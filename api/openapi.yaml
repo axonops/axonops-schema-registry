@@ -1780,6 +1780,1358 @@ paths:
                   - ".team-a"
                   - ".team-b"
 
+  # ---------------------------------------------------------------------------
+  # Context-scoped routes: /contexts/{context}/...
+  # These mirror ALL root-level registry routes but scoped to a specific context.
+  # ---------------------------------------------------------------------------
+
+  /contexts/{context}/schemas/types:
+    get:
+      summary: "[Context-scoped] Get supported schema types"
+      description: >-
+        Context-scoped version of `/schemas/types`. See the root-level operation for
+        full documentation.
+      operationId: getSchemaTypesContext
+      tags:
+        - Schemas
+        - Contexts
+      parameters:
+        - $ref: '#/components/parameters/contextParam'
+      responses:
+        '200':
+          description: A list of supported schema type strings.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                type: array
+                items:
+                  type: string
+                  enum:
+                    - AVRO
+                    - PROTOBUF
+                    - JSON
+                example:
+                  - AVRO
+                  - PROTOBUF
+                  - JSON
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /contexts/{context}/schemas:
+    get:
+      summary: "[Context-scoped] List schemas"
+      description: >-
+        Context-scoped version of `/schemas`. See the root-level operation for
+        full documentation.
+      operationId: listSchemasContext
+      tags:
+        - Schemas
+        - Contexts
+      parameters:
+        - $ref: '#/components/parameters/contextParam'
+        - name: subjectPrefix
+          in: query
+          description: >-
+            Filter results to schemas whose subject name starts with this prefix.
+          schema:
+            type: string
+        - name: deleted
+          in: query
+          description: >-
+            When set to `true`, soft-deleted schemas are included in the results.
+          schema:
+            type: boolean
+            default: false
+        - name: latestOnly
+          in: query
+          description: >-
+            When set to `true`, only the latest version of each subject is returned.
+          schema:
+            type: boolean
+            default: false
+        - name: offset
+          in: query
+          description: The number of results to skip for pagination.
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: limit
+          in: query
+          description: >-
+            The maximum number of results to return. If omitted or set to 0,
+            all results are returned.
+          schema:
+            type: integer
+            minimum: 0
+      responses:
+        '200':
+          description: A list of schema records.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SchemaListItem'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /contexts/{context}/schemas/ids/{id}:
+    get:
+      summary: "[Context-scoped] Get schema by global ID"
+      description: >-
+        Context-scoped version of `/schemas/ids/{id}`. See the root-level operation for
+        full documentation.
+      operationId: getSchemaByIDContext
+      tags:
+        - Schemas
+        - Contexts
+      parameters:
+        - $ref: '#/components/parameters/contextParam'
+        - $ref: '#/components/parameters/SchemaID'
+        - name: format
+          in: query
+          description: >-
+            An optional format hint for the returned schema string.
+          schema:
+            type: string
+        - name: fetchMaxId
+          in: query
+          description: >-
+            When set to `true`, the response includes a `maxId` field containing the
+            current highest schema ID in the registry.
+          schema:
+            type: boolean
+            default: false
+        - name: subject
+          in: query
+          description: >-
+            An optional subject name filter.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The schema identified by the given global ID.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/SchemaByIDResponse'
+        '404':
+          description: Schema not found.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error_code: 40403
+                message: "Schema not found"
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /contexts/{context}/schemas/ids/{id}/schema:
+    get:
+      summary: "[Context-scoped] Get raw schema string by global ID"
+      description: >-
+        Context-scoped version of `/schemas/ids/{id}/schema`. See the root-level operation
+        for full documentation.
+      operationId: getRawSchemaByIDContext
+      tags:
+        - Schemas
+        - Contexts
+      parameters:
+        - $ref: '#/components/parameters/contextParam'
+        - $ref: '#/components/parameters/SchemaID'
+        - name: format
+          in: query
+          description: >-
+            An optional format hint for the returned schema string.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The raw schema string.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                type: string
+        '404':
+          description: Schema not found.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error_code: 40403
+                message: "Schema not found"
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /contexts/{context}/schemas/ids/{id}/subjects:
+    get:
+      summary: "[Context-scoped] Get subjects associated with a schema ID"
+      description: >-
+        Context-scoped version of `/schemas/ids/{id}/subjects`. See the root-level
+        operation for full documentation.
+      operationId: getSubjectsBySchemaIDContext
+      tags:
+        - Schemas
+        - Contexts
+      parameters:
+        - $ref: '#/components/parameters/contextParam'
+        - $ref: '#/components/parameters/SchemaID'
+        - name: deleted
+          in: query
+          description: >-
+            When set to `true`, includes subjects that have been soft-deleted.
+          schema:
+            type: boolean
+            default: false
+        - name: subject
+          in: query
+          description: >-
+            An optional subject name to filter the result to only that subject.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: A list of subject names.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                type: array
+                items:
+                  type: string
+                example:
+                  - "my-topic-value"
+                  - "other-topic-value"
+        '404':
+          description: Schema not found.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error_code: 40403
+                message: "Schema not found"
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /contexts/{context}/schemas/ids/{id}/versions:
+    get:
+      summary: "[Context-scoped] Get subject-version pairs for a schema ID"
+      description: >-
+        Context-scoped version of `/schemas/ids/{id}/versions`. See the root-level
+        operation for full documentation.
+      operationId: getVersionsBySchemaIDContext
+      tags:
+        - Schemas
+        - Contexts
+      parameters:
+        - $ref: '#/components/parameters/contextParam'
+        - $ref: '#/components/parameters/SchemaID'
+        - name: deleted
+          in: query
+          description: >-
+            When set to `true`, includes soft-deleted subject-version pairs.
+          schema:
+            type: boolean
+            default: false
+        - name: subject
+          in: query
+          description: >-
+            An optional subject name to filter results.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: A list of subject-version pairs.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SubjectVersionPair'
+        '404':
+          description: Schema not found.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error_code: 40403
+                message: "Schema not found"
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /contexts/{context}/subjects:
+    get:
+      summary: "[Context-scoped] List subjects"
+      description: >-
+        Context-scoped version of `/subjects`. See the root-level operation for
+        full documentation.
+      operationId: listSubjectsContext
+      tags:
+        - Subjects
+        - Contexts
+      parameters:
+        - $ref: '#/components/parameters/contextParam'
+        - name: deleted
+          in: query
+          description: >-
+            When set to `true`, includes soft-deleted subjects alongside active ones.
+          schema:
+            type: boolean
+            default: false
+        - name: deletedOnly
+          in: query
+          description: >-
+            When set to `true`, returns only subjects that have been soft-deleted.
+          schema:
+            type: boolean
+            default: false
+        - name: subjectPrefix
+          in: query
+          description: >-
+            Filters the results to subjects whose name starts with the given prefix.
+          schema:
+            type: string
+        - name: offset
+          in: query
+          description: The number of results to skip for pagination.
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: limit
+          in: query
+          description: >-
+            The maximum number of results to return.
+          schema:
+            type: integer
+            minimum: 0
+      responses:
+        '200':
+          description: A JSON array of subject name strings.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                type: array
+                items:
+                  type: string
+                example:
+                  - "my-topic-value"
+                  - "other-topic-key"
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /contexts/{context}/subjects/{subject}/versions:
+    get:
+      summary: "[Context-scoped] List versions under a subject"
+      description: >-
+        Context-scoped version of `/subjects/{subject}/versions`. See the root-level
+        operation for full documentation.
+      operationId: getVersionsContext
+      tags:
+        - Subjects
+        - Contexts
+      parameters:
+        - $ref: '#/components/parameters/contextParam'
+        - $ref: '#/components/parameters/Subject'
+        - name: deleted
+          in: query
+          description: >-
+            When set to `true`, includes soft-deleted versions alongside active ones.
+          schema:
+            type: boolean
+            default: false
+        - name: deletedOnly
+          in: query
+          description: >-
+            When set to `true`, returns only versions that have been soft-deleted.
+          schema:
+            type: boolean
+            default: false
+        - name: offset
+          in: query
+          description: The number of results to skip for pagination.
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: limit
+          in: query
+          description: >-
+            The maximum number of results to return.
+          schema:
+            type: integer
+            minimum: 0
+      responses:
+        '200':
+          description: A JSON array of version numbers (integers).
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                type: array
+                items:
+                  type: integer
+                example:
+                  - 1
+                  - 2
+                  - 3
+        '404':
+          description: Subject not found.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error_code: 40401
+                message: "Subject not found"
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    post:
+      summary: "[Context-scoped] Register a new schema under a subject"
+      description: >-
+        Context-scoped version of `POST /subjects/{subject}/versions`. See the root-level
+        operation for full documentation.
+      operationId: registerSchemaContext
+      tags:
+        - Subjects
+        - Contexts
+      parameters:
+        - $ref: '#/components/parameters/contextParam'
+        - $ref: '#/components/parameters/Subject'
+        - name: normalize
+          in: query
+          description: >-
+            When set to `true`, the schema is canonicalized before storage and
+            fingerprinting.
+          schema:
+            type: boolean
+            default: false
+      requestBody:
+        required: true
+        content:
+          application/vnd.schemaregistry.v1+json:
+            schema:
+              $ref: '#/components/schemas/RegisterSchemaRequest'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterSchemaRequest'
+      responses:
+        '200':
+          description: >-
+            The schema was registered successfully (or an identical schema already
+            existed). Returns the globally unique schema ID.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/RegisterSchemaResponse'
+        '409':
+          description: >-
+            The schema is incompatible with an existing version under this subject.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error_code: 409
+                message: "Schema being registered is incompatible with an earlier schema"
+        '422':
+          description: >-
+            The schema is invalid, the schema type is unsupported, or the operation
+            is not permitted in the current mode.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error_code: 42201
+                message: "Invalid schema"
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /contexts/{context}/subjects/{subject}/versions/{version}:
+    get:
+      summary: "[Context-scoped] Get a specific version of a subject"
+      description: >-
+        Context-scoped version of `/subjects/{subject}/versions/{version}`. See the
+        root-level operation for full documentation.
+      operationId: getVersionContext
+      tags:
+        - Subjects
+        - Contexts
+      parameters:
+        - $ref: '#/components/parameters/contextParam'
+        - $ref: '#/components/parameters/Subject'
+        - $ref: '#/components/parameters/Version'
+        - name: deleted
+          in: query
+          description: >-
+            When set to `true`, soft-deleted versions are also retrievable.
+          schema:
+            type: boolean
+            default: false
+        - name: format
+          in: query
+          description: >-
+            An optional format hint for the returned schema string.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The schema version detail.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/SubjectVersionResponse'
+        '404':
+          description: Subject or version not found.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Invalid version identifier.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    delete:
+      summary: "[Context-scoped] Delete a specific version of a subject"
+      description: >-
+        Context-scoped version of `DELETE /subjects/{subject}/versions/{version}`. See
+        the root-level operation for full documentation.
+      operationId: deleteVersionContext
+      tags:
+        - Subjects
+        - Contexts
+      parameters:
+        - $ref: '#/components/parameters/contextParam'
+        - $ref: '#/components/parameters/Subject'
+        - $ref: '#/components/parameters/Version'
+        - name: permanent
+          in: query
+          description: >-
+            When set to `true`, permanently removes the version from storage.
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: >-
+            The version was deleted. Returns the version number that was deleted.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                type: integer
+                description: The deleted version number.
+                example: 3
+        '404':
+          description: Subject or version not found.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Invalid version, operation not permitted, or referenced by other schemas.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /contexts/{context}/subjects/{subject}/versions/{version}/schema:
+    get:
+      summary: "[Context-scoped] Get raw schema string by subject version"
+      description: >-
+        Context-scoped version of `/subjects/{subject}/versions/{version}/schema`. See
+        the root-level operation for full documentation.
+      operationId: getRawSchemaByVersionContext
+      tags:
+        - Subjects
+        - Contexts
+      parameters:
+        - $ref: '#/components/parameters/contextParam'
+        - $ref: '#/components/parameters/Subject'
+        - $ref: '#/components/parameters/Version'
+        - name: format
+          in: query
+          description: >-
+            An optional format hint for the returned schema string.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The raw schema string.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                type: string
+        '404':
+          description: Subject or version not found.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Invalid version identifier.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /contexts/{context}/subjects/{subject}/versions/{version}/referencedby:
+    get:
+      summary: "[Context-scoped] Get schema IDs that reference this version"
+      description: >-
+        Context-scoped version of `/subjects/{subject}/versions/{version}/referencedby`.
+        See the root-level operation for full documentation.
+      operationId: getReferencedByContext
+      tags:
+        - Subjects
+        - Contexts
+      parameters:
+        - $ref: '#/components/parameters/contextParam'
+        - $ref: '#/components/parameters/Subject'
+        - $ref: '#/components/parameters/Version'
+      responses:
+        '200':
+          description: >-
+            A JSON array of schema IDs (integers) that reference this schema version.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                type: array
+                items:
+                  type: integer
+                  format: int64
+                example:
+                  - 5
+                  - 12
+        '404':
+          description: Subject or version not found.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Invalid version identifier.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /contexts/{context}/subjects/{subject}:
+    post:
+      summary: "[Context-scoped] Look up schema under a subject"
+      description: >-
+        Context-scoped version of `POST /subjects/{subject}`. See the root-level
+        operation for full documentation.
+      operationId: lookupSchemaContext
+      tags:
+        - Subjects
+        - Contexts
+      parameters:
+        - $ref: '#/components/parameters/contextParam'
+        - $ref: '#/components/parameters/Subject'
+        - name: deleted
+          in: query
+          description: >-
+            When set to `true`, also searches among soft-deleted versions.
+          schema:
+            type: boolean
+            default: false
+        - name: normalize
+          in: query
+          description: >-
+            When set to `true`, the provided schema is canonicalized before comparison.
+          schema:
+            type: boolean
+            default: false
+      requestBody:
+        required: true
+        content:
+          application/vnd.schemaregistry.v1+json:
+            schema:
+              $ref: '#/components/schemas/LookupSchemaRequest'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LookupSchemaRequest'
+      responses:
+        '200':
+          description: The schema was found under the given subject.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/LookupSchemaResponse'
+        '404':
+          description: Subject or schema not found.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Invalid schema.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    delete:
+      summary: "[Context-scoped] Delete a subject"
+      description: >-
+        Context-scoped version of `DELETE /subjects/{subject}`. See the root-level
+        operation for full documentation.
+      operationId: deleteSubjectContext
+      tags:
+        - Subjects
+        - Contexts
+      parameters:
+        - $ref: '#/components/parameters/contextParam'
+        - $ref: '#/components/parameters/Subject'
+        - name: permanent
+          in: query
+          description: >-
+            When set to `true`, permanently removes the subject and all its versions.
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: >-
+            The subject was deleted. Returns a JSON array of the version numbers
+            that were deleted.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                type: array
+                items:
+                  type: integer
+                example:
+                  - 1
+                  - 2
+                  - 3
+        '404':
+          description: Subject not found or not in the expected delete state.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Referenced by other schemas or operation not permitted.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /contexts/{context}/config:
+    get:
+      summary: "[Context-scoped] Get global compatibility configuration"
+      description: >-
+        Context-scoped version of `/config`. See the root-level operation for
+        full documentation.
+      operationId: getGlobalConfigContext
+      tags:
+        - Config
+        - Contexts
+      parameters:
+        - $ref: '#/components/parameters/contextParam'
+        - name: defaultToGlobal
+          in: query
+          description: >-
+            Accepted for compatibility. Has no effect on the global config endpoint.
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: The global compatibility configuration.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ConfigResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    put:
+      summary: "[Context-scoped] Set global compatibility configuration"
+      description: >-
+        Context-scoped version of `PUT /config`. See the root-level operation for
+        full documentation.
+      operationId: setGlobalConfigContext
+      tags:
+        - Config
+        - Contexts
+      parameters:
+        - $ref: '#/components/parameters/contextParam'
+      requestBody:
+        required: true
+        content:
+          application/vnd.schemaregistry.v1+json:
+            schema:
+              $ref: '#/components/schemas/ConfigRequest'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfigRequest'
+      responses:
+        '200':
+          description: The updated global compatibility configuration.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ConfigRequest'
+        '422':
+          description: Invalid compatibility level.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error_code: 42203
+                message: "Invalid compatibility level"
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    delete:
+      summary: "[Context-scoped] Delete global compatibility configuration"
+      description: >-
+        Context-scoped version of `DELETE /config`. See the root-level operation for
+        full documentation.
+      operationId: deleteGlobalConfigContext
+      tags:
+        - Config
+        - Contexts
+      parameters:
+        - $ref: '#/components/parameters/contextParam'
+      responses:
+        '200':
+          description: The compatibility level that was in effect before deletion.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ConfigResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /contexts/{context}/config/{subject}:
+    get:
+      summary: "[Context-scoped] Get subject-level compatibility configuration"
+      description: >-
+        Context-scoped version of `/config/{subject}`. See the root-level operation
+        for full documentation.
+      operationId: getSubjectConfigContext
+      tags:
+        - Config
+        - Contexts
+      parameters:
+        - $ref: '#/components/parameters/contextParam'
+        - $ref: '#/components/parameters/Subject'
+        - name: defaultToGlobal
+          in: query
+          description: >-
+            When set to `true`, falls back to the global compatibility configuration.
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: The subject-level compatibility configuration.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ConfigResponse'
+        '404':
+          description: Subject does not have subject-level compatibility configured.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error_code: 40408
+                message: "Subject does not have subject-level compatibility configured"
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    put:
+      summary: "[Context-scoped] Set subject-level compatibility configuration"
+      description: >-
+        Context-scoped version of `PUT /config/{subject}`. See the root-level operation
+        for full documentation.
+      operationId: setSubjectConfigContext
+      tags:
+        - Config
+        - Contexts
+      parameters:
+        - $ref: '#/components/parameters/contextParam'
+        - $ref: '#/components/parameters/Subject'
+      requestBody:
+        required: true
+        content:
+          application/vnd.schemaregistry.v1+json:
+            schema:
+              $ref: '#/components/schemas/ConfigRequest'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfigRequest'
+      responses:
+        '200':
+          description: The updated subject-level compatibility configuration.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ConfigRequest'
+        '422':
+          description: Invalid compatibility level.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error_code: 42203
+                message: "Invalid compatibility level"
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    delete:
+      summary: "[Context-scoped] Delete subject-level compatibility configuration"
+      description: >-
+        Context-scoped version of `DELETE /config/{subject}`. See the root-level
+        operation for full documentation.
+      operationId: deleteSubjectConfigContext
+      tags:
+        - Config
+        - Contexts
+      parameters:
+        - $ref: '#/components/parameters/contextParam'
+        - $ref: '#/components/parameters/Subject'
+      responses:
+        '200':
+          description: The compatibility level that was in effect before deletion.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ConfigResponse'
+        '404':
+          description: No subject-level config found for this subject.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error_code: 40401
+                message: "Config not found for subject"
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /contexts/{context}/mode:
+    get:
+      summary: "[Context-scoped] Get global mode"
+      description: >-
+        Context-scoped version of `/mode`. See the root-level operation for
+        full documentation.
+      operationId: getGlobalModeContext
+      tags:
+        - Mode
+        - Contexts
+      parameters:
+        - $ref: '#/components/parameters/contextParam'
+      responses:
+        '200':
+          description: The global mode.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ModeResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    put:
+      summary: "[Context-scoped] Set global mode"
+      description: >-
+        Context-scoped version of `PUT /mode`. See the root-level operation for
+        full documentation.
+      operationId: setGlobalModeContext
+      tags:
+        - Mode
+        - Contexts
+      parameters:
+        - $ref: '#/components/parameters/contextParam'
+        - name: force
+          in: query
+          description: >-
+            When set to `true`, forces the mode change.
+          schema:
+            type: boolean
+            default: false
+      requestBody:
+        required: true
+        content:
+          application/vnd.schemaregistry.v1+json:
+            schema:
+              $ref: '#/components/schemas/ModeRequest'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModeRequest'
+      responses:
+        '200':
+          description: The updated global mode.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ModeResponse'
+        '422':
+          description: Invalid mode or operation not permitted.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /contexts/{context}/mode/{subject}:
+    get:
+      summary: "[Context-scoped] Get subject-level mode"
+      description: >-
+        Context-scoped version of `/mode/{subject}`. See the root-level operation for
+        full documentation.
+      operationId: getSubjectModeContext
+      tags:
+        - Mode
+        - Contexts
+      parameters:
+        - $ref: '#/components/parameters/contextParam'
+        - $ref: '#/components/parameters/Subject'
+        - name: defaultToGlobal
+          in: query
+          description: >-
+            When set to `true`, falls back to the global mode.
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: The subject-level mode.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ModeResponse'
+        '404':
+          description: Subject does not have a subject-level mode configured.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error_code: 40409
+                message: "Subject does not have subject-level mode configured"
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    put:
+      summary: "[Context-scoped] Set subject-level mode"
+      description: >-
+        Context-scoped version of `PUT /mode/{subject}`. See the root-level operation
+        for full documentation.
+      operationId: setSubjectModeContext
+      tags:
+        - Mode
+        - Contexts
+      parameters:
+        - $ref: '#/components/parameters/contextParam'
+        - $ref: '#/components/parameters/Subject'
+        - name: force
+          in: query
+          description: >-
+            When set to `true`, forces the mode change.
+          schema:
+            type: boolean
+            default: false
+      requestBody:
+        required: true
+        content:
+          application/vnd.schemaregistry.v1+json:
+            schema:
+              $ref: '#/components/schemas/ModeRequest'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModeRequest'
+      responses:
+        '200':
+          description: The updated subject-level mode.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ModeResponse'
+        '422':
+          description: Invalid mode or operation not permitted.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    delete:
+      summary: "[Context-scoped] Delete subject-level mode"
+      description: >-
+        Context-scoped version of `DELETE /mode/{subject}`. See the root-level
+        operation for full documentation.
+      operationId: deleteSubjectModeContext
+      tags:
+        - Mode
+        - Contexts
+      parameters:
+        - $ref: '#/components/parameters/contextParam'
+        - $ref: '#/components/parameters/Subject'
+      responses:
+        '200':
+          description: The mode that was in effect before deletion.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ModeResponse'
+        '404':
+          description: No subject-level mode found for this subject.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error_code: 40401
+                message: "Mode not found for subject"
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /contexts/{context}/compatibility/subjects/{subject}/versions/{version}:
+    post:
+      summary: "[Context-scoped] Check compatibility against a specific version"
+      description: >-
+        Context-scoped version of `POST /compatibility/subjects/{subject}/versions/{version}`.
+        See the root-level operation for full documentation.
+      operationId: checkCompatibilityByVersionContext
+      tags:
+        - Compatibility
+        - Contexts
+      parameters:
+        - $ref: '#/components/parameters/contextParam'
+        - $ref: '#/components/parameters/Subject'
+        - $ref: '#/components/parameters/Version'
+        - name: verbose
+          in: query
+          description: >-
+            When set to `true`, the response includes detailed compatibility messages.
+          schema:
+            type: boolean
+            default: false
+        - name: normalize
+          in: query
+          description: >-
+            When set to `true`, the candidate schema is canonicalized before comparison.
+          schema:
+            type: boolean
+            default: false
+      requestBody:
+        required: true
+        content:
+          application/vnd.schemaregistry.v1+json:
+            schema:
+              $ref: '#/components/schemas/CompatibilityCheckRequest'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompatibilityCheckRequest'
+      responses:
+        '200':
+          description: The compatibility check result.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/CompatibilityCheckResponse'
+        '404':
+          description: Subject or version not found.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Invalid schema or invalid version.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /contexts/{context}/compatibility/subjects/{subject}/versions:
+    post:
+      summary: "[Context-scoped] Check compatibility against all versions"
+      description: >-
+        Context-scoped version of `POST /compatibility/subjects/{subject}/versions`.
+        See the root-level operation for full documentation.
+      operationId: checkCompatibilityAllVersionsContext
+      tags:
+        - Compatibility
+        - Contexts
+      parameters:
+        - $ref: '#/components/parameters/contextParam'
+        - $ref: '#/components/parameters/Subject'
+        - name: verbose
+          in: query
+          description: >-
+            When set to `true`, the response includes detailed compatibility messages.
+          schema:
+            type: boolean
+            default: false
+        - name: normalize
+          in: query
+          description: >-
+            When set to `true`, the candidate schema is canonicalized before comparison.
+          schema:
+            type: boolean
+            default: false
+      requestBody:
+        required: true
+        content:
+          application/vnd.schemaregistry.v1+json:
+            schema:
+              $ref: '#/components/schemas/CompatibilityCheckRequest'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompatibilityCheckRequest'
+      responses:
+        '200':
+          description: The compatibility check result.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/CompatibilityCheckResponse'
+        '404':
+          description: Subject not found.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error_code: 40401
+                message: "Subject not found"
+        '422':
+          description: Invalid schema.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /contexts/{context}/import/schemas:
+    post:
+      summary: "[Context-scoped] Bulk import schemas"
+      description: >-
+        Context-scoped version of `POST /import/schemas`. See the root-level operation
+        for full documentation.
+      operationId: importSchemasContext
+      tags:
+        - Import
+        - Contexts
+      parameters:
+        - $ref: '#/components/parameters/contextParam'
+      requestBody:
+        required: true
+        content:
+          application/vnd.schemaregistry.v1+json:
+            schema:
+              $ref: '#/components/schemas/ImportSchemasRequest'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportSchemasRequest'
+      responses:
+        '200':
+          description: >-
+            Import completed. Check the `imported` and `errors` counts and the individual
+            `results` to determine whether all schemas were imported successfully.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ImportSchemasResponse'
+        '400':
+          description: Invalid request body or no schemas provided.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /contexts/{context}/contexts:
+    get:
+      summary: "[Context-scoped] Get schema registry contexts"
+      description: >-
+        Context-scoped version of `/contexts`. See the root-level operation for
+        full documentation.
+      operationId: getContextsContext
+      tags:
+        - Contexts
+      parameters:
+        - $ref: '#/components/parameters/contextParam'
+      responses:
+        '200':
+          description: >-
+            A sorted list of context name strings. Always includes `"."` (the
+            default context).
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                type: array
+                items:
+                  type: string
+                example:
+                  - "."
+                  - ".team-a"
+                  - ".team-b"
+
+  /contexts/{context}/v1/metadata/id:
+    get:
+      summary: "[Context-scoped] Get cluster ID"
+      description: >-
+        Context-scoped version of `/v1/metadata/id`. See the root-level operation for
+        full documentation.
+      operationId: getClusterIDContext
+      tags:
+        - Metadata
+        - Contexts
+      parameters:
+        - $ref: '#/components/parameters/contextParam'
+      responses:
+        '200':
+          description: The cluster ID.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ServerClusterIDResponse'
+
+  /contexts/{context}/v1/metadata/version:
+    get:
+      summary: "[Context-scoped] Get server version"
+      description: >-
+        Context-scoped version of `/v1/metadata/version`. See the root-level operation
+        for full documentation.
+      operationId: getServerVersionContext
+      tags:
+        - Metadata
+        - Contexts
+      parameters:
+        - $ref: '#/components/parameters/contextParam'
+      responses:
+        '200':
+          description: The server version information.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ServerVersionResponse'
+
   /v1/metadata/id:
     get:
       summary: Get cluster ID
@@ -2488,6 +3840,19 @@ components:
         format: int64
         minimum: 1
 
+    contextParam:
+      name: context
+      in: path
+      required: true
+      description: >-
+        The schema registry context name. Contexts provide multi-tenant isolation.
+        The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is
+        automatically prepended.
+      schema:
+        type: string
+        pattern: '^[a-zA-Z0-9._-]+$'
+        example: ".team-a"
+
   schemas:
     # --- Schema Registry Core Schemas ---
 
@@ -2631,7 +3996,8 @@ components:
       type: object
       description: >-
         A set of data contract rules attached to a schema. Contains migration rules
-        (applied during schema evolution) and domain rules (applied during data processing).
+        (applied during schema evolution), domain rules (applied during data processing),
+        and encoding rules (applied during serialization/deserialization).
       properties:
         migrationRules:
           type: array
@@ -2646,6 +4012,14 @@ components:
           description: >-
             Rules applied during normal data processing. These rules define validation
             conditions and data transformations.
+          items:
+            $ref: '#/components/schemas/Rule'
+        encodingRules:
+          type: array
+          description: >-
+            Rules applied during serialization and deserialization. These rules govern
+            encoding-specific transformations such as compression, encryption, or
+            format conversion.
           items:
             $ref: '#/components/schemas/Rule'
 
