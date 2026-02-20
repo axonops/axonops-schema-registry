@@ -67,11 +67,13 @@ formats for schema management.
 - [Mode](#mode)
   - [Get global mode](#get-global-mode)
   - [Set global mode](#set-global-mode)
+  - [Delete global mode](#delete-global-mode)
   - [Get subject-level mode](#get-subject-level-mode)
   - [Set subject-level mode](#set-subject-level-mode)
   - [Delete subject-level mode](#delete-subject-level-mode)
   - [[Context-scoped] Get global mode](#context-scoped-get-global-mode)
   - [[Context-scoped] Set global mode](#context-scoped-set-global-mode)
+  - [[Context-scoped] Delete global mode](#context-scoped-delete-global-mode)
   - [[Context-scoped] Get subject-level mode](#context-scoped-get-subject-level-mode)
   - [[Context-scoped] Set subject-level mode](#context-scoped-set-subject-level-mode)
   - [[Context-scoped] Delete subject-level mode](#context-scoped-delete-subject-level-mode)
@@ -83,6 +85,29 @@ formats for schema management.
 - [Import](#import)
   - [Bulk import schemas](#bulk-import-schemas)
   - [[Context-scoped] Bulk import schemas](#context-scoped-bulk-import-schemas)
+- [Exporters](#exporters)
+  - [List exporters](#list-exporters)
+  - [Create an exporter](#create-an-exporter)
+  - [Get exporter info](#get-exporter-info)
+  - [Update an exporter](#update-an-exporter)
+  - [Delete an exporter](#delete-an-exporter)
+  - [Pause an exporter](#pause-an-exporter)
+  - [Resume an exporter](#resume-an-exporter)
+  - [Reset an exporter](#reset-an-exporter)
+  - [Get exporter status](#get-exporter-status)
+  - [Get exporter config](#get-exporter-config)
+  - [Update exporter config](#update-exporter-config)
+  - [[Context-scoped] List exporters](#context-scoped-list-exporters)
+  - [[Context-scoped] Create an exporter](#context-scoped-create-an-exporter)
+  - [[Context-scoped] Get exporter info](#context-scoped-get-exporter-info)
+  - [[Context-scoped] Update an exporter](#context-scoped-update-an-exporter)
+  - [[Context-scoped] Delete an exporter](#context-scoped-delete-an-exporter)
+  - [[Context-scoped] Pause an exporter](#context-scoped-pause-an-exporter)
+  - [[Context-scoped] Resume an exporter](#context-scoped-resume-an-exporter)
+  - [[Context-scoped] Reset an exporter](#context-scoped-reset-an-exporter)
+  - [[Context-scoped] Get exporter status](#context-scoped-get-exporter-status)
+  - [[Context-scoped] Get exporter config](#context-scoped-get-exporter-config)
+  - [[Context-scoped] Update exporter config](#context-scoped-update-exporter-config)
 - [Contexts](#contexts)
   - [Get schema registry contexts](#get-schema-registry-contexts)
   - [[Context-scoped] Get schema registry contexts](#context-scoped-get-schema-registry-contexts)
@@ -113,6 +138,20 @@ formats for schema management.
   - [Liveness check](#liveness-check)
   - [Readiness check](#readiness-check)
   - [Startup check](#startup-check)
+- [DEK Registry](#dek-registry)
+  - [List KEK names](#list-kek-names)
+  - [Create a KEK](#create-a-kek)
+  - [Get a KEK](#get-a-kek)
+  - [Update a KEK](#update-a-kek)
+  - [Delete a KEK](#delete-a-kek)
+  - [Undelete a KEK](#undelete-a-kek)
+  - [List DEK subjects](#list-dek-subjects)
+  - [Create a DEK](#create-a-dek)
+  - [Get latest DEK for a subject](#get-latest-dek-for-a-subject)
+  - [Delete a DEK](#delete-a-dek)
+  - [List DEK versions](#list-dek-versions)
+  - [Get a specific DEK version](#get-a-specific-dek-version)
+  - [Undelete a DEK](#undelete-a-dek)
 - [Documentation](#documentation)
   - [Swagger UI](#swagger-ui)
   - [OpenAPI specification](#openapi-specification)
@@ -140,6 +179,10 @@ formats for schema management.
   - [ImportSchemaRequest](#importschemarequest)
   - [ImportSchemasResponse](#importschemasresponse)
   - [ImportSchemaResult](#importschemaresult)
+  - [ExporterRequest](#exporterrequest)
+  - [ExporterNameResponse](#exporternameresponse)
+  - [ExporterInfo](#exporterinfo)
+  - [ExporterStatus](#exporterstatus)
   - [ServerClusterIDResponse](#serverclusteridresponse)
   - [ServerVersionResponse](#serverversionresponse)
   - [ErrorResponse](#errorresponse)
@@ -157,6 +200,11 @@ formats for schema management.
   - [RotateAPIKeyResponse](#rotateapikeyresponse)
   - [RoleInfo](#roleinfo)
   - [RolesListResponse](#roleslistresponse)
+  - [KEKRequest](#kekrequest)
+  - [KEKUpdateRequest](#kekupdaterequest)
+  - [KEKResponse](#kekresponse)
+  - [DEKRequest](#dekrequest)
+  - [DEKResponse](#dekresponse)
   - [HealthResponse](#healthresponse)
 
 ## Key Concepts
@@ -6802,6 +6850,53 @@ To perform this operation, you must be authenticated by means of one of the foll
 basicAuth, apiKey, bearerAuth
 
 
+## Delete global mode
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X DELETE http://localhost:8081/mode \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`DELETE /mode`
+
+Resets the global registry mode to the default (READWRITE) by removing any stored global mode override. Returns the previous mode that was in effect before the reset.
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "mode": "READWRITE"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The previous global mode before reset.|[ModeResponse](#schemamoderesponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
 ## Get subject-level mode
 
 
@@ -7105,6 +7200,59 @@ Context-scoped version of `PUT /mode`. See the root-level operation for full doc
 |---|---|---|---|
 |200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The updated global mode.|[ModeResponse](#schemamoderesponse)|
 |422|[Unprocessable Entity](https://tools.ietf.org/html/rfc2518#section-10.3)|Invalid mode or operation not permitted.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] Delete global mode
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X DELETE http://localhost:8081/contexts/{context}/mode \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`DELETE /contexts/{context}/mode`
+
+Context-scoped version of `DELETE /mode`. See the root-level operation for full documentation.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "mode": "READWRITE"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The previous global mode before reset.|[ModeResponse](#schemamoderesponse)|
 |500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
 
 > **Warning:** 
@@ -7838,6 +7986,1602 @@ Context-scoped version of `POST /import/schemas`. See the root-level operation f
 |---|---|---|---|
 |200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Import completed. Check the `imported` and `errors` counts and the individual `results` to determine whether all schemas were imported successfully.|[ImportSchemasResponse](#schemaimportschemasresponse)|
 |400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Invalid request body or no schemas provided.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+# Exporters
+
+Operations for managing schema exporters. Exporters enable Schema Linking by replicating schemas from one registry to another. Each exporter has a name, a context, an optional subject filter, and configuration for connecting to the destination registry. Exporters can be paused, resumed, and reset. This API follows the Confluent Schema Linking format.
+
+## List exporters
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/exporters \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`GET /exporters`
+
+Returns a list of all exporter names registered in the registry. The response is an array of strings, each representing the name of an exporter.
+
+> Example responses
+
+> 200 Response
+
+```json
+[
+  "my-exporter",
+  "backup-exporter"
+]
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|A list of exporter name strings.|Inline|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## Create an exporter
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X POST http://localhost:8081/exporters \
+  -H 'Content-Type: application/vnd.schemaregistry.v1+json' \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`POST /exporters`
+
+Creates a new schema exporter with the specified configuration. The exporter name MUST be unique within the registry. The `contextType` field specifies whether the exporter operates on a custom context or the default context. The `subjects` array MAY be used to filter which subjects are exported. The `subjectRenameFormat` allows renaming subjects during export using a template string.
+
+> Body parameter
+
+```json
+{
+  "name": "my-exporter",
+  "contextType": "AUTO",
+  "context": ".my-context",
+  "subjects": [
+    "my-topic-value",
+    "my-topic-key"
+  ],
+  "subjectRenameFormat": "dest-${subject}",
+  "config": {
+    "schema.registry.url": "http://destination:8081",
+    "basic.auth.credentials.source": "USER_INFO",
+    "basic.auth.user.info": "user:password"
+  }
+}
+```
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|body|body|[ExporterRequest](#schemaexporterrequest)|true|none|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "name": "my-exporter"
+}
+```
+
+> 409 Response
+
+```json
+{
+  "error_code": 40972,
+  "message": "Exporter 'my-exporter' already exists"
+}
+```
+
+> 422 Response
+
+```json
+{
+  "error_code": 42271,
+  "message": "Invalid exporter config"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The exporter was created successfully.|[ExporterNameResponse](#schemaexporternameresponse)|
+|409|[Conflict](https://tools.ietf.org/html/rfc7231#section-6.5.8)|An exporter with this name already exists.|[ErrorResponse](#schemaerrorresponse)|
+|422|[Unprocessable Entity](https://tools.ietf.org/html/rfc2518#section-10.3)|Invalid exporter configuration.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## Get exporter info
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/exporters/{name} \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`GET /exporters/{name}`
+
+Returns the full configuration and details of the specified exporter, including its name, context type, context, subject filter, subject rename format, and configuration map.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|name|path|string|true|The name of the exporter.|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "name": "my-exporter",
+  "contextType": "AUTO",
+  "context": ".my-context",
+  "subjects": [
+    "my-topic-value"
+  ],
+  "subjectRenameFormat": "dest-${subject}",
+  "config": {
+    "schema.registry.url": "http://destination:8081"
+  }
+}
+```
+
+> 404 Response
+
+```json
+{
+  "error_code": 40470,
+  "message": "Exporter 'my-exporter' not found"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The exporter details.|[ExporterInfo](#schemaexporterinfo)|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|The specified exporter was not found.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## Update an exporter
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X PUT http://localhost:8081/exporters/{name} \
+  -H 'Content-Type: application/vnd.schemaregistry.v1+json' \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`PUT /exporters/{name}`
+
+Updates the configuration of the specified exporter. All fields in the request body are applied as the new configuration. The exporter name cannot be changed.
+
+> Body parameter
+
+```json
+{
+  "name": "my-exporter",
+  "contextType": "AUTO",
+  "context": ".my-context",
+  "subjects": [
+    "my-topic-value",
+    "my-topic-key"
+  ],
+  "subjectRenameFormat": "dest-${subject}",
+  "config": {
+    "schema.registry.url": "http://destination:8081",
+    "basic.auth.credentials.source": "USER_INFO",
+    "basic.auth.user.info": "user:password"
+  }
+}
+```
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|name|path|string|true|The name of the exporter.|
+|body|body|[ExporterRequest](#schemaexporterrequest)|true|none|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "name": "my-exporter"
+}
+```
+
+> 404 Response
+
+```json
+{
+  "error_code": 40470,
+  "message": "Exporter 'my-exporter' not found"
+}
+```
+
+> 422 Response
+
+```json
+{
+  "error_code": 42271,
+  "message": "Invalid exporter config"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The exporter was updated successfully.|[ExporterNameResponse](#schemaexporternameresponse)|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|The specified exporter was not found.|[ErrorResponse](#schemaerrorresponse)|
+|422|[Unprocessable Entity](https://tools.ietf.org/html/rfc2518#section-10.3)|Invalid exporter configuration.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## Delete an exporter
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X DELETE http://localhost:8081/exporters/{name} \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`DELETE /exporters/{name}`
+
+Deletes the specified exporter. The exporter MUST be in a paused or starting state before it can be deleted. Returns the name of the deleted exporter.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|name|path|string|true|The name of the exporter.|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "name": "my-exporter"
+}
+```
+
+> 404 Response
+
+```json
+{
+  "error_code": 40470,
+  "message": "Exporter 'my-exporter' not found"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The exporter was deleted successfully.|[ExporterNameResponse](#schemaexporternameresponse)|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|The specified exporter was not found.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## Pause an exporter
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X PUT http://localhost:8081/exporters/{name}/pause \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`PUT /exporters/{name}/pause`
+
+Pauses the specified exporter. A paused exporter stops replicating schemas to the destination registry. The exporter can be resumed later with the resume endpoint.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|name|path|string|true|The name of the exporter.|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "name": "my-exporter"
+}
+```
+
+> 404 Response
+
+```json
+{
+  "error_code": 40470,
+  "message": "Exporter 'my-exporter' not found"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The exporter was paused successfully.|[ExporterNameResponse](#schemaexporternameresponse)|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|The specified exporter was not found.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## Resume an exporter
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X PUT http://localhost:8081/exporters/{name}/resume \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`PUT /exporters/{name}/resume`
+
+Resumes a previously paused exporter. The exporter will continue replicating schemas from where it left off.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|name|path|string|true|The name of the exporter.|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "name": "my-exporter"
+}
+```
+
+> 404 Response
+
+```json
+{
+  "error_code": 40470,
+  "message": "Exporter 'my-exporter' not found"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The exporter was resumed successfully.|[ExporterNameResponse](#schemaexporternameresponse)|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|The specified exporter was not found.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## Reset an exporter
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X PUT http://localhost:8081/exporters/{name}/reset \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`PUT /exporters/{name}/reset`
+
+Resets the offset of the specified exporter. The exporter MUST be in a paused state before it can be reset. After resetting, the exporter will re-export all matching schemas from the beginning when resumed.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|name|path|string|true|The name of the exporter.|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "name": "my-exporter"
+}
+```
+
+> 404 Response
+
+```json
+{
+  "error_code": 40470,
+  "message": "Exporter 'my-exporter' not found"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The exporter offset was reset successfully.|[ExporterNameResponse](#schemaexporternameresponse)|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|The specified exporter was not found.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## Get exporter status
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/exporters/{name}/status \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`GET /exporters/{name}/status`
+
+Returns the current status of the specified exporter, including its state (STARTING, RUNNING, PAUSED, or ERROR), the current offset, the last updated timestamp, and any error trace if the exporter is in an error state.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|name|path|string|true|The name of the exporter.|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "name": "my-exporter",
+  "state": "RUNNING",
+  "offset": 42,
+  "ts": 1706000000000,
+  "trace": ""
+}
+```
+
+> 404 Response
+
+```json
+{
+  "error_code": 40470,
+  "message": "Exporter 'my-exporter' not found"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The exporter status.|[ExporterStatus](#schemaexporterstatus)|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|The specified exporter was not found.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## Get exporter config
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/exporters/{name}/config \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`GET /exporters/{name}/config`
+
+Returns the configuration map of the specified exporter. The configuration map contains key-value pairs that define the exporter's connection and behavior settings for the destination registry.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|name|path|string|true|The name of the exporter.|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "schema.registry.url": "http://destination:8081",
+  "basic.auth.credentials.source": "USER_INFO",
+  "basic.auth.user.info": "user:password"
+}
+```
+
+> 404 Response
+
+```json
+{
+  "error_code": 40470,
+  "message": "Exporter 'my-exporter' not found"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The exporter configuration map.|Inline|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|The specified exporter was not found.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+Status Code **200**
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|» **additionalProperties**|string|false|none|none|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## Update exporter config
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X PUT http://localhost:8081/exporters/{name}/config \
+  -H 'Content-Type: application/vnd.schemaregistry.v1+json' \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`PUT /exporters/{name}/config`
+
+Updates the configuration map of the specified exporter. The request body MUST be a JSON object of key-value string pairs representing the new configuration. This replaces the entire configuration map.
+
+> Body parameter
+
+```json
+{
+  "property1": "string",
+  "property2": "string"
+}
+```
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|name|path|string|true|The name of the exporter.|
+|body|body|object|true|none|
+|» **additionalProperties**|body|string|false|none|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "name": "my-exporter"
+}
+```
+
+> 404 Response
+
+```json
+{
+  "error_code": 40470,
+  "message": "Exporter 'my-exporter' not found"
+}
+```
+
+> 422 Response
+
+```json
+{
+  "error_code": 42271,
+  "message": "Invalid exporter config"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The exporter config was updated successfully.|[ExporterNameResponse](#schemaexporternameresponse)|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|The specified exporter was not found.|[ErrorResponse](#schemaerrorresponse)|
+|422|[Unprocessable Entity](https://tools.ietf.org/html/rfc2518#section-10.3)|Invalid exporter configuration.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] List exporters
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/contexts/{context}/exporters \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`GET /contexts/{context}/exporters`
+
+Context-scoped version of `GET /exporters`. See the root-level operation for full documentation.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+
+> Example responses
+
+> 200 Response
+
+```json
+[
+  "my-exporter",
+  "backup-exporter"
+]
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|A list of exporter name strings.|Inline|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] Create an exporter
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X POST http://localhost:8081/contexts/{context}/exporters \
+  -H 'Content-Type: application/vnd.schemaregistry.v1+json' \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`POST /contexts/{context}/exporters`
+
+Context-scoped version of `POST /exporters`. See the root-level operation for full documentation.
+
+> Body parameter
+
+```json
+{
+  "name": "my-exporter",
+  "contextType": "AUTO",
+  "context": ".my-context",
+  "subjects": [
+    "my-topic-value",
+    "my-topic-key"
+  ],
+  "subjectRenameFormat": "dest-${subject}",
+  "config": {
+    "schema.registry.url": "http://destination:8081",
+    "basic.auth.credentials.source": "USER_INFO",
+    "basic.auth.user.info": "user:password"
+  }
+}
+```
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+|body|body|[ExporterRequest](#schemaexporterrequest)|true|none|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "name": "my-exporter"
+}
+```
+
+> 409 Response
+
+```json
+{
+  "error_code": 40972,
+  "message": "Exporter 'my-exporter' already exists"
+}
+```
+
+> 422 Response
+
+```json
+{
+  "error_code": 42271,
+  "message": "Invalid exporter config"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The exporter was created successfully.|[ExporterNameResponse](#schemaexporternameresponse)|
+|409|[Conflict](https://tools.ietf.org/html/rfc7231#section-6.5.8)|An exporter with this name already exists.|[ErrorResponse](#schemaerrorresponse)|
+|422|[Unprocessable Entity](https://tools.ietf.org/html/rfc2518#section-10.3)|Invalid exporter configuration.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] Get exporter info
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/contexts/{context}/exporters/{name} \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`GET /contexts/{context}/exporters/{name}`
+
+Context-scoped version of `GET /exporters/{name}`. See the root-level operation for full documentation.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+|name|path|string|true|The name of the exporter.|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "name": "my-exporter",
+  "contextType": "AUTO",
+  "context": ".my-context",
+  "subjects": [
+    "my-topic-value"
+  ],
+  "subjectRenameFormat": "dest-${subject}",
+  "config": {
+    "schema.registry.url": "http://destination:8081"
+  }
+}
+```
+
+> 404 Response
+
+```json
+{
+  "error_code": 40470,
+  "message": "Exporter 'my-exporter' not found"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The exporter details.|[ExporterInfo](#schemaexporterinfo)|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|The specified exporter was not found.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] Update an exporter
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X PUT http://localhost:8081/contexts/{context}/exporters/{name} \
+  -H 'Content-Type: application/vnd.schemaregistry.v1+json' \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`PUT /contexts/{context}/exporters/{name}`
+
+Context-scoped version of `PUT /exporters/{name}`. See the root-level operation for full documentation.
+
+> Body parameter
+
+```json
+{
+  "name": "my-exporter",
+  "contextType": "AUTO",
+  "context": ".my-context",
+  "subjects": [
+    "my-topic-value",
+    "my-topic-key"
+  ],
+  "subjectRenameFormat": "dest-${subject}",
+  "config": {
+    "schema.registry.url": "http://destination:8081",
+    "basic.auth.credentials.source": "USER_INFO",
+    "basic.auth.user.info": "user:password"
+  }
+}
+```
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+|name|path|string|true|The name of the exporter.|
+|body|body|[ExporterRequest](#schemaexporterrequest)|true|none|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "name": "my-exporter"
+}
+```
+
+> 404 Response
+
+```json
+{
+  "error_code": 40470,
+  "message": "Exporter 'my-exporter' not found"
+}
+```
+
+> 422 Response
+
+```json
+{
+  "error_code": 42271,
+  "message": "Invalid exporter config"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The exporter was updated successfully.|[ExporterNameResponse](#schemaexporternameresponse)|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|The specified exporter was not found.|[ErrorResponse](#schemaerrorresponse)|
+|422|[Unprocessable Entity](https://tools.ietf.org/html/rfc2518#section-10.3)|Invalid exporter configuration.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] Delete an exporter
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X DELETE http://localhost:8081/contexts/{context}/exporters/{name} \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`DELETE /contexts/{context}/exporters/{name}`
+
+Context-scoped version of `DELETE /exporters/{name}`. See the root-level operation for full documentation.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+|name|path|string|true|The name of the exporter.|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "name": "my-exporter"
+}
+```
+
+> 404 Response
+
+```json
+{
+  "error_code": 40470,
+  "message": "Exporter 'my-exporter' not found"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The exporter was deleted successfully.|[ExporterNameResponse](#schemaexporternameresponse)|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|The specified exporter was not found.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] Pause an exporter
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X PUT http://localhost:8081/contexts/{context}/exporters/{name}/pause \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`PUT /contexts/{context}/exporters/{name}/pause`
+
+Context-scoped version of `PUT /exporters/{name}/pause`. See the root-level operation for full documentation.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+|name|path|string|true|The name of the exporter.|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "name": "my-exporter"
+}
+```
+
+> 404 Response
+
+```json
+{
+  "error_code": 40470,
+  "message": "Exporter 'my-exporter' not found"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The exporter was paused successfully.|[ExporterNameResponse](#schemaexporternameresponse)|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|The specified exporter was not found.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] Resume an exporter
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X PUT http://localhost:8081/contexts/{context}/exporters/{name}/resume \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`PUT /contexts/{context}/exporters/{name}/resume`
+
+Context-scoped version of `PUT /exporters/{name}/resume`. See the root-level operation for full documentation.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+|name|path|string|true|The name of the exporter.|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "name": "my-exporter"
+}
+```
+
+> 404 Response
+
+```json
+{
+  "error_code": 40470,
+  "message": "Exporter 'my-exporter' not found"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The exporter was resumed successfully.|[ExporterNameResponse](#schemaexporternameresponse)|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|The specified exporter was not found.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] Reset an exporter
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X PUT http://localhost:8081/contexts/{context}/exporters/{name}/reset \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`PUT /contexts/{context}/exporters/{name}/reset`
+
+Context-scoped version of `PUT /exporters/{name}/reset`. See the root-level operation for full documentation.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+|name|path|string|true|The name of the exporter.|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "name": "my-exporter"
+}
+```
+
+> 404 Response
+
+```json
+{
+  "error_code": 40470,
+  "message": "Exporter 'my-exporter' not found"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The exporter offset was reset successfully.|[ExporterNameResponse](#schemaexporternameresponse)|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|The specified exporter was not found.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] Get exporter status
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/contexts/{context}/exporters/{name}/status \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`GET /contexts/{context}/exporters/{name}/status`
+
+Context-scoped version of `GET /exporters/{name}/status`. See the root-level operation for full documentation.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+|name|path|string|true|The name of the exporter.|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "name": "my-exporter",
+  "state": "RUNNING",
+  "offset": 42,
+  "ts": 1706000000000,
+  "trace": ""
+}
+```
+
+> 404 Response
+
+```json
+{
+  "error_code": 40470,
+  "message": "Exporter 'my-exporter' not found"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The exporter status.|[ExporterStatus](#schemaexporterstatus)|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|The specified exporter was not found.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] Get exporter config
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/contexts/{context}/exporters/{name}/config \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`GET /contexts/{context}/exporters/{name}/config`
+
+Context-scoped version of `GET /exporters/{name}/config`. See the root-level operation for full documentation.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+|name|path|string|true|The name of the exporter.|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "schema.registry.url": "http://destination:8081",
+  "basic.auth.credentials.source": "USER_INFO",
+  "basic.auth.user.info": "user:password"
+}
+```
+
+> 404 Response
+
+```json
+{
+  "error_code": 40470,
+  "message": "Exporter 'my-exporter' not found"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The exporter configuration map.|Inline|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|The specified exporter was not found.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+Status Code **200**
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|» **additionalProperties**|string|false|none|none|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## [Context-scoped] Update exporter config
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X PUT http://localhost:8081/contexts/{context}/exporters/{name}/config \
+  -H 'Content-Type: application/vnd.schemaregistry.v1+json' \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`PUT /contexts/{context}/exporters/{name}/config`
+
+Context-scoped version of `PUT /exporters/{name}/config`. See the root-level operation for full documentation.
+
+> Body parameter
+
+```json
+{
+  "property1": "string",
+  "property2": "string"
+}
+```
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|context|path|string|true|The schema registry context name. Contexts provide multi-tenant isolation. The name MUST include a leading dot (e.g. `.team-a`). If omitted, it is automatically prepended.|
+|name|path|string|true|The name of the exporter.|
+|body|body|object|true|none|
+|» **additionalProperties**|body|string|false|none|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "name": "my-exporter"
+}
+```
+
+> 404 Response
+
+```json
+{
+  "error_code": 40470,
+  "message": "Exporter 'my-exporter' not found"
+}
+```
+
+> 422 Response
+
+```json
+{
+  "error_code": 42271,
+  "message": "Invalid exporter config"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The exporter config was updated successfully.|[ExporterNameResponse](#schemaexporternameresponse)|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|The specified exporter was not found.|[ErrorResponse](#schemaerrorresponse)|
+|422|[Unprocessable Entity](https://tools.ietf.org/html/rfc2518#section-10.3)|Invalid exporter configuration.|[ErrorResponse](#schemaerrorresponse)|
 |500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
 
 > **Warning:** 
@@ -9665,6 +11409,1008 @@ Returns HTTP 200 when initialization is complete (storage backend connected and 
 This operation does not require authentication
 
 
+# DEK Registry
+
+Operations for managing Data Encryption Keys (DEKs) and Key Encryption Keys (KEKs). KEKs are top-level encryption keys identified by name, associated with a KMS provider. DEKs are per-subject encryption keys managed under a KEK. The DEK Registry API follows the Confluent Schema Registry DEK Registry format and uses the `/dek-registry/v1` prefix.
+
+## List KEK names
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/dek-registry/v1/keks \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`GET /dek-registry/v1/keks`
+
+Returns a list of all Key Encryption Key (KEK) names registered in the DEK registry. The response is an array of strings, each representing the name of a KEK. Soft-deleted KEKs are excluded unless the `deleted` query parameter is set to `true`.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|deleted|query|boolean|false|When set to `true`, soft-deleted KEKs are included in the results.|
+
+> Example responses
+
+> 200 Response
+
+```json
+[
+  "my-kek",
+  "backup-kek"
+]
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|A list of KEK name strings.|Inline|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## Create a KEK
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X POST http://localhost:8081/dek-registry/v1/keks \
+  -H 'Content-Type: application/vnd.schemaregistry.v1+json' \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`POST /dek-registry/v1/keks`
+
+Creates a new Key Encryption Key (KEK) with the specified configuration. The KEK name MUST be unique within the registry. The `kmsType` specifies the Key Management Service provider (e.g. `aws-kms`, `azure-kms`, `gcp-kms`). The `kmsKeyId` identifies the master key in the KMS. The `shared` flag indicates whether this KEK is shared across multiple schema subjects.
+
+> Body parameter
+
+```json
+{
+  "name": "my-kek",
+  "kmsType": "aws-kms",
+  "kmsKeyId": "arn:aws:kms:us-east-1:123456789:key/abcd-1234",
+  "kmsProps": {
+    "region": "us-east-1"
+  },
+  "doc": "Production encryption key for PII data",
+  "shared": false
+}
+```
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|body|body|[KEKRequest](#schemakekrequest)|true|none|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "name": "my-kek",
+  "kmsType": "aws-kms",
+  "kmsKeyId": "arn:aws:kms:us-east-1:123456789:key/abcd-1234",
+  "kmsProps": {
+    "region": "us-east-1"
+  },
+  "doc": "Production encryption key for PII data",
+  "shared": false,
+  "ts": 1708444800000,
+  "deleted": false
+}
+```
+
+> 409 Response
+
+```json
+{
+  "error_code": 40972,
+  "message": "KEK 'my-kek' already exists"
+}
+```
+
+> 422 Response
+
+```json
+{
+  "error_code": 42271,
+  "message": "Invalid KEK config"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The KEK was created successfully.|[KEKResponse](#schemakekresponse)|
+|409|[Conflict](https://tools.ietf.org/html/rfc7231#section-6.5.8)|A KEK with this name already exists.|[ErrorResponse](#schemaerrorresponse)|
+|422|[Unprocessable Entity](https://tools.ietf.org/html/rfc2518#section-10.3)|Invalid KEK configuration.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## Get a KEK
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/dek-registry/v1/keks/{name} \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`GET /dek-registry/v1/keks/{name}`
+
+Returns the full details of the specified Key Encryption Key (KEK), including its name, KMS type, KMS key ID, properties, documentation, shared flag, and timestamps. Soft-deleted KEKs are returned only when the `deleted` query parameter is set to `true`.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|name|path|string|true|The name of the KEK.|
+|deleted|query|boolean|false|When set to `true`, returns the KEK even if it has been soft-deleted.|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "name": "my-kek",
+  "kmsType": "aws-kms",
+  "kmsKeyId": "arn:aws:kms:us-east-1:123456789:key/abcd-1234",
+  "kmsProps": {
+    "region": "us-east-1"
+  },
+  "doc": "Production encryption key for PII data",
+  "shared": false,
+  "ts": 1708444800000,
+  "deleted": false
+}
+```
+
+> 404 Response
+
+```json
+{
+  "error_code": 40470,
+  "message": "KEK 'my-kek' not found"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The KEK details.|[KEKResponse](#schemakekresponse)|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|The specified KEK was not found.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## Update a KEK
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X PUT http://localhost:8081/dek-registry/v1/keks/{name} \
+  -H 'Content-Type: application/vnd.schemaregistry.v1+json' \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`PUT /dek-registry/v1/keks/{name}`
+
+Updates the mutable properties of the specified Key Encryption Key (KEK). Only the `kmsProps`, `doc`, and `shared` fields can be updated. The KEK name, KMS type, and KMS key ID are immutable after creation.
+
+> Body parameter
+
+```json
+{
+  "kmsProps": {
+    "region": "us-west-2"
+  },
+  "doc": "Updated production encryption key description",
+  "shared": true
+}
+```
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|name|path|string|true|The name of the KEK.|
+|body|body|[KEKUpdateRequest](#schemakekupdaterequest)|true|none|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "name": "my-kek",
+  "kmsType": "aws-kms",
+  "kmsKeyId": "arn:aws:kms:us-east-1:123456789:key/abcd-1234",
+  "kmsProps": {
+    "region": "us-east-1"
+  },
+  "doc": "Production encryption key for PII data",
+  "shared": false,
+  "ts": 1708444800000,
+  "deleted": false
+}
+```
+
+> 404 Response
+
+```json
+{
+  "error_code": 40470,
+  "message": "KEK 'my-kek' not found"
+}
+```
+
+> 422 Response
+
+```json
+{
+  "error_code": 42271,
+  "message": "Invalid KEK config"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The KEK was updated successfully.|[KEKResponse](#schemakekresponse)|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|The specified KEK was not found.|[ErrorResponse](#schemaerrorresponse)|
+|422|[Unprocessable Entity](https://tools.ietf.org/html/rfc2518#section-10.3)|Invalid KEK configuration.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## Delete a KEK
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X DELETE http://localhost:8081/dek-registry/v1/keks/{name} \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`DELETE /dek-registry/v1/keks/{name}`
+
+Deletes the specified Key Encryption Key (KEK). By default this performs a soft-delete. To permanently remove the KEK, set `permanent=true`. A KEK MUST be soft-deleted before it can be permanently deleted. Deleting a KEK does not automatically delete its associated DEKs.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|name|path|string|true|The name of the KEK.|
+|permanent|query|boolean|false|When set to `true`, permanently removes the KEK from storage. The KEK MUST have been soft-deleted first.|
+
+> Example responses
+
+> 404 Response
+
+```json
+{
+  "error_code": 40470,
+  "message": "KEK 'my-kek' not found"
+}
+```
+
+> 422 Response
+
+```json
+{
+  "error_code": 42271,
+  "message": "KEK 'my-kek' was not deleted first before being permanently deleted"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|204|[No Content](https://tools.ietf.org/html/rfc7231#section-6.3.5)|The KEK was deleted successfully.|None|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|The specified KEK was not found.|[ErrorResponse](#schemaerrorresponse)|
+|422|[Unprocessable Entity](https://tools.ietf.org/html/rfc2518#section-10.3)|KEK must be soft-deleted before permanent delete.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## Undelete a KEK
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X PUT http://localhost:8081/dek-registry/v1/keks/{name}/undelete \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`PUT /dek-registry/v1/keks/{name}/undelete`
+
+Restores a previously soft-deleted Key Encryption Key (KEK). The KEK MUST currently be in a soft-deleted state for this operation to succeed.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|name|path|string|true|The name of the KEK to restore.|
+
+> Example responses
+
+> 404 Response
+
+```json
+{
+  "error_code": 40470,
+  "message": "KEK 'my-kek' not found"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|204|[No Content](https://tools.ietf.org/html/rfc7231#section-6.3.5)|The KEK was restored successfully.|None|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|The specified KEK was not found.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## List DEK subjects
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/dek-registry/v1/keks/{name}/deks \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`GET /dek-registry/v1/keks/{name}/deks`
+
+Returns a list of all DEK subject names registered under the specified KEK. The response is an array of strings. Soft-deleted DEKs are excluded unless the `deleted` query parameter is set to `true`.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|name|path|string|true|The name of the KEK.|
+|deleted|query|boolean|false|When set to `true`, soft-deleted DEK subjects are included in the results.|
+
+> Example responses
+
+> 200 Response
+
+```json
+[
+  "my-topic-value",
+  "other-topic-value"
+]
+```
+
+> 404 Response
+
+```json
+{
+  "error_code": 40470,
+  "message": "KEK 'my-kek' not found"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|A list of DEK subject name strings.|Inline|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|The specified KEK was not found.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## Create a DEK
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X POST http://localhost:8081/dek-registry/v1/keks/{name}/deks \
+  -H 'Content-Type: application/vnd.schemaregistry.v1+json' \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`POST /dek-registry/v1/keks/{name}/deks`
+
+Creates a new Data Encryption Key (DEK) under the specified KEK for the given subject. The `algorithm` specifies the encryption algorithm (e.g. `AES256_GCM`, `AES128_GCM`). If `encryptedKeyMaterial` is provided, it is stored as-is. If omitted, the registry generates a new DEK and encrypts it using the KEK.
+
+> Body parameter
+
+```json
+{
+  "subject": "my-topic-value",
+  "version": 1,
+  "algorithm": "AES256_GCM",
+  "encryptedKeyMaterial": "base64-encoded-encrypted-key-material"
+}
+```
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|name|path|string|true|The name of the KEK under which to create the DEK.|
+|body|body|[DEKRequest](#schemadekrequest)|true|none|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "kekName": "my-kek",
+  "subject": "my-topic-value",
+  "version": 1,
+  "algorithm": "AES256_GCM",
+  "encryptedKeyMaterial": "base64-encoded-encrypted-key-material",
+  "keyMaterial": "base64-encoded-decrypted-key-material",
+  "ts": 1708444800000,
+  "deleted": false
+}
+```
+
+> 404 Response
+
+```json
+{
+  "error_code": 40470,
+  "message": "KEK 'my-kek' not found"
+}
+```
+
+> 409 Response
+
+```json
+{
+  "error_code": 40972,
+  "message": "DEK for subject 'my-topic-value' already exists"
+}
+```
+
+> 422 Response
+
+```json
+{
+  "error_code": 42271,
+  "message": "Invalid DEK config"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The DEK was created successfully.|[DEKResponse](#schemadekresponse)|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|The specified KEK was not found.|[ErrorResponse](#schemaerrorresponse)|
+|409|[Conflict](https://tools.ietf.org/html/rfc7231#section-6.5.8)|A DEK for this subject and version already exists.|[ErrorResponse](#schemaerrorresponse)|
+|422|[Unprocessable Entity](https://tools.ietf.org/html/rfc2518#section-10.3)|Invalid DEK configuration.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## Get latest DEK for a subject
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/dek-registry/v1/keks/{name}/deks/{subject} \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`GET /dek-registry/v1/keks/{name}/deks/{subject}`
+
+Returns the latest version of the Data Encryption Key (DEK) for the specified subject under the given KEK. The optional `algorithm` query parameter filters by encryption algorithm. Soft-deleted DEKs are returned only when the `deleted` query parameter is set to `true`.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|name|path|string|true|The name of the KEK.|
+|subject|path|string|true|The DEK subject name.|
+|algorithm|query|string|false|Filter by encryption algorithm (e.g. `AES256_GCM`, `AES128_GCM`).|
+|deleted|query|boolean|false|When set to `true`, returns the DEK even if it has been soft-deleted.|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "kekName": "my-kek",
+  "subject": "my-topic-value",
+  "version": 1,
+  "algorithm": "AES256_GCM",
+  "encryptedKeyMaterial": "base64-encoded-encrypted-key-material",
+  "keyMaterial": "base64-encoded-decrypted-key-material",
+  "ts": 1708444800000,
+  "deleted": false
+}
+```
+
+> The specified KEK or DEK was not found.
+
+```json
+{
+  "error_code": 40470,
+  "message": "KEK 'my-kek' not found"
+}
+```
+
+```json
+{
+  "error_code": 40471,
+  "message": "DEK for subject 'my-topic-value' not found"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The DEK details.|[DEKResponse](#schemadekresponse)|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|The specified KEK or DEK was not found.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## Delete a DEK
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X DELETE http://localhost:8081/dek-registry/v1/keks/{name}/deks/{subject} \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`DELETE /dek-registry/v1/keks/{name}/deks/{subject}`
+
+Deletes the Data Encryption Key (DEK) for the specified subject under the given KEK. By default this performs a soft-delete. To permanently remove the DEK, set `permanent=true`. A DEK MUST be soft-deleted before it can be permanently deleted.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|name|path|string|true|The name of the KEK.|
+|subject|path|string|true|The DEK subject name.|
+|algorithm|query|string|false|Filter by encryption algorithm (e.g. `AES256_GCM`, `AES128_GCM`).|
+|permanent|query|boolean|false|When set to `true`, permanently removes the DEK from storage. The DEK MUST have been soft-deleted first.|
+
+> Example responses
+
+> The specified KEK or DEK was not found.
+
+```json
+{
+  "error_code": 40470,
+  "message": "KEK 'my-kek' not found"
+}
+```
+
+```json
+{
+  "error_code": 40471,
+  "message": "DEK for subject 'my-topic-value' not found"
+}
+```
+
+> 422 Response
+
+```json
+{
+  "error_code": 42271,
+  "message": "DEK was not deleted first before being permanently deleted"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|204|[No Content](https://tools.ietf.org/html/rfc7231#section-6.3.5)|The DEK was deleted successfully.|None|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|The specified KEK or DEK was not found.|[ErrorResponse](#schemaerrorresponse)|
+|422|[Unprocessable Entity](https://tools.ietf.org/html/rfc2518#section-10.3)|DEK must be soft-deleted before permanent delete.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## List DEK versions
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/dek-registry/v1/keks/{name}/deks/{subject}/versions \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`GET /dek-registry/v1/keks/{name}/deks/{subject}/versions`
+
+Returns a list of all version numbers for the specified DEK subject under the given KEK. The optional `algorithm` query parameter filters by encryption algorithm. Soft-deleted versions are excluded unless the `deleted` query parameter is set to `true`.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|name|path|string|true|The name of the KEK.|
+|subject|path|string|true|The DEK subject name.|
+|algorithm|query|string|false|Filter by encryption algorithm (e.g. `AES256_GCM`, `AES128_GCM`).|
+|deleted|query|boolean|false|When set to `true`, soft-deleted DEK versions are included in the results.|
+
+> Example responses
+
+> 200 Response
+
+```json
+[
+  1,
+  2,
+  3
+]
+```
+
+> The specified KEK or DEK subject was not found.
+
+```json
+{
+  "error_code": 40470,
+  "message": "KEK 'my-kek' not found"
+}
+```
+
+```json
+{
+  "error_code": 40471,
+  "message": "DEK for subject 'my-topic-value' not found"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|A list of DEK version numbers.|Inline|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|The specified KEK or DEK subject was not found.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+### Response Schema
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## Get a specific DEK version
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X GET http://localhost:8081/dek-registry/v1/keks/{name}/deks/{subject}/versions/{version} \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`GET /dek-registry/v1/keks/{name}/deks/{subject}/versions/{version}`
+
+Returns the specified version of the Data Encryption Key (DEK) for the given subject under the given KEK. The optional `algorithm` query parameter filters by encryption algorithm. Soft-deleted DEKs are returned only when the `deleted` query parameter is set to `true`.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|name|path|string|true|The name of the KEK.|
+|subject|path|string|true|The DEK subject name.|
+|version|path|integer|true|The DEK version number. MUST be a positive integer.|
+|algorithm|query|string|false|Filter by encryption algorithm (e.g. `AES256_GCM`, `AES128_GCM`).|
+|deleted|query|boolean|false|When set to `true`, returns the DEK even if it has been soft-deleted.|
+
+> Example responses
+
+> 200 Response
+
+```json
+{
+  "kekName": "my-kek",
+  "subject": "my-topic-value",
+  "version": 1,
+  "algorithm": "AES256_GCM",
+  "encryptedKeyMaterial": "base64-encoded-encrypted-key-material",
+  "keyMaterial": "base64-encoded-decrypted-key-material",
+  "ts": 1708444800000,
+  "deleted": false
+}
+```
+
+> The specified KEK, DEK subject, or version was not found.
+
+```json
+{
+  "error_code": 40470,
+  "message": "KEK 'my-kek' not found"
+}
+```
+
+```json
+{
+  "error_code": 40471,
+  "message": "DEK for subject 'my-topic-value' not found"
+}
+```
+
+```json
+{
+  "error_code": 40472,
+  "message": "DEK version 5 not found"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The DEK version details.|[DEKResponse](#schemadekresponse)|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|The specified KEK, DEK subject, or version was not found.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
+## Undelete a DEK
+
+
+> Code samples
+
+```shell
+# You can also use wget
+curl -X PUT http://localhost:8081/dek-registry/v1/keks/{name}/deks/{subject}/undelete \
+  -H 'Accept: application/vnd.schemaregistry.v1+json'
+
+```
+
+`PUT /dek-registry/v1/keks/{name}/deks/{subject}/undelete`
+
+Restores a previously soft-deleted Data Encryption Key (DEK) for the specified subject under the given KEK. The DEK MUST currently be in a soft-deleted state for this operation to succeed.
+
+### Parameters
+
+|Name|In|Type|Required|Description|
+|---|---|---|---|---|
+|name|path|string|true|The name of the KEK.|
+|subject|path|string|true|The DEK subject name.|
+|algorithm|query|string|false|Filter by encryption algorithm (e.g. `AES256_GCM`, `AES128_GCM`).|
+
+> Example responses
+
+> The specified KEK or DEK was not found.
+
+```json
+{
+  "error_code": 40470,
+  "message": "KEK 'my-kek' not found"
+}
+```
+
+```json
+{
+  "error_code": 40471,
+  "message": "DEK for subject 'my-topic-value' not found"
+}
+```
+
+> 500 Response
+
+```json
+{
+  "error_code": 50001,
+  "message": "Internal server error"
+}
+```
+
+### Responses
+
+|Status|Meaning|Description|Schema|
+|---|---|---|---|
+|204|[No Content](https://tools.ietf.org/html/rfc7231#section-6.3.5)|The DEK was restored successfully.|None|
+|404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|The specified KEK or DEK was not found.|[ErrorResponse](#schemaerrorresponse)|
+|500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
+
+> **Warning:** 
+To perform this operation, you must be authenticated by means of one of the following methods:
+basicAuth, apiKey, bearerAuth
+
+
 # Documentation
 
 Endpoints for serving the interactive API documentation (Swagger UI) and the raw OpenAPI specification. Available only when the server is configured with docs_enabled.
@@ -11281,6 +14027,144 @@ The result of importing a single schema.
 |success|boolean|true|none|Whether the import was successful.|
 |error|string|false|none|The error message if the import failed. Empty when `success` is `true`.|
 
+## ExporterRequest
+<!-- backwards compatibility -->
+
+```json
+{
+  "name": "my-exporter",
+  "contextType": "AUTO",
+  "context": ".my-context",
+  "subjects": [
+    "my-topic-value",
+    "my-topic-key"
+  ],
+  "subjectRenameFormat": "dest-${subject}",
+  "config": {
+    "schema.registry.url": "http://destination:8081",
+    "basic.auth.credentials.source": "USER_INFO",
+    "basic.auth.user.info": "user:password"
+  }
+}
+
+```
+
+The request body for creating or updating a schema exporter. The `name` field is REQUIRED when creating an exporter but is ignored when updating (the name is taken from the URL path parameter). The `config` map contains connection settings for the destination schema registry.
+
+### Properties
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|name|string|true|none|The unique name for the exporter. MUST be non-empty and unique within the registry. Ignored on update operations (the name in the URL path is used).|
+|contextType|string|false|none|The type of context for the exporter. `CUSTOM` indicates a user-defined context, `AUTO` indicates the default context, and `NONE` indicates no context scoping.|
+|context|string|false|none|The context name to use when `contextType` is `CUSTOM`. Ignored when `contextType` is `AUTO` or `NONE`.|
+|subjects|[string]|false|none|An optional list of subject names to export. If empty or omitted, all subjects are exported.|
+|subjectRenameFormat|string|false|none|An optional rename format template applied to subject names during export. Use `${subject}` as a placeholder for the original subject name.|
+|config|object|false|none|A map of configuration key-value pairs for the exporter. These typically include the destination schema registry URL and authentication credentials.|
+|» **additionalProperties**|string|false|none|none|
+
+#### Enumerated Values
+
+|Property|Value|
+|---|---|
+|contextType|CUSTOM|
+|contextType|AUTO|
+|contextType|NONE|
+
+## ExporterNameResponse
+<!-- backwards compatibility -->
+
+```json
+{
+  "name": "my-exporter"
+}
+
+```
+
+A response containing only the exporter name. Returned by create, update, delete, pause, resume, reset, and config update operations.
+
+### Properties
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|name|string|true|none|The name of the exporter.|
+
+## ExporterInfo
+<!-- backwards compatibility -->
+
+```json
+{
+  "name": "my-exporter",
+  "contextType": "AUTO",
+  "context": ".my-context",
+  "subjects": [
+    "my-topic-value"
+  ],
+  "subjectRenameFormat": "dest-${subject}",
+  "config": {
+    "schema.registry.url": "http://destination:8081"
+  }
+}
+
+```
+
+Full details of a schema exporter, including its configuration and subject filter.
+
+### Properties
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|name|string|true|none|The unique name of the exporter.|
+|contextType|string|true|none|The type of context for the exporter. `CUSTOM` for a user-defined context, `AUTO` for the default context, `NONE` for no context scoping.|
+|context|string|true|none|The context name. Present when `contextType` is `CUSTOM`.|
+|subjects|[string]|true|none|The list of subject names being exported. Empty means all subjects.|
+|subjectRenameFormat|string|false|none|The rename format template applied to subjects during export.|
+|config|object|true|none|The configuration map for the exporter.|
+|» **additionalProperties**|string|false|none|none|
+
+#### Enumerated Values
+
+|Property|Value|
+|---|---|
+|contextType|CUSTOM|
+|contextType|AUTO|
+|contextType|NONE|
+
+## ExporterStatus
+<!-- backwards compatibility -->
+
+```json
+{
+  "name": "my-exporter",
+  "state": "RUNNING",
+  "offset": 42,
+  "ts": 1706000000000,
+  "trace": ""
+}
+
+```
+
+The runtime status of a schema exporter, including its current state, replication offset, last update timestamp, and any error information.
+
+### Properties
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|name|string|true|none|The name of the exporter.|
+|state|string|true|none|The current state of the exporter. Possible values are `STARTING` (initializing), `RUNNING` (actively replicating), `PAUSED` (paused by user), and `ERROR` (an error occurred).|
+|offset|integer(int64)|true|none|The current replication offset. Represents the last schema ID that was successfully exported.|
+|ts|integer(int64)|true|none|The timestamp (epoch milliseconds) of the last status update.|
+|trace|string|false|none|An error trace string present when the exporter is in the `ERROR` state. Empty or absent when the exporter is healthy.|
+
+#### Enumerated Values
+
+|Property|Value|
+|---|---|
+|state|STARTING|
+|state|RUNNING|
+|state|PAUSED|
+|state|ERROR|
+
 ## ServerClusterIDResponse
 <!-- backwards compatibility -->
 
@@ -11757,6 +14641,167 @@ The response for listing available roles.
 |Name|Type|Required|Restrictions|Description|
 |---|---|---|---|---|
 |roles|[[RoleInfo](#schemaroleinfo)]|true|none|The list of available roles.|
+
+## KEKRequest
+<!-- backwards compatibility -->
+
+```json
+{
+  "name": "my-kek",
+  "kmsType": "aws-kms",
+  "kmsKeyId": "arn:aws:kms:us-east-1:123456789:key/abcd-1234",
+  "kmsProps": {
+    "region": "us-east-1"
+  },
+  "doc": "Production encryption key for PII data",
+  "shared": false
+}
+
+```
+
+The request body for creating a new Key Encryption Key (KEK).
+
+### Properties
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|name|string|true|none|The unique name of the KEK. MUST be unique within the registry.|
+|kmsType|string|true|none|The Key Management Service provider type (e.g. `aws-kms`, `azure-kms`, `gcp-kms`).|
+|kmsKeyId|string|true|none|The identifier of the master key in the KMS. The format depends on the KMS provider.|
+|kmsProps|object|false|none|Additional properties for the KMS provider. The keys and values depend on the KMS type.|
+|» **additionalProperties**|string|false|none|none|
+|doc|string|false|none|A human-readable description or documentation string for this KEK.|
+|shared|boolean|false|none|Whether this KEK is shared across multiple schema subjects. When `true`, the same KEK can be used by DEKs in different subjects.|
+
+## KEKUpdateRequest
+<!-- backwards compatibility -->
+
+```json
+{
+  "kmsProps": {
+    "region": "us-west-2"
+  },
+  "doc": "Updated production encryption key description",
+  "shared": true
+}
+
+```
+
+The request body for updating mutable properties of a Key Encryption Key (KEK). Only `kmsProps`, `doc`, and `shared` can be updated. The KEK name, KMS type, and KMS key ID are immutable after creation.
+
+### Properties
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|kmsProps|object|false|none|Updated properties for the KMS provider.|
+|» **additionalProperties**|string|false|none|none|
+|doc|string|false|none|Updated human-readable description for this KEK.|
+|shared|boolean|false|none|Whether this KEK is shared across multiple schema subjects.|
+
+## KEKResponse
+<!-- backwards compatibility -->
+
+```json
+{
+  "name": "my-kek",
+  "kmsType": "aws-kms",
+  "kmsKeyId": "arn:aws:kms:us-east-1:123456789:key/abcd-1234",
+  "kmsProps": {
+    "region": "us-east-1"
+  },
+  "doc": "Production encryption key for PII data",
+  "shared": false,
+  "ts": 1708444800000,
+  "deleted": false
+}
+
+```
+
+The response representing a Key Encryption Key (KEK) with all its properties, including immutable fields set at creation time and mutable fields that can be updated.
+
+### Properties
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|name|string|true|none|The unique name of the KEK.|
+|kmsType|string|true|none|The Key Management Service provider type.|
+|kmsKeyId|string|true|none|The identifier of the master key in the KMS.|
+|kmsProps|object|false|none|Additional properties for the KMS provider.|
+|» **additionalProperties**|string|false|none|none|
+|doc|string|false|none|A human-readable description or documentation string for this KEK.|
+|shared|boolean|false|none|Whether this KEK is shared across multiple schema subjects.|
+|ts|integer(int64)|false|none|The timestamp (epoch milliseconds) when the KEK was created or last modified.|
+|deleted|boolean|false|none|Whether the KEK has been soft-deleted.|
+
+## DEKRequest
+<!-- backwards compatibility -->
+
+```json
+{
+  "subject": "my-topic-value",
+  "version": 1,
+  "algorithm": "AES256_GCM",
+  "encryptedKeyMaterial": "base64-encoded-encrypted-key-material"
+}
+
+```
+
+The request body for creating a new Data Encryption Key (DEK) under a KEK.
+
+### Properties
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|subject|string|true|none|The subject name for this DEK. Typically corresponds to a Kafka topic.|
+|version|integer|false|none|The version number for this DEK. If omitted, defaults to 1 or the next available version.|
+|algorithm|string|false|none|The encryption algorithm to use (e.g. `AES256_GCM`, `AES128_GCM`). Defaults to `AES256_GCM` if omitted.|
+|encryptedKeyMaterial|string|false|none|The pre-encrypted key material. If provided, it is stored as-is. If omitted, the registry generates a new DEK and encrypts it using the KEK.|
+
+#### Enumerated Values
+
+|Property|Value|
+|---|---|
+|algorithm|AES256_GCM|
+|algorithm|AES128_GCM|
+
+## DEKResponse
+<!-- backwards compatibility -->
+
+```json
+{
+  "kekName": "my-kek",
+  "subject": "my-topic-value",
+  "version": 1,
+  "algorithm": "AES256_GCM",
+  "encryptedKeyMaterial": "base64-encoded-encrypted-key-material",
+  "keyMaterial": "base64-encoded-decrypted-key-material",
+  "ts": 1708444800000,
+  "deleted": false
+}
+
+```
+
+The response representing a Data Encryption Key (DEK) with all its properties, including the KEK name it belongs to, the subject, version, algorithm, and key material.
+
+### Properties
+
+|Name|Type|Required|Restrictions|Description|
+|---|---|---|---|---|
+|kekName|string|true|none|The name of the KEK under which this DEK is managed.|
+|subject|string|true|none|The subject name for this DEK.|
+|version|integer|true|none|The version number of this DEK.|
+|algorithm|string|true|none|The encryption algorithm used by this DEK.|
+|encryptedKeyMaterial|string|false|none|The encrypted key material (base64-encoded).|
+|keyMaterial|string|false|none|The decrypted key material (base64-encoded). This field is only included in the response when the registry can decrypt the key using the KEK. It MUST NOT be stored or logged by clients.|
+|ts|integer(int64)|false|none|The timestamp (epoch milliseconds) when the DEK was created or last modified.|
+|deleted|boolean|false|none|Whether the DEK has been soft-deleted.|
+
+#### Enumerated Values
+
+|Property|Value|
+|---|---|
+|algorithm|AES256_GCM|
+|algorithm|AES128_GCM|
 
 ## HealthResponse
 <!-- backwards compatibility -->

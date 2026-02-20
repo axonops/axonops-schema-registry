@@ -31,6 +31,14 @@ var (
 	ErrPermissionDenied      = errors.New("permission denied")
 	ErrSchemaIDConflict      = errors.New("schema ID already exists")
 	ErrOperationNotPermitted = errors.New("Cannot import since found existing subjects")
+	ErrExporterNotFound      = errors.New("exporter not found")
+	ErrExporterExists        = errors.New("exporter already exists")
+	ErrKEKNotFound           = errors.New("key encryption key not found")
+	ErrKEKExists             = errors.New("key encryption key already exists")
+	ErrKEKSoftDeleted        = errors.New("key encryption key is soft-deleted")
+	ErrDEKNotFound           = errors.New("data encryption key not found")
+	ErrDEKExists             = errors.New("data encryption key already exists")
+	ErrDEKSoftDeleted        = errors.New("data encryption key is soft-deleted")
 )
 
 // SchemaType represents the type of schema.
@@ -146,6 +154,53 @@ type APIKeyRecord struct {
 	LastUsed  *time.Time `json:"last_used,omitempty"`
 }
 
+// ExporterRecord represents a stored exporter (Confluent Schema Linking compatible).
+type ExporterRecord struct {
+	Name                string            `json:"name"`
+	ContextType         string            `json:"contextType,omitempty"`         // CUSTOM, NONE, AUTO (default: AUTO)
+	Context             string            `json:"context,omitempty"`             // Custom context path (when ContextType is CUSTOM)
+	Subjects            []string          `json:"subjects,omitempty"`            // Subject filter list
+	SubjectRenameFormat string            `json:"subjectRenameFormat,omitempty"` // Subject rename format (e.g. "${subject}")
+	Config              map[string]string `json:"config,omitempty"`              // Destination configuration
+	CreatedAt           time.Time         `json:"-"`
+	UpdatedAt           time.Time         `json:"-"`
+}
+
+// ExporterStatusRecord represents the status of an exporter.
+type ExporterStatusRecord struct {
+	Name   string `json:"name"`
+	State  string `json:"state"`            // STARTING, RUNNING, PAUSED, ERROR
+	Offset int64  `json:"offset,omitempty"` // Last exported offset
+	Ts     int64  `json:"ts,omitempty"`     // Timestamp of last state change
+	Trace  string `json:"trace,omitempty"`  // Error trace if state is ERROR
+}
+
+// KEKRecord represents a Key Encryption Key for CSFLE (Client-Side Field Level Encryption).
+type KEKRecord struct {
+	Name      string            `json:"name"`
+	KmsType   string            `json:"kmsType"`              // aws-kms, azure-kms, gcp-kms, hcvault
+	KmsKeyID  string            `json:"kmsKeyId"`             // KMS key identifier
+	KmsProps  map[string]string `json:"kmsProps,omitempty"`   // KMS-specific properties
+	Doc       string            `json:"doc,omitempty"`        // Documentation string
+	Shared    bool              `json:"shared"`               // Whether DEKs under this KEK share key material
+	Deleted   bool              `json:"deleted,omitempty"`    // Soft-delete flag
+	Ts        int64             `json:"ts,omitempty"`         // Timestamp of last modification
+	CreatedAt time.Time         `json:"-"`
+	UpdatedAt time.Time         `json:"-"`
+}
+
+// DEKRecord represents a Data Encryption Key used for field-level encryption.
+type DEKRecord struct {
+	KEKName              string `json:"kekName"`
+	Subject              string `json:"subject"`
+	Version              int    `json:"version"`
+	Algorithm            string `json:"algorithm"`                      // AES128_GCM, AES256_GCM, AES256_SIV
+	EncryptedKeyMaterial string `json:"encryptedKeyMaterial,omitempty"` // Encrypted DEK material
+	KeyMaterial          string `json:"keyMaterial,omitempty"`          // Plaintext DEK (only returned on create if shared=true; never stored)
+	Deleted              bool   `json:"deleted,omitempty"`              // Soft-delete flag
+	Ts                   int64  `json:"ts,omitempty"`                   // Timestamp of last modification
+}
+
 // AuthStorage defines the interface for authentication storage backends.
 // This can be implemented by database backends or secrets managers like Vault.
 type AuthStorage interface {
@@ -236,6 +291,33 @@ type Storage interface {
 
 	// Global config delete
 	DeleteGlobalConfig(ctx context.Context, registryCtx string) error
+
+	// KEK operations (CSFLE - Client-Side Field Level Encryption)
+	CreateKEK(ctx context.Context, kek *KEKRecord) error
+	GetKEK(ctx context.Context, name string, includeDeleted bool) (*KEKRecord, error)
+	UpdateKEK(ctx context.Context, kek *KEKRecord) error
+	DeleteKEK(ctx context.Context, name string, permanent bool) error
+	UndeleteKEK(ctx context.Context, name string) error
+	ListKEKs(ctx context.Context, includeDeleted bool) ([]*KEKRecord, error)
+
+	// DEK operations (CSFLE - Client-Side Field Level Encryption)
+	CreateDEK(ctx context.Context, dek *DEKRecord) error
+	GetDEK(ctx context.Context, kekName, subject string, version int, algorithm string, includeDeleted bool) (*DEKRecord, error)
+	ListDEKs(ctx context.Context, kekName string, includeDeleted bool) ([]string, error)
+	ListDEKVersions(ctx context.Context, kekName, subject string, algorithm string, includeDeleted bool) ([]int, error)
+	DeleteDEK(ctx context.Context, kekName, subject string, version int, algorithm string, permanent bool) error
+	UndeleteDEK(ctx context.Context, kekName, subject string, version int, algorithm string) error
+
+	// Exporter operations (Confluent Schema Linking compatible)
+	CreateExporter(ctx context.Context, exporter *ExporterRecord) error
+	GetExporter(ctx context.Context, name string) (*ExporterRecord, error)
+	UpdateExporter(ctx context.Context, exporter *ExporterRecord) error
+	DeleteExporter(ctx context.Context, name string) error
+	ListExporters(ctx context.Context) ([]string, error)
+	GetExporterStatus(ctx context.Context, name string) (*ExporterStatusRecord, error)
+	SetExporterStatus(ctx context.Context, name string, status *ExporterStatusRecord) error
+	GetExporterConfig(ctx context.Context, name string) (map[string]string, error)
+	UpdateExporterConfig(ctx context.Context, name string, config map[string]string) error
 
 	// Lifecycle
 	Close() error

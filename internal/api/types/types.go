@@ -173,6 +173,16 @@ const (
 	ErrorCodeInternalServerError       = 50001
 	ErrorCodeStorageError              = 50002
 
+	// Exporter error codes
+	ErrorCodeExporterNotFound = 40450
+	ErrorCodeExporterExists   = 40950
+
+	// DEK Registry error codes
+	ErrorCodeKEKNotFound = 40470
+	ErrorCodeKEKExists   = 40970
+	ErrorCodeDEKNotFound = 40471
+	ErrorCodeDEKExists   = 40971
+
 	// Admin error codes
 	ErrorCodeUnauthorized    = 40101
 	ErrorCodeForbidden       = 40301
@@ -290,6 +300,108 @@ type RoleInfo struct {
 	Name        string   `json:"name"`
 	Description string   `json:"description"`
 	Permissions []string `json:"permissions"`
+}
+
+// CreateExporterRequest is the request body for creating an exporter.
+type CreateExporterRequest struct {
+	Name                string            `json:"name"`
+	ContextType         string            `json:"contextType,omitempty"`
+	Context             string            `json:"context,omitempty"`
+	Subjects            []string          `json:"subjects,omitempty"`
+	SubjectRenameFormat string            `json:"subjectRenameFormat,omitempty"`
+	Config              map[string]string `json:"config,omitempty"`
+}
+
+// UpdateExporterRequest is the request body for updating an exporter.
+type UpdateExporterRequest struct {
+	ContextType         string            `json:"contextType,omitempty"`
+	Context             string            `json:"context,omitempty"`
+	Subjects            []string          `json:"subjects,omitempty"`
+	SubjectRenameFormat string            `json:"subjectRenameFormat,omitempty"`
+	Config              map[string]string `json:"config,omitempty"`
+}
+
+// ExporterResponse is the response for getting an exporter.
+type ExporterResponse struct {
+	Name                string            `json:"name"`
+	ContextType         string            `json:"contextType,omitempty"`
+	Context             string            `json:"context,omitempty"`
+	Subjects            []string          `json:"subjects,omitempty"`
+	SubjectRenameFormat string            `json:"subjectRenameFormat,omitempty"`
+	Config              map[string]string `json:"config,omitempty"`
+}
+
+// ExporterStatusResponse is the response for getting exporter status.
+type ExporterStatusResponse struct {
+	Name   string `json:"name"`
+	State  string `json:"state"`
+	Offset int64  `json:"offset,omitempty"`
+	Ts     int64  `json:"ts,omitempty"`
+	Trace  string `json:"trace,omitempty"`
+}
+
+// ExporterConfigResponse is the response for getting exporter config.
+type ExporterConfigResponse struct {
+	Config map[string]string `json:"config,omitempty"`
+}
+
+// UpdateExporterConfigRequest is the request for updating exporter config.
+type UpdateExporterConfigRequest struct {
+	Config map[string]string `json:"config"`
+}
+
+// ExporterNameResponse is the response for create/update/delete exporter operations.
+type ExporterNameResponse struct {
+	Name string `json:"name"`
+}
+
+// CreateKEKRequest is the request body for creating a Key Encryption Key.
+type CreateKEKRequest struct {
+	Name     string            `json:"name"`
+	KmsType  string            `json:"kmsType"`
+	KmsKeyID string            `json:"kmsKeyId"`
+	KmsProps map[string]string `json:"kmsProps,omitempty"`
+	Doc      string            `json:"doc,omitempty"`
+	Shared   bool              `json:"shared"`
+}
+
+// UpdateKEKRequest is the request body for updating a Key Encryption Key.
+type UpdateKEKRequest struct {
+	KmsProps map[string]string `json:"kmsProps,omitempty"`
+	Doc      string            `json:"doc,omitempty"`
+	Shared   *bool             `json:"shared,omitempty"`
+}
+
+// KEKResponse is the response for a Key Encryption Key.
+type KEKResponse struct {
+	Name     string            `json:"name"`
+	KmsType  string            `json:"kmsType"`
+	KmsKeyID string            `json:"kmsKeyId"`
+	KmsProps map[string]string `json:"kmsProps,omitempty"`
+	Doc      string            `json:"doc,omitempty"`
+	Shared   bool              `json:"shared"`
+	Ts       int64             `json:"ts,omitempty"`
+	Deleted  bool              `json:"deleted,omitempty"`
+}
+
+// CreateDEKRequest is the request body for creating a Data Encryption Key.
+type CreateDEKRequest struct {
+	Subject              string `json:"subject"`
+	Version              int    `json:"version,omitempty"`
+	Algorithm            string `json:"algorithm,omitempty"`
+	EncryptedKeyMaterial string `json:"encryptedKeyMaterial,omitempty"`
+}
+
+// DEKResponse is the response for a Data Encryption Key.
+type DEKResponse struct {
+	KEKName              string `json:"kekName"`
+	Subject              string `json:"subject"`
+	Version              int    `json:"version"`
+	Algorithm            string `json:"algorithm"`
+	EncryptedKeyMaterial string `json:"encryptedKeyMaterial,omitempty"`
+	KeyMaterial          string `json:"keyMaterial,omitempty"`
+	Ts                   int64  `json:"ts,omitempty"`
+	Deleted              bool   `json:"deleted,omitempty"`
 }
 
 // ImportSchemaRequest is the request for importing a single schema with a specific ID.

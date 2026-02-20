@@ -1159,3 +1159,43 @@ func TestServer_LivenessCheck_AlwaysUp(t *testing.T) {
 		t.Errorf("Expected status UP, got %q", resp["status"])
 	}
 }
+
+func TestServer_MethodNotAllowed(t *testing.T) {
+	server := setupTestServer(t)
+
+	tests := []struct {
+		name   string
+		method string
+		path   string
+	}{
+		{"PATCH on /subjects", "PATCH", "/subjects"},
+		{"DELETE on /schemas/types", "DELETE", "/schemas/types"},
+		{"POST on /config", "POST", "/config"},
+		{"PATCH on /config", "PATCH", "/config"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(tt.method, tt.path, nil)
+			w := httptest.NewRecorder()
+			server.ServeHTTP(w, req)
+
+			if w.Code != http.StatusMethodNotAllowed {
+				t.Errorf("Expected 405, got %d", w.Code)
+			}
+
+			ct := w.Header().Get("Content-Type")
+			if ct != "application/vnd.schemaregistry.v1+json" {
+				t.Errorf("Expected Confluent content type, got %q", ct)
+			}
+
+			var resp types.ErrorResponse
+			if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+				t.Fatalf("Failed to decode response: %v", err)
+			}
+			if resp.ErrorCode != 405 {
+				t.Errorf("Expected error_code 405, got %d", resp.ErrorCode)
+			}
+		})
+	}
+}

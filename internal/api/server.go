@@ -3,6 +3,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -78,6 +79,9 @@ func (s *Server) Metrics() *metrics.Metrics {
 func (s *Server) setupRouter() {
 	r := chi.NewRouter()
 
+	// Return 405 with Confluent-compatible JSON error for unsupported methods
+	r.MethodNotAllowed(methodNotAllowedHandler)
+
 	// Common middleware for all routes
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
@@ -121,6 +125,23 @@ func (s *Server) setupRouter() {
 
 		// Mount all schema registry routes at root level (default context)
 		s.mountRegistryRoutes(r, h)
+
+		// DEK Registry routes (Confluent CSFLE compatible)
+		r.Route("/dek-registry/v1", func(r chi.Router) {
+			r.Get("/keks", h.ListKEKs)
+			r.Post("/keks", h.CreateKEK)
+			r.Get("/keks/{name}", h.GetKEK)
+			r.Put("/keks/{name}", h.UpdateKEK)
+			r.Delete("/keks/{name}", h.DeleteKEK)
+			r.Put("/keks/{name}/undelete", h.UndeleteKEK)
+			r.Get("/keks/{name}/deks", h.ListDEKs)
+			r.Post("/keks/{name}/deks", h.CreateDEK)
+			r.Get("/keks/{name}/deks/{subject}", h.GetDEK)
+			r.Get("/keks/{name}/deks/{subject}/versions", h.ListDEKVersions)
+			r.Get("/keks/{name}/deks/{subject}/versions/{version}", h.GetDEKVersion)
+			r.Delete("/keks/{name}/deks/{subject}", h.DeleteDEK)
+			r.Put("/keks/{name}/deks/{subject}/undelete", h.UndeleteDEK)
+		})
 
 		// Account endpoints (self-service, requires auth)
 		if s.authService != nil {
@@ -221,6 +242,7 @@ func (s *Server) mountRegistryRoutes(r chi.Router, h *handlers.Handler) {
 	// Mode
 	r.Get("/mode", h.GetMode)
 	r.Put("/mode", h.SetMode)
+	r.Delete("/mode", h.DeleteGlobalMode)
 	r.Get("/mode/{subject}", h.GetMode)
 	r.Put("/mode/{subject}", h.SetMode)
 	r.Delete("/mode/{subject}", h.DeleteMode)
@@ -234,6 +256,19 @@ func (s *Server) mountRegistryRoutes(r chi.Router, h *handlers.Handler) {
 
 	// Contexts
 	r.Get("/contexts", h.GetContexts)
+
+	// Exporters (Confluent Schema Linking compatible)
+	r.Get("/exporters", h.ListExporters)
+	r.Post("/exporters", h.CreateExporter)
+	r.Get("/exporters/{name}", h.GetExporter)
+	r.Put("/exporters/{name}", h.UpdateExporter)
+	r.Delete("/exporters/{name}", h.DeleteExporter)
+	r.Put("/exporters/{name}/pause", h.PauseExporter)
+	r.Put("/exporters/{name}/resume", h.ResumeExporter)
+	r.Put("/exporters/{name}/reset", h.ResetExporter)
+	r.Get("/exporters/{name}/status", h.GetExporterStatus)
+	r.Get("/exporters/{name}/config", h.GetExporterConfig)
+	r.Put("/exporters/{name}/config", h.UpdateExporterConfig)
 
 	// Metadata (v1 API)
 	r.Get("/v1/metadata/id", h.GetClusterID)
@@ -309,4 +344,15 @@ func (s *Server) Address() string {
 		return fmt.Sprintf("https://%s", s.config.Address())
 	}
 	return fmt.Sprintf("http://%s", s.config.Address())
+}
+
+// methodNotAllowedHandler returns a JSON error response matching Confluent's format
+// when an HTTP method is not supported for the matched route.
+func methodNotAllowedHandler(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "application/vnd.schemaregistry.v1+json")
+	w.WriteHeader(http.StatusMethodNotAllowed)
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
+		"error_code": 405,
+		"message":    "HTTP 405 Method Not Allowed",
+	})
 }

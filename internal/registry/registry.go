@@ -11,6 +11,7 @@ import (
 
 	"github.com/axonops/axonops-schema-registry/internal/compatibility"
 	registrycontext "github.com/axonops/axonops-schema-registry/internal/context"
+	"github.com/axonops/axonops-schema-registry/internal/rules"
 	"github.com/axonops/axonops-schema-registry/internal/schema"
 	"github.com/axonops/axonops-schema-registry/internal/storage"
 )
@@ -76,6 +77,13 @@ func (r *Registry) RegisterSchema(ctx context.Context, registryCtx string, subje
 	var opt RegisterOpts
 	if len(opts) > 0 {
 		opt = opts[0]
+	}
+
+	// Validate ruleSet if provided
+	if opt.RuleSet != nil {
+		if err := rules.ValidateRuleSet(opt.RuleSet); err != nil {
+			return nil, fmt.Errorf("invalid ruleSet: %w", err)
+		}
 	}
 
 	// Apply normalization if requested (or if subject config has normalize=true)
@@ -740,6 +748,19 @@ func (r *Registry) SetConfig(ctx context.Context, registryCtx string, subject st
 
 	if len(opts) > 0 {
 		opt := opts[0]
+
+		// Validate ruleSets if provided
+		if opt.DefaultRuleSet != nil {
+			if err := rules.ValidateRuleSet(opt.DefaultRuleSet); err != nil {
+				return fmt.Errorf("invalid defaultRuleSet: %w", err)
+			}
+		}
+		if opt.OverrideRuleSet != nil {
+			if err := rules.ValidateRuleSet(opt.OverrideRuleSet); err != nil {
+				return fmt.Errorf("invalid overrideRuleSet: %w", err)
+			}
+		}
+
 		config.Alias = opt.Alias
 		config.CompatibilityGroup = opt.CompatibilityGroup
 		config.ValidateFields = opt.ValidateFields

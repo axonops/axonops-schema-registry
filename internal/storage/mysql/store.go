@@ -2263,3 +2263,91 @@ func (c Config) MarshalJSON() ([]byte, error) {
 		Alias:    (*Alias)(&c),
 	})
 }
+
+func (s *Store) CreateExporter(ctx context.Context, exporter *storage.ExporterRecord) error {
+	return fmt.Errorf("exporters not yet implemented for MySQL backend")
+}
+
+func (s *Store) GetExporter(ctx context.Context, name string) (*storage.ExporterRecord, error) {
+	return nil, fmt.Errorf("exporters not yet implemented for MySQL backend")
+}
+
+func (s *Store) UpdateExporter(ctx context.Context, exporter *storage.ExporterRecord) error {
+	return fmt.Errorf("exporters not yet implemented for MySQL backend")
+}
+
+func (s *Store) DeleteExporter(ctx context.Context, name string) error {
+	return fmt.Errorf("exporters not yet implemented for MySQL backend")
+}
+
+func (s *Store) ListExporters(ctx context.Context) ([]string, error) {
+	return nil, fmt.Errorf("exporters not yet implemented for MySQL backend")
+}
+
+func (s *Store) GetExporterStatus(ctx context.Context, name string) (*storage.ExporterStatusRecord, error) {
+	return nil, fmt.Errorf("exporters not yet implemented for MySQL backend")
+}
+
+func (s *Store) SetExporterStatus(ctx context.Context, name string, status *storage.ExporterStatusRecord) error {
+	return fmt.Errorf("exporters not yet implemented for MySQL backend")
+}
+
+func (s *Store) GetExporterConfig(ctx context.Context, name string) (map[string]string, error) {
+	return nil, fmt.Errorf("exporters not yet implemented for MySQL backend")
+}
+
+func (s *Store) UpdateExporterConfig(ctx context.Context, name string, config map[string]string) error {
+	return fmt.Errorf("exporters not yet implemented for MySQL backend")
+}
+
+// KEK operations (CSFLE)
+
+func (s *Store) CreateKEK(ctx context.Context, kek *storage.KEKRecord) error {
+	return fmt.Errorf("DEK registry not yet implemented for MySQL backend")
+}
+
+func (s *Store) GetKEK(ctx context.Context, name string, includeDeleted bool) (*storage.KEKRecord, error) {
+	return nil, fmt.Errorf("DEK registry not yet implemented for MySQL backend")
+}
+
+func (s *Store) UpdateKEK(ctx context.Context, kek *storage.KEKRecord) error {
+	return fmt.Errorf("DEK registry not yet implemented for MySQL backend")
+}
+
+func (s *Store) DeleteKEK(ctx context.Context, name string, permanent bool) error {
+	return fmt.Errorf("DEK registry not yet implemented for MySQL backend")
+}
+
+func (s *Store) UndeleteKEK(ctx context.Context, name string) error {
+	return fmt.Errorf("DEK registry not yet implemented for MySQL backend")
+}
+
+func (s *Store) ListKEKs(ctx context.Context, includeDeleted bool) ([]*storage.KEKRecord, error) {
+	return nil, fmt.Errorf("DEK registry not yet implemented for MySQL backend")
+}
+
+// DEK operations (CSFLE)
+
+func (s *Store) CreateDEK(ctx context.Context, dek *storage.DEKRecord) error {
+	return fmt.Errorf("DEK registry not yet implemented for MySQL backend")
+}
+
+func (s *Store) GetDEK(ctx context.Context, kekName, subject string, version int, algorithm string, includeDeleted bool) (*storage.DEKRecord, error) {
+	return nil, fmt.Errorf("DEK registry not yet implemented for MySQL backend")
+}
+
+func (s *Store) ListDEKs(ctx context.Context, kekName string, includeDeleted bool) ([]string, error) {
+	return nil, fmt.Errorf("DEK registry not yet implemented for MySQL backend")
+}
+
+func (s *Store) ListDEKVersions(ctx context.Context, kekName, subject string, algorithm string, includeDeleted bool) ([]int, error) {
+	return nil, fmt.Errorf("DEK registry not yet implemented for MySQL backend")
+}
+
+func (s *Store) DeleteDEK(ctx context.Context, kekName, subject string, version int, algorithm string, permanent bool) error {
+	return fmt.Errorf("DEK registry not yet implemented for MySQL backend")
+}
+
+func (s *Store) UndeleteDEK(ctx context.Context, kekName, subject string, version int, algorithm string) error {
+	return fmt.Errorf("DEK registry not yet implemented for MySQL backend")
+}

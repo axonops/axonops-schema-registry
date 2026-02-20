@@ -544,6 +544,10 @@ func (h *Handler) RegisterSchema(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	if err != nil {
+		if strings.Contains(err.Error(), "invalid ruleSet") {
+			writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidSchema, err.Error())
+			return
+		}
 		if strings.Contains(err.Error(), "invalid schema") {
 			writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidSchema, err.Error())
 			return
@@ -837,6 +841,10 @@ func (h *Handler) SetConfig(w http.ResponseWriter, r *http.Request) {
 	if err := h.registry.SetConfig(r.Context(), registryCtx, subject, req.Compatibility, req.Normalize, configOpts); err != nil {
 		if strings.Contains(err.Error(), "invalid compatibility") {
 			writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidCompatibilityLevel, err.Error())
+			return
+		}
+		if strings.Contains(err.Error(), "invalid defaultRuleSet") || strings.Contains(err.Error(), "invalid overrideRuleSet") {
+			writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidSchema, err.Error())
 			return
 		}
 		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
@@ -1494,6 +1502,21 @@ func (h *Handler) DeleteMode(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusNotFound, types.ErrorCodeSubjectNotFound, "Mode not found for subject")
 			return
 		}
+		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusOK, types.ModeResponse{
+		Mode: mode,
+	})
+}
+
+// DeleteGlobalMode handles DELETE /mode
+func (h *Handler) DeleteGlobalMode(w http.ResponseWriter, r *http.Request) {
+	registryCtx := getRegistryContext(r)
+
+	mode, err := h.registry.DeleteGlobalMode(r.Context(), registryCtx)
+	if err != nil {
 		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
 		return
 	}
