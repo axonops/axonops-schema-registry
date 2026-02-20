@@ -119,7 +119,7 @@ func NewStore() *Store {
 	s := &Store{
 		contexts:         make(map[string]*contextStore),
 		users:            make(map[int64]*storage.UserRecord),
-		usersByUsername:   make(map[string]int64),
+		usersByUsername:  make(map[string]int64),
 		apiKeys:          make(map[int64]*storage.APIKeyRecord),
 		apiKeysByHash:    make(map[string]int64),
 		nextUserID:       1,

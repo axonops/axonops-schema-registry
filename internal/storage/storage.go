@@ -178,13 +178,13 @@ type ExporterStatusRecord struct {
 // KEKRecord represents a Key Encryption Key for CSFLE (Client-Side Field Level Encryption).
 type KEKRecord struct {
 	Name      string            `json:"name"`
-	KmsType   string            `json:"kmsType"`              // aws-kms, azure-kms, gcp-kms, hcvault
-	KmsKeyID  string            `json:"kmsKeyId"`             // KMS key identifier
-	KmsProps  map[string]string `json:"kmsProps,omitempty"`   // KMS-specific properties
-	Doc       string            `json:"doc,omitempty"`        // Documentation string
-	Shared    bool              `json:"shared"`               // Whether DEKs under this KEK share key material
-	Deleted   bool              `json:"deleted,omitempty"`    // Soft-delete flag
-	Ts        int64             `json:"ts,omitempty"`         // Timestamp of last modification
+	KmsType   string            `json:"kmsType"`            // aws-kms, azure-kms, gcp-kms, hcvault
+	KmsKeyID  string            `json:"kmsKeyId"`           // KMS key identifier
+	KmsProps  map[string]string `json:"kmsProps,omitempty"` // KMS-specific properties
+	Doc       string            `json:"doc,omitempty"`      // Documentation string
+	Shared    bool              `json:"shared"`             // Whether DEKs under this KEK share key material
+	Deleted   bool              `json:"deleted,omitempty"`  // Soft-delete flag
+	Ts        int64             `json:"ts,omitempty"`       // Timestamp of last modification
 	CreatedAt time.Time         `json:"-"`
 	UpdatedAt time.Time         `json:"-"`
 }
