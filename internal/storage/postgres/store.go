@@ -2712,7 +2712,6 @@ func (s *Store) GetDEK(ctx context.Context, kekName, subject string, version int
 		if algorithm != "" {
 			query += fmt.Sprintf(` AND algorithm = $%d`, argIdx)
 			args = append(args, algorithm)
-			argIdx++
 		}
 		if !includeDeleted {
 			query += ` AND deleted = FALSE`
@@ -2739,7 +2738,6 @@ func (s *Store) GetDEK(ctx context.Context, kekName, subject string, version int
 		if algorithm != "" {
 			query += fmt.Sprintf(` AND algorithm = $%d`, argIdx)
 			args = append(args, algorithm)
-			argIdx++
 		}
 		if !includeDeleted {
 			query += ` AND deleted = FALSE`
@@ -2816,7 +2814,6 @@ func (s *Store) ListDEKVersions(ctx context.Context, kekName, subject string, al
 	if algorithm != "" {
 		query += fmt.Sprintf(` AND algorithm = $%d`, argIdx)
 		args = append(args, algorithm)
-		argIdx++
 	}
 	if !includeDeleted {
 		query += ` AND deleted = FALSE`

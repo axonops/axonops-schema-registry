@@ -2910,7 +2910,6 @@ func (s *Store) GetDEK(ctx context.Context, kekName, subject string, version int
 		var algo, encKey string
 		var deleted bool
 		var ts int64
-		found := false
 
 		for iter.Scan(&v, &algo, &encKey, &deleted, &ts) {
 			if !includeDeleted && deleted {
@@ -2920,9 +2919,6 @@ func (s *Store) GetDEK(ctx context.Context, kekName, subject string, version int
 				continue
 			}
 			// First matching row is the latest (DESC ordering)
-			found = true
-			version = v
-			algorithm = algo
 			_ = iter.Close()
 			return &storage.DEKRecord{
 				KEKName:              kekName,
@@ -2937,9 +2933,7 @@ func (s *Store) GetDEK(ctx context.Context, kekName, subject string, version int
 		if err := iter.Close(); err != nil {
 			return nil, fmt.Errorf("failed to get DEK: %w", err)
 		}
-		if !found {
-			return nil, storage.ErrDEKNotFound
-		}
+		return nil, storage.ErrDEKNotFound
 	}
 
 	// Get specific version
