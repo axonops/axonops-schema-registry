@@ -1729,14 +1729,9 @@ func (s *Store) ListSchemas(ctx context.Context, registryCtx string, params *sto
 // DeleteGlobalConfig deletes the global config row within a context.
 // After deletion, GetGlobalConfig will return ErrNotFound.
 func (s *Store) DeleteGlobalConfig(ctx context.Context, registryCtx string) error {
-	result, err := s.stmts.deleteConfig.ExecContext(ctx, registryCtx, "")
+	_, err := s.stmts.deleteConfig.ExecContext(ctx, registryCtx, "")
 	if err != nil {
 		return fmt.Errorf("failed to delete global config: %w", err)
-	}
-
-	rowsAffected, _ := result.RowsAffected()
-	if rowsAffected == 0 {
-		return storage.ErrNotFound
 	}
 
 	return nil
@@ -1745,14 +1740,9 @@ func (s *Store) DeleteGlobalConfig(ctx context.Context, registryCtx string) erro
 // DeleteGlobalMode deletes the global mode row within a context.
 // After deletion, GetGlobalMode will return ErrNotFound.
 func (s *Store) DeleteGlobalMode(ctx context.Context, registryCtx string) error {
-	result, err := s.stmts.deleteMode.ExecContext(ctx, registryCtx, "")
+	_, err := s.stmts.deleteMode.ExecContext(ctx, registryCtx, "")
 	if err != nil {
 		return fmt.Errorf("failed to delete global mode: %w", err)
-	}
-
-	rowsAffected, _ := result.RowsAffected()
-	if rowsAffected == 0 {
-		return storage.ErrNotFound
 	}
 
 	return nil
@@ -2722,8 +2712,8 @@ func (s *Store) CreateDEK(ctx context.Context, dek *storage.DEKRecord) error {
 	if dek.Version <= 0 {
 		var maxVersion sql.NullInt64
 		err = s.db.QueryRowContext(ctx,
-			"SELECT MAX(version) FROM deks WHERE kek_name = ? AND subject = ? AND algorithm = ?",
-			dek.KEKName, dek.Subject, dek.Algorithm).Scan(&maxVersion)
+			"SELECT MAX(version) FROM deks WHERE kek_name = ? AND subject = ?",
+			dek.KEKName, dek.Subject).Scan(&maxVersion)
 		if err != nil {
 			return fmt.Errorf("failed to get max version: %w", err)
 		}

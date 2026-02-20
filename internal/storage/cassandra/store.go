@@ -1806,10 +1806,6 @@ func (s *Store) SetGlobalMode(ctx context.Context, registryCtx string, mode *sto
 // DeleteGlobalMode deletes the global mode within a context.
 // After deletion, GetGlobalMode will return ErrNotFound.
 func (s *Store) DeleteGlobalMode(ctx context.Context, registryCtx string) error {
-	_, err := s.GetGlobalMode(ctx, registryCtx)
-	if err != nil {
-		return err
-	}
 	return s.writeQuery(
 		fmt.Sprintf(`DELETE FROM %s.modes WHERE registry_ctx = ? AND key = ?`, qident(s.cfg.Keyspace)),
 		registryCtx, "global",
