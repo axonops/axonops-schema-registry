@@ -598,6 +598,7 @@ Key architectural properties:
 
 ## Related Documentation
 
+- [Best Practices](best-practices.md) -- schema design patterns, naming, evolution, and common mistakes
 - [Getting Started](getting-started.md) -- run the registry and register your first schemas
 - [Schema Types](schema-types.md) -- detailed Avro, Protobuf, and JSON Schema support
 - [Compatibility](compatibility.md) -- all 7 compatibility modes with per-type rules
