@@ -2382,92 +2382,923 @@ func normalizeRuleSet(r *storage.RuleSet) *storage.RuleSet {
 	return r
 }
 
-// Exporter stub methods — not yet implemented for Cassandra backend.
+// ---------- Exporter Operations ----------
 
+// CreateExporter creates a new exporter record.
 func (s *Store) CreateExporter(ctx context.Context, exporter *storage.ExporterRecord) error {
-	return fmt.Errorf("exporters not yet implemented for Cassandra backend")
+	if exporter == nil {
+		return errors.New("exporter is nil")
+	}
+	if exporter.Name == "" {
+		return errors.New("exporter name is required")
+	}
+
+	// Check if exporter already exists
+	_, err := s.GetExporter(ctx, exporter.Name)
+	if err == nil {
+		return storage.ErrExporterExists
+	}
+
+	now := time.Now()
+	exporter.CreatedAt = now
+	exporter.UpdatedAt = now
+
+	subjectsJSON := marshalJSONText(exporter.Subjects)
+	configJSON := marshalJSONText(exporter.Config)
+
+	if err := s.writeQuery(
+		fmt.Sprintf(`INSERT INTO %s.exporters (name, context_type, context, subjects, subject_rename_format, config, created_at, updated_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, qident(s.cfg.Keyspace)),
+		exporter.Name, exporter.ContextType, exporter.Context, subjectsJSON,
+		exporter.SubjectRenameFormat, configJSON, exporter.CreatedAt, exporter.UpdatedAt,
+	).WithContext(ctx).Exec(); err != nil {
+		return fmt.Errorf("failed to create exporter: %w", err)
+	}
+
+	return nil
 }
 
+// GetExporter retrieves an exporter by name.
 func (s *Store) GetExporter(ctx context.Context, name string) (*storage.ExporterRecord, error) {
-	return nil, fmt.Errorf("exporters not yet implemented for Cassandra backend")
+	var contextType, ctxVal, subjectsJSON, subjectRenameFormat, configJSON string
+	var createdAt, updatedAt time.Time
+
+	err := s.readQuery(
+		fmt.Sprintf(`SELECT context_type, context, subjects, subject_rename_format, config, created_at, updated_at
+			FROM %s.exporters WHERE name = ?`, qident(s.cfg.Keyspace)),
+		name,
+	).WithContext(ctx).Scan(&contextType, &ctxVal, &subjectsJSON, &subjectRenameFormat, &configJSON, &createdAt, &updatedAt)
+	if err != nil {
+		if errors.Is(err, gocql.ErrNotFound) {
+			return nil, storage.ErrExporterNotFound
+		}
+		return nil, fmt.Errorf("failed to get exporter: %w", err)
+	}
+
+	var subjects []string
+	if subjectsJSON != "" {
+		_ = json.Unmarshal([]byte(subjectsJSON), &subjects)
+	}
+
+	var config map[string]string
+	if configJSON != "" {
+		_ = json.Unmarshal([]byte(configJSON), &config)
+	}
+
+	return &storage.ExporterRecord{
+		Name:                name,
+		ContextType:         contextType,
+		Context:             ctxVal,
+		Subjects:            subjects,
+		SubjectRenameFormat: subjectRenameFormat,
+		Config:              config,
+		CreatedAt:           createdAt,
+		UpdatedAt:           updatedAt,
+	}, nil
 }
 
+// UpdateExporter updates an existing exporter.
 func (s *Store) UpdateExporter(ctx context.Context, exporter *storage.ExporterRecord) error {
-	return fmt.Errorf("exporters not yet implemented for Cassandra backend")
+	if exporter == nil {
+		return errors.New("exporter is nil")
+	}
+
+	existing, err := s.GetExporter(ctx, exporter.Name)
+	if err != nil {
+		return err
+	}
+
+	// Preserve original creation time
+	exporter.CreatedAt = existing.CreatedAt
+	exporter.UpdatedAt = time.Now()
+
+	subjectsJSON := marshalJSONText(exporter.Subjects)
+	configJSON := marshalJSONText(exporter.Config)
+
+	if err := s.writeQuery(
+		fmt.Sprintf(`UPDATE %s.exporters SET context_type = ?, context = ?, subjects = ?, subject_rename_format = ?, config = ?, updated_at = ?
+			WHERE name = ?`, qident(s.cfg.Keyspace)),
+		exporter.ContextType, exporter.Context, subjectsJSON,
+		exporter.SubjectRenameFormat, configJSON, exporter.UpdatedAt, exporter.Name,
+	).WithContext(ctx).Exec(); err != nil {
+		return fmt.Errorf("failed to update exporter: %w", err)
+	}
+
+	return nil
 }
 
+// DeleteExporter deletes an exporter by name and its associated status.
 func (s *Store) DeleteExporter(ctx context.Context, name string) error {
-	return fmt.Errorf("exporters not yet implemented for Cassandra backend")
+	// Check existence first
+	if _, err := s.GetExporter(ctx, name); err != nil {
+		return err
+	}
+
+	batch := s.session.NewBatch(gocql.LoggedBatch).WithContext(ctx)
+	batch.Query(fmt.Sprintf(`DELETE FROM %s.exporters WHERE name = ?`, qident(s.cfg.Keyspace)), name)
+	batch.Query(fmt.Sprintf(`DELETE FROM %s.exporter_statuses WHERE name = ?`, qident(s.cfg.Keyspace)), name)
+
+	if err := s.session.ExecuteBatch(batch); err != nil {
+		return fmt.Errorf("failed to delete exporter: %w", err)
+	}
+	return nil
 }
 
+// ListExporters returns a sorted list of all exporter names.
 func (s *Store) ListExporters(ctx context.Context) ([]string, error) {
-	return nil, fmt.Errorf("exporters not yet implemented for Cassandra backend")
+	iter := s.readQuery(
+		fmt.Sprintf(`SELECT name FROM %s.exporters`, qident(s.cfg.Keyspace)),
+	).WithContext(ctx).Iter()
+
+	var names []string
+	var name string
+	for iter.Scan(&name) {
+		names = append(names, name)
+	}
+	if err := iter.Close(); err != nil {
+		return nil, fmt.Errorf("failed to list exporters: %w", err)
+	}
+
+	sort.Strings(names)
+	return names, nil
 }
 
+// GetExporterStatus retrieves the status of an exporter.
+// If no status has been set, returns a default status with State "PAUSED".
 func (s *Store) GetExporterStatus(ctx context.Context, name string) (*storage.ExporterStatusRecord, error) {
-	return nil, fmt.Errorf("exporters not yet implemented for Cassandra backend")
+	// Check that the exporter exists
+	if _, err := s.GetExporter(ctx, name); err != nil {
+		return nil, err
+	}
+
+	var state, trace string
+	var offsetVal, ts int64
+
+	err := s.readQuery(
+		fmt.Sprintf(`SELECT state, offset_val, ts, trace FROM %s.exporter_statuses WHERE name = ?`, qident(s.cfg.Keyspace)),
+		name,
+	).WithContext(ctx).Scan(&state, &offsetVal, &ts, &trace)
+	if err != nil {
+		if errors.Is(err, gocql.ErrNotFound) {
+			// Return default status
+			return &storage.ExporterStatusRecord{
+				Name:  name,
+				State: "PAUSED",
+			}, nil
+		}
+		return nil, fmt.Errorf("failed to get exporter status: %w", err)
+	}
+
+	return &storage.ExporterStatusRecord{
+		Name:   name,
+		State:  state,
+		Offset: offsetVal,
+		Ts:     ts,
+		Trace:  trace,
+	}, nil
 }
 
+// SetExporterStatus sets the status of an exporter.
 func (s *Store) SetExporterStatus(ctx context.Context, name string, status *storage.ExporterStatusRecord) error {
-	return fmt.Errorf("exporters not yet implemented for Cassandra backend")
+	// Check that the exporter exists
+	if _, err := s.GetExporter(ctx, name); err != nil {
+		return err
+	}
+
+	if err := s.writeQuery(
+		fmt.Sprintf(`INSERT INTO %s.exporter_statuses (name, state, offset_val, ts, trace) VALUES (?, ?, ?, ?, ?)`, qident(s.cfg.Keyspace)),
+		name, status.State, status.Offset, status.Ts, status.Trace,
+	).WithContext(ctx).Exec(); err != nil {
+		return fmt.Errorf("failed to set exporter status: %w", err)
+	}
+
+	return nil
 }
 
+// GetExporterConfig retrieves the configuration of an exporter.
+// Returns a copy of the config map.
 func (s *Store) GetExporterConfig(ctx context.Context, name string) (map[string]string, error) {
-	return nil, fmt.Errorf("exporters not yet implemented for Cassandra backend")
+	exporter, err := s.GetExporter(ctx, name)
+	if err != nil {
+		return nil, err
+	}
+
+	// Return a copy of the config map
+	configCopy := make(map[string]string, len(exporter.Config))
+	for k, v := range exporter.Config {
+		configCopy[k] = v
+	}
+	return configCopy, nil
 }
 
+// UpdateExporterConfig updates only the configuration of an exporter.
 func (s *Store) UpdateExporterConfig(ctx context.Context, name string, config map[string]string) error {
-	return fmt.Errorf("exporters not yet implemented for Cassandra backend")
+	// Check that the exporter exists
+	if _, err := s.GetExporter(ctx, name); err != nil {
+		return err
+	}
+
+	configJSON := marshalJSONText(config)
+	now := time.Now()
+
+	if err := s.writeQuery(
+		fmt.Sprintf(`UPDATE %s.exporters SET config = ?, updated_at = ? WHERE name = ?`, qident(s.cfg.Keyspace)),
+		configJSON, now, name,
+	).WithContext(ctx).Exec(); err != nil {
+		return fmt.Errorf("failed to update exporter config: %w", err)
+	}
+
+	return nil
 }
 
-// KEK operations (CSFLE)
+// ---------- KEK Operations (CSFLE) ----------
 
+// CreateKEK creates a new Key Encryption Key.
+// Uses INSERT IF NOT EXISTS (LWT) to ensure uniqueness.
 func (s *Store) CreateKEK(ctx context.Context, kek *storage.KEKRecord) error {
-	return fmt.Errorf("DEK registry not yet implemented for Cassandra backend")
+	if kek == nil {
+		return errors.New("kek is nil")
+	}
+	if kek.Name == "" {
+		return errors.New("kek name is required")
+	}
+
+	now := time.Now()
+	kek.Ts = now.UnixMilli()
+	kek.CreatedAt = now
+	kek.UpdatedAt = now
+
+	propsJSON := marshalJSONText(kek.KmsProps)
+
+	applied, err := casApplied(
+		s.session.Query(
+			fmt.Sprintf(`INSERT INTO %s.keks (name, kms_type, kms_key_id, kms_props, doc, shared, deleted, ts, created_at, updated_at)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) IF NOT EXISTS`, qident(s.cfg.Keyspace)),
+			kek.Name, kek.KmsType, kek.KmsKeyID, propsJSON, kek.Doc, kek.Shared, false,
+			kek.Ts, kek.CreatedAt, kek.UpdatedAt,
+		).WithContext(ctx),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create KEK: %w", err)
+	}
+	if !applied {
+		return storage.ErrKEKExists
+	}
+
+	return nil
 }
 
+// GetKEK retrieves a Key Encryption Key by name.
 func (s *Store) GetKEK(ctx context.Context, name string, includeDeleted bool) (*storage.KEKRecord, error) {
-	return nil, fmt.Errorf("DEK registry not yet implemented for Cassandra backend")
+	var kmsType, kmsKeyID, propsJSON, doc string
+	var shared, deleted bool
+	var ts int64
+	var createdAt, updatedAt time.Time
+
+	err := s.readQuery(
+		fmt.Sprintf(`SELECT kms_type, kms_key_id, kms_props, doc, shared, deleted, ts, created_at, updated_at
+			FROM %s.keks WHERE name = ?`, qident(s.cfg.Keyspace)),
+		name,
+	).WithContext(ctx).Scan(&kmsType, &kmsKeyID, &propsJSON, &doc, &shared, &deleted, &ts, &createdAt, &updatedAt)
+	if err != nil {
+		if errors.Is(err, gocql.ErrNotFound) {
+			return nil, storage.ErrKEKNotFound
+		}
+		return nil, fmt.Errorf("failed to get KEK: %w", err)
+	}
+
+	if !includeDeleted && deleted {
+		return nil, storage.ErrKEKNotFound
+	}
+
+	var kmsProps map[string]string
+	if propsJSON != "" {
+		_ = json.Unmarshal([]byte(propsJSON), &kmsProps)
+	}
+
+	return &storage.KEKRecord{
+		Name:      name,
+		KmsType:   kmsType,
+		KmsKeyID:  kmsKeyID,
+		KmsProps:  kmsProps,
+		Doc:       doc,
+		Shared:    shared,
+		Deleted:   deleted,
+		Ts:        ts,
+		CreatedAt: createdAt,
+		UpdatedAt: updatedAt,
+	}, nil
 }
 
+// UpdateKEK updates an existing Key Encryption Key.
 func (s *Store) UpdateKEK(ctx context.Context, kek *storage.KEKRecord) error {
-	return fmt.Errorf("DEK registry not yet implemented for Cassandra backend")
+	if kek == nil {
+		return errors.New("kek is nil")
+	}
+
+	existing, err := s.GetKEK(ctx, kek.Name, true)
+	if err != nil {
+		return err
+	}
+
+	// Preserve original creation time
+	kek.CreatedAt = existing.CreatedAt
+	now := time.Now()
+	kek.Ts = now.UnixMilli()
+	kek.UpdatedAt = now
+
+	propsJSON := marshalJSONText(kek.KmsProps)
+
+	if err := s.writeQuery(
+		fmt.Sprintf(`UPDATE %s.keks SET kms_type = ?, kms_key_id = ?, kms_props = ?, doc = ?, shared = ?, deleted = ?, ts = ?, updated_at = ?
+			WHERE name = ?`, qident(s.cfg.Keyspace)),
+		kek.KmsType, kek.KmsKeyID, propsJSON, kek.Doc, kek.Shared, kek.Deleted, kek.Ts, kek.UpdatedAt, kek.Name,
+	).WithContext(ctx).Exec(); err != nil {
+		return fmt.Errorf("failed to update KEK: %w", err)
+	}
+
+	return nil
 }
 
+// DeleteKEK soft-deletes or permanently deletes a Key Encryption Key.
+// Permanent deletion also removes all DEKs under this KEK.
 func (s *Store) DeleteKEK(ctx context.Context, name string, permanent bool) error {
-	return fmt.Errorf("DEK registry not yet implemented for Cassandra backend")
+	kek, err := s.GetKEK(ctx, name, true)
+	if err != nil {
+		return err
+	}
+
+	if permanent {
+		batch := s.session.NewBatch(gocql.LoggedBatch).WithContext(ctx)
+		batch.Query(fmt.Sprintf(`DELETE FROM %s.keks WHERE name = ?`, qident(s.cfg.Keyspace)), name)
+
+		// Find all subjects under this KEK via deks_by_kek, then delete DEKs and the denorm table
+		iter := s.readQuery(
+			fmt.Sprintf(`SELECT subject FROM %s.deks_by_kek WHERE kek_name = ?`, qident(s.cfg.Keyspace)),
+			name,
+		).WithContext(ctx).Iter()
+
+		var subject string
+		for iter.Scan(&subject) {
+			batch.Query(fmt.Sprintf(`DELETE FROM %s.deks WHERE kek_name = ? AND subject = ?`, qident(s.cfg.Keyspace)), name, subject)
+		}
+		_ = iter.Close()
+
+		batch.Query(fmt.Sprintf(`DELETE FROM %s.deks_by_kek WHERE kek_name = ?`, qident(s.cfg.Keyspace)), name)
+
+		if err := s.session.ExecuteBatch(batch); err != nil {
+			return fmt.Errorf("failed to permanently delete KEK: %w", err)
+		}
+	} else {
+		kek.Deleted = true
+		kek.Ts = time.Now().UnixMilli()
+
+		if err := s.writeQuery(
+			fmt.Sprintf(`UPDATE %s.keks SET deleted = ?, ts = ? WHERE name = ?`, qident(s.cfg.Keyspace)),
+			true, kek.Ts, name,
+		).WithContext(ctx).Exec(); err != nil {
+			return fmt.Errorf("failed to soft-delete KEK: %w", err)
+		}
+	}
+
+	return nil
 }
 
+// UndeleteKEK restores a soft-deleted Key Encryption Key.
 func (s *Store) UndeleteKEK(ctx context.Context, name string) error {
-	return fmt.Errorf("DEK registry not yet implemented for Cassandra backend")
+	kek, err := s.GetKEK(ctx, name, true)
+	if err != nil {
+		return err
+	}
+
+	if !kek.Deleted {
+		return storage.ErrKEKNotFound
+	}
+
+	ts := time.Now().UnixMilli()
+
+	if err := s.writeQuery(
+		fmt.Sprintf(`UPDATE %s.keks SET deleted = ?, ts = ? WHERE name = ?`, qident(s.cfg.Keyspace)),
+		false, ts, name,
+	).WithContext(ctx).Exec(); err != nil {
+		return fmt.Errorf("failed to undelete KEK: %w", err)
+	}
+
+	return nil
 }
 
+// ListKEKs returns all Key Encryption Keys, sorted by name.
 func (s *Store) ListKEKs(ctx context.Context, includeDeleted bool) ([]*storage.KEKRecord, error) {
-	return nil, fmt.Errorf("DEK registry not yet implemented for Cassandra backend")
+	iter := s.readQuery(
+		fmt.Sprintf(`SELECT name, kms_type, kms_key_id, kms_props, doc, shared, deleted, ts, created_at, updated_at
+			FROM %s.keks`, qident(s.cfg.Keyspace)),
+	).WithContext(ctx).Iter()
+
+	var keks []*storage.KEKRecord
+	var name, kmsType, kmsKeyID, propsJSON, doc string
+	var shared, deleted bool
+	var ts int64
+	var createdAt, updatedAt time.Time
+
+	for iter.Scan(&name, &kmsType, &kmsKeyID, &propsJSON, &doc, &shared, &deleted, &ts, &createdAt, &updatedAt) {
+		if !includeDeleted && deleted {
+			continue
+		}
+
+		var kmsProps map[string]string
+		if propsJSON != "" {
+			_ = json.Unmarshal([]byte(propsJSON), &kmsProps)
+		}
+
+		keks = append(keks, &storage.KEKRecord{
+			Name:      name,
+			KmsType:   kmsType,
+			KmsKeyID:  kmsKeyID,
+			KmsProps:  kmsProps,
+			Doc:       doc,
+			Shared:    shared,
+			Deleted:   deleted,
+			Ts:        ts,
+			CreatedAt: createdAt,
+			UpdatedAt: updatedAt,
+		})
+	}
+	if err := iter.Close(); err != nil {
+		return nil, fmt.Errorf("failed to list KEKs: %w", err)
+	}
+
+	sort.Slice(keks, func(i, j int) bool {
+		return keks[i].Name < keks[j].Name
+	})
+
+	return keks, nil
 }
 
-// DEK operations (CSFLE)
+// ---------- DEK Operations (CSFLE) ----------
 
+// CreateDEK creates a new Data Encryption Key under an existing KEK.
+// Auto-assigns version by querying the max existing version if version <= 0.
+// Also writes to deks_by_kek denormalization table for efficient listing.
 func (s *Store) CreateDEK(ctx context.Context, dek *storage.DEKRecord) error {
-	return fmt.Errorf("DEK registry not yet implemented for Cassandra backend")
+	if dek == nil {
+		return errors.New("dek is nil")
+	}
+
+	// Check that the KEK exists
+	if _, err := s.GetKEK(ctx, dek.KEKName, true); err != nil {
+		return err
+	}
+
+	// Auto-assign version if not specified
+	if dek.Version <= 0 {
+		maxVersion := 0
+		// deks table is clustered by version DESC, so first row is max
+		var v int
+		err := s.readQuery(
+			fmt.Sprintf(`SELECT version FROM %s.deks WHERE kek_name = ? AND subject = ? LIMIT 1`, qident(s.cfg.Keyspace)),
+			dek.KEKName, dek.Subject,
+		).WithContext(ctx).Scan(&v)
+		if err == nil {
+			maxVersion = v
+		}
+		dek.Version = maxVersion + 1
+	}
+
+	dek.Ts = time.Now().UnixMilli()
+
+	// Check if DEK already exists for this kekName+subject+version
+	var existingVersion int
+	err := s.readQuery(
+		fmt.Sprintf(`SELECT version FROM %s.deks WHERE kek_name = ? AND subject = ? AND version = ?`, qident(s.cfg.Keyspace)),
+		dek.KEKName, dek.Subject, dek.Version,
+	).WithContext(ctx).Scan(&existingVersion)
+	if err == nil {
+		return storage.ErrDEKExists
+	}
+
+	// Insert DEK and denormalization entry in a batch
+	batch := s.session.NewBatch(gocql.LoggedBatch).WithContext(ctx)
+	batch.Query(
+		fmt.Sprintf(`INSERT INTO %s.deks (kek_name, subject, version, algorithm, encrypted_key_material, deleted, ts)
+			VALUES (?, ?, ?, ?, ?, ?, ?)`, qident(s.cfg.Keyspace)),
+		dek.KEKName, dek.Subject, dek.Version, dek.Algorithm, dek.EncryptedKeyMaterial, false, dek.Ts,
+	)
+	batch.Query(
+		fmt.Sprintf(`INSERT INTO %s.deks_by_kek (kek_name, subject) VALUES (?, ?)`, qident(s.cfg.Keyspace)),
+		dek.KEKName, dek.Subject,
+	)
+
+	if err := s.session.ExecuteBatch(batch); err != nil {
+		return fmt.Errorf("failed to create DEK: %w", err)
+	}
+
+	return nil
 }
 
+// GetDEK retrieves a Data Encryption Key.
+// If version <= 0, returns the latest version. If algorithm is non-empty, filters by it.
 func (s *Store) GetDEK(ctx context.Context, kekName, subject string, version int, algorithm string, includeDeleted bool) (*storage.DEKRecord, error) {
-	return nil, fmt.Errorf("DEK registry not yet implemented for Cassandra backend")
+	if version <= 0 {
+		// Get latest version — deks table is clustered by version DESC, so first row is latest
+		iter := s.readQuery(
+			fmt.Sprintf(`SELECT version, algorithm, encrypted_key_material, deleted, ts
+				FROM %s.deks WHERE kek_name = ? AND subject = ?`, qident(s.cfg.Keyspace)),
+			kekName, subject,
+		).WithContext(ctx).Iter()
+
+		var v int
+		var algo, encKey string
+		var deleted bool
+		var ts int64
+		found := false
+
+		for iter.Scan(&v, &algo, &encKey, &deleted, &ts) {
+			if !includeDeleted && deleted {
+				continue
+			}
+			if algorithm != "" && algo != algorithm {
+				continue
+			}
+			// First matching row is the latest (DESC ordering)
+			found = true
+			version = v
+			algorithm = algo
+			_ = iter.Close()
+			return &storage.DEKRecord{
+				KEKName:              kekName,
+				Subject:              subject,
+				Version:              v,
+				Algorithm:            algo,
+				EncryptedKeyMaterial: encKey,
+				Deleted:              deleted,
+				Ts:                   ts,
+			}, nil
+		}
+		if err := iter.Close(); err != nil {
+			return nil, fmt.Errorf("failed to get DEK: %w", err)
+		}
+		if !found {
+			return nil, storage.ErrDEKNotFound
+		}
+	}
+
+	// Get specific version
+	var algo, encKey string
+	var deleted bool
+	var ts int64
+
+	err := s.readQuery(
+		fmt.Sprintf(`SELECT algorithm, encrypted_key_material, deleted, ts
+			FROM %s.deks WHERE kek_name = ? AND subject = ? AND version = ?`, qident(s.cfg.Keyspace)),
+		kekName, subject, version,
+	).WithContext(ctx).Scan(&algo, &encKey, &deleted, &ts)
+	if err != nil {
+		if errors.Is(err, gocql.ErrNotFound) {
+			return nil, storage.ErrDEKNotFound
+		}
+		return nil, fmt.Errorf("failed to get DEK: %w", err)
+	}
+
+	if algorithm != "" && algo != algorithm {
+		return nil, storage.ErrDEKNotFound
+	}
+
+	if !includeDeleted && deleted {
+		return nil, storage.ErrDEKNotFound
+	}
+
+	return &storage.DEKRecord{
+		KEKName:              kekName,
+		Subject:              subject,
+		Version:              version,
+		Algorithm:            algo,
+		EncryptedKeyMaterial: encKey,
+		Deleted:              deleted,
+		Ts:                   ts,
+	}, nil
 }
 
+// ListDEKs returns the sorted list of unique subject names under a KEK.
+// Uses the deks_by_kek denormalization table for efficient listing.
 func (s *Store) ListDEKs(ctx context.Context, kekName string, includeDeleted bool) ([]string, error) {
-	return nil, fmt.Errorf("DEK registry not yet implemented for Cassandra backend")
+	// Check that the KEK exists
+	if _, err := s.GetKEK(ctx, kekName, true); err != nil {
+		return nil, err
+	}
+
+	iter := s.readQuery(
+		fmt.Sprintf(`SELECT subject FROM %s.deks_by_kek WHERE kek_name = ?`, qident(s.cfg.Keyspace)),
+		kekName,
+	).WithContext(ctx).Iter()
+
+	var subjects []string
+	var subject string
+	for iter.Scan(&subject) {
+		if includeDeleted {
+			subjects = append(subjects, subject)
+			continue
+		}
+		// Check if at least one version is not deleted for this subject
+		hasActive := false
+		innerIter := s.readQuery(
+			fmt.Sprintf(`SELECT deleted FROM %s.deks WHERE kek_name = ? AND subject = ?`, qident(s.cfg.Keyspace)),
+			kekName, subject,
+		).WithContext(ctx).Iter()
+
+		var deleted bool
+		for innerIter.Scan(&deleted) {
+			if !deleted {
+				hasActive = true
+				break
+			}
+		}
+		_ = innerIter.Close()
+
+		if hasActive {
+			subjects = append(subjects, subject)
+		}
+	}
+	if err := iter.Close(); err != nil {
+		return nil, fmt.Errorf("failed to list DEKs: %w", err)
+	}
+
+	sort.Strings(subjects)
+	if subjects == nil {
+		subjects = []string{}
+	}
+	return subjects, nil
 }
 
+// ListDEKVersions returns the sorted list of version numbers for a KEK+subject combination.
 func (s *Store) ListDEKVersions(ctx context.Context, kekName, subject string, algorithm string, includeDeleted bool) ([]int, error) {
-	return nil, fmt.Errorf("DEK registry not yet implemented for Cassandra backend")
+	// Check that the KEK exists
+	if _, err := s.GetKEK(ctx, kekName, true); err != nil {
+		return nil, err
+	}
+
+	iter := s.readQuery(
+		fmt.Sprintf(`SELECT version, algorithm, deleted FROM %s.deks WHERE kek_name = ? AND subject = ?`, qident(s.cfg.Keyspace)),
+		kekName, subject,
+	).WithContext(ctx).Iter()
+
+	var versions []int
+	var v int
+	var algo string
+	var deleted bool
+	for iter.Scan(&v, &algo, &deleted) {
+		if !includeDeleted && deleted {
+			continue
+		}
+		if algorithm != "" && algo != algorithm {
+			continue
+		}
+		versions = append(versions, v)
+	}
+	if err := iter.Close(); err != nil {
+		return nil, fmt.Errorf("failed to list DEK versions: %w", err)
+	}
+
+	sort.Ints(versions)
+	if versions == nil {
+		versions = []int{}
+	}
+	return versions, nil
 }
 
+// DeleteDEK soft-deletes or permanently deletes a Data Encryption Key.
+// Version -1 means delete all versions for the kekName+subject combination.
 func (s *Store) DeleteDEK(ctx context.Context, kekName, subject string, version int, algorithm string, permanent bool) error {
-	return fmt.Errorf("DEK registry not yet implemented for Cassandra backend")
+	if version == -1 {
+		// Delete all versions
+		iter := s.readQuery(
+			fmt.Sprintf(`SELECT version, algorithm FROM %s.deks WHERE kek_name = ? AND subject = ?`, qident(s.cfg.Keyspace)),
+			kekName, subject,
+		).WithContext(ctx).Iter()
+
+		found := false
+		var v int
+		var algo string
+		var toDelete []int
+
+		for iter.Scan(&v, &algo) {
+			if algorithm != "" && algo != algorithm {
+				continue
+			}
+			found = true
+			toDelete = append(toDelete, v)
+		}
+		if err := iter.Close(); err != nil {
+			return fmt.Errorf("failed to query DEKs for deletion: %w", err)
+		}
+		if !found {
+			return storage.ErrDEKNotFound
+		}
+
+		if permanent {
+			batch := s.session.NewBatch(gocql.LoggedBatch).WithContext(ctx)
+			for _, ver := range toDelete {
+				batch.Query(
+					fmt.Sprintf(`DELETE FROM %s.deks WHERE kek_name = ? AND subject = ? AND version = ?`, qident(s.cfg.Keyspace)),
+					kekName, subject, ver,
+				)
+			}
+			// If deleting by algorithm, check if there are other algorithms remaining
+			if algorithm != "" {
+				hasOther := false
+				checkIter := s.readQuery(
+					fmt.Sprintf(`SELECT version FROM %s.deks WHERE kek_name = ? AND subject = ? LIMIT 1`, qident(s.cfg.Keyspace)),
+					kekName, subject,
+				).WithContext(ctx).Iter()
+				var checkV int
+				// We haven't executed the batch yet, so just check if there would be remaining rows
+				// after deletion. We need to check if all versions were targeted.
+				remainingCount := 0
+				checkIter2 := s.readQuery(
+					fmt.Sprintf(`SELECT version, algorithm FROM %s.deks WHERE kek_name = ? AND subject = ?`, qident(s.cfg.Keyspace)),
+					kekName, subject,
+				).WithContext(ctx).Iter()
+				var checkAlgo string
+				_ = checkIter.Close()
+				for checkIter2.Scan(&checkV, &checkAlgo) {
+					if checkAlgo != algorithm {
+						remainingCount++
+						hasOther = true
+					}
+				}
+				_ = checkIter2.Close()
+
+				if !hasOther {
+					batch.Query(
+						fmt.Sprintf(`DELETE FROM %s.deks_by_kek WHERE kek_name = ? AND subject = ?`, qident(s.cfg.Keyspace)),
+						kekName, subject,
+					)
+				}
+			} else {
+				// Deleting all algorithms, remove denorm entry
+				batch.Query(
+					fmt.Sprintf(`DELETE FROM %s.deks_by_kek WHERE kek_name = ? AND subject = ?`, qident(s.cfg.Keyspace)),
+					kekName, subject,
+				)
+			}
+
+			if err := s.session.ExecuteBatch(batch); err != nil {
+				return fmt.Errorf("failed to permanently delete DEKs: %w", err)
+			}
+		} else {
+			ts := time.Now().UnixMilli()
+			batch := s.session.NewBatch(gocql.LoggedBatch).WithContext(ctx)
+			for _, ver := range toDelete {
+				batch.Query(
+					fmt.Sprintf(`UPDATE %s.deks SET deleted = ?, ts = ? WHERE kek_name = ? AND subject = ? AND version = ?`, qident(s.cfg.Keyspace)),
+					true, ts, kekName, subject, ver,
+				)
+			}
+			if err := s.session.ExecuteBatch(batch); err != nil {
+				return fmt.Errorf("failed to soft-delete DEKs: %w", err)
+			}
+		}
+
+		return nil
+	}
+
+	// Delete a specific version
+	var algo string
+	err := s.readQuery(
+		fmt.Sprintf(`SELECT algorithm FROM %s.deks WHERE kek_name = ? AND subject = ? AND version = ?`, qident(s.cfg.Keyspace)),
+		kekName, subject, version,
+	).WithContext(ctx).Scan(&algo)
+	if err != nil {
+		if errors.Is(err, gocql.ErrNotFound) {
+			return storage.ErrDEKNotFound
+		}
+		return fmt.Errorf("failed to query DEK for deletion: %w", err)
+	}
+
+	if algorithm != "" && algo != algorithm {
+		return storage.ErrDEKNotFound
+	}
+
+	if permanent {
+		batch := s.session.NewBatch(gocql.LoggedBatch).WithContext(ctx)
+		batch.Query(
+			fmt.Sprintf(`DELETE FROM %s.deks WHERE kek_name = ? AND subject = ? AND version = ?`, qident(s.cfg.Keyspace)),
+			kekName, subject, version,
+		)
+
+		// Check if this was the last version for the subject — clean up denorm table
+		remainingIter := s.readQuery(
+			fmt.Sprintf(`SELECT version FROM %s.deks WHERE kek_name = ? AND subject = ?`, qident(s.cfg.Keyspace)),
+			kekName, subject,
+		).WithContext(ctx).Iter()
+
+		remaining := 0
+		var v int
+		for remainingIter.Scan(&v) {
+			if v != version {
+				remaining++
+			}
+		}
+		_ = remainingIter.Close()
+
+		if remaining == 0 {
+			batch.Query(
+				fmt.Sprintf(`DELETE FROM %s.deks_by_kek WHERE kek_name = ? AND subject = ?`, qident(s.cfg.Keyspace)),
+				kekName, subject,
+			)
+		}
+
+		if err := s.session.ExecuteBatch(batch); err != nil {
+			return fmt.Errorf("failed to permanently delete DEK: %w", err)
+		}
+	} else {
+		ts := time.Now().UnixMilli()
+		if err := s.writeQuery(
+			fmt.Sprintf(`UPDATE %s.deks SET deleted = ?, ts = ? WHERE kek_name = ? AND subject = ? AND version = ?`, qident(s.cfg.Keyspace)),
+			true, ts, kekName, subject, version,
+		).WithContext(ctx).Exec(); err != nil {
+			return fmt.Errorf("failed to soft-delete DEK: %w", err)
+		}
+	}
+
+	return nil
 }
 
+// UndeleteDEK restores a soft-deleted Data Encryption Key.
+// Version -1 means undelete all deleted versions for the kekName+subject combination.
 func (s *Store) UndeleteDEK(ctx context.Context, kekName, subject string, version int, algorithm string) error {
-	return fmt.Errorf("DEK registry not yet implemented for Cassandra backend")
+	if version == -1 {
+		// Undelete all deleted versions
+		iter := s.readQuery(
+			fmt.Sprintf(`SELECT version, algorithm, deleted FROM %s.deks WHERE kek_name = ? AND subject = ?`, qident(s.cfg.Keyspace)),
+			kekName, subject,
+		).WithContext(ctx).Iter()
+
+		found := false
+		var v int
+		var algo string
+		var deleted bool
+		var toUndelete []int
+
+		for iter.Scan(&v, &algo, &deleted) {
+			if algorithm != "" && algo != algorithm {
+				continue
+			}
+			if deleted {
+				found = true
+				toUndelete = append(toUndelete, v)
+			}
+		}
+		if err := iter.Close(); err != nil {
+			return fmt.Errorf("failed to query DEKs for undelete: %w", err)
+		}
+		if !found {
+			return storage.ErrDEKNotFound
+		}
+
+		ts := time.Now().UnixMilli()
+		batch := s.session.NewBatch(gocql.LoggedBatch).WithContext(ctx)
+		for _, ver := range toUndelete {
+			batch.Query(
+				fmt.Sprintf(`UPDATE %s.deks SET deleted = ?, ts = ? WHERE kek_name = ? AND subject = ? AND version = ?`, qident(s.cfg.Keyspace)),
+				false, ts, kekName, subject, ver,
+			)
+		}
+		if err := s.session.ExecuteBatch(batch); err != nil {
+			return fmt.Errorf("failed to undelete DEKs: %w", err)
+		}
+
+		return nil
+	}
+
+	// Undelete specific version
+	var algo string
+	var deleted bool
+	err := s.readQuery(
+		fmt.Sprintf(`SELECT algorithm, deleted FROM %s.deks WHERE kek_name = ? AND subject = ? AND version = ?`, qident(s.cfg.Keyspace)),
+		kekName, subject, version,
+	).WithContext(ctx).Scan(&algo, &deleted)
+	if err != nil {
+		if errors.Is(err, gocql.ErrNotFound) {
+			return storage.ErrDEKNotFound
+		}
+		return fmt.Errorf("failed to query DEK for undelete: %w", err)
+	}
+
+	if algorithm != "" && algo != algorithm {
+		return storage.ErrDEKNotFound
+	}
+
+	if !deleted {
+		return storage.ErrDEKNotFound
+	}
+
+	ts := time.Now().UnixMilli()
+	if err := s.writeQuery(
+		fmt.Sprintf(`UPDATE %s.deks SET deleted = ?, ts = ? WHERE kek_name = ? AND subject = ? AND version = ?`, qident(s.cfg.Keyspace)),
+		false, ts, kekName, subject, version,
+	).WithContext(ctx).Exec(); err != nil {
+		return fmt.Errorf("failed to undelete DEK: %w", err)
+	}
+
+	return nil
 }

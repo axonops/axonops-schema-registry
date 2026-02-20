@@ -2208,90 +2208,765 @@ func (c Config) MarshalJSON() ([]byte, error) {
 	})
 }
 
+// CreateExporter inserts a new exporter record.
 func (s *Store) CreateExporter(ctx context.Context, exporter *storage.ExporterRecord) error {
-	return fmt.Errorf("exporters not yet implemented for PostgreSQL backend")
+	subjectsJSON, err := marshalJSONB(exporter.Subjects)
+	if err != nil {
+		return fmt.Errorf("failed to marshal subjects: %w", err)
+	}
+	configJSON, err := marshalJSONB(exporter.Config)
+	if err != nil {
+		return fmt.Errorf("failed to marshal config: %w", err)
+	}
+
+	_, err = s.db.ExecContext(ctx,
+		`INSERT INTO exporters (name, context_type, context, subjects, subject_rename_format, config, created_at, updated_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())`,
+		exporter.Name,
+		sql.NullString{String: exporter.ContextType, Valid: exporter.ContextType != ""},
+		sql.NullString{String: exporter.Context, Valid: exporter.Context != ""},
+		subjectsJSON,
+		sql.NullString{String: exporter.SubjectRenameFormat, Valid: exporter.SubjectRenameFormat != ""},
+		configJSON,
+	)
+	if err != nil {
+		if isUniqueViolation(err) {
+			return storage.ErrExporterExists
+		}
+		return fmt.Errorf("failed to create exporter: %w", err)
+	}
+
+	return nil
 }
 
+// GetExporter retrieves an exporter by name.
 func (s *Store) GetExporter(ctx context.Context, name string) (*storage.ExporterRecord, error) {
-	return nil, fmt.Errorf("exporters not yet implemented for PostgreSQL backend")
+	exporter := &storage.ExporterRecord{}
+	var contextType, exporterCtx, subjectRenameFormat sql.NullString
+	var subjectsJSON, configJSON []byte
+
+	err := s.db.QueryRowContext(ctx,
+		`SELECT name, context_type, context, subjects, subject_rename_format, config, created_at, updated_at
+		 FROM exporters WHERE name = $1`, name).Scan(
+		&exporter.Name, &contextType, &exporterCtx, &subjectsJSON,
+		&subjectRenameFormat, &configJSON, &exporter.CreatedAt, &exporter.UpdatedAt,
+	)
+	if err == sql.ErrNoRows {
+		return nil, storage.ErrExporterNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get exporter: %w", err)
+	}
+
+	exporter.ContextType = contextType.String
+	exporter.Context = exporterCtx.String
+	exporter.SubjectRenameFormat = subjectRenameFormat.String
+
+	if len(subjectsJSON) > 0 {
+		if err := json.Unmarshal(subjectsJSON, &exporter.Subjects); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal subjects: %w", err)
+		}
+	}
+	if len(configJSON) > 0 {
+		if err := json.Unmarshal(configJSON, &exporter.Config); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal config: %w", err)
+		}
+	}
+
+	return exporter, nil
 }
 
+// UpdateExporter updates an existing exporter.
 func (s *Store) UpdateExporter(ctx context.Context, exporter *storage.ExporterRecord) error {
-	return fmt.Errorf("exporters not yet implemented for PostgreSQL backend")
+	subjectsJSON, err := marshalJSONB(exporter.Subjects)
+	if err != nil {
+		return fmt.Errorf("failed to marshal subjects: %w", err)
+	}
+	configJSON, err := marshalJSONB(exporter.Config)
+	if err != nil {
+		return fmt.Errorf("failed to marshal config: %w", err)
+	}
+
+	result, err := s.db.ExecContext(ctx,
+		`UPDATE exporters SET context_type = $1, context = $2, subjects = $3,
+		 subject_rename_format = $4, config = $5, updated_at = NOW()
+		 WHERE name = $6`,
+		sql.NullString{String: exporter.ContextType, Valid: exporter.ContextType != ""},
+		sql.NullString{String: exporter.Context, Valid: exporter.Context != ""},
+		subjectsJSON,
+		sql.NullString{String: exporter.SubjectRenameFormat, Valid: exporter.SubjectRenameFormat != ""},
+		configJSON,
+		exporter.Name,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to update exporter: %w", err)
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return storage.ErrExporterNotFound
+	}
+
+	return nil
 }
 
+// DeleteExporter deletes an exporter by name (cascade deletes its status).
 func (s *Store) DeleteExporter(ctx context.Context, name string) error {
-	return fmt.Errorf("exporters not yet implemented for PostgreSQL backend")
+	result, err := s.db.ExecContext(ctx, `DELETE FROM exporters WHERE name = $1`, name)
+	if err != nil {
+		return fmt.Errorf("failed to delete exporter: %w", err)
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return storage.ErrExporterNotFound
+	}
+
+	return nil
 }
 
+// ListExporters returns a sorted list of all exporter names.
 func (s *Store) ListExporters(ctx context.Context) ([]string, error) {
-	return nil, fmt.Errorf("exporters not yet implemented for PostgreSQL backend")
+	rows, err := s.db.QueryContext(ctx, `SELECT name FROM exporters ORDER BY name`)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list exporters: %w", err)
+	}
+	defer rows.Close()
+
+	var names []string
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, fmt.Errorf("failed to scan exporter name: %w", err)
+		}
+		names = append(names, name)
+	}
+	return names, rows.Err()
 }
 
+// GetExporterStatus retrieves the status of an exporter.
+// If no status has been set, returns a default status with State "PAUSED".
 func (s *Store) GetExporterStatus(ctx context.Context, name string) (*storage.ExporterStatusRecord, error) {
-	return nil, fmt.Errorf("exporters not yet implemented for PostgreSQL backend")
+	status := &storage.ExporterStatusRecord{}
+	var trace sql.NullString
+
+	err := s.db.QueryRowContext(ctx,
+		`SELECT name, state, "offset", ts, trace FROM exporter_statuses WHERE name = $1`, name).Scan(
+		&status.Name, &status.State, &status.Offset, &status.Ts, &trace,
+	)
+	if err == sql.ErrNoRows {
+		// Check if the exporter itself exists
+		var exists bool
+		err2 := s.db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM exporters WHERE name = $1)`, name).Scan(&exists)
+		if err2 != nil {
+			return nil, fmt.Errorf("failed to check exporter existence: %w", err2)
+		}
+		if !exists {
+			return nil, storage.ErrExporterNotFound
+		}
+		// Exporter exists but has no status row — return default
+		return &storage.ExporterStatusRecord{
+			Name:  name,
+			State: "PAUSED",
+		}, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get exporter status: %w", err)
+	}
+
+	status.Trace = trace.String
+	return status, nil
 }
 
+// SetExporterStatus sets the status of an exporter.
 func (s *Store) SetExporterStatus(ctx context.Context, name string, status *storage.ExporterStatusRecord) error {
-	return fmt.Errorf("exporters not yet implemented for PostgreSQL backend")
+	// Check that the exporter exists
+	var exists bool
+	err := s.db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM exporters WHERE name = $1)`, name).Scan(&exists)
+	if err != nil {
+		return fmt.Errorf("failed to check exporter existence: %w", err)
+	}
+	if !exists {
+		return storage.ErrExporterNotFound
+	}
+
+	_, err = s.db.ExecContext(ctx,
+		`INSERT INTO exporter_statuses (name, state, "offset", ts, trace)
+		 VALUES ($1, $2, $3, $4, $5)
+		 ON CONFLICT (name) DO UPDATE SET
+		     state = EXCLUDED.state,
+		     "offset" = EXCLUDED."offset",
+		     ts = EXCLUDED.ts,
+		     trace = EXCLUDED.trace`,
+		name, status.State, status.Offset, status.Ts,
+		sql.NullString{String: status.Trace, Valid: status.Trace != ""},
+	)
+	if err != nil {
+		return fmt.Errorf("failed to set exporter status: %w", err)
+	}
+
+	return nil
 }
 
+// GetExporterConfig retrieves the configuration of an exporter.
 func (s *Store) GetExporterConfig(ctx context.Context, name string) (map[string]string, error) {
-	return nil, fmt.Errorf("exporters not yet implemented for PostgreSQL backend")
+	var configJSON []byte
+
+	err := s.db.QueryRowContext(ctx, `SELECT config FROM exporters WHERE name = $1`, name).Scan(&configJSON)
+	if err == sql.ErrNoRows {
+		return nil, storage.ErrExporterNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get exporter config: %w", err)
+	}
+
+	config := make(map[string]string)
+	if len(configJSON) > 0 {
+		if err := json.Unmarshal(configJSON, &config); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal config: %w", err)
+		}
+	}
+
+	return config, nil
 }
 
+// UpdateExporterConfig updates the configuration of an exporter.
 func (s *Store) UpdateExporterConfig(ctx context.Context, name string, config map[string]string) error {
-	return fmt.Errorf("exporters not yet implemented for PostgreSQL backend")
+	configJSON, err := marshalJSONB(config)
+	if err != nil {
+		return fmt.Errorf("failed to marshal config: %w", err)
+	}
+
+	result, err := s.db.ExecContext(ctx,
+		`UPDATE exporters SET config = $1, updated_at = NOW() WHERE name = $2`,
+		configJSON, name,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to update exporter config: %w", err)
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return storage.ErrExporterNotFound
+	}
+
+	return nil
 }
 
 // KEK operations (CSFLE)
 
+// CreateKEK creates a new Key Encryption Key.
 func (s *Store) CreateKEK(ctx context.Context, kek *storage.KEKRecord) error {
-	return fmt.Errorf("DEK registry not yet implemented for PostgreSQL backend")
+	kmsPropsJSON, err := marshalJSONB(kek.KmsProps)
+	if err != nil {
+		return fmt.Errorf("failed to marshal kms_props: %w", err)
+	}
+
+	now := time.Now()
+	kek.Ts = now.UnixMilli()
+	kek.CreatedAt = now
+	kek.UpdatedAt = now
+
+	_, err = s.db.ExecContext(ctx,
+		`INSERT INTO keks (name, kms_type, kms_key_id, kms_props, doc, shared, deleted, ts, created_at, updated_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+		kek.Name, kek.KmsType, kek.KmsKeyID, kmsPropsJSON,
+		sql.NullString{String: kek.Doc, Valid: kek.Doc != ""},
+		kek.Shared, kek.Deleted, kek.Ts, kek.CreatedAt, kek.UpdatedAt,
+	)
+	if err != nil {
+		if isUniqueViolation(err) {
+			return storage.ErrKEKExists
+		}
+		return fmt.Errorf("failed to create KEK: %w", err)
+	}
+
+	return nil
 }
 
+// GetKEK retrieves a Key Encryption Key by name.
 func (s *Store) GetKEK(ctx context.Context, name string, includeDeleted bool) (*storage.KEKRecord, error) {
-	return nil, fmt.Errorf("DEK registry not yet implemented for PostgreSQL backend")
+	kek := &storage.KEKRecord{}
+	var kmsPropsJSON []byte
+	var doc sql.NullString
+
+	query := `SELECT name, kms_type, kms_key_id, kms_props, doc, shared, deleted, ts, created_at, updated_at
+		 FROM keks WHERE name = $1`
+	if !includeDeleted {
+		query += ` AND deleted = FALSE`
+	}
+
+	err := s.db.QueryRowContext(ctx, query, name).Scan(
+		&kek.Name, &kek.KmsType, &kek.KmsKeyID, &kmsPropsJSON,
+		&doc, &kek.Shared, &kek.Deleted, &kek.Ts, &kek.CreatedAt, &kek.UpdatedAt,
+	)
+	if err == sql.ErrNoRows {
+		return nil, storage.ErrKEKNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get KEK: %w", err)
+	}
+
+	kek.Doc = doc.String
+	if len(kmsPropsJSON) > 0 {
+		if err := json.Unmarshal(kmsPropsJSON, &kek.KmsProps); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal kms_props: %w", err)
+		}
+	}
+
+	return kek, nil
 }
 
+// UpdateKEK updates an existing Key Encryption Key.
 func (s *Store) UpdateKEK(ctx context.Context, kek *storage.KEKRecord) error {
-	return fmt.Errorf("DEK registry not yet implemented for PostgreSQL backend")
+	kmsPropsJSON, err := marshalJSONB(kek.KmsProps)
+	if err != nil {
+		return fmt.Errorf("failed to marshal kms_props: %w", err)
+	}
+
+	now := time.Now()
+	kek.Ts = now.UnixMilli()
+	kek.UpdatedAt = now
+
+	result, err := s.db.ExecContext(ctx,
+		`UPDATE keks SET kms_type = $1, kms_key_id = $2, kms_props = $3, doc = $4,
+		 shared = $5, ts = $6, updated_at = $7
+		 WHERE name = $8`,
+		kek.KmsType, kek.KmsKeyID, kmsPropsJSON,
+		sql.NullString{String: kek.Doc, Valid: kek.Doc != ""},
+		kek.Shared, kek.Ts, kek.UpdatedAt, kek.Name,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to update KEK: %w", err)
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return storage.ErrKEKNotFound
+	}
+
+	return nil
 }
 
+// DeleteKEK soft-deletes or permanently deletes a Key Encryption Key.
 func (s *Store) DeleteKEK(ctx context.Context, name string, permanent bool) error {
-	return fmt.Errorf("DEK registry not yet implemented for PostgreSQL backend")
+	if permanent {
+		// Remove all DEKs under this KEK first
+		_, err := s.db.ExecContext(ctx, `DELETE FROM deks WHERE kek_name = $1`, name)
+		if err != nil {
+			return fmt.Errorf("failed to delete DEKs for KEK: %w", err)
+		}
+
+		result, err := s.db.ExecContext(ctx, `DELETE FROM keks WHERE name = $1`, name)
+		if err != nil {
+			return fmt.Errorf("failed to delete KEK: %w", err)
+		}
+		rowsAffected, _ := result.RowsAffected()
+		if rowsAffected == 0 {
+			return storage.ErrKEKNotFound
+		}
+	} else {
+		result, err := s.db.ExecContext(ctx,
+			`UPDATE keks SET deleted = TRUE, ts = $1 WHERE name = $2`,
+			time.Now().UnixMilli(), name,
+		)
+		if err != nil {
+			return fmt.Errorf("failed to soft-delete KEK: %w", err)
+		}
+		rowsAffected, _ := result.RowsAffected()
+		if rowsAffected == 0 {
+			return storage.ErrKEKNotFound
+		}
+	}
+
+	return nil
 }
 
+// UndeleteKEK restores a soft-deleted Key Encryption Key.
 func (s *Store) UndeleteKEK(ctx context.Context, name string) error {
-	return fmt.Errorf("DEK registry not yet implemented for PostgreSQL backend")
+	result, err := s.db.ExecContext(ctx,
+		`UPDATE keks SET deleted = FALSE, ts = $1 WHERE name = $2 AND deleted = TRUE`,
+		time.Now().UnixMilli(), name,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to undelete KEK: %w", err)
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return storage.ErrKEKNotFound
+	}
+
+	return nil
 }
 
+// ListKEKs returns all Key Encryption Keys, sorted by name.
 func (s *Store) ListKEKs(ctx context.Context, includeDeleted bool) ([]*storage.KEKRecord, error) {
-	return nil, fmt.Errorf("DEK registry not yet implemented for PostgreSQL backend")
+	query := `SELECT name, kms_type, kms_key_id, kms_props, doc, shared, deleted, ts, created_at, updated_at
+		 FROM keks`
+	if !includeDeleted {
+		query += ` WHERE deleted = FALSE`
+	}
+	query += ` ORDER BY name`
+
+	rows, err := s.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list KEKs: %w", err)
+	}
+	defer rows.Close()
+
+	var keks []*storage.KEKRecord
+	for rows.Next() {
+		kek := &storage.KEKRecord{}
+		var kmsPropsJSON []byte
+		var doc sql.NullString
+
+		if err := rows.Scan(
+			&kek.Name, &kek.KmsType, &kek.KmsKeyID, &kmsPropsJSON,
+			&doc, &kek.Shared, &kek.Deleted, &kek.Ts, &kek.CreatedAt, &kek.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("failed to scan KEK: %w", err)
+		}
+
+		kek.Doc = doc.String
+		if len(kmsPropsJSON) > 0 {
+			if err := json.Unmarshal(kmsPropsJSON, &kek.KmsProps); err != nil {
+				return nil, fmt.Errorf("failed to unmarshal kms_props: %w", err)
+			}
+		}
+
+		keks = append(keks, kek)
+	}
+
+	return keks, rows.Err()
 }
 
 // DEK operations (CSFLE)
 
+// CreateDEK creates a new Data Encryption Key under an existing KEK.
 func (s *Store) CreateDEK(ctx context.Context, dek *storage.DEKRecord) error {
-	return fmt.Errorf("DEK registry not yet implemented for PostgreSQL backend")
+	// Check that the KEK exists
+	var kekExists bool
+	err := s.db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM keks WHERE name = $1)`, dek.KEKName).Scan(&kekExists)
+	if err != nil {
+		return fmt.Errorf("failed to check KEK existence: %w", err)
+	}
+	if !kekExists {
+		return storage.ErrKEKNotFound
+	}
+
+	// Auto-assign version if not specified
+	if dek.Version <= 0 {
+		var maxVersion sql.NullInt64
+		err := s.db.QueryRowContext(ctx,
+			`SELECT MAX(version) FROM deks WHERE kek_name = $1 AND subject = $2`,
+			dek.KEKName, dek.Subject,
+		).Scan(&maxVersion)
+		if err != nil {
+			return fmt.Errorf("failed to get max DEK version: %w", err)
+		}
+		if maxVersion.Valid {
+			dek.Version = int(maxVersion.Int64) + 1
+		} else {
+			dek.Version = 1
+		}
+	}
+
+	// Default algorithm
+	if dek.Algorithm == "" {
+		dek.Algorithm = "AES256_GCM"
+	}
+
+	dek.Ts = time.Now().UnixMilli()
+
+	_, err = s.db.ExecContext(ctx,
+		`INSERT INTO deks (kek_name, subject, version, algorithm, encrypted_key_material, deleted, ts)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+		dek.KEKName, dek.Subject, dek.Version, dek.Algorithm,
+		sql.NullString{String: dek.EncryptedKeyMaterial, Valid: dek.EncryptedKeyMaterial != ""},
+		dek.Deleted, dek.Ts,
+	)
+	if err != nil {
+		if isUniqueViolation(err) {
+			return storage.ErrDEKExists
+		}
+		return fmt.Errorf("failed to create DEK: %w", err)
+	}
+
+	return nil
 }
 
+// GetDEK retrieves a Data Encryption Key.
+// If version <= 0, returns the latest version. If algorithm is non-empty, filters by it.
 func (s *Store) GetDEK(ctx context.Context, kekName, subject string, version int, algorithm string, includeDeleted bool) (*storage.DEKRecord, error) {
-	return nil, fmt.Errorf("DEK registry not yet implemented for PostgreSQL backend")
+	dek := &storage.DEKRecord{}
+	var encryptedKeyMaterial sql.NullString
+
+	if version <= 0 {
+		// Find the latest version
+		query := `SELECT kek_name, subject, version, algorithm, encrypted_key_material, deleted, ts
+			 FROM deks WHERE kek_name = $1 AND subject = $2`
+		args := []interface{}{kekName, subject}
+		argIdx := 3
+
+		if algorithm != "" {
+			query += fmt.Sprintf(` AND algorithm = $%d`, argIdx)
+			args = append(args, algorithm)
+			argIdx++
+		}
+		if !includeDeleted {
+			query += ` AND deleted = FALSE`
+		}
+		query += ` ORDER BY version DESC LIMIT 1`
+
+		err := s.db.QueryRowContext(ctx, query, args...).Scan(
+			&dek.KEKName, &dek.Subject, &dek.Version, &dek.Algorithm,
+			&encryptedKeyMaterial, &dek.Deleted, &dek.Ts,
+		)
+		if err == sql.ErrNoRows {
+			return nil, storage.ErrDEKNotFound
+		}
+		if err != nil {
+			return nil, fmt.Errorf("failed to get DEK: %w", err)
+		}
+	} else {
+		// Get specific version
+		query := `SELECT kek_name, subject, version, algorithm, encrypted_key_material, deleted, ts
+			 FROM deks WHERE kek_name = $1 AND subject = $2 AND version = $3`
+		args := []interface{}{kekName, subject, version}
+		argIdx := 4
+
+		if algorithm != "" {
+			query += fmt.Sprintf(` AND algorithm = $%d`, argIdx)
+			args = append(args, algorithm)
+			argIdx++
+		}
+		if !includeDeleted {
+			query += ` AND deleted = FALSE`
+		}
+
+		err := s.db.QueryRowContext(ctx, query, args...).Scan(
+			&dek.KEKName, &dek.Subject, &dek.Version, &dek.Algorithm,
+			&encryptedKeyMaterial, &dek.Deleted, &dek.Ts,
+		)
+		if err == sql.ErrNoRows {
+			return nil, storage.ErrDEKNotFound
+		}
+		if err != nil {
+			return nil, fmt.Errorf("failed to get DEK: %w", err)
+		}
+	}
+
+	dek.EncryptedKeyMaterial = encryptedKeyMaterial.String
+	return dek, nil
 }
 
+// ListDEKs returns the sorted list of unique subject names under a KEK.
 func (s *Store) ListDEKs(ctx context.Context, kekName string, includeDeleted bool) ([]string, error) {
-	return nil, fmt.Errorf("DEK registry not yet implemented for PostgreSQL backend")
+	// Check that the KEK exists
+	var kekExists bool
+	err := s.db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM keks WHERE name = $1)`, kekName).Scan(&kekExists)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check KEK existence: %w", err)
+	}
+	if !kekExists {
+		return nil, storage.ErrKEKNotFound
+	}
+
+	query := `SELECT DISTINCT subject FROM deks WHERE kek_name = $1`
+	if !includeDeleted {
+		query += ` AND deleted = FALSE`
+	}
+	query += ` ORDER BY subject`
+
+	rows, err := s.db.QueryContext(ctx, query, kekName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list DEKs: %w", err)
+	}
+	defer rows.Close()
+
+	subjects := []string{}
+	for rows.Next() {
+		var subject string
+		if err := rows.Scan(&subject); err != nil {
+			return nil, fmt.Errorf("failed to scan DEK subject: %w", err)
+		}
+		subjects = append(subjects, subject)
+	}
+
+	return subjects, rows.Err()
 }
 
+// ListDEKVersions returns the sorted list of version numbers for a KEK+subject combination.
 func (s *Store) ListDEKVersions(ctx context.Context, kekName, subject string, algorithm string, includeDeleted bool) ([]int, error) {
-	return nil, fmt.Errorf("DEK registry not yet implemented for PostgreSQL backend")
+	// Check that the KEK exists
+	var kekExists bool
+	err := s.db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM keks WHERE name = $1)`, kekName).Scan(&kekExists)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check KEK existence: %w", err)
+	}
+	if !kekExists {
+		return nil, storage.ErrKEKNotFound
+	}
+
+	query := `SELECT version FROM deks WHERE kek_name = $1 AND subject = $2`
+	args := []interface{}{kekName, subject}
+	argIdx := 3
+
+	if algorithm != "" {
+		query += fmt.Sprintf(` AND algorithm = $%d`, argIdx)
+		args = append(args, algorithm)
+		argIdx++
+	}
+	if !includeDeleted {
+		query += ` AND deleted = FALSE`
+	}
+	query += ` ORDER BY version`
+
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list DEK versions: %w", err)
+	}
+	defer rows.Close()
+
+	versions := []int{}
+	for rows.Next() {
+		var version int
+		if err := rows.Scan(&version); err != nil {
+			return nil, fmt.Errorf("failed to scan DEK version: %w", err)
+		}
+		versions = append(versions, version)
+	}
+
+	return versions, rows.Err()
 }
 
+// DeleteDEK soft-deletes or permanently deletes a Data Encryption Key.
+// Version -1 means delete all versions for the kekName+subject combination.
 func (s *Store) DeleteDEK(ctx context.Context, kekName, subject string, version int, algorithm string, permanent bool) error {
-	return fmt.Errorf("DEK registry not yet implemented for PostgreSQL backend")
+	if version == -1 {
+		// Delete all versions matching kekName+subject (optionally filtered by algorithm)
+		query := ""
+		args := []interface{}{kekName, subject}
+		argIdx := 3
+
+		if permanent {
+			query = `DELETE FROM deks WHERE kek_name = $1 AND subject = $2`
+		} else {
+			query = fmt.Sprintf(`UPDATE deks SET deleted = TRUE, ts = $%d WHERE kek_name = $1 AND subject = $2`, argIdx)
+			args = append(args, time.Now().UnixMilli())
+			argIdx++
+		}
+
+		if algorithm != "" {
+			query += fmt.Sprintf(` AND algorithm = $%d`, argIdx)
+			args = append(args, algorithm)
+		}
+
+		result, err := s.db.ExecContext(ctx, query, args...)
+		if err != nil {
+			return fmt.Errorf("failed to delete DEKs: %w", err)
+		}
+		rowsAffected, _ := result.RowsAffected()
+		if rowsAffected == 0 {
+			return storage.ErrDEKNotFound
+		}
+		return nil
+	}
+
+	// Delete a specific version
+	if permanent {
+		query := `DELETE FROM deks WHERE kek_name = $1 AND subject = $2 AND version = $3`
+		args := []interface{}{kekName, subject, version}
+		argIdx := 4
+
+		if algorithm != "" {
+			query += fmt.Sprintf(` AND algorithm = $%d`, argIdx)
+			args = append(args, algorithm)
+		}
+
+		result, err := s.db.ExecContext(ctx, query, args...)
+		if err != nil {
+			return fmt.Errorf("failed to delete DEK: %w", err)
+		}
+		rowsAffected, _ := result.RowsAffected()
+		if rowsAffected == 0 {
+			return storage.ErrDEKNotFound
+		}
+	} else {
+		query := `UPDATE deks SET deleted = TRUE, ts = $1 WHERE kek_name = $2 AND subject = $3 AND version = $4`
+		args := []interface{}{time.Now().UnixMilli(), kekName, subject, version}
+		argIdx := 5
+
+		if algorithm != "" {
+			query += fmt.Sprintf(` AND algorithm = $%d`, argIdx)
+			args = append(args, algorithm)
+		}
+
+		result, err := s.db.ExecContext(ctx, query, args...)
+		if err != nil {
+			return fmt.Errorf("failed to soft-delete DEK: %w", err)
+		}
+		rowsAffected, _ := result.RowsAffected()
+		if rowsAffected == 0 {
+			return storage.ErrDEKNotFound
+		}
+	}
+
+	return nil
 }
 
+// UndeleteDEK restores a soft-deleted Data Encryption Key.
+// Version -1 means undelete all deleted versions for the kekName+subject combination.
 func (s *Store) UndeleteDEK(ctx context.Context, kekName, subject string, version int, algorithm string) error {
-	return fmt.Errorf("DEK registry not yet implemented for PostgreSQL backend")
+	if version == -1 {
+		// Undelete all deleted versions
+		query := `UPDATE deks SET deleted = FALSE, ts = $1 WHERE kek_name = $2 AND subject = $3 AND deleted = TRUE`
+		args := []interface{}{time.Now().UnixMilli(), kekName, subject}
+		argIdx := 4
+
+		if algorithm != "" {
+			query += fmt.Sprintf(` AND algorithm = $%d`, argIdx)
+			args = append(args, algorithm)
+		}
+
+		result, err := s.db.ExecContext(ctx, query, args...)
+		if err != nil {
+			return fmt.Errorf("failed to undelete DEKs: %w", err)
+		}
+		rowsAffected, _ := result.RowsAffected()
+		if rowsAffected == 0 {
+			return storage.ErrDEKNotFound
+		}
+		return nil
+	}
+
+	// Undelete a specific version
+	query := `UPDATE deks SET deleted = FALSE, ts = $1 WHERE kek_name = $2 AND subject = $3 AND version = $4 AND deleted = TRUE`
+	args := []interface{}{time.Now().UnixMilli(), kekName, subject, version}
+	argIdx := 5
+
+	if algorithm != "" {
+		query += fmt.Sprintf(` AND algorithm = $%d`, argIdx)
+		args = append(args, algorithm)
+	}
+
+	result, err := s.db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return fmt.Errorf("failed to undelete DEK: %w", err)
+	}
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return storage.ErrDEKNotFound
+	}
+
+	return nil
+}
+
+// marshalJSONB marshals a value to JSON bytes for JSONB columns. Returns nil for nil input.
+func marshalJSONB(v interface{}) ([]byte, error) {
+	if v == nil {
+		return nil, nil
+	}
+	return json.Marshal(v)
 }

@@ -21,4 +21,7 @@ func RunAll(t *testing.T, newStore StoreFactory) {
 	t.Run("Auth", func(t *testing.T) { RunAuthTests(t, newStore) })
 	t.Run("Import", func(t *testing.T) { RunImportTests(t, newStore) })
 	t.Run("Error", func(t *testing.T) { RunErrorTests(t, newStore) })
+	t.Run("KEK", func(t *testing.T) { RunKEKTests(t, newStore) })
+	t.Run("DEK", func(t *testing.T) { RunDEKTests(t, newStore) })
+	t.Run("Exporter", func(t *testing.T) { RunExporterTests(t, newStore) })
 }

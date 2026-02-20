@@ -233,6 +233,60 @@ func Migrate(session *gocql.Session, keyspace string) error {
 			registry_ctx text PRIMARY KEY,
 			created_at   timeuuid
 		)`, qident(keyspace)),
+
+		// Table 17: keks - Key Encryption Keys for CSFLE (global, not per-context)
+		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s.keks (
+			name       text PRIMARY KEY,
+			kms_type   text,
+			kms_key_id text,
+			kms_props  text,
+			doc        text,
+			shared     boolean,
+			deleted    boolean,
+			ts         bigint,
+			created_at timestamp,
+			updated_at timestamp
+		)`, qident(keyspace)),
+
+		// Table 18: deks - Data Encryption Keys, partitioned by (kek_name, subject), clustered by version DESC
+		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s.deks (
+			kek_name              text,
+			subject               text,
+			version               int,
+			algorithm             text,
+			encrypted_key_material text,
+			deleted               boolean,
+			ts                    bigint,
+			PRIMARY KEY ((kek_name, subject), version)
+		) WITH CLUSTERING ORDER BY (version DESC)`, qident(keyspace)),
+
+		// Table 19: deks_by_kek - denormalized lookup for listing subjects under a KEK
+		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s.deks_by_kek (
+			kek_name text,
+			subject  text,
+			PRIMARY KEY (kek_name, subject)
+		)`, qident(keyspace)),
+
+		// Table 20: exporters - schema exporters
+		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s.exporters (
+			name                  text PRIMARY KEY,
+			context_type          text,
+			context               text,
+			subjects              text,
+			subject_rename_format text,
+			config                text,
+			created_at            timestamp,
+			updated_at            timestamp
+		)`, qident(keyspace)),
+
+		// Table 21: exporter_statuses - exporter status tracking
+		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s.exporter_statuses (
+			name       text PRIMARY KEY,
+			state      text,
+			offset_val bigint,
+			ts         bigint,
+			trace      text
+		)`, qident(keyspace)),
 	}
 
 	for _, stmt := range stmts {
@@ -313,6 +367,8 @@ func Migrate(session *gocql.Session, keyspace string) error {
 		// Registry context lookup on subject_versions — enables queries by registryCtx+schema_id
 		// without providing the full partition key (registry_ctx, subject).
 		fmt.Sprintf(`CREATE CUSTOM INDEX IF NOT EXISTS idx_sv_registry_ctx ON %s.subject_versions (registry_ctx) USING 'StorageAttachedIndex'`, qident(keyspace)),
+		// Deleted flag on deks — enables efficient non-deleted filtering for DEK queries
+		fmt.Sprintf(`CREATE CUSTOM INDEX IF NOT EXISTS idx_deks_deleted ON %s.deks (deleted) USING 'StorageAttachedIndex'`, qident(keyspace)),
 	}
 	for _, stmt := range saiStmts {
 		if err := session.Query(stmt).Exec(); err != nil {

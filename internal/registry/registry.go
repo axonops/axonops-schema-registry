@@ -11,6 +11,7 @@ import (
 
 	"github.com/axonops/axonops-schema-registry/internal/compatibility"
 	registrycontext "github.com/axonops/axonops-schema-registry/internal/context"
+	"github.com/axonops/axonops-schema-registry/internal/kms"
 	"github.com/axonops/axonops-schema-registry/internal/rules"
 	"github.com/axonops/axonops-schema-registry/internal/schema"
 	"github.com/axonops/axonops-schema-registry/internal/storage"
@@ -29,6 +30,7 @@ type Registry struct {
 	schemaParser  *schema.Registry
 	compatChecker *compatibility.Checker
 	defaultConfig string
+	kmsRegistry   *kms.Registry
 }
 
 // New creates a new Registry.
@@ -39,6 +41,12 @@ func New(store storage.Storage, parser *schema.Registry, compatChecker *compatib
 		compatChecker: compatChecker,
 		defaultConfig: defaultCompatibility,
 	}
+}
+
+// SetKMSRegistry sets the KMS provider registry for server-side DEK operations.
+// When set, CreateDEK can generate and wrap key material for shared KEKs.
+func (r *Registry) SetKMSRegistry(reg *kms.Registry) {
+	r.kmsRegistry = reg
 }
 
 // RegisterOpts holds optional parameters for schema registration.

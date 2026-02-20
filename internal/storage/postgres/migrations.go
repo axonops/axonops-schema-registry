@@ -239,4 +239,53 @@ var migrations = []string{
 	// Drop the unique index and replace with a non-unique index for lookups.
 	`DROP INDEX IF EXISTS idx_schemas_ctx_subj_fp`,
 	`CREATE INDEX IF NOT EXISTS idx_schemas_ctx_subj_fp ON schemas(registry_ctx, subject, fingerprint)`,
+
+	// Migration 42: KEKs table (CSFLE)
+	`CREATE TABLE IF NOT EXISTS keks (
+		name VARCHAR(255) PRIMARY KEY,
+		kms_type VARCHAR(50) NOT NULL,
+		kms_key_id VARCHAR(500) NOT NULL,
+		kms_props JSONB,
+		doc TEXT,
+		shared BOOLEAN NOT NULL DEFAULT FALSE,
+		deleted BOOLEAN NOT NULL DEFAULT FALSE,
+		ts BIGINT NOT NULL DEFAULT 0,
+		created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+		updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+	)`,
+
+	// Migration 43: DEKs table (CSFLE)
+	`CREATE TABLE IF NOT EXISTS deks (
+		kek_name VARCHAR(255) NOT NULL,
+		subject VARCHAR(255) NOT NULL,
+		version INTEGER NOT NULL,
+		algorithm VARCHAR(50) NOT NULL DEFAULT 'AES256_GCM',
+		encrypted_key_material TEXT,
+		deleted BOOLEAN NOT NULL DEFAULT FALSE,
+		ts BIGINT NOT NULL DEFAULT 0,
+		PRIMARY KEY (kek_name, subject, version, algorithm)
+	)`,
+
+	`CREATE INDEX IF NOT EXISTS idx_deks_kek_name ON deks(kek_name)`,
+
+	// Migration 44: Exporters table
+	`CREATE TABLE IF NOT EXISTS exporters (
+		name VARCHAR(255) PRIMARY KEY,
+		context_type VARCHAR(50),
+		context VARCHAR(255),
+		subjects JSONB,
+		subject_rename_format VARCHAR(255),
+		config JSONB,
+		created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+		updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+	)`,
+
+	// Migration 45: Exporter statuses table
+	`CREATE TABLE IF NOT EXISTS exporter_statuses (
+		name VARCHAR(255) PRIMARY KEY REFERENCES exporters(name) ON DELETE CASCADE,
+		state VARCHAR(50) NOT NULL DEFAULT 'PAUSED',
+		"offset" BIGINT NOT NULL DEFAULT 0,
+		ts BIGINT NOT NULL DEFAULT 0,
+		trace TEXT
+	)`,
 }

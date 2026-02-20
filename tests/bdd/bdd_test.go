@@ -37,6 +37,7 @@ import (
 	_ "github.com/lib/pq"
 
 	"github.com/axonops/axonops-schema-registry/internal/api"
+	"github.com/axonops/axonops-schema-registry/internal/auth"
 	"github.com/axonops/axonops-schema-registry/internal/compatibility"
 	avrocompat "github.com/axonops/axonops-schema-registry/internal/compatibility/avro"
 	jsoncompat "github.com/axonops/axonops-schema-registry/internal/compatibility/jsonschema"
@@ -139,6 +140,69 @@ func newTestServer() (*httptest.Server, storage.Storage) {
 	return httptest.NewServer(server), store
 }
 
+// newAuthTestServer creates an in-process schema registry with authentication enabled.
+// It pre-seeds a super_admin user ("admin" / "admin-password") for testing.
+func newAuthTestServer() (*httptest.Server, storage.Storage, *auth.Service) {
+	store := memory.NewStore()
+
+	schemaRegistry := schema.NewRegistry()
+	schemaRegistry.Register(avro.NewParser())
+	schemaRegistry.Register(protobuf.NewParser())
+	schemaRegistry.Register(jsonschema.NewParser())
+
+	compatChecker := compatibility.NewChecker()
+	compatChecker.Register(storage.SchemaTypeAvro, avrocompat.NewChecker())
+	compatChecker.Register(storage.SchemaTypeProtobuf, protocompat.NewChecker())
+	compatChecker.Register(storage.SchemaTypeJSON, jsoncompat.NewChecker())
+
+	reg := registry.New(store, schemaRegistry, compatChecker, "BACKWARD")
+
+	// Configure auth with basic + api_key methods
+	authCfg := config.AuthConfig{
+		Enabled: true,
+		Methods: []string{"basic", "api_key"},
+		APIKey: config.APIKeyConfig{
+			Header: "X-API-Key",
+		},
+		RBAC: config.RBACConfig{
+			Enabled:     true,
+			DefaultRole: "readonly",
+		},
+	}
+
+	authenticator := auth.NewAuthenticator(authCfg)
+	authService := auth.NewServiceWithConfig(store, auth.ServiceConfig{
+		CacheRefreshInterval: 0, // disable background refresh for tests
+		UserCacheTTL:         0, // disable credential caching for tests
+	})
+	authenticator.SetService(authService)
+
+	authorizer := auth.NewAuthorizer(authCfg.RBAC)
+
+	cfg := &config.Config{
+		Server: config.ServerConfig{Host: "localhost", Port: 0},
+		Security: config.SecurityConfig{
+			Auth: authCfg,
+		},
+	}
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+
+	server := api.NewServer(cfg, reg, logger, api.WithAuth(authenticator, authorizer, authService))
+
+	// Pre-seed a super_admin user
+	_, err := authService.CreateUser(context.Background(), auth.CreateUserRequest{
+		Username: "admin",
+		Password: "admin-password",
+		Role:     "super_admin",
+		Enabled:  true,
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to create seed admin user: %v", err))
+	}
+
+	return httptest.NewServer(server), store, authService
+}
+
 func TestFeatures(t *testing.T) {
 	// In-process: skip @operational (no Docker infrastructure).
 	// Docker mode: run everything for this backend, skip other backends. BDD_TAGS overrides.
@@ -146,7 +210,7 @@ func TestFeatures(t *testing.T) {
 	if envTags := os.Getenv("BDD_TAGS"); envTags != "" {
 		tags = envTags
 	} else if !dockerMode && registryURL == "" {
-		tags = "~@operational && ~@pending-impl"
+		tags = "~@operational && ~@pending-impl && ~@auth"
 	} else if backend == "confluent" {
 		// Confluent: exclude operational, import (our custom API), axonops-only, contexts (our multi-tenant),
 		// pending-impl, data-contracts (ruleSet features require commercial Confluent license),
@@ -213,12 +277,57 @@ func TestFeatures(t *testing.T) {
 			steps.RegisterModeSteps(ctx, tc)
 			steps.RegisterReferenceSteps(ctx, tc)
 			steps.RegisterInfraSteps(ctx, tc)
+			steps.RegisterAuthSteps(ctx, tc)
 		},
 		Options: &opts,
 	}
 
 	if suite.Run() != 0 {
 		t.Fatal("BDD tests failed")
+	}
+}
+
+// TestAuthFeatures runs BDD tests that require authentication enabled.
+// These tests use a separate in-process server with auth, RBAC, and a pre-seeded admin user.
+func TestAuthFeatures(t *testing.T) {
+	// Auth BDD tests only run in-process (no Docker mode for auth tests)
+	if dockerMode || registryURL != "" {
+		t.Skip("Auth BDD tests only run in-process mode")
+	}
+
+	opts := godog.Options{
+		Format:   "pretty",
+		Output:   colors.Colored(os.Stdout),
+		Paths:    []string{"features"},
+		Tags:     "@auth",
+		TestingT: t,
+	}
+
+	suite := godog.TestSuite{
+		ScenarioInitializer: func(ctx *godog.ScenarioContext) {
+			ts, store, authSvc := newAuthTestServer()
+			tc := steps.NewTestContext(ts.URL)
+
+			ctx.After(func(gctx context.Context, sc *godog.Scenario, err error) (context.Context, error) {
+				authSvc.Close()
+				ts.Close()
+				store.Close()
+				return gctx, nil
+			})
+
+			// Register all step definitions (auth scenarios may also use schema steps)
+			steps.RegisterSchemaSteps(ctx, tc)
+			steps.RegisterImportSteps(ctx, tc)
+			steps.RegisterModeSteps(ctx, tc)
+			steps.RegisterReferenceSteps(ctx, tc)
+			steps.RegisterInfraSteps(ctx, tc)
+			steps.RegisterAuthSteps(ctx, tc)
+		},
+		Options: &opts,
+	}
+
+	if suite.Run() != 0 {
+		t.Fatal("Auth BDD tests failed")
 	}
 }
 
@@ -260,6 +369,12 @@ func cleanPostgres() error {
 	}
 	defer db.Close()
 
+	// Truncate new tables first — ignore errors if tables don't exist yet (older migrations)
+	optionalTables := []string{"exporter_statuses", "exporters", "deks", "keks"}
+	for _, t := range optionalTables {
+		db.Exec("TRUNCATE TABLE " + t + " CASCADE") // ignore error
+	}
+
 	stmts := []string{
 		"TRUNCATE TABLE api_keys, users, schema_references, schema_fingerprints, schemas, modes, configs, ctx_id_alloc, contexts CASCADE",
 		"ALTER SEQUENCE schemas_id_seq RESTART WITH 1",
@@ -285,10 +400,15 @@ func cleanMySQL() error {
 	}
 	defer db.Close()
 
-	tables := []string{"api_keys", "users", "schema_references", "schema_fingerprints", "schemas", "modes", "configs", "ctx_id_alloc", "contexts"}
 	if _, err := db.Exec("SET FOREIGN_KEY_CHECKS = 0"); err != nil {
 		return fmt.Errorf("disable FK checks: %w", err)
 	}
+	// Truncate new tables first — ignore errors if tables don't exist yet
+	optionalTables := []string{"exporter_statuses", "exporters", "deks", "keks"}
+	for _, t := range optionalTables {
+		db.Exec("TRUNCATE TABLE `" + t + "`") // ignore error
+	}
+	tables := []string{"api_keys", "users", "schema_references", "schema_fingerprints", "schemas", "modes", "configs", "ctx_id_alloc", "contexts"}
 	for _, t := range tables {
 		if _, err := db.Exec("TRUNCATE TABLE `" + t + "`"); err != nil {
 			return fmt.Errorf("truncate %s: %w", t, err)
@@ -336,6 +456,16 @@ func cleanCassandra() error {
 		return err
 	}
 
+	// Truncate new tables first — ignore errors if tables don't exist yet
+	optionalTables := []string{"exporter_statuses", "exporters", "deks", "deks_by_kek", "keks", "schema_fingerprints"}
+	for _, t := range optionalTables {
+		if err := session.Query("TRUNCATE " + t).Exec(); err != nil {
+			if !strings.Contains(err.Error(), "unconfigured table") && !strings.Contains(err.Error(), "not found") {
+				return fmt.Errorf("truncate %s: %w", t, err)
+			}
+		}
+	}
+
 	tables := []string{
 		"api_keys_by_hash", "api_keys_by_user", "api_keys_by_id",
 		"users_by_email", "users_by_id",
@@ -347,13 +477,6 @@ func cleanCassandra() error {
 	for _, t := range tables {
 		if err := session.Query("TRUNCATE " + t).Exec(); err != nil {
 			return fmt.Errorf("truncate %s: %w", t, err)
-		}
-	}
-	// schema_fingerprints may not exist on older schema-registry images;
-	// ignore "unconfigured table" errors so cleanup stays compatible.
-	if err := session.Query("TRUNCATE schema_fingerprints").Exec(); err != nil {
-		if !strings.Contains(err.Error(), "unconfigured table") {
-			return fmt.Errorf("truncate schema_fingerprints: %w", err)
 		}
 	}
 
@@ -456,6 +579,69 @@ func cleanViaAPI() error {
 		return fmt.Errorf("reset config: %w", err)
 	}
 	r.Body.Close()
+
+	// 6. Delete all KEKs (and their associated DEKs) via the DEK Registry API.
+	resp, err = client.Get(registryURL + "/dek-registry/v1/keks")
+	if err == nil && resp.StatusCode == 200 {
+		body, _ = io.ReadAll(resp.Body)
+		resp.Body.Close()
+		var keks []map[string]interface{}
+		if json.Unmarshal(body, &keks) == nil {
+			for _, kek := range keks {
+				if name, ok := kek["name"].(string); ok {
+					// Soft-delete KEK first
+					delReq, _ := http.NewRequest("DELETE", registryURL+"/dek-registry/v1/keks/"+url.PathEscape(name), nil)
+					if dr, err := client.Do(delReq); err == nil {
+						dr.Body.Close()
+					}
+					// Permanent delete
+					delReq, _ = http.NewRequest("DELETE", registryURL+"/dek-registry/v1/keks/"+url.PathEscape(name)+"?permanent=true", nil)
+					if dr, err := client.Do(delReq); err == nil {
+						dr.Body.Close()
+					}
+				}
+			}
+		}
+	} else if resp != nil {
+		resp.Body.Close()
+	}
+	// Also try listing with deleted=true for soft-deleted KEKs
+	resp, err = client.Get(registryURL + "/dek-registry/v1/keks?deleted=true")
+	if err == nil && resp.StatusCode == 200 {
+		body, _ = io.ReadAll(resp.Body)
+		resp.Body.Close()
+		var keks []map[string]interface{}
+		if json.Unmarshal(body, &keks) == nil {
+			for _, kek := range keks {
+				if name, ok := kek["name"].(string); ok {
+					delReq, _ := http.NewRequest("DELETE", registryURL+"/dek-registry/v1/keks/"+url.PathEscape(name)+"?permanent=true", nil)
+					if dr, err := client.Do(delReq); err == nil {
+						dr.Body.Close()
+					}
+				}
+			}
+		}
+	} else if resp != nil {
+		resp.Body.Close()
+	}
+
+	// 7. Delete all exporters via the Exporters API.
+	resp, err = client.Get(registryURL + "/exporters")
+	if err == nil && resp.StatusCode == 200 {
+		body, _ = io.ReadAll(resp.Body)
+		resp.Body.Close()
+		var exporterNames []string
+		if json.Unmarshal(body, &exporterNames) == nil {
+			for _, name := range exporterNames {
+				delReq, _ := http.NewRequest("DELETE", registryURL+"/exporters/"+url.PathEscape(name), nil)
+				if dr, err := client.Do(delReq); err == nil {
+					dr.Body.Close()
+				}
+			}
+		}
+	} else if resp != nil {
+		resp.Body.Close()
+	}
 
 	return nil
 }

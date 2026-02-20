@@ -2264,90 +2264,764 @@ func (c Config) MarshalJSON() ([]byte, error) {
 	})
 }
 
+// CreateExporter creates a new exporter record.
 func (s *Store) CreateExporter(ctx context.Context, exporter *storage.ExporterRecord) error {
-	return fmt.Errorf("exporters not yet implemented for MySQL backend")
+	subjectsJSON, err := marshalJSON(exporter.Subjects)
+	if err != nil {
+		return fmt.Errorf("failed to marshal subjects: %w", err)
+	}
+	configJSON, err := marshalJSON(exporter.Config)
+	if err != nil {
+		return fmt.Errorf("failed to marshal config: %w", err)
+	}
+
+	now := time.Now()
+	_, err = s.db.ExecContext(ctx,
+		"INSERT INTO exporters (name, context_type, context, subjects, subject_rename_format, config, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+		exporter.Name, exporter.ContextType, exporter.Context, subjectsJSON, exporter.SubjectRenameFormat, configJSON, now, now)
+	if err != nil {
+		if isMySQLDuplicateError(err) {
+			return storage.ErrExporterExists
+		}
+		return fmt.Errorf("failed to create exporter: %w", err)
+	}
+
+	exporter.CreatedAt = now
+	exporter.UpdatedAt = now
+	return nil
 }
 
+// GetExporter retrieves an exporter by name.
 func (s *Store) GetExporter(ctx context.Context, name string) (*storage.ExporterRecord, error) {
-	return nil, fmt.Errorf("exporters not yet implemented for MySQL backend")
+	exporter := &storage.ExporterRecord{}
+	var subjectsBytes, configBytes []byte
+	var contextType, ctxVal, subjectRenameFormat sql.NullString
+
+	err := s.db.QueryRowContext(ctx,
+		"SELECT name, context_type, context, subjects, subject_rename_format, config, created_at, updated_at FROM exporters WHERE name = ?",
+		name).Scan(
+		&exporter.Name, &contextType, &ctxVal, &subjectsBytes, &subjectRenameFormat, &configBytes,
+		&exporter.CreatedAt, &exporter.UpdatedAt)
+	if err == sql.ErrNoRows {
+		return nil, storage.ErrExporterNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get exporter: %w", err)
+	}
+
+	if contextType.Valid {
+		exporter.ContextType = contextType.String
+	}
+	if ctxVal.Valid {
+		exporter.Context = ctxVal.String
+	}
+	if subjectRenameFormat.Valid {
+		exporter.SubjectRenameFormat = subjectRenameFormat.String
+	}
+
+	if len(subjectsBytes) > 0 {
+		if err := json.Unmarshal(subjectsBytes, &exporter.Subjects); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal subjects: %w", err)
+		}
+	}
+	if len(configBytes) > 0 {
+		if err := json.Unmarshal(configBytes, &exporter.Config); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal config: %w", err)
+		}
+	}
+
+	return exporter, nil
 }
 
+// UpdateExporter updates an existing exporter.
 func (s *Store) UpdateExporter(ctx context.Context, exporter *storage.ExporterRecord) error {
-	return fmt.Errorf("exporters not yet implemented for MySQL backend")
+	subjectsJSON, err := marshalJSON(exporter.Subjects)
+	if err != nil {
+		return fmt.Errorf("failed to marshal subjects: %w", err)
+	}
+	configJSON, err := marshalJSON(exporter.Config)
+	if err != nil {
+		return fmt.Errorf("failed to marshal config: %w", err)
+	}
+
+	now := time.Now()
+	result, err := s.db.ExecContext(ctx,
+		"UPDATE exporters SET context_type = ?, context = ?, subjects = ?, subject_rename_format = ?, config = ?, updated_at = ? WHERE name = ?",
+		exporter.ContextType, exporter.Context, subjectsJSON, exporter.SubjectRenameFormat, configJSON, now, exporter.Name)
+	if err != nil {
+		return fmt.Errorf("failed to update exporter: %w", err)
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return storage.ErrExporterNotFound
+	}
+
+	exporter.UpdatedAt = now
+	return nil
 }
 
+// DeleteExporter deletes an exporter by name and its associated status (via CASCADE).
 func (s *Store) DeleteExporter(ctx context.Context, name string) error {
-	return fmt.Errorf("exporters not yet implemented for MySQL backend")
+	result, err := s.db.ExecContext(ctx, "DELETE FROM exporters WHERE name = ?", name)
+	if err != nil {
+		return fmt.Errorf("failed to delete exporter: %w", err)
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return storage.ErrExporterNotFound
+	}
+
+	return nil
 }
 
+// ListExporters returns a sorted list of all exporter names.
 func (s *Store) ListExporters(ctx context.Context) ([]string, error) {
-	return nil, fmt.Errorf("exporters not yet implemented for MySQL backend")
+	rows, err := s.db.QueryContext(ctx, "SELECT name FROM exporters ORDER BY name")
+	if err != nil {
+		return nil, fmt.Errorf("failed to query exporters: %w", err)
+	}
+	defer rows.Close()
+
+	var names []string
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, fmt.Errorf("failed to scan row: %w", err)
+		}
+		names = append(names, name)
+	}
+	return names, nil
 }
 
+// GetExporterStatus retrieves the status of an exporter.
+// If no status row exists but the exporter does, returns a default status with State "PAUSED".
 func (s *Store) GetExporterStatus(ctx context.Context, name string) (*storage.ExporterStatusRecord, error) {
-	return nil, fmt.Errorf("exporters not yet implemented for MySQL backend")
+	// First check if the exporter exists
+	var exists int
+	err := s.db.QueryRowContext(ctx, "SELECT 1 FROM exporters WHERE name = ?", name).Scan(&exists)
+	if err == sql.ErrNoRows {
+		return nil, storage.ErrExporterNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to check exporter: %w", err)
+	}
+
+	status := &storage.ExporterStatusRecord{}
+	var trace sql.NullString
+	err = s.db.QueryRowContext(ctx,
+		"SELECT name, state, `offset`, ts, trace FROM exporter_statuses WHERE name = ?",
+		name).Scan(&status.Name, &status.State, &status.Offset, &status.Ts, &trace)
+	if err == sql.ErrNoRows {
+		return &storage.ExporterStatusRecord{
+			Name:  name,
+			State: "PAUSED",
+		}, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get exporter status: %w", err)
+	}
+
+	if trace.Valid {
+		status.Trace = trace.String
+	}
+	return status, nil
 }
 
+// SetExporterStatus sets the status of an exporter.
 func (s *Store) SetExporterStatus(ctx context.Context, name string, status *storage.ExporterStatusRecord) error {
-	return fmt.Errorf("exporters not yet implemented for MySQL backend")
+	// Check if the exporter exists
+	var exists int
+	err := s.db.QueryRowContext(ctx, "SELECT 1 FROM exporters WHERE name = ?", name).Scan(&exists)
+	if err == sql.ErrNoRows {
+		return storage.ErrExporterNotFound
+	}
+	if err != nil {
+		return fmt.Errorf("failed to check exporter: %w", err)
+	}
+
+	_, err = s.db.ExecContext(ctx,
+		"INSERT INTO exporter_statuses (name, state, `offset`, ts, trace) VALUES (?, ?, ?, ?, ?) "+
+			"ON DUPLICATE KEY UPDATE state = VALUES(state), `offset` = VALUES(`offset`), ts = VALUES(ts), trace = VALUES(trace)",
+		name, status.State, status.Offset, status.Ts, status.Trace)
+	if err != nil {
+		return fmt.Errorf("failed to set exporter status: %w", err)
+	}
+
+	return nil
 }
 
+// GetExporterConfig retrieves the configuration of an exporter.
 func (s *Store) GetExporterConfig(ctx context.Context, name string) (map[string]string, error) {
-	return nil, fmt.Errorf("exporters not yet implemented for MySQL backend")
+	var configBytes []byte
+	err := s.db.QueryRowContext(ctx, "SELECT config FROM exporters WHERE name = ?", name).Scan(&configBytes)
+	if err == sql.ErrNoRows {
+		return nil, storage.ErrExporterNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get exporter config: %w", err)
+	}
+
+	config := make(map[string]string)
+	if len(configBytes) > 0 {
+		if err := json.Unmarshal(configBytes, &config); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal config: %w", err)
+		}
+	}
+	return config, nil
 }
 
+// UpdateExporterConfig updates the configuration of an exporter.
 func (s *Store) UpdateExporterConfig(ctx context.Context, name string, config map[string]string) error {
-	return fmt.Errorf("exporters not yet implemented for MySQL backend")
+	configJSON, err := marshalJSON(config)
+	if err != nil {
+		return fmt.Errorf("failed to marshal config: %w", err)
+	}
+
+	result, err := s.db.ExecContext(ctx,
+		"UPDATE exporters SET config = ?, updated_at = ? WHERE name = ?",
+		configJSON, time.Now(), name)
+	if err != nil {
+		return fmt.Errorf("failed to update exporter config: %w", err)
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return storage.ErrExporterNotFound
+	}
+
+	return nil
 }
 
-// KEK operations (CSFLE)
+// KEK operations (CSFLE - Client-Side Field Level Encryption)
 
+// CreateKEK creates a new Key Encryption Key.
 func (s *Store) CreateKEK(ctx context.Context, kek *storage.KEKRecord) error {
-	return fmt.Errorf("DEK registry not yet implemented for MySQL backend")
+	kmsPropsJSON, err := marshalJSON(kek.KmsProps)
+	if err != nil {
+		return fmt.Errorf("failed to marshal kms_props: %w", err)
+	}
+
+	now := time.Now()
+	kek.Ts = now.UnixMilli()
+
+	_, err = s.db.ExecContext(ctx,
+		"INSERT INTO keks (name, kms_type, kms_key_id, kms_props, doc, shared, deleted, ts, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+		kek.Name, kek.KmsType, kek.KmsKeyID, kmsPropsJSON, kek.Doc, kek.Shared, kek.Deleted, kek.Ts, now, now)
+	if err != nil {
+		if isMySQLDuplicateError(err) {
+			return storage.ErrKEKExists
+		}
+		return fmt.Errorf("failed to create KEK: %w", err)
+	}
+
+	kek.CreatedAt = now
+	kek.UpdatedAt = now
+	return nil
 }
 
+// GetKEK retrieves a Key Encryption Key by name.
 func (s *Store) GetKEK(ctx context.Context, name string, includeDeleted bool) (*storage.KEKRecord, error) {
-	return nil, fmt.Errorf("DEK registry not yet implemented for MySQL backend")
+	kek := &storage.KEKRecord{}
+	var kmsPropsBytes []byte
+	var doc sql.NullString
+
+	err := s.db.QueryRowContext(ctx,
+		"SELECT name, kms_type, kms_key_id, kms_props, doc, shared, deleted, ts, created_at, updated_at FROM keks WHERE name = ?",
+		name).Scan(
+		&kek.Name, &kek.KmsType, &kek.KmsKeyID, &kmsPropsBytes, &doc,
+		&kek.Shared, &kek.Deleted, &kek.Ts, &kek.CreatedAt, &kek.UpdatedAt)
+	if err == sql.ErrNoRows {
+		return nil, storage.ErrKEKNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get KEK: %w", err)
+	}
+
+	if !includeDeleted && kek.Deleted {
+		return nil, storage.ErrKEKNotFound
+	}
+
+	if doc.Valid {
+		kek.Doc = doc.String
+	}
+	if len(kmsPropsBytes) > 0 {
+		if err := json.Unmarshal(kmsPropsBytes, &kek.KmsProps); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal kms_props: %w", err)
+		}
+	}
+
+	return kek, nil
 }
 
+// UpdateKEK updates an existing Key Encryption Key.
 func (s *Store) UpdateKEK(ctx context.Context, kek *storage.KEKRecord) error {
-	return fmt.Errorf("DEK registry not yet implemented for MySQL backend")
+	kmsPropsJSON, err := marshalJSON(kek.KmsProps)
+	if err != nil {
+		return fmt.Errorf("failed to marshal kms_props: %w", err)
+	}
+
+	now := time.Now()
+	kek.Ts = now.UnixMilli()
+
+	result, err := s.db.ExecContext(ctx,
+		"UPDATE keks SET kms_type = ?, kms_key_id = ?, kms_props = ?, doc = ?, shared = ?, deleted = ?, ts = ?, updated_at = ? WHERE name = ?",
+		kek.KmsType, kek.KmsKeyID, kmsPropsJSON, kek.Doc, kek.Shared, kek.Deleted, kek.Ts, now, kek.Name)
+	if err != nil {
+		return fmt.Errorf("failed to update KEK: %w", err)
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return storage.ErrKEKNotFound
+	}
+
+	kek.UpdatedAt = now
+	return nil
 }
 
+// DeleteKEK soft-deletes or permanently deletes a Key Encryption Key.
+// Permanent delete also removes all associated DEKs.
 func (s *Store) DeleteKEK(ctx context.Context, name string, permanent bool) error {
-	return fmt.Errorf("DEK registry not yet implemented for MySQL backend")
+	if permanent {
+		// Permanently delete the KEK and all associated DEKs
+		tx, err := s.db.BeginTx(ctx, nil)
+		if err != nil {
+			return fmt.Errorf("failed to begin transaction: %w", err)
+		}
+		defer func() { _ = tx.Rollback() }()
+
+		// Check KEK exists
+		var exists int
+		err = tx.QueryRowContext(ctx, "SELECT 1 FROM keks WHERE name = ?", name).Scan(&exists)
+		if err == sql.ErrNoRows {
+			return storage.ErrKEKNotFound
+		}
+		if err != nil {
+			return fmt.Errorf("failed to check KEK: %w", err)
+		}
+
+		// Delete all DEKs under this KEK
+		_, err = tx.ExecContext(ctx, "DELETE FROM deks WHERE kek_name = ?", name)
+		if err != nil {
+			return fmt.Errorf("failed to delete DEKs: %w", err)
+		}
+
+		// Delete the KEK
+		_, err = tx.ExecContext(ctx, "DELETE FROM keks WHERE name = ?", name)
+		if err != nil {
+			return fmt.Errorf("failed to delete KEK: %w", err)
+		}
+
+		return tx.Commit()
+	}
+
+	// Soft delete
+	now := time.Now()
+	result, err := s.db.ExecContext(ctx,
+		"UPDATE keks SET deleted = TRUE, ts = ? WHERE name = ?",
+		now.UnixMilli(), name)
+	if err != nil {
+		return fmt.Errorf("failed to soft-delete KEK: %w", err)
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return storage.ErrKEKNotFound
+	}
+
+	return nil
 }
 
+// UndeleteKEK restores a soft-deleted Key Encryption Key.
 func (s *Store) UndeleteKEK(ctx context.Context, name string) error {
-	return fmt.Errorf("DEK registry not yet implemented for MySQL backend")
+	// Check if the KEK exists and is deleted
+	var deleted bool
+	err := s.db.QueryRowContext(ctx, "SELECT deleted FROM keks WHERE name = ?", name).Scan(&deleted)
+	if err == sql.ErrNoRows {
+		return storage.ErrKEKNotFound
+	}
+	if err != nil {
+		return fmt.Errorf("failed to check KEK: %w", err)
+	}
+
+	if !deleted {
+		return storage.ErrKEKNotFound
+	}
+
+	now := time.Now()
+	_, err = s.db.ExecContext(ctx,
+		"UPDATE keks SET deleted = FALSE, ts = ? WHERE name = ?",
+		now.UnixMilli(), name)
+	if err != nil {
+		return fmt.Errorf("failed to undelete KEK: %w", err)
+	}
+
+	return nil
 }
 
+// ListKEKs returns all Key Encryption Keys, sorted by name.
 func (s *Store) ListKEKs(ctx context.Context, includeDeleted bool) ([]*storage.KEKRecord, error) {
-	return nil, fmt.Errorf("DEK registry not yet implemented for MySQL backend")
+	query := "SELECT name, kms_type, kms_key_id, kms_props, doc, shared, deleted, ts, created_at, updated_at FROM keks"
+	if !includeDeleted {
+		query += " WHERE deleted = FALSE"
+	}
+	query += " ORDER BY name"
+
+	rows, err := s.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query KEKs: %w", err)
+	}
+	defer rows.Close()
+
+	var keks []*storage.KEKRecord
+	for rows.Next() {
+		kek := &storage.KEKRecord{}
+		var kmsPropsBytes []byte
+		var doc sql.NullString
+		if err := rows.Scan(&kek.Name, &kek.KmsType, &kek.KmsKeyID, &kmsPropsBytes, &doc,
+			&kek.Shared, &kek.Deleted, &kek.Ts, &kek.CreatedAt, &kek.UpdatedAt); err != nil {
+			return nil, fmt.Errorf("failed to scan row: %w", err)
+		}
+		if doc.Valid {
+			kek.Doc = doc.String
+		}
+		if len(kmsPropsBytes) > 0 {
+			if err := json.Unmarshal(kmsPropsBytes, &kek.KmsProps); err != nil {
+				return nil, fmt.Errorf("failed to unmarshal kms_props: %w", err)
+			}
+		}
+		keks = append(keks, kek)
+	}
+
+	return keks, nil
 }
 
-// DEK operations (CSFLE)
+// DEK operations (CSFLE - Client-Side Field Level Encryption)
 
+// CreateDEK creates a new Data Encryption Key under an existing KEK.
+// Auto-assigns version if version <= 0 (SELECT MAX(version) + 1).
 func (s *Store) CreateDEK(ctx context.Context, dek *storage.DEKRecord) error {
-	return fmt.Errorf("DEK registry not yet implemented for MySQL backend")
+	// Check that the KEK exists
+	var kekExists int
+	err := s.db.QueryRowContext(ctx, "SELECT 1 FROM keks WHERE name = ?", dek.KEKName).Scan(&kekExists)
+	if err == sql.ErrNoRows {
+		return storage.ErrKEKNotFound
+	}
+	if err != nil {
+		return fmt.Errorf("failed to check KEK: %w", err)
+	}
+
+	// Default algorithm
+	if dek.Algorithm == "" {
+		dek.Algorithm = "AES256_GCM"
+	}
+
+	// Auto-assign version if not specified
+	if dek.Version <= 0 {
+		var maxVersion sql.NullInt64
+		err = s.db.QueryRowContext(ctx,
+			"SELECT MAX(version) FROM deks WHERE kek_name = ? AND subject = ? AND algorithm = ?",
+			dek.KEKName, dek.Subject, dek.Algorithm).Scan(&maxVersion)
+		if err != nil {
+			return fmt.Errorf("failed to get max version: %w", err)
+		}
+		if maxVersion.Valid {
+			dek.Version = int(maxVersion.Int64) + 1
+		} else {
+			dek.Version = 1
+		}
+	}
+
+	dek.Ts = time.Now().UnixMilli()
+
+	_, err = s.db.ExecContext(ctx,
+		"INSERT INTO deks (kek_name, subject, version, algorithm, encrypted_key_material, deleted, ts) VALUES (?, ?, ?, ?, ?, ?, ?)",
+		dek.KEKName, dek.Subject, dek.Version, dek.Algorithm, dek.EncryptedKeyMaterial, dek.Deleted, dek.Ts)
+	if err != nil {
+		if isMySQLDuplicateError(err) {
+			return storage.ErrDEKExists
+		}
+		return fmt.Errorf("failed to create DEK: %w", err)
+	}
+
+	return nil
 }
 
+// GetDEK retrieves a Data Encryption Key.
+// If version <= 0, returns the latest version. If algorithm is non-empty, filters by it.
 func (s *Store) GetDEK(ctx context.Context, kekName, subject string, version int, algorithm string, includeDeleted bool) (*storage.DEKRecord, error) {
-	return nil, fmt.Errorf("DEK registry not yet implemented for MySQL backend")
+	dek := &storage.DEKRecord{}
+	var encryptedKeyMaterial sql.NullString
+
+	if version <= 0 {
+		// Find the latest version
+		query := "SELECT kek_name, subject, version, algorithm, encrypted_key_material, deleted, ts FROM deks WHERE kek_name = ? AND subject = ?"
+		args := []interface{}{kekName, subject}
+		if !includeDeleted {
+			query += " AND deleted = FALSE"
+		}
+		if algorithm != "" {
+			query += " AND algorithm = ?"
+			args = append(args, algorithm)
+		}
+		query += " ORDER BY version DESC LIMIT 1"
+
+		err := s.db.QueryRowContext(ctx, query, args...).Scan(
+			&dek.KEKName, &dek.Subject, &dek.Version, &dek.Algorithm,
+			&encryptedKeyMaterial, &dek.Deleted, &dek.Ts)
+		if err == sql.ErrNoRows {
+			return nil, storage.ErrDEKNotFound
+		}
+		if err != nil {
+			return nil, fmt.Errorf("failed to get DEK: %w", err)
+		}
+	} else {
+		query := "SELECT kek_name, subject, version, algorithm, encrypted_key_material, deleted, ts FROM deks WHERE kek_name = ? AND subject = ? AND version = ?"
+		args := []interface{}{kekName, subject, version}
+		if algorithm != "" {
+			query += " AND algorithm = ?"
+			args = append(args, algorithm)
+		}
+
+		err := s.db.QueryRowContext(ctx, query, args...).Scan(
+			&dek.KEKName, &dek.Subject, &dek.Version, &dek.Algorithm,
+			&encryptedKeyMaterial, &dek.Deleted, &dek.Ts)
+		if err == sql.ErrNoRows {
+			return nil, storage.ErrDEKNotFound
+		}
+		if err != nil {
+			return nil, fmt.Errorf("failed to get DEK: %w", err)
+		}
+
+		if !includeDeleted && dek.Deleted {
+			return nil, storage.ErrDEKNotFound
+		}
+	}
+
+	if encryptedKeyMaterial.Valid {
+		dek.EncryptedKeyMaterial = encryptedKeyMaterial.String
+	}
+
+	return dek, nil
 }
 
+// ListDEKs returns the sorted list of unique subject names under a KEK.
 func (s *Store) ListDEKs(ctx context.Context, kekName string, includeDeleted bool) ([]string, error) {
-	return nil, fmt.Errorf("DEK registry not yet implemented for MySQL backend")
+	// Check that the KEK exists
+	var kekExists int
+	err := s.db.QueryRowContext(ctx, "SELECT 1 FROM keks WHERE name = ?", kekName).Scan(&kekExists)
+	if err == sql.ErrNoRows {
+		return nil, storage.ErrKEKNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to check KEK: %w", err)
+	}
+
+	query := "SELECT DISTINCT subject FROM deks WHERE kek_name = ?"
+	if !includeDeleted {
+		query += " AND deleted = FALSE"
+	}
+	query += " ORDER BY subject"
+
+	rows, err := s.db.QueryContext(ctx, query, kekName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query DEK subjects: %w", err)
+	}
+	defer rows.Close()
+
+	subjects := []string{}
+	for rows.Next() {
+		var subject string
+		if err := rows.Scan(&subject); err != nil {
+			return nil, fmt.Errorf("failed to scan row: %w", err)
+		}
+		subjects = append(subjects, subject)
+	}
+
+	return subjects, nil
 }
 
+// ListDEKVersions returns the sorted list of version numbers for a KEK+subject combination.
 func (s *Store) ListDEKVersions(ctx context.Context, kekName, subject string, algorithm string, includeDeleted bool) ([]int, error) {
-	return nil, fmt.Errorf("DEK registry not yet implemented for MySQL backend")
+	// Check that the KEK exists
+	var kekExists int
+	err := s.db.QueryRowContext(ctx, "SELECT 1 FROM keks WHERE name = ?", kekName).Scan(&kekExists)
+	if err == sql.ErrNoRows {
+		return nil, storage.ErrKEKNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to check KEK: %w", err)
+	}
+
+	query := "SELECT version FROM deks WHERE kek_name = ? AND subject = ?"
+	args := []interface{}{kekName, subject}
+	if !includeDeleted {
+		query += " AND deleted = FALSE"
+	}
+	if algorithm != "" {
+		query += " AND algorithm = ?"
+		args = append(args, algorithm)
+	}
+	query += " ORDER BY version"
+
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query DEK versions: %w", err)
+	}
+	defer rows.Close()
+
+	versions := []int{}
+	for rows.Next() {
+		var v int
+		if err := rows.Scan(&v); err != nil {
+			return nil, fmt.Errorf("failed to scan row: %w", err)
+		}
+		versions = append(versions, v)
+	}
+
+	return versions, nil
 }
 
+// DeleteDEK soft-deletes or permanently deletes a Data Encryption Key.
+// Version -1 means delete all versions for the kekName+subject combination.
 func (s *Store) DeleteDEK(ctx context.Context, kekName, subject string, version int, algorithm string, permanent bool) error {
-	return fmt.Errorf("DEK registry not yet implemented for MySQL backend")
+	if version == -1 {
+		// Delete all versions matching the criteria
+		query := "SELECT COUNT(*) FROM deks WHERE kek_name = ? AND subject = ?"
+		args := []interface{}{kekName, subject}
+		if algorithm != "" {
+			query += " AND algorithm = ?"
+			args = append(args, algorithm)
+		}
+
+		var count int
+		if err := s.db.QueryRowContext(ctx, query, args...).Scan(&count); err != nil {
+			return fmt.Errorf("failed to count DEKs: %w", err)
+		}
+		if count == 0 {
+			return storage.ErrDEKNotFound
+		}
+
+		if permanent {
+			delQuery := "DELETE FROM deks WHERE kek_name = ? AND subject = ?"
+			delArgs := []interface{}{kekName, subject}
+			if algorithm != "" {
+				delQuery += " AND algorithm = ?"
+				delArgs = append(delArgs, algorithm)
+			}
+			_, err := s.db.ExecContext(ctx, delQuery, delArgs...)
+			if err != nil {
+				return fmt.Errorf("failed to delete DEKs: %w", err)
+			}
+		} else {
+			updQuery := "UPDATE deks SET deleted = TRUE, ts = ? WHERE kek_name = ? AND subject = ?"
+			updArgs := []interface{}{time.Now().UnixMilli(), kekName, subject}
+			if algorithm != "" {
+				updQuery += " AND algorithm = ?"
+				updArgs = append(updArgs, algorithm)
+			}
+			_, err := s.db.ExecContext(ctx, updQuery, updArgs...)
+			if err != nil {
+				return fmt.Errorf("failed to soft-delete DEKs: %w", err)
+			}
+		}
+		return nil
+	}
+
+	// Single version delete
+	if algorithm == "" {
+		algorithm = "AES256_GCM"
+	}
+
+	// Check if the DEK exists
+	var exists int
+	err := s.db.QueryRowContext(ctx,
+		"SELECT 1 FROM deks WHERE kek_name = ? AND subject = ? AND version = ? AND algorithm = ?",
+		kekName, subject, version, algorithm).Scan(&exists)
+	if err == sql.ErrNoRows {
+		return storage.ErrDEKNotFound
+	}
+	if err != nil {
+		return fmt.Errorf("failed to check DEK: %w", err)
+	}
+
+	if permanent {
+		_, err = s.db.ExecContext(ctx,
+			"DELETE FROM deks WHERE kek_name = ? AND subject = ? AND version = ? AND algorithm = ?",
+			kekName, subject, version, algorithm)
+	} else {
+		_, err = s.db.ExecContext(ctx,
+			"UPDATE deks SET deleted = TRUE, ts = ? WHERE kek_name = ? AND subject = ? AND version = ? AND algorithm = ?",
+			time.Now().UnixMilli(), kekName, subject, version, algorithm)
+	}
+	if err != nil {
+		return fmt.Errorf("failed to delete DEK: %w", err)
+	}
+
+	return nil
 }
 
+// UndeleteDEK restores a soft-deleted Data Encryption Key.
+// Version -1 means undelete all deleted versions for the kekName+subject combination.
 func (s *Store) UndeleteDEK(ctx context.Context, kekName, subject string, version int, algorithm string) error {
-	return fmt.Errorf("DEK registry not yet implemented for MySQL backend")
+	if version == -1 {
+		// Undelete all deleted versions matching the criteria
+		query := "SELECT COUNT(*) FROM deks WHERE kek_name = ? AND subject = ? AND deleted = TRUE"
+		args := []interface{}{kekName, subject}
+		if algorithm != "" {
+			query += " AND algorithm = ?"
+			args = append(args, algorithm)
+		}
+
+		var count int
+		if err := s.db.QueryRowContext(ctx, query, args...).Scan(&count); err != nil {
+			return fmt.Errorf("failed to count deleted DEKs: %w", err)
+		}
+		if count == 0 {
+			return storage.ErrDEKNotFound
+		}
+
+		updQuery := "UPDATE deks SET deleted = FALSE, ts = ? WHERE kek_name = ? AND subject = ? AND deleted = TRUE"
+		updArgs := []interface{}{time.Now().UnixMilli(), kekName, subject}
+		if algorithm != "" {
+			updQuery += " AND algorithm = ?"
+			updArgs = append(updArgs, algorithm)
+		}
+		_, err := s.db.ExecContext(ctx, updQuery, updArgs...)
+		if err != nil {
+			return fmt.Errorf("failed to undelete DEKs: %w", err)
+		}
+		return nil
+	}
+
+	// Single version undelete
+	if algorithm == "" {
+		algorithm = "AES256_GCM"
+	}
+
+	var deleted bool
+	err := s.db.QueryRowContext(ctx,
+		"SELECT deleted FROM deks WHERE kek_name = ? AND subject = ? AND version = ? AND algorithm = ?",
+		kekName, subject, version, algorithm).Scan(&deleted)
+	if err == sql.ErrNoRows {
+		return storage.ErrDEKNotFound
+	}
+	if err != nil {
+		return fmt.Errorf("failed to check DEK: %w", err)
+	}
+
+	if !deleted {
+		return storage.ErrDEKNotFound
+	}
+
+	_, err = s.db.ExecContext(ctx,
+		"UPDATE deks SET deleted = FALSE, ts = ? WHERE kek_name = ? AND subject = ? AND version = ? AND algorithm = ?",
+		time.Now().UnixMilli(), kekName, subject, version, algorithm)
+	if err != nil {
+		return fmt.Errorf("failed to undelete DEK: %w", err)
+	}
+
+	return nil
 }

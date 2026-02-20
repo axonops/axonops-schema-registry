@@ -2,6 +2,7 @@ package registry
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"strings"
 
@@ -58,6 +59,9 @@ func (r *Registry) ListKEKs(ctx context.Context, includeDeleted bool) ([]*storag
 }
 
 // CreateDEK creates a new Data Encryption Key.
+// If the parent KEK has shared=true and a KMS provider is configured,
+// the registry generates key material and wraps it using the KMS.
+// The plaintext key material is returned in dek.KeyMaterial (never stored).
 func (r *Registry) CreateDEK(ctx context.Context, dek *storage.DEKRecord) error {
 	if strings.TrimSpace(dek.KEKName) == "" {
 		return fmt.Errorf("kekName is required")
@@ -71,6 +75,27 @@ func (r *Registry) CreateDEK(ctx context.Context, dek *storage.DEKRecord) error 
 	if !validAlgorithms[dek.Algorithm] {
 		return fmt.Errorf("invalid algorithm: %s (must be AES128_GCM, AES256_GCM, or AES256_SIV)", dek.Algorithm)
 	}
+
+	// If no encrypted key material provided and the KEK is shared with a KMS provider,
+	// generate key material server-side.
+	if dek.EncryptedKeyMaterial == "" && r.kmsRegistry != nil {
+		kek, err := r.storage.GetKEK(ctx, dek.KEKName, false)
+		if err != nil {
+			return err
+		}
+		if kek.Shared {
+			provider := r.kmsRegistry.Get(kek.KmsType)
+			if provider != nil {
+				plaintext, wrapped, err := provider.GenerateDataKey(ctx, kek.KmsKeyID, dek.Algorithm, kek.KmsProps)
+				if err != nil {
+					return fmt.Errorf("KMS generate data key: %w", err)
+				}
+				dek.EncryptedKeyMaterial = base64.StdEncoding.EncodeToString(wrapped)
+				dek.KeyMaterial = base64.StdEncoding.EncodeToString(plaintext)
+			}
+		}
+	}
+
 	return r.storage.CreateDEK(ctx, dek)
 }
 

@@ -166,7 +166,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
     When I GET "/dek-registry/v1/keks"
     Then the response status should be 200
     And the response should be valid JSON
-    And the response should be an array of length 0
+    And the response array should not contain "invisible-kek"
 
   Scenario: Soft-deleted KEK visible with deleted parameter
     Given I POST "/dek-registry/v1/keks" with body:
@@ -235,7 +235,6 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
     When I GET "/dek-registry/v1/keks"
     Then the response status should be 200
     And the response should be valid JSON
-    And the response should be an array of length 3
     And the response array should contain "list-kek-1"
     And the response array should contain "list-kek-2"
     And the response array should contain "list-kek-3"

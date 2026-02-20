@@ -218,4 +218,53 @@ var migrations = []string{
 	"ALTER TABLE ctx_id_alloc MODIFY COLUMN registry_ctx VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL DEFAULT '.'",
 	"ALTER TABLE contexts MODIFY COLUMN registry_ctx VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL",
 	"ALTER TABLE schema_references MODIFY COLUMN registry_ctx VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL DEFAULT '.'",
+
+	// Migration 43: KEKs table (Client-Side Field Level Encryption)
+	"CREATE TABLE IF NOT EXISTS keks (" +
+		"name VARCHAR(255) PRIMARY KEY," +
+		"kms_type VARCHAR(50) NOT NULL," +
+		"kms_key_id VARCHAR(500) NOT NULL," +
+		"kms_props JSON," +
+		"doc TEXT," +
+		"shared BOOLEAN NOT NULL DEFAULT FALSE," +
+		"deleted BOOLEAN NOT NULL DEFAULT FALSE," +
+		"ts BIGINT NOT NULL DEFAULT 0," +
+		"created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP," +
+		"updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP" +
+		") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+
+	// Migration 44: DEKs table (Client-Side Field Level Encryption)
+	"CREATE TABLE IF NOT EXISTS deks (" +
+		"kek_name VARCHAR(255) NOT NULL," +
+		"subject VARCHAR(255) NOT NULL," +
+		"version INT NOT NULL," +
+		"algorithm VARCHAR(50) NOT NULL DEFAULT 'AES256_GCM'," +
+		"encrypted_key_material TEXT," +
+		"deleted BOOLEAN NOT NULL DEFAULT FALSE," +
+		"ts BIGINT NOT NULL DEFAULT 0," +
+		"PRIMARY KEY (kek_name, subject, version, algorithm)," +
+		"INDEX idx_deks_kek_name (kek_name)" +
+		") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+
+	// Migration 45: Exporters table (Confluent Schema Linking compatible)
+	"CREATE TABLE IF NOT EXISTS exporters (" +
+		"name VARCHAR(255) PRIMARY KEY," +
+		"context_type VARCHAR(50)," +
+		"context VARCHAR(255)," +
+		"subjects JSON," +
+		"subject_rename_format VARCHAR(255)," +
+		"config JSON," +
+		"created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP," +
+		"updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP" +
+		") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+
+	// Migration 46: Exporter statuses table
+	"CREATE TABLE IF NOT EXISTS exporter_statuses (" +
+		"name VARCHAR(255) PRIMARY KEY," +
+		"state VARCHAR(50) NOT NULL DEFAULT 'PAUSED'," +
+		"`offset` BIGINT NOT NULL DEFAULT 0," +
+		"ts BIGINT NOT NULL DEFAULT 0," +
+		"trace TEXT," +
+		"FOREIGN KEY (name) REFERENCES exporters(name) ON DELETE CASCADE" +
+		") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
 }

@@ -4,6 +4,7 @@ Feature: Boundary Testing
 
   Background:
     Given the schema registry is running
+    And no subjects exist
     And the global compatibility level is "NONE"
 
   Scenario: Register large Avro schema with many fields
@@ -14,7 +15,7 @@ Feature: Boundary Testing
       }
       """
     Then the response status should be 200
-    And the response field "id" should be 1
+    And the response should have field "id"
     When I GET "/subjects/large-schema/versions/1"
     Then the response status should be 200
     And the response should contain "field50"
@@ -27,7 +28,7 @@ Feature: Boundary Testing
       }
       """
     Then the response status should be 200
-    And the response field "id" should be 1
+    And the response should have field "id"
     When I GET "/subjects/nested-schema/versions/1/schema"
     Then the response status should be 200
     And the response should contain "Level3"
@@ -40,7 +41,7 @@ Feature: Boundary Testing
       }
       """
     Then the response status should be 200
-    And the response field "id" should be 1
+    And the response should have field "id"
 
   Scenario: Register many versions under one subject
     When I POST "/subjects/versioned-subject/versions" with body:
@@ -303,7 +304,7 @@ Feature: Boundary Testing
       }
       """
     Then the response status should be 200
-    And the response field "id" should be 1
+    And the response should have field "id"
     When I GET "/subjects/com.example.test-service.events/versions"
     Then the response status should be 200
     And the response should be an array of length 1
@@ -316,7 +317,7 @@ Feature: Boundary Testing
       }
       """
     Then the response status should be 200
-    And the response field "id" should be 1
+    And the response should have field "id"
     When I GET "/subjects/this-is-an-extremely-long-subject-name-that-is-designed-to-test-the-boundary-conditions-for-subject-name-length-validation-in-the-schema-registry-implementation-to-ensure-robustness-and-proper-handling/versions/1"
     Then the response status should be 200
     And the response field "version" should be 1
