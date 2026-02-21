@@ -47,7 +47,7 @@ func DefaultConfig() Config {
 // DSN returns the connection string.
 func (c Config) DSN() string {
 	return fmt.Sprintf(
-		"%s:%s@tcp(%s:%d)/%s?parseTime=true&interpolateParams=true&tls=%s",
+		"%s:%s@tcp(%s:%d)/%s?parseTime=true&tls=%s",
 		c.Username, c.Password, c.Host, c.Port, c.Database, c.TLS,
 	)
 }
@@ -71,20 +71,12 @@ type preparedStatements struct {
 	softDeleteSchema       *sql.Stmt
 	hardDeleteSchema       *sql.Stmt
 	countSchemasBySubject  *sql.Stmt
-	loadReferences         *sql.Stmt
 	getSubjectsBySchemaID  *sql.Stmt
 	getVersionsBySchemaID  *sql.Stmt
 	getReferencedBy        *sql.Stmt
 
-	// Config statements — scoped by registry_ctx
-	getConfig    *sql.Stmt
-	setConfig    *sql.Stmt
-	deleteConfig *sql.Stmt
-
-	// Mode statements — scoped by registry_ctx
-	getMode    *sql.Stmt
-	setMode    *sql.Stmt
-	deleteMode *sql.Stmt
+	// Config and mode statements now use direct queries (s.db.QueryRowContext/ExecContext)
+	// for automatic bad-connection retry. See GetConfig, SetConfig, GetMode, SetMode, etc.
 
 	// User statements (global scope — NOT scoped by registry_ctx)
 	createUser        *sql.Stmt
@@ -196,11 +188,7 @@ func (s *Store) prepareStatements() error {
 		return fmt.Errorf("prepare countSchemasBySubject: %w", err)
 	}
 
-	stmts.loadReferences, err = s.db.Prepare(
-		"SELECT name, ref_subject, ref_version FROM schema_references WHERE registry_ctx = ? AND schema_id = ?")
-	if err != nil {
-		return fmt.Errorf("prepare loadReferences: %w", err)
-	}
+	// loadReferences now uses direct query (s.db.QueryContext) for automatic bad-connection retry.
 
 	stmts.getSubjectsBySchemaID, err = s.db.Prepare(
 		"SELECT DISTINCT s.subject FROM `schemas` s" +
@@ -227,43 +215,8 @@ func (s *Store) prepareStatements() error {
 		return fmt.Errorf("prepare getReferencedBy: %w", err)
 	}
 
-	// Config statements — scoped by registry_ctx
-	stmts.getConfig, err = s.db.Prepare(
-		"SELECT subject, compatibility_level, alias, normalize, validate_fields, default_metadata, override_metadata, default_ruleset, override_ruleset, compatibility_group FROM configs WHERE registry_ctx = ? AND subject = ?")
-	if err != nil {
-		return fmt.Errorf("prepare getConfig: %w", err)
-	}
-
-	stmts.setConfig, err = s.db.Prepare(
-		"INSERT INTO configs (registry_ctx, subject, compatibility_level, alias, normalize, validate_fields, default_metadata, override_metadata, default_ruleset, override_ruleset, compatibility_group) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE compatibility_level = VALUES(compatibility_level), alias = VALUES(alias), normalize = VALUES(normalize), validate_fields = VALUES(validate_fields), default_metadata = VALUES(default_metadata), override_metadata = VALUES(override_metadata), default_ruleset = VALUES(default_ruleset), override_ruleset = VALUES(override_ruleset), compatibility_group = VALUES(compatibility_group)")
-	if err != nil {
-		return fmt.Errorf("prepare setConfig: %w", err)
-	}
-
-	stmts.deleteConfig, err = s.db.Prepare(
-		"DELETE FROM configs WHERE registry_ctx = ? AND subject = ?")
-	if err != nil {
-		return fmt.Errorf("prepare deleteConfig: %w", err)
-	}
-
-	// Mode statements — scoped by registry_ctx
-	stmts.getMode, err = s.db.Prepare(
-		"SELECT subject, mode FROM modes WHERE registry_ctx = ? AND subject = ?")
-	if err != nil {
-		return fmt.Errorf("prepare getMode: %w", err)
-	}
-
-	stmts.setMode, err = s.db.Prepare(
-		"INSERT INTO modes (registry_ctx, subject, mode) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE mode = VALUES(mode)")
-	if err != nil {
-		return fmt.Errorf("prepare setMode: %w", err)
-	}
-
-	stmts.deleteMode, err = s.db.Prepare(
-		"DELETE FROM modes WHERE registry_ctx = ? AND subject = ?")
-	if err != nil {
-		return fmt.Errorf("prepare deleteMode: %w", err)
-	}
+	// Config and mode statements now use direct queries (s.db.QueryRowContext/ExecContext)
+	// for automatic bad-connection retry under concurrent load.
 
 	// User statements (global scope)
 	stmts.createUser, err = s.db.Prepare(
@@ -370,10 +323,8 @@ func (s *Store) closeStatements() {
 	stmts := []*sql.Stmt{
 		s.stmts.getSchemaByID, s.stmts.getSchemaBySubjectVer, s.stmts.getSchemaByFingerprint,
 		s.stmts.getLatestSchema, s.stmts.softDeleteSchema, s.stmts.hardDeleteSchema,
-		s.stmts.countSchemasBySubject, s.stmts.loadReferences, s.stmts.getSubjectsBySchemaID,
+		s.stmts.countSchemasBySubject, s.stmts.getSubjectsBySchemaID,
 		s.stmts.getVersionsBySchemaID, s.stmts.getReferencedBy,
-		s.stmts.getConfig, s.stmts.setConfig, s.stmts.deleteConfig,
-		s.stmts.getMode, s.stmts.setMode, s.stmts.deleteMode,
 		s.stmts.createUser, s.stmts.getUserByID, s.stmts.getUserByUsername,
 		s.stmts.updateUser, s.stmts.deleteUser, s.stmts.listUsers,
 		s.stmts.createAPIKey, s.stmts.getAPIKeyByID, s.stmts.getAPIKeyByHash,
@@ -515,6 +466,32 @@ func (s *Store) CreateSchema(ctx context.Context, registryCtx string, record *st
 	return fmt.Errorf("failed to create schema after %d retries: %w", maxRetries, lastErr)
 }
 
+// allocateSchemaID atomically allocates the next per-context schema ID using a
+// short-lived transaction. This is separated from createSchemaAttempt to minimize
+// lock contention on the ctx_id_alloc row under concurrent writes.
+func (s *Store) allocateSchemaID(ctx context.Context, registryCtx string) (int64, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, fmt.Errorf("failed to begin ID allocation tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	_, _ = tx.ExecContext(ctx, "INSERT IGNORE INTO ctx_id_alloc (registry_ctx, next_id) VALUES (?, 1)", registryCtx)
+	var id int64
+	err = tx.QueryRowContext(ctx, "SELECT next_id FROM ctx_id_alloc WHERE registry_ctx = ? FOR UPDATE", registryCtx).Scan(&id)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get next ID: %w", err)
+	}
+	_, err = tx.ExecContext(ctx, "UPDATE ctx_id_alloc SET next_id = next_id + 1 WHERE registry_ctx = ?", registryCtx)
+	if err != nil {
+		return 0, fmt.Errorf("failed to increment next ID: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("failed to commit ID allocation: %w", err)
+	}
+	return id, nil
+}
+
 // createSchemaAttempt performs a single attempt to create a schema.
 func (s *Store) createSchemaAttempt(ctx context.Context, registryCtx string, record *storage.SchemaRecord) error {
 	tx, err := s.db.BeginTx(ctx, nil)
@@ -610,16 +587,12 @@ func (s *Store) createSchemaAttempt(ctx context.Context, registryCtx string, rec
 		return fmt.Errorf("failed to insert schema: %w", err)
 	}
 
-	// Allocate per-context schema ID from ctx_id_alloc (within the same tx)
-	_, _ = tx.ExecContext(ctx, "INSERT IGNORE INTO ctx_id_alloc (registry_ctx, next_id) VALUES (?, 1)", registryCtx)
-	var nextCtxID int64
-	err = tx.QueryRowContext(ctx, "SELECT next_id FROM ctx_id_alloc WHERE registry_ctx = ? FOR UPDATE", registryCtx).Scan(&nextCtxID)
+	// Allocate per-context schema ID in a separate short transaction to minimize
+	// lock contention on ctx_id_alloc (the FOR UPDATE lock is released immediately
+	// instead of being held for the duration of the main transaction).
+	nextCtxID, err := s.allocateSchemaID(ctx, registryCtx)
 	if err != nil {
 		return fmt.Errorf("failed to allocate schema ID: %w", err)
-	}
-	_, err = tx.ExecContext(ctx, "UPDATE ctx_id_alloc SET next_id = next_id + 1 WHERE registry_ctx = ?", registryCtx)
-	if err != nil {
-		return fmt.Errorf("failed to increment schema ID: %w", err)
 	}
 
 	// Claim fingerprint in schema_fingerprints (first writer wins, per-context)
@@ -1174,7 +1147,10 @@ func (s *Store) GetConfig(ctx context.Context, registryCtx string, subject strin
 	var defaultMetadataBytes, overrideMetadataBytes []byte
 	var defaultRuleSetBytes, overrideRuleSetBytes []byte
 
-	err := s.stmts.getConfig.QueryRowContext(ctx, registryCtx, subject).Scan(
+	// Use direct query (not prepared statement) for automatic bad-connection retry.
+	err := s.db.QueryRowContext(ctx,
+		"SELECT subject, compatibility_level, alias, normalize, validate_fields, default_metadata, override_metadata, default_ruleset, override_ruleset, compatibility_group FROM configs WHERE registry_ctx = ? AND subject = ?",
+		registryCtx, subject).Scan(
 		&config.Subject, &config.CompatibilityLevel,
 		&alias, &normalize, &validateFields,
 		&defaultMetadataBytes, &overrideMetadataBytes,
@@ -1274,7 +1250,10 @@ func (s *Store) SetConfig(ctx context.Context, registryCtx string, subject strin
 		compatGroupParam = config.CompatibilityGroup
 	}
 
-	_, err = s.stmts.setConfig.ExecContext(ctx, registryCtx, subject, config.CompatibilityLevel,
+	// Use direct query (not prepared statement) for automatic bad-connection retry.
+	_, err = s.db.ExecContext(ctx,
+		"INSERT INTO configs (registry_ctx, subject, compatibility_level, alias, normalize, validate_fields, default_metadata, override_metadata, default_ruleset, override_ruleset, compatibility_group) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE compatibility_level = VALUES(compatibility_level), alias = VALUES(alias), normalize = VALUES(normalize), validate_fields = VALUES(validate_fields), default_metadata = VALUES(default_metadata), override_metadata = VALUES(override_metadata), default_ruleset = VALUES(default_ruleset), override_ruleset = VALUES(override_ruleset), compatibility_group = VALUES(compatibility_group)",
+		registryCtx, subject, config.CompatibilityLevel,
 		aliasParam, normalizeParam, validateFieldsParam,
 		defaultMetadataJSON, overrideMetadataJSON,
 		defaultRuleSetJSON, overrideRuleSetJSON,
@@ -1287,7 +1266,9 @@ func (s *Store) SetConfig(ctx context.Context, registryCtx string, subject strin
 
 // DeleteConfig deletes the compatibility configuration for a subject.
 func (s *Store) DeleteConfig(ctx context.Context, registryCtx string, subject string) error {
-	result, err := s.stmts.deleteConfig.ExecContext(ctx, registryCtx, subject)
+	result, err := s.db.ExecContext(ctx,
+		"DELETE FROM configs WHERE registry_ctx = ? AND subject = ?",
+		registryCtx, subject)
 	if err != nil {
 		return fmt.Errorf("failed to delete config: %w", err)
 	}
@@ -1313,7 +1294,10 @@ func (s *Store) SetGlobalConfig(ctx context.Context, registryCtx string, config 
 // GetMode retrieves the mode for a subject.
 func (s *Store) GetMode(ctx context.Context, registryCtx string, subject string) (*storage.ModeRecord, error) {
 	mode := &storage.ModeRecord{}
-	err := s.stmts.getMode.QueryRowContext(ctx, registryCtx, subject).Scan(&mode.Subject, &mode.Mode)
+	// Use direct query (not prepared statement) for automatic bad-connection retry.
+	err := s.db.QueryRowContext(ctx,
+		"SELECT subject, mode FROM modes WHERE registry_ctx = ? AND subject = ?",
+		registryCtx, subject).Scan(&mode.Subject, &mode.Mode)
 
 	if err == sql.ErrNoRows {
 		return nil, storage.ErrNotFound
@@ -1327,7 +1311,9 @@ func (s *Store) GetMode(ctx context.Context, registryCtx string, subject string)
 
 // SetMode sets the mode for a subject.
 func (s *Store) SetMode(ctx context.Context, registryCtx string, subject string, mode *storage.ModeRecord) error {
-	_, err := s.stmts.setMode.ExecContext(ctx, registryCtx, subject, mode.Mode)
+	_, err := s.db.ExecContext(ctx,
+		"INSERT INTO modes (registry_ctx, subject, mode) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE mode = VALUES(mode)",
+		registryCtx, subject, mode.Mode)
 	if err != nil {
 		return fmt.Errorf("failed to set mode: %w", err)
 	}
@@ -1336,7 +1322,9 @@ func (s *Store) SetMode(ctx context.Context, registryCtx string, subject string,
 
 // DeleteMode deletes the mode for a subject.
 func (s *Store) DeleteMode(ctx context.Context, registryCtx string, subject string) error {
-	result, err := s.stmts.deleteMode.ExecContext(ctx, registryCtx, subject)
+	result, err := s.db.ExecContext(ctx,
+		"DELETE FROM modes WHERE registry_ctx = ? AND subject = ?",
+		registryCtx, subject)
 	if err != nil {
 		return fmt.Errorf("failed to delete mode: %w", err)
 	}
@@ -1362,31 +1350,7 @@ func (s *Store) SetGlobalMode(ctx context.Context, registryCtx string, mode *sto
 // NextID returns the next available per-context schema ID.
 // Uses the ctx_id_alloc table for per-context ID allocation.
 func (s *Store) NextID(ctx context.Context, registryCtx string) (int64, error) {
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return 0, fmt.Errorf("failed to begin transaction: %w", err)
-	}
-	defer func() { _ = tx.Rollback() }()
-
-	// Ensure the row exists for this context
-	_, _ = tx.ExecContext(ctx, "INSERT IGNORE INTO ctx_id_alloc (registry_ctx, next_id) VALUES (?, 1)", registryCtx)
-
-	var id int64
-	err = tx.QueryRowContext(ctx, "SELECT next_id FROM ctx_id_alloc WHERE registry_ctx = ? FOR UPDATE", registryCtx).Scan(&id)
-	if err != nil {
-		return 0, fmt.Errorf("failed to get next ID: %w", err)
-	}
-
-	_, err = tx.ExecContext(ctx, "UPDATE ctx_id_alloc SET next_id = next_id + 1 WHERE registry_ctx = ?", registryCtx)
-	if err != nil {
-		return 0, fmt.Errorf("failed to increment next ID: %w", err)
-	}
-
-	if err := tx.Commit(); err != nil {
-		return 0, fmt.Errorf("failed to commit next ID: %w", err)
-	}
-
-	return id, nil
+	return s.allocateSchemaID(ctx, registryCtx)
 }
 
 // GetMaxSchemaID returns the highest per-context schema ID currently assigned.
@@ -1553,7 +1517,9 @@ func (s *Store) cleanupOrphanedFingerprint(ctx context.Context, registryCtx, fin
 
 // loadReferences loads references for a schema within a context.
 func (s *Store) loadReferences(ctx context.Context, registryCtx string, schemaID int64) ([]storage.Reference, error) {
-	rows, err := s.stmts.loadReferences.QueryContext(ctx, registryCtx, schemaID)
+	rows, err := s.db.QueryContext(ctx,
+		"SELECT name, ref_subject, ref_version FROM schema_references WHERE registry_ctx = ? AND schema_id = ?",
+		registryCtx, schemaID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query references: %w", err)
 	}
@@ -1729,7 +1695,9 @@ func (s *Store) ListSchemas(ctx context.Context, registryCtx string, params *sto
 // DeleteGlobalConfig deletes the global config row within a context.
 // After deletion, GetGlobalConfig will return ErrNotFound.
 func (s *Store) DeleteGlobalConfig(ctx context.Context, registryCtx string) error {
-	_, err := s.stmts.deleteConfig.ExecContext(ctx, registryCtx, "")
+	_, err := s.db.ExecContext(ctx,
+		"DELETE FROM configs WHERE registry_ctx = ? AND subject = ?",
+		registryCtx, "")
 	if err != nil {
 		return fmt.Errorf("failed to delete global config: %w", err)
 	}
@@ -1740,7 +1708,9 @@ func (s *Store) DeleteGlobalConfig(ctx context.Context, registryCtx string) erro
 // DeleteGlobalMode deletes the global mode row within a context.
 // After deletion, GetGlobalMode will return ErrNotFound.
 func (s *Store) DeleteGlobalMode(ctx context.Context, registryCtx string) error {
-	_, err := s.stmts.deleteMode.ExecContext(ctx, registryCtx, "")
+	_, err := s.db.ExecContext(ctx,
+		"DELETE FROM modes WHERE registry_ctx = ? AND subject = ?",
+		registryCtx, "")
 	if err != nil {
 		return fmt.Errorf("failed to delete global mode: %w", err)
 	}
