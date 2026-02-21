@@ -52,6 +52,7 @@ func truncateCassandra(t *testing.T, cfg cassandra.Config) {
 	defer session.Close()
 
 	tables := []string{
+		"exporter_statuses", "exporters", "deks", "deks_by_kek", "keks",
 		"api_keys_by_hash", "api_keys_by_user", "api_keys_by_id",
 		"users_by_email", "users_by_id",
 		"id_alloc", "modes", "global_config", "subject_configs",

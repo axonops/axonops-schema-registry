@@ -44,7 +44,7 @@ func truncatePostgres(t *testing.T, cfg postgres.Config) {
 	defer db.Close()
 
 	stmts := []string{
-		"TRUNCATE TABLE api_keys, users, schema_references, schema_fingerprints, schemas, modes, configs, ctx_id_alloc, contexts CASCADE",
+		"TRUNCATE TABLE exporter_statuses, exporters, deks, keks, api_keys, users, schema_references, schema_fingerprints, schemas, modes, configs, ctx_id_alloc, contexts CASCADE",
 		"ALTER SEQUENCE schemas_id_seq RESTART WITH 1",
 		// Re-seed context and ID allocation but NOT global config/mode — the
 		// conformance tests start from a clean state and set their own.
