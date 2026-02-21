@@ -1,4 +1,4 @@
-@functional
+@functional @data-contracts
 Feature: DEK Registry API (Client-Side Field Level Encryption)
   The DEK Registry manages Key Encryption Keys (KEKs) and Data Encryption Keys (DEKs)
   for client-side field-level encryption. KEKs are backed by cloud KMS providers

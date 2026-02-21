@@ -1,4 +1,4 @@
-@functional
+@functional @import
 Feature: Advanced Features
   Tests for advanced Confluent Schema Registry API parameters including
   force on mode, deletedOnly on version listing, and parameter behavior

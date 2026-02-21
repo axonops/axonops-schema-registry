@@ -1,4 +1,4 @@
-@functional
+@functional @import
 Feature: IMPORT Mode — Comprehensive Corner Cases
   Exhaustive tests for IMPORT mode behavior: mode mutual-exclusion with
   READWRITE, explicit ID and version handling, ID sequencing, per-subject

@@ -65,6 +65,7 @@ Feature: Edge Cases and Boundary Conditions
     Then the response status should be 422
     And the response should have error code 42203
 
+  @axonops-only
   Scenario: PUT /mode with empty body resets mode (Confluent behavior)
     When I PUT "/mode" with body:
       """

@@ -1,4 +1,4 @@
-@functional
+@functional @data-contracts
 Feature: Schema Identity — metadata and ruleSet do not affect global ID
   Metadata and ruleSet are envelope-level properties that enrich a schema registration
   but MUST NOT affect schema identity for global ID purposes. The global schema ID is

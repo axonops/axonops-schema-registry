@@ -280,6 +280,7 @@ Feature: Schema & Subject Deletion — Exhaustive (Confluent v8.1.1 Compatibilit
   # soft-deleted schema should be returned.
   # ==========================================================================
 
+  @axonops-only
   Scenario: GET latest returns 404 after all versions soft-deleted
     Given the global compatibility level is "NONE"
     And subject "del-ex-latest-del" has schema:

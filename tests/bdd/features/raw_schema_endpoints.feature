@@ -39,6 +39,7 @@ Feature: Raw Schema Endpoints
     When I get the raw schema by ID {{json_id}}
     Then the response status should be 200
 
+  @axonops-only
   Scenario: GET raw schema for non-existent ID returns 404
     When I GET "/schemas/ids/99999/schema"
     Then the response status should be 404

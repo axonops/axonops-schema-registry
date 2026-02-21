@@ -1,4 +1,4 @@
-@functional
+@functional @axonops-only
 Feature: Exporters API
   The Exporters API provides Confluent Schema Linking compatible functionality
   for exporting schemas to remote schema registries. Exporters can be created,

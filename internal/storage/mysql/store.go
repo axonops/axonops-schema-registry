@@ -47,7 +47,7 @@ func DefaultConfig() Config {
 // DSN returns the connection string.
 func (c Config) DSN() string {
 	return fmt.Sprintf(
-		"%s:%s@tcp(%s:%d)/%s?parseTime=true&tls=%s",
+		"%s:%s@tcp(%s:%d)/%s?parseTime=true&interpolateParams=true&tls=%s",
 		c.Username, c.Password, c.Host, c.Port, c.Database, c.TLS,
 	)
 }

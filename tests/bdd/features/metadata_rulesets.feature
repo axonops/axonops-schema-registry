@@ -1,4 +1,4 @@
-@functional
+@functional @data-contracts
 Feature: Metadata and RuleSets (Data Contracts)
   Schema metadata and rule sets enable data contracts in the registry.
   Metadata (tags, properties, sensitive fields) and RuleSets (migration/domain rules)

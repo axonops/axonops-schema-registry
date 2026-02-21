@@ -1,4 +1,4 @@
-@functional
+@functional @axonops-only
 Feature: Delete Global Mode Configuration
   As a schema registry administrator
   I want to reset the global mode to the default

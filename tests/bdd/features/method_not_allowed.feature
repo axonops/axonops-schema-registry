@@ -1,4 +1,4 @@
-@functional
+@functional @axonops-only
 Feature: HTTP 405 Method Not Allowed
   The registry MUST return HTTP 405 with a JSON error body for unsupported HTTP methods.
   This ensures Confluent wire compatibility for API clients.

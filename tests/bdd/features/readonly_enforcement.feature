@@ -86,6 +86,7 @@ Feature: READONLY Enforcement and Permanent Delete Restrictions
   # PERMANENT DELETE OF "LATEST" RESOLVES AND PROCEEDS
   # ==========================================================================
 
+  @axonops-only
   Scenario: Permanent delete of version "latest" resolves to actual version
     Given subject "perm-del-latest" has schema:
       """
