@@ -167,6 +167,31 @@ func TestValidateRuleSet_ValidOnSuccessOnFailure(t *testing.T) {
 	}
 }
 
+func TestValidateRuleSet_CommaSeparatedActions(t *testing.T) {
+	// Confluent supports comma-separated onFailure for WRITEREAD rules
+	// e.g. "ERROR,NONE" means error on write, none on read
+	for _, action := range []string{"ERROR,NONE", "NONE,ERROR", "ERROR,DLQ", "DLQ,NONE"} {
+		rs := &storage.RuleSet{
+			DomainRules: []storage.Rule{
+				{Name: "r1", Kind: "TRANSFORM", Mode: "WRITEREAD", OnFailure: action},
+			},
+		}
+		if err := ValidateRuleSet(rs); err != nil {
+			t.Errorf("comma-separated action %q should be valid: %v", action, err)
+		}
+	}
+
+	// Invalid comma-separated values should still fail
+	rs := &storage.RuleSet{
+		DomainRules: []storage.Rule{
+			{Name: "r1", Kind: "TRANSFORM", Mode: "WRITEREAD", OnFailure: "ERROR,INVALID"},
+		},
+	}
+	if err := ValidateRuleSet(rs); err == nil {
+		t.Error("comma-separated action with invalid part should fail")
+	}
+}
+
 func TestValidateRuleSet_AllRuleCategories(t *testing.T) {
 	rs := &storage.RuleSet{
 		DomainRules: []storage.Rule{

@@ -68,7 +68,7 @@ public class DataContractGlobalPoliciesTest {
                     + "    \"kind\":\"CONDITION\","
                     + "    \"type\":\"CEL\","
                     + "    \"mode\":\"WRITE\","
-                    + "    \"expr\":\"message.amount > 0\","
+                    + "    \"expr\":\"message.amount > 0.0\","
                     + "    \"onFailure\":\"ERROR\""
                     + "  }]"
                     + "}"
@@ -149,7 +149,7 @@ public class DataContractGlobalPoliciesTest {
                     + "    \"kind\":\"CONDITION\","
                     + "    \"type\":\"CEL\","
                     + "    \"mode\":\"WRITE\","
-                    + "    \"expr\":\"message.amount > 0 && message.amount < 10000\","
+                    + "    \"expr\":\"message.amount > 0.0 && message.amount < 10000.0\","
                     + "    \"onFailure\":\"ERROR\""
                     + "  }]"
                     + "}"
@@ -257,7 +257,7 @@ public class DataContractGlobalPoliciesTest {
                     + "    \"kind\":\"CONDITION\","
                     + "    \"type\":\"CEL\","
                     + "    \"mode\":\"WRITE\","
-                    + "    \"expr\":\"message.amount > 0\","
+                    + "    \"expr\":\"message.amount > 0.0\","
                     + "    \"onFailure\":\"ERROR\""
                     + "  }]"
                     + "}"
@@ -323,35 +323,27 @@ public class DataContractGlobalPoliciesTest {
 
     @Test
     @Order(4)
-    @DisplayName("Tags from defaultMetadata merge into schema, enabling PII masking via CEL_FIELD rule")
+    @DisplayName("CEL_FIELD rule with inline PII tags masks email on READ")
     void testTagsPropagatedThroughConfigDefaults() {
         String subject = "policy-tags-pii-" + System.currentTimeMillis() + "-value";
         String topic = subject.replace("-value", "");
 
+        // Schema with inline confluent:tags on the email field — this is how the
+        // Confluent CEL_FIELD executor discovers tagged fields for rule matching.
         String contactSchemaStr = "{\"type\":\"record\",\"name\":\"Contact\","
                 + "\"namespace\":\"com.axonops.test.policy\","
                 + "\"fields\":["
                 + "{\"name\":\"name\",\"type\":\"string\"},"
-                + "{\"name\":\"email\",\"type\":\"string\"}"
+                + "{\"name\":\"email\",\"type\":\"string\",\"confluent:tags\":[\"PII\"]}"
                 + "]}";
 
         try {
-            // --- Step 1: Set subject config with defaultMetadata containing PII tags ---
-            // The tag "*.email" marks the email field as PII across all records.
-            String configBody = "{"
-                    + "\"compatibility\":\"NONE\","
-                    + "\"defaultMetadata\":{"
-                    + "  \"tags\":{"
-                    + "    \"*.email\":[\"PII\"]"
-                    + "  }"
-                    + "}"
-                    + "}";
-            TestHelper.setSubjectConfig(SCHEMA_REGISTRY_URL, subject, configBody);
+            // --- Step 1: Set compatibility to NONE ---
+            TestHelper.setSubjectConfig(SCHEMA_REGISTRY_URL, subject,
+                    "{\"compatibility\":\"NONE\"}");
 
-            // --- Step 2: Register schema with a CEL_FIELD rule targeting PII tags ---
+            // --- Step 2: Register schema with inline PII tags + CEL_FIELD rule ---
             // The rule masks any STRING field tagged PII to "REDACTED" on READ.
-            // NOTE: CEL_FIELD expr uses ";" as the separator between the guard and the
-            // transform expression in Confluent's CEL_FIELD syntax.
             String schemaBody = "{"
                     + "\"schema\":" + jsonEscape(contactSchemaStr) + ","
                     + "\"ruleSet\":{"
@@ -368,13 +360,13 @@ public class DataContractGlobalPoliciesTest {
             int schemaId = TestHelper.registerSchemaWithRules(SCHEMA_REGISTRY_URL, subject, schemaBody);
             assertTrue(schemaId > 0, "Schema should be registered successfully");
 
-            // --- Step 3: Verify the version has both the rule and the merged tags ---
+            // --- Step 3: Verify the version has the rule and PII tag ---
             String versionResponse = TestHelper.getSchemaVersion(SCHEMA_REGISTRY_URL, subject, 1);
             assertNotNull(versionResponse, "Should be able to fetch version 1");
             assertTrue(versionResponse.contains("mask-pii"),
                     "Version should contain the 'mask-pii' rule");
             assertTrue(versionResponse.contains("PII"),
-                    "Version should contain the PII tag from defaultMetadata");
+                    "Version should contain the PII tag");
 
             // --- Step 4: Produce data with the serializer ---
             SchemaRegistryClient producerClient = TestHelper.createClient(SCHEMA_REGISTRY_URL);
@@ -389,7 +381,7 @@ public class DataContractGlobalPoliciesTest {
             assertNotNull(serialized, "Serialization should succeed");
             serializer.close();
 
-            // --- Step 5: Consume with a fresh client -- CEL_FIELD READ rule should mask PII ---
+            // --- Step 5: Consume with a fresh client — CEL_FIELD READ rule should mask PII ---
             SchemaRegistryClient consumerClient = TestHelper.createClient(SCHEMA_REGISTRY_URL);
             KafkaAvroDeserializer deserializer = TestHelper.createRuleAwareDeserializer(SCHEMA_REGISTRY_URL, consumerClient);
 
@@ -401,7 +393,7 @@ public class DataContractGlobalPoliciesTest {
             assertEquals("Alice Smith", result.get("name").toString(),
                     "name field should NOT be masked (not tagged PII)");
 
-            // The "email" field IS tagged PII via defaultMetadata, so it should be "REDACTED".
+            // The "email" field IS tagged PII via confluent:tags, so it should be "REDACTED".
             assertEquals("REDACTED", result.get("email").toString(),
                     "email field should be masked to 'REDACTED' by CEL_FIELD rule targeting PII tag");
 

@@ -24,9 +24,26 @@ var validEncodingModes = map[string]bool{
 	"WRITE": true, "READ": true, "WRITEREAD": true,
 }
 
-// Valid onSuccess/onFailure actions.
+// Valid onSuccess/onFailure actions. Values may be comma-separated
+// for WRITEREAD/UPDOWN modes (e.g. "ERROR,NONE" = error on write, none on read).
 var validActions = map[string]bool{
 	"": true, "NONE": true, "DLQ": true, "ERROR": true,
+}
+
+// isValidAction checks whether an action string is valid.
+// Supports comma-separated values like "ERROR,NONE" for dual-mode rules.
+func isValidAction(action string) bool {
+	if validActions[action] {
+		return true
+	}
+	// Check comma-separated values
+	parts := strings.Split(action, ",")
+	for _, p := range parts {
+		if !validActions[strings.TrimSpace(p)] {
+			return false
+		}
+	}
+	return true
 }
 
 // ValidateRuleSet validates a RuleSet for well-formedness.
@@ -71,11 +88,11 @@ func validateRule(r storage.Rule, category string, index int, validModes map[str
 		return fmt.Errorf("invalid rule '%s': invalid mode '%s' for %s", r.Name, r.Mode, category)
 	}
 
-	if !validActions[r.OnSuccess] {
-		return fmt.Errorf("invalid rule '%s': onSuccess must be NONE, DLQ, or ERROR, got '%s'", r.Name, r.OnSuccess)
+	if !isValidAction(r.OnSuccess) {
+		return fmt.Errorf("invalid rule '%s': onSuccess must be NONE, DLQ, or ERROR (comma-separated for dual-mode), got '%s'", r.Name, r.OnSuccess)
 	}
-	if !validActions[r.OnFailure] {
-		return fmt.Errorf("invalid rule '%s': onFailure must be NONE, DLQ, or ERROR, got '%s'", r.Name, r.OnFailure)
+	if !isValidAction(r.OnFailure) {
+		return fmt.Errorf("invalid rule '%s': onFailure must be NONE, DLQ, or ERROR (comma-separated for dual-mode), got '%s'", r.Name, r.OnFailure)
 	}
 
 	return nil

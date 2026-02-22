@@ -216,7 +216,7 @@ public class DataContractMigrationTest {
 
         String v2SchemaStr = "{\"type\":\"record\",\"name\":\"Payment\",\"namespace\":\"com.axonops.test.migration\","
                 + "\"fields\":[{\"name\":\"id\",\"type\":\"string\"},{\"name\":\"amount\",\"type\":\"double\"},"
-                + "{\"name\":\"currency\",\"type\":[\"null\",\"string\"],\"default\":null}]}";
+                + "{\"name\":\"currency\",\"type\":\"string\",\"default\":\"UNKNOWN\"}]}";
 
         try {
             // --- Step 1: Set compatibility to NONE ---
