@@ -46,24 +46,20 @@ public class CsfleVaultEncryptionTest {
             System.getProperty("vault.token", "test-root-token");
 
     /**
-     * Vault host:port extracted from VAULT_URL for use in {@code encrypt.kms.key.id}.
-     * The hcvault KMS key ID format is {@code hcvault://<host>:<port>/transit/keys/<keyname>}.
+     * Vault base URL (with trailing slash stripped) for use in {@code encrypt.kms.key.id}.
+     * The Confluent HcVault KMS driver expects the key ID to be the actual HTTP(S) URL
+     * of the Vault transit key, e.g. {@code http://localhost:18200/transit/keys/test-key}.
+     * The driver internally translates this to the {@code hcvault://} URI scheme for Tink.
      */
-    private static final String VAULT_HOST_PORT;
+    private static final String VAULT_BASE_URL;
 
     static {
-        // Strip the "http://" or "https://" prefix to get host:port
-        String stripped = VAULT_URL;
-        if (stripped.startsWith("https://")) {
-            stripped = stripped.substring("https://".length());
-        } else if (stripped.startsWith("http://")) {
-            stripped = stripped.substring("http://".length());
-        }
+        String base = VAULT_URL;
         // Remove any trailing slash
-        if (stripped.endsWith("/")) {
-            stripped = stripped.substring(0, stripped.length() - 1);
+        if (base.endsWith("/")) {
+            base = base.substring(0, base.length() - 1);
         }
-        VAULT_HOST_PORT = stripped;
+        VAULT_BASE_URL = base;
     }
 
     private static final String VAULT_TRANSIT_KEY = "test-key";
@@ -146,7 +142,7 @@ public class CsfleVaultEncryptionTest {
         System.out.println("CSFLE Vault Encryption Tests");
         System.out.println("  Schema Registry: " + SCHEMA_REGISTRY_URL);
         System.out.println("  Vault URL:       " + VAULT_URL);
-        System.out.println("  Vault host:port: " + VAULT_HOST_PORT);
+        System.out.println("  Vault base URL:  " + VAULT_BASE_URL);
     }
 
     // -------------------------------------------------------------------------
@@ -159,6 +155,9 @@ public class CsfleVaultEncryptionTest {
     private static String buildSchemaWithEncryptRule(String avroSchema, String kekName) {
         // The ruleSet goes into domainRules, not encodingRules.
         // onFailure is "ERROR,NONE" — error on write failure, no-op on read failure (for test 5 scenario).
+        // IMPORTANT: encrypt.kms.key.id uses the actual HTTP(S) URL of the Vault transit key,
+        // NOT the hcvault:// URI scheme. The Confluent HcVault KMS driver internally translates
+        // the HTTP URL to the hcvault:// Tink URI format.
         return """
                 {
                     "schemaType": "AVRO",
@@ -174,7 +173,7 @@ public class CsfleVaultEncryptionTest {
                                 "params": {
                                     "encrypt.kek.name": "%s",
                                     "encrypt.kms.type": "hcvault",
-                                    "encrypt.kms.key.id": "hcvault://%s/transit/keys/%s"
+                                    "encrypt.kms.key.id": "%s/transit/keys/%s"
                                 },
                                 "onFailure": "ERROR,NONE"
                             }
@@ -184,7 +183,7 @@ public class CsfleVaultEncryptionTest {
                 .formatted(
                         escapeJsonString(avroSchema),
                         kekName,
-                        VAULT_HOST_PORT,
+                        VAULT_BASE_URL,
                         VAULT_TRANSIT_KEY
                 );
     }

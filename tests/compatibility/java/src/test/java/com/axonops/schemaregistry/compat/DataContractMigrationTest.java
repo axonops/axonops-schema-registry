@@ -238,9 +238,8 @@ public class DataContractMigrationTest {
 
             // --- Step 3: Register v2 with UPGRADE rule that sets currency ---
             //
-            // The JSONata expression `$ ~> |$|{'currency': 'USD'}|` merges
-            // {'currency': 'USD'} into the root object, effectively adding
-            // the missing field with a business-meaningful default.
+            // The JSONata expression merges {'currency': 'USD'} into the root
+            // object, adding the missing field with a business-meaningful default.
             String v2Body = "{"
                     + "\"schema\": " + jsonEscape(v2SchemaStr) + ","
                     + "\"schemaType\": \"AVRO\","
@@ -250,7 +249,7 @@ public class DataContractMigrationTest {
                     + "    \"kind\": \"TRANSFORM\","
                     + "    \"type\": \"JSONATA\","
                     + "    \"mode\": \"UPGRADE\","
-                    + "    \"expr\": \"$ ~> |$|{'currency': 'USD'}|\""
+                    + "    \"expr\": \"$merge([$, {'currency': 'USD'}])\""
                     + "  }]"
                     + "}"
                     + "}";
