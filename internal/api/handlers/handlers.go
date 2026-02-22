@@ -471,7 +471,6 @@ func (h *Handler) isSubjectFullyDeleted(ctx context.Context, registryCtx string,
 	return len(activeVersions) == 0
 }
 
-
 // isVersionSoftDeleted returns true if the given version exists as a soft-deleted
 // entry. Used to return 40406 (schema version soft-deleted) instead of 40402.
 func (h *Handler) isVersionSoftDeleted(ctx context.Context, registryCtx string, subject string, version int) bool {
@@ -481,6 +480,7 @@ func (h *Handler) isVersionSoftDeleted(ctx context.Context, registryCtx string, 
 	}
 	return deleted != nil && deleted.Deleted
 }
+
 // RegisterSchema handles POST /subjects/{subject}/versions
 func (h *Handler) RegisterSchema(w http.ResponseWriter, r *http.Request) {
 	registryCtx, subject := resolveSubjectAndContext(r)
