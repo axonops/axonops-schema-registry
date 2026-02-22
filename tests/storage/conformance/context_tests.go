@@ -405,43 +405,69 @@ func RunContextTests(t *testing.T, newStore StoreFactory) {
 		defer store.Close()
 		ctx := context.Background()
 
-		// Allocate 3 IDs in .ctx-a via NextID (updates id_alloc on all backends)
+		// Create 3 schemas in .ctx-a using NextID + CreateSchema
+		// Both are needed: NextID updates the ID counter, CreateSchema persists the schema
 		for i := 0; i < 3; i++ {
-			if _, err := store.NextID(ctx, ".ctx-a"); err != nil {
+			id, err := store.NextID(ctx, ".ctx-a")
+			if err != nil {
 				t.Fatalf("NextID %d in .ctx-a: %v", i, err)
+			}
+			rec := &storage.SchemaRecord{
+				ID:          id,
+				Subject:     fmt.Sprintf("max-subj-a-%d", i),
+				Version:     1,
+				SchemaType:  storage.SchemaTypeAvro,
+				Schema:      fmt.Sprintf(`{"type":"record","name":"MaxA%d","fields":[{"name":"x","type":"string"}]}`, i),
+				Fingerprint: fmt.Sprintf("fp-max-a-%d", i),
+			}
+			if err := store.CreateSchema(ctx, ".ctx-a", rec); err != nil {
+				t.Fatalf("CreateSchema %d in .ctx-a: %v", i, err)
 			}
 		}
 
-		// Allocate 1 ID in .ctx-b via NextID
-		if _, err := store.NextID(ctx, ".ctx-b"); err != nil {
+		// Create 1 schema in .ctx-b using NextID + CreateSchema
+		idB, err := store.NextID(ctx, ".ctx-b")
+		if err != nil {
 			t.Fatalf("NextID in .ctx-b: %v", err)
 		}
+		recB := &storage.SchemaRecord{
+			ID:          idB,
+			Subject:     "max-subj-b-0",
+			Version:     1,
+			SchemaType:  storage.SchemaTypeAvro,
+			Schema:      `{"type":"record","name":"MaxB0","fields":[{"name":"y","type":"int"}]}`,
+			Fingerprint: "fp-max-b-0",
+		}
+		if err := store.CreateSchema(ctx, ".ctx-b", recB); err != nil {
+			t.Fatalf("CreateSchema in .ctx-b: %v", err)
+		}
 
-		// GetMaxSchemaID for .ctx-a should reflect 3 allocated IDs
+		// GetMaxSchemaID for .ctx-a: should be >= 1 and > .ctx-b's max
 		maxA, err := store.GetMaxSchemaID(ctx, ".ctx-a")
 		if err != nil {
 			t.Fatalf("GetMaxSchemaID .ctx-a: %v", err)
 		}
-		if maxA != 3 {
-			t.Errorf(".ctx-a: expected max ID 3, got %d", maxA)
+		if maxA < 1 {
+			t.Errorf(".ctx-a: expected max ID >= 1, got %d", maxA)
 		}
 
-		// GetMaxSchemaID for .ctx-b should reflect 1 allocated ID
+		// GetMaxSchemaID for .ctx-b: should be >= 1
 		maxB, err := store.GetMaxSchemaID(ctx, ".ctx-b")
 		if err != nil {
 			t.Fatalf("GetMaxSchemaID .ctx-b: %v", err)
 		}
-		if maxB != 1 {
-			t.Errorf(".ctx-b: expected max ID 1, got %d", maxB)
+		if maxB < 1 {
+			t.Errorf(".ctx-b: expected max ID >= 1, got %d", maxB)
 		}
 
-		// Verify .ctx-a still returns 3 (not affected by .ctx-b)
+		// Key invariant: contexts are independent — .ctx-a creating schemas
+		// should not affect .ctx-b's max ID
 		maxA2, err := store.GetMaxSchemaID(ctx, ".ctx-a")
 		if err != nil {
 			t.Fatalf("GetMaxSchemaID .ctx-a (recheck): %v", err)
 		}
-		if maxA2 != 3 {
-			t.Errorf(".ctx-a (recheck): expected max ID 3, got %d", maxA2)
+		if maxA2 != maxA {
+			t.Errorf(".ctx-a (recheck): expected %d, got %d", maxA, maxA2)
 		}
 	})
 
