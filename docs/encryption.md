@@ -35,7 +35,7 @@ A KEK has the following fields:
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `name` | string | Yes | Unique identifier for this KEK. Used by DEKs to reference their parent KEK. |
-| `kmsType` | string | Yes | KMS provider type: `aws-kms`, `azure-kms`, `gcp-kms`, or `hcvault`. |
+| `kmsType` | string | Yes | KMS provider type: `aws-kms`, `azure-kms`, `gcp-kms`, `hcvault`, or `openbao`. |
 | `kmsKeyId` | string | Yes | KMS-specific key identifier (e.g., an AWS KMS ARN, a GCP KMS resource name). |
 | `kmsProps` | map | No | Additional KMS-specific properties (e.g., region, endpoint, authentication parameters). |
 | `doc` | string | No | Human-readable documentation string describing this KEK's purpose. |
@@ -335,7 +335,11 @@ curl -X DELETE "http://localhost:8081/dek-registry/v1/keks/my-aws-kek/deks/order
 
 ## Supported KMS Types
 
-The `kmsType` field on a KEK identifies which external Key Management Service holds the actual key encryption key. The registry does not communicate with the KMS directly -- it stores the reference so that clients know which KMS to call for wrap/unwrap operations.
+The `kmsType` field on a KEK identifies which external Key Management Service holds the actual key encryption key.
+
+In **client-side mode** (the default, when `shared=false`), the registry stores the KMS reference so that clients know which KMS to call for wrap/unwrap operations. The registry itself does not contact the KMS.
+
+In **server-side mode** (when `shared=true`), the registry uses its built-in KMS provider integrations to generate and wrap DEKs on behalf of the client. The registry calls the KMS directly using the `kmsProps` configured on the KEK. This mode is useful when clients cannot access the KMS directly or when centralized key management is preferred.
 
 | KMS Type | Value | Key ID Format | Description |
 |----------|-------|---------------|-------------|
@@ -343,6 +347,60 @@ The `kmsType` field on a KEK identifies which external Key Management Service ho
 | Azure Key Vault | `azure-kms` | Key URL (e.g., `https://myvault.vault.azure.net/keys/mykey/version`) | Microsoft Azure Key Vault |
 | GCP KMS | `gcp-kms` | Resource name (e.g., `projects/my-project/locations/global/keyRings/my-ring/cryptoKeys/my-key`) | Google Cloud Key Management Service |
 | HashiCorp Vault | `hcvault` | Transit path (e.g., `transit/keys/my-key`) | HashiCorp Vault Transit secrets engine |
+| OpenBao | `openbao` | Transit path (e.g., `transit/keys/my-key`) | OpenBao Transit secrets engine (Vault-compatible fork) |
+
+### KMS Properties Reference
+
+Each KMS provider accepts provider-specific properties via the `kmsProps` field on a KEK. These properties configure how the registry (in server-side mode) or the client (in client-side mode) connects to the KMS.
+
+#### HashiCorp Vault (`hcvault`)
+
+| Property | Description | Environment Variable Fallback |
+|----------|-------------|-------------------------------|
+| `vault.address` | Vault server URL (e.g., `https://vault.example.com:8200`) | `VAULT_ADDR` |
+| `vault.token` | Authentication token | `VAULT_TOKEN` |
+| `vault.namespace` | Vault Enterprise namespace | `VAULT_NAMESPACE` |
+| `vault.transit.mount` | Transit secrets engine mount path (default: `transit`) | -- |
+
+#### OpenBao (`openbao`)
+
+| Property | Description | Environment Variable Fallback |
+|----------|-------------|-------------------------------|
+| `openbao.address` | OpenBao server URL (e.g., `https://bao.example.com:8200`) | `BAO_ADDR` |
+| `openbao.token` | Authentication token | `BAO_TOKEN` |
+| `openbao.namespace` | Namespace | `BAO_NAMESPACE` |
+| `openbao.transit.mount` | Transit secrets engine mount path (default: `transit`) | -- |
+
+#### AWS KMS (`aws-kms`)
+
+| Property | Description | Environment Variable Fallback |
+|----------|-------------|-------------------------------|
+| `aws.region` | AWS region (e.g., `us-east-1`) | `AWS_REGION` / `AWS_DEFAULT_REGION` |
+| `aws.access.key.id` | AWS access key ID | `AWS_ACCESS_KEY_ID` |
+| `aws.secret.access.key` | AWS secret access key | `AWS_SECRET_ACCESS_KEY` |
+| `aws.endpoint` | Custom KMS endpoint URL (for LocalStack, VPC endpoints) | -- |
+
+> When `aws.access.key.id` and `aws.secret.access.key` are not set, the provider falls back to the standard AWS credential chain (environment variables, shared credentials file, IAM role).
+
+#### Azure Key Vault (`azure-kms`)
+
+| Property | Description | Environment Variable Fallback |
+|----------|-------------|-------------------------------|
+| `azure.tenant.id` | Azure AD tenant ID | `AZURE_TENANT_ID` |
+| `azure.client.id` | Azure AD application (client) ID | `AZURE_CLIENT_ID` |
+| `azure.client.secret` | Azure AD client secret | `AZURE_CLIENT_SECRET` |
+| `azure.keyvault.url` | Key Vault URL (e.g., `https://myvault.vault.azure.net`) | -- |
+| `azure.key.version` | Specific key version (optional; uses latest if empty) | -- |
+
+#### GCP KMS (`gcp-kms`)
+
+| Property | Description | Environment Variable Fallback |
+|----------|-------------|-------------------------------|
+| `gcp.project.id` | GCP project ID | `GOOGLE_CLOUD_PROJECT` |
+| `gcp.location` | KMS location (e.g., `global`, `us-east1`) | -- |
+| `gcp.key.ring` | Key ring name | -- |
+| `gcp.credentials.path` | Path to service account JSON key file | `GOOGLE_APPLICATION_CREDENTIALS` |
+| `gcp.endpoint` | Custom KMS endpoint URL (for emulators) | -- |
 
 ---
 

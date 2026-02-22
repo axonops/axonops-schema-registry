@@ -4744,7 +4744,7 @@ paths:
       description: >-
         Creates a new Key Encryption Key (KEK) with the specified configuration. The KEK name
         MUST be unique within the registry. The `kmsType` specifies the Key Management Service
-        provider (e.g. `aws-kms`, `azure-kms`, `gcp-kms`). The `kmsKeyId` identifies the
+        provider (e.g. `aws-kms`, `azure-kms`, `gcp-kms`, `hcvault`, `openbao`). The `kmsKeyId` identifies the
         master key in the KMS. The `shared` flag indicates whether this KEK is shared across
         multiple schema subjects.
       operationId: createKek
@@ -6907,7 +6907,7 @@ components:
         kmsType:
           type: string
           description: >-
-            The Key Management Service provider type (e.g. `aws-kms`, `azure-kms`, `gcp-kms`).
+            The Key Management Service provider type (e.g. `aws-kms`, `azure-kms`, `gcp-kms`, `hcvault`, `openbao`).
           example: "aws-kms"
         kmsKeyId:
           type: string

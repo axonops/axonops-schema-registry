@@ -89,7 +89,8 @@ Unlike Confluent Schema Registry, which uses Kafka itself (a special `_schemas` 
 | **Schema Validation** | ✅ | ✅ | ✅ | ✅ |
 | **Data Contracts** | ✅ | ❌ | ✅ | ❌ |
 | **Multi-Tenant Contexts** | ✅ | ✅ | ✅ | ❌ |
-| **Schema Linking** | ❌ | ❌ | ✅ | ❌ |
+| **Field-Level Encryption** | ✅ | ❌ | ✅ | ❌ |
+| **Schema Linking** | ✅ API | ❌ | ✅ | ❌ |
 | **Single Binary** | ✅ | ❌ | ❌ | ❌ |
 | **Memory Footprint** | ~50MB | ~500MB+ | ~500MB+ | ~200MB+ |
 
@@ -130,6 +131,12 @@ See the [Getting Started](docs/getting-started.md) guide for Kafka client integr
 - **Soft Delete** -- recoverable deletion with permanent delete option
 - **Multi-Tenant Contexts** -- namespace isolation with independent schema IDs, subjects, compatibility config, and modes per context ([docs](docs/contexts.md))
 - **Data Contracts** -- schema metadata (tags, properties, sensitive fields), rule sets (domain rules, migration rules, encoding rules), and config-level defaults/overrides with 3-layer merge ([docs](docs/data-contracts.md))
+
+### Encryption
+
+- **DEK Registry** -- Client-Side Field Level Encryption (CSFLE) with KEK/DEK management, compatible with Confluent's Enterprise CSFLE feature ([docs](docs/encryption.md))
+- **5 KMS Providers** -- AWS KMS, Azure Key Vault, GCP KMS, HashiCorp Vault, and OpenBao Transit
+- **Exporters API** -- Schema Linking exporter management for cross-registry schema replication ([docs](docs/exporters.md))
 
 ### Storage Backends
 
@@ -206,9 +213,10 @@ Active-active across datacenters with automatic cross-DC replication via Cassand
 
 AxonOps Schema Registry implements the Confluent Schema Registry REST API v1:
 
-- **All endpoints** -- schemas, subjects, compatibility, config, mode, import
+- **All endpoints** -- schemas, subjects, compatibility, config, mode, import, DEK Registry (CSFLE), and Exporters (Schema Linking)
 - **All serializers** -- compatible with Confluent's Avro, Protobuf, and JSON Schema serializers
 - **All client libraries** -- works with `confluent-kafka-go`, `confluent-kafka-python`, and Java Kafka clients
+- **DEK Registry** -- full Confluent Enterprise CSFLE parity (KEK/DEK management with 5 KMS providers), available at no additional cost
 - **Error format** -- HTTP status codes and error response JSON match Confluent behavior
 
 **Known differences:**
@@ -242,6 +250,8 @@ AxonOps Schema Registry implements the Confluent Schema Registry REST API v1:
 | [Migration](docs/migration.md) | Migrating from Confluent Schema Registry with preserved schema IDs |
 | [Testing Strategy](docs/testing.md) | Testing philosophy, all test layers, how to run and write tests |
 | [Development](docs/development.md) | Building from source, running the test suite, and contributing |
+| [Encryption](docs/encryption.md) | DEK Registry, Client-Side Field Level Encryption (CSFLE), and KMS providers |
+| [Exporters](docs/exporters.md) | Schema Linking via exporter management API |
 | [Troubleshooting](docs/troubleshooting.md) | Common issues, diagnostic commands, and error code reference |
 
 </div>

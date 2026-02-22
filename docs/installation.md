@@ -65,7 +65,7 @@ AxonOps Schema Registry is a single binary with no runtime dependencies beyond a
 
 - **PostgreSQL** 13+ (recommended for most deployments)
 - **MySQL** 8.0+
-- **Apache Cassandra** 4.0+ (for multi-datacenter deployments)
+- **Apache Cassandra** 5.0+ (for multi-datacenter deployments)
 
 The server listens on port **8081** by default.
 

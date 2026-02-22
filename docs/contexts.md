@@ -9,6 +9,7 @@ This feature is **Confluent-compatible**: context-qualified subject names and th
 - [Overview](#overview)
 - [Key Concepts](#key-concepts)
 - [Default Context](#default-context)
+- [Global Context (__GLOBAL)](#global-context-__global)
 - [Subject Format](#subject-format)
 - [URL Routing](#url-routing)
   - [Qualified Subjects (Root-Level)](#qualified-subjects-root-level)
@@ -61,6 +62,21 @@ The default context is named `"."` (a single dot). When no context is specified 
 This ensures **full backward compatibility**: existing clients that do not use contexts continue to work exactly as before. Their schemas, subjects, and configuration all reside in the default context `"."`.
 
 > The `GET /contexts` endpoint always includes `"."` in its response, even when no other contexts have been created.
+
+---
+
+## Global Context (__GLOBAL)
+
+The `__GLOBAL` context (displayed as `.__GLOBAL`) is a special cross-context namespace reserved for configuration and mode operations that apply globally across all contexts. It is used by Confluent Schema Linking for cross-context coordination.
+
+**Key properties:**
+
+- Only **config** and **mode** operations are allowed under `.__GLOBAL`.
+- Schemas and subjects **cannot** be registered under `.__GLOBAL`. Attempting to register a schema returns an error.
+- The context is accessed using the same qualified-subject or URL-prefix patterns as any other context (e.g., `/contexts/.__GLOBAL/config`).
+- `__GLOBAL` does NOT appear in the `GET /contexts` listing unless it has been explicitly configured.
+
+> The `__GLOBAL` context exists for Confluent wire compatibility. Most deployments do not need to interact with it directly.
 
 ---
 

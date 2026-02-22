@@ -166,7 +166,7 @@ Each rule in a RuleSet has the following fields:
 | `name` | string | Yes | Unique name for this rule within its category |
 | `doc` | string | No | Human-readable description of what the rule does |
 | `kind` | string | Yes | `CONDITION` (validates, returns true/false) or `TRANSFORM` (modifies data) |
-| `mode` | string | Yes | When the rule applies: `WRITE`, `READ`, `WRITEREAD`, `UPGRADE`, or `DOWNGRADE` |
+| `mode` | string | Yes | When the rule applies: `WRITE`, `READ`, `WRITEREAD`, `UPGRADE`, `DOWNGRADE`, or `UPDOWN` |
 | `type` | string | No | Rule engine type (e.g., `CEL`, `CEL_FIELD`, `JSONATA`, `ENCRYPT`) |
 | `tags` | list | No | Field tags this rule applies to (used with `CEL_FIELD` to target tagged fields) |
 | `params` | map | No | Key-value parameters passed to the rule engine |
@@ -189,6 +189,7 @@ The `mode` field determines when the rule is evaluated:
 | `WRITEREAD` | Both producer and consumer | Rules that MUST apply in both directions |
 | `UPGRADE` | Consumer (when reading older schema version) | Transform old-format data to new format |
 | `DOWNGRADE` | Producer (when writing for older consumers) | Transform new-format data to old format |
+| `UPDOWN` | Both upgrade and downgrade | Rules that apply for both migration directions |
 
 ### Domain Rules
 
