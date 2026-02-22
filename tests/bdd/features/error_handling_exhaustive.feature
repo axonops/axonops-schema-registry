@@ -132,6 +132,7 @@ Feature: Error Handling & Edge Cases — Exhaustive (Confluent v8.1.1 Compatibil
   # JSON 404 for unknown routes
   # ==========================================================================
 
+  @axonops-only
   Scenario: GET unknown path returns JSON 404
     When I GET "/this/path/does/not/exist"
     Then the response status should be 404
@@ -150,6 +151,7 @@ Feature: Error Handling & Edge Cases — Exhaustive (Confluent v8.1.1 Compatibil
   # Error code 40406 for individually soft-deleted versions
   # ==========================================================================
 
+  @axonops-only
   Scenario: GET individually soft-deleted version returns 40406
     Given the global compatibility level is "NONE"
     And subject "err-40406-sub" has schema:
