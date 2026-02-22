@@ -118,8 +118,8 @@ func TestContextExtractionMiddleware_InvalidContext(t *testing.T) {
 	if err := json.NewDecoder(w.Body).Decode(&errResp); err != nil {
 		t.Fatalf("failed to decode error response: %v", err)
 	}
-	if errResp.ErrorCode != 422 {
-		t.Errorf("expected error_code 422, got %d", errResp.ErrorCode)
+	if errResp.ErrorCode != 42210 {
+		t.Errorf("expected error_code 42210, got %d", errResp.ErrorCode)
 	}
 	if errResp.Message != "Invalid context name" {
 		t.Errorf("expected message %q, got %q", "Invalid context name", errResp.Message)

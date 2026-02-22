@@ -66,19 +66,19 @@ func (r *Registry) RegisterSchema(ctx context.Context, registryCtx string, subje
 	// Get the parser for this schema type
 	parser, ok := r.schemaParser.Get(schemaType)
 	if !ok {
-		return nil, fmt.Errorf("unsupported schema type: %s", schemaType)
+		return nil, fmt.Errorf("unsupported schema type: %s: %w", schemaType, ErrUnsupportedSchemaType)
 	}
 
 	// Resolve reference content from storage
 	resolvedRefs, err := r.resolveReferences(ctx, registryCtx, refs)
 	if err != nil {
-		return nil, fmt.Errorf("failed to resolve references: %w", err)
+		return nil, fmt.Errorf("failed to resolve references: %w", errors.Join(err, ErrFailedResolveReferences))
 	}
 
 	// Parse the schema
 	parsed, err := parser.Parse(schemaStr, resolvedRefs)
 	if err != nil {
-		return nil, fmt.Errorf("invalid schema: %w", err)
+		return nil, fmt.Errorf("invalid schema: %w", errors.Join(err, ErrInvalidSchema))
 	}
 
 	// Extract options
@@ -90,7 +90,7 @@ func (r *Registry) RegisterSchema(ctx context.Context, registryCtx string, subje
 	// Validate ruleSet if provided
 	if opt.RuleSet != nil {
 		if err := rules.ValidateRuleSet(opt.RuleSet); err != nil {
-			return nil, fmt.Errorf("invalid ruleSet: %w", err)
+			return nil, fmt.Errorf("invalid ruleSet: %w", errors.Join(err, ErrInvalidRuleSet))
 		}
 	}
 
@@ -246,17 +246,17 @@ func (r *Registry) RegisterSchemaWithID(ctx context.Context, registryCtx string,
 
 	parser, ok := r.schemaParser.Get(schemaType)
 	if !ok {
-		return nil, fmt.Errorf("unsupported schema type: %s", schemaType)
+		return nil, fmt.Errorf("unsupported schema type: %s: %w", schemaType, ErrUnsupportedSchemaType)
 	}
 
 	resolvedRefs, err := r.resolveReferences(ctx, registryCtx, refs)
 	if err != nil {
-		return nil, fmt.Errorf("failed to resolve references: %w", err)
+		return nil, fmt.Errorf("failed to resolve references: %w", errors.Join(err, ErrFailedResolveReferences))
 	}
 
 	parsed, err := parser.Parse(schemaStr, resolvedRefs)
 	if err != nil {
-		return nil, fmt.Errorf("invalid schema: %w", err)
+		return nil, fmt.Errorf("invalid schema: %w", errors.Join(err, ErrInvalidSchema))
 	}
 
 	// Check if schema already exists in this subject with same fingerprint (idempotent)
@@ -331,18 +331,18 @@ func (r *Registry) CheckCompatibility(ctx context.Context, registryCtx string, s
 	// Parse the new schema to validate it
 	parser, ok := r.schemaParser.Get(schemaType)
 	if !ok {
-		return nil, fmt.Errorf("unsupported schema type: %s", schemaType)
+		return nil, fmt.Errorf("unsupported schema type: %s: %w", schemaType, ErrUnsupportedSchemaType)
 	}
 
 	// Resolve reference content from storage
 	resolvedRefs, err := r.resolveReferences(ctx, registryCtx, refs)
 	if err != nil {
-		return nil, fmt.Errorf("failed to resolve references: %w", err)
+		return nil, fmt.Errorf("failed to resolve references: %w", errors.Join(err, ErrFailedResolveReferences))
 	}
 
 	parsed, err := parser.Parse(schemaStr, resolvedRefs)
 	if err != nil {
-		return nil, fmt.Errorf("invalid schema: %w", err)
+		return nil, fmt.Errorf("invalid schema: %w", errors.Join(err, ErrInvalidSchema))
 	}
 
 	// Apply normalization if requested
@@ -521,19 +521,19 @@ func (r *Registry) LookupSchema(ctx context.Context, registryCtx string, subject
 	// Get the parser for this schema type
 	parser, ok := r.schemaParser.Get(schemaType)
 	if !ok {
-		return nil, fmt.Errorf("unsupported schema type: %s", schemaType)
+		return nil, fmt.Errorf("unsupported schema type: %s: %w", schemaType, ErrUnsupportedSchemaType)
 	}
 
 	// Resolve reference content from storage
 	resolvedRefs, err := r.resolveReferences(ctx, registryCtx, refs)
 	if err != nil {
-		return nil, fmt.Errorf("failed to resolve references: %w", err)
+		return nil, fmt.Errorf("failed to resolve references: %w", errors.Join(err, ErrFailedResolveReferences))
 	}
 
 	// Parse the schema to get fingerprint
 	parsed, err := parser.Parse(schemaStr, resolvedRefs)
 	if err != nil {
-		return nil, fmt.Errorf("invalid schema: %w", err)
+		return nil, fmt.Errorf("invalid schema: %w", errors.Join(err, ErrInvalidSchema))
 	}
 
 	// Apply normalization if requested
@@ -627,7 +627,7 @@ func (r *Registry) DeleteVersion(ctx context.Context, registryCtx string, subjec
 		return 0, err
 	}
 	if len(refs) > 0 {
-		return 0, fmt.Errorf("schema is referenced by other schemas")
+		return 0, ErrReferenceExists
 	}
 
 	if err := r.storage.DeleteSchema(ctx, registryCtx, subject, resolvedVersion, permanent); err != nil {
@@ -746,7 +746,7 @@ type SetConfigOpts struct {
 func (r *Registry) SetConfig(ctx context.Context, registryCtx string, subject string, level string, normalize *bool, opts ...SetConfigOpts) error {
 	level = strings.ToUpper(level)
 	if !isValidCompatibility(level) {
-		return fmt.Errorf("invalid compatibility level: %s", level)
+		return fmt.Errorf("invalid compatibility level: %s: %w", level, ErrInvalidCompatibility)
 	}
 
 	config := &storage.ConfigRecord{
@@ -760,12 +760,12 @@ func (r *Registry) SetConfig(ctx context.Context, registryCtx string, subject st
 		// Validate ruleSets if provided
 		if opt.DefaultRuleSet != nil {
 			if err := rules.ValidateRuleSet(opt.DefaultRuleSet); err != nil {
-				return fmt.Errorf("invalid defaultRuleSet: %w", err)
+				return fmt.Errorf("invalid defaultRuleSet: %w", errors.Join(err, ErrInvalidRuleSet))
 			}
 		}
 		if opt.OverrideRuleSet != nil {
 			if err := rules.ValidateRuleSet(opt.OverrideRuleSet); err != nil {
-				return fmt.Errorf("invalid overrideRuleSet: %w", err)
+				return fmt.Errorf("invalid overrideRuleSet: %w", errors.Join(err, ErrInvalidRuleSet))
 			}
 		}
 
@@ -892,7 +892,7 @@ func (r *Registry) GetSubjectMode(ctx context.Context, registryCtx string, subje
 func (r *Registry) SetMode(ctx context.Context, registryCtx string, subject string, mode string, force bool) error {
 	mode = strings.ToUpper(mode)
 	if !isValidMode(mode) {
-		return fmt.Errorf("invalid mode: %s", mode)
+		return fmt.Errorf("invalid mode: %s: %w", mode, ErrInvalidMode)
 	}
 
 	// Confluent behavior: switching to IMPORT requires force=true if schemas exist

@@ -359,6 +359,13 @@ func (h *Handler) GetVersion(w http.ResponseWriter, r *http.Request) {
 					writeError(w, http.StatusNotFound, types.ErrorCodeSubjectNotFound, "Subject not found")
 					return
 				}
+				// Confluent returns 40406 when the specific version exists but is
+				// soft-deleted and the request did not include ?deleted=true.
+				if !includeDeleted && h.isVersionSoftDeleted(r.Context(), registryCtx, subject, version) {
+					writeError(w, http.StatusNotFound, types.ErrorCodeSchemaVersionSoftDeleted,
+						"Schema version is soft deleted")
+					return
+				}
 				writeError(w, http.StatusNotFound, types.ErrorCodeVersionNotFound, "Version not found")
 				return
 			}
@@ -464,6 +471,16 @@ func (h *Handler) isSubjectFullyDeleted(ctx context.Context, registryCtx string,
 	return len(activeVersions) == 0
 }
 
+
+// isVersionSoftDeleted returns true if the given version exists as a soft-deleted
+// entry. Used to return 40406 (schema version soft-deleted) instead of 40402.
+func (h *Handler) isVersionSoftDeleted(ctx context.Context, registryCtx string, subject string, version int) bool {
+	deleted, err := h.findDeletedVersion(ctx, registryCtx, subject, version)
+	if err != nil {
+		return false
+	}
+	return deleted != nil && deleted.Deleted
+}
 // RegisterSchema handles POST /subjects/{subject}/versions
 func (h *Handler) RegisterSchema(w http.ResponseWriter, r *http.Request) {
 	registryCtx, subject := resolveSubjectAndContext(r)
@@ -544,19 +561,19 @@ func (h *Handler) RegisterSchema(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	if err != nil {
-		if strings.Contains(err.Error(), "invalid ruleSet") {
+		if errors.Is(err, registry.ErrInvalidRuleSet) {
 			writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidSchema, err.Error())
 			return
 		}
-		if strings.Contains(err.Error(), "invalid schema") {
+		if errors.Is(err, registry.ErrInvalidSchema) {
 			writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidSchema, err.Error())
 			return
 		}
-		if strings.Contains(err.Error(), "unsupported schema type") {
+		if errors.Is(err, registry.ErrUnsupportedSchemaType) {
 			writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidSchema, err.Error())
 			return
 		}
-		if strings.Contains(err.Error(), "failed to resolve references") {
+		if errors.Is(err, registry.ErrFailedResolveReferences) {
 			writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidSchema, err.Error())
 			return
 		}
@@ -616,7 +633,7 @@ func (h *Handler) LookupSchema(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusNotFound, types.ErrorCodeSchemaNotFound, "Schema not found")
 			return
 		}
-		if strings.Contains(err.Error(), "invalid schema") {
+		if errors.Is(err, registry.ErrInvalidSchema) {
 			writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidSchema, err.Error())
 			return
 		}
@@ -675,7 +692,7 @@ func (h *Handler) DeleteSubject(w http.ResponseWriter, r *http.Request) {
 				fmt.Sprintf("Subject '%s' was not deleted first before being permanently deleted", subject))
 			return
 		}
-		if strings.Contains(err.Error(), "reference") {
+		if errors.Is(err, registry.ErrReferenceExists) {
 			writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeReferenceExists, err.Error())
 			return
 		}
@@ -728,7 +745,7 @@ func (h *Handler) DeleteVersion(w http.ResponseWriter, r *http.Request) {
 				fmt.Sprintf("Subject '%s' Version %s was not deleted first before being permanently deleted", subject, versionStr))
 			return
 		}
-		if strings.Contains(err.Error(), "referenced") {
+		if errors.Is(err, registry.ErrReferenceExists) {
 			writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeReferenceExists, err.Error())
 			return
 		}
@@ -839,11 +856,11 @@ func (h *Handler) SetConfig(w http.ResponseWriter, r *http.Request) {
 		OverrideRuleSet:    req.OverrideRuleSet,
 	}
 	if err := h.registry.SetConfig(r.Context(), registryCtx, subject, req.Compatibility, req.Normalize, configOpts); err != nil {
-		if strings.Contains(err.Error(), "invalid compatibility") {
+		if errors.Is(err, registry.ErrInvalidCompatibility) {
 			writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidCompatibilityLevel, err.Error())
 			return
 		}
-		if strings.Contains(err.Error(), "invalid defaultRuleSet") || strings.Contains(err.Error(), "invalid overrideRuleSet") {
+		if errors.Is(err, registry.ErrInvalidRuleSet) {
 			writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidSchema, err.Error())
 			return
 		}
@@ -924,7 +941,7 @@ func (h *Handler) CheckCompatibility(w http.ResponseWriter, r *http.Request) {
 	normalizeSchema := r.URL.Query().Get("normalize") == "true"
 	result, err := h.registry.CheckCompatibility(r.Context(), registryCtx, subject, req.Schema, schemaType, req.References, versionStr, normalizeSchema)
 	if err != nil {
-		if strings.Contains(err.Error(), "invalid schema") {
+		if errors.Is(err, registry.ErrInvalidSchema) {
 			writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidSchema, err.Error())
 			return
 		}
@@ -1085,7 +1102,7 @@ func (h *Handler) SetMode(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.registry.SetMode(r.Context(), registryCtx, subject, req.Mode, force); err != nil {
-		if strings.Contains(err.Error(), "invalid mode") {
+		if errors.Is(err, registry.ErrInvalidMode) {
 			writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidMode, err.Error())
 			return
 		}
@@ -1447,6 +1464,13 @@ func (h *Handler) GetRawSchemaByVersion(w http.ResponseWriter, r *http.Request) 
 		if errors.Is(err, storage.ErrVersionNotFound) {
 			if h.isSubjectFullyDeleted(r.Context(), registryCtx, subject) {
 				writeError(w, http.StatusNotFound, types.ErrorCodeSubjectNotFound, "Subject not found")
+				return
+			}
+			// Confluent returns 40406 when the specific version exists but is
+			// soft-deleted and the request did not include ?deleted=true.
+			if h.isVersionSoftDeleted(r.Context(), registryCtx, subject, version) {
+				writeError(w, http.StatusNotFound, types.ErrorCodeSchemaVersionSoftDeleted,
+					"Schema version is soft deleted")
 				return
 			}
 			writeError(w, http.StatusNotFound, types.ErrorCodeVersionNotFound, "Version not found")

@@ -26,7 +26,9 @@ func contextExtractionMiddleware(next http.Handler) http.Handler {
 
 		// Validate the context name
 		if !registrycontext.IsValidContextName(registryCtx) {
-			http.Error(w, `{"error_code":422,"message":"Invalid context name"}`, http.StatusUnprocessableEntity)
+			w.Header().Set("Content-Type", "application/vnd.schemaregistry.v1+json")
+			w.WriteHeader(http.StatusUnprocessableEntity)
+			w.Write([]byte(`{"error_code":42210,"message":"Invalid context name"}`))
 			return
 		}
 

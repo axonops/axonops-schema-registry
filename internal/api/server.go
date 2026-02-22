@@ -31,6 +31,8 @@ type Server struct {
 	authorizer    *auth.Authorizer
 	authService   *auth.Service
 	rateLimiter   *auth.RateLimiter
+	version       string
+	commit        string
 }
 
 // ServerOption is a function that configures the server.
@@ -42,6 +44,14 @@ func WithAuth(authenticator *auth.Authenticator, authorizer *auth.Authorizer, au
 		s.authenticator = authenticator
 		s.authorizer = authorizer
 		s.authService = authService
+	}
+}
+
+// WithBuildInfo configures the build version and commit for the server.
+func WithBuildInfo(version, commit string) ServerOption {
+	return func(s *Server) {
+		s.version = version
+		s.commit = commit
 	}
 }
 
@@ -81,6 +91,7 @@ func (s *Server) setupRouter() {
 
 	// Return 405 with Confluent-compatible JSON error for unsupported methods
 	r.MethodNotAllowed(methodNotAllowedHandler)
+	r.NotFound(notFoundHandler)
 
 	// Common middleware for all routes
 	r.Use(middleware.RequestID)
@@ -90,8 +101,24 @@ func (s *Server) setupRouter() {
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(30 * time.Second))
 
+	// Request body size limit
+	maxBodySize := int64(10 << 20) // 10MB default
+	if s.config.Server.MaxRequestBodySize > 0 {
+		maxBodySize = s.config.Server.MaxRequestBodySize
+	}
+	r.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
+			next.ServeHTTP(w, r)
+		})
+	})
+
 	// Create handlers
-	h := handlers.New(s.registry)
+	h := handlers.NewWithConfig(s.registry, handlers.Config{
+		ClusterID: s.config.Server.ClusterID,
+		Version:   s.version,
+		Commit:    s.commit,
+	})
 
 	// Public endpoints (no auth required) - health checks, metrics, and documentation
 	r.Get("/", h.HealthCheck)
@@ -355,4 +382,12 @@ func methodNotAllowedHandler(w http.ResponseWriter, _ *http.Request) {
 		"error_code": 405,
 		"message":    "HTTP 405 Method Not Allowed",
 	})
+}
+
+// notFoundHandler returns a JSON error response matching Confluent's format
+// when no route matches the request path.
+func notFoundHandler(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "application/vnd.schemaregistry.v1+json")
+	w.WriteHeader(http.StatusNotFound)
+	w.Write([]byte(`{"error_code":404,"message":"HTTP 404 Not Found"}`))
 }

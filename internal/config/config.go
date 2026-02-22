@@ -25,7 +25,9 @@ type ServerConfig struct {
 	Port         int    `yaml:"port"`
 	ReadTimeout  int    `yaml:"read_timeout"`
 	WriteTimeout int    `yaml:"write_timeout"`
-	DocsEnabled  bool   `yaml:"docs_enabled"`
+	DocsEnabled         bool   `yaml:"docs_enabled"`
+	ClusterID           string `yaml:"cluster_id"`
+	MaxRequestBodySize  int64  `yaml:"max_request_body_size"`
 }
 
 // StorageConfig represents storage backend configuration.

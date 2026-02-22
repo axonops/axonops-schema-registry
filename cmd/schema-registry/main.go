@@ -106,6 +106,7 @@ func main() {
 
 	// Create server options
 	var serverOpts []api.ServerOption
+	serverOpts = append(serverOpts, api.WithBuildInfo(version, commit))
 	var authService *auth.Service
 	var vaultStore *vault.Store
 
