@@ -43,6 +43,9 @@ import (
 	jsoncompat "github.com/axonops/axonops-schema-registry/internal/compatibility/jsonschema"
 	protocompat "github.com/axonops/axonops-schema-registry/internal/compatibility/protobuf"
 	"github.com/axonops/axonops-schema-registry/internal/config"
+	"github.com/axonops/axonops-schema-registry/internal/kms"
+	vaultkms "github.com/axonops/axonops-schema-registry/internal/kms/vault"
+	openbaokms "github.com/axonops/axonops-schema-registry/internal/kms/openbao"
 	"github.com/axonops/axonops-schema-registry/internal/registry"
 	"github.com/axonops/axonops-schema-registry/internal/schema"
 	"github.com/axonops/axonops-schema-registry/internal/schema/avro"
@@ -203,6 +206,58 @@ func newAuthTestServer() (*httptest.Server, storage.Storage, *auth.Service) {
 	return httptest.NewServer(server), store, authService
 }
 
+// newKMSTestServer creates an in-process schema registry with KMS providers configured.
+// It reads KMS_VAULT_ADDR/KMS_VAULT_TOKEN and KMS_BAO_ADDR/KMS_BAO_TOKEN env vars to
+// configure Vault and OpenBao KMS providers respectively.
+func newKMSTestServer() (*httptest.Server, storage.Storage) {
+	store := memory.NewStore()
+
+	schemaRegistry := schema.NewRegistry()
+	schemaRegistry.Register(avro.NewParser())
+	schemaRegistry.Register(protobuf.NewParser())
+	schemaRegistry.Register(jsonschema.NewParser())
+
+	compatChecker := compatibility.NewChecker()
+	compatChecker.Register(storage.SchemaTypeAvro, avrocompat.NewChecker())
+	compatChecker.Register(storage.SchemaTypeProtobuf, protocompat.NewChecker())
+	compatChecker.Register(storage.SchemaTypeJSON, jsoncompat.NewChecker())
+
+	reg := registry.New(store, schemaRegistry, compatChecker, "BACKWARD")
+
+	// Configure KMS providers from environment variables
+	kmsReg := kms.NewRegistry()
+
+	if addr, token := os.Getenv("KMS_VAULT_ADDR"), os.Getenv("KMS_VAULT_TOKEN"); addr != "" && token != "" {
+		p, err := vaultkms.NewProvider(vaultkms.Config{Address: addr, Token: token})
+		if err != nil {
+			panic(fmt.Sprintf("failed to create Vault KMS provider: %v", err))
+		}
+		if err := kmsReg.Register(p); err != nil {
+			panic(fmt.Sprintf("failed to register Vault KMS provider: %v", err))
+		}
+	}
+
+	if addr, token := os.Getenv("KMS_BAO_ADDR"), os.Getenv("KMS_BAO_TOKEN"); addr != "" && token != "" {
+		p, err := openbaokms.NewProvider(vaultkms.Config{Address: addr, Token: token})
+		if err != nil {
+			panic(fmt.Sprintf("failed to create OpenBao KMS provider: %v", err))
+		}
+		if err := kmsReg.Register(p); err != nil {
+			panic(fmt.Sprintf("failed to register OpenBao KMS provider: %v", err))
+		}
+	}
+
+	reg.SetKMSRegistry(kmsReg)
+
+	cfg := &config.Config{
+		Server: config.ServerConfig{Host: "localhost", Port: 0, DocsEnabled: true},
+	}
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+	server := api.NewServer(cfg, reg, logger)
+
+	return httptest.NewServer(server), store
+}
+
 func TestFeatures(t *testing.T) {
 	// In-process: skip @operational (no Docker infrastructure).
 	// Docker mode: run everything for this backend, skip other backends. BDD_TAGS overrides.
@@ -210,7 +265,7 @@ func TestFeatures(t *testing.T) {
 	if envTags := os.Getenv("BDD_TAGS"); envTags != "" {
 		tags = envTags
 	} else if !dockerMode && registryURL == "" {
-		tags = "~@operational && ~@pending-impl && ~@auth"
+		tags = "~@operational && ~@pending-impl && ~@auth && ~@kms"
 	} else if backend == "confluent" {
 		// Confluent: exclude operational, import (our custom API), axonops-only, contexts (our multi-tenant),
 		// pending-impl, data-contracts (ruleSet features require commercial Confluent license),
@@ -262,12 +317,27 @@ func TestFeatures(t *testing.T) {
 					return gctx, waitForURL(registryURL+"/", 30*time.Second)
 				})
 			} else {
-				// In-process: create fresh server per scenario
-				ts, store := newTestServer()
-				tc = steps.NewTestContext(ts.URL)
+				// In-process: create fresh server per scenario.
+				// tc must be allocated before step registration (steps capture the pointer).
+				tc = steps.NewTestContext("http://placeholder")
+				var ts *httptest.Server
+				var st storage.Storage
+				ctx.Before(func(gctx context.Context, sc *godog.Scenario) (context.Context, error) {
+					if hasTag(sc, "@kms") {
+						ts, st = newKMSTestServer()
+					} else {
+						ts, st = newTestServer()
+					}
+					tc.BaseURL = ts.URL
+					return gctx, nil
+				})
 				ctx.After(func(gctx context.Context, sc *godog.Scenario, err error) (context.Context, error) {
-					ts.Close()
-					store.Close()
+					if ts != nil {
+						ts.Close()
+					}
+					if st != nil {
+						st.Close()
+					}
 					return gctx, nil
 				})
 			}
@@ -279,6 +349,7 @@ func TestFeatures(t *testing.T) {
 			steps.RegisterReferenceSteps(ctx, tc)
 			steps.RegisterInfraSteps(ctx, tc)
 			steps.RegisterAuthSteps(ctx, tc)
+			steps.RegisterEncryptionSteps(ctx, tc)
 		},
 		Options: &opts,
 	}
@@ -323,6 +394,7 @@ func TestAuthFeatures(t *testing.T) {
 			steps.RegisterReferenceSteps(ctx, tc)
 			steps.RegisterInfraSteps(ctx, tc)
 			steps.RegisterAuthSteps(ctx, tc)
+			steps.RegisterEncryptionSteps(ctx, tc)
 		},
 		Options: &opts,
 	}

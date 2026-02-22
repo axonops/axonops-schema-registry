@@ -18,6 +18,9 @@ import (
 	jsoncompat "github.com/axonops/axonops-schema-registry/internal/compatibility/jsonschema"
 	protocompat "github.com/axonops/axonops-schema-registry/internal/compatibility/protobuf"
 	"github.com/axonops/axonops-schema-registry/internal/config"
+	"github.com/axonops/axonops-schema-registry/internal/kms"
+	openbaokms "github.com/axonops/axonops-schema-registry/internal/kms/openbao"
+	vaultkms "github.com/axonops/axonops-schema-registry/internal/kms/vault"
 	"github.com/axonops/axonops-schema-registry/internal/registry"
 	"github.com/axonops/axonops-schema-registry/internal/schema"
 	"github.com/axonops/axonops-schema-registry/internal/schema/avro"
@@ -93,6 +96,13 @@ func main() {
 
 	// Create the registry service
 	reg := registry.New(store, schemaRegistry, compatChecker, cfg.Compatibility.DefaultLevel)
+
+	// Wire KMS provider registry for server-side DEK encryption.
+	// Providers are only registered when their connection env vars are present.
+	kmsReg := initKMSRegistry(logger)
+	if kmsReg != nil {
+		reg.SetKMSRegistry(kmsReg)
+	}
 
 	// Create server options
 	var serverOpts []api.ServerOption
@@ -269,6 +279,13 @@ func main() {
 			authService.Close()
 		}
 
+		// Close KMS providers
+		if kmsReg != nil {
+			if err := kmsReg.Close(); err != nil {
+				logger.Error("kms registry close error", slog.String("error", err.Error()))
+			}
+		}
+
 		// Close Vault store if used
 		if vaultStore != nil {
 			if err := vaultStore.Close(); err != nil {
@@ -420,4 +437,48 @@ func createStorage(cfg *config.Config, logger *slog.Logger) (storage.Storage, er
 	default:
 		return nil, fmt.Errorf("unsupported storage type: %s", cfg.Storage.Type)
 	}
+}
+
+// initKMSRegistry creates a KMS provider registry with available providers.
+// Providers are only registered when their connection environment variables
+// (e.g., VAULT_ADDR/VAULT_TOKEN, BAO_ADDR/BAO_TOKEN) are set.
+// Returns nil if no providers are available.
+func initKMSRegistry(logger *slog.Logger) *kms.Registry {
+	reg := kms.NewRegistry()
+	registered := 0
+
+	// HashiCorp Vault Transit
+	if os.Getenv("VAULT_ADDR") != "" {
+		p, err := vaultkms.NewProvider(vaultkms.Config{})
+		if err != nil {
+			logger.Warn("failed to create Vault KMS provider", slog.String("error", err.Error()))
+		} else {
+			if err := reg.Register(p); err != nil {
+				logger.Warn("failed to register Vault KMS provider", slog.String("error", err.Error()))
+			} else {
+				logger.Info("KMS provider registered", slog.String("type", "hcvault"), slog.String("address", os.Getenv("VAULT_ADDR")))
+				registered++
+			}
+		}
+	}
+
+	// OpenBao Transit
+	if os.Getenv("BAO_ADDR") != "" {
+		p, err := openbaokms.NewProvider(vaultkms.Config{})
+		if err != nil {
+			logger.Warn("failed to create OpenBao KMS provider", slog.String("error", err.Error()))
+		} else {
+			if err := reg.Register(p); err != nil {
+				logger.Warn("failed to register OpenBao KMS provider", slog.String("error", err.Error()))
+			} else {
+				logger.Info("KMS provider registered", slog.String("type", "openbao"), slog.String("address", os.Getenv("BAO_ADDR")))
+				registered++
+			}
+		}
+	}
+
+	if registered == 0 {
+		return nil
+	}
+	return reg
 }

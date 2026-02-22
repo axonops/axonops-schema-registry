@@ -1164,6 +1164,55 @@ jobs:
       - name: Run BDD functional tests (in-process)
         run: go test -tags bdd -v -count=1 -timeout 10m ./tests/bdd/...
 
+  # BDD tests — KMS encryption (Vault Transit + OpenBao Transit, in-process server)
+  bdd-kms-tests:
+    name: BDD Tests (KMS Encryption)
+    runs-on: ubuntu-latest
+    needs: [bdd-functional-tests]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Start KMS services (Vault + OpenBao)
+        working-directory: tests/bdd
+        run: |
+          # Start Vault and OpenBao in background, then run the init service
+          docker compose -f docker-compose.kms.yml up -d vault openbao
+          # Wait for health
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:18200/v1/sys/health > /dev/null 2>&1 && \
+            curl -sf http://localhost:18201/v1/sys/health > /dev/null 2>&1 && break
+            sleep 2
+          done
+          # Run the init service (enables Transit engines + creates test keys)
+          docker compose -f docker-compose.kms.yml run --rm setup-kms
+
+      - name: Run BDD KMS encryption tests
+        env:
+          BDD_TAGS: "@kms"
+          KMS_VAULT_ADDR: "http://localhost:18200"
+          KMS_VAULT_TOKEN: "test-root-token"
+          KMS_BAO_ADDR: "http://localhost:18201"
+          KMS_BAO_TOKEN: "test-bao-token"
+        run: go test -tags bdd -v -count=1 -timeout 10m ./tests/bdd/...
+
+      - name: Show KMS container logs on failure
+        if: failure()
+        working-directory: tests/bdd
+        run: docker compose -f docker-compose.kms.yml logs --tail=100 || true
+
+      - name: Cleanup KMS containers
+        if: always()
+        working-directory: tests/bdd
+        run: docker compose -f docker-compose.kms.yml down -v || true
+
   # BDD tests — Memory backend (functional + operational scenarios)
   bdd-memory-tests:
     name: BDD Tests (Memory)
