@@ -15,31 +15,31 @@ Feature: Contexts — Name Validation, Error Conditions, and Edge Cases
   Scenario: Context name with exclamation mark via URL prefix is rejected
     When I GET "/contexts/.invalid!/subjects"
     Then the response status should be 422
-    And the response should have error code 422
+    And the response should have error code 42210
     And the response body should contain "Invalid context name"
 
   Scenario: Context name with space via URL prefix is rejected
     When I GET "/contexts/.has%20space/subjects"
     Then the response status should be 422
-    And the response should have error code 422
+    And the response should have error code 42210
     And the response body should contain "Invalid context name"
 
   Scenario: Context name with at-sign via URL prefix is rejected
     When I GET "/contexts/.at@sign/subjects"
     Then the response status should be 422
-    And the response should have error code 422
+    And the response should have error code 42210
     And the response body should contain "Invalid context name"
 
   Scenario: Context name with hash via URL prefix is rejected
     When I GET "/contexts/.hash%23char/subjects"
     Then the response status should be 422
-    And the response should have error code 422
+    And the response should have error code 42210
     And the response body should contain "Invalid context name"
 
   Scenario: Context name with percent-encoded special characters via URL prefix is rejected
     When I GET "/contexts/.pct%25enc/subjects"
     Then the response status should be 422
-    And the response should have error code 422
+    And the response should have error code 42210
     And the response body should contain "Invalid context name"
 
   # ==========================================================================

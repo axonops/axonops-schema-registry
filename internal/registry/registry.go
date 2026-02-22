@@ -563,7 +563,7 @@ func (r *Registry) DeleteSubject(ctx context.Context, registryCtx string, subjec
 					return nil, err
 				}
 				if len(refs) > 0 {
-					return nil, fmt.Errorf("One or more references exist to the schema {subject=%s,version=%d}", subject, schema.Version)
+					return nil, fmt.Errorf("One or more references exist to the schema {subject=%s,version=%d}: %w", subject, schema.Version, ErrReferenceExists)
 				}
 			}
 		}

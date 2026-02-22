@@ -24,4 +24,5 @@ func RunAll(t *testing.T, newStore StoreFactory) {
 	t.Run("KEK", func(t *testing.T) { RunKEKTests(t, newStore) })
 	t.Run("DEK", func(t *testing.T) { RunDEKTests(t, newStore) })
 	t.Run("Exporter", func(t *testing.T) { RunExporterTests(t, newStore) })
+	t.Run("Context", func(t *testing.T) { RunContextTests(t, newStore) })
 }
