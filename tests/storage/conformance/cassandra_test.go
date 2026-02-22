@@ -32,6 +32,7 @@ func TestCassandraBackend(t *testing.T) {
 
 	RunAll(t, func() storage.Storage {
 		truncateCassandra(t, cfg)
+		store.ResetIDCache()
 		return &noCloseStore{store}
 	})
 }

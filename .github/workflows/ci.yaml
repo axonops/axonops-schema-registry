@@ -1097,7 +1097,7 @@ jobs:
         run: |
           for profile in confluent-8.1 confluent-7.9 confluent-7.7.4 confluent-7.7.3; do
             echo "Testing with profile: $profile"
-            mvn test -P "$profile" -Dschema.registry.url=http://localhost:8081 -q
+            mvn test -P "$profile" -Dschema.registry.url=http://localhost:8081 -DexcludedGroups=csfle -q
           done
 
       - name: Run Python compatibility tests
@@ -1207,6 +1207,74 @@ jobs:
         if: failure()
         working-directory: tests/bdd
         run: docker compose -f docker-compose.kms.yml logs --tail=100 || true
+
+      - name: Cleanup KMS containers
+        if: always()
+        working-directory: tests/bdd
+        run: docker compose -f docker-compose.kms.yml down -v || true
+
+  # Data Contract & CSFLE tests — Java Confluent SerDe with rule execution + Vault encryption
+  data-contract-csfle-tests:
+    name: Data Contract & CSFLE Tests
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download test binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: test-binaries
+
+      - name: Make binaries executable
+        run: chmod +x schema-registry
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Start KMS services (Vault + OpenBao)
+        working-directory: tests/bdd
+        run: |
+          docker compose -f docker-compose.kms.yml up -d vault openbao
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:18200/v1/sys/health > /dev/null 2>&1 && \
+            curl -sf http://localhost:18201/v1/sys/health > /dev/null 2>&1 && break
+            sleep 2
+          done
+          docker compose -f docker-compose.kms.yml run --rm setup-kms
+
+      - name: Start Schema Registry
+        run: |
+          ./schema-registry &
+          echo "Waiting for Schema Registry to start..."
+          for i in {1..30}; do
+            if curl -s http://localhost:8081/subjects > /dev/null 2>&1; then
+              echo "Schema Registry is ready"
+              break
+            fi
+            sleep 1
+          done
+
+      - name: Run Data Contract & CSFLE Tests
+        working-directory: tests/compatibility/java
+        run: |
+          mvn test -P confluent-8.1 \
+            -Dschema.registry.url=http://localhost:8081 \
+            -Dgroups=data-contracts,csfle \
+            -Dvault.url=http://localhost:18200 \
+            -Dvault.token=test-root-token
+
+      - name: Show KMS container logs on failure
+        if: failure()
+        working-directory: tests/bdd
+        run: docker compose -f docker-compose.kms.yml logs --tail=100 || true
+
+      - name: Stop Schema Registry
+        if: always()
+        run: pkill schema-registry || true
 
       - name: Cleanup KMS containers
         if: always()

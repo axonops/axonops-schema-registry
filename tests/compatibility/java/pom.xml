@@ -22,6 +22,9 @@
         <confluent.version>8.1.0</confluent.version>
         <!-- Default Schema Registry URL -->
         <schema.registry.url>http://localhost:8081</schema.registry.url>
+        <!-- Default Vault URL and token for CSFLE tests -->
+        <vault.url>http://localhost:18200</vault.url>
+        <vault.token>test-root-token</vault.token>
     </properties>
 
     <dependencyManagement>
@@ -110,6 +113,27 @@
             <version>${confluent.version}</version>
         </dependency>
 
+        <!-- Data Contract Rule Executors (CEL, CEL_FIELD, JSONata) — auto-discovered via ServiceLoader -->
+        <dependency>
+            <groupId>io.confluent</groupId>
+            <artifactId>kafka-schema-rules</artifactId>
+            <version>${confluent.version}</version>
+        </dependency>
+
+        <!-- CSFLE Field Encryption (includes local-kms for testing) -->
+        <dependency>
+            <groupId>io.confluent</groupId>
+            <artifactId>kafka-schema-registry-client-encryption</artifactId>
+            <version>${confluent.version}</version>
+        </dependency>
+
+        <!-- HashiCorp Vault KMS Driver for CSFLE -->
+        <dependency>
+            <groupId>io.confluent</groupId>
+            <artifactId>kafka-schema-registry-client-encryption-hcvault</artifactId>
+            <version>${confluent.version}</version>
+        </dependency>
+
         <!-- Kafka Clients -->
         <dependency>
             <groupId>org.apache.kafka</groupId>
@@ -142,6 +166,8 @@
                     <systemPropertyVariables>
                         <schema.registry.url>${schema.registry.url}</schema.registry.url>
                         <confluent.version>${confluent.version}</confluent.version>
+                        <vault.url>${vault.url}</vault.url>
+                        <vault.token>${vault.token}</vault.token>
                     </systemPropertyVariables>
                 </configuration>
             </plugin>

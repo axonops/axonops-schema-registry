@@ -102,6 +102,19 @@ func (a *idAllocator) reset(registryCtx string) {
 	delete(a.allocators, registryCtx)
 }
 
+func (a *idAllocator) resetAll() {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.allocators = make(map[string]*contextIDBlock)
+}
+
+// ResetIDCache clears the in-memory ID block allocator cache.
+// This is needed after truncating the id_alloc table (e.g. in tests)
+// to avoid the allocator serving stale IDs from memory.
+func (s *Store) ResetIDCache() {
+	s.idAlloc.resetAll()
+}
+
 // Store implements storage.Storage on Cassandra.
 type Store struct {
 	cfg              Config
