@@ -476,39 +476,33 @@ public class CsfleVaultEncryptionTest {
                 serializer.close();
             }
 
-            // Create a NEW client and deserializer WITHOUT the Vault token
+            // Create a NEW client and deserializer WITHOUT the Vault token.
+            // Because the ENCRYPT rule uses onFailure="ERROR,NONE", the READ action
+            // is NONE — decryption failures are silently ignored and the encrypted
+            // (opaque) value passes through instead of the plaintext.
             SchemaRegistryClient consumerClient = TestHelper.createClient(SCHEMA_REGISTRY_URL);
             KafkaAvroDeserializer noKmsDeserializer = TestHelper.createRuleAwareDeserializer(
                     SCHEMA_REGISTRY_URL, consumerClient);
 
             try {
-                // Attempting to deserialize should fail because the deserializer cannot
-                // unwrap the DEK without Vault access
-                Exception thrown = assertThrows(Exception.class, () -> {
-                    noKmsDeserializer.deserialize(topic, encrypted);
-                }, "Deserialization without KMS access should throw an exception");
+                GenericRecord result = (GenericRecord) noKmsDeserializer.deserialize(topic, encrypted);
+                assertNotNull(result, "Deserialized record should not be null");
 
-                // Walk the cause chain looking for KMS/decryption failure indicators
-                Throwable cause = thrown;
-                boolean foundKmsError = false;
-                while (cause != null) {
-                    String msg = cause.getMessage() != null ? cause.getMessage().toLowerCase() : "";
-                    if (msg.contains("kms") || msg.contains("decrypt") || msg.contains("vault")
-                            || msg.contains("unwrap") || msg.contains("key") || msg.contains("encrypt")
-                            || msg.contains("rule") || msg.contains("executor")
-                            || msg.contains("token") || msg.contains("forbidden")
-                            || msg.contains("unauthorized") || msg.contains("permission")) {
-                        foundKmsError = true;
-                        break;
-                    }
-                    cause = cause.getCause();
-                }
+                // Non-PII fields should still be readable
+                assertEquals("CUST-SECURE", result.get("customerId").toString(),
+                        "customerId (non-PII) should be intact");
+                assertEquals("Secure User", result.get("name").toString(),
+                        "name (non-PII) should be intact");
 
-                assertTrue(foundKmsError,
-                        "Exception should be related to KMS/decryption failure, got: " + thrown.getMessage());
+                // The SSN field should NOT contain the original plaintext —
+                // it should be the encrypted/opaque value that was not decrypted
+                String ssnValue = result.get("ssn").toString();
+                assertNotEquals("555-66-7777", ssnValue,
+                        "SSN should NOT be decrypted to plaintext without KMS access; "
+                                + "the encrypted opaque value should pass through instead");
 
-                System.out.println("No-KMS-access test passed: deserialization correctly failed with: "
-                        + thrown.getClass().getSimpleName() + ": " + thrown.getMessage());
+                System.out.println("No-KMS-access test passed: SSN returned as opaque value '"
+                        + ssnValue.substring(0, Math.min(40, ssnValue.length())) + "...' instead of plaintext");
             } finally {
                 noKmsDeserializer.close();
             }
