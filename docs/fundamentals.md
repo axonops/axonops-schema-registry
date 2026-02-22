@@ -30,6 +30,8 @@ This document introduces the core concepts behind a schema registry, explains wh
 - [Schema ID Allocation](#schema-id-allocation)
 - [Schema Deduplication](#schema-deduplication)
 - [Modes: Controlling Write Access](#modes-controlling-write-access)
+- [Contexts: Multi-Tenancy](#contexts-multi-tenancy)
+- [Data Contracts: Metadata and RuleSets](#data-contracts-metadata-and-rulesets)
 - [Architecture: Where the Registry Fits](#architecture-where-the-registry-fits)
 - [Related Documentation](#related-documentation)
 
@@ -353,6 +355,201 @@ The registry supports **modes** that control whether schema registration is allo
 
 Modes can be set globally or per subject. A per-subject mode overrides the global mode for that subject.
 
+## Contexts: Multi-Tenancy
+
+A **context** is a logical namespace within the registry that provides multi-tenant isolation. Each context operates as an independent schema registry environment -- with its own schema IDs, subjects, version histories, compatibility configuration, and modes -- while sharing a single registry deployment.
+
+By default, all operations target the **default context** (`"."`). Existing clients that do not use contexts continue to work exactly as before; no changes are REQUIRED. The default context is always present and is always included in the response from `GET /contexts`.
+
+### What Contexts Isolate
+
+| Resource | Isolation |
+|----------|-----------|
+| **Schema IDs** | Each context maintains its own auto-incrementing ID sequence. Schema ID `1` in `.team-a` is independent of schema ID `1` in `.team-b`. |
+| **Subjects** | The same subject name in different contexts refers to different subjects with separate version histories. |
+| **Versions** | Version numbering is independent per context. |
+| **Compatibility config** | Global and subject-level compatibility settings are scoped to the context. |
+| **Modes** | Read/write modes (`READWRITE`, `READONLY`, `IMPORT`) are scoped to the context. |
+
+### Accessing Contexts
+
+There are two ways to target a specific context. Both produce identical results.
+
+**Qualified subject names** embed the context directly in the subject string using the Confluent-compatible format `:.contextname:subject`:
+
+```bash
+# Register a schema in the .team-a context
+curl -X POST http://localhost:8081/subjects/:.team-a:orders-value/versions \
+  -H "Content-Type: application/vnd.schemaregistry.v1+json" \
+  -d '{"schema": "{\"type\":\"record\",\"name\":\"Order\",\"fields\":[{\"name\":\"id\",\"type\":\"int\"}]}"}'
+```
+
+**URL prefix routing** scopes all operations under a `/contexts/{context}/` path prefix:
+
+```bash
+# Register the same schema using URL prefix routing
+curl -X POST http://localhost:8081/contexts/.team-a/subjects/orders-value/versions \
+  -H "Content-Type: application/vnd.schemaregistry.v1+json" \
+  -d '{"schema": "{\"type\":\"record\",\"name\":\"Order\",\"fields\":[{\"name\":\"id\",\"type\":\"int\"}]}"}'
+```
+
+### Example: Team Isolation
+
+Two teams can register the same subject name in different contexts without conflict:
+
+```bash
+# Team A registers their orders schema
+curl -X POST http://localhost:8081/contexts/.team-a/subjects/orders-value/versions \
+  -H "Content-Type: application/vnd.schemaregistry.v1+json" \
+  -d '{"schema": "{\"type\":\"record\",\"name\":\"Order\",\"fields\":[{\"name\":\"id\",\"type\":\"int\"},{\"name\":\"amount\",\"type\":\"double\"}]}"}'
+# → {"id": 1}
+
+# Team B registers a completely different orders schema
+curl -X POST http://localhost:8081/contexts/.team-b/subjects/orders-value/versions \
+  -H "Content-Type: application/vnd.schemaregistry.v1+json" \
+  -d '{"schema": "{\"type\":\"record\",\"name\":\"Order\",\"fields\":[{\"name\":\"order_id\",\"type\":\"string\"},{\"name\":\"total\",\"type\":\"float\"}]}"}'
+# → {"id": 1}  (independent ID sequence — both contexts start at 1)
+
+# List all contexts
+curl http://localhost:8081/contexts
+# → [".", ".team-a", ".team-b"]
+```
+
+### Common Use Cases
+
+| Use Case | Description |
+|----------|-------------|
+| **Team isolation** | Give each team (`.team-a`, `.team-b`) an independent namespace so they can use the same subject names without conflicts. |
+| **Environment separation** | Run `.staging` and `.production` schemas side by side in a single registry instance. |
+| **Schema Linking** | Confluent Schema Linking uses contexts to replicate schemas across clusters. AxonOps contexts are wire-compatible with this protocol. |
+| **Multi-tenant SaaS** | Provide each tenant a dedicated schema namespace within a shared registry deployment. |
+
+For the full contexts API reference, naming rules, and isolation guarantees, see the [Contexts](contexts.md) documentation.
+
+## Data Contracts: Metadata and RuleSets
+
+**Data contracts** are governance policies that you attach to schemas. They allow you to annotate schema fields with descriptive metadata, classify sensitive data, and define rules that MUST be applied during validation, migration, or serialization. Data contracts build on top of the schema registration system described earlier -- they add governance without changing how schemas are parsed, fingerprinted, or compatibility-checked.
+
+### Metadata
+
+Metadata provides descriptive annotations for a schema. It consists of three components:
+
+| Component | Type | Purpose |
+|-----------|------|---------|
+| `properties` | Key-value pairs (`map[string]string`) | Arbitrary annotations such as `"owner": "payments-team"`, `"pii": "true"`, or `"domain": "billing"`. |
+| `tags` | Field-to-tag mapping (`map[string][]string`) | Categorize individual fields. Keys are field paths (e.g., `"Order.email"`), values are arrays of tag strings (e.g., `["PII", "GDPR"]`). |
+| `sensitive` | String array | A list of field paths that contain sensitive data (e.g., `["ssn", "credit_card"]`). |
+
+Example metadata in a schema registration request:
+
+```bash
+curl -X POST http://localhost:8081/subjects/orders-value/versions \
+  -H "Content-Type: application/vnd.schemaregistry.v1+json" \
+  -d '{
+    "schema": "{\"type\":\"record\",\"name\":\"Order\",\"fields\":[{\"name\":\"id\",\"type\":\"int\"},{\"name\":\"email\",\"type\":\"string\"}]}",
+    "metadata": {
+      "properties": {
+        "owner": "payments-team",
+        "domain": "billing"
+      },
+      "tags": {
+        "Order.email": ["PII", "GDPR"]
+      },
+      "sensitive": ["email"]
+    }
+  }'
+```
+
+### RuleSets
+
+A **RuleSet** defines executable governance policies organized into three categories:
+
+| Category | Field | Purpose |
+|----------|-------|---------|
+| **Domain rules** | `domainRules` | Validation and transformation rules applied to schema content (e.g., "all field names MUST be camelCase"). |
+| **Migration rules** | `migrationRules` | Rules applied during schema evolution (e.g., "renamed fields MUST provide a migration path"). |
+| **Encoding rules** | `encodingRules` | Rules applied during serialization/deserialization (e.g., "encrypt fields tagged as PII"). |
+
+Each rule has a name, kind, mode, and an optional expression:
+
+```json
+{
+  "ruleSet": {
+    "domainRules": [
+      {
+        "name": "checkCamelCase",
+        "kind": "CONDITION",
+        "mode": "WRITE",
+        "type": "CEL",
+        "expr": "name.matches('^[a-z][a-zA-Z0-9]*$')",
+        "onFailure": "ERROR"
+      }
+    ],
+    "migrationRules": [
+      {
+        "name": "renameCustomerToClient",
+        "kind": "TRANSFORM",
+        "mode": "UPGRADE",
+        "type": "JSON_TRANSFORM",
+        "expr": "$.customer -> $.client"
+      }
+    ]
+  }
+}
+```
+
+### Config-Level Defaults and Overrides
+
+Rather than attaching metadata and rules to every registration request, you can set **defaults** and **overrides** at the configuration level (global or per-subject). The configuration endpoint accepts four additional fields:
+
+| Field | Purpose |
+|-------|---------|
+| `defaultMetadata` | Metadata merged into every registration request that does not specify its own metadata. |
+| `defaultRuleSet` | RuleSet merged into every registration request that does not specify its own rules. |
+| `overrideMetadata` | Metadata that ALWAYS takes precedence, overriding both defaults and request-specific values. |
+| `overrideRuleSet` | RuleSet that ALWAYS takes precedence, overriding both defaults and request-specific rules. |
+
+When a schema is registered, the registry applies a **3-layer merge**:
+
+```
+1. defaultMetadata / defaultRuleSet       ← base layer (from config)
+2. request metadata / ruleSet             ← request-specific (from POST body)
+3. overrideMetadata / overrideRuleSet     ← override layer (from config, always wins)
+```
+
+For example, setting a config-level default ensures all schemas in a subject inherit a baseline set of governance policies:
+
+```bash
+curl -X PUT http://localhost:8081/config/orders-value \
+  -H "Content-Type: application/vnd.schemaregistry.v1+json" \
+  -d '{
+    "compatibility": "BACKWARD",
+    "defaultMetadata": {
+      "properties": {
+        "domain": "billing"
+      }
+    },
+    "overrideMetadata": {
+      "properties": {
+        "classification": "internal"
+      }
+    }
+  }'
+```
+
+With this configuration, every schema registered under `orders-value` will have `"domain": "billing"` in its metadata (unless the request specifies a different value for `domain`) and will always have `"classification": "internal"` regardless of what the request specifies.
+
+### How Metadata Affects Deduplication
+
+Schema deduplication is based on the SHA-256 fingerprint of the schema's canonical form. Metadata and rules are **not** included in the fingerprint. This means:
+
+- Registering the **same schema text with different metadata** creates a **new version** (because the metadata differs), but the schema receives the **same global ID** (because the content fingerprint is identical).
+- Registering the **same schema text with the same metadata** is treated as a duplicate -- the existing version and ID are returned.
+
+This design separates content identity (what the schema describes) from governance identity (how the schema is annotated).
+
+For the full data contracts API, rule types, and advanced configuration, see the [Data Contracts](data-contracts.md) documentation.
+
 ## Architecture: Where the Registry Fits
 
 AxonOps Schema Registry is a stateless HTTP service that sits alongside your Kafka cluster. All state is stored in the database, not in the registry process itself.
@@ -401,9 +598,12 @@ Key architectural properties:
 
 ## Related Documentation
 
+- [Best Practices](best-practices.md) -- schema design patterns, naming, evolution, and common mistakes
 - [Getting Started](getting-started.md) -- run the registry and register your first schemas
 - [Schema Types](schema-types.md) -- detailed Avro, Protobuf, and JSON Schema support
 - [Compatibility](compatibility.md) -- all 7 compatibility modes with per-type rules
 - [API Reference](api-reference.md) -- complete endpoint documentation
 - [Storage Backends](storage-backends.md) -- PostgreSQL, MySQL, Cassandra, and in-memory setup
+- [Contexts](contexts.md) -- multi-tenancy via contexts
+- [Data Contracts](data-contracts.md) -- metadata, rulesets, and governance policies
 - [Deployment](deployment.md) -- production deployment topologies and configuration

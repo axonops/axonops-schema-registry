@@ -128,10 +128,7 @@ func TestOpenAPISpecMatchesRoutes(t *testing.T) {
 	specRoutes := getSpecRoutes(t)
 
 	// Routes that are intentionally excluded from the spec (internal/infrastructure).
-	specExclusions := map[string]bool{
-		// The metrics endpoint is infrastructure, not part of the API contract.
-		// Include it in spec if desired; currently excluded from validation.
-	}
+	specExclusions := map[string]bool{}
 
 	// Routes that exist in the spec but may not exist in the router due to
 	// conditional registration (e.g. docs routes when DocsEnabled=false).

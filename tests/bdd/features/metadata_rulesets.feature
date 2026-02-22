@@ -1,4 +1,4 @@
-@functional
+@functional @data-contracts
 Feature: Metadata and RuleSets (Data Contracts)
   Schema metadata and rule sets enable data contracts in the registry.
   Metadata (tags, properties, sensitive fields) and RuleSets (migration/domain rules)
@@ -39,7 +39,7 @@ Feature: Metadata and RuleSets (Data Contracts)
     And the response body should contain "PII"
     And the response body should contain "SENSITIVE"
 
-  @axonops-only
+  @data-contracts
   Scenario: Register schema with ruleSet — stored and returned
     When I POST "/subjects/ruleset-test/versions" with body:
       """
@@ -68,7 +68,7 @@ Feature: Metadata and RuleSets (Data Contracts)
     And the response body should contain "CONDITION"
     And the response body should contain "WRITE"
 
-  @axonops-only
+  @data-contracts
   Scenario: Register schema with both metadata and ruleSet
     When I POST "/subjects/both-meta-rules/versions" with body:
       """
@@ -104,7 +104,6 @@ Feature: Metadata and RuleSets (Data Contracts)
   # METADATA DOES NOT AFFECT SCHEMA IDENTITY
   # ==========================================================================
 
-  @axonops-only
   Scenario: Metadata does not affect schema identity — same schema different metadata
     # Register schema without metadata
     When I POST "/subjects/meta-identity/versions" with body:
@@ -152,7 +151,7 @@ Feature: Metadata and RuleSets (Data Contracts)
   # LOOKUP SCHEMA INCLUDES METADATA
   # ==========================================================================
 
-  @axonops-only
+  @data-contracts
   Scenario: Lookup schema returns metadata and ruleSet
     When I POST "/subjects/meta-lookup/versions" with body:
       """
@@ -223,7 +222,7 @@ Feature: Metadata and RuleSets (Data Contracts)
     And the response should have field "overrideMetadata"
     And the response body should contain "internal"
 
-  @axonops-only
+  @data-contracts
   Scenario: Set config with defaultRuleSet
     When I PUT "/config/rules-cfg-subject" with body:
       """
@@ -248,7 +247,7 @@ Feature: Metadata and RuleSets (Data Contracts)
     And the response should have field "defaultRuleSet"
     And the response body should contain "defaultValidation"
 
-  @axonops-only
+  @data-contracts
   Scenario: Set config with overrideRuleSet
     When I PUT "/config/rules-override-subject" with body:
       """
@@ -320,7 +319,8 @@ Feature: Metadata and RuleSets (Data Contracts)
   # SCHEMA WITHOUT METADATA — FIELDS OMITTED
   # ==========================================================================
 
-  Scenario: Schema without metadata omits metadata fields in response
+  @axonops-only
+  Scenario: Schema without metadata has only confluent:version in response
     When I POST "/subjects/no-meta/versions" with body:
       """
       {
@@ -330,14 +330,14 @@ Feature: Metadata and RuleSets (Data Contracts)
     Then the response status should be 200
     When I GET "/subjects/no-meta/versions/1"
     Then the response status should be 200
-    And the response body should not contain "metadata"
+    And the response body should contain "confluent:version"
     And the response body should not contain "ruleSet"
 
   # ==========================================================================
   # MIGRATION RULES
   # ==========================================================================
 
-  @axonops-only
+  @data-contracts
   Scenario: Register schema with migration rules
     When I POST "/subjects/migration-rules/versions" with body:
       """

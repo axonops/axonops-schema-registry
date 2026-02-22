@@ -129,4 +129,142 @@ var migrations = []string{
 		"schema_id BIGINT NOT NULL," +
 		"UNIQUE KEY idx_schema_fingerprints_schema_id (schema_id)" +
 		") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+
+	// ---------------------------------------------------------------
+	// Migrations 22+: Multi-tenant context support (issue #264)
+	// Adds registry_ctx column to all schema/config/mode tables.
+	// Schema IDs become per-context. Default context is ".".
+	// ---------------------------------------------------------------
+
+	// Migration 22: Add registry_ctx column to schemas table.
+	"ALTER TABLE `schemas` ADD COLUMN registry_ctx VARCHAR(255) NOT NULL DEFAULT '.'",
+
+	// Migration 23: Drop old unique constraints that don't include registry_ctx.
+	// MySQL uses DROP INDEX for unique keys.
+	"ALTER TABLE `schemas` DROP INDEX idx_subject_version",
+
+	// Migration 24: Drop old fingerprint unique constraint.
+	"ALTER TABLE `schemas` DROP INDEX idx_subject_fingerprint",
+
+	// Migration 25: Create context-scoped unique indexes on schemas.
+	"CREATE UNIQUE INDEX idx_schemas_ctx_subj_ver ON `schemas`(registry_ctx, subject, version)",
+
+	// Migration 26: Create context-scoped fingerprint uniqueness.
+	"CREATE UNIQUE INDEX idx_schemas_ctx_subj_fp ON `schemas`(registry_ctx, subject, fingerprint)",
+
+	// Migration 27: Add registry_ctx to schema_fingerprints.
+	"ALTER TABLE schema_fingerprints ADD COLUMN registry_ctx VARCHAR(255) NOT NULL DEFAULT '.'",
+
+	// Migration 28: Drop old schema_fingerprints primary key (fingerprint only).
+	"ALTER TABLE schema_fingerprints DROP PRIMARY KEY, ADD PRIMARY KEY (registry_ctx, fingerprint)",
+
+	// Migration 29: Drop old UNIQUE constraint on schema_id (IDs are now per-context).
+	"ALTER TABLE schema_fingerprints DROP INDEX idx_schema_fingerprints_schema_id",
+
+	// Migration 30: Add per-context unique constraint on schema_id.
+	"CREATE UNIQUE INDEX idx_schema_fp_ctx_id ON schema_fingerprints(registry_ctx, schema_id)",
+
+	// Migration 31: Add registry_ctx to configs.
+	"ALTER TABLE configs ADD COLUMN registry_ctx VARCHAR(255) NOT NULL DEFAULT '.'",
+
+	// Migration 32: Drop old configs primary key (subject only) and add compound key.
+	"ALTER TABLE configs DROP PRIMARY KEY, ADD PRIMARY KEY (registry_ctx, subject)",
+
+	// Migration 33: Add registry_ctx to modes.
+	"ALTER TABLE modes ADD COLUMN registry_ctx VARCHAR(255) NOT NULL DEFAULT '.'",
+
+	// Migration 34: Drop old modes primary key (subject only) and add compound key.
+	"ALTER TABLE modes DROP PRIMARY KEY, ADD PRIMARY KEY (registry_ctx, subject)",
+
+	// Migration 35: Per-context ID allocation table.
+	// Each context has its own ID sequence starting at 1.
+	"CREATE TABLE IF NOT EXISTS ctx_id_alloc (" +
+		"registry_ctx VARCHAR(255) PRIMARY KEY," +
+		"next_id BIGINT NOT NULL DEFAULT 1" +
+		") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+
+	// Migration 36: Seed ctx_id_alloc for default context with current max ID.
+	"INSERT IGNORE INTO ctx_id_alloc (registry_ctx, next_id) SELECT '.', COALESCE(MAX(schema_id), 0) + 1 FROM schema_fingerprints WHERE registry_ctx = '.'",
+
+	// Migration 37: Contexts tracking table.
+	"CREATE TABLE IF NOT EXISTS contexts (" +
+		"registry_ctx VARCHAR(255) PRIMARY KEY," +
+		"created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP" +
+		") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+
+	// Migration 38: Seed default context.
+	"INSERT IGNORE INTO contexts (registry_ctx) VALUES ('.')",
+
+	// Migration 39: Add registry_ctx to schema_references.
+	"ALTER TABLE schema_references ADD COLUMN registry_ctx VARCHAR(255) NOT NULL DEFAULT '.'",
+
+	// Migration 40: Index for context-scoped queries on schemas.
+	"CREATE INDEX idx_schemas_registry_ctx ON `schemas`(registry_ctx)",
+
+	// Migration 41: Relax fingerprint uniqueness per subject.
+	// The same schema text (fingerprint) can now appear in multiple versions of
+	// the same subject when metadata or ruleSet differ (Confluent compatibility).
+	// Drop the unique index and replace with a non-unique index for lookups.
+	"DROP INDEX idx_schemas_ctx_subj_fp ON `schemas`",
+	"CREATE INDEX idx_schemas_ctx_subj_fp ON `schemas`(registry_ctx, subject, fingerprint)",
+
+	// Migration 42: Make registry_ctx case-sensitive across all tables.
+	// MySQL's default utf8mb4_unicode_ci collation is case-insensitive,
+	// but context names must be case-sensitive for Confluent compatibility.
+	"ALTER TABLE `schemas` MODIFY COLUMN registry_ctx VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL DEFAULT '.'",
+	"ALTER TABLE schema_fingerprints MODIFY COLUMN registry_ctx VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL DEFAULT '.'",
+	"ALTER TABLE configs MODIFY COLUMN registry_ctx VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL DEFAULT '.'",
+	"ALTER TABLE modes MODIFY COLUMN registry_ctx VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL DEFAULT '.'",
+	"ALTER TABLE ctx_id_alloc MODIFY COLUMN registry_ctx VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL DEFAULT '.'",
+	"ALTER TABLE contexts MODIFY COLUMN registry_ctx VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL",
+	"ALTER TABLE schema_references MODIFY COLUMN registry_ctx VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL DEFAULT '.'",
+
+	// Migration 43: KEKs table (Client-Side Field Level Encryption)
+	"CREATE TABLE IF NOT EXISTS keks (" +
+		"name VARCHAR(255) PRIMARY KEY," +
+		"kms_type VARCHAR(50) NOT NULL," +
+		"kms_key_id VARCHAR(500) NOT NULL," +
+		"kms_props JSON," +
+		"doc TEXT," +
+		"shared BOOLEAN NOT NULL DEFAULT FALSE," +
+		"deleted BOOLEAN NOT NULL DEFAULT FALSE," +
+		"ts BIGINT NOT NULL DEFAULT 0," +
+		"created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP," +
+		"updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP" +
+		") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+
+	// Migration 44: DEKs table (Client-Side Field Level Encryption)
+	"CREATE TABLE IF NOT EXISTS deks (" +
+		"kek_name VARCHAR(255) NOT NULL," +
+		"subject VARCHAR(255) NOT NULL," +
+		"version INT NOT NULL," +
+		"algorithm VARCHAR(50) NOT NULL DEFAULT 'AES256_GCM'," +
+		"encrypted_key_material TEXT," +
+		"deleted BOOLEAN NOT NULL DEFAULT FALSE," +
+		"ts BIGINT NOT NULL DEFAULT 0," +
+		"PRIMARY KEY (kek_name, subject, version, algorithm)," +
+		"INDEX idx_deks_kek_name (kek_name)" +
+		") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+
+	// Migration 45: Exporters table (Confluent Schema Linking compatible)
+	"CREATE TABLE IF NOT EXISTS exporters (" +
+		"name VARCHAR(255) PRIMARY KEY," +
+		"context_type VARCHAR(50)," +
+		"context VARCHAR(255)," +
+		"subjects JSON," +
+		"subject_rename_format VARCHAR(255)," +
+		"config JSON," +
+		"created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP," +
+		"updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP" +
+		") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+
+	// Migration 46: Exporter statuses table
+	"CREATE TABLE IF NOT EXISTS exporter_statuses (" +
+		"name VARCHAR(255) PRIMARY KEY," +
+		"state VARCHAR(50) NOT NULL DEFAULT 'PAUSED'," +
+		"`offset` BIGINT NOT NULL DEFAULT 0," +
+		"ts BIGINT NOT NULL DEFAULT 0," +
+		"trace TEXT," +
+		"FOREIGN KEY (name) REFERENCES exporters(name) ON DELETE CASCADE" +
+		") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
 }

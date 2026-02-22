@@ -72,8 +72,8 @@ func NewWithConfig(reg *registry.Registry, cfg Config) *Handler {
 //   - error: non-nil if the mode check itself failed (e.g. storage unreachable)
 //
 // Both READONLY and READONLY_OVERRIDE block data and config writes.
-func (h *Handler) checkModeForWrite(r *http.Request, subject string) (string, error) {
-	mode, err := h.registry.GetMode(r.Context(), subject)
+func (h *Handler) checkModeForWrite(r *http.Request, registryCtx string, subject string) (string, error) {
+	mode, err := h.registry.GetMode(r.Context(), registryCtx, subject)
 	if err != nil {
 		return "", fmt.Errorf("failed to check mode: %w", err)
 	}
@@ -86,15 +86,30 @@ func (h *Handler) checkModeForWrite(r *http.Request, subject string) (string, er
 // resolveAlias resolves a subject alias. If the subject has an alias configured,
 // the alias target is returned. Otherwise the original subject is returned.
 // Alias resolution is single-level (no recursive chaining).
-func (h *Handler) resolveAlias(ctx context.Context, subject string) string {
+func (h *Handler) resolveAlias(ctx context.Context, registryCtx string, subject string) string {
 	if subject == "" {
 		return subject
 	}
-	config, err := h.registry.GetSubjectConfigFull(ctx, subject)
+	config, err := h.registry.GetSubjectConfigFull(ctx, registryCtx, subject)
 	if err == nil && config.Alias != "" {
 		return config.Alias
 	}
 	return subject
+}
+
+// parseSchemaType validates and returns the schema type from a request.
+// Confluent is case-sensitive: only "AVRO", "PROTOBUF", and "JSON" are accepted.
+// Empty string defaults to AVRO. Returns empty string and false for invalid types.
+func parseSchemaType(raw string) (storage.SchemaType, bool) {
+	if raw == "" {
+		return storage.SchemaTypeAvro, true
+	}
+	switch storage.SchemaType(raw) {
+	case storage.SchemaTypeAvro, storage.SchemaTypeProtobuf, storage.SchemaTypeJSON:
+		return storage.SchemaType(raw), true
+	default:
+		return "", false
+	}
 }
 
 // HealthCheck handles GET /
@@ -143,6 +158,11 @@ func (h *Handler) GetSchemaTypes(w http.ResponseWriter, r *http.Request) {
 
 // GetSchemaByID handles GET /schemas/ids/{id}
 func (h *Handler) GetSchemaByID(w http.ResponseWriter, r *http.Request) {
+	registryCtx := getRegistryContext(r)
+	if rejectGlobalContext(w, registryCtx) {
+		return
+	}
+
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
@@ -150,7 +170,7 @@ func (h *Handler) GetSchemaByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	schema, err := h.registry.GetSchemaByID(r.Context(), id)
+	schema, err := h.registry.GetSchemaByID(r.Context(), registryCtx, id)
 	if err != nil {
 		if errors.Is(err, storage.ErrSchemaNotFound) {
 			writeError(w, http.StatusNotFound, types.ErrorCodeSchemaNotFound, "Schema not found")
@@ -162,7 +182,7 @@ func (h *Handler) GetSchemaByID(w http.ResponseWriter, r *http.Request) {
 
 	schemaStr := schema.Schema
 	if format := r.URL.Query().Get("format"); format != "" {
-		schemaStr = h.registry.FormatSchema(r.Context(), schema, format)
+		schemaStr = h.registry.FormatSchema(r.Context(), registryCtx, schema, format)
 	}
 
 	resp := types.SchemaByIDResponse{
@@ -174,7 +194,7 @@ func (h *Handler) GetSchemaByID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.URL.Query().Get("fetchMaxId") == "true" {
-		maxID, err := h.registry.GetMaxSchemaID(r.Context())
+		maxID, err := h.registry.GetMaxSchemaID(r.Context(), registryCtx)
 		if err == nil {
 			resp.MaxId = &maxID
 		}
@@ -185,6 +205,10 @@ func (h *Handler) GetSchemaByID(w http.ResponseWriter, r *http.Request) {
 
 // ListSubjects handles GET /subjects
 func (h *Handler) ListSubjects(w http.ResponseWriter, r *http.Request) {
+	registryCtx := getRegistryContext(r)
+	if rejectGlobalContext(w, registryCtx) {
+		return
+	}
 	deleted := r.URL.Query().Get("deleted") == "true"
 	deletedOnly := r.URL.Query().Get("deletedOnly") == "true"
 	subjectPrefix := r.URL.Query().Get("subjectPrefix")
@@ -192,7 +216,7 @@ func (h *Handler) ListSubjects(w http.ResponseWriter, r *http.Request) {
 	// deletedOnly implies including deleted subjects
 	includeDeleted := deleted || deletedOnly
 
-	subjects, err := h.registry.ListSubjects(r.Context(), includeDeleted)
+	subjects, err := h.registry.ListSubjects(r.Context(), registryCtx, includeDeleted)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
 		return
@@ -200,7 +224,7 @@ func (h *Handler) ListSubjects(w http.ResponseWriter, r *http.Request) {
 
 	// For deletedOnly, filter to only deleted subjects by diffing with active set
 	if deletedOnly {
-		activeSubjects, _ := h.registry.ListSubjects(r.Context(), false)
+		activeSubjects, _ := h.registry.ListSubjects(r.Context(), registryCtx, false)
 		activeSet := make(map[string]bool, len(activeSubjects))
 		for _, s := range activeSubjects {
 			activeSet[s] = true
@@ -254,13 +278,17 @@ func (h *Handler) ListSubjects(w http.ResponseWriter, r *http.Request) {
 
 // GetVersions handles GET /subjects/{subject}/versions
 func (h *Handler) GetVersions(w http.ResponseWriter, r *http.Request) {
-	subject := h.resolveAlias(r.Context(), chi.URLParam(r, "subject"))
+	registryCtx, subject := resolveSubjectAndContext(r)
+	if rejectGlobalContext(w, registryCtx) {
+		return
+	}
+	subject = h.resolveAlias(r.Context(), registryCtx, subject)
 	deleted := r.URL.Query().Get("deleted") == "true"
 	deletedOnly := r.URL.Query().Get("deletedOnly") == "true"
 
 	// deletedOnly takes precedence: if set, we include deleted and filter to only deleted
 	includeDeleted := deleted || deletedOnly
-	versions, err := h.registry.GetVersions(r.Context(), subject, includeDeleted)
+	versions, err := h.registry.GetVersions(r.Context(), registryCtx, subject, includeDeleted)
 	if err != nil {
 		if errors.Is(err, storage.ErrSubjectNotFound) {
 			writeError(w, http.StatusNotFound, types.ErrorCodeSubjectNotFound, "Subject not found")
@@ -272,7 +300,7 @@ func (h *Handler) GetVersions(w http.ResponseWriter, r *http.Request) {
 
 	if deletedOnly {
 		// Filter to only deleted versions by getting all versions and non-deleted, then diffing
-		activeVersions, _ := h.registry.GetVersions(r.Context(), subject, false)
+		activeVersions, _ := h.registry.GetVersions(r.Context(), registryCtx, subject, false)
 		activeSet := make(map[int]bool, len(activeVersions))
 		for _, v := range activeVersions {
 			activeSet[v] = true
@@ -297,7 +325,11 @@ func (h *Handler) GetVersions(w http.ResponseWriter, r *http.Request) {
 
 // GetVersion handles GET /subjects/{subject}/versions/{version}
 func (h *Handler) GetVersion(w http.ResponseWriter, r *http.Request) {
-	subject := h.resolveAlias(r.Context(), chi.URLParam(r, "subject"))
+	registryCtx, subject := resolveSubjectAndContext(r)
+	if rejectGlobalContext(w, registryCtx) {
+		return
+	}
+	subject = h.resolveAlias(r.Context(), registryCtx, subject)
 	versionStr := chi.URLParam(r, "version")
 
 	version, err := parseVersion(versionStr)
@@ -309,11 +341,11 @@ func (h *Handler) GetVersion(w http.ResponseWriter, r *http.Request) {
 
 	includeDeleted := r.URL.Query().Get("deleted") == "true"
 
-	schema, err := h.registry.GetSchemaBySubjectVersion(r.Context(), subject, version)
+	schema, err := h.registry.GetSchemaBySubjectVersion(r.Context(), registryCtx, subject, version)
 	if err != nil {
 		// If deleted=true and version not found, try to find the deleted version
 		if includeDeleted && (errors.Is(err, storage.ErrVersionNotFound) || errors.Is(err, storage.ErrSubjectNotFound)) {
-			schema, err = h.findDeletedVersion(r.Context(), subject, version)
+			schema, err = h.findDeletedVersion(r.Context(), registryCtx, subject, version)
 		}
 		if err != nil {
 			if errors.Is(err, storage.ErrSubjectNotFound) {
@@ -323,8 +355,15 @@ func (h *Handler) GetVersion(w http.ResponseWriter, r *http.Request) {
 			if errors.Is(err, storage.ErrVersionNotFound) {
 				// Confluent returns 40401 (subject not found) when all versions
 				// of a subject are soft-deleted, rather than 40402 (version not found).
-				if h.isSubjectFullyDeleted(r.Context(), subject) {
+				if h.isSubjectFullyDeleted(r.Context(), registryCtx, subject) {
 					writeError(w, http.StatusNotFound, types.ErrorCodeSubjectNotFound, "Subject not found")
+					return
+				}
+				// Confluent returns 40406 when the specific version exists but is
+				// soft-deleted and the request did not include ?deleted=true.
+				if !includeDeleted && h.isVersionSoftDeleted(r.Context(), registryCtx, subject, version) {
+					writeError(w, http.StatusNotFound, types.ErrorCodeSchemaVersionSoftDeleted,
+						"Schema version is soft deleted")
 					return
 				}
 				writeError(w, http.StatusNotFound, types.ErrorCodeVersionNotFound, "Version not found")
@@ -337,7 +376,7 @@ func (h *Handler) GetVersion(w http.ResponseWriter, r *http.Request) {
 
 	schemaStr := schema.Schema
 	if format := r.URL.Query().Get("format"); format != "" {
-		schemaStr = h.registry.FormatSchema(r.Context(), schema, format)
+		schemaStr = h.registry.FormatSchema(r.Context(), registryCtx, schema, format)
 	}
 
 	resp := types.SubjectVersionResponse{
@@ -346,7 +385,7 @@ func (h *Handler) GetVersion(w http.ResponseWriter, r *http.Request) {
 		Version:    schema.Version,
 		SchemaType: schemaTypeForResponse(schema.SchemaType),
 		Schema:     schemaStr,
-		Metadata:   schema.Metadata,
+		Metadata:   withConfluentVersion(schema.Metadata, schema.Version),
 		RuleSet:    schema.RuleSet,
 	}
 	if len(schema.References) > 0 {
@@ -356,11 +395,36 @@ func (h *Handler) GetVersion(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, resp)
 }
 
+// withConfluentVersion returns a copy of the metadata with confluent:version set
+// to the given version number. This matches Confluent's behavior where the version
+// is auto-populated in schema responses. Returns nil if version <= 0.
+func withConfluentVersion(meta *storage.Metadata, version int) *storage.Metadata {
+	if version <= 0 {
+		return meta
+	}
+	if meta == nil {
+		return &storage.Metadata{
+			Properties: map[string]string{
+				"confluent:version": strconv.Itoa(version),
+			},
+		}
+	}
+	// Make a copy to avoid mutating stored data
+	result := *meta
+	newProps := make(map[string]string, len(meta.Properties)+1)
+	for k, v := range meta.Properties {
+		newProps[k] = v
+	}
+	newProps["confluent:version"] = strconv.Itoa(version)
+	result.Properties = newProps
+	return &result
+}
+
 // findDeletedVersion looks up a soft-deleted version by iterating all versions including deleted.
 // When version is -1 (the "latest" sentinel), it returns the highest-versioned schema
 // among all versions (including soft-deleted), matching Confluent's behavior.
-func (h *Handler) findDeletedVersion(ctx context.Context, subject string, version int) (*storage.SchemaRecord, error) {
-	schemas, err := h.registry.GetSchemasBySubject(ctx, subject, true) // include deleted
+func (h *Handler) findDeletedVersion(ctx context.Context, registryCtx string, subject string, version int) (*storage.SchemaRecord, error) {
+	schemas, err := h.registry.GetSchemasBySubject(ctx, registryCtx, subject, true) // include deleted
 	if err != nil {
 		return nil, err
 	}
@@ -392,14 +456,14 @@ func (h *Handler) findDeletedVersion(ctx context.Context, subject string, versio
 
 // isSubjectFullyDeleted returns true if the subject exists but all its versions
 // are soft-deleted. Used to map ErrVersionNotFound → 40401 (Confluent behavior).
-func (h *Handler) isSubjectFullyDeleted(ctx context.Context, subject string) bool {
+func (h *Handler) isSubjectFullyDeleted(ctx context.Context, registryCtx string, subject string) bool {
 	// Check if subject has any versions including deleted ones
-	allVersions, err := h.registry.GetVersions(ctx, subject, true)
+	allVersions, err := h.registry.GetVersions(ctx, registryCtx, subject, true)
 	if err != nil || len(allVersions) == 0 {
 		return false
 	}
 	// Check if subject has any active (non-deleted) versions
-	activeVersions, err := h.registry.GetVersions(ctx, subject, false)
+	activeVersions, err := h.registry.GetVersions(ctx, registryCtx, subject, false)
 	if err != nil {
 		// GetVersions returns ErrSubjectNotFound when all versions are deleted
 		return errors.Is(err, storage.ErrSubjectNotFound)
@@ -407,12 +471,26 @@ func (h *Handler) isSubjectFullyDeleted(ctx context.Context, subject string) boo
 	return len(activeVersions) == 0
 }
 
+// isVersionSoftDeleted returns true if the given version exists as a soft-deleted
+// entry. Used to return 40406 (schema version soft-deleted) instead of 40402.
+func (h *Handler) isVersionSoftDeleted(ctx context.Context, registryCtx string, subject string, version int) bool {
+	deleted, err := h.findDeletedVersion(ctx, registryCtx, subject, version)
+	if err != nil {
+		return false
+	}
+	return deleted != nil && deleted.Deleted
+}
+
 // RegisterSchema handles POST /subjects/{subject}/versions
 func (h *Handler) RegisterSchema(w http.ResponseWriter, r *http.Request) {
-	subject := h.resolveAlias(r.Context(), chi.URLParam(r, "subject"))
+	registryCtx, subject := resolveSubjectAndContext(r)
+	if rejectGlobalContext(w, registryCtx) {
+		return
+	}
+	subject = h.resolveAlias(r.Context(), registryCtx, subject)
 
 	// Check mode enforcement
-	if mode, modeErr := h.checkModeForWrite(r, subject); modeErr != nil {
+	if mode, modeErr := h.checkModeForWrite(r, registryCtx, subject); modeErr != nil {
 		writeError(w, http.StatusInternalServerError, types.ErrorCodeStorageError, modeErr.Error())
 		return
 	} else if mode != "" {
@@ -432,9 +510,11 @@ func (h *Handler) RegisterSchema(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	schemaType := storage.SchemaType(strings.ToUpper(req.SchemaType))
-	if schemaType == "" {
-		schemaType = storage.SchemaTypeAvro
+	schemaType, ok := parseSchemaType(req.SchemaType)
+	if !ok {
+		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidSchema,
+			fmt.Sprintf("Invalid schema type '%s'. Accepted types are AVRO, PROTOBUF, and JSON", req.SchemaType))
+		return
 	}
 
 	normalizeSchema := r.URL.Query().Get("normalize") == "true"
@@ -442,9 +522,10 @@ func (h *Handler) RegisterSchema(w http.ResponseWriter, r *http.Request) {
 	var schema *storage.SchemaRecord
 	var err error
 
-	// Explicit ID requires IMPORT mode (Confluent behavior)
+	// Confluent behavior: IMPORT mode requires explicit ID, READWRITE mode requires no ID.
+	// These are mutually exclusive operational modes.
 	if req.ID > 0 {
-		mode, modeErr := h.registry.GetMode(r.Context(), subject)
+		mode, modeErr := h.registry.GetMode(r.Context(), registryCtx, subject)
 		if modeErr != nil {
 			writeError(w, http.StatusInternalServerError, types.ErrorCodeStorageError, "Failed to check mode")
 			return
@@ -454,32 +535,49 @@ func (h *Handler) RegisterSchema(w http.ResponseWriter, r *http.Request) {
 				fmt.Sprintf("Subject '%s' is not in import mode. Registering schemas with explicit IDs requires IMPORT mode.", subject))
 			return
 		}
-		schema, err = h.registry.RegisterSchemaWithID(r.Context(), subject, req.Schema, schemaType, req.References, req.ID)
+		schema, err = h.registry.RegisterSchemaWithID(r.Context(), registryCtx, subject, req.Schema, schemaType, req.References, req.ID, req.Version)
 	} else {
-		schema, err = h.registry.RegisterSchema(r.Context(), subject, req.Schema, schemaType, req.References, registry.RegisterOpts{
+		// Normal registration (no explicit ID): blocked by READONLY, READONLY_OVERRIDE, and IMPORT modes.
+		// Confluent behavior: IMPORT mode requires explicit ID — normal registration is rejected with 42205.
+		mode, modeErr := h.registry.GetMode(r.Context(), registryCtx, subject)
+		if modeErr != nil {
+			writeError(w, http.StatusInternalServerError, types.ErrorCodeStorageError, modeErr.Error())
+			return
+		}
+		if mode == "READONLY" || mode == "READONLY_OVERRIDE" {
+			writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeOperationNotPermitted,
+				fmt.Sprintf("Subject '%s' is in read-only mode", subject))
+			return
+		}
+		if mode == "IMPORT" {
+			writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeOperationNotPermitted,
+				"Subject is in import mode. Normal registration (without explicit ID) is not permitted in IMPORT mode.")
+			return
+		}
+		schema, err = h.registry.RegisterSchema(r.Context(), registryCtx, subject, req.Schema, schemaType, req.References, registry.RegisterOpts{
 			Normalize: normalizeSchema,
 			Metadata:  req.Metadata,
 			RuleSet:   req.RuleSet,
 		})
 	}
 	if err != nil {
-		if strings.Contains(err.Error(), "invalid schema") {
+		if errors.Is(err, registry.ErrInvalidRuleSet) {
 			writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidSchema, err.Error())
 			return
 		}
-		if strings.Contains(err.Error(), "unsupported schema type") {
+		if errors.Is(err, registry.ErrInvalidSchema) {
 			writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidSchema, err.Error())
 			return
 		}
-		if strings.Contains(err.Error(), "failed to resolve references") {
+		if errors.Is(err, registry.ErrUnsupportedSchemaType) {
+			writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidSchema, err.Error())
+			return
+		}
+		if errors.Is(err, registry.ErrFailedResolveReferences) {
 			writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidSchema, err.Error())
 			return
 		}
 		if errors.Is(err, registry.ErrIncompatibleSchema) {
-			writeError(w, http.StatusConflict, types.ErrorCodeIncompatibleSchema, err.Error())
-			return
-		}
-		if errors.Is(err, registry.ErrVersionConflict) {
 			writeError(w, http.StatusConflict, types.ErrorCodeIncompatibleSchema, err.Error())
 			return
 		}
@@ -499,7 +597,11 @@ func (h *Handler) RegisterSchema(w http.ResponseWriter, r *http.Request) {
 
 // LookupSchema handles POST /subjects/{subject}
 func (h *Handler) LookupSchema(w http.ResponseWriter, r *http.Request) {
-	subject := h.resolveAlias(r.Context(), chi.URLParam(r, "subject"))
+	registryCtx, subject := resolveSubjectAndContext(r)
+	if rejectGlobalContext(w, registryCtx) {
+		return
+	}
+	subject = h.resolveAlias(r.Context(), registryCtx, subject)
 	deleted := r.URL.Query().Get("deleted") == "true"
 
 	var req types.LookupSchemaRequest
@@ -513,13 +615,15 @@ func (h *Handler) LookupSchema(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	schemaType := storage.SchemaType(strings.ToUpper(req.SchemaType))
-	if schemaType == "" {
-		schemaType = storage.SchemaTypeAvro
+	schemaType, ok := parseSchemaType(req.SchemaType)
+	if !ok {
+		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidSchema,
+			fmt.Sprintf("Invalid schema type '%s'. Accepted types are AVRO, PROTOBUF, and JSON", req.SchemaType))
+		return
 	}
 
 	normalizeSchema := r.URL.Query().Get("normalize") == "true"
-	schema, err := h.registry.LookupSchema(r.Context(), subject, req.Schema, schemaType, req.References, deleted, normalizeSchema)
+	schema, err := h.registry.LookupSchema(r.Context(), registryCtx, subject, req.Schema, schemaType, req.References, deleted, normalizeSchema)
 	if err != nil {
 		if errors.Is(err, storage.ErrSubjectNotFound) {
 			writeError(w, http.StatusNotFound, types.ErrorCodeSubjectNotFound, fmt.Sprintf("Subject '%s' not found.", subject))
@@ -529,7 +633,7 @@ func (h *Handler) LookupSchema(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusNotFound, types.ErrorCodeSchemaNotFound, "Schema not found")
 			return
 		}
-		if strings.Contains(err.Error(), "invalid schema") {
+		if errors.Is(err, registry.ErrInvalidSchema) {
 			writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidSchema, err.Error())
 			return
 		}
@@ -543,7 +647,7 @@ func (h *Handler) LookupSchema(w http.ResponseWriter, r *http.Request) {
 		Version:    schema.Version,
 		SchemaType: schemaTypeForResponse(schema.SchemaType),
 		Schema:     schema.Schema,
-		Metadata:   schema.Metadata,
+		Metadata:   withConfluentVersion(schema.Metadata, schema.Version),
 		RuleSet:    schema.RuleSet,
 	}
 	if len(schema.References) > 0 {
@@ -555,11 +659,15 @@ func (h *Handler) LookupSchema(w http.ResponseWriter, r *http.Request) {
 
 // DeleteSubject handles DELETE /subjects/{subject}
 func (h *Handler) DeleteSubject(w http.ResponseWriter, r *http.Request) {
-	subject := h.resolveAlias(r.Context(), chi.URLParam(r, "subject"))
+	registryCtx, subject := resolveSubjectAndContext(r)
+	if rejectGlobalContext(w, registryCtx) {
+		return
+	}
+	subject = h.resolveAlias(r.Context(), registryCtx, subject)
 	permanent := r.URL.Query().Get("permanent") == "true"
 
 	// Check mode enforcement
-	if mode, modeErr := h.checkModeForWrite(r, subject); modeErr != nil {
+	if mode, modeErr := h.checkModeForWrite(r, registryCtx, subject); modeErr != nil {
 		writeError(w, http.StatusInternalServerError, types.ErrorCodeStorageError, modeErr.Error())
 		return
 	} else if mode != "" {
@@ -568,7 +676,7 @@ func (h *Handler) DeleteSubject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	versions, err := h.registry.DeleteSubject(r.Context(), subject, permanent)
+	versions, err := h.registry.DeleteSubject(r.Context(), registryCtx, subject, permanent)
 	if err != nil {
 		if errors.Is(err, storage.ErrSubjectNotFound) {
 			writeError(w, http.StatusNotFound, types.ErrorCodeSubjectNotFound, "Subject not found")
@@ -584,7 +692,7 @@ func (h *Handler) DeleteSubject(w http.ResponseWriter, r *http.Request) {
 				fmt.Sprintf("Subject '%s' was not deleted first before being permanently deleted", subject))
 			return
 		}
-		if strings.Contains(err.Error(), "reference") {
+		if errors.Is(err, registry.ErrReferenceExists) {
 			writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeReferenceExists, err.Error())
 			return
 		}
@@ -597,24 +705,21 @@ func (h *Handler) DeleteSubject(w http.ResponseWriter, r *http.Request) {
 
 // DeleteVersion handles DELETE /subjects/{subject}/versions/{version}
 func (h *Handler) DeleteVersion(w http.ResponseWriter, r *http.Request) {
-	subject := h.resolveAlias(r.Context(), chi.URLParam(r, "subject"))
+	registryCtx, subject := resolveSubjectAndContext(r)
+	if rejectGlobalContext(w, registryCtx) {
+		return
+	}
+	subject = h.resolveAlias(r.Context(), registryCtx, subject)
 	versionStr := chi.URLParam(r, "version")
 	permanent := r.URL.Query().Get("permanent") == "true"
 
 	// Check mode enforcement
-	if mode, modeErr := h.checkModeForWrite(r, subject); modeErr != nil {
+	if mode, modeErr := h.checkModeForWrite(r, registryCtx, subject); modeErr != nil {
 		writeError(w, http.StatusInternalServerError, types.ErrorCodeStorageError, modeErr.Error())
 		return
 	} else if mode != "" {
 		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeOperationNotPermitted,
 			fmt.Sprintf("Subject '%s' is in %s mode", subject, mode))
-		return
-	}
-
-	// Permanent delete of "latest" or "-1" is not allowed — must use explicit version number
-	if permanent && (versionStr == "latest" || versionStr == "-1") {
-		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidVersion,
-			fmt.Sprintf("The specified version '%s' is not a valid version id for permanent delete. Use an explicit version number.", versionStr))
 		return
 	}
 
@@ -625,7 +730,7 @@ func (h *Handler) DeleteVersion(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	deletedVersion, err := h.registry.DeleteVersion(r.Context(), subject, version, permanent)
+	deletedVersion, err := h.registry.DeleteVersion(r.Context(), registryCtx, subject, version, permanent)
 	if err != nil {
 		if errors.Is(err, storage.ErrSubjectNotFound) {
 			writeError(w, http.StatusNotFound, types.ErrorCodeSubjectNotFound, "Subject not found")
@@ -640,7 +745,7 @@ func (h *Handler) DeleteVersion(w http.ResponseWriter, r *http.Request) {
 				fmt.Sprintf("Subject '%s' Version %s was not deleted first before being permanently deleted", subject, versionStr))
 			return
 		}
-		if strings.Contains(err.Error(), "referenced") {
+		if errors.Is(err, registry.ErrReferenceExists) {
 			writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeReferenceExists, err.Error())
 			return
 		}
@@ -653,12 +758,12 @@ func (h *Handler) DeleteVersion(w http.ResponseWriter, r *http.Request) {
 
 // GetConfig handles GET /config and GET /config/{subject}
 func (h *Handler) GetConfig(w http.ResponseWriter, r *http.Request) {
-	subject := chi.URLParam(r, "subject")
+	registryCtx, subject := resolveSubjectAndContext(r)
 	defaultToGlobal := r.URL.Query().Get("defaultToGlobal") == "true"
 
 	if subject != "" && !defaultToGlobal {
-		// Subject-specific config only, no fallback to global
-		config, err := h.registry.GetSubjectConfigFull(r.Context(), subject)
+		// Subject-specific config only, no fallback
+		config, err := h.registry.GetSubjectConfigFull(r.Context(), registryCtx, subject)
 		if err != nil {
 			if errors.Is(err, storage.ErrNotFound) {
 				writeError(w, http.StatusNotFound, types.ErrorCodeSubjectCompatNotFound,
@@ -682,7 +787,16 @@ func (h *Handler) GetConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	config, err := h.registry.GetConfigFull(r.Context(), subject)
+	// When subject is empty and defaultToGlobal is false, return context's direct
+	// global config without the __GLOBAL fallback (Confluent-compatible).
+	// When defaultToGlobal is true (or subject is non-empty), use the full 4-tier chain.
+	var config *storage.ConfigRecord
+	var err error
+	if subject == "" && !defaultToGlobal {
+		config, err = h.registry.GetGlobalConfigDirect(r.Context(), registryCtx)
+	} else {
+		config, err = h.registry.GetConfigFull(r.Context(), registryCtx, subject)
+	}
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
 		return
@@ -703,7 +817,17 @@ func (h *Handler) GetConfig(w http.ResponseWriter, r *http.Request) {
 
 // SetConfig handles PUT /config and PUT /config/{subject}
 func (h *Handler) SetConfig(w http.ResponseWriter, r *http.Request) {
-	subject := chi.URLParam(r, "subject")
+	registryCtx, subject := resolveSubjectAndContext(r)
+
+	// Check mode enforcement — Confluent blocks config writes in READONLY mode
+	if mode, modeErr := h.checkModeForWrite(r, registryCtx, subject); modeErr != nil {
+		writeError(w, http.StatusInternalServerError, types.ErrorCodeStorageError, modeErr.Error())
+		return
+	} else if mode != "" {
+		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeOperationNotPermitted,
+			fmt.Sprintf("Subject '%s' is in %s mode", subject, mode))
+		return
+	}
 
 	var req types.ConfigRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -713,7 +837,7 @@ func (h *Handler) SetConfig(w http.ResponseWriter, r *http.Request) {
 
 	// Empty body: return current config (matches Confluent behavior)
 	if req.Compatibility == "" {
-		level, err := h.registry.GetConfig(r.Context(), subject)
+		level, err := h.registry.GetConfig(r.Context(), registryCtx, subject)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
 			return
@@ -731,9 +855,13 @@ func (h *Handler) SetConfig(w http.ResponseWriter, r *http.Request) {
 		DefaultRuleSet:     req.DefaultRuleSet,
 		OverrideRuleSet:    req.OverrideRuleSet,
 	}
-	if err := h.registry.SetConfig(r.Context(), subject, req.Compatibility, req.Normalize, configOpts); err != nil {
-		if strings.Contains(err.Error(), "invalid compatibility") {
+	if err := h.registry.SetConfig(r.Context(), registryCtx, subject, req.Compatibility, req.Normalize, configOpts); err != nil {
+		if errors.Is(err, registry.ErrInvalidCompatibility) {
 			writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidCompatibilityLevel, err.Error())
+			return
+		}
+		if errors.Is(err, registry.ErrInvalidRuleSet) {
+			writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidSchema, err.Error())
 			return
 		}
 		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
@@ -756,9 +884,19 @@ func (h *Handler) SetConfig(w http.ResponseWriter, r *http.Request) {
 
 // DeleteConfig handles DELETE /config/{subject}
 func (h *Handler) DeleteConfig(w http.ResponseWriter, r *http.Request) {
-	subject := chi.URLParam(r, "subject")
+	registryCtx, subject := resolveSubjectAndContext(r)
 
-	level, err := h.registry.DeleteConfig(r.Context(), subject)
+	// Check mode enforcement — Confluent blocks config writes in READONLY mode
+	if mode, modeErr := h.checkModeForWrite(r, registryCtx, subject); modeErr != nil {
+		writeError(w, http.StatusInternalServerError, types.ErrorCodeStorageError, modeErr.Error())
+		return
+	} else if mode != "" {
+		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeOperationNotPermitted,
+			fmt.Sprintf("Subject '%s' is in %s mode", subject, mode))
+		return
+	}
+
+	level, err := h.registry.DeleteConfig(r.Context(), registryCtx, subject)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {
 			writeError(w, http.StatusNotFound, types.ErrorCodeSubjectNotFound, "Config not found for subject")
@@ -775,7 +913,11 @@ func (h *Handler) DeleteConfig(w http.ResponseWriter, r *http.Request) {
 
 // CheckCompatibility handles POST /compatibility/subjects/{subject}/versions/{version}
 func (h *Handler) CheckCompatibility(w http.ResponseWriter, r *http.Request) {
-	subject := h.resolveAlias(r.Context(), chi.URLParam(r, "subject"))
+	registryCtx, subject := resolveSubjectAndContext(r)
+	if rejectGlobalContext(w, registryCtx) {
+		return
+	}
+	subject = h.resolveAlias(r.Context(), registryCtx, subject)
 	versionStr := chi.URLParam(r, "version")
 
 	var req types.CompatibilityCheckRequest
@@ -789,15 +931,17 @@ func (h *Handler) CheckCompatibility(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	schemaType := storage.SchemaType(strings.ToUpper(req.SchemaType))
-	if schemaType == "" {
-		schemaType = storage.SchemaTypeAvro
+	schemaType, ok := parseSchemaType(req.SchemaType)
+	if !ok {
+		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidSchema,
+			fmt.Sprintf("Invalid schema type: %s", req.SchemaType))
+		return
 	}
 
 	normalizeSchema := r.URL.Query().Get("normalize") == "true"
-	result, err := h.registry.CheckCompatibility(r.Context(), subject, req.Schema, schemaType, req.References, versionStr, normalizeSchema)
+	result, err := h.registry.CheckCompatibility(r.Context(), registryCtx, subject, req.Schema, schemaType, req.References, versionStr, normalizeSchema)
 	if err != nil {
-		if strings.Contains(err.Error(), "invalid schema") {
+		if errors.Is(err, registry.ErrInvalidSchema) {
 			writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidSchema, err.Error())
 			return
 		}
@@ -836,7 +980,11 @@ func (h *Handler) CheckCompatibility(w http.ResponseWriter, r *http.Request) {
 
 // GetReferencedBy handles GET /subjects/{subject}/versions/{version}/referencedby
 func (h *Handler) GetReferencedBy(w http.ResponseWriter, r *http.Request) {
-	subject := h.resolveAlias(r.Context(), chi.URLParam(r, "subject"))
+	registryCtx, subject := resolveSubjectAndContext(r)
+	if rejectGlobalContext(w, registryCtx) {
+		return
+	}
+	subject = h.resolveAlias(r.Context(), registryCtx, subject)
 	versionStr := chi.URLParam(r, "version")
 
 	version, err := parseVersion(versionStr)
@@ -847,7 +995,7 @@ func (h *Handler) GetReferencedBy(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Verify subject and version exist first
-	_, err = h.registry.GetSchemaBySubjectVersion(r.Context(), subject, version)
+	_, err = h.registry.GetSchemaBySubjectVersion(r.Context(), registryCtx, subject, version)
 	if err != nil {
 		if errors.Is(err, storage.ErrSubjectNotFound) {
 			writeError(w, http.StatusNotFound, types.ErrorCodeSubjectNotFound, "Subject not found")
@@ -861,7 +1009,7 @@ func (h *Handler) GetReferencedBy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	refs, err := h.registry.GetReferencedBy(r.Context(), subject, version)
+	refs, err := h.registry.GetReferencedBy(r.Context(), registryCtx, subject, version)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
 		return
@@ -870,7 +1018,7 @@ func (h *Handler) GetReferencedBy(w http.ResponseWriter, r *http.Request) {
 	// Convert to expected format (array of schema IDs that reference this schema)
 	result := make([]int, 0, len(refs))
 	for _, ref := range refs {
-		schema, err := h.registry.GetSchemaBySubjectVersion(r.Context(), ref.Subject, ref.Version)
+		schema, err := h.registry.GetSchemaBySubjectVersion(r.Context(), registryCtx, ref.Subject, ref.Version)
 		if err != nil {
 			// Skip schemas we can't find (might be deleted)
 			continue
@@ -883,12 +1031,12 @@ func (h *Handler) GetReferencedBy(w http.ResponseWriter, r *http.Request) {
 
 // GetMode handles GET /mode and GET /mode/{subject}
 func (h *Handler) GetMode(w http.ResponseWriter, r *http.Request) {
-	subject := chi.URLParam(r, "subject")
+	registryCtx, subject := resolveSubjectAndContext(r)
 	defaultToGlobal := r.URL.Query().Get("defaultToGlobal") == "true"
 
 	if subject != "" && !defaultToGlobal {
 		// Subject-specific mode only, no fallback to global
-		mode, err := h.registry.GetSubjectMode(r.Context(), subject)
+		mode, err := h.registry.GetSubjectMode(r.Context(), registryCtx, subject)
 		if err != nil {
 			if errors.Is(err, storage.ErrNotFound) {
 				writeError(w, http.StatusNotFound, types.ErrorCodeSubjectModeNotFound,
@@ -904,7 +1052,15 @@ func (h *Handler) GetMode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	mode, err := h.registry.GetMode(r.Context(), subject)
+	// When subject is empty and defaultToGlobal is false, return context's direct
+	// global mode without the __GLOBAL fallback (Confluent-compatible).
+	var mode string
+	var err error
+	if subject == "" && !defaultToGlobal {
+		mode, err = h.registry.GetGlobalModeDirect(r.Context(), registryCtx)
+	} else {
+		mode, err = h.registry.GetMode(r.Context(), registryCtx, subject)
+	}
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
 		return
@@ -917,7 +1073,7 @@ func (h *Handler) GetMode(w http.ResponseWriter, r *http.Request) {
 
 // SetMode handles PUT /mode and PUT /mode/{subject}
 func (h *Handler) SetMode(w http.ResponseWriter, r *http.Request) {
-	subject := chi.URLParam(r, "subject")
+	registryCtx, subject := resolveSubjectAndContext(r)
 	force := r.URL.Query().Get("force") == "true"
 
 	var req types.ModeRequest
@@ -926,8 +1082,27 @@ func (h *Handler) SetMode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.registry.SetMode(r.Context(), subject, req.Mode, force); err != nil {
-		if strings.Contains(err.Error(), "invalid mode") {
+	// Confluent behavior: empty mode in request body deletes the mode setting
+	// (resets to global default). This matches Confluent's ModeResource.updateMode
+	// where Optional.empty() mode results in a tombstone write.
+	if req.Mode == "" {
+		if subject != "" {
+			if _, err := h.registry.DeleteMode(r.Context(), registryCtx, subject); err != nil && !errors.Is(err, storage.ErrNotFound) {
+				writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+				return
+			}
+		} else {
+			if _, err := h.registry.DeleteGlobalMode(r.Context(), registryCtx); err != nil && !errors.Is(err, storage.ErrNotFound) {
+				writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+				return
+			}
+		}
+		writeJSON(w, http.StatusOK, types.ModeResponse{})
+		return
+	}
+
+	if err := h.registry.SetMode(r.Context(), registryCtx, subject, req.Mode, force); err != nil {
+		if errors.Is(err, registry.ErrInvalidMode) {
 			writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidMode, err.Error())
 			return
 		}
@@ -1005,6 +1180,11 @@ func writeError(w http.ResponseWriter, status int, code int, message string) {
 
 // GetRawSchemaByID handles GET /schemas/ids/{id}/schema
 func (h *Handler) GetRawSchemaByID(w http.ResponseWriter, r *http.Request) {
+	registryCtx := getRegistryContext(r)
+	if rejectGlobalContext(w, registryCtx) {
+		return
+	}
+
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
@@ -1012,7 +1192,7 @@ func (h *Handler) GetRawSchemaByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	schemaRecord, err := h.registry.GetSchemaByID(r.Context(), id)
+	schemaRecord, err := h.registry.GetSchemaByID(r.Context(), registryCtx, id)
 	if err != nil {
 		if errors.Is(err, storage.ErrSchemaNotFound) {
 			writeError(w, http.StatusNotFound, types.ErrorCodeSchemaNotFound, "Schema not found")
@@ -1024,7 +1204,7 @@ func (h *Handler) GetRawSchemaByID(w http.ResponseWriter, r *http.Request) {
 
 	result := schemaRecord.Schema
 	if format := r.URL.Query().Get("format"); format != "" {
-		result = h.registry.FormatSchema(r.Context(), schemaRecord, format)
+		result = h.registry.FormatSchema(r.Context(), registryCtx, schemaRecord, format)
 	}
 
 	// Return raw schema as plain text
@@ -1035,6 +1215,11 @@ func (h *Handler) GetRawSchemaByID(w http.ResponseWriter, r *http.Request) {
 
 // GetSubjectsBySchemaID handles GET /schemas/ids/{id}/subjects
 func (h *Handler) GetSubjectsBySchemaID(w http.ResponseWriter, r *http.Request) {
+	registryCtx := getRegistryContext(r)
+	if rejectGlobalContext(w, registryCtx) {
+		return
+	}
+
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
@@ -1045,7 +1230,7 @@ func (h *Handler) GetSubjectsBySchemaID(w http.ResponseWriter, r *http.Request) 
 	deleted := r.URL.Query().Get("deleted") == "true"
 	subjectFilter := r.URL.Query().Get("subject")
 
-	subjects, err := h.registry.GetSubjectsBySchemaID(r.Context(), id, deleted)
+	subjects, err := h.registry.GetSubjectsBySchemaID(r.Context(), registryCtx, id, deleted)
 	if err != nil {
 		if errors.Is(err, storage.ErrSchemaNotFound) {
 			writeError(w, http.StatusNotFound, types.ErrorCodeSchemaNotFound, "Schema not found")
@@ -1076,6 +1261,11 @@ func (h *Handler) GetSubjectsBySchemaID(w http.ResponseWriter, r *http.Request) 
 
 // GetVersionsBySchemaID handles GET /schemas/ids/{id}/versions
 func (h *Handler) GetVersionsBySchemaID(w http.ResponseWriter, r *http.Request) {
+	registryCtx := getRegistryContext(r)
+	if rejectGlobalContext(w, registryCtx) {
+		return
+	}
+
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
@@ -1086,7 +1276,7 @@ func (h *Handler) GetVersionsBySchemaID(w http.ResponseWriter, r *http.Request) 
 	deleted := r.URL.Query().Get("deleted") == "true"
 	subjectFilter := r.URL.Query().Get("subject")
 
-	versions, err := h.registry.GetVersionsBySchemaID(r.Context(), id, deleted)
+	versions, err := h.registry.GetVersionsBySchemaID(r.Context(), registryCtx, id, deleted)
 	if err != nil {
 		if errors.Is(err, storage.ErrSchemaNotFound) {
 			writeError(w, http.StatusNotFound, types.ErrorCodeSchemaNotFound, "Schema not found")
@@ -1115,6 +1305,11 @@ func (h *Handler) GetVersionsBySchemaID(w http.ResponseWriter, r *http.Request) 
 
 // ListSchemas handles GET /schemas
 func (h *Handler) ListSchemas(w http.ResponseWriter, r *http.Request) {
+	registryCtx := getRegistryContext(r)
+	if rejectGlobalContext(w, registryCtx) {
+		return
+	}
+
 	params := &storage.ListSchemasParams{
 		SubjectPrefix: r.URL.Query().Get("subjectPrefix"),
 		Deleted:       r.URL.Query().Get("deleted") == "true",
@@ -1133,7 +1328,7 @@ func (h *Handler) ListSchemas(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	schemas, err := h.registry.ListSchemas(r.Context(), params)
+	schemas, err := h.registry.ListSchemas(r.Context(), registryCtx, params)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
 		return
@@ -1157,8 +1352,13 @@ func (h *Handler) ListSchemas(w http.ResponseWriter, r *http.Request) {
 
 // ImportSchemas handles POST /import/schemas
 func (h *Handler) ImportSchemas(w http.ResponseWriter, r *http.Request) {
+	registryCtx := getRegistryContext(r)
+	if rejectGlobalContext(w, registryCtx) {
+		return
+	}
+
 	// Bulk import requires IMPORT mode (Confluent behavior)
-	mode, modeErr := h.registry.GetMode(r.Context(), "")
+	mode, modeErr := h.registry.GetMode(r.Context(), registryCtx, "")
 	if modeErr != nil {
 		writeError(w, http.StatusInternalServerError, types.ErrorCodeStorageError, "Failed to check mode")
 		return
@@ -1193,7 +1393,7 @@ func (h *Handler) ImportSchemas(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	result, err := h.registry.ImportSchemas(r.Context(), importReqs)
+	result, err := h.registry.ImportSchemas(r.Context(), registryCtx, importReqs)
 	if err != nil {
 		// Even on error, we might have partial results
 		if result != nil {
@@ -1241,7 +1441,11 @@ func (h *Handler) ImportSchemas(w http.ResponseWriter, r *http.Request) {
 
 // GetRawSchemaByVersion handles GET /subjects/{subject}/versions/{version}/schema
 func (h *Handler) GetRawSchemaByVersion(w http.ResponseWriter, r *http.Request) {
-	subject := h.resolveAlias(r.Context(), chi.URLParam(r, "subject"))
+	registryCtx, subject := resolveSubjectAndContext(r)
+	if rejectGlobalContext(w, registryCtx) {
+		return
+	}
+	subject = h.resolveAlias(r.Context(), registryCtx, subject)
 	versionStr := chi.URLParam(r, "version")
 
 	version, err := parseVersion(versionStr)
@@ -1251,15 +1455,22 @@ func (h *Handler) GetRawSchemaByVersion(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	schemaRecord, err := h.registry.GetSchemaBySubjectVersion(r.Context(), subject, version)
+	schemaRecord, err := h.registry.GetSchemaBySubjectVersion(r.Context(), registryCtx, subject, version)
 	if err != nil {
 		if errors.Is(err, storage.ErrSubjectNotFound) {
 			writeError(w, http.StatusNotFound, types.ErrorCodeSubjectNotFound, "Subject not found")
 			return
 		}
 		if errors.Is(err, storage.ErrVersionNotFound) {
-			if h.isSubjectFullyDeleted(r.Context(), subject) {
+			if h.isSubjectFullyDeleted(r.Context(), registryCtx, subject) {
 				writeError(w, http.StatusNotFound, types.ErrorCodeSubjectNotFound, "Subject not found")
+				return
+			}
+			// Confluent returns 40406 when the specific version exists but is
+			// soft-deleted and the request did not include ?deleted=true.
+			if h.isVersionSoftDeleted(r.Context(), registryCtx, subject, version) {
+				writeError(w, http.StatusNotFound, types.ErrorCodeSchemaVersionSoftDeleted,
+					"Schema version is soft deleted")
 				return
 			}
 			writeError(w, http.StatusNotFound, types.ErrorCodeVersionNotFound, "Version not found")
@@ -1271,7 +1482,7 @@ func (h *Handler) GetRawSchemaByVersion(w http.ResponseWriter, r *http.Request) 
 
 	result := schemaRecord.Schema
 	if format := r.URL.Query().Get("format"); format != "" {
-		result = h.registry.FormatSchema(r.Context(), schemaRecord, format)
+		result = h.registry.FormatSchema(r.Context(), registryCtx, schemaRecord, format)
 	}
 
 	// Return raw schema as plain text
@@ -1282,7 +1493,19 @@ func (h *Handler) GetRawSchemaByVersion(w http.ResponseWriter, r *http.Request) 
 
 // DeleteGlobalConfig handles DELETE /config
 func (h *Handler) DeleteGlobalConfig(w http.ResponseWriter, r *http.Request) {
-	level, err := h.registry.DeleteGlobalConfig(r.Context())
+	registryCtx := getRegistryContext(r)
+
+	// Check mode enforcement — Confluent blocks config writes in READONLY mode
+	if mode, modeErr := h.checkModeForWrite(r, registryCtx, ""); modeErr != nil {
+		writeError(w, http.StatusInternalServerError, types.ErrorCodeStorageError, modeErr.Error())
+		return
+	} else if mode != "" {
+		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeOperationNotPermitted,
+			fmt.Sprintf("Global config is in %s mode", mode))
+		return
+	}
+
+	level, err := h.registry.DeleteGlobalConfig(r.Context(), registryCtx)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
 		return
@@ -1295,9 +1518,9 @@ func (h *Handler) DeleteGlobalConfig(w http.ResponseWriter, r *http.Request) {
 
 // DeleteMode handles DELETE /mode/{subject}
 func (h *Handler) DeleteMode(w http.ResponseWriter, r *http.Request) {
-	subject := chi.URLParam(r, "subject")
+	registryCtx, subject := resolveSubjectAndContext(r)
 
-	mode, err := h.registry.DeleteMode(r.Context(), subject)
+	mode, err := h.registry.DeleteMode(r.Context(), registryCtx, subject)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {
 			writeError(w, http.StatusNotFound, types.ErrorCodeSubjectNotFound, "Mode not found for subject")
@@ -1312,33 +1535,31 @@ func (h *Handler) DeleteMode(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// DeleteGlobalMode handles DELETE /mode
+func (h *Handler) DeleteGlobalMode(w http.ResponseWriter, r *http.Request) {
+	registryCtx := getRegistryContext(r)
+
+	mode, err := h.registry.DeleteGlobalMode(r.Context(), registryCtx)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusOK, types.ModeResponse{
+		Mode: mode,
+	})
+}
+
 // GetContexts handles GET /contexts
 func (h *Handler) GetContexts(w http.ResponseWriter, r *http.Request) {
-	// Scan all subjects and extract unique context prefixes.
-	subjects, err := h.registry.ListSubjects(r.Context(), false)
+	contexts, err := h.registry.ListContexts(r.Context())
 	if err != nil {
+		// Fallback to default context on error
 		writeJSON(w, http.StatusOK, []string{"."})
 		return
 	}
 
-	seen := map[string]bool{".": true}
-	for _, s := range subjects {
-		if strings.HasPrefix(s, ":.") {
-			idx := strings.Index(s[2:], ".:")
-			if idx >= 0 {
-				ctx := s[2 : 2+idx]
-				if ctx != "" {
-					seen["."+ctx+"."] = true
-				}
-			}
-		}
-	}
-
-	result := make([]string, 0, len(seen))
-	for c := range seen {
-		result = append(result, c)
-	}
-	writeJSON(w, http.StatusOK, result)
+	writeJSON(w, http.StatusOK, contexts)
 }
 
 // GetClusterID handles GET /v1/metadata/id

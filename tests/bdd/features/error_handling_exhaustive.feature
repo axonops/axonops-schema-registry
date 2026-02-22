@@ -127,3 +127,74 @@ Feature: Error Handling & Edge Cases — Exhaustive (Confluent v8.1.1 Compatibil
     When I GET "/schemas/ids/99999"
     Then the response status should be 404
     And the response should have error code 40403
+
+  # ==========================================================================
+  # JSON 404 for unknown routes
+  # ==========================================================================
+
+  Scenario: GET unknown path returns JSON 404
+    When I GET "/this/path/does/not/exist"
+    Then the response status should be 404
+    And the response should have error code 404
+    And the response field "message" should be "HTTP 404 Not Found"
+
+  Scenario: POST unknown path returns JSON 404
+    When I POST "/nonexistent/endpoint" with body:
+      """
+      {"foo": "bar"}
+      """
+    Then the response status should be 404
+    And the response should have error code 404
+
+  # ==========================================================================
+  # Error code 40406 for individually soft-deleted versions
+  # ==========================================================================
+
+  Scenario: GET individually soft-deleted version returns 40406
+    Given the global compatibility level is "NONE"
+    And subject "err-40406-sub" has schema:
+      """
+      {"type":"record","name":"V1","fields":[{"name":"a","type":"string"}]}
+      """
+    And subject "err-40406-sub" has schema:
+      """
+      {"type":"record","name":"V2","fields":[{"name":"b","type":"string"}]}
+      """
+    When I delete version 1 of subject "err-40406-sub"
+    Then the response status should be 200
+    When I get version 1 of subject "err-40406-sub"
+    Then the response status should be 404
+    And the response should have error code 40406
+
+  @axonops-only
+  Scenario: GET soft-deleted version with deleted=true still returns 200
+    Given the global compatibility level is "NONE"
+    And subject "err-40406-del" has schema:
+      """
+      {"type":"record","name":"V1","fields":[{"name":"a","type":"string"}]}
+      """
+    And subject "err-40406-del" has schema:
+      """
+      {"type":"record","name":"V2","fields":[{"name":"b","type":"string"}]}
+      """
+    When I delete version 1 of subject "err-40406-del"
+    Then the response status should be 200
+    When I GET "/subjects/err-40406-del/versions/1?deleted=true"
+    Then the response status should be 200
+
+  @axonops-only
+  Scenario: GET raw schema of individually soft-deleted version returns 40406
+    Given the global compatibility level is "NONE"
+    And subject "err-40406-raw" has schema:
+      """
+      {"type":"record","name":"V1","fields":[{"name":"a","type":"string"}]}
+      """
+    And subject "err-40406-raw" has schema:
+      """
+      {"type":"record","name":"V2","fields":[{"name":"b","type":"string"}]}
+      """
+    When I delete version 1 of subject "err-40406-raw"
+    Then the response status should be 200
+    When I GET "/subjects/err-40406-raw/versions/1/schema"
+    Then the response status should be 404
+    And the response should have error code 40406

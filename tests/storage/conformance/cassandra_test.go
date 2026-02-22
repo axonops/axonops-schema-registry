@@ -52,12 +52,13 @@ func truncateCassandra(t *testing.T, cfg cassandra.Config) {
 	defer session.Close()
 
 	tables := []string{
+		"exporter_statuses", "exporters", "deks", "deks_by_kek", "keks",
 		"api_keys_by_hash", "api_keys_by_user", "api_keys_by_id",
 		"users_by_email", "users_by_id",
 		"id_alloc", "modes", "global_config", "subject_configs",
 		"references_by_target", "schema_references",
 		"schema_fingerprints", "subject_latest", "subject_versions",
-		"schemas_by_id",
+		"schemas_by_id", "contexts",
 	}
 	for _, table := range tables {
 		if err := session.Query("TRUNCATE " + table).Exec(); err != nil {
@@ -65,17 +66,14 @@ func truncateCassandra(t *testing.T, cfg cassandra.Config) {
 		}
 	}
 
-	// Re-seed global defaults (matching PostgreSQL/MySQL behavior)
-	if err := session.Query("INSERT INTO global_config (key, compatibility, updated_at) VALUES (?, ?, now())",
-		"global", "BACKWARD").Exec(); err != nil {
-		t.Fatalf("Failed to seed default global config: %v", err)
-	}
-	if err := session.Query("INSERT INTO modes (key, mode, updated_at) VALUES (?, ?, now())",
-		"global", "READWRITE").Exec(); err != nil {
-		t.Fatalf("Failed to seed default global mode: %v", err)
-	}
-	if err := session.Query("INSERT INTO id_alloc (name, next_id) VALUES (?, ?)",
-		"schema_id", 1).Exec(); err != nil {
+	// Re-seed ID allocation and context but NOT global config/mode — the
+	// conformance tests start from a clean state and set their own.
+	if err := session.Query("INSERT INTO id_alloc (registry_ctx, name, next_id) VALUES (?, ?, ?)",
+		".", "schema_id", 1).Exec(); err != nil {
 		t.Fatalf("Failed to seed default id_alloc: %v", err)
+	}
+	if err := session.Query("INSERT INTO contexts (registry_ctx, created_at) VALUES (?, now())",
+		".").Exec(); err != nil {
+		t.Fatalf("Failed to seed default context: %v", err)
 	}
 }

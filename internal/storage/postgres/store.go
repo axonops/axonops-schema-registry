@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"strings"
 	"time"
 
 	_ "github.com/lib/pq"
@@ -152,68 +153,72 @@ func (s *Store) prepareStatements() error {
 	var err error
 	stmts := &preparedStatements{}
 
-	// Schema statements
+	// Schema statements — all scoped by registry_ctx
 	stmts.getSchemaByID, err = s.db.Prepare(
 		`SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at, metadata, ruleset
-		 FROM schemas WHERE id = $1`)
+		 FROM schemas WHERE registry_ctx = $1 AND id = $2`)
 	if err != nil {
 		return fmt.Errorf("prepare getSchemaByID: %w", err)
 	}
 
 	stmts.getSchemaBySubjectVer, err = s.db.Prepare(
 		`SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at, metadata, ruleset
-		 FROM schemas WHERE subject = $1 AND version = $2`)
+		 FROM schemas WHERE registry_ctx = $1 AND subject = $2 AND version = $3`)
 	if err != nil {
 		return fmt.Errorf("prepare getSchemaBySubjectVer: %w", err)
 	}
 
 	stmts.getSchemaByFingerprint, err = s.db.Prepare(
 		`SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at, metadata, ruleset
-		 FROM schemas WHERE subject = $1 AND fingerprint = $2 AND deleted = FALSE`)
+		 FROM schemas WHERE registry_ctx = $1 AND subject = $2 AND fingerprint = $3 AND deleted = FALSE`)
 	if err != nil {
 		return fmt.Errorf("prepare getSchemaByFingerprint: %w", err)
 	}
 
 	stmts.getLatestSchema, err = s.db.Prepare(
 		`SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at, metadata, ruleset
-		 FROM schemas WHERE subject = $1 AND deleted = FALSE
+		 FROM schemas WHERE registry_ctx = $1 AND subject = $2 AND deleted = FALSE
 		 ORDER BY version DESC LIMIT 1`)
 	if err != nil {
 		return fmt.Errorf("prepare getLatestSchema: %w", err)
 	}
 
 	stmts.softDeleteSchema, err = s.db.Prepare(
-		`UPDATE schemas SET deleted = TRUE WHERE subject = $1 AND version = $2`)
+		`UPDATE schemas SET deleted = TRUE WHERE registry_ctx = $1 AND subject = $2 AND version = $3`)
 	if err != nil {
 		return fmt.Errorf("prepare softDeleteSchema: %w", err)
 	}
 
 	stmts.hardDeleteSchema, err = s.db.Prepare(
-		`DELETE FROM schemas WHERE subject = $1 AND version = $2`)
+		`DELETE FROM schemas WHERE registry_ctx = $1 AND subject = $2 AND version = $3`)
 	if err != nil {
 		return fmt.Errorf("prepare hardDeleteSchema: %w", err)
 	}
 
 	stmts.countSchemasBySubject, err = s.db.Prepare(
-		`SELECT COUNT(*) FROM schemas WHERE subject = $1 AND deleted = FALSE`)
+		`SELECT COUNT(*) FROM schemas WHERE registry_ctx = $1 AND subject = $2 AND deleted = FALSE`)
 	if err != nil {
 		return fmt.Errorf("prepare countSchemasBySubject: %w", err)
 	}
 
 	stmts.loadReferences, err = s.db.Prepare(
-		`SELECT name, ref_subject, ref_version FROM schema_references WHERE schema_id = $1`)
+		`SELECT name, ref_subject, ref_version FROM schema_references WHERE registry_ctx = $1 AND schema_id = $2`)
 	if err != nil {
 		return fmt.Errorf("prepare loadReferences: %w", err)
 	}
 
 	stmts.getSubjectsBySchemaID, err = s.db.Prepare(
-		`SELECT DISTINCT subject FROM schemas WHERE id = $1 AND deleted = FALSE`)
+		`SELECT DISTINCT s.subject FROM schemas s
+		 JOIN schema_fingerprints fp ON fp.registry_ctx = s.registry_ctx AND fp.fingerprint = s.fingerprint
+		 WHERE s.registry_ctx = $1 AND fp.schema_id = $2 AND s.deleted = FALSE`)
 	if err != nil {
 		return fmt.Errorf("prepare getSubjectsBySchemaID: %w", err)
 	}
 
 	stmts.getVersionsBySchemaID, err = s.db.Prepare(
-		`SELECT subject, version FROM schemas WHERE id = $1 AND deleted = FALSE`)
+		`SELECT s.subject, s.version FROM schemas s
+		 JOIN schema_fingerprints fp ON fp.registry_ctx = s.registry_ctx AND fp.fingerprint = s.fingerprint
+		 WHERE s.registry_ctx = $1 AND fp.schema_id = $2 AND s.deleted = FALSE`)
 	if err != nil {
 		return fmt.Errorf("prepare getVersionsBySchemaID: %w", err)
 	}
@@ -221,24 +226,25 @@ func (s *Store) prepareStatements() error {
 	stmts.getReferencedBy, err = s.db.Prepare(
 		`SELECT s.subject, s.version
 		 FROM schemas s
-		 JOIN schema_fingerprints fp ON fp.fingerprint = s.fingerprint
-		 JOIN schema_references r ON r.schema_id = fp.schema_id
-		 WHERE r.ref_subject = $1 AND r.ref_version = $2 AND s.deleted = FALSE`)
+		 JOIN schema_fingerprints fp ON fp.registry_ctx = s.registry_ctx AND fp.fingerprint = s.fingerprint
+		 JOIN schema_references r ON r.registry_ctx = fp.registry_ctx AND r.schema_id = fp.schema_id
+		 WHERE s.registry_ctx = $1 AND r.ref_subject = $2 AND r.ref_version = $3 AND s.deleted = FALSE`)
 	if err != nil {
 		return fmt.Errorf("prepare getReferencedBy: %w", err)
 	}
 
-	// Config statements
+	// Config statements — scoped by registry_ctx
 	stmts.getConfig, err = s.db.Prepare(
-		`SELECT subject, compatibility_level, alias, normalize, validate_fields, default_metadata, override_metadata, default_ruleset, override_ruleset, compatibility_group FROM configs WHERE subject = $1`)
+		`SELECT subject, compatibility_level, alias, normalize, validate_fields, default_metadata, override_metadata, default_ruleset, override_ruleset, compatibility_group
+		 FROM configs WHERE registry_ctx = $1 AND subject = $2`)
 	if err != nil {
 		return fmt.Errorf("prepare getConfig: %w", err)
 	}
 
 	stmts.setConfig, err = s.db.Prepare(
-		`INSERT INTO configs (subject, compatibility_level, alias, normalize, validate_fields, default_metadata, override_metadata, default_ruleset, override_ruleset, compatibility_group)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-		 ON CONFLICT (subject) DO UPDATE SET
+		`INSERT INTO configs (registry_ctx, subject, compatibility_level, alias, normalize, validate_fields, default_metadata, override_metadata, default_ruleset, override_ruleset, compatibility_group)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		 ON CONFLICT (registry_ctx, subject) DO UPDATE SET
 		     compatibility_level = EXCLUDED.compatibility_level,
 		     alias = EXCLUDED.alias,
 		     normalize = EXCLUDED.normalize,
@@ -253,27 +259,27 @@ func (s *Store) prepareStatements() error {
 	}
 
 	stmts.deleteConfig, err = s.db.Prepare(
-		`DELETE FROM configs WHERE subject = $1`)
+		`DELETE FROM configs WHERE registry_ctx = $1 AND subject = $2`)
 	if err != nil {
 		return fmt.Errorf("prepare deleteConfig: %w", err)
 	}
 
-	// Mode statements
+	// Mode statements — scoped by registry_ctx
 	stmts.getMode, err = s.db.Prepare(
-		`SELECT subject, mode FROM modes WHERE subject = $1`)
+		`SELECT subject, mode FROM modes WHERE registry_ctx = $1 AND subject = $2`)
 	if err != nil {
 		return fmt.Errorf("prepare getMode: %w", err)
 	}
 
 	stmts.setMode, err = s.db.Prepare(
-		`INSERT INTO modes (subject, mode) VALUES ($1, $2)
-		 ON CONFLICT (subject) DO UPDATE SET mode = EXCLUDED.mode`)
+		`INSERT INTO modes (registry_ctx, subject, mode) VALUES ($1, $2, $3)
+		 ON CONFLICT (registry_ctx, subject) DO UPDATE SET mode = EXCLUDED.mode`)
 	if err != nil {
 		return fmt.Errorf("prepare setMode: %w", err)
 	}
 
 	stmts.deleteMode, err = s.db.Prepare(
-		`DELETE FROM modes WHERE subject = $1`)
+		`DELETE FROM modes WHERE registry_ctx = $1 AND subject = $2`)
 	if err != nil {
 		return fmt.Errorf("prepare deleteMode: %w", err)
 	}
@@ -420,6 +426,14 @@ func (s *Store) closeStatements() {
 func (s *Store) migrate(ctx context.Context) error {
 	for i, migration := range migrations {
 		if _, err := s.db.ExecContext(ctx, migration); err != nil {
+			// Tolerate known errors when re-running migrations on an
+			// already-migrated database (e.g. concurrency tests).
+			errStr := err.Error()
+			if strings.Contains(errStr, "already exists") ||
+				strings.Contains(errStr, "duplicate key value") ||
+				strings.Contains(errStr, "does not exist") {
+				continue
+			}
 			return fmt.Errorf("migration %d failed: %w", i+1, err)
 		}
 	}
@@ -428,38 +442,45 @@ func (s *Store) migrate(ctx context.Context) error {
 	return nil
 }
 
-// globalSchemaID returns the stable global schema ID for a fingerprint.
-// Looks up the immutable fingerprint→schema_id mapping in schema_fingerprints.
-func (s *Store) globalSchemaID(ctx context.Context, fingerprint string) (int64, error) {
+// globalSchemaID returns the stable per-context schema ID for a fingerprint.
+// Looks up the immutable (registry_ctx, fingerprint) → schema_id mapping in schema_fingerprints.
+func (s *Store) globalSchemaID(ctx context.Context, registryCtx, fingerprint string) (int64, error) {
 	var globalID int64
 	err := s.db.QueryRowContext(ctx,
-		`SELECT schema_id FROM schema_fingerprints WHERE fingerprint = $1`, fingerprint).Scan(&globalID)
+		`SELECT schema_id FROM schema_fingerprints WHERE registry_ctx = $1 AND fingerprint = $2`, registryCtx, fingerprint).Scan(&globalID)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get global schema ID: %w", err)
 	}
 	return globalID, nil
 }
 
-// globalSchemaIDTx returns the stable global schema ID within a transaction.
-func (s *Store) globalSchemaIDTx(ctx context.Context, tx *sql.Tx, fingerprint string) (int64, error) {
+// globalSchemaIDTx returns the stable per-context schema ID within a transaction.
+func (s *Store) globalSchemaIDTx(ctx context.Context, tx *sql.Tx, registryCtx, fingerprint string) (int64, error) {
 	var globalID int64
 	err := tx.QueryRowContext(ctx,
-		`SELECT schema_id FROM schema_fingerprints WHERE fingerprint = $1`, fingerprint).Scan(&globalID)
+		`SELECT schema_id FROM schema_fingerprints WHERE registry_ctx = $1 AND fingerprint = $2`, registryCtx, fingerprint).Scan(&globalID)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get global schema ID: %w", err)
 	}
 	return globalID, nil
+}
+
+// ensureContext ensures a context exists in the contexts tracking table.
+func (s *Store) ensureContext(ctx context.Context, registryCtx string) {
+	_, _ = s.db.ExecContext(ctx,
+		`INSERT INTO contexts (registry_ctx) VALUES ($1) ON CONFLICT DO NOTHING`, registryCtx)
 }
 
 // CreateSchema stores a new schema record.
 // This implementation handles concurrent insertions by retrying on conflicts.
 // PostgreSQL serialization errors are handled as retriable errors.
-func (s *Store) CreateSchema(ctx context.Context, record *storage.SchemaRecord) error {
+func (s *Store) CreateSchema(ctx context.Context, registryCtx string, record *storage.SchemaRecord) error {
+	s.ensureContext(ctx, registryCtx)
 	const maxRetries = 15
 	var lastErr error
 
 	for attempt := 0; attempt < maxRetries; attempt++ {
-		err := s.createSchemaAttempt(ctx, record)
+		err := s.createSchemaAttempt(ctx, registryCtx, record)
 		if err == nil {
 			return nil
 		}
@@ -487,41 +508,71 @@ func (s *Store) CreateSchema(ctx context.Context, record *storage.SchemaRecord) 
 }
 
 // createSchemaAttempt performs a single attempt to create a schema.
-func (s *Store) createSchemaAttempt(ctx context.Context, record *storage.SchemaRecord) error {
+func (s *Store) createSchemaAttempt(ctx context.Context, registryCtx string, record *storage.SchemaRecord) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	// Check for existing schema with same fingerprint (idempotent check)
-	var existingVersion int
-	var existingDeleted bool
-	err = tx.QueryRowContext(ctx,
-		`SELECT version, deleted FROM schemas WHERE subject = $1 AND fingerprint = $2`,
-		record.Subject, record.Fingerprint,
-	).Scan(&existingVersion, &existingDeleted)
-
-	if err == nil && !existingDeleted {
-		// Schema already exists in this subject - resolve global ID
-		globalID, gErr := s.globalSchemaIDTx(ctx, tx, record.Fingerprint)
-		if gErr != nil {
-			return gErr
-		}
-		record.ID = globalID
-		record.Version = existingVersion
-		return storage.ErrSchemaExists
-	}
-
-	// Get next version for this subject (no locking - rely on unique constraint)
+	// Get next version for this subject FIRST.
+	// In READ COMMITTED, each statement gets its own snapshot. By running this
+	// before the fingerprint check, we ensure the fingerprint check's snapshot
+	// is same-or-newer — preventing a TOCTOU race where the fingerprint check
+	// misses a concurrent commit that MAX(version) would see.
 	var nextVersion int
 	err = tx.QueryRowContext(ctx,
-		`SELECT COALESCE(MAX(version), 0) + 1 FROM schemas WHERE subject = $1`,
-		record.Subject,
+		`SELECT COALESCE(MAX(version), 0) + 1 FROM schemas WHERE registry_ctx = $1 AND subject = $2`,
+		registryCtx, record.Subject,
 	).Scan(&nextVersion)
 	if err != nil {
 		return fmt.Errorf("failed to get next version: %w", err)
 	}
+
+	// Check for existing schemas with same fingerprint (idempotent check).
+	// With metadata/ruleSet support, multiple versions of the same subject can share
+	// a fingerprint (same schema text, different metadata/ruleSet), so we must check all rows.
+	var existingDeleted bool
+	fpRows, err := tx.QueryContext(ctx,
+		`SELECT version, deleted, metadata, ruleset FROM schemas WHERE registry_ctx = $1 AND subject = $2 AND fingerprint = $3`,
+		registryCtx, record.Subject, record.Fingerprint,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to check existing fingerprint: %w", err)
+	}
+	for fpRows.Next() {
+		var rowVersion int
+		var rowDeleted bool
+		var rowMetadataJSON, rowRulesetJSON []byte
+		if scanErr := fpRows.Scan(&rowVersion, &rowDeleted, &rowMetadataJSON, &rowRulesetJSON); scanErr != nil {
+			fpRows.Close()
+			return fmt.Errorf("failed to scan fingerprint row: %w", scanErr)
+		}
+		if rowDeleted {
+			existingDeleted = true
+			continue
+		}
+		// Fingerprint matches on a non-deleted row — check metadata and ruleSet.
+		// Confluent behavior: same schema text + same metadata/ruleSet = duplicate (return existing).
+		// Same schema text + different metadata/ruleSet = new version with same global ID.
+		existingMetadata, _ := unmarshalMetadata(rowMetadataJSON)
+		existingRuleSet, _ := unmarshalRuleSet(rowRulesetJSON)
+
+		if reflect.DeepEqual(normalizeMetadata(existingMetadata), normalizeMetadata(record.Metadata)) &&
+			reflect.DeepEqual(normalizeRuleSet(existingRuleSet), normalizeRuleSet(record.RuleSet)) {
+			fpRows.Close()
+			// Full duplicate — same schema, same metadata, same ruleSet
+			globalID, gErr := s.globalSchemaIDTx(ctx, tx, registryCtx, record.Fingerprint)
+			if gErr != nil {
+				return gErr
+			}
+			record.ID = globalID
+			record.Version = rowVersion
+			return storage.ErrSchemaExists
+		}
+		// Same schema text but different metadata/ruleSet — continue checking other rows
+	}
+	fpRows.Close()
 
 	// Serialize metadata and ruleset to JSON
 	metadataJSON, err := marshalJSONNullable(record.Metadata)
@@ -533,34 +584,45 @@ func (s *Store) createSchemaAttempt(ctx context.Context, record *storage.SchemaR
 		return fmt.Errorf("failed to marshal ruleset: %w", err)
 	}
 
-	// If a soft-deleted row with the same fingerprint exists, remove it first
-	// to avoid violating the unique constraint on (subject, fingerprint).
+	// If a soft-deleted row with the same fingerprint exists, remove it to keep
+	// the table tidy. Only delete soft-deleted rows — non-deleted rows with the
+	// same fingerprint but different metadata/ruleSet must be preserved.
 	if existingDeleted {
 		_, _ = tx.ExecContext(ctx,
-			`DELETE FROM schemas WHERE subject = $1 AND fingerprint = $2`,
-			record.Subject, record.Fingerprint,
+			`DELETE FROM schemas WHERE registry_ctx = $1 AND subject = $2 AND fingerprint = $3 AND deleted = TRUE`,
+			registryCtx, record.Subject, record.Fingerprint,
 		)
 	}
 
-	// Insert schema - unique constraint on (subject, version) prevents duplicates
-	var newRowID int64
-	err = tx.QueryRowContext(ctx,
-		`INSERT INTO schemas (subject, version, schema_type, schema_text, fingerprint, created_at, metadata, ruleset)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
-		record.Subject, nextVersion, record.SchemaType, record.Schema, record.Fingerprint, time.Now(), metadataJSON, rulesetJSON,
-	).Scan(&newRowID)
+	// Insert schema - unique constraint on (registry_ctx, subject, version) prevents duplicates
+	_, err = tx.ExecContext(ctx,
+		`INSERT INTO schemas (registry_ctx, subject, version, schema_type, schema_text, fingerprint, created_at, metadata, ruleset)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+		registryCtx, record.Subject, nextVersion, record.SchemaType, record.Schema, record.Fingerprint, time.Now(), metadataJSON, rulesetJSON,
+	)
 	if err != nil {
 		return fmt.Errorf("failed to insert schema: %w", err)
 	}
 
-	// Claim fingerprint in schema_fingerprints (first writer wins)
+	// Allocate per-context schema ID from ctx_id_alloc (within the same tx)
+	var nextCtxID int64
+	err = tx.QueryRowContext(ctx,
+		`INSERT INTO ctx_id_alloc (registry_ctx, next_id)
+		 VALUES ($1, 2)
+		 ON CONFLICT (registry_ctx) DO UPDATE SET next_id = ctx_id_alloc.next_id + 1
+		 RETURNING next_id - 1`, registryCtx).Scan(&nextCtxID)
+	if err != nil {
+		return fmt.Errorf("failed to allocate schema ID: %w", err)
+	}
+
+	// Claim fingerprint in schema_fingerprints (first writer wins, per-context)
 	_, _ = tx.ExecContext(ctx,
-		`INSERT INTO schema_fingerprints (fingerprint, schema_id) VALUES ($1, $2) ON CONFLICT (fingerprint) DO NOTHING`,
-		record.Fingerprint, newRowID,
+		`INSERT INTO schema_fingerprints (registry_ctx, fingerprint, schema_id) VALUES ($1, $2, $3) ON CONFLICT (registry_ctx, fingerprint) DO NOTHING`,
+		registryCtx, record.Fingerprint, nextCtxID,
 	)
 
-	// Resolve stable global ID from schema_fingerprints
-	globalID, err := s.globalSchemaIDTx(ctx, tx, record.Fingerprint)
+	// Resolve stable per-context ID from schema_fingerprints
+	globalID, err := s.globalSchemaIDTx(ctx, tx, registryCtx, record.Fingerprint)
 	if err != nil {
 		return fmt.Errorf("failed to get global schema ID: %w", err)
 	}
@@ -569,19 +631,19 @@ func (s *Store) createSchemaAttempt(ctx context.Context, record *storage.SchemaR
 	record.Version = nextVersion
 	record.CreatedAt = time.Now()
 
-	// Insert references using the global ID.
-	// Only insert if no references exist yet for this global ID (avoids duplicates
+	// Insert references using the per-context ID.
+	// Only insert if no references exist yet for this ID (avoids duplicates
 	// when same content is registered under multiple subjects).
 	if len(record.References) > 0 {
 		var refCount int
 		_ = tx.QueryRowContext(ctx,
-			`SELECT COUNT(*) FROM schema_references WHERE schema_id = $1`, globalID).Scan(&refCount)
+			`SELECT COUNT(*) FROM schema_references WHERE registry_ctx = $1 AND schema_id = $2`, registryCtx, globalID).Scan(&refCount)
 		if refCount == 0 {
 			for _, ref := range record.References {
 				_, err = tx.ExecContext(ctx,
-					`INSERT INTO schema_references (schema_id, name, ref_subject, ref_version)
-					 VALUES ($1, $2, $3, $4)`,
-					globalID, ref.Name, ref.Subject, ref.Version,
+					`INSERT INTO schema_references (registry_ctx, schema_id, name, ref_subject, ref_version)
+					 VALUES ($1, $2, $3, $4, $5)`,
+					registryCtx, globalID, ref.Name, ref.Subject, ref.Version,
 				)
 				if err != nil {
 					return fmt.Errorf("failed to insert reference: %w", err)
@@ -597,42 +659,39 @@ func (s *Store) createSchemaAttempt(ctx context.Context, record *storage.SchemaR
 // First tries direct row lookup, then falls back to schema_fingerprints
 // for cases where the original row was permanently deleted but the content
 // still exists under other subjects.
-func (s *Store) GetSchemaByID(ctx context.Context, id int64) (*storage.SchemaRecord, error) {
+func (s *Store) GetSchemaByID(ctx context.Context, registryCtx string, id int64) (*storage.SchemaRecord, error) {
 	record := &storage.SchemaRecord{}
 	var schemaType string
 	var metadataJSON, rulesetJSON []byte
 
-	err := s.stmts.getSchemaByID.QueryRowContext(ctx, id).Scan(
+	// Look up the per-context schema ID via schema_fingerprints first.
+	var fingerprint string
+	fpErr := s.db.QueryRowContext(ctx,
+		`SELECT fingerprint FROM schema_fingerprints WHERE registry_ctx = $1 AND schema_id = $2`, registryCtx, id).Scan(&fingerprint)
+	if fpErr != nil {
+		return nil, storage.ErrSchemaNotFound
+	}
+
+	// Find the schema row by context + fingerprint.
+	// Prefer non-deleted rows but fall back to deleted ones — schema content
+	// must remain accessible by ID even after all subjects are soft-deleted.
+	err := s.db.QueryRowContext(ctx,
+		`SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at, metadata, ruleset
+		 FROM schemas WHERE registry_ctx = $1 AND fingerprint = $2 ORDER BY deleted ASC, id ASC LIMIT 1`,
+		registryCtx, fingerprint).Scan(
 		&record.ID, &record.Subject, &record.Version, &schemaType,
 		&record.Schema, &record.Fingerprint, &record.Deleted, &record.CreatedAt,
 		&metadataJSON, &rulesetJSON)
 
 	if err == sql.ErrNoRows {
-		// Direct row not found — try schema_fingerprints fallback.
-		// The global ID may map to a fingerprint whose original row was deleted
-		// but the same content exists under another subject.
-		var fingerprint string
-		fpErr := s.db.QueryRowContext(ctx,
-			`SELECT fingerprint FROM schema_fingerprints WHERE schema_id = $1`, id).Scan(&fingerprint)
-		if fpErr != nil {
-			return nil, storage.ErrSchemaNotFound
-		}
-
-		fpErr = s.db.QueryRowContext(ctx,
-			`SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at, metadata, ruleset
-			 FROM schemas WHERE fingerprint = $1 ORDER BY id LIMIT 1`, fingerprint).Scan(
-			&record.ID, &record.Subject, &record.Version, &schemaType,
-			&record.Schema, &record.Fingerprint, &record.Deleted, &record.CreatedAt,
-			&metadataJSON, &rulesetJSON)
-		if fpErr != nil {
-			return nil, storage.ErrSchemaNotFound
-		}
-
-		// Use the stable global ID, not the row's auto-generated ID
-		record.ID = id
-	} else if err != nil {
+		return nil, storage.ErrSchemaNotFound
+	}
+	if err != nil {
 		return nil, fmt.Errorf("failed to get schema: %w", err)
 	}
+
+	// Use the per-context schema ID, not the row's auto-generated ID
+	record.ID = id
 
 	record.SchemaType = storage.SchemaType(schemaType)
 
@@ -645,8 +704,8 @@ func (s *Store) GetSchemaByID(ctx context.Context, id int64) (*storage.SchemaRec
 		return nil, fmt.Errorf("failed to unmarshal ruleset: %w", err)
 	}
 
-	// Load references using the stable global ID
-	refs, err := s.loadReferences(ctx, id)
+	// Load references using the per-context schema ID
+	refs, err := s.loadReferences(ctx, registryCtx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -656,10 +715,10 @@ func (s *Store) GetSchemaByID(ctx context.Context, id int64) (*storage.SchemaRec
 }
 
 // GetSchemaBySubjectVersion retrieves a schema by subject and version.
-func (s *Store) GetSchemaBySubjectVersion(ctx context.Context, subject string, version int) (*storage.SchemaRecord, error) {
+func (s *Store) GetSchemaBySubjectVersion(ctx context.Context, registryCtx string, subject string, version int) (*storage.SchemaRecord, error) {
 	// Handle "latest" version (-1)
 	if version == -1 {
-		return s.GetLatestSchema(ctx, subject)
+		return s.GetLatestSchema(ctx, registryCtx, subject)
 	}
 
 	record := &storage.SchemaRecord{}
@@ -667,7 +726,7 @@ func (s *Store) GetSchemaBySubjectVersion(ctx context.Context, subject string, v
 	var rowID int64
 	var metadataJSON, rulesetJSON []byte
 
-	err := s.stmts.getSchemaBySubjectVer.QueryRowContext(ctx, subject, version).Scan(
+	err := s.stmts.getSchemaBySubjectVer.QueryRowContext(ctx, registryCtx, subject, version).Scan(
 		&rowID, &record.Subject, &record.Version, &schemaType,
 		&record.Schema, &record.Fingerprint, &record.Deleted, &record.CreatedAt,
 		&metadataJSON, &rulesetJSON)
@@ -675,7 +734,7 @@ func (s *Store) GetSchemaBySubjectVersion(ctx context.Context, subject string, v
 	if err == sql.ErrNoRows {
 		// Check if subject exists
 		var count int
-		_ = s.stmts.countSchemasBySubject.QueryRowContext(ctx, subject).Scan(&count)
+		_ = s.stmts.countSchemasBySubject.QueryRowContext(ctx, registryCtx, subject).Scan(&count)
 		if count == 0 {
 			return nil, storage.ErrSubjectNotFound
 		}
@@ -700,16 +759,16 @@ func (s *Store) GetSchemaBySubjectVersion(ctx context.Context, subject string, v
 		return nil, fmt.Errorf("failed to unmarshal ruleset: %w", err)
 	}
 
-	// Resolve global ID
-	globalID, err := s.globalSchemaID(ctx, record.Fingerprint)
+	// Resolve per-context ID
+	globalID, err := s.globalSchemaID(ctx, registryCtx, record.Fingerprint)
 	if err != nil {
 		record.ID = rowID // fallback
 	} else {
 		record.ID = globalID
 	}
 
-	// Load references using global ID
-	refs, err := s.loadReferences(ctx, record.ID)
+	// Load references using per-context ID
+	refs, err := s.loadReferences(ctx, registryCtx, record.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -719,15 +778,15 @@ func (s *Store) GetSchemaBySubjectVersion(ctx context.Context, subject string, v
 }
 
 // GetSchemasBySubject retrieves all schemas for a subject.
-func (s *Store) GetSchemasBySubject(ctx context.Context, subject string, includeDeleted bool) ([]*storage.SchemaRecord, error) {
+func (s *Store) GetSchemasBySubject(ctx context.Context, registryCtx string, subject string, includeDeleted bool) ([]*storage.SchemaRecord, error) {
 	query := `SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at, metadata, ruleset
-		      FROM schemas WHERE subject = $1`
+		      FROM schemas WHERE registry_ctx = $1 AND subject = $2`
 	if !includeDeleted {
 		query += ` AND deleted = FALSE`
 	}
 	query += ` ORDER BY version`
 
-	rows, err := s.db.QueryContext(ctx, query, subject)
+	rows, err := s.db.QueryContext(ctx, query, registryCtx, subject)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query schemas: %w", err)
 	}
@@ -750,14 +809,14 @@ func (s *Store) GetSchemasBySubject(ctx context.Context, subject string, include
 		record.RuleSet, _ = unmarshalRuleSet(rulesetJSON)
 
 		// Resolve global ID
-		if globalID, gErr := s.globalSchemaID(ctx, record.Fingerprint); gErr == nil {
+		if globalID, gErr := s.globalSchemaID(ctx, registryCtx, record.Fingerprint); gErr == nil {
 			record.ID = globalID
 		} else {
 			record.ID = rowID
 		}
 
 		// Load references using global ID
-		refs, err := s.loadReferences(ctx, record.ID)
+		refs, err := s.loadReferences(ctx, registryCtx, record.ID)
 		if err != nil {
 			return nil, err
 		}
@@ -770,7 +829,7 @@ func (s *Store) GetSchemasBySubject(ctx context.Context, subject string, include
 		// Check if subject exists at all (including deleted versions)
 		var count int
 		_ = s.db.QueryRowContext(ctx,
-			`SELECT COUNT(*) FROM schemas WHERE subject = $1`, subject).Scan(&count)
+			`SELECT COUNT(*) FROM schemas WHERE registry_ctx = $1 AND subject = $2`, registryCtx, subject).Scan(&count)
 		if count == 0 {
 			return nil, storage.ErrSubjectNotFound
 		}
@@ -782,7 +841,7 @@ func (s *Store) GetSchemasBySubject(ctx context.Context, subject string, include
 }
 
 // GetSchemaByFingerprint retrieves a schema by subject and fingerprint.
-func (s *Store) GetSchemaByFingerprint(ctx context.Context, subject, fingerprint string, includeDeleted bool) (*storage.SchemaRecord, error) {
+func (s *Store) GetSchemaByFingerprint(ctx context.Context, registryCtx string, subject, fingerprint string, includeDeleted bool) (*storage.SchemaRecord, error) {
 	record := &storage.SchemaRecord{}
 	var schemaType string
 	var rowID int64
@@ -791,13 +850,13 @@ func (s *Store) GetSchemaByFingerprint(ctx context.Context, subject, fingerprint
 
 	if includeDeleted {
 		query := `SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at, metadata, ruleset
-		          FROM schemas WHERE subject = $1 AND fingerprint = $2`
-		err = s.db.QueryRowContext(ctx, query, subject, fingerprint).Scan(
+		          FROM schemas WHERE registry_ctx = $1 AND subject = $2 AND fingerprint = $3`
+		err = s.db.QueryRowContext(ctx, query, registryCtx, subject, fingerprint).Scan(
 			&rowID, &record.Subject, &record.Version, &schemaType,
 			&record.Schema, &record.Fingerprint, &record.Deleted, &record.CreatedAt,
 			&metadataJSON, &rulesetJSON)
 	} else {
-		err = s.stmts.getSchemaByFingerprint.QueryRowContext(ctx, subject, fingerprint).Scan(
+		err = s.stmts.getSchemaByFingerprint.QueryRowContext(ctx, registryCtx, subject, fingerprint).Scan(
 			&rowID, &record.Subject, &record.Version, &schemaType,
 			&record.Schema, &record.Fingerprint, &record.Deleted, &record.CreatedAt,
 			&metadataJSON, &rulesetJSON)
@@ -807,7 +866,7 @@ func (s *Store) GetSchemaByFingerprint(ctx context.Context, subject, fingerprint
 		// Check if subject exists at all
 		var count int
 		_ = s.db.QueryRowContext(ctx,
-			`SELECT COUNT(*) FROM schemas WHERE subject = $1`, subject).Scan(&count)
+			`SELECT COUNT(*) FROM schemas WHERE registry_ctx = $1 AND subject = $2`, registryCtx, subject).Scan(&count)
 		if count == 0 {
 			return nil, storage.ErrSubjectNotFound
 		}
@@ -823,14 +882,14 @@ func (s *Store) GetSchemaByFingerprint(ctx context.Context, subject, fingerprint
 	record.RuleSet, _ = unmarshalRuleSet(rulesetJSON)
 
 	// Resolve global ID
-	if globalID, gErr := s.globalSchemaID(ctx, record.Fingerprint); gErr == nil {
+	if globalID, gErr := s.globalSchemaID(ctx, registryCtx, record.Fingerprint); gErr == nil {
 		record.ID = globalID
 	} else {
 		record.ID = rowID
 	}
 
 	// Load references using global ID
-	refs, err := s.loadReferences(ctx, record.ID)
+	refs, err := s.loadReferences(ctx, registryCtx, record.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -841,16 +900,16 @@ func (s *Store) GetSchemaByFingerprint(ctx context.Context, subject, fingerprint
 
 // GetSchemaByGlobalFingerprint retrieves a schema by fingerprint (global lookup).
 // Returns the first matching schema regardless of subject.
-func (s *Store) GetSchemaByGlobalFingerprint(ctx context.Context, fingerprint string) (*storage.SchemaRecord, error) {
+func (s *Store) GetSchemaByGlobalFingerprint(ctx context.Context, registryCtx string, fingerprint string) (*storage.SchemaRecord, error) {
 	record := &storage.SchemaRecord{}
 	var schemaType string
 	var rowID int64
 	var metadataJSON, rulesetJSON []byte
 
-	// Query for any schema with this fingerprint (global deduplication)
+	// Query for any schema with this fingerprint within this context
 	query := `SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at, metadata, ruleset
-	          FROM schemas WHERE fingerprint = $1 AND deleted = false LIMIT 1`
-	err := s.db.QueryRowContext(ctx, query, fingerprint).Scan(
+	          FROM schemas WHERE registry_ctx = $1 AND fingerprint = $2 AND deleted = false LIMIT 1`
+	err := s.db.QueryRowContext(ctx, query, registryCtx, fingerprint).Scan(
 		&rowID, &record.Subject, &record.Version, &schemaType,
 		&record.Schema, &record.Fingerprint, &record.Deleted, &record.CreatedAt,
 		&metadataJSON, &rulesetJSON)
@@ -868,14 +927,14 @@ func (s *Store) GetSchemaByGlobalFingerprint(ctx context.Context, fingerprint st
 	record.RuleSet, _ = unmarshalRuleSet(rulesetJSON)
 
 	// Resolve global ID
-	if globalID, gErr := s.globalSchemaID(ctx, record.Fingerprint); gErr == nil {
+	if globalID, gErr := s.globalSchemaID(ctx, registryCtx, record.Fingerprint); gErr == nil {
 		record.ID = globalID
 	} else {
 		record.ID = rowID
 	}
 
 	// Load references using global ID
-	refs, err := s.loadReferences(ctx, record.ID)
+	refs, err := s.loadReferences(ctx, registryCtx, record.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -885,13 +944,13 @@ func (s *Store) GetSchemaByGlobalFingerprint(ctx context.Context, fingerprint st
 }
 
 // GetLatestSchema retrieves the latest schema for a subject.
-func (s *Store) GetLatestSchema(ctx context.Context, subject string) (*storage.SchemaRecord, error) {
+func (s *Store) GetLatestSchema(ctx context.Context, registryCtx string, subject string) (*storage.SchemaRecord, error) {
 	record := &storage.SchemaRecord{}
 	var schemaType string
 	var rowID int64
 	var metadataJSON, rulesetJSON []byte
 
-	err := s.stmts.getLatestSchema.QueryRowContext(ctx, subject).Scan(
+	err := s.stmts.getLatestSchema.QueryRowContext(ctx, registryCtx, subject).Scan(
 		&rowID, &record.Subject, &record.Version, &schemaType,
 		&record.Schema, &record.Fingerprint, &record.Deleted, &record.CreatedAt,
 		&metadataJSON, &rulesetJSON)
@@ -909,14 +968,14 @@ func (s *Store) GetLatestSchema(ctx context.Context, subject string) (*storage.S
 	record.RuleSet, _ = unmarshalRuleSet(rulesetJSON)
 
 	// Resolve global ID
-	if globalID, gErr := s.globalSchemaID(ctx, record.Fingerprint); gErr == nil {
+	if globalID, gErr := s.globalSchemaID(ctx, registryCtx, record.Fingerprint); gErr == nil {
 		record.ID = globalID
 	} else {
 		record.ID = rowID
 	}
 
 	// Load references using global ID
-	refs, err := s.loadReferences(ctx, record.ID)
+	refs, err := s.loadReferences(ctx, registryCtx, record.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -926,19 +985,19 @@ func (s *Store) GetLatestSchema(ctx context.Context, subject string) (*storage.S
 }
 
 // DeleteSchema soft-deletes or permanently deletes a schema version.
-func (s *Store) DeleteSchema(ctx context.Context, subject string, version int, permanent bool) error {
+func (s *Store) DeleteSchema(ctx context.Context, registryCtx string, subject string, version int, permanent bool) error {
 	if permanent {
 		// Check if version exists and is soft-deleted first; capture fingerprint for cleanup
 		var deleted bool
 		var fingerprint string
 		err := s.db.QueryRowContext(ctx,
-			`SELECT deleted, fingerprint FROM schemas WHERE subject = $1 AND version = $2`,
-			subject, version).Scan(&deleted, &fingerprint)
+			`SELECT deleted, fingerprint FROM schemas WHERE registry_ctx = $1 AND subject = $2 AND version = $3`,
+			registryCtx, subject, version).Scan(&deleted, &fingerprint)
 		if err == sql.ErrNoRows {
 			// Check if subject exists at all
 			var count int
 			_ = s.db.QueryRowContext(ctx,
-				`SELECT COUNT(*) FROM schemas WHERE subject = $1`, subject).Scan(&count)
+				`SELECT COUNT(*) FROM schemas WHERE registry_ctx = $1 AND subject = $2`, registryCtx, subject).Scan(&count)
 			if count == 0 {
 				return storage.ErrSubjectNotFound
 			}
@@ -950,19 +1009,19 @@ func (s *Store) DeleteSchema(ctx context.Context, subject string, version int, p
 		if !deleted {
 			return storage.ErrVersionNotSoftDeleted
 		}
-		_, err = s.stmts.hardDeleteSchema.ExecContext(ctx, subject, version)
+		_, err = s.stmts.hardDeleteSchema.ExecContext(ctx, registryCtx, subject, version)
 		if err != nil {
 			return fmt.Errorf("failed to delete schema: %w", err)
 		}
 
 		// Clean up orphaned schema_fingerprints and schema_references
-		// if no other schemas rows share this fingerprint.
-		s.cleanupOrphanedFingerprint(ctx, fingerprint)
+		// if no other schemas rows share this fingerprint in this context.
+		s.cleanupOrphanedFingerprint(ctx, registryCtx, fingerprint)
 
 		return nil
 	}
 
-	result, err := s.stmts.softDeleteSchema.ExecContext(ctx, subject, version)
+	result, err := s.stmts.softDeleteSchema.ExecContext(ctx, registryCtx, subject, version)
 	if err != nil {
 		return fmt.Errorf("failed to delete schema: %w", err)
 	}
@@ -971,7 +1030,7 @@ func (s *Store) DeleteSchema(ctx context.Context, subject string, version int, p
 	if rowsAffected == 0 {
 		// Check if subject exists
 		var count int
-		_ = s.stmts.countSchemasBySubject.QueryRowContext(ctx, subject).Scan(&count)
+		_ = s.stmts.countSchemasBySubject.QueryRowContext(ctx, registryCtx, subject).Scan(&count)
 		if count == 0 {
 			return storage.ErrSubjectNotFound
 		}
@@ -982,14 +1041,14 @@ func (s *Store) DeleteSchema(ctx context.Context, subject string, version int, p
 }
 
 // ListSubjects returns all subject names.
-func (s *Store) ListSubjects(ctx context.Context, includeDeleted bool) ([]string, error) {
-	query := `SELECT DISTINCT subject FROM schemas`
+func (s *Store) ListSubjects(ctx context.Context, registryCtx string, includeDeleted bool) ([]string, error) {
+	query := `SELECT DISTINCT subject FROM schemas WHERE registry_ctx = $1`
 	if !includeDeleted {
-		query += ` WHERE deleted = FALSE`
+		query += ` AND deleted = FALSE`
 	}
 	query += ` ORDER BY subject`
 
-	rows, err := s.db.QueryContext(ctx, query)
+	rows, err := s.db.QueryContext(ctx, query, registryCtx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query subjects: %w", err)
 	}
@@ -1008,13 +1067,13 @@ func (s *Store) ListSubjects(ctx context.Context, includeDeleted bool) ([]string
 }
 
 // DeleteSubject deletes all versions of a subject.
-func (s *Store) DeleteSubject(ctx context.Context, subject string, permanent bool) ([]int, error) {
+func (s *Store) DeleteSubject(ctx context.Context, registryCtx string, subject string, permanent bool) ([]int, error) {
 	if permanent {
 		// For permanent delete, check that all versions are soft-deleted first
 		var totalCount, deletedCount int
 		err := s.db.QueryRowContext(ctx,
 			`SELECT COUNT(*), COALESCE(SUM(CASE WHEN deleted THEN 1 ELSE 0 END), 0)
-			 FROM schemas WHERE subject = $1`, subject).Scan(&totalCount, &deletedCount)
+			 FROM schemas WHERE registry_ctx = $1 AND subject = $2`, registryCtx, subject).Scan(&totalCount, &deletedCount)
 		if err != nil {
 			return nil, fmt.Errorf("failed to check subject: %w", err)
 		}
@@ -1027,7 +1086,7 @@ func (s *Store) DeleteSubject(ctx context.Context, subject string, permanent boo
 
 		// Get all versions and unique fingerprints for cleanup
 		rows, err := s.db.QueryContext(ctx,
-			`SELECT version, fingerprint FROM schemas WHERE subject = $1 ORDER BY version`, subject)
+			`SELECT version, fingerprint FROM schemas WHERE registry_ctx = $1 AND subject = $2 ORDER BY version`, registryCtx, subject)
 		if err != nil {
 			return nil, fmt.Errorf("failed to query versions: %w", err)
 		}
@@ -1045,16 +1104,16 @@ func (s *Store) DeleteSubject(ctx context.Context, subject string, permanent boo
 		}
 		rows.Close()
 
-		_, err = s.db.ExecContext(ctx, `DELETE FROM schemas WHERE subject = $1`, subject)
+		_, err = s.db.ExecContext(ctx, `DELETE FROM schemas WHERE registry_ctx = $1 AND subject = $2`, registryCtx, subject)
 		if err != nil {
 			return nil, fmt.Errorf("failed to delete schemas: %w", err)
 		}
-		_, _ = s.db.ExecContext(ctx, `DELETE FROM configs WHERE subject = $1`, subject)
-		_, _ = s.db.ExecContext(ctx, `DELETE FROM modes WHERE subject = $1`, subject)
+		_, _ = s.db.ExecContext(ctx, `DELETE FROM configs WHERE registry_ctx = $1 AND subject = $2`, registryCtx, subject)
+		_, _ = s.db.ExecContext(ctx, `DELETE FROM modes WHERE registry_ctx = $1 AND subject = $2`, registryCtx, subject)
 
 		// Clean up orphaned schema_fingerprints and schema_references
 		for fp := range fingerprintSet {
-			s.cleanupOrphanedFingerprint(ctx, fp)
+			s.cleanupOrphanedFingerprint(ctx, registryCtx, fp)
 		}
 
 		return versions, nil
@@ -1062,7 +1121,7 @@ func (s *Store) DeleteSubject(ctx context.Context, subject string, permanent boo
 
 	// Soft-delete: get non-deleted versions
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT version FROM schemas WHERE subject = $1 AND deleted = FALSE ORDER BY version`, subject)
+		`SELECT version FROM schemas WHERE registry_ctx = $1 AND subject = $2 AND deleted = FALSE ORDER BY version`, registryCtx, subject)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query versions: %w", err)
 	}
@@ -1082,7 +1141,7 @@ func (s *Store) DeleteSubject(ctx context.Context, subject string, permanent boo
 		// Check if subject exists but is already soft-deleted
 		var count int
 		_ = s.db.QueryRowContext(ctx,
-			`SELECT COUNT(*) FROM schemas WHERE subject = $1`, subject).Scan(&count)
+			`SELECT COUNT(*) FROM schemas WHERE registry_ctx = $1 AND subject = $2`, registryCtx, subject).Scan(&count)
 		if count > 0 {
 			return nil, storage.ErrSubjectDeleted
 		}
@@ -1090,8 +1149,8 @@ func (s *Store) DeleteSubject(ctx context.Context, subject string, permanent boo
 	}
 
 	_, err = s.db.ExecContext(ctx,
-		`UPDATE schemas SET deleted = TRUE WHERE subject = $1`,
-		subject,
+		`UPDATE schemas SET deleted = TRUE WHERE registry_ctx = $1 AND subject = $2`,
+		registryCtx, subject,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to soft-delete schemas: %w", err)
@@ -1101,9 +1160,9 @@ func (s *Store) DeleteSubject(ctx context.Context, subject string, permanent boo
 }
 
 // SubjectExists checks if a subject exists.
-func (s *Store) SubjectExists(ctx context.Context, subject string) (bool, error) {
+func (s *Store) SubjectExists(ctx context.Context, registryCtx string, subject string) (bool, error) {
 	var count int
-	err := s.stmts.countSchemasBySubject.QueryRowContext(ctx, subject).Scan(&count)
+	err := s.stmts.countSchemasBySubject.QueryRowContext(ctx, registryCtx, subject).Scan(&count)
 	if err != nil {
 		return false, fmt.Errorf("failed to check subject: %w", err)
 	}
@@ -1111,7 +1170,7 @@ func (s *Store) SubjectExists(ctx context.Context, subject string) (bool, error)
 }
 
 // GetConfig retrieves the compatibility configuration for a subject.
-func (s *Store) GetConfig(ctx context.Context, subject string) (*storage.ConfigRecord, error) {
+func (s *Store) GetConfig(ctx context.Context, registryCtx string, subject string) (*storage.ConfigRecord, error) {
 	config := &storage.ConfigRecord{}
 	var alias sql.NullString
 	var normalize sql.NullBool
@@ -1119,7 +1178,7 @@ func (s *Store) GetConfig(ctx context.Context, subject string) (*storage.ConfigR
 	var compatibilityGroup sql.NullString
 	var defaultMetadataJSON, overrideMetadataJSON, defaultRulesetJSON, overrideRulesetJSON []byte
 
-	err := s.stmts.getConfig.QueryRowContext(ctx, subject).Scan(
+	err := s.stmts.getConfig.QueryRowContext(ctx, registryCtx, subject).Scan(
 		&config.Subject, &config.CompatibilityLevel,
 		&alias, &normalize, &validateFields,
 		&defaultMetadataJSON, &overrideMetadataJSON,
@@ -1157,7 +1216,7 @@ func (s *Store) GetConfig(ctx context.Context, subject string) (*storage.ConfigR
 }
 
 // SetConfig sets the compatibility configuration for a subject.
-func (s *Store) SetConfig(ctx context.Context, subject string, config *storage.ConfigRecord) error {
+func (s *Store) SetConfig(ctx context.Context, registryCtx string, subject string, config *storage.ConfigRecord) error {
 	// Serialize nullable fields
 	var aliasVal *string
 	if config.Alias != "" {
@@ -1186,7 +1245,7 @@ func (s *Store) SetConfig(ctx context.Context, subject string, config *storage.C
 		return fmt.Errorf("failed to marshal override ruleset: %w", err)
 	}
 
-	_, err = s.stmts.setConfig.ExecContext(ctx, subject, config.CompatibilityLevel,
+	_, err = s.stmts.setConfig.ExecContext(ctx, registryCtx, subject, config.CompatibilityLevel,
 		aliasVal, config.Normalize, config.ValidateFields,
 		defaultMetadataJSON, overrideMetadataJSON,
 		defaultRulesetJSON, overrideRulesetJSON,
@@ -1198,8 +1257,8 @@ func (s *Store) SetConfig(ctx context.Context, subject string, config *storage.C
 }
 
 // DeleteConfig deletes the compatibility configuration for a subject.
-func (s *Store) DeleteConfig(ctx context.Context, subject string) error {
-	result, err := s.stmts.deleteConfig.ExecContext(ctx, subject)
+func (s *Store) DeleteConfig(ctx context.Context, registryCtx string, subject string) error {
+	result, err := s.stmts.deleteConfig.ExecContext(ctx, registryCtx, subject)
 	if err != nil {
 		return fmt.Errorf("failed to delete config: %w", err)
 	}
@@ -1213,19 +1272,19 @@ func (s *Store) DeleteConfig(ctx context.Context, subject string) error {
 }
 
 // GetGlobalConfig retrieves the global compatibility configuration.
-func (s *Store) GetGlobalConfig(ctx context.Context) (*storage.ConfigRecord, error) {
-	return s.GetConfig(ctx, "")
+func (s *Store) GetGlobalConfig(ctx context.Context, registryCtx string) (*storage.ConfigRecord, error) {
+	return s.GetConfig(ctx, registryCtx, "")
 }
 
 // SetGlobalConfig sets the global compatibility configuration.
-func (s *Store) SetGlobalConfig(ctx context.Context, config *storage.ConfigRecord) error {
-	return s.SetConfig(ctx, "", config)
+func (s *Store) SetGlobalConfig(ctx context.Context, registryCtx string, config *storage.ConfigRecord) error {
+	return s.SetConfig(ctx, registryCtx, "", config)
 }
 
 // GetMode retrieves the mode for a subject.
-func (s *Store) GetMode(ctx context.Context, subject string) (*storage.ModeRecord, error) {
+func (s *Store) GetMode(ctx context.Context, registryCtx string, subject string) (*storage.ModeRecord, error) {
 	mode := &storage.ModeRecord{}
-	err := s.stmts.getMode.QueryRowContext(ctx, subject).Scan(&mode.Subject, &mode.Mode)
+	err := s.stmts.getMode.QueryRowContext(ctx, registryCtx, subject).Scan(&mode.Subject, &mode.Mode)
 
 	if err == sql.ErrNoRows {
 		return nil, storage.ErrNotFound
@@ -1238,8 +1297,8 @@ func (s *Store) GetMode(ctx context.Context, subject string) (*storage.ModeRecor
 }
 
 // SetMode sets the mode for a subject.
-func (s *Store) SetMode(ctx context.Context, subject string, mode *storage.ModeRecord) error {
-	_, err := s.stmts.setMode.ExecContext(ctx, subject, mode.Mode)
+func (s *Store) SetMode(ctx context.Context, registryCtx string, subject string, mode *storage.ModeRecord) error {
+	_, err := s.stmts.setMode.ExecContext(ctx, registryCtx, subject, mode.Mode)
 	if err != nil {
 		return fmt.Errorf("failed to set mode: %w", err)
 	}
@@ -1247,8 +1306,8 @@ func (s *Store) SetMode(ctx context.Context, subject string, mode *storage.ModeR
 }
 
 // DeleteMode deletes the mode for a subject.
-func (s *Store) DeleteMode(ctx context.Context, subject string) error {
-	result, err := s.stmts.deleteMode.ExecContext(ctx, subject)
+func (s *Store) DeleteMode(ctx context.Context, registryCtx string, subject string) error {
+	result, err := s.stmts.deleteMode.ExecContext(ctx, registryCtx, subject)
 	if err != nil {
 		return fmt.Errorf("failed to delete mode: %w", err)
 	}
@@ -1262,29 +1321,36 @@ func (s *Store) DeleteMode(ctx context.Context, subject string) error {
 }
 
 // GetGlobalMode retrieves the global mode.
-func (s *Store) GetGlobalMode(ctx context.Context) (*storage.ModeRecord, error) {
-	return s.GetMode(ctx, "")
+func (s *Store) GetGlobalMode(ctx context.Context, registryCtx string) (*storage.ModeRecord, error) {
+	return s.GetMode(ctx, registryCtx, "")
 }
 
 // SetGlobalMode sets the global mode.
-func (s *Store) SetGlobalMode(ctx context.Context, mode *storage.ModeRecord) error {
-	return s.SetMode(ctx, "", mode)
+func (s *Store) SetGlobalMode(ctx context.Context, registryCtx string, mode *storage.ModeRecord) error {
+	return s.SetMode(ctx, registryCtx, "", mode)
 }
 
-// NextID returns the next available schema ID.
-func (s *Store) NextID(ctx context.Context) (int64, error) {
+// NextID returns the next available per-context schema ID.
+// Uses the ctx_id_alloc table for per-context ID allocation.
+func (s *Store) NextID(ctx context.Context, registryCtx string) (int64, error) {
 	var id int64
-	err := s.db.QueryRowContext(ctx, `SELECT nextval('schemas_id_seq')`).Scan(&id)
+	err := s.db.QueryRowContext(ctx,
+		`INSERT INTO ctx_id_alloc (registry_ctx, next_id)
+		 VALUES ($1, 2)
+		 ON CONFLICT (registry_ctx) DO UPDATE SET next_id = ctx_id_alloc.next_id + 1
+		 RETURNING next_id - 1`, registryCtx).Scan(&id)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get next ID: %w", err)
 	}
 	return id, nil
 }
 
-// GetMaxSchemaID returns the highest schema ID currently assigned.
-func (s *Store) GetMaxSchemaID(ctx context.Context) (int64, error) {
+// GetMaxSchemaID returns the highest per-context schema ID currently assigned.
+func (s *Store) GetMaxSchemaID(ctx context.Context, registryCtx string) (int64, error) {
 	var maxID int64
-	err := s.db.QueryRowContext(ctx, `SELECT COALESCE(MAX(id), 0) FROM schemas`).Scan(&maxID)
+	err := s.db.QueryRowContext(ctx,
+		`SELECT COALESCE(MAX(schema_id), 0) FROM schema_fingerprints WHERE registry_ctx = $1`,
+		registryCtx).Scan(&maxID)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get max schema ID: %w", err)
 	}
@@ -1292,18 +1358,22 @@ func (s *Store) GetMaxSchemaID(ctx context.Context) (int64, error) {
 }
 
 // ImportSchema inserts a schema with a specified ID (for migration).
-// Returns ErrSchemaIDConflict if the ID already exists.
-func (s *Store) ImportSchema(ctx context.Context, record *storage.SchemaRecord) error {
+// Returns ErrSchemaIDConflict if the ID already exists with different content.
+func (s *Store) ImportSchema(ctx context.Context, registryCtx string, record *storage.SchemaRecord) error {
+	s.ensureContext(ctx, registryCtx)
+
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	// Check if schema ID already exists
+	// Check if per-context schema ID already exists
 	var existingFingerprint string
 	idExists := false
-	err = tx.QueryRowContext(ctx, `SELECT fingerprint FROM schemas WHERE id = $1`, record.ID).Scan(&existingFingerprint)
+	err = tx.QueryRowContext(ctx,
+		`SELECT fingerprint FROM schema_fingerprints WHERE registry_ctx = $1 AND schema_id = $2`,
+		registryCtx, record.ID).Scan(&existingFingerprint)
 	if err == nil {
 		// ID exists — allow if same content (fingerprint), reject if different
 		if existingFingerprint != record.Fingerprint {
@@ -1314,11 +1384,11 @@ func (s *Store) ImportSchema(ctx context.Context, record *storage.SchemaRecord) 
 		return fmt.Errorf("failed to check existing schema: %w", err)
 	}
 
-	// Check if version already exists for this subject
+	// Check if version already exists for this subject in this context
 	var existingVersion int
 	err = tx.QueryRowContext(ctx,
-		`SELECT version FROM schemas WHERE subject = $1 AND version = $2`,
-		record.Subject, record.Version,
+		`SELECT version FROM schemas WHERE registry_ctx = $1 AND subject = $2 AND version = $3`,
+		registryCtx, record.Subject, record.Version,
 	).Scan(&existingVersion)
 	if err == nil {
 		return storage.ErrSchemaExists
@@ -1337,41 +1407,51 @@ func (s *Store) ImportSchema(ctx context.Context, record *storage.SchemaRecord) 
 		return fmt.Errorf("failed to marshal ruleset: %w", err)
 	}
 
-	if idExists {
-		// Same content, different subject — insert a new row (auto-id).
-		// schema_fingerprints already has the mapping from a previous import.
-		_, err = tx.ExecContext(ctx,
-			`INSERT INTO schemas (subject, version, schema_type, schema_text, fingerprint, created_at, metadata, ruleset)
-			 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-			record.Subject, record.Version, record.SchemaType, record.Schema, record.Fingerprint, time.Now(), metadataJSON, rulesetJSON,
-		)
-	} else {
-		// New ID — insert with explicit ID
-		_, err = tx.ExecContext(ctx,
-			`INSERT INTO schemas (id, subject, version, schema_type, schema_text, fingerprint, created_at, metadata, ruleset)
-			 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-			record.ID, record.Subject, record.Version, record.SchemaType, record.Schema, record.Fingerprint, time.Now(), metadataJSON, rulesetJSON,
-		)
-	}
+	// Insert schema row (always auto-id for the row; the per-context ID is in schema_fingerprints)
+	_, err = tx.ExecContext(ctx,
+		`INSERT INTO schemas (registry_ctx, subject, version, schema_type, schema_text, fingerprint, created_at, metadata, ruleset)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+		registryCtx, record.Subject, record.Version, record.SchemaType, record.Schema, record.Fingerprint, time.Now(), metadataJSON, rulesetJSON,
+	)
 	if err != nil {
 		return fmt.Errorf("failed to insert schema: %w", err)
 	}
 
-	// Claim fingerprint in schema_fingerprints (first writer wins, preserves imported ID)
-	_, _ = tx.ExecContext(ctx,
-		`INSERT INTO schema_fingerprints (fingerprint, schema_id) VALUES ($1, $2) ON CONFLICT (fingerprint) DO NOTHING`,
-		record.Fingerprint, record.ID,
-	)
-
-	// Insert references using the stable global ID
-	for _, ref := range record.References {
+	if !idExists {
+		// Claim per-context fingerprint → schema_id mapping with the imported ID
 		_, err = tx.ExecContext(ctx,
-			`INSERT INTO schema_references (schema_id, name, ref_subject, ref_version)
-			 VALUES ($1, $2, $3, $4)`,
-			record.ID, ref.Name, ref.Subject, ref.Version,
+			`INSERT INTO schema_fingerprints (registry_ctx, fingerprint, schema_id) VALUES ($1, $2, $3) ON CONFLICT (registry_ctx, fingerprint) DO NOTHING`,
+			registryCtx, record.Fingerprint, record.ID,
 		)
 		if err != nil {
-			return fmt.Errorf("failed to insert reference: %w", err)
+			return fmt.Errorf("failed to insert fingerprint mapping: %w", err)
+		}
+
+		// Advance ctx_id_alloc past the imported ID if needed
+		_, _ = tx.ExecContext(ctx,
+			`INSERT INTO ctx_id_alloc (registry_ctx, next_id)
+			 VALUES ($1, $2)
+			 ON CONFLICT (registry_ctx) DO UPDATE SET next_id = GREATEST(ctx_id_alloc.next_id, $2)`,
+			registryCtx, record.ID+1,
+		)
+	}
+
+	// Insert references using the per-context ID
+	if len(record.References) > 0 {
+		var refCount int
+		_ = tx.QueryRowContext(ctx,
+			`SELECT COUNT(*) FROM schema_references WHERE registry_ctx = $1 AND schema_id = $2`, registryCtx, record.ID).Scan(&refCount)
+		if refCount == 0 {
+			for _, ref := range record.References {
+				_, err = tx.ExecContext(ctx,
+					`INSERT INTO schema_references (registry_ctx, schema_id, name, ref_subject, ref_version)
+					 VALUES ($1, $2, $3, $4, $5)`,
+					registryCtx, record.ID, ref.Name, ref.Subject, ref.Version,
+				)
+				if err != nil {
+					return fmt.Errorf("failed to insert reference: %w", err)
+				}
+			}
 		}
 	}
 
@@ -1380,11 +1460,13 @@ func (s *Store) ImportSchema(ctx context.Context, record *storage.SchemaRecord) 
 	return tx.Commit()
 }
 
-// SetNextID sets the ID sequence to start from the given value.
+// SetNextID sets the per-context ID allocator to start from the given value.
 // Used after import to prevent ID conflicts.
-func (s *Store) SetNextID(ctx context.Context, id int64) error {
-	// setval with false means the next nextval will return exactly this value
-	_, err := s.db.ExecContext(ctx, `SELECT setval('schemas_id_seq', $1, false)`, id)
+func (s *Store) SetNextID(ctx context.Context, registryCtx string, id int64) error {
+	_, err := s.db.ExecContext(ctx,
+		`INSERT INTO ctx_id_alloc (registry_ctx, next_id) VALUES ($1, $2)
+		 ON CONFLICT (registry_ctx) DO UPDATE SET next_id = $2`,
+		registryCtx, id)
 	if err != nil {
 		return fmt.Errorf("failed to set next ID: %w", err)
 	}
@@ -1392,8 +1474,8 @@ func (s *Store) SetNextID(ctx context.Context, id int64) error {
 }
 
 // GetReferencedBy returns subjects/versions that reference the given schema.
-func (s *Store) GetReferencedBy(ctx context.Context, subject string, version int) ([]storage.SubjectVersion, error) {
-	rows, err := s.stmts.getReferencedBy.QueryContext(ctx, subject, version)
+func (s *Store) GetReferencedBy(ctx context.Context, registryCtx string, subject string, version int) ([]storage.SubjectVersion, error) {
+	rows, err := s.stmts.getReferencedBy.QueryContext(ctx, registryCtx, subject, version)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query references: %w", err)
 	}
@@ -1412,26 +1494,27 @@ func (s *Store) GetReferencedBy(ctx context.Context, subject string, version int
 }
 
 // cleanupOrphanedFingerprint removes schema_fingerprints and schema_references entries
-// when no more schemas rows exist for a given fingerprint. Called after permanent deletes.
-func (s *Store) cleanupOrphanedFingerprint(ctx context.Context, fingerprint string) {
+// when no more schemas rows exist for a given fingerprint within this context.
+// Called after permanent deletes.
+func (s *Store) cleanupOrphanedFingerprint(ctx context.Context, registryCtx, fingerprint string) {
 	var remaining int
 	err := s.db.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM schemas WHERE fingerprint = $1`, fingerprint).Scan(&remaining)
+		`SELECT COUNT(*) FROM schemas WHERE registry_ctx = $1 AND fingerprint = $2`, registryCtx, fingerprint).Scan(&remaining)
 	if err != nil || remaining > 0 {
 		return
 	}
-	// No schemas rows left — clean up the stable ID mapping and references
+	// No schemas rows left in this context — clean up the stable ID mapping and references
 	var schemaID int64
 	if err := s.db.QueryRowContext(ctx,
-		`SELECT schema_id FROM schema_fingerprints WHERE fingerprint = $1`, fingerprint).Scan(&schemaID); err == nil {
-		_, _ = s.db.ExecContext(ctx, `DELETE FROM schema_references WHERE schema_id = $1`, schemaID)
-		_, _ = s.db.ExecContext(ctx, `DELETE FROM schema_fingerprints WHERE fingerprint = $1`, fingerprint)
+		`SELECT schema_id FROM schema_fingerprints WHERE registry_ctx = $1 AND fingerprint = $2`, registryCtx, fingerprint).Scan(&schemaID); err == nil {
+		_, _ = s.db.ExecContext(ctx, `DELETE FROM schema_references WHERE registry_ctx = $1 AND schema_id = $2`, registryCtx, schemaID)
+		_, _ = s.db.ExecContext(ctx, `DELETE FROM schema_fingerprints WHERE registry_ctx = $1 AND fingerprint = $2`, registryCtx, fingerprint)
 	}
 }
 
-// loadReferences loads references for a schema.
-func (s *Store) loadReferences(ctx context.Context, schemaID int64) ([]storage.Reference, error) {
-	rows, err := s.stmts.loadReferences.QueryContext(ctx, schemaID)
+// loadReferences loads references for a schema within a context.
+func (s *Store) loadReferences(ctx context.Context, registryCtx string, schemaID int64) ([]storage.Reference, error) {
+	rows, err := s.stmts.loadReferences.QueryContext(ctx, registryCtx, schemaID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query references: %w", err)
 	}
@@ -1449,20 +1532,20 @@ func (s *Store) loadReferences(ctx context.Context, schemaID int64) ([]storage.R
 	return refs, nil
 }
 
-// GetSubjectsBySchemaID returns all subjects where the given schema ID is registered.
-// Uses fingerprint-based lookup for global deduplication: the same content registered
-// under different subjects shares the same API-visible schema ID.
-func (s *Store) GetSubjectsBySchemaID(ctx context.Context, id int64, includeDeleted bool) ([]string, error) {
-	query := `SELECT DISTINCT s.subject FROM schemas s
-		WHERE s.fingerprint = COALESCE(
-			(SELECT fingerprint FROM schema_fingerprints WHERE schema_id = $1),
-			(SELECT fingerprint FROM schemas WHERE id = $1 LIMIT 1)
-		)`
-	if !includeDeleted {
-		query += ` AND s.deleted = FALSE`
+// GetSubjectsBySchemaID returns all subjects where the given per-context schema ID is registered.
+// Uses fingerprint-based lookup via schema_fingerprints for global deduplication.
+func (s *Store) GetSubjectsBySchemaID(ctx context.Context, registryCtx string, id int64, includeDeleted bool) ([]string, error) {
+	var rows *sql.Rows
+	var err error
+	if includeDeleted {
+		// Include all subjects (both deleted and non-deleted)
+		rows, err = s.db.QueryContext(ctx,
+			`SELECT DISTINCT s.subject FROM schemas s
+			 JOIN schema_fingerprints fp ON fp.registry_ctx = s.registry_ctx AND fp.fingerprint = s.fingerprint
+			 WHERE s.registry_ctx = $1 AND fp.schema_id = $2`, registryCtx, id)
+	} else {
+		rows, err = s.stmts.getSubjectsBySchemaID.QueryContext(ctx, registryCtx, id)
 	}
-
-	rows, err := s.db.QueryContext(ctx, query, id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query subjects: %w", err)
 	}
@@ -1484,19 +1567,20 @@ func (s *Store) GetSubjectsBySchemaID(ctx context.Context, id int64, includeDele
 	return subjects, nil
 }
 
-// GetVersionsBySchemaID returns all subject-version pairs where the given schema ID is registered.
-// Uses fingerprint-based lookup for global deduplication.
-func (s *Store) GetVersionsBySchemaID(ctx context.Context, id int64, includeDeleted bool) ([]storage.SubjectVersion, error) {
-	query := `SELECT s.subject, s.version FROM schemas s
-		WHERE s.fingerprint = COALESCE(
-			(SELECT fingerprint FROM schema_fingerprints WHERE schema_id = $1),
-			(SELECT fingerprint FROM schemas WHERE id = $1 LIMIT 1)
-		)`
-	if !includeDeleted {
-		query += ` AND s.deleted = FALSE`
+// GetVersionsBySchemaID returns all subject-version pairs where the given per-context schema ID is registered.
+// Uses fingerprint-based lookup via schema_fingerprints for global deduplication.
+func (s *Store) GetVersionsBySchemaID(ctx context.Context, registryCtx string, id int64, includeDeleted bool) ([]storage.SubjectVersion, error) {
+	var rows *sql.Rows
+	var err error
+	if includeDeleted {
+		// Include all versions (both deleted and non-deleted)
+		rows, err = s.db.QueryContext(ctx,
+			`SELECT s.subject, s.version FROM schemas s
+			 JOIN schema_fingerprints fp ON fp.registry_ctx = s.registry_ctx AND fp.fingerprint = s.fingerprint
+			 WHERE s.registry_ctx = $1 AND fp.schema_id = $2`, registryCtx, id)
+	} else {
+		rows, err = s.stmts.getVersionsBySchemaID.QueryContext(ctx, registryCtx, id)
 	}
-
-	rows, err := s.db.QueryContext(ctx, query, id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query versions: %w", err)
 	}
@@ -1518,11 +1602,12 @@ func (s *Store) GetVersionsBySchemaID(ctx context.Context, id int64, includeDele
 	return versions, nil
 }
 
-// ListSchemas returns schemas matching the given filters.
-func (s *Store) ListSchemas(ctx context.Context, params *storage.ListSchemasParams) ([]*storage.SchemaRecord, error) {
-	query := `SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at, metadata, ruleset FROM schemas WHERE 1=1`
-	args := []interface{}{}
-	argNum := 1
+// ListSchemas returns schemas matching the given filters, scoped to a context.
+func (s *Store) ListSchemas(ctx context.Context, registryCtx string, params *storage.ListSchemasParams) ([]*storage.SchemaRecord, error) {
+	// Always start with registry_ctx filter
+	query := `SELECT id, subject, version, schema_type, schema_text, fingerprint, deleted, created_at, metadata, ruleset FROM schemas WHERE registry_ctx = $1`
+	args := []interface{}{registryCtx}
+	argNum := 2
 
 	if !params.Deleted {
 		query += fmt.Sprintf(` AND deleted = $%d`, argNum)
@@ -1537,14 +1622,14 @@ func (s *Store) ListSchemas(ctx context.Context, params *storage.ListSchemasPara
 	}
 
 	if params.LatestOnly {
-		args = []interface{}{}
-		argNum = 1
+		args = []interface{}{registryCtx}
+		argNum = 2
 		query = `SELECT s.id, s.subject, s.version, s.schema_type, s.schema_text, s.fingerprint, s.deleted, s.created_at, s.metadata, s.ruleset
 		         FROM schemas s
 		         INNER JOIN (
 		             SELECT subject, MAX(version) as max_version
 		             FROM schemas
-		             WHERE 1=1`
+		             WHERE registry_ctx = $1`
 		if !params.Deleted {
 			query += ` AND deleted = FALSE`
 		}
@@ -1555,8 +1640,9 @@ func (s *Store) ListSchemas(ctx context.Context, params *storage.ListSchemasPara
 		}
 		query += ` GROUP BY subject
 		         ) latest ON s.subject = latest.subject AND s.version = latest.max_version`
+		query += ` WHERE s.registry_ctx = $1`
 		if !params.Deleted {
-			query += ` WHERE s.deleted = FALSE`
+			query += ` AND s.deleted = FALSE`
 		}
 	}
 
@@ -1596,7 +1682,7 @@ func (s *Store) ListSchemas(ctx context.Context, params *storage.ListSchemasPara
 		record.RuleSet, _ = unmarshalRuleSet(rulesetJSON)
 
 		// Resolve global ID
-		if globalID, gErr := s.globalSchemaID(ctx, record.Fingerprint); gErr == nil {
+		if globalID, gErr := s.globalSchemaID(ctx, registryCtx, record.Fingerprint); gErr == nil {
 			record.ID = globalID
 		} else {
 			record.ID = rowID
@@ -1608,26 +1694,46 @@ func (s *Store) ListSchemas(ctx context.Context, params *storage.ListSchemasPara
 	return schemas, nil
 }
 
-// DeleteGlobalConfig resets the global config to default.
-func (s *Store) DeleteGlobalConfig(ctx context.Context) error {
-	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO configs (subject, compatibility_level, alias, normalize, validate_fields, default_metadata, override_metadata, default_ruleset, override_ruleset, compatibility_group)
-		 VALUES ('', 'BACKWARD', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)
-		 ON CONFLICT (subject) DO UPDATE SET
-		     compatibility_level = 'BACKWARD',
-		     alias = NULL,
-		     normalize = NULL,
-		     validate_fields = NULL,
-		     default_metadata = NULL,
-		     override_metadata = NULL,
-		     default_ruleset = NULL,
-		     override_ruleset = NULL,
-		     compatibility_group = NULL`,
-	)
+// DeleteGlobalConfig deletes the global config row within a context.
+// After deletion, GetGlobalConfig will return ErrNotFound, enabling the
+// 4-tier fallback chain to work correctly.
+func (s *Store) DeleteGlobalConfig(ctx context.Context, registryCtx string) error {
+	_, err := s.stmts.deleteConfig.ExecContext(ctx, registryCtx, "")
 	if err != nil {
-		return fmt.Errorf("failed to reset global config: %w", err)
+		return fmt.Errorf("failed to delete global config: %w", err)
 	}
+
 	return nil
+}
+
+// DeleteGlobalMode deletes the global mode row within a context.
+// After deletion, GetGlobalMode will return ErrNotFound.
+func (s *Store) DeleteGlobalMode(ctx context.Context, registryCtx string) error {
+	_, err := s.stmts.deleteMode.ExecContext(ctx, registryCtx, "")
+	if err != nil {
+		return fmt.Errorf("failed to delete global mode: %w", err)
+	}
+
+	return nil
+}
+
+// ListContexts returns all registry contexts from the database.
+func (s *Store) ListContexts(ctx context.Context) ([]string, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT registry_ctx FROM contexts ORDER BY registry_ctx`)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query contexts: %w", err)
+	}
+	defer rows.Close()
+
+	var contexts []string
+	for rows.Next() {
+		var c string
+		if err := rows.Scan(&c); err != nil {
+			return nil, fmt.Errorf("failed to scan row: %w", err)
+		}
+		contexts = append(contexts, c)
+	}
+	return contexts, nil
 }
 
 // CreateUser creates a new user record.
@@ -1965,6 +2071,22 @@ func (s *Store) scanAPIKeys(rows *sql.Rows) ([]*storage.APIKeyRecord, error) {
 	return keys, nil
 }
 
+// normalizeMetadata returns a non-nil Metadata for consistent comparison.
+func normalizeMetadata(m *storage.Metadata) *storage.Metadata {
+	if m == nil {
+		return &storage.Metadata{}
+	}
+	return m
+}
+
+// normalizeRuleSet returns a non-nil RuleSet for consistent comparison.
+func normalizeRuleSet(r *storage.RuleSet) *storage.RuleSet {
+	if r == nil {
+		return &storage.RuleSet{}
+	}
+	return r
+}
+
 // marshalJSONNullable marshals a value to JSON, returning nil if the input is nil.
 // It handles both untyped nil and typed nil pointers (e.g., (*Metadata)(nil)).
 // Returns *string so the pq driver sends it as text (not bytea) for JSONB columns.
@@ -2074,4 +2196,764 @@ func (c Config) MarshalJSON() ([]byte, error) {
 		Password: "***",
 		Alias:    (*Alias)(&c),
 	})
+}
+
+// CreateExporter inserts a new exporter record.
+func (s *Store) CreateExporter(ctx context.Context, exporter *storage.ExporterRecord) error {
+	subjectsJSON, err := marshalJSONB(exporter.Subjects)
+	if err != nil {
+		return fmt.Errorf("failed to marshal subjects: %w", err)
+	}
+	configJSON, err := marshalJSONB(exporter.Config)
+	if err != nil {
+		return fmt.Errorf("failed to marshal config: %w", err)
+	}
+
+	_, err = s.db.ExecContext(ctx,
+		`INSERT INTO exporters (name, context_type, context, subjects, subject_rename_format, config, created_at, updated_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())`,
+		exporter.Name,
+		sql.NullString{String: exporter.ContextType, Valid: exporter.ContextType != ""},
+		sql.NullString{String: exporter.Context, Valid: exporter.Context != ""},
+		subjectsJSON,
+		sql.NullString{String: exporter.SubjectRenameFormat, Valid: exporter.SubjectRenameFormat != ""},
+		configJSON,
+	)
+	if err != nil {
+		if isUniqueViolation(err) {
+			return storage.ErrExporterExists
+		}
+		return fmt.Errorf("failed to create exporter: %w", err)
+	}
+
+	return nil
+}
+
+// GetExporter retrieves an exporter by name.
+func (s *Store) GetExporter(ctx context.Context, name string) (*storage.ExporterRecord, error) {
+	exporter := &storage.ExporterRecord{}
+	var contextType, exporterCtx, subjectRenameFormat sql.NullString
+	var subjectsJSON, configJSON []byte
+
+	err := s.db.QueryRowContext(ctx,
+		`SELECT name, context_type, context, subjects, subject_rename_format, config, created_at, updated_at
+		 FROM exporters WHERE name = $1`, name).Scan(
+		&exporter.Name, &contextType, &exporterCtx, &subjectsJSON,
+		&subjectRenameFormat, &configJSON, &exporter.CreatedAt, &exporter.UpdatedAt,
+	)
+	if err == sql.ErrNoRows {
+		return nil, storage.ErrExporterNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get exporter: %w", err)
+	}
+
+	exporter.ContextType = contextType.String
+	exporter.Context = exporterCtx.String
+	exporter.SubjectRenameFormat = subjectRenameFormat.String
+
+	if len(subjectsJSON) > 0 {
+		if err := json.Unmarshal(subjectsJSON, &exporter.Subjects); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal subjects: %w", err)
+		}
+	}
+	if len(configJSON) > 0 {
+		if err := json.Unmarshal(configJSON, &exporter.Config); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal config: %w", err)
+		}
+	}
+
+	return exporter, nil
+}
+
+// UpdateExporter updates an existing exporter.
+func (s *Store) UpdateExporter(ctx context.Context, exporter *storage.ExporterRecord) error {
+	subjectsJSON, err := marshalJSONB(exporter.Subjects)
+	if err != nil {
+		return fmt.Errorf("failed to marshal subjects: %w", err)
+	}
+	configJSON, err := marshalJSONB(exporter.Config)
+	if err != nil {
+		return fmt.Errorf("failed to marshal config: %w", err)
+	}
+
+	result, err := s.db.ExecContext(ctx,
+		`UPDATE exporters SET context_type = $1, context = $2, subjects = $3,
+		 subject_rename_format = $4, config = $5, updated_at = NOW()
+		 WHERE name = $6`,
+		sql.NullString{String: exporter.ContextType, Valid: exporter.ContextType != ""},
+		sql.NullString{String: exporter.Context, Valid: exporter.Context != ""},
+		subjectsJSON,
+		sql.NullString{String: exporter.SubjectRenameFormat, Valid: exporter.SubjectRenameFormat != ""},
+		configJSON,
+		exporter.Name,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to update exporter: %w", err)
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return storage.ErrExporterNotFound
+	}
+
+	return nil
+}
+
+// DeleteExporter deletes an exporter by name (cascade deletes its status).
+func (s *Store) DeleteExporter(ctx context.Context, name string) error {
+	result, err := s.db.ExecContext(ctx, `DELETE FROM exporters WHERE name = $1`, name)
+	if err != nil {
+		return fmt.Errorf("failed to delete exporter: %w", err)
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return storage.ErrExporterNotFound
+	}
+
+	return nil
+}
+
+// ListExporters returns a sorted list of all exporter names.
+func (s *Store) ListExporters(ctx context.Context) ([]string, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT name FROM exporters ORDER BY name`)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list exporters: %w", err)
+	}
+	defer rows.Close()
+
+	var names []string
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, fmt.Errorf("failed to scan exporter name: %w", err)
+		}
+		names = append(names, name)
+	}
+	return names, rows.Err()
+}
+
+// GetExporterStatus retrieves the status of an exporter.
+// If no status has been set, returns a default status with State "PAUSED".
+func (s *Store) GetExporterStatus(ctx context.Context, name string) (*storage.ExporterStatusRecord, error) {
+	status := &storage.ExporterStatusRecord{}
+	var trace sql.NullString
+
+	err := s.db.QueryRowContext(ctx,
+		`SELECT name, state, "offset", ts, trace FROM exporter_statuses WHERE name = $1`, name).Scan(
+		&status.Name, &status.State, &status.Offset, &status.Ts, &trace,
+	)
+	if err == sql.ErrNoRows {
+		// Check if the exporter itself exists
+		var exists bool
+		err2 := s.db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM exporters WHERE name = $1)`, name).Scan(&exists)
+		if err2 != nil {
+			return nil, fmt.Errorf("failed to check exporter existence: %w", err2)
+		}
+		if !exists {
+			return nil, storage.ErrExporterNotFound
+		}
+		// Exporter exists but has no status row — return default
+		return &storage.ExporterStatusRecord{
+			Name:  name,
+			State: "PAUSED",
+		}, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get exporter status: %w", err)
+	}
+
+	status.Trace = trace.String
+	return status, nil
+}
+
+// SetExporterStatus sets the status of an exporter.
+func (s *Store) SetExporterStatus(ctx context.Context, name string, status *storage.ExporterStatusRecord) error {
+	// Check that the exporter exists
+	var exists bool
+	err := s.db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM exporters WHERE name = $1)`, name).Scan(&exists)
+	if err != nil {
+		return fmt.Errorf("failed to check exporter existence: %w", err)
+	}
+	if !exists {
+		return storage.ErrExporterNotFound
+	}
+
+	_, err = s.db.ExecContext(ctx,
+		`INSERT INTO exporter_statuses (name, state, "offset", ts, trace)
+		 VALUES ($1, $2, $3, $4, $5)
+		 ON CONFLICT (name) DO UPDATE SET
+		     state = EXCLUDED.state,
+		     "offset" = EXCLUDED."offset",
+		     ts = EXCLUDED.ts,
+		     trace = EXCLUDED.trace`,
+		name, status.State, status.Offset, status.Ts,
+		sql.NullString{String: status.Trace, Valid: status.Trace != ""},
+	)
+	if err != nil {
+		return fmt.Errorf("failed to set exporter status: %w", err)
+	}
+
+	return nil
+}
+
+// GetExporterConfig retrieves the configuration of an exporter.
+func (s *Store) GetExporterConfig(ctx context.Context, name string) (map[string]string, error) {
+	var configJSON []byte
+
+	err := s.db.QueryRowContext(ctx, `SELECT config FROM exporters WHERE name = $1`, name).Scan(&configJSON)
+	if err == sql.ErrNoRows {
+		return nil, storage.ErrExporterNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get exporter config: %w", err)
+	}
+
+	config := make(map[string]string)
+	if len(configJSON) > 0 {
+		if err := json.Unmarshal(configJSON, &config); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal config: %w", err)
+		}
+	}
+
+	return config, nil
+}
+
+// UpdateExporterConfig updates the configuration of an exporter.
+func (s *Store) UpdateExporterConfig(ctx context.Context, name string, config map[string]string) error {
+	configJSON, err := marshalJSONB(config)
+	if err != nil {
+		return fmt.Errorf("failed to marshal config: %w", err)
+	}
+
+	result, err := s.db.ExecContext(ctx,
+		`UPDATE exporters SET config = $1, updated_at = NOW() WHERE name = $2`,
+		configJSON, name,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to update exporter config: %w", err)
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return storage.ErrExporterNotFound
+	}
+
+	return nil
+}
+
+// KEK operations (CSFLE)
+
+// CreateKEK creates a new Key Encryption Key.
+func (s *Store) CreateKEK(ctx context.Context, kek *storage.KEKRecord) error {
+	kmsPropsJSON, err := marshalJSONB(kek.KmsProps)
+	if err != nil {
+		return fmt.Errorf("failed to marshal kms_props: %w", err)
+	}
+
+	now := time.Now()
+	kek.Ts = now.UnixMilli()
+	kek.CreatedAt = now
+	kek.UpdatedAt = now
+
+	_, err = s.db.ExecContext(ctx,
+		`INSERT INTO keks (name, kms_type, kms_key_id, kms_props, doc, shared, deleted, ts, created_at, updated_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+		kek.Name, kek.KmsType, kek.KmsKeyID, kmsPropsJSON,
+		sql.NullString{String: kek.Doc, Valid: kek.Doc != ""},
+		kek.Shared, kek.Deleted, kek.Ts, kek.CreatedAt, kek.UpdatedAt,
+	)
+	if err != nil {
+		if isUniqueViolation(err) {
+			return storage.ErrKEKExists
+		}
+		return fmt.Errorf("failed to create KEK: %w", err)
+	}
+
+	return nil
+}
+
+// GetKEK retrieves a Key Encryption Key by name.
+func (s *Store) GetKEK(ctx context.Context, name string, includeDeleted bool) (*storage.KEKRecord, error) {
+	kek := &storage.KEKRecord{}
+	var kmsPropsJSON []byte
+	var doc sql.NullString
+
+	query := `SELECT name, kms_type, kms_key_id, kms_props, doc, shared, deleted, ts, created_at, updated_at
+		 FROM keks WHERE name = $1`
+	if !includeDeleted {
+		query += ` AND deleted = FALSE`
+	}
+
+	err := s.db.QueryRowContext(ctx, query, name).Scan(
+		&kek.Name, &kek.KmsType, &kek.KmsKeyID, &kmsPropsJSON,
+		&doc, &kek.Shared, &kek.Deleted, &kek.Ts, &kek.CreatedAt, &kek.UpdatedAt,
+	)
+	if err == sql.ErrNoRows {
+		return nil, storage.ErrKEKNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get KEK: %w", err)
+	}
+
+	kek.Doc = doc.String
+	if len(kmsPropsJSON) > 0 {
+		if err := json.Unmarshal(kmsPropsJSON, &kek.KmsProps); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal kms_props: %w", err)
+		}
+	}
+
+	return kek, nil
+}
+
+// UpdateKEK updates an existing Key Encryption Key.
+func (s *Store) UpdateKEK(ctx context.Context, kek *storage.KEKRecord) error {
+	kmsPropsJSON, err := marshalJSONB(kek.KmsProps)
+	if err != nil {
+		return fmt.Errorf("failed to marshal kms_props: %w", err)
+	}
+
+	now := time.Now()
+	kek.Ts = now.UnixMilli()
+	kek.UpdatedAt = now
+
+	result, err := s.db.ExecContext(ctx,
+		`UPDATE keks SET kms_type = $1, kms_key_id = $2, kms_props = $3, doc = $4,
+		 shared = $5, ts = $6, updated_at = $7
+		 WHERE name = $8`,
+		kek.KmsType, kek.KmsKeyID, kmsPropsJSON,
+		sql.NullString{String: kek.Doc, Valid: kek.Doc != ""},
+		kek.Shared, kek.Ts, kek.UpdatedAt, kek.Name,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to update KEK: %w", err)
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return storage.ErrKEKNotFound
+	}
+
+	return nil
+}
+
+// DeleteKEK soft-deletes or permanently deletes a Key Encryption Key.
+func (s *Store) DeleteKEK(ctx context.Context, name string, permanent bool) error {
+	if permanent {
+		// Remove all DEKs under this KEK first
+		_, err := s.db.ExecContext(ctx, `DELETE FROM deks WHERE kek_name = $1`, name)
+		if err != nil {
+			return fmt.Errorf("failed to delete DEKs for KEK: %w", err)
+		}
+
+		result, err := s.db.ExecContext(ctx, `DELETE FROM keks WHERE name = $1`, name)
+		if err != nil {
+			return fmt.Errorf("failed to delete KEK: %w", err)
+		}
+		rowsAffected, _ := result.RowsAffected()
+		if rowsAffected == 0 {
+			return storage.ErrKEKNotFound
+		}
+	} else {
+		result, err := s.db.ExecContext(ctx,
+			`UPDATE keks SET deleted = TRUE, ts = $1 WHERE name = $2`,
+			time.Now().UnixMilli(), name,
+		)
+		if err != nil {
+			return fmt.Errorf("failed to soft-delete KEK: %w", err)
+		}
+		rowsAffected, _ := result.RowsAffected()
+		if rowsAffected == 0 {
+			return storage.ErrKEKNotFound
+		}
+	}
+
+	return nil
+}
+
+// UndeleteKEK restores a soft-deleted Key Encryption Key.
+func (s *Store) UndeleteKEK(ctx context.Context, name string) error {
+	result, err := s.db.ExecContext(ctx,
+		`UPDATE keks SET deleted = FALSE, ts = $1 WHERE name = $2 AND deleted = TRUE`,
+		time.Now().UnixMilli(), name,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to undelete KEK: %w", err)
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return storage.ErrKEKNotFound
+	}
+
+	return nil
+}
+
+// ListKEKs returns all Key Encryption Keys, sorted by name.
+func (s *Store) ListKEKs(ctx context.Context, includeDeleted bool) ([]*storage.KEKRecord, error) {
+	query := `SELECT name, kms_type, kms_key_id, kms_props, doc, shared, deleted, ts, created_at, updated_at
+		 FROM keks`
+	if !includeDeleted {
+		query += ` WHERE deleted = FALSE`
+	}
+	query += ` ORDER BY name`
+
+	rows, err := s.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list KEKs: %w", err)
+	}
+	defer rows.Close()
+
+	var keks []*storage.KEKRecord
+	for rows.Next() {
+		kek := &storage.KEKRecord{}
+		var kmsPropsJSON []byte
+		var doc sql.NullString
+
+		if err := rows.Scan(
+			&kek.Name, &kek.KmsType, &kek.KmsKeyID, &kmsPropsJSON,
+			&doc, &kek.Shared, &kek.Deleted, &kek.Ts, &kek.CreatedAt, &kek.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("failed to scan KEK: %w", err)
+		}
+
+		kek.Doc = doc.String
+		if len(kmsPropsJSON) > 0 {
+			if err := json.Unmarshal(kmsPropsJSON, &kek.KmsProps); err != nil {
+				return nil, fmt.Errorf("failed to unmarshal kms_props: %w", err)
+			}
+		}
+
+		keks = append(keks, kek)
+	}
+
+	return keks, rows.Err()
+}
+
+// DEK operations (CSFLE)
+
+// CreateDEK creates a new Data Encryption Key under an existing KEK.
+func (s *Store) CreateDEK(ctx context.Context, dek *storage.DEKRecord) error {
+	// Check that the KEK exists
+	var kekExists bool
+	err := s.db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM keks WHERE name = $1)`, dek.KEKName).Scan(&kekExists)
+	if err != nil {
+		return fmt.Errorf("failed to check KEK existence: %w", err)
+	}
+	if !kekExists {
+		return storage.ErrKEKNotFound
+	}
+
+	// Auto-assign version if not specified
+	if dek.Version <= 0 {
+		var maxVersion sql.NullInt64
+		err := s.db.QueryRowContext(ctx,
+			`SELECT MAX(version) FROM deks WHERE kek_name = $1 AND subject = $2`,
+			dek.KEKName, dek.Subject,
+		).Scan(&maxVersion)
+		if err != nil {
+			return fmt.Errorf("failed to get max DEK version: %w", err)
+		}
+		if maxVersion.Valid {
+			dek.Version = int(maxVersion.Int64) + 1
+		} else {
+			dek.Version = 1
+		}
+	}
+
+	// Default algorithm
+	if dek.Algorithm == "" {
+		dek.Algorithm = "AES256_GCM"
+	}
+
+	dek.Ts = time.Now().UnixMilli()
+
+	_, err = s.db.ExecContext(ctx,
+		`INSERT INTO deks (kek_name, subject, version, algorithm, encrypted_key_material, deleted, ts)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+		dek.KEKName, dek.Subject, dek.Version, dek.Algorithm,
+		sql.NullString{String: dek.EncryptedKeyMaterial, Valid: dek.EncryptedKeyMaterial != ""},
+		dek.Deleted, dek.Ts,
+	)
+	if err != nil {
+		if isUniqueViolation(err) {
+			return storage.ErrDEKExists
+		}
+		return fmt.Errorf("failed to create DEK: %w", err)
+	}
+
+	return nil
+}
+
+// GetDEK retrieves a Data Encryption Key.
+// If version <= 0, returns the latest version. If algorithm is non-empty, filters by it.
+func (s *Store) GetDEK(ctx context.Context, kekName, subject string, version int, algorithm string, includeDeleted bool) (*storage.DEKRecord, error) {
+	dek := &storage.DEKRecord{}
+	var encryptedKeyMaterial sql.NullString
+
+	if version <= 0 {
+		// Find the latest version
+		query := `SELECT kek_name, subject, version, algorithm, encrypted_key_material, deleted, ts
+			 FROM deks WHERE kek_name = $1 AND subject = $2`
+		args := []interface{}{kekName, subject}
+		argIdx := 3
+
+		if algorithm != "" {
+			query += fmt.Sprintf(` AND algorithm = $%d`, argIdx)
+			args = append(args, algorithm)
+		}
+		if !includeDeleted {
+			query += ` AND deleted = FALSE`
+		}
+		query += ` ORDER BY version DESC LIMIT 1`
+
+		err := s.db.QueryRowContext(ctx, query, args...).Scan(
+			&dek.KEKName, &dek.Subject, &dek.Version, &dek.Algorithm,
+			&encryptedKeyMaterial, &dek.Deleted, &dek.Ts,
+		)
+		if err == sql.ErrNoRows {
+			return nil, storage.ErrDEKNotFound
+		}
+		if err != nil {
+			return nil, fmt.Errorf("failed to get DEK: %w", err)
+		}
+	} else {
+		// Get specific version
+		query := `SELECT kek_name, subject, version, algorithm, encrypted_key_material, deleted, ts
+			 FROM deks WHERE kek_name = $1 AND subject = $2 AND version = $3`
+		args := []interface{}{kekName, subject, version}
+		argIdx := 4
+
+		if algorithm != "" {
+			query += fmt.Sprintf(` AND algorithm = $%d`, argIdx)
+			args = append(args, algorithm)
+		}
+		if !includeDeleted {
+			query += ` AND deleted = FALSE`
+		}
+
+		err := s.db.QueryRowContext(ctx, query, args...).Scan(
+			&dek.KEKName, &dek.Subject, &dek.Version, &dek.Algorithm,
+			&encryptedKeyMaterial, &dek.Deleted, &dek.Ts,
+		)
+		if err == sql.ErrNoRows {
+			return nil, storage.ErrDEKNotFound
+		}
+		if err != nil {
+			return nil, fmt.Errorf("failed to get DEK: %w", err)
+		}
+	}
+
+	dek.EncryptedKeyMaterial = encryptedKeyMaterial.String
+	return dek, nil
+}
+
+// ListDEKs returns the sorted list of unique subject names under a KEK.
+func (s *Store) ListDEKs(ctx context.Context, kekName string, includeDeleted bool) ([]string, error) {
+	// Check that the KEK exists
+	var kekExists bool
+	err := s.db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM keks WHERE name = $1)`, kekName).Scan(&kekExists)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check KEK existence: %w", err)
+	}
+	if !kekExists {
+		return nil, storage.ErrKEKNotFound
+	}
+
+	query := `SELECT DISTINCT subject FROM deks WHERE kek_name = $1`
+	if !includeDeleted {
+		query += ` AND deleted = FALSE`
+	}
+	query += ` ORDER BY subject`
+
+	rows, err := s.db.QueryContext(ctx, query, kekName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list DEKs: %w", err)
+	}
+	defer rows.Close()
+
+	subjects := []string{}
+	for rows.Next() {
+		var subject string
+		if err := rows.Scan(&subject); err != nil {
+			return nil, fmt.Errorf("failed to scan DEK subject: %w", err)
+		}
+		subjects = append(subjects, subject)
+	}
+
+	return subjects, rows.Err()
+}
+
+// ListDEKVersions returns the sorted list of version numbers for a KEK+subject combination.
+func (s *Store) ListDEKVersions(ctx context.Context, kekName, subject string, algorithm string, includeDeleted bool) ([]int, error) {
+	// Check that the KEK exists
+	var kekExists bool
+	err := s.db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM keks WHERE name = $1)`, kekName).Scan(&kekExists)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check KEK existence: %w", err)
+	}
+	if !kekExists {
+		return nil, storage.ErrKEKNotFound
+	}
+
+	query := `SELECT version FROM deks WHERE kek_name = $1 AND subject = $2`
+	args := []interface{}{kekName, subject}
+	argIdx := 3
+
+	if algorithm != "" {
+		query += fmt.Sprintf(` AND algorithm = $%d`, argIdx)
+		args = append(args, algorithm)
+	}
+	if !includeDeleted {
+		query += ` AND deleted = FALSE`
+	}
+	query += ` ORDER BY version`
+
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list DEK versions: %w", err)
+	}
+	defer rows.Close()
+
+	versions := []int{}
+	for rows.Next() {
+		var version int
+		if err := rows.Scan(&version); err != nil {
+			return nil, fmt.Errorf("failed to scan DEK version: %w", err)
+		}
+		versions = append(versions, version)
+	}
+
+	return versions, rows.Err()
+}
+
+// DeleteDEK soft-deletes or permanently deletes a Data Encryption Key.
+// Version -1 means delete all versions for the kekName+subject combination.
+func (s *Store) DeleteDEK(ctx context.Context, kekName, subject string, version int, algorithm string, permanent bool) error {
+	if version == -1 {
+		// Delete all versions matching kekName+subject (optionally filtered by algorithm)
+		query := ""
+		args := []interface{}{kekName, subject}
+		argIdx := 3
+
+		if permanent {
+			query = `DELETE FROM deks WHERE kek_name = $1 AND subject = $2`
+		} else {
+			query = fmt.Sprintf(`UPDATE deks SET deleted = TRUE, ts = $%d WHERE kek_name = $1 AND subject = $2`, argIdx)
+			args = append(args, time.Now().UnixMilli())
+			argIdx++
+		}
+
+		if algorithm != "" {
+			query += fmt.Sprintf(` AND algorithm = $%d`, argIdx)
+			args = append(args, algorithm)
+		}
+
+		result, err := s.db.ExecContext(ctx, query, args...)
+		if err != nil {
+			return fmt.Errorf("failed to delete DEKs: %w", err)
+		}
+		rowsAffected, _ := result.RowsAffected()
+		if rowsAffected == 0 {
+			return storage.ErrDEKNotFound
+		}
+		return nil
+	}
+
+	// Delete a specific version
+	if permanent {
+		query := `DELETE FROM deks WHERE kek_name = $1 AND subject = $2 AND version = $3`
+		args := []interface{}{kekName, subject, version}
+		argIdx := 4
+
+		if algorithm != "" {
+			query += fmt.Sprintf(` AND algorithm = $%d`, argIdx)
+			args = append(args, algorithm)
+		}
+
+		result, err := s.db.ExecContext(ctx, query, args...)
+		if err != nil {
+			return fmt.Errorf("failed to delete DEK: %w", err)
+		}
+		rowsAffected, _ := result.RowsAffected()
+		if rowsAffected == 0 {
+			return storage.ErrDEKNotFound
+		}
+	} else {
+		query := `UPDATE deks SET deleted = TRUE, ts = $1 WHERE kek_name = $2 AND subject = $3 AND version = $4`
+		args := []interface{}{time.Now().UnixMilli(), kekName, subject, version}
+		argIdx := 5
+
+		if algorithm != "" {
+			query += fmt.Sprintf(` AND algorithm = $%d`, argIdx)
+			args = append(args, algorithm)
+		}
+
+		result, err := s.db.ExecContext(ctx, query, args...)
+		if err != nil {
+			return fmt.Errorf("failed to soft-delete DEK: %w", err)
+		}
+		rowsAffected, _ := result.RowsAffected()
+		if rowsAffected == 0 {
+			return storage.ErrDEKNotFound
+		}
+	}
+
+	return nil
+}
+
+// UndeleteDEK restores a soft-deleted Data Encryption Key.
+// Version -1 means undelete all deleted versions for the kekName+subject combination.
+func (s *Store) UndeleteDEK(ctx context.Context, kekName, subject string, version int, algorithm string) error {
+	if version == -1 {
+		// Undelete all deleted versions
+		query := `UPDATE deks SET deleted = FALSE, ts = $1 WHERE kek_name = $2 AND subject = $3 AND deleted = TRUE`
+		args := []interface{}{time.Now().UnixMilli(), kekName, subject}
+		argIdx := 4
+
+		if algorithm != "" {
+			query += fmt.Sprintf(` AND algorithm = $%d`, argIdx)
+			args = append(args, algorithm)
+		}
+
+		result, err := s.db.ExecContext(ctx, query, args...)
+		if err != nil {
+			return fmt.Errorf("failed to undelete DEKs: %w", err)
+		}
+		rowsAffected, _ := result.RowsAffected()
+		if rowsAffected == 0 {
+			return storage.ErrDEKNotFound
+		}
+		return nil
+	}
+
+	// Undelete a specific version
+	query := `UPDATE deks SET deleted = FALSE, ts = $1 WHERE kek_name = $2 AND subject = $3 AND version = $4 AND deleted = TRUE`
+	args := []interface{}{time.Now().UnixMilli(), kekName, subject, version}
+	argIdx := 5
+
+	if algorithm != "" {
+		query += fmt.Sprintf(` AND algorithm = $%d`, argIdx)
+		args = append(args, algorithm)
+	}
+
+	result, err := s.db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return fmt.Errorf("failed to undelete DEK: %w", err)
+	}
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return storage.ErrDEKNotFound
+	}
+
+	return nil
+}
+
+// marshalJSONB marshals a value to JSON bytes for JSONB columns. Returns nil for nil input.
+func marshalJSONB(v interface{}) ([]byte, error) {
+	if v == nil {
+		return nil, nil
+	}
+	return json.Marshal(v)
 }

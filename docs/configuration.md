@@ -860,9 +860,22 @@ security:
 
 ---
 
+## API-Managed Configuration
+
+Some enterprise features are configured via the REST API rather than YAML:
+
+- **Encryption (DEK Registry)** -- KEKs and DEKs are managed via the `/dek-registry/v1/` API endpoints. KMS connection properties are set per-KEK using the `kmsProps` field. See [Encryption](encryption.md).
+- **Exporters (Schema Linking)** -- Exporters are configured via the `/exporters` API endpoints. See [Exporters](exporters.md).
+- **Data Contract Defaults** -- Default and override metadata/ruleSet policies are configured via the `PUT /config` and `PUT /config/{subject}` endpoints. See [Data Contracts](data-contracts.md).
+
+---
+
 ## Related Documentation
 
 - [Storage Backends](storage-backends.md) -- detailed setup for each database backend
 - [Authentication](authentication.md) -- authentication methods and user management
 - [Security](security.md) -- TLS, RBAC, and security hardening
 - [Deployment](deployment.md) -- production deployment patterns and Docker usage
+- [Encryption](encryption.md) -- DEK Registry, CSFLE, and KMS providers
+- [Exporters](exporters.md) -- Schema Linking via exporter management API
+- [Data Contracts](data-contracts.md) -- metadata, rule sets, and governance policies

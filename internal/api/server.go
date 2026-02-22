@@ -3,6 +3,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -30,6 +31,8 @@ type Server struct {
 	authorizer    *auth.Authorizer
 	authService   *auth.Service
 	rateLimiter   *auth.RateLimiter
+	version       string
+	commit        string
 }
 
 // ServerOption is a function that configures the server.
@@ -41,6 +44,14 @@ func WithAuth(authenticator *auth.Authenticator, authorizer *auth.Authorizer, au
 		s.authenticator = authenticator
 		s.authorizer = authorizer
 		s.authService = authService
+	}
+}
+
+// WithBuildInfo configures the build version and commit for the server.
+func WithBuildInfo(version, commit string) ServerOption {
+	return func(s *Server) {
+		s.version = version
+		s.commit = commit
 	}
 }
 
@@ -78,6 +89,10 @@ func (s *Server) Metrics() *metrics.Metrics {
 func (s *Server) setupRouter() {
 	r := chi.NewRouter()
 
+	// Return 405 with Confluent-compatible JSON error for unsupported methods
+	r.MethodNotAllowed(methodNotAllowedHandler)
+	r.NotFound(notFoundHandler)
+
 	// Common middleware for all routes
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
@@ -86,8 +101,24 @@ func (s *Server) setupRouter() {
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(30 * time.Second))
 
+	// Request body size limit
+	maxBodySize := int64(10 << 20) // 10MB default
+	if s.config.Server.MaxRequestBodySize > 0 {
+		maxBodySize = s.config.Server.MaxRequestBodySize
+	}
+	r.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
+			next.ServeHTTP(w, r)
+		})
+	})
+
 	// Create handlers
-	h := handlers.New(s.registry)
+	h := handlers.NewWithConfig(s.registry, handlers.Config{
+		ClusterID: s.config.Server.ClusterID,
+		Version:   s.version,
+		Commit:    s.commit,
+	})
 
 	// Public endpoints (no auth required) - health checks, metrics, and documentation
 	r.Get("/", h.HealthCheck)
@@ -119,57 +150,25 @@ func (s *Server) setupRouter() {
 			r.Use(s.rateLimiter.Middleware)
 		}
 
-		// Schema types
-		r.Get("/schemas/types", h.GetSchemaTypes)
+		// Mount all schema registry routes at root level (default context)
+		s.mountRegistryRoutes(r, h)
 
-		// Schema listing
-		r.Get("/schemas", h.ListSchemas)
-
-		// Schema by ID
-		r.Get("/schemas/ids/{id}", h.GetSchemaByID)
-		r.Get("/schemas/ids/{id}/schema", h.GetRawSchemaByID)
-		r.Get("/schemas/ids/{id}/subjects", h.GetSubjectsBySchemaID)
-		r.Get("/schemas/ids/{id}/versions", h.GetVersionsBySchemaID)
-
-		// Subjects
-		r.Get("/subjects", h.ListSubjects)
-		r.Get("/subjects/{subject}/versions", h.GetVersions)
-		r.Get("/subjects/{subject}/versions/{version}", h.GetVersion)
-		r.Get("/subjects/{subject}/versions/{version}/schema", h.GetRawSchemaByVersion)
-		r.Get("/subjects/{subject}/versions/{version}/referencedby", h.GetReferencedBy)
-		r.Post("/subjects/{subject}/versions", h.RegisterSchema)
-		r.Post("/subjects/{subject}", h.LookupSchema)
-		r.Delete("/subjects/{subject}", h.DeleteSubject)
-		r.Delete("/subjects/{subject}/versions/{version}", h.DeleteVersion)
-
-		// Config
-		r.Get("/config", h.GetConfig)
-		r.Put("/config", h.SetConfig)
-		r.Delete("/config", h.DeleteGlobalConfig)
-		r.Get("/config/{subject}", h.GetConfig)
-		r.Put("/config/{subject}", h.SetConfig)
-		r.Delete("/config/{subject}", h.DeleteConfig)
-
-		// Mode
-		r.Get("/mode", h.GetMode)
-		r.Put("/mode", h.SetMode)
-		r.Get("/mode/{subject}", h.GetMode)
-		r.Put("/mode/{subject}", h.SetMode)
-		r.Delete("/mode/{subject}", h.DeleteMode)
-
-		// Import (for migration from other schema registries)
-		r.Post("/import/schemas", h.ImportSchemas)
-
-		// Compatibility
-		r.Post("/compatibility/subjects/{subject}/versions/{version}", h.CheckCompatibility)
-		r.Post("/compatibility/subjects/{subject}/versions", h.CheckCompatibility) // Check against all versions
-
-		// Contexts
-		r.Get("/contexts", h.GetContexts)
-
-		// Metadata (v1 API)
-		r.Get("/v1/metadata/id", h.GetClusterID)
-		r.Get("/v1/metadata/version", h.GetServerVersion)
+		// DEK Registry routes (Confluent CSFLE compatible)
+		r.Route("/dek-registry/v1", func(r chi.Router) {
+			r.Get("/keks", h.ListKEKs)
+			r.Post("/keks", h.CreateKEK)
+			r.Get("/keks/{name}", h.GetKEK)
+			r.Put("/keks/{name}", h.UpdateKEK)
+			r.Delete("/keks/{name}", h.DeleteKEK)
+			r.Put("/keks/{name}/undelete", h.UndeleteKEK)
+			r.Get("/keks/{name}/deks", h.ListDEKs)
+			r.Post("/keks/{name}/deks", h.CreateDEK)
+			r.Get("/keks/{name}/deks/{subject}", h.GetDEK)
+			r.Get("/keks/{name}/deks/{subject}/versions", h.ListDEKVersions)
+			r.Get("/keks/{name}/deks/{subject}/versions/{version}", h.GetDEKVersion)
+			r.Delete("/keks/{name}/deks/{subject}", h.DeleteDEK)
+			r.Put("/keks/{name}/deks/{subject}/undelete", h.UndeleteDEK)
+		})
 
 		// Account endpoints (self-service, requires auth)
 		if s.authService != nil {
@@ -206,7 +205,101 @@ func (s *Server) setupRouter() {
 		}
 	})
 
+	// Context-scoped routes: /contexts/{context}/...
+	// These mirror the registry routes but scoped to a specific context.
+	r.Route("/contexts/{context}", func(r chi.Router) {
+		r.Use(contextExtractionMiddleware)
+
+		// Add auth middleware if configured
+		if s.authenticator != nil {
+			r.Use(s.authenticator.Middleware)
+		}
+
+		// Add authorization middleware if configured
+		if s.authorizer != nil {
+			r.Use(s.authorizer.AuthorizeEndpoint(auth.DefaultEndpointPermissions()))
+		}
+
+		// Add rate limiting middleware if configured
+		if s.rateLimiter != nil {
+			r.Use(s.rateLimiter.Middleware)
+		}
+
+		// Mount schema registry routes under context prefix
+		s.mountRegistryRoutes(r, h)
+	})
+
 	s.router = r
+}
+
+// mountRegistryRoutes registers all schema registry API routes on the given router.
+// This is called twice: once at root level (default context) and once under /contexts/{context}.
+func (s *Server) mountRegistryRoutes(r chi.Router, h *handlers.Handler) {
+	// Schema types
+	r.Get("/schemas/types", h.GetSchemaTypes)
+
+	// Schema listing
+	r.Get("/schemas", h.ListSchemas)
+
+	// Schema by ID
+	r.Get("/schemas/ids/{id}", h.GetSchemaByID)
+	r.Get("/schemas/ids/{id}/schema", h.GetRawSchemaByID)
+	r.Get("/schemas/ids/{id}/subjects", h.GetSubjectsBySchemaID)
+	r.Get("/schemas/ids/{id}/versions", h.GetVersionsBySchemaID)
+
+	// Subjects
+	r.Get("/subjects", h.ListSubjects)
+	r.Get("/subjects/{subject}/versions", h.GetVersions)
+	r.Get("/subjects/{subject}/versions/{version}", h.GetVersion)
+	r.Get("/subjects/{subject}/versions/{version}/schema", h.GetRawSchemaByVersion)
+	r.Get("/subjects/{subject}/versions/{version}/referencedby", h.GetReferencedBy)
+	r.Post("/subjects/{subject}/versions", h.RegisterSchema)
+	r.Post("/subjects/{subject}", h.LookupSchema)
+	r.Delete("/subjects/{subject}", h.DeleteSubject)
+	r.Delete("/subjects/{subject}/versions/{version}", h.DeleteVersion)
+
+	// Config
+	r.Get("/config", h.GetConfig)
+	r.Put("/config", h.SetConfig)
+	r.Delete("/config", h.DeleteGlobalConfig)
+	r.Get("/config/{subject}", h.GetConfig)
+	r.Put("/config/{subject}", h.SetConfig)
+	r.Delete("/config/{subject}", h.DeleteConfig)
+
+	// Mode
+	r.Get("/mode", h.GetMode)
+	r.Put("/mode", h.SetMode)
+	r.Delete("/mode", h.DeleteGlobalMode)
+	r.Get("/mode/{subject}", h.GetMode)
+	r.Put("/mode/{subject}", h.SetMode)
+	r.Delete("/mode/{subject}", h.DeleteMode)
+
+	// Import (for migration from other schema registries)
+	r.Post("/import/schemas", h.ImportSchemas)
+
+	// Compatibility
+	r.Post("/compatibility/subjects/{subject}/versions/{version}", h.CheckCompatibility)
+	r.Post("/compatibility/subjects/{subject}/versions", h.CheckCompatibility)
+
+	// Contexts
+	r.Get("/contexts", h.GetContexts)
+
+	// Exporters (Confluent Schema Linking compatible)
+	r.Get("/exporters", h.ListExporters)
+	r.Post("/exporters", h.CreateExporter)
+	r.Get("/exporters/{name}", h.GetExporter)
+	r.Put("/exporters/{name}", h.UpdateExporter)
+	r.Delete("/exporters/{name}", h.DeleteExporter)
+	r.Put("/exporters/{name}/pause", h.PauseExporter)
+	r.Put("/exporters/{name}/resume", h.ResumeExporter)
+	r.Put("/exporters/{name}/reset", h.ResetExporter)
+	r.Get("/exporters/{name}/status", h.GetExporterStatus)
+	r.Get("/exporters/{name}/config", h.GetExporterConfig)
+	r.Put("/exporters/{name}/config", h.UpdateExporterConfig)
+
+	// Metadata (v1 API)
+	r.Get("/v1/metadata/id", h.GetClusterID)
+	r.Get("/v1/metadata/version", h.GetServerVersion)
 }
 
 // loggingMiddleware logs HTTP requests.
@@ -278,4 +371,23 @@ func (s *Server) Address() string {
 		return fmt.Sprintf("https://%s", s.config.Address())
 	}
 	return fmt.Sprintf("http://%s", s.config.Address())
+}
+
+// methodNotAllowedHandler returns a JSON error response matching Confluent's format
+// when an HTTP method is not supported for the matched route.
+func methodNotAllowedHandler(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "application/vnd.schemaregistry.v1+json")
+	w.WriteHeader(http.StatusMethodNotAllowed)
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
+		"error_code": 405,
+		"message":    "HTTP 405 Method Not Allowed",
+	})
+}
+
+// notFoundHandler returns a JSON error response matching Confluent's format
+// when no route matches the request path.
+func notFoundHandler(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "application/vnd.schemaregistry.v1+json")
+	w.WriteHeader(http.StatusNotFound)
+	w.Write([]byte(`{"error_code":404,"message":"HTTP 404 Not Found"}`))
 }
