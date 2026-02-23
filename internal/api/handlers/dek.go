@@ -262,7 +262,11 @@ func (h *Handler) GetDEKVersion(w http.ResponseWriter, r *http.Request) {
 
 	version, err := strconv.Atoi(versionStr)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, types.ErrorCodeInvalidSchema, "Invalid version")
+		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidVersion, "Invalid version: must be a positive integer")
+		return
+	}
+	if version <= 0 {
+		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidVersion, "Invalid version: must be a positive integer")
 		return
 	}
 

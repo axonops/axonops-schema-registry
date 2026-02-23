@@ -571,7 +571,7 @@ func TestGetDEKVersion_Success(t *testing.T) {
 	}
 }
 
-func TestGetDEKVersion_InvalidVersion(t *testing.T) {
+func TestGetDEKVersion_NonNumeric(t *testing.T) {
 	h := setupTestHandler(t)
 
 	r := chi.NewRouter()
@@ -581,8 +581,113 @@ func TestGetDEKVersion_InvalidVersion(t *testing.T) {
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("expected 400, got %d", w.Code)
+	if w.Code != http.StatusUnprocessableEntity {
+		t.Errorf("expected 422, got %d", w.Code)
+	}
+	resp := decodeErrorResponse(t, w)
+	if resp.ErrorCode != types.ErrorCodeInvalidVersion {
+		t.Errorf("expected error_code %d, got %d", types.ErrorCodeInvalidVersion, resp.ErrorCode)
+	}
+}
+
+func TestGetDEKVersion_Zero(t *testing.T) {
+	h := setupTestHandler(t)
+	createKEK(t, h, "ver0-kek", "aws-kms", "key-1")
+	createDEK(t, h, "ver0-kek", "ver0-subject")
+
+	r := chi.NewRouter()
+	r.Get("/dek-registry/v1/keks/{name}/deks/{subject}/versions/{version}", h.GetDEKVersion)
+
+	req := httptest.NewRequest("GET", "/dek-registry/v1/keks/ver0-kek/deks/ver0-subject/versions/0", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusUnprocessableEntity {
+		t.Errorf("expected 422 for version 0, got %d: %s", w.Code, w.Body.String())
+	}
+	resp := decodeErrorResponse(t, w)
+	if resp.ErrorCode != types.ErrorCodeInvalidVersion {
+		t.Errorf("expected error_code %d, got %d", types.ErrorCodeInvalidVersion, resp.ErrorCode)
+	}
+}
+
+func TestGetDEKVersion_Negative(t *testing.T) {
+	h := setupTestHandler(t)
+	createKEK(t, h, "verneg-kek", "aws-kms", "key-1")
+	createDEK(t, h, "verneg-kek", "verneg-subject")
+
+	r := chi.NewRouter()
+	r.Get("/dek-registry/v1/keks/{name}/deks/{subject}/versions/{version}", h.GetDEKVersion)
+
+	req := httptest.NewRequest("GET", "/dek-registry/v1/keks/verneg-kek/deks/verneg-subject/versions/-1", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusUnprocessableEntity {
+		t.Errorf("expected 422 for negative version, got %d: %s", w.Code, w.Body.String())
+	}
+	resp := decodeErrorResponse(t, w)
+	if resp.ErrorCode != types.ErrorCodeInvalidVersion {
+		t.Errorf("expected error_code %d, got %d", types.ErrorCodeInvalidVersion, resp.ErrorCode)
+	}
+}
+
+func TestGetDEKVersion_GetDoesNotStripKeyMaterial(t *testing.T) {
+	h := setupTestHandler(t)
+	createKEK(t, h, "nokey-kek", "aws-kms", "key-1")
+	createDEK(t, h, "nokey-kek", "nokey-subject")
+
+	r := chi.NewRouter()
+	r.Get("/dek-registry/v1/keks/{name}/deks/{subject}/versions/{version}", h.GetDEKVersion)
+
+	req := httptest.NewRequest("GET", "/dek-registry/v1/keks/nokey-kek/deks/nokey-subject/versions/1", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp types.DEKResponse
+	json.NewDecoder(w.Body).Decode(&resp)
+	if resp.KeyMaterial != "" {
+		t.Errorf("expected keyMaterial to be empty on GET, got %q", resp.KeyMaterial)
+	}
+}
+
+func TestDEKAlgorithm_AllValidAlgorithmsAccepted(t *testing.T) {
+	h := setupTestHandler(t)
+
+	algorithms := []string{"AES256_GCM", "AES128_GCM", "AES256_SIV"}
+	for _, algo := range algorithms {
+		kekName := "algo-kek-" + algo
+		createKEK(t, h, kekName, "aws-kms", "key-1")
+
+		body := types.CreateDEKRequest{
+			Subject:              "algo-subject-" + algo,
+			Algorithm:            algo,
+			EncryptedKeyMaterial: "encrypted-data",
+		}
+		bodyBytes, _ := json.Marshal(body)
+
+		r := chi.NewRouter()
+		r.Post("/dek-registry/v1/keks/{name}/deks", h.CreateDEK)
+
+		req := httptest.NewRequest("POST", "/dek-registry/v1/keks/"+kekName+"/deks", bytes.NewReader(bodyBytes))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Errorf("algorithm %s: expected 200, got %d: %s", algo, w.Code, w.Body.String())
+			continue
+		}
+
+		var resp types.DEKResponse
+		json.NewDecoder(w.Body).Decode(&resp)
+		if resp.Algorithm != algo {
+			t.Errorf("algorithm %s: expected algorithm %s in response, got %s", algo, algo, resp.Algorithm)
+		}
 	}
 }
 

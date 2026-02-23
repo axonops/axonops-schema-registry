@@ -689,3 +689,51 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
     When I GET "/dek-registry/v1/keks/shared-kek"
     Then the response status should be 200
     And the response field "shared" should be true
+
+  # ============================================================================
+  # DEK Version Validation (4 scenarios)
+  # ============================================================================
+
+  Scenario: Get DEK version 0 returns 422 invalid version
+    Given I POST "/dek-registry/v1/keks" with body:
+      """
+      {"name":"ver0-kek","kmsType":"aws-kms","kmsKeyId":"arn:aws:kms:us-east-1:123456789012:key/ver0"}
+      """
+    And I POST "/dek-registry/v1/keks/ver0-kek/deks" with body:
+      """
+      {"subject":"ver0.subject","algorithm":"AES256_GCM","encryptedKeyMaterial":"djA="}
+      """
+    When I GET "/dek-registry/v1/keks/ver0-kek/deks/ver0.subject/versions/0"
+    Then the response status should be 422
+    And the response should be valid JSON
+    And the response should have error code 42202
+    And the response should contain "positive integer"
+
+  Scenario: Get DEK negative version returns 422 invalid version
+    Given I POST "/dek-registry/v1/keks" with body:
+      """
+      {"name":"verneg-kek","kmsType":"aws-kms","kmsKeyId":"arn:aws:kms:us-east-1:123456789012:key/verneg"}
+      """
+    And I POST "/dek-registry/v1/keks/verneg-kek/deks" with body:
+      """
+      {"subject":"verneg.subject","algorithm":"AES256_GCM","encryptedKeyMaterial":"bmVn"}
+      """
+    When I GET "/dek-registry/v1/keks/verneg-kek/deks/verneg.subject/versions/-1"
+    Then the response status should be 422
+    And the response should be valid JSON
+    And the response should have error code 42202
+    And the response should contain "positive integer"
+
+  Scenario: Get DEK non-numeric version returns 422 invalid version
+    When I GET "/dek-registry/v1/keks/any-kek/deks/any.subject/versions/abc"
+    Then the response status should be 422
+    And the response should be valid JSON
+    And the response should have error code 42202
+    And the response should contain "positive integer"
+
+  Scenario: Get DEK version -999 returns 422 invalid version
+    When I GET "/dek-registry/v1/keks/any-kek/deks/any.subject/versions/-999"
+    Then the response status should be 422
+    And the response should be valid JSON
+    And the response should have error code 42202
+    And the response should contain "positive integer"

@@ -5012,7 +5012,7 @@ paths:
       summary: Create a DEK
       description: >-
         Creates a new Data Encryption Key (DEK) under the specified KEK for the given subject.
-        The `algorithm` specifies the encryption algorithm (e.g. `AES256_GCM`, `AES128_GCM`).
+        The `algorithm` specifies the encryption algorithm (e.g. `AES256_GCM`, `AES128_GCM`, `AES256_SIV`).
         If `encryptedKeyMaterial` is provided, it is stored as-is. If omitted, the registry
         generates a new DEK and encrypts it using the KEK.
       operationId: createDek
@@ -5098,7 +5098,7 @@ paths:
         - name: algorithm
           in: query
           description: >-
-            Filter by encryption algorithm (e.g. `AES256_GCM`, `AES128_GCM`).
+            Filter by encryption algorithm (e.g. `AES256_GCM`, `AES128_GCM`, `AES256_SIV`).
           schema:
             type: string
         - name: deleted
@@ -5159,7 +5159,7 @@ paths:
         - name: algorithm
           in: query
           description: >-
-            Filter by encryption algorithm (e.g. `AES256_GCM`, `AES128_GCM`).
+            Filter by encryption algorithm (e.g. `AES256_GCM`, `AES128_GCM`, `AES256_SIV`).
           schema:
             type: string
         - name: permanent
@@ -5228,7 +5228,7 @@ paths:
         - name: algorithm
           in: query
           description: >-
-            Filter by encryption algorithm (e.g. `AES256_GCM`, `AES128_GCM`).
+            Filter by encryption algorithm (e.g. `AES256_GCM`, `AES128_GCM`, `AES256_SIV`).
           schema:
             type: string
         - name: deleted
@@ -5306,7 +5306,7 @@ paths:
         - name: algorithm
           in: query
           description: >-
-            Filter by encryption algorithm (e.g. `AES256_GCM`, `AES128_GCM`).
+            Filter by encryption algorithm (e.g. `AES256_GCM`, `AES128_GCM`, `AES256_SIV`).
           schema:
             type: string
         - name: deleted
@@ -5323,6 +5323,20 @@ paths:
             application/vnd.schemaregistry.v1+json:
               schema:
                 $ref: '#/components/schemas/DEKResponse'
+        '422':
+          description: >-
+            The version parameter is invalid. MUST be a positive integer (1 or greater).
+            Non-numeric, zero, and negative values are rejected.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidVersion:
+                  summary: Invalid version
+                  value:
+                    error_code: 42202
+                    message: "Invalid version: must be a positive integer"
         '404':
           description: The specified KEK, DEK subject, or version was not found.
           content:
@@ -5374,7 +5388,7 @@ paths:
         - name: algorithm
           in: query
           description: >-
-            Filter by encryption algorithm (e.g. `AES256_GCM`, `AES128_GCM`).
+            Filter by encryption algorithm (e.g. `AES256_GCM`, `AES128_GCM`, `AES256_SIV`).
           schema:
             type: string
       responses:
@@ -7036,11 +7050,12 @@ components:
         algorithm:
           type: string
           description: >-
-            The encryption algorithm to use (e.g. `AES256_GCM`, `AES128_GCM`). Defaults
+            The encryption algorithm to use (e.g. `AES256_GCM`, `AES128_GCM`, `AES256_SIV`). Defaults
             to `AES256_GCM` if omitted.
           enum:
             - AES256_GCM
             - AES128_GCM
+            - AES256_SIV
           default: AES256_GCM
           example: "AES256_GCM"
         encryptedKeyMaterial:
