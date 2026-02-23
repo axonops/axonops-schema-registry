@@ -225,6 +225,70 @@ Feature: KMS Server-Side Field-Level Encryption
     And the response field "encryptedKeyMaterial" should be non-empty
     And the response field "encryptedKeyMaterial" should equal stored "created_encrypted"
 
+  # ============================================================================
+  # Consumer Key Access Scenarios
+  # ============================================================================
+
+  Scenario: Shared KEK DEK retrieval never exposes plaintext keyMaterial
+    Given a shared KEK "vault-kek-no-plaintext" with KMS type "hcvault" and key ID "test-key"
+    When I create a DEK for subject "vault.no.plaintext" under KEK "vault-kek-no-plaintext"
+    Then the response status should be 200
+    And the response field "keyMaterial" should be non-empty
+    And the response field "encryptedKeyMaterial" should be non-empty
+    # A consumer fetching the DEK by version should NOT see plaintext keyMaterial
+    When I GET "/dek-registry/v1/keks/vault-kek-no-plaintext/deks/vault.no.plaintext/versions/1"
+    Then the response status should be 200
+    And the response field "encryptedKeyMaterial" should be non-empty
+    And the response field "keyMaterial" should be empty or absent
+    # A consumer fetching the latest DEK should also NOT see plaintext keyMaterial
+    When I GET "/dek-registry/v1/keks/vault-kek-no-plaintext/deks/vault.no.plaintext"
+    Then the response status should be 200
+    And the response field "encryptedKeyMaterial" should be non-empty
+    And the response field "keyMaterial" should be empty or absent
+
+  Scenario: Non-shared KEK consumer only receives encryptedKeyMaterial
+    When I POST "/dek-registry/v1/keks" with body:
+      """
+      {
+        "name": "consumer-nonshared-kek",
+        "kmsType": "hcvault",
+        "kmsKeyId": "test-key",
+        "shared": false
+      }
+      """
+    Then the response status should be 200
+    When I POST "/dek-registry/v1/keks/consumer-nonshared-kek/deks" with body:
+      """
+      {
+        "subject": "consumer.nonshared.field",
+        "algorithm": "AES256_GCM",
+        "encryptedKeyMaterial": "Y2xpZW50LXdyYXBwZWQta2V5LW1hdGVyaWFs"
+      }
+      """
+    Then the response status should be 200
+    And the response field "keyMaterial" should be empty or absent
+    And the response field "encryptedKeyMaterial" should be "Y2xpZW50LXdyYXBwZWQta2V5LW1hdGVyaWFs"
+    # Consumer retrieves DEK — only encrypted material available, no plaintext
+    When I GET "/dek-registry/v1/keks/consumer-nonshared-kek/deks/consumer.nonshared.field"
+    Then the response status should be 200
+    And the response field "encryptedKeyMaterial" should be "Y2xpZW50LXdyYXBwZWQta2V5LW1hdGVyaWFs"
+    And the response field "keyMaterial" should be empty or absent
+    And the response body should not contain "keyMaterial"
+
+  Scenario: DEK subject listing does not expose any key material
+    Given a shared KEK "vault-kek-list-safe" with KMS type "hcvault" and key ID "test-key"
+    When I create a DEK for subject "vault.list.email" under KEK "vault-kek-list-safe"
+    Then the response status should be 200
+    When I create a DEK for subject "vault.list.phone" under KEK "vault-kek-list-safe"
+    Then the response status should be 200
+    # Listing DEK subjects should return only subject names, no key material
+    When I GET "/dek-registry/v1/keks/vault-kek-list-safe/deks"
+    Then the response status should be 200
+    And the response should be valid JSON
+    And the response body should not contain "keyMaterial"
+    And the response body should not contain "encryptedKeyMaterial"
+    And the response should be an array of length 2
+
   Scenario: Multiple subjects under same Vault Transit KEK have independent keys
     Given a shared KEK "vault-kek-multi-subject" with KMS type "hcvault" and key ID "test-key"
     When I create a DEK for subject "vault.multi.email" under KEK "vault-kek-multi-subject"

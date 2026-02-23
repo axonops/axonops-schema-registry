@@ -89,12 +89,17 @@ Unlike Confluent Schema Registry, which uses Kafka itself (a special `_schemas` 
 | **Schema Validation** | ✅ | ✅ | ✅ | ✅ |
 | **Data Contracts** | ✅ | ❌ | ✅ | ❌ |
 | **Multi-Tenant Contexts** | ✅ | ✅ | ✅ | ❌ |
-| **Field-Level Encryption** | ✅ | ❌ | ✅ | ❌ |
-| **Schema Linking** | ✅ API | ❌ | ✅ | ❌ |
+| **DEK Registry (CSFLE)** | ✅ | ❌ | ✅ | ❌ |
+| **KMS Providers** | 2 + 3 &sup1; | ❌ | ✅ | ❌ |
+| **Exporter API** &sup2; | ✅ | ❌ | ✅ | ❌ |
 | **Single Binary** | ✅ | ❌ | ❌ | ❌ |
 | **Memory Footprint** | ~50MB | ~500MB+ | ~500MB+ | ~200MB+ |
 
 </div>
+
+&sup1; HashiCorp Vault and OpenBao Transit are production-ready. AWS KMS, Azure Key Vault, and GCP KMS support is coming soon.
+
+&sup2; Confluent-compatible exporter management API for schema replication configuration. AxonOps stores exporter definitions; active cross-registry replication requires an external agent.
 
 ## Quick Start
 
@@ -135,8 +140,8 @@ See the [Getting Started](docs/getting-started.md) guide for Kafka client integr
 ### Encryption
 
 - **DEK Registry** -- Client-Side Field Level Encryption (CSFLE) with KEK/DEK management, compatible with Confluent's Enterprise CSFLE feature ([docs](docs/encryption.md))
-- **5 KMS Providers** -- AWS KMS, Azure Key Vault, GCP KMS, HashiCorp Vault, and OpenBao Transit
-- **Exporters API** -- Schema Linking exporter management for cross-registry schema replication ([docs](docs/exporters.md))
+- **KMS Providers** -- HashiCorp Vault and OpenBao Transit for production use. AWS KMS, Azure Key Vault, and GCP KMS coming soon.
+- **Exporter API** -- Confluent-compatible exporter management API for schema replication configuration ([docs](docs/exporters.md))
 
 ### Storage Backends
 

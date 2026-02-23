@@ -6,7 +6,7 @@ The schema registry acts as the **key metadata store** for CSFLE. It does not pe
 
 | Key Type | Purpose | Where the actual key lives |
 |----------|---------|---------------------------|
-| **Key Encryption Key (KEK)** | References an external KMS key used to wrap (encrypt) DEKs | External KMS (AWS KMS, Azure Key Vault, GCP KMS, HashiCorp Vault) |
+| **Key Encryption Key (KEK)** | References an external KMS key used to wrap (encrypt) DEKs | External KMS (HashiCorp Vault, OpenBao; AWS KMS, Azure Key Vault, GCP KMS coming soon) |
 | **Data Encryption Key (DEK)** | The actual encryption key used to encrypt field values | Stored in the registry as encrypted bytes (wrapped by the KEK) |
 
 This two-tier design follows the **envelope encryption** pattern: DEKs encrypt data, KEKs encrypt DEKs. The plaintext DEK never leaves the client -- the registry only stores the KMS-wrapped (encrypted) form.
@@ -341,13 +341,13 @@ In **client-side mode** (the default, when `shared=false`), the registry stores 
 
 In **server-side mode** (when `shared=true`), the registry uses its built-in KMS provider integrations to generate and wrap DEKs on behalf of the client. The registry calls the KMS directly using the `kmsProps` configured on the KEK. This mode is useful when clients cannot access the KMS directly or when centralized key management is preferred.
 
-| KMS Type | Value | Key ID Format | Description |
-|----------|-------|---------------|-------------|
-| AWS KMS | `aws-kms` | ARN (e.g., `arn:aws:kms:us-east-1:123456789012:key/...`) | Amazon Web Services Key Management Service |
-| Azure Key Vault | `azure-kms` | Key URL (e.g., `https://myvault.vault.azure.net/keys/mykey/version`) | Microsoft Azure Key Vault |
-| GCP KMS | `gcp-kms` | Resource name (e.g., `projects/my-project/locations/global/keyRings/my-ring/cryptoKeys/my-key`) | Google Cloud Key Management Service |
-| HashiCorp Vault | `hcvault` | Transit path (e.g., `transit/keys/my-key`) | HashiCorp Vault Transit secrets engine |
-| OpenBao | `openbao` | Transit path (e.g., `transit/keys/my-key`) | OpenBao Transit secrets engine (Vault-compatible fork) |
+| KMS Type | Value | Status | Key ID Format | Description |
+|----------|-------|--------|---------------|-------------|
+| HashiCorp Vault | `hcvault` | Production | Transit path (e.g., `transit/keys/my-key`) | HashiCorp Vault Transit secrets engine |
+| OpenBao | `openbao` | Production | Transit path (e.g., `transit/keys/my-key`) | OpenBao Transit secrets engine (Vault-compatible fork) |
+| AWS KMS | `aws-kms` | Coming Soon | ARN (e.g., `arn:aws:kms:us-east-1:123456789012:key/...`) | Amazon Web Services Key Management Service |
+| Azure Key Vault | `azure-kms` | Coming Soon | Key URL (e.g., `https://myvault.vault.azure.net/keys/mykey/version`) | Microsoft Azure Key Vault |
+| GCP KMS | `gcp-kms` | Coming Soon | Resource name (e.g., `projects/my-project/locations/global/keyRings/my-ring/cryptoKeys/my-key`) | Google Cloud Key Management Service |
 
 ### KMS Properties Reference
 
@@ -371,7 +371,9 @@ Each KMS provider accepts provider-specific properties via the `kmsProps` field 
 | `openbao.namespace` | Namespace | `BAO_NAMESPACE` |
 | `openbao.transit.mount` | Transit secrets engine mount path (default: `transit`) | -- |
 
-#### AWS KMS (`aws-kms`)
+#### AWS KMS (`aws-kms`) -- Coming Soon
+
+> The `aws-kms` provider API is implemented but has not been validated in production environments. Production support is coming soon.
 
 | Property | Description | Environment Variable Fallback |
 |----------|-------------|-------------------------------|
@@ -382,7 +384,9 @@ Each KMS provider accepts provider-specific properties via the `kmsProps` field 
 
 > When `aws.access.key.id` and `aws.secret.access.key` are not set, the provider falls back to the standard AWS credential chain (environment variables, shared credentials file, IAM role).
 
-#### Azure Key Vault (`azure-kms`)
+#### Azure Key Vault (`azure-kms`) -- Coming Soon
+
+> The `azure-kms` provider API is implemented but has not been validated in production environments. Production support is coming soon.
 
 | Property | Description | Environment Variable Fallback |
 |----------|-------------|-------------------------------|
@@ -392,7 +396,9 @@ Each KMS provider accepts provider-specific properties via the `kmsProps` field 
 | `azure.keyvault.url` | Key Vault URL (e.g., `https://myvault.vault.azure.net`) | -- |
 | `azure.key.version` | Specific key version (optional; uses latest if empty) | -- |
 
-#### GCP KMS (`gcp-kms`)
+#### GCP KMS (`gcp-kms`) -- Coming Soon
+
+> The `gcp-kms` provider API is implemented but has not been validated in production environments. Production support is coming soon.
 
 | Property | Description | Environment Variable Fallback |
 |----------|-------------|-------------------------------|

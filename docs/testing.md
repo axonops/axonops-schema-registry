@@ -53,6 +53,9 @@ This document explains the testing philosophy, describes every test layer in det
   - [What They Test](#what-compatibility-tests-test)
   - [Languages and Versions](#compatibility-languages-and-versions)
   - [How to Run](#how-to-run-compatibility-tests)
+- [Go SerDe Data Contract & CSFLE Tests](#go-serde-data-contract--csfle-tests)
+  - [What They Test](#what-go-serde-tests-test)
+  - [How to Run](#how-to-run-go-serde-tests)
 - [OpenAPI Validation](#openapi-validation)
   - [What It Tests](#what-openapi-validation-tests)
   - [What to Do When It Fails](#what-to-do-when-openapi-validation-fails)
@@ -136,6 +139,8 @@ Every test target accepts an optional `BACKEND` variable. Database containers ar
 | `make test-auth` | All auth tests | Yes | ~4m |
 | `make test-migration` | Migration/import tests | No | ~1m |
 | `make test-compatibility` | Go/Java/Python Confluent clients | Yes | ~5m |
+| `make test-compatibility` *(data contracts)* | Java SerDe data contract + CSFLE tests | Yes | ~3m |
+| `make test-compatibility` *(go-serde)* | Go SerDe data contract + CSFLE tests | Yes | ~5m |
 | `make test` | Everything | Yes | ~45m |
 | `make test-coverage` | Unit tests with HTML coverage report | No | ~1m |
 
@@ -405,6 +410,8 @@ Tags control which scenarios run in which context:
 | `@pending-impl` | Not yet implemented. Always excluded. |
 | `@memory`, `@postgres`, `@mysql`, `@cassandra` | Backend-specific scenarios. |
 | `@avro`, `@protobuf`, `@jsonschema` | Schema-type-specific scenarios. |
+| `@kms` | KMS encryption tests (Vault/OpenBao Transit). Require KMS infrastructure. |
+| `@data-contracts` | Data contract features (rules, metadata, DEK Registry). |
 
 ### BDD Execution Modes
 
@@ -560,12 +567,13 @@ These tests verify that AxonOps Schema Registry is wire-compatible with real Con
 | Language | Client Library | Versions Tested |
 |----------|---------------|-----------------|
 | **Go** | `confluent-kafka-go` | Latest |
+| **Go (SerDe)** | `confluent-kafka-go/v2` | v2.8.0 (data contracts + CSFLE) |
 | **Java** | `kafka-schema-registry-client` | 8.1, 7.9, 7.7.4, 7.7.3 |
 | **Python** | `confluent-kafka` | 2.8.0, 2.7.0, 2.6.1 |
 
-Each language tests Avro, Protobuf, and JSON Schema serialization/deserialization.
+Each language tests Avro, Protobuf, and JSON Schema serialization/deserialization. The Go SerDe suite additionally tests data contract rules (CEL, JSONata, global policies) and CSFLE field-level encryption.
 
-**Location:** `tests/compatibility/` (Go, Java, Python subdirectories)
+**Location:** `tests/compatibility/` (Go, Go SerDe, Java, Python subdirectories)
 
 ### How to Run Compatibility Tests
 
@@ -574,6 +582,118 @@ make test-compatibility
 ```
 
 Requires Maven (for Java tests) and Python 3 (for Python tests). Missing runtimes are skipped with a warning.
+
+
+## Data Contract & CSFLE Integration Tests
+
+### What Data Contract & CSFLE Tests Test
+
+Data contract and CSFLE tests use real Confluent Java serializer/deserializer clients to verify end-to-end rule execution and field-level encryption. The schema registry stores rules and encryption metadata; these tests prove that Confluent clients correctly fetch and execute them.
+
+The tests cover four categories:
+
+| Test Class | Tests | What It Covers |
+|-----------|-------|----------------|
+| `DataContractCelRulesTest` | 8 | CEL CONDITION (write/read), CEL_FIELD TRANSFORM (PII masking, normalization), disabled rules |
+| `DataContractMigrationTest` | 4 | JSONata UPGRADE/DOWNGRADE, field rename, field addition, breaking change bridging |
+| `CsfleVaultEncryptionTest` | 7 | CSFLE round-trip, raw byte inspection, multi-field encryption, DEK/KEK auto-creation via Vault |
+| `DataContractGlobalPoliciesTest` | 4 | Default ruleSet execution, override ruleSet enforcement, rule inheritance, tag propagation |
+
+**Location:** `tests/compatibility/java/src/test/java/com/axonops/schemaregistry/compat/`
+
+**JUnit tags:** `data-contracts`, `csfle`
+
+### How to Run Data Contract & CSFLE Tests
+
+Data contract tests (CEL, JSONata, global policies) do not require KMS infrastructure:
+
+```bash
+cd tests/compatibility/java
+mvn test -P confluent-8.1 -Dschema.registry.url=http://localhost:8081 -Dgroups=data-contracts
+```
+
+CSFLE tests require HashiCorp Vault:
+
+```bash
+# Start Vault
+cd tests/bdd
+docker compose -f docker-compose.kms.yml up -d vault
+docker compose -f docker-compose.kms.yml run --rm setup-kms
+
+# Run CSFLE tests
+cd ../../tests/compatibility/java
+mvn test -P confluent-8.1 \
+  -Dschema.registry.url=http://localhost:8081 \
+  -Dgroups=csfle \
+  -Dvault.url=http://localhost:18200 \
+  -Dvault.token=test-root-token
+```
+
+Requires Maven and Java 17+.
+
+## Go SerDe Data Contract & CSFLE Tests
+
+### What Go SerDe Tests Test
+
+Go SerDe data contract and CSFLE tests use the `confluent-kafka-go/v2` schema registry client (`schemaregistry` sub-packages only, no CGO required) to verify end-to-end rule execution, migration transforms, global policy enforcement, and field-level encryption via Vault Transit KMS. These tests complement the Java SerDe tests by validating the same data contract and CSFLE behaviors from a Go client perspective.
+
+The tests cover six categories across 30 test functions in 7 test files:
+
+| Test File | Tests | What It Covers |
+|-----------|-------|----------------|
+| `cel_rules_test.go` | 8 | CEL CONDITION (write/read), CEL_FIELD TRANSFORM (PII masking, normalization), disabled rules |
+| `migration_rules_test.go` | 4 | JSONata UPGRADE/DOWNGRADE, field rename, field addition, breaking change bridging |
+| `csfle_vault_test.go` | 7 | CSFLE round-trip, raw byte inspection, multi-field encryption, DEK/KEK auto-creation via Vault Transit |
+| `global_policies_test.go` | 4 | Default ruleSet execution, override ruleSet enforcement, rule inheritance, PII tag propagation |
+| `cel_extras_test.go` | 4 | Go-only extra CEL scenarios (chained transforms, nested field conditions) |
+| `csfle_extras_test.go` | 3 | Go-only extra CSFLE scenarios (key rotation, multi-tenant encryption) |
+| `testhelper_test.go` | -- | Shared utilities, HTTP helpers, client factories, struct definitions |
+
+**Location:** `tests/compatibility/go-serde/`
+
+**Dependencies:** `confluent-kafka-go/v2 v2.8.0` (only `schemaregistry/*` sub-packages are imported; no CGO required)
+
+### How to Run Go SerDe Tests
+
+Data contract tests (CEL, JSONata, global policies) do not require KMS infrastructure:
+
+```bash
+cd tests/compatibility/go-serde
+SCHEMA_REGISTRY_URL=http://localhost:8081 go test -v -run "TestCel|TestMigration|TestGlobalPolicies" ./...
+```
+
+CSFLE tests require HashiCorp Vault:
+
+```bash
+# Start Vault
+cd tests/bdd
+docker compose -f docker-compose.kms.yml up -d vault
+docker compose -f docker-compose.kms.yml run --rm setup-kms
+
+# Run CSFLE tests
+cd ../../tests/compatibility/go-serde
+SCHEMA_REGISTRY_URL=http://localhost:8081 \
+  VAULT_URL=http://localhost:18200 \
+  VAULT_TOKEN=test-root-token \
+  go test -v -run "TestCsfle" -timeout 10m ./...
+```
+
+All tests together:
+
+```bash
+cd tests/compatibility/go-serde
+SCHEMA_REGISTRY_URL=http://localhost:8081 \
+  VAULT_URL=http://localhost:18200 \
+  VAULT_TOKEN=test-root-token \
+  go test -v -timeout 10m ./...
+```
+
+A convenience script is also available:
+
+```bash
+cd tests/compatibility/go-serde
+./run_tests.sh
+```
 
 ## OpenAPI Validation
 
@@ -629,6 +749,9 @@ GitHub Actions runs the full test suite on every push to `main` or `feature/**` 
 | **Migration** | Import/migration tests |
 | **BDD** | In-process functional, then Docker-based: memory, PostgreSQL, MySQL, Cassandra, Confluent 8.1.1 |
 | **Compatibility** | Go + Java (4 Confluent versions) + Python (3 versions) serializer tests |
+| **Data Contracts (Java)** | Java Confluent SerDe data contract tests (CEL, JSONata, CSFLE) with Vault |
+| **Data Contracts (Go)** | Go SerDe data contract + CSFLE tests (`go-data-contract-csfle-tests` job) with Vault |
+| **KMS Backends** | BDD KMS encryption tests against memory, PostgreSQL, MySQL, Cassandra |
 
 The `build` job compiles all test binaries and uploads them as artifacts. Downstream jobs download pre-compiled binaries to avoid redundant compilation.
 

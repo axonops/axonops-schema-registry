@@ -274,8 +274,12 @@ func TestFeatures(t *testing.T) {
 	} else if dockerMode {
 		// Only run operational scenarios tagged for this backend, exclude other backends.
 		// Auth tests require in-process server with auth enabled, skip in Docker mode.
+		// KMS tests are included when BDD_KMS=true (schema-registry has KMS providers configured).
 		allBackends := []string{"memory", "postgres", "mysql", "cassandra"}
-		excludes := []string{"~@pending-impl", "~@auth", "~@kms"}
+		excludes := []string{"~@pending-impl", "~@auth"}
+		if os.Getenv("BDD_KMS") != "true" {
+			excludes = append(excludes, "~@kms")
+		}
 		for _, b := range allBackends {
 			if b != backend {
 				excludes = append(excludes, "~@"+b)
@@ -720,22 +724,29 @@ func cleanViaAPI() error {
 }
 
 // composeFilesForBackend returns the Docker Compose files for a given backend.
+// When BDD_KMS=true, the KMS overlay is appended to add Vault and OpenBao
+// Transit engines alongside the storage backend.
 func composeFilesForBackend(backend string) []string {
 	base := "docker-compose.base.yml"
+	var files []string
 	switch backend {
 	case "memory":
-		return []string{base, "docker-compose.memory.yml"}
+		files = []string{base, "docker-compose.memory.yml"}
 	case "postgres":
-		return []string{base, "docker-compose.postgres.yml"}
+		files = []string{base, "docker-compose.postgres.yml"}
 	case "mysql":
-		return []string{base, "docker-compose.mysql.yml"}
+		files = []string{base, "docker-compose.mysql.yml"}
 	case "cassandra":
-		return []string{base, "docker-compose.cassandra.yml"}
+		files = []string{base, "docker-compose.cassandra.yml"}
 	case "confluent":
-		return []string{"docker-compose.confluent.yml"}
+		files = []string{"docker-compose.confluent.yml"}
 	default:
-		return []string{base, "docker-compose." + backend + ".yml"}
+		files = []string{base, "docker-compose." + backend + ".yml"}
 	}
+	if os.Getenv("BDD_KMS") == "true" && backend != "confluent" {
+		files = append(files, "docker-compose.kms-overlay.yml")
+	}
+	return files
 }
 
 // findContainerCmd returns "podman" or "docker", preferring podman.

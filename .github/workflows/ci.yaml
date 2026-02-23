@@ -1213,6 +1213,108 @@ jobs:
         working-directory: tests/bdd
         run: docker compose -f docker-compose.kms.yml down -v || true
 
+  # BDD tests — KMS encryption against PostgreSQL backend
+  bdd-kms-postgres-tests:
+    name: BDD Tests (KMS + PostgreSQL)
+    runs-on: ubuntu-latest
+    needs: [bdd-functional-tests]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run BDD KMS tests (postgres backend)
+        env:
+          BDD_BACKEND: postgres
+          BDD_KMS: "true"
+          BDD_TAGS: "@kms"
+          CONTAINER_CMD: docker
+        run: go test -tags bdd -v -count=1 -timeout 15m ./tests/bdd/...
+
+      - name: Show container logs on failure
+        if: failure()
+        working-directory: tests/bdd
+        run: docker compose -f docker-compose.base.yml -f docker-compose.postgres.yml -f docker-compose.kms-overlay.yml logs --tail=100 || true
+
+      - name: Cleanup containers
+        if: always()
+        working-directory: tests/bdd
+        run: docker compose -f docker-compose.base.yml -f docker-compose.postgres.yml -f docker-compose.kms-overlay.yml down -v || true
+
+  # BDD tests — KMS encryption against MySQL backend
+  bdd-kms-mysql-tests:
+    name: BDD Tests (KMS + MySQL)
+    runs-on: ubuntu-latest
+    needs: [bdd-functional-tests]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run BDD KMS tests (mysql backend)
+        env:
+          BDD_BACKEND: mysql
+          BDD_KMS: "true"
+          BDD_TAGS: "@kms"
+          CONTAINER_CMD: docker
+        run: go test -tags bdd -v -count=1 -timeout 15m ./tests/bdd/...
+
+      - name: Show container logs on failure
+        if: failure()
+        working-directory: tests/bdd
+        run: docker compose -f docker-compose.base.yml -f docker-compose.mysql.yml -f docker-compose.kms-overlay.yml logs --tail=100 || true
+
+      - name: Cleanup containers
+        if: always()
+        working-directory: tests/bdd
+        run: docker compose -f docker-compose.base.yml -f docker-compose.mysql.yml -f docker-compose.kms-overlay.yml down -v || true
+
+  # BDD tests — KMS encryption against Cassandra backend
+  bdd-kms-cassandra-tests:
+    name: BDD Tests (KMS + Cassandra)
+    runs-on: ubuntu-latest
+    needs: [bdd-functional-tests]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run BDD KMS tests (cassandra backend)
+        env:
+          BDD_BACKEND: cassandra
+          BDD_KMS: "true"
+          BDD_TAGS: "@kms"
+          CONTAINER_CMD: docker
+        run: go test -tags bdd -v -count=1 -timeout 20m ./tests/bdd/...
+
+      - name: Show container logs on failure
+        if: failure()
+        working-directory: tests/bdd
+        run: docker compose -f docker-compose.base.yml -f docker-compose.cassandra.yml -f docker-compose.kms-overlay.yml logs --tail=100 || true
+
+      - name: Cleanup containers
+        if: always()
+        working-directory: tests/bdd
+        run: docker compose -f docker-compose.base.yml -f docker-compose.cassandra.yml -f docker-compose.kms-overlay.yml down -v || true
+
   # Data Contract & CSFLE tests — Java Confluent SerDe with rule execution + Vault encryption
   data-contract-csfle-tests:
     name: Data Contract & CSFLE Tests
@@ -1266,6 +1368,76 @@ jobs:
             -Dgroups=data-contracts,csfle \
             -Dvault.url=http://localhost:18200 \
             -Dvault.token=test-root-token
+
+      - name: Show KMS container logs on failure
+        if: failure()
+        working-directory: tests/bdd
+        run: docker compose -f docker-compose.kms.yml logs --tail=100 || true
+
+      - name: Stop Schema Registry
+        if: always()
+        run: pkill schema-registry || true
+
+      - name: Cleanup KMS containers
+        if: always()
+        working-directory: tests/bdd
+        run: docker compose -f docker-compose.kms.yml down -v || true
+
+  # Go Data Contract & CSFLE tests — Go Confluent SerDe with rule execution + Vault encryption
+  go-data-contract-csfle-tests:
+    name: Go Data Contract & CSFLE Tests
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download test binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: test-binaries
+
+      - name: Make binaries executable
+        run: chmod +x schema-registry
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Start KMS services (Vault + OpenBao)
+        working-directory: tests/bdd
+        run: |
+          docker compose -f docker-compose.kms.yml up -d vault openbao
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:18200/v1/sys/health > /dev/null 2>&1 && \
+            curl -sf http://localhost:18201/v1/sys/health > /dev/null 2>&1 && break
+            sleep 2
+          done
+          docker compose -f docker-compose.kms.yml run --rm setup-kms
+
+      - name: Start Schema Registry
+        run: |
+          ./schema-registry &
+          echo "Waiting for Schema Registry to start..."
+          for i in {1..30}; do
+            if curl -s http://localhost:8081/subjects > /dev/null 2>&1; then
+              echo "Schema Registry is ready"
+              break
+            fi
+            sleep 1
+          done
+
+      - name: Download Go SerDe test dependencies
+        working-directory: tests/compatibility/go-serde
+        run: go mod download
+
+      - name: Run Go Data Contract & CSFLE Tests
+        working-directory: tests/compatibility/go-serde
+        env:
+          SCHEMA_REGISTRY_URL: http://localhost:8081
+          VAULT_URL: http://localhost:18200
+          VAULT_TOKEN: test-root-token
+        run: go test -v -timeout 10m ./...
 
       - name: Show KMS container logs on failure
         if: failure()
