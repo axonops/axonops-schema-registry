@@ -42,13 +42,15 @@ func TestCsfleEncryptDecryptRoundTrip(t *testing.T) {
 	require.NoError(t, err, "serialization should succeed")
 	require.NotEmpty(t, bytes, "serialized bytes should not be empty")
 
+	// Note: the ENCRYPT rule modifies the original struct's PII fields in-place
+	// during serialization, so we compare against literal expected values.
 	var result Customer
 	err = deser.DeserializeInto(topic, bytes, &result)
 	require.NoError(t, err, "deserialization should succeed")
 
-	assert.Equal(t, original.CustomerID, result.CustomerID)
-	assert.Equal(t, original.Name, result.Name)
-	assert.Equal(t, original.SSN, result.SSN)
+	assert.Equal(t, "CUST-001", result.CustomerID)
+	assert.Equal(t, "Jane Doe", result.Name)
+	assert.Equal(t, "123-45-6789", result.SSN)
 }
 
 // TestCsfleRawBytesNoPlaintextPII verifies that PII-tagged fields are not
@@ -117,14 +119,15 @@ func TestCsfleMultiplePIIFields(t *testing.T) {
 	assert.False(t, strings.Contains(rawStr, "4111-1111-1111-1111"),
 		"raw bytes must not contain plaintext credit card")
 
+	// Note: ENCRYPT modifies original PII fields in-place, use literal values.
 	var result UserProfile
 	err = deser.DeserializeInto(topic, bytes, &result)
 	require.NoError(t, err, "deserialization should succeed")
 
-	assert.Equal(t, original.UserID, result.UserID)
-	assert.Equal(t, original.SSN, result.SSN)
-	assert.Equal(t, original.Email, result.Email)
-	assert.Equal(t, original.CreditCard, result.CreditCard)
+	assert.Equal(t, "USER-100", result.UserID)
+	assert.Equal(t, "987-65-4321", result.SSN)
+	assert.Equal(t, "secret@example.com", result.Email)
+	assert.Equal(t, "4111-1111-1111-1111", result.CreditCard)
 }
 
 // TestCsfleCreditCardProtection verifies that a credit card number tagged as PII
@@ -158,14 +161,15 @@ func TestCsfleCreditCardProtection(t *testing.T) {
 	assert.False(t, strings.Contains(string(bytes), "4532-0150-1234-5678"),
 		"raw bytes must not contain plaintext credit card number")
 
+	// Note: ENCRYPT modifies original PII fields in-place, use literal values.
 	var result PaymentEvent
 	err = deser.DeserializeInto(topic, bytes, &result)
 	require.NoError(t, err, "deserialization should succeed")
 
-	assert.Equal(t, original.CreditCardNumber, result.CreditCardNumber)
-	assert.Equal(t, original.CustomerID, result.CustomerID)
-	assert.InDelta(t, original.Amount, result.Amount, 0.001)
-	assert.Equal(t, original.MerchantName, result.MerchantName)
+	assert.Equal(t, "4532-0150-1234-5678", result.CreditCardNumber)
+	assert.Equal(t, "CUST-PAY-001", result.CustomerID)
+	assert.InDelta(t, 149.99, result.Amount, 0.001)
+	assert.Equal(t, "Coffee Shop", result.MerchantName)
 }
 
 // TestCsfleDekCaching verifies that a DEK cached during serialization allows
@@ -198,16 +202,17 @@ func TestCsfleDekCaching(t *testing.T) {
 		"raw bytes must not contain plaintext SSN")
 
 	// Use a rule deserializer without explicit Vault token — should still
-	// work because the DEK is cached in-JVM (in the schema registry).
+	// work because the DEK is cached in the client-side encryption library.
 	deser2 := newRuleDeserializer(t, client)
 
+	// Note: ENCRYPT modifies original PII fields in-place, use literal values.
 	var result Customer
 	err = deser2.DeserializeInto(topic, bytes, &result)
 	require.NoError(t, err, "deserialization with cached DEK should succeed")
 
-	assert.Equal(t, original.CustomerID, result.CustomerID)
-	assert.Equal(t, original.Name, result.Name)
-	assert.Equal(t, original.SSN, result.SSN)
+	assert.Equal(t, "CUST-CACHE", result.CustomerID)
+	assert.Equal(t, "Cache Test", result.Name)
+	assert.Equal(t, "555-66-7777", result.SSN)
 }
 
 // TestCsfleDekAutoCreated verifies that a Data Encryption Key (DEK) is

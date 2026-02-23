@@ -215,7 +215,7 @@ func TestCelFieldTransformMaskSsnOnRead(t *testing.T) {
 					"type": "CEL_FIELD",
 					"mode": "READ",
 					"tags": ["PII"],
-					"expr": "typeName == 'STRING' ; 'XXX-XX-' + value[7:11]",
+					"expr": "typeName == 'STRING' ; 'XXX-XX-' + value.substring(7, 11)",
 					"onFailure": "ERROR"
 				}
 			]
