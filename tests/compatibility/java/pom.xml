@@ -43,6 +43,12 @@
                 <artifactId>lz4-java</artifactId>
                 <version>1.8.1</version>
             </dependency>
+            <!-- Override commons-beanutils to fix CVE-2025-48734 -->
+            <dependency>
+                <groupId>commons-beanutils</groupId>
+                <artifactId>commons-beanutils</artifactId>
+                <version>1.11.0</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
