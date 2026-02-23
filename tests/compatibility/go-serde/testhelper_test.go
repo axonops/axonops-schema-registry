@@ -206,29 +206,29 @@ func newClient(t *testing.T) schemaregistry.Client {
 	return client
 }
 
-// newRuleSerializer creates a SpecificSerializer with AutoRegisterSchemas=false
+// newRuleSerializer creates a GenericSerializer with AutoRegisterSchemas=false
 // and UseLatestVersion=true for data contract rule execution.
-func newRuleSerializer(t *testing.T, client schemaregistry.Client) *avro.SpecificSerializer {
+func newRuleSerializer(t *testing.T, client schemaregistry.Client) *avro.GenericSerializer {
 	t.Helper()
 	conf := avro.NewSerializerConfig()
 	conf.AutoRegisterSchemas = false
 	conf.UseLatestVersion = true
-	ser, err := avro.NewSpecificSerializer(client, serde.ValueSerde, conf)
+	ser, err := avro.NewGenericSerializer(client, serde.ValueSerde, conf)
 	require.NoError(t, err, "failed to create rule-aware serializer")
 	return ser
 }
 
-// newRuleDeserializer creates a SpecificDeserializer for rule execution.
-func newRuleDeserializer(t *testing.T, client schemaregistry.Client) *avro.SpecificDeserializer {
+// newRuleDeserializer creates a GenericDeserializer for rule execution.
+func newRuleDeserializer(t *testing.T, client schemaregistry.Client) *avro.GenericDeserializer {
 	t.Helper()
 	conf := avro.NewDeserializerConfig()
-	deser, err := avro.NewSpecificDeserializer(client, serde.ValueSerde, conf)
+	deser, err := avro.NewGenericDeserializer(client, serde.ValueSerde, conf)
 	require.NoError(t, err, "failed to create rule-aware deserializer")
 	return deser
 }
 
-// newCsfleSerializer creates a SpecificSerializer configured for CSFLE.
-func newCsfleSerializer(t *testing.T, client schemaregistry.Client) *avro.SpecificSerializer {
+// newCsfleSerializer creates a GenericSerializer configured for CSFLE.
+func newCsfleSerializer(t *testing.T, client schemaregistry.Client) *avro.GenericSerializer {
 	t.Helper()
 	t.Setenv("VAULT_TOKEN", getVaultToken())
 	conf := avro.NewSerializerConfig()
@@ -237,20 +237,20 @@ func newCsfleSerializer(t *testing.T, client schemaregistry.Client) *avro.Specif
 	conf.RuleConfig = map[string]string{
 		"secret.access.key": getVaultToken(),
 	}
-	ser, err := avro.NewSpecificSerializer(client, serde.ValueSerde, conf)
+	ser, err := avro.NewGenericSerializer(client, serde.ValueSerde, conf)
 	require.NoError(t, err, "failed to create CSFLE serializer")
 	return ser
 }
 
-// newCsfleDeserializer creates a SpecificDeserializer configured for CSFLE.
-func newCsfleDeserializer(t *testing.T, client schemaregistry.Client) *avro.SpecificDeserializer {
+// newCsfleDeserializer creates a GenericDeserializer configured for CSFLE.
+func newCsfleDeserializer(t *testing.T, client schemaregistry.Client) *avro.GenericDeserializer {
 	t.Helper()
 	t.Setenv("VAULT_TOKEN", getVaultToken())
 	conf := avro.NewDeserializerConfig()
 	conf.RuleConfig = map[string]string{
 		"secret.access.key": getVaultToken(),
 	}
-	deser, err := avro.NewSpecificDeserializer(client, serde.ValueSerde, conf)
+	deser, err := avro.NewGenericDeserializer(client, serde.ValueSerde, conf)
 	require.NoError(t, err, "failed to create CSFLE deserializer")
 	return deser
 }
