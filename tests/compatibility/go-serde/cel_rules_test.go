@@ -33,7 +33,7 @@ func TestCelConditionValidDataPasses(t *testing.T) {
 					"kind": "CONDITION",
 					"type": "CEL",
 					"mode": "WRITE",
-					"expr": "message.amount > 0.0",
+					"expr": "message.Amount > 0.0",
 					"onFailure": "ERROR"
 				}
 			]
@@ -77,7 +77,7 @@ func TestCelConditionInvalidDataRejected(t *testing.T) {
 					"kind": "CONDITION",
 					"type": "CEL",
 					"mode": "WRITE",
-					"expr": "message.amount > 0.0",
+					"expr": "message.Amount > 0.0",
 					"onFailure": "ERROR"
 				}
 			]
@@ -113,7 +113,7 @@ func TestCelConditionOnReadRejectsAtDeserialization(t *testing.T) {
 					"kind": "CONDITION",
 					"type": "CEL",
 					"mode": "READ",
-					"expr": "message.status != 'CANCELLED'",
+					"expr": "message.Status != 'CANCELLED'",
 					"onFailure": "ERROR"
 				}
 			]
@@ -156,7 +156,7 @@ func TestMultipleCelConditionsChained(t *testing.T) {
 					"kind": "CONDITION",
 					"type": "CEL",
 					"mode": "WRITE",
-					"expr": "message.amount > 0.0",
+					"expr": "message.Amount > 0.0",
 					"onFailure": "ERROR"
 				},
 				{
@@ -164,7 +164,7 @@ func TestMultipleCelConditionsChained(t *testing.T) {
 					"kind": "CONDITION",
 					"type": "CEL",
 					"mode": "WRITE",
-					"expr": "size(message.currency) == 3",
+					"expr": "size(message.Currency) == 3",
 					"onFailure": "ERROR"
 				}
 			]
@@ -215,7 +215,7 @@ func TestCelFieldTransformMaskSsnOnRead(t *testing.T) {
 					"type": "CEL_FIELD",
 					"mode": "READ",
 					"tags": ["PII"],
-					"expr": "typeName == 'STRING' ; 'XXX-XX-' + value.substring(7)",
+					"expr": "typeName == 'STRING' ; 'XXX-XX-' + value[7:11]",
 					"onFailure": "ERROR"
 				}
 			]
@@ -344,7 +344,7 @@ func TestDisabledRuleSkipped(t *testing.T) {
 					"kind": "CONDITION",
 					"type": "CEL",
 					"mode": "WRITE",
-					"expr": "message.amount > 1000.0",
+					"expr": "message.Amount > 1000.0",
 					"onFailure": "ERROR",
 					"disabled": true
 				}

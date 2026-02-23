@@ -32,7 +32,7 @@ func TestCelConditionMultiFieldValidation(t *testing.T) {
 					"kind": "CONDITION",
 					"type": "CEL",
 					"mode": "WRITE",
-					"expr": "message.amount > 0.0 && size(message.currency) == 3 && size(message.orderId) > 0",
+					"expr": "message.Amount > 0.0 && size(message.Currency) == 3 && size(message.OrderID) > 0",
 					"onFailure": "ERROR"
 				}
 			]
@@ -81,7 +81,7 @@ func TestCelConditionWriteReadBothPaths(t *testing.T) {
 					"kind": "CONDITION",
 					"type": "CEL",
 					"mode": "WRITEREAD",
-					"expr": "message.amount > 0.0",
+					"expr": "message.Amount > 0.0",
 					"onFailure": "ERROR"
 				}
 			]
@@ -181,7 +181,7 @@ func TestCelConditionMixedModes(t *testing.T) {
 					"kind": "CONDITION",
 					"type": "CEL",
 					"mode": "WRITE",
-					"expr": "size(message.orderId) > 0",
+					"expr": "size(message.OrderID) > 0",
 					"onFailure": "ERROR"
 				},
 				{
@@ -189,7 +189,7 @@ func TestCelConditionMixedModes(t *testing.T) {
 					"kind": "CONDITION",
 					"type": "CEL",
 					"mode": "READ",
-					"expr": "message.status != 'ERROR'",
+					"expr": "message.Status != 'ERROR'",
 					"onFailure": "ERROR"
 				}
 			]

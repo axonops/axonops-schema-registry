@@ -31,7 +31,7 @@ func TestDefaultRuleSetApplied(t *testing.T) {
 	defer deleteSubject(t, subject)
 
 	// Set subject config with a defaultRuleSet that enforces amount > 0.
-	setSubjectConfig(t, subject, `{"compatibility":"NONE","defaultRuleSet":{"domainRules":[{"name":"amount-positive","kind":"CONDITION","type":"CEL","mode":"WRITE","expr":"message.amount > 0.0","onFailure":"ERROR"}]}}`)
+	setSubjectConfig(t, subject, `{"compatibility":"NONE","defaultRuleSet":{"domainRules":[{"name":"amount-positive","kind":"CONDITION","type":"CEL","mode":"WRITE","expr":"message.Amount > 0.0","onFailure":"ERROR"}]}}`)
 
 	// Register the schema WITHOUT any ruleSet — it should inherit the default.
 	registerSchemaViaHTTP(t, subject, `{"schema": `+jsonQuote(orderPolicySchema)+`}`)
@@ -65,10 +65,10 @@ func TestOverrideRuleSetEnforced(t *testing.T) {
 	defer deleteSubject(t, subject)
 
 	// Set subject config with an overrideRuleSet that enforces a strict range.
-	setSubjectConfig(t, subject, `{"compatibility":"NONE","overrideRuleSet":{"domainRules":[{"name":"amount-range-override","kind":"CONDITION","type":"CEL","mode":"WRITE","expr":"message.amount > 0.0 && message.amount < 10000.0","onFailure":"ERROR"}]}}`)
+	setSubjectConfig(t, subject, `{"compatibility":"NONE","overrideRuleSet":{"domainRules":[{"name":"amount-range-override","kind":"CONDITION","type":"CEL","mode":"WRITE","expr":"message.Amount > 0.0 && message.Amount < 10000.0","onFailure":"ERROR"}]}}`)
 
 	// Register the schema WITH its own permissive rule (orderId non-empty).
-	body := `{"schema": ` + jsonQuote(orderPolicySchema) + `, "ruleSet": {"domainRules":[{"name":"orderId-required","kind":"CONDITION","type":"CEL","mode":"WRITE","expr":"size(message.orderId) > 0","onFailure":"ERROR"}]}}`
+	body := `{"schema": ` + jsonQuote(orderPolicySchema) + `, "ruleSet": {"domainRules":[{"name":"orderId-required","kind":"CONDITION","type":"CEL","mode":"WRITE","expr":"size(message.OrderID) > 0","onFailure":"ERROR"}]}}`
 	registerSchemaViaHTTP(t, subject, body)
 
 	client := newClient(t)
@@ -101,7 +101,7 @@ func TestRuleInheritanceFromV1(t *testing.T) {
 	setSubjectConfig(t, subject, `{"compatibility":"NONE"}`)
 
 	// Register v1 with an explicit rule: amount must be positive.
-	v1Body := `{"schema": ` + jsonQuote(orderPolicySchema) + `, "ruleSet": {"domainRules":[{"name":"amount-positive","kind":"CONDITION","type":"CEL","mode":"WRITE","expr":"message.amount > 0.0","onFailure":"ERROR"}]}}`
+	v1Body := `{"schema": ` + jsonQuote(orderPolicySchema) + `, "ruleSet": {"domainRules":[{"name":"amount-positive","kind":"CONDITION","type":"CEL","mode":"WRITE","expr":"message.Amount > 0.0","onFailure":"ERROR"}]}}`
 	registerSchemaViaHTTP(t, subject, v1Body)
 
 	// Register v2 WITHOUT any ruleSet — should inherit from v1.
