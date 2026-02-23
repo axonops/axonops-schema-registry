@@ -219,9 +219,12 @@ func newRuleSerializer(t *testing.T, client schemaregistry.Client) *avrov2.Seria
 }
 
 // newRuleDeserializer creates an avrov2 Deserializer for rule execution.
+// UseLatestVersion=true is required so GetReaderSchema fetches the latest
+// schema (with ruleSet) enabling READ-mode rules and migration discovery.
 func newRuleDeserializer(t *testing.T, client schemaregistry.Client) *avrov2.Deserializer {
 	t.Helper()
 	conf := avrov2.NewDeserializerConfig()
+	conf.UseLatestVersion = true
 	deser, err := avrov2.NewDeserializer(client, serde.ValueSerde, conf)
 	require.NoError(t, err, "failed to create rule-aware deserializer")
 	return deser
@@ -247,6 +250,7 @@ func newCsfleDeserializer(t *testing.T, client schemaregistry.Client) *avrov2.De
 	t.Helper()
 	t.Setenv("VAULT_TOKEN", getVaultToken())
 	conf := avrov2.NewDeserializerConfig()
+	conf.UseLatestVersion = true
 	conf.RuleConfig = map[string]string{
 		"secret.access.key": getVaultToken(),
 	}
@@ -302,6 +306,9 @@ func buildSchemaWithEncryptRule(avroSchema, kekName string) string {
 }
 
 // isRuleError checks if an error is from a data contract rule violation.
+// The confluent-kafka-go client wraps rule failures in RuleConditionErr whose
+// Error() returns "Expr failed: '<expr>'" or "Condition failed: '<name>'",
+// or the inner ErrorAction wraps with "rule <name> failed: ...".
 func isRuleError(err error) bool {
 	if err == nil {
 		return false
@@ -310,7 +317,9 @@ func isRuleError(err error) bool {
 	return strings.Contains(msg, "Rule") ||
 		strings.Contains(msg, "rule") ||
 		strings.Contains(msg, "condition") ||
-		strings.Contains(msg, "Condition")
+		strings.Contains(msg, "Condition") ||
+		strings.Contains(msg, "Expr failed") ||
+		strings.Contains(msg, "Expr Failed")
 }
 
 // ============================================================================
