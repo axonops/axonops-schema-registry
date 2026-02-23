@@ -11484,7 +11484,7 @@ curl -X POST http://localhost:8081/dek-registry/v1/keks \
 
 `POST /dek-registry/v1/keks`
 
-Creates a new Key Encryption Key (KEK) with the specified configuration. The KEK name MUST be unique within the registry. The `kmsType` specifies the Key Management Service provider (e.g. `aws-kms`, `azure-kms`, `gcp-kms`). The `kmsKeyId` identifies the master key in the KMS. The `shared` flag indicates whether this KEK is shared across multiple schema subjects.
+Creates a new Key Encryption Key (KEK) with the specified configuration. The KEK name MUST be unique within the registry. The `kmsType` specifies the Key Management Service provider (e.g. `aws-kms`, `azure-kms`, `gcp-kms`, `hcvault`, `openbao`). The `kmsKeyId` identifies the master key in the KMS. The `shared` flag indicates whether this KEK is shared across multiple schema subjects.
 
 > Body parameter
 
@@ -11939,7 +11939,7 @@ curl -X POST http://localhost:8081/dek-registry/v1/keks/{name}/deks \
 
 `POST /dek-registry/v1/keks/{name}/deks`
 
-Creates a new Data Encryption Key (DEK) under the specified KEK for the given subject. The `algorithm` specifies the encryption algorithm (e.g. `AES256_GCM`, `AES128_GCM`). If `encryptedKeyMaterial` is provided, it is stored as-is. If omitted, the registry generates a new DEK and encrypts it using the KEK.
+Creates a new Data Encryption Key (DEK) under the specified KEK for the given subject. The `algorithm` specifies the encryption algorithm (e.g. `AES256_GCM`, `AES128_GCM`, `AES256_SIV`). If `encryptedKeyMaterial` is provided, it is stored as-is. If omitted, the registry generates a new DEK and encrypts it using the KEK.
 
 > Body parameter
 
@@ -12049,7 +12049,7 @@ Returns the latest version of the Data Encryption Key (DEK) for the specified su
 |---|---|---|---|---|
 |name|path|string|true|The name of the KEK.|
 |subject|path|string|true|The DEK subject name.|
-|algorithm|query|string|false|Filter by encryption algorithm (e.g. `AES256_GCM`, `AES128_GCM`).|
+|algorithm|query|string|false|Filter by encryption algorithm (e.g. `AES256_GCM`, `AES128_GCM`, `AES256_SIV`).|
 |deleted|query|boolean|false|When set to `true`, returns the DEK even if it has been soft-deleted.|
 
 > Example responses
@@ -12129,7 +12129,7 @@ Deletes the Data Encryption Key (DEK) for the specified subject under the given 
 |---|---|---|---|---|
 |name|path|string|true|The name of the KEK.|
 |subject|path|string|true|The DEK subject name.|
-|algorithm|query|string|false|Filter by encryption algorithm (e.g. `AES256_GCM`, `AES128_GCM`).|
+|algorithm|query|string|false|Filter by encryption algorithm (e.g. `AES256_GCM`, `AES128_GCM`, `AES256_SIV`).|
 |permanent|query|boolean|false|When set to `true`, permanently removes the DEK from storage. The DEK MUST have been soft-deleted first.|
 
 > Example responses
@@ -12204,7 +12204,7 @@ Returns a list of all version numbers for the specified DEK subject under the gi
 |---|---|---|---|---|
 |name|path|string|true|The name of the KEK.|
 |subject|path|string|true|The DEK subject name.|
-|algorithm|query|string|false|Filter by encryption algorithm (e.g. `AES256_GCM`, `AES128_GCM`).|
+|algorithm|query|string|false|Filter by encryption algorithm (e.g. `AES256_GCM`, `AES128_GCM`, `AES256_SIV`).|
 |deleted|query|boolean|false|When set to `true`, soft-deleted DEK versions are included in the results.|
 
 > Example responses
@@ -12282,7 +12282,7 @@ Returns the specified version of the Data Encryption Key (DEK) for the given sub
 |name|path|string|true|The name of the KEK.|
 |subject|path|string|true|The DEK subject name.|
 |version|path|integer|true|The DEK version number. MUST be a positive integer.|
-|algorithm|query|string|false|Filter by encryption algorithm (e.g. `AES256_GCM`, `AES128_GCM`).|
+|algorithm|query|string|false|Filter by encryption algorithm (e.g. `AES256_GCM`, `AES128_GCM`, `AES256_SIV`).|
 |deleted|query|boolean|false|When set to `true`, returns the DEK even if it has been soft-deleted.|
 
 > Example responses
@@ -12325,6 +12325,15 @@ Returns the specified version of the Data Encryption Key (DEK) for the given sub
 }
 ```
 
+> The version parameter is invalid. MUST be a positive integer (1 or greater). Non-numeric, zero, and negative values are rejected.
+
+```json
+{
+  "error_code": 42202,
+  "message": "Invalid version: must be a positive integer"
+}
+```
+
 > 500 Response
 
 ```json
@@ -12340,6 +12349,7 @@ Returns the specified version of the Data Encryption Key (DEK) for the given sub
 |---|---|---|---|
 |200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The DEK version details.|[DEKResponse](#schemadekresponse)|
 |404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|The specified KEK, DEK subject, or version was not found.|[ErrorResponse](#schemaerrorresponse)|
+|422|[Unprocessable Entity](https://tools.ietf.org/html/rfc2518#section-10.3)|The version parameter is invalid. MUST be a positive integer (1 or greater). Non-numeric, zero, and negative values are rejected.|[ErrorResponse](#schemaerrorresponse)|
 |500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
 
 > **Warning:** 
@@ -12369,7 +12379,7 @@ Restores a previously soft-deleted Data Encryption Key (DEK) for the specified s
 |---|---|---|---|---|
 |name|path|string|true|The name of the KEK.|
 |subject|path|string|true|The DEK subject name.|
-|algorithm|query|string|false|Filter by encryption algorithm (e.g. `AES256_GCM`, `AES128_GCM`).|
+|algorithm|query|string|false|Filter by encryption algorithm (e.g. `AES256_GCM`, `AES128_GCM`, `AES256_SIV`).|
 
 > Example responses
 
@@ -14666,7 +14676,7 @@ The request body for creating a new Key Encryption Key (KEK).
 |Name|Type|Required|Restrictions|Description|
 |---|---|---|---|---|
 |name|string|true|none|The unique name of the KEK. MUST be unique within the registry.|
-|kmsType|string|true|none|The Key Management Service provider type (e.g. `aws-kms`, `azure-kms`, `gcp-kms`).|
+|kmsType|string|true|none|The Key Management Service provider type (e.g. `aws-kms`, `azure-kms`, `gcp-kms`, `hcvault`, `openbao`).|
 |kmsKeyId|string|true|none|The identifier of the master key in the KMS. The format depends on the KMS provider.|
 |kmsProps|object|false|none|Additional properties for the KMS provider. The keys and values depend on the KMS type.|
 |» **additionalProperties**|string|false|none|none|
@@ -14754,7 +14764,7 @@ The request body for creating a new Data Encryption Key (DEK) under a KEK.
 |---|---|---|---|---|
 |subject|string|true|none|The subject name for this DEK. Typically corresponds to a Kafka topic.|
 |version|integer|false|none|The version number for this DEK. If omitted, defaults to 1 or the next available version.|
-|algorithm|string|false|none|The encryption algorithm to use (e.g. `AES256_GCM`, `AES128_GCM`). Defaults to `AES256_GCM` if omitted.|
+|algorithm|string|false|none|The encryption algorithm to use (e.g. `AES256_GCM`, `AES128_GCM`, `AES256_SIV`). Defaults to `AES256_GCM` if omitted.|
 |encryptedKeyMaterial|string|false|none|The pre-encrypted key material. If provided, it is stored as-is. If omitted, the registry generates a new DEK and encrypts it using the KEK.|
 
 #### Enumerated Values
@@ -14763,6 +14773,7 @@ The request body for creating a new Data Encryption Key (DEK) under a KEK.
 |---|---|
 |algorithm|AES256_GCM|
 |algorithm|AES128_GCM|
+|algorithm|AES256_SIV|
 
 ## DEKResponse
 <!-- backwards compatibility -->
