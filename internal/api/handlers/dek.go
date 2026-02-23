@@ -226,7 +226,7 @@ func (h *Handler) GetDEK(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, dekToResponse(dek))
+	writeJSON(w, http.StatusOK, dekToGetResponse(dek))
 }
 
 // ListDEKVersions handles GET /dek-registry/v1/keks/{name}/deks/{subject}/versions
@@ -280,7 +280,7 @@ func (h *Handler) GetDEKVersion(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, dekToResponse(dek))
+	writeJSON(w, http.StatusOK, dekToGetResponse(dek))
 }
 
 // DeleteDEK handles DELETE /dek-registry/v1/keks/{name}/deks/{subject}
@@ -349,6 +349,20 @@ func dekToResponse(dek *storage.DEKRecord) types.DEKResponse {
 		Algorithm:            dek.Algorithm,
 		EncryptedKeyMaterial: dek.EncryptedKeyMaterial,
 		KeyMaterial:          dek.KeyMaterial,
+		Ts:                   dek.Ts,
+		Deleted:              dek.Deleted,
+	}
+}
+
+// dekToGetResponse is like dekToResponse but strips plaintext KeyMaterial.
+// Plaintext key material MUST only be returned on create, never on retrieval.
+func dekToGetResponse(dek *storage.DEKRecord) types.DEKResponse {
+	return types.DEKResponse{
+		KEKName:              dek.KEKName,
+		Subject:              dek.Subject,
+		Version:              dek.Version,
+		Algorithm:            dek.Algorithm,
+		EncryptedKeyMaterial: dek.EncryptedKeyMaterial,
 		Ts:                   dek.Ts,
 		Deleted:              dek.Deleted,
 	}

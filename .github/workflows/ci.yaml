@@ -1235,6 +1235,10 @@ jobs:
           BDD_KMS: "true"
           BDD_TAGS: "@kms"
           CONTAINER_CMD: docker
+          KMS_VAULT_ADDR: "http://localhost:18200"
+          KMS_VAULT_TOKEN: "test-root-token"
+          KMS_BAO_ADDR: "http://localhost:18201"
+          KMS_BAO_TOKEN: "test-bao-token"
         run: go test -tags bdd -v -count=1 -timeout 15m ./tests/bdd/...
 
       - name: Show container logs on failure
@@ -1269,6 +1273,10 @@ jobs:
           BDD_KMS: "true"
           BDD_TAGS: "@kms"
           CONTAINER_CMD: docker
+          KMS_VAULT_ADDR: "http://localhost:18200"
+          KMS_VAULT_TOKEN: "test-root-token"
+          KMS_BAO_ADDR: "http://localhost:18201"
+          KMS_BAO_TOKEN: "test-bao-token"
         run: go test -tags bdd -v -count=1 -timeout 15m ./tests/bdd/...
 
       - name: Show container logs on failure
@@ -1303,6 +1311,10 @@ jobs:
           BDD_KMS: "true"
           BDD_TAGS: "@kms"
           CONTAINER_CMD: docker
+          KMS_VAULT_ADDR: "http://localhost:18200"
+          KMS_VAULT_TOKEN: "test-root-token"
+          KMS_BAO_ADDR: "http://localhost:18201"
+          KMS_BAO_TOKEN: "test-bao-token"
         run: go test -tags bdd -v -count=1 -timeout 20m ./tests/bdd/...
 
       - name: Show container logs on failure

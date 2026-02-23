@@ -1,6 +1,6 @@
 module github.com/axonops/schema-registry-go-serde-tests
 
-go 1.24
+go 1.24.0
 
 require (
 	github.com/confluentinc/confluent-kafka-go/v2 v2.8.0
@@ -38,11 +38,11 @@ require (
 	github.com/tink-crypto/tink-go-hcvault/v2 v2.1.0 // indirect
 	github.com/tink-crypto/tink-go/v2 v2.1.0 // indirect
 	github.com/xiatechs/jsonata-go v1.8.5 // indirect
-	golang.org/x/crypto v0.27.0 // indirect
+	golang.org/x/crypto v0.48.0 // indirect
 	golang.org/x/exp v0.0.0-20240112132812-db7319d0e0e3 // indirect
-	golang.org/x/net v0.29.0 // indirect
-	golang.org/x/sys v0.25.0 // indirect
-	golang.org/x/text v0.18.0 // indirect
+	golang.org/x/net v0.49.0 // indirect
+	golang.org/x/sys v0.41.0 // indirect
+	golang.org/x/text v0.34.0 // indirect
 	golang.org/x/time v0.6.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20240318140521-94a12d6c2237 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240318140521-94a12d6c2237 // indirect
