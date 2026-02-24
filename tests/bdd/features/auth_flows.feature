@@ -199,6 +199,132 @@ Feature: Authentication flows and RBAC
     Then the response status should be 403
 
   # ---------------------------------------------------------------------------
+  # RBAC - DEK Registry (encryption) endpoints
+  # ---------------------------------------------------------------------------
+
+  @auth
+  Scenario: Readonly user can GET /dek-registry/v1/keks
+    Given I authenticate as "admin" with password "admin-password"
+    And I create a user with username "enc-viewer1" password "enc-pass" role "readonly"
+    Then the response status should be 201
+    When I authenticate as "enc-viewer1" with password "enc-pass"
+    And I GET "/dek-registry/v1/keks"
+    Then the response status should be 200
+
+  @auth
+  Scenario: Readonly user cannot POST KEK
+    Given I authenticate as "admin" with password "admin-password"
+    And I create a user with username "enc-viewer2" password "enc-pass" role "readonly"
+    Then the response status should be 201
+    When I authenticate as "enc-viewer2" with password "enc-pass"
+    And I POST "/dek-registry/v1/keks" with body:
+      """
+      {"name":"rbac-test-kek","kmsType":"aws-kms","kmsKeyId":"arn:aws:kms:us-east-1:123:key/test"}
+      """
+    Then the response status should be 403
+
+  @auth
+  Scenario: Developer can GET /dek-registry/v1/keks
+    Given I authenticate as "admin" with password "admin-password"
+    And I create a user with username "enc-dev1" password "enc-pass" role "developer"
+    Then the response status should be 201
+    When I authenticate as "enc-dev1" with password "enc-pass"
+    And I GET "/dek-registry/v1/keks"
+    Then the response status should be 200
+
+  @auth
+  Scenario: Developer cannot POST KEK
+    Given I authenticate as "admin" with password "admin-password"
+    And I create a user with username "enc-dev2" password "enc-pass" role "developer"
+    Then the response status should be 201
+    When I authenticate as "enc-dev2" with password "enc-pass"
+    And I POST "/dek-registry/v1/keks" with body:
+      """
+      {"name":"rbac-dev-kek","kmsType":"aws-kms","kmsKeyId":"arn:aws:kms:us-east-1:123:key/test"}
+      """
+    Then the response status should be 403
+
+  @auth
+  Scenario: Admin can create and read KEK
+    Given I authenticate as "admin" with password "admin-password"
+    And I create a user with username "enc-admin1" password "enc-pass" role "admin"
+    Then the response status should be 201
+    When I authenticate as "enc-admin1" with password "enc-pass"
+    And I POST "/dek-registry/v1/keks" with body:
+      """
+      {"name":"admin-rbac-kek","kmsType":"aws-kms","kmsKeyId":"arn:aws:kms:us-east-1:123:key/test"}
+      """
+    Then the response status should be 200
+    When I GET "/dek-registry/v1/keks"
+    Then the response status should be 200
+
+  @auth
+  Scenario: Admin can delete KEK
+    Given I authenticate as "admin" with password "admin-password"
+    And I create a user with username "enc-admin2" password "enc-pass" role "admin"
+    Then the response status should be 201
+    When I authenticate as "enc-admin2" with password "enc-pass"
+    And I POST "/dek-registry/v1/keks" with body:
+      """
+      {"name":"admin-delete-kek","kmsType":"aws-kms","kmsKeyId":"arn:aws:kms:us-east-1:123:key/del"}
+      """
+    Then the response status should be 200
+    When I DELETE "/dek-registry/v1/keks/admin-delete-kek"
+    Then the response status should be 200
+
+  # ---------------------------------------------------------------------------
+  # RBAC - Exporter endpoints
+  # ---------------------------------------------------------------------------
+
+  @auth
+  Scenario: Readonly user can GET /exporters
+    Given I authenticate as "admin" with password "admin-password"
+    And I create a user with username "exp-viewer1" password "exp-pass" role "readonly"
+    Then the response status should be 201
+    When I authenticate as "exp-viewer1" with password "exp-pass"
+    And I GET "/exporters"
+    Then the response status should be 200
+
+  @auth
+  Scenario: Readonly user cannot POST exporter
+    Given I authenticate as "admin" with password "admin-password"
+    And I create a user with username "exp-viewer2" password "exp-pass" role "readonly"
+    Then the response status should be 201
+    When I authenticate as "exp-viewer2" with password "exp-pass"
+    And I POST "/exporters" with body:
+      """
+      {"name":"rbac-test-exporter","subjects":["test"],"contextType":"CUSTOM","context":"test-ctx","config":{"schema.registry.url":"http://remote:8081"}}
+      """
+    Then the response status should be 403
+
+  @auth
+  Scenario: Developer cannot POST exporter
+    Given I authenticate as "admin" with password "admin-password"
+    And I create a user with username "exp-dev1" password "exp-pass" role "developer"
+    Then the response status should be 201
+    When I authenticate as "exp-dev1" with password "exp-pass"
+    And I POST "/exporters" with body:
+      """
+      {"name":"dev-test-exporter","subjects":["test"],"contextType":"CUSTOM","context":"test-ctx","config":{"schema.registry.url":"http://remote:8081"}}
+      """
+    Then the response status should be 403
+
+  @auth
+  Scenario: Admin can create and list exporters
+    Given I authenticate as "admin" with password "admin-password"
+    And I create a user with username "exp-admin1" password "exp-pass" role "admin"
+    Then the response status should be 201
+    When I authenticate as "exp-admin1" with password "exp-pass"
+    And I POST "/exporters" with body:
+      """
+      {"name":"admin-test-exporter","subjects":["test"],"contextType":"CUSTOM","context":"test-ctx","config":{"schema.registry.url":"http://remote:8081"}}
+      """
+    Then the response status should be 200
+    When I GET "/exporters"
+    Then the response status should be 200
+
+
+  # ---------------------------------------------------------------------------
   # Metrics (public endpoint, no auth needed)
   # ---------------------------------------------------------------------------
 

@@ -134,6 +134,11 @@ func (tc *TestContext) DELETE(path string) error {
 	return tc.DoRequest("DELETE", path, nil)
 }
 
+// PATCH sends a PATCH request with no body.
+func (tc *TestContext) PATCH(path string) error {
+	return tc.DoRequest("PATCH", path, nil)
+}
+
 // DoRawRequest sends an HTTP request with a raw string body (not JSON-marshaled).
 func (tc *TestContext) DoRawRequest(method, path string, body string) error {
 	path = tc.resolveVars(path)

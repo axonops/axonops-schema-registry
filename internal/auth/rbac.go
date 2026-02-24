@@ -209,6 +209,23 @@ func DefaultEndpointPermissions() []EndpointPermission {
 		{Method: "POST", PathPrefix: "/exporters", Permission: PermissionExporterWrite},
 		{Method: "PUT", PathPrefix: "/exporters", Permission: PermissionExporterWrite},
 		{Method: "DELETE", PathPrefix: "/exporters", Permission: PermissionExporterWrite},
+
+		// Mode delete operations
+		{Method: "DELETE", PathPrefix: "/mode", Permission: PermissionModeWrite},
+
+		// Admin operations (user management, API keys, roles)
+		{Method: "GET", PathPrefix: "/admin", Permission: PermissionAdminRead},
+		{Method: "POST", PathPrefix: "/admin", Permission: PermissionAdminWrite},
+		{Method: "PUT", PathPrefix: "/admin", Permission: PermissionAdminWrite},
+		{Method: "DELETE", PathPrefix: "/admin", Permission: PermissionAdminWrite},
+
+		// Self-service account operations (any authenticated user)
+		{Method: "GET", PathPrefix: "/me", Permission: PermissionSchemaRead},
+		{Method: "POST", PathPrefix: "/me", Permission: PermissionSchemaRead},
+
+		// Contexts and metadata (read-only, any authenticated user)
+		{Method: "GET", PathPrefix: "/contexts", Permission: PermissionSchemaRead},
+		{Method: "GET", PathPrefix: "/v1/metadata", Permission: PermissionSchemaRead},
 	}
 }
 

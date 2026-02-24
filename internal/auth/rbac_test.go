@@ -379,3 +379,149 @@ func setUser(ctx context.Context, user *User) context.Context {
 	ctx = context.WithValue(ctx, RoleContextKey, user.Role)
 	return ctx
 }
+
+
+func TestDefaultEndpointPermissionsIncludesDEKRegistry(t *testing.T) {
+	perms := DefaultEndpointPermissions()
+
+	tests := []struct {
+		method     string
+		pathPrefix string
+		wantPerm   Permission
+	}{
+		{"GET", "/dek-registry", PermissionEncryptionRead},
+		{"POST", "/dek-registry", PermissionEncryptionWrite},
+		{"PUT", "/dek-registry", PermissionEncryptionWrite},
+		{"DELETE", "/dek-registry", PermissionEncryptionWrite},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.method+" "+tt.pathPrefix, func(t *testing.T) {
+			found := false
+			for _, ep := range perms {
+				if ep.Method == tt.method && ep.PathPrefix == tt.pathPrefix {
+					found = true
+					if ep.Permission != tt.wantPerm {
+						t.Errorf("%s %s: want permission %s, got %s", tt.method, tt.pathPrefix, tt.wantPerm, ep.Permission)
+					}
+					break
+				}
+			}
+			if !found {
+				t.Errorf("no endpoint permission found for %s %s", tt.method, tt.pathPrefix)
+			}
+		})
+	}
+}
+
+func TestDefaultEndpointPermissionsIncludesExporters(t *testing.T) {
+	perms := DefaultEndpointPermissions()
+
+	tests := []struct {
+		method     string
+		pathPrefix string
+		wantPerm   Permission
+	}{
+		{"GET", "/exporters", PermissionExporterRead},
+		{"POST", "/exporters", PermissionExporterWrite},
+		{"PUT", "/exporters", PermissionExporterWrite},
+		{"DELETE", "/exporters", PermissionExporterWrite},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.method+" "+tt.pathPrefix, func(t *testing.T) {
+			found := false
+			for _, ep := range perms {
+				if ep.Method == tt.method && ep.PathPrefix == tt.pathPrefix {
+					found = true
+					if ep.Permission != tt.wantPerm {
+						t.Errorf("%s %s: want permission %s, got %s", tt.method, tt.pathPrefix, tt.wantPerm, ep.Permission)
+					}
+					break
+				}
+			}
+			if !found {
+				t.Errorf("no endpoint permission found for %s %s", tt.method, tt.pathPrefix)
+			}
+		})
+	}
+}
+
+func TestEncryptionPermissionsInRoles(t *testing.T) {
+	hasPermission := func(perms []Permission, target Permission) bool {
+		for _, p := range perms {
+			if p == target {
+				return true
+			}
+		}
+		return false
+	}
+
+	// Roles that MUST have both read and write for encryption and exporter
+	privilegedRoles := []Role{RoleSuperAdmin, RoleAdmin}
+	for _, role := range privilegedRoles {
+		perms := GetRolePermissions(role)
+		t.Run(string(role)+"_has_encryption_and_exporter_rw", func(t *testing.T) {
+			if !hasPermission(perms, PermissionEncryptionRead) {
+				t.Errorf("%s should have encryption:read", role)
+			}
+			if !hasPermission(perms, PermissionEncryptionWrite) {
+				t.Errorf("%s should have encryption:write", role)
+			}
+			if !hasPermission(perms, PermissionExporterRead) {
+				t.Errorf("%s should have exporter:read", role)
+			}
+			if !hasPermission(perms, PermissionExporterWrite) {
+				t.Errorf("%s should have exporter:write", role)
+			}
+		})
+	}
+
+	// Roles that MUST have read but NOT write for encryption and exporter
+	restrictedRoles := []Role{RoleDeveloper, RoleReadOnly}
+	for _, role := range restrictedRoles {
+		perms := GetRolePermissions(role)
+		t.Run(string(role)+"_has_encryption_and_exporter_ro", func(t *testing.T) {
+			if !hasPermission(perms, PermissionEncryptionRead) {
+				t.Errorf("%s should have encryption:read", role)
+			}
+			if hasPermission(perms, PermissionEncryptionWrite) {
+				t.Errorf("%s should NOT have encryption:write", role)
+			}
+			if !hasPermission(perms, PermissionExporterRead) {
+				t.Errorf("%s should have exporter:read", role)
+			}
+			if hasPermission(perms, PermissionExporterWrite) {
+				t.Errorf("%s should NOT have exporter:write", role)
+			}
+		})
+	}
+}
+
+func TestAuthorizeEndpointDenyByDefault(t *testing.T) {
+	cfg := config.RBACConfig{
+		Enabled:     true,
+		DefaultRole: "readonly",
+	}
+	authorizer := NewAuthorizer(cfg)
+	permissions := DefaultEndpointPermissions()
+
+	// Create a dummy handler that returns 200 if reached
+	dummyHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	wrapped := authorizer.AuthorizeEndpoint(permissions)(dummyHandler)
+
+	// Make a request to a path that does NOT match any permission entry
+	req := httptest.NewRequest("GET", "/some/random/path", nil)
+	user := &User{Username: "testuser", Role: "admin"}
+	req = req.WithContext(setUser(req.Context(), user))
+
+	rr := httptest.NewRecorder()
+	wrapped.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusForbidden {
+		t.Errorf("expected 403 for unmatched path, got %d", rr.Code)
+	}
+}

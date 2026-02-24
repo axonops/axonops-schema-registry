@@ -1807,3 +1807,33 @@ func TestSetConfig_BlockedByReadOnlyOverrideMode(t *testing.T) {
 		t.Errorf("expected 422, got %d: %s", w.Code, w.Body.String())
 	}
 }
+
+
+func TestWriteInternalErrorDoesNotLeakDetails(t *testing.T) {
+	w := httptest.NewRecorder()
+	sensitiveErr := fmt.Errorf("connection refused: postgres://user:password@db:5432/registry")
+	writeInternalError(w, sensitiveErr)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("expected status 500, got %d", w.Code)
+	}
+
+	body := w.Body.String()
+
+	if !strings.Contains(body, "Internal server error") {
+		t.Errorf("response body should contain generic message, got: %s", body)
+	}
+
+	// Verify no sensitive details are leaked to the client
+	leaked := []string{"postgres", "password", "connection refused", "db:5432"}
+	for _, secret := range leaked {
+		if strings.Contains(body, secret) {
+			t.Errorf("response body must not contain %q, got: %s", secret, body)
+		}
+	}
+
+	contentType := w.Header().Get("Content-Type")
+	if contentType != "application/vnd.schemaregistry.v1+json" {
+		t.Errorf("expected Content-Type application/vnd.schemaregistry.v1+json, got %s", contentType)
+	}
+}

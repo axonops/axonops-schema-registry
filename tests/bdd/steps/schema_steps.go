@@ -79,6 +79,9 @@ func RegisterSchemaSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 	ctx.Step(`^I DELETE "([^"]*)"$`, func(path string) error {
 		return tc.DELETE(path)
 	})
+	ctx.Step(`^I PATCH "([^"]*)"$`, func(path string) error {
+		return tc.PATCH(path)
+	})
 
 	// --- When steps ---
 	ctx.Step(`^I register a schema under subject "([^"]*)":$`, func(subject string, schema *godog.DocString) error {
@@ -202,6 +205,12 @@ func RegisterSchemaSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 	ctx.Step(`^the response should contain "([^"]*)"$`, func(expected string) error {
 		if !strings.Contains(string(tc.LastBody), expected) {
 			return fmt.Errorf("response does not contain %q: %s", expected, string(tc.LastBody))
+		}
+		return nil
+	})
+	ctx.Step(`^the response should not contain "([^"]*)"$`, func(unexpected string) error {
+		if strings.Contains(string(tc.LastBody), unexpected) {
+			return fmt.Errorf("response should not contain %q but does: %s", unexpected, string(tc.LastBody))
 		}
 		return nil
 	})

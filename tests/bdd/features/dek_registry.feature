@@ -737,3 +737,18 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
     And the response should be valid JSON
     And the response should have error code 42202
     And the response should contain "positive integer"
+
+  Scenario: GET DEK does not return plaintext key material
+    Given I POST "/dek-registry/v1/keks" with body:
+      """
+      {"name":"keymaterial-kek","kmsType":"aws-kms","kmsKeyId":"arn:aws:kms:us-east-1:123456789012:key/km"}
+      """
+    And I POST "/dek-registry/v1/keks/keymaterial-kek/deks" with body:
+      """
+      {"subject":"km.subject","algorithm":"AES256_GCM","encryptedKeyMaterial":"a2V5bWF0ZXJpYWw="}
+      """
+    When I GET "/dek-registry/v1/keks/keymaterial-kek/deks/km.subject"
+    Then the response status should be 200
+    And the response should be valid JSON
+    And the response field "encryptedKeyMaterial" should be "a2V5bWF0ZXJpYWw="
+    And the response field "keyMaterial" should be empty or absent
