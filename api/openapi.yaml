@@ -424,6 +424,16 @@ paths:
             API compatibility.
           schema:
             type: string
+        - name: referenceFormat
+          in: query
+          description: >-
+            Controls how schema references are returned. When set to `RESOLVED`, each reference
+            in the response includes inline `schema` content resolved from the registry.
+            Default behavior returns references without inline schema content.
+          required: false
+          schema:
+            type: string
+            enum: [RESOLVED]
       responses:
         '200':
           description: The schema identified by the given global ID.
@@ -814,6 +824,16 @@ paths:
             An optional format hint for the returned schema string.
           schema:
             type: string
+        - name: referenceFormat
+          in: query
+          description: >-
+            Controls how schema references are returned. When set to `RESOLVED`, each reference
+            in the response includes inline `schema` content resolved from the registry.
+            Default behavior returns references without inline schema content.
+          required: false
+          schema:
+            type: string
+            enum: [RESOLVED]
       responses:
         '200':
           description: The schema version detail.
@@ -2403,6 +2423,16 @@ paths:
             An optional subject name filter.
           schema:
             type: string
+        - name: referenceFormat
+          in: query
+          description: >-
+            Controls how schema references are returned. When set to `RESOLVED`, each reference
+            in the response includes inline `schema` content resolved from the registry.
+            Default behavior returns references without inline schema content.
+          required: false
+          schema:
+            type: string
+            enum: [RESOLVED]
       responses:
         '200':
           description: The schema identified by the given global ID.
@@ -2772,6 +2802,16 @@ paths:
             An optional format hint for the returned schema string.
           schema:
             type: string
+        - name: referenceFormat
+          in: query
+          description: >-
+            Controls how schema references are returned. When set to `RESOLVED`, each reference
+            in the response includes inline `schema` content resolved from the registry.
+            Default behavior returns references without inline schema content.
+          required: false
+          schema:
+            type: string
+            enum: [RESOLVED]
       responses:
         '200':
           description: The schema version detail.
@@ -6000,6 +6040,13 @@ components:
           type: boolean
           description: Whether the rule is currently disabled.
           default: false
+        enableAt:
+          type: integer
+          format: int64
+          description: >-
+            Optional epoch-millisecond timestamp for scheduled rule activation.
+            This is an enterprise pass-through field — the value is accepted, stored,
+            and returned but not enforced by AxonOps Schema Registry.
 
     RuleSet:
       type: object
@@ -6361,6 +6408,16 @@ components:
           $ref: '#/components/schemas/RuleSet'
         overrideRuleSet:
           $ref: '#/components/schemas/RuleSet'
+        aliasForDeks:
+          type: string
+          description: >-
+            Alias for DEK subjects. Enterprise pass-through field — accepted, stored,
+            and returned but not enforced.
+        compatibilityPolicy:
+          type: string
+          description: >-
+            Compatibility policy. Enterprise pass-through field — accepted, stored,
+            and returned but not enforced.
 
     ConfigRequest:
       type: object
@@ -6403,6 +6460,16 @@ components:
           $ref: '#/components/schemas/RuleSet'
         overrideRuleSet:
           $ref: '#/components/schemas/RuleSet'
+        aliasForDeks:
+          type: string
+          description: >-
+            Alias for DEK subjects. Enterprise pass-through field — accepted, stored,
+            and returned but not enforced.
+        compatibilityPolicy:
+          type: string
+          description: >-
+            Compatibility policy. Enterprise pass-through field — accepted, stored,
+            and returned but not enforced.
 
     # --- Mode Schemas ---
 

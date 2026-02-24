@@ -140,6 +140,8 @@ A **reference** is a pointer from one schema to another, enabling cross-subject 
 
 References allow complex data models to be built from reusable, independently versioned components.
 
+When retrieving schemas, you can pass the query parameter `?referenceFormat=RESOLVED` on `GET /schemas/ids/{id}` or `GET /subjects/{subject}/versions/{version}` to resolve references inline. Each reference in the response will include the full schema content in an additional `schema` field.
+
 ## How It Works: The Registration and Serialization Flow
 
 ### Producer: Registering and Serializing

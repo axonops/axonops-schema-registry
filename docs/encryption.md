@@ -175,6 +175,14 @@ Response:
 }
 ```
 
+### Test KEK Connectivity
+
+Test whether the registry can connect to the KMS provider configured for a KEK. This is useful for validating KMS configuration before creating DEKs. Returns `204 No Content` on success, or `422 Unprocessable Entity` if no KMS provider is configured for the KEK.
+
+```bash
+curl -X POST http://localhost:8081/dek-registry/v1/keks/my-aws-kek/test
+```
+
 ---
 
 ## Creating and Managing DEKs
@@ -281,6 +289,14 @@ Response:
 }
 ```
 
+### Rewrap a DEK
+
+Re-encrypt an existing DEK using the current KEK/KMS configuration. This is useful after rotating the underlying KMS key: the DEK's plaintext key material stays the same, but its `encryptedKeyMaterial` is re-wrapped with the new KMS key version. Returns `422 Unprocessable Entity` if no KMS provider is configured for the parent KEK.
+
+```bash
+curl -X POST "http://localhost:8081/dek-registry/v1/keks/my-aws-kek/deks/orders-value?rewrap=true"
+```
+
 ---
 
 ## Soft-Delete and Undelete
@@ -291,9 +307,11 @@ Both KEKs and DEKs support a three-level deletion model consistent with the rest
 |-----------|--------|-------------|
 | `DELETE /...` | Sets `deleted=true`. Resource no longer appears in listings (unless `?deleted=true`). | Yes, via undelete. |
 | `DELETE /...?permanent=true` | Permanently removes the resource from storage. | No. |
-| `PUT /.../undelete` | Clears the `deleted` flag, restoring the resource to active state. | N/A |
+| `POST /.../undelete` | Clears the `deleted` flag, restoring the resource to active state. | N/A |
 
 ### Soft-Delete a KEK
+
+Soft-deleting a KEK returns `204 No Content` with no response body.
 
 ```bash
 curl -X DELETE http://localhost:8081/dek-registry/v1/keks/my-aws-kek
@@ -302,10 +320,12 @@ curl -X DELETE http://localhost:8081/dek-registry/v1/keks/my-aws-kek
 ### Undelete a KEK
 
 ```bash
-curl -X PUT http://localhost:8081/dek-registry/v1/keks/my-aws-kek/undelete
+curl -X POST http://localhost:8081/dek-registry/v1/keks/my-aws-kek/undelete
 ```
 
 ### Permanently Delete a KEK
+
+Permanent deletion also returns `204 No Content` with no response body.
 
 ```bash
 curl -X DELETE "http://localhost:8081/dek-registry/v1/keks/my-aws-kek?permanent=true"
@@ -315,6 +335,8 @@ curl -X DELETE "http://localhost:8081/dek-registry/v1/keks/my-aws-kek?permanent=
 
 ### Soft-Delete a DEK
 
+Soft-deleting a DEK returns `204 No Content` with no response body.
+
 ```bash
 curl -X DELETE http://localhost:8081/dek-registry/v1/keks/my-aws-kek/deks/orders-value
 ```
@@ -322,10 +344,12 @@ curl -X DELETE http://localhost:8081/dek-registry/v1/keks/my-aws-kek/deks/orders
 ### Undelete a DEK
 
 ```bash
-curl -X PUT http://localhost:8081/dek-registry/v1/keks/my-aws-kek/deks/orders-value/undelete
+curl -X POST http://localhost:8081/dek-registry/v1/keks/my-aws-kek/deks/orders-value/undelete
 ```
 
 ### Permanently Delete a DEK
+
+Permanent deletion also returns `204 No Content` with no response body.
 
 ```bash
 curl -X DELETE "http://localhost:8081/dek-registry/v1/keks/my-aws-kek/deks/orders-value?permanent=true"
@@ -434,8 +458,9 @@ The `algorithm` field on a DEK specifies the symmetric encryption algorithm used
 | `GET` | `/dek-registry/v1/keks` | List all KEK names (add `?deleted=true` to include soft-deleted) |
 | `GET` | `/dek-registry/v1/keks/{name}` | Get a KEK by name (add `?deleted=true` to return even if soft-deleted) |
 | `PUT` | `/dek-registry/v1/keks/{name}` | Update a KEK (`kmsProps`, `doc`, `shared` only) |
-| `DELETE` | `/dek-registry/v1/keks/{name}` | Soft-delete a KEK (add `?permanent=true` to permanently delete) |
-| `PUT` | `/dek-registry/v1/keks/{name}/undelete` | Undelete a soft-deleted KEK |
+| `DELETE` | `/dek-registry/v1/keks/{name}` | Soft-delete a KEK (add `?permanent=true` to permanently delete). Returns `204 No Content`. |
+| `POST` | `/dek-registry/v1/keks/{name}/undelete` | Undelete a soft-deleted KEK |
+| `POST` | `/dek-registry/v1/keks/{name}/test` | Test connectivity to the KMS provider configured for this KEK. Returns `204` on success, `422` if KMS is not configured. |
 
 ### DEK Endpoints
 
@@ -446,8 +471,11 @@ The `algorithm` field on a DEK specifies the symmetric encryption algorithm used
 | `GET` | `/dek-registry/v1/keks/{name}/deks/{subject}` | Get the latest DEK for a subject (add `?algorithm=...` to filter, `?deleted=true` to include soft-deleted) |
 | `GET` | `/dek-registry/v1/keks/{name}/deks/{subject}/versions` | List DEK version numbers for a subject |
 | `GET` | `/dek-registry/v1/keks/{name}/deks/{subject}/versions/{version}` | Get a specific DEK version (add `?algorithm=...` to filter, `?deleted=true` to include soft-deleted) |
-| `DELETE` | `/dek-registry/v1/keks/{name}/deks/{subject}` | Soft-delete a DEK (add `?permanent=true` to permanently delete, `?algorithm=...` to target specific algorithm) |
-| `PUT` | `/dek-registry/v1/keks/{name}/deks/{subject}/undelete` | Undelete a soft-deleted DEK (add `?algorithm=...` to target specific algorithm) |
+| `POST` | `/dek-registry/v1/keks/{name}/deks/{subject}` | Create a DEK with subject in path, or re-wrap an existing DEK (add `?rewrap=true`). Returns `422` if KMS is not configured for rewrap. |
+| `DELETE` | `/dek-registry/v1/keks/{name}/deks/{subject}` | Soft-delete a DEK (add `?permanent=true` to permanently delete, `?algorithm=...` to target specific algorithm). Returns `204 No Content`. |
+| `DELETE` | `/dek-registry/v1/keks/{name}/deks/{subject}/versions/{version}` | Delete a specific DEK version (add `?permanent=true` to permanently delete, `?algorithm=...` to target specific algorithm). Returns `204 No Content`. |
+| `POST` | `/dek-registry/v1/keks/{name}/deks/{subject}/undelete` | Undelete a soft-deleted DEK (add `?algorithm=...` to target specific algorithm) |
+| `POST` | `/dek-registry/v1/keks/{name}/deks/{subject}/versions/{version}/undelete` | Undelete a specific soft-deleted DEK version (add `?algorithm=...` to target specific algorithm) |
 
 ---
 

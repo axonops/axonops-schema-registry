@@ -174,6 +174,7 @@ Each rule in a RuleSet has the following fields:
 | `onSuccess` | string | No | Action when rule succeeds: `NONE` (default) or `ERROR` |
 | `onFailure` | string | No | Action when rule fails: `NONE`, `ERROR` (default for CONDITION), or `DLQ` |
 | `disabled` | bool | No | If `true`, rule is stored but not executed |
+| `enableAt` | integer (epoch ms) | No | Optional timestamp for scheduled rule activation. Enterprise pass-through -- accepted, stored, and returned but not enforced. |
 
 The `kind` field determines how the rule behaves:
 
@@ -306,6 +307,8 @@ When many schemas under the same subject (or across all subjects) need the same 
 | `defaultRuleSet` | Applied to schemas when the registration request does not include an explicit `ruleSet` |
 | `overrideRuleSet` | Forcefully merged on top of any ruleSet |
 
+The configuration endpoint also accepts the enterprise pass-through fields `aliasForDeks` and `compatibilityPolicy`. These fields are accepted, stored, and returned in responses but are not enforced by the registry. They exist for wire compatibility with Confluent Schema Registry enterprise features.
+
 These fields are set via the `PUT /config` or `PUT /config/{subject}` endpoints, alongside the compatibility level.
 
 ### The 3-Layer Merge
@@ -422,6 +425,7 @@ Different API endpoints return metadata and ruleSet in different ways:
 | `GET /schemas/ids/{id}` | Yes | Returns `metadata` and `ruleSet`. Note that metadata is stored per subject-version, so the same global ID MAY have different metadata in different subjects. |
 | `POST /subjects/{subject}` (lookup) | Yes | Finds an existing schema by schema text. Metadata is NOT considered during lookup matching -- the match is based on schema text only. Returns the metadata of the matched version. |
 | `GET /schemas` (list) | Yes | Returns `metadata` and `ruleSet` for each schema in the list. |
+| `GET /subjects/{subject}/metadata` | Yes | Returns the metadata from the latest schema version for a subject. Returns 404 if subject not found, empty object if no metadata exists. |
 
 **Key point:** The schema lookup endpoint (`POST /subjects/{subject}`) matches by schema text only. If you have two versions with the same text but different metadata, the lookup returns the first match. It does NOT filter by metadata.
 

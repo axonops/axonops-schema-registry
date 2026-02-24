@@ -148,6 +148,7 @@ The full set of context-prefixed endpoints mirrors the root-level routes:
 | `GET /config` | `GET /contexts/{context}/config` |
 | `PUT /mode` | `PUT /contexts/{context}/mode` |
 | `POST /compatibility/subjects/{subject}/versions/{version}` | `POST /contexts/{context}/compatibility/subjects/{subject}/versions/{version}` |
+| `GET /subjects/{subject}/metadata` | `GET /contexts/{context}/subjects/{subject}/metadata` |
 | `POST /import/schemas` | `POST /contexts/{context}/import/schemas` |
 
 > When both a URL prefix context and a qualified subject name are present, the **qualified subject takes precedence**. For example, `POST /contexts/.team-a/subjects/:.team-b:my-subject/versions` targets context `.team-b`, not `.team-a`.
