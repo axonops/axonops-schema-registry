@@ -3308,18 +3308,19 @@ func (s *Store) UndeleteDEK(ctx context.Context, kekName, subject string, versio
 
 // UpdateDEK updates the encrypted key material and timestamp of an existing DEK.
 func (s *Store) UpdateDEK(ctx context.Context, dek *storage.DEKRecord) error {
-	query := `UPDATE deks SET encrypted_key_material = ?, ts = ? WHERE kek_name = ? AND subject = ? AND version = ? AND algorithm = ?`
-	if err := s.session.Query(query, dek.EncryptedKeyMaterial, dek.Ts, dek.KEKName, dek.Subject, dek.Version, dek.Algorithm).WithContext(ctx).Exec(); err != nil {
-		return err
-	}
-	// Cassandra UPDATEs are upserts — verify the DEK exists by reading it back.
+	// Cassandra UPDATEs are upserts — verify the DEK exists first.
 	var count int
-	countQuery := `SELECT COUNT(*) FROM deks WHERE kek_name = ? AND subject = ? AND version = ? AND algorithm = ?`
-	if err := s.session.Query(countQuery, dek.KEKName, dek.Subject, dek.Version, dek.Algorithm).WithContext(ctx).Scan(&count); err != nil {
+	countQuery := `SELECT COUNT(*) FROM deks WHERE kek_name = ? AND subject = ? AND version = ?`
+	if err := s.session.Query(countQuery, dek.KEKName, dek.Subject, dek.Version).WithContext(ctx).Scan(&count); err != nil {
 		return err
 	}
 	if count == 0 {
 		return storage.ErrDEKNotFound
+	}
+	// algorithm is not part of the primary key, so we can't filter by it in WHERE.
+	query := `UPDATE deks SET encrypted_key_material = ?, ts = ? WHERE kek_name = ? AND subject = ? AND version = ?`
+	if err := s.session.Query(query, dek.EncryptedKeyMaterial, dek.Ts, dek.KEKName, dek.Subject, dek.Version).WithContext(ctx).Exec(); err != nil {
+		return err
 	}
 	return nil
 }

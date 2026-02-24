@@ -162,7 +162,7 @@ Feature: KMS Server-Side Field-Level Encryption
     And I store the response field "encryptedKeyMaterial" as "original_encrypted"
     # Soft-delete the DEK
     When I DELETE "/dek-registry/v1/keks/lifecycle-enc-kek/deks/lifecycle.encrypted.field"
-    Then the response status should be 200
+    Then the response status should be 204
     # Undelete the DEK
     When I PUT "/dek-registry/v1/keks/lifecycle-enc-kek/deks/lifecycle.encrypted.field/undelete" with body:
       """
@@ -183,10 +183,10 @@ Feature: KMS Server-Side Field-Level Encryption
     And the response field "encryptedKeyMaterial" should be non-empty
     # Soft-delete first (required before permanent delete)
     When I DELETE "/dek-registry/v1/keks/permdelete-enc-kek/deks/permdelete.encrypted.field"
-    Then the response status should be 200
+    Then the response status should be 204
     # Permanent delete
     When I DELETE "/dek-registry/v1/keks/permdelete-enc-kek/deks/permdelete.encrypted.field?permanent=true"
-    Then the response status should be 200
+    Then the response status should be 204
     # Verify DEK is gone even with deleted=true
     When I GET "/dek-registry/v1/keks/permdelete-enc-kek/deks/permdelete.encrypted.field?deleted=true"
     Then the response status should be 404

@@ -59,6 +59,7 @@ Feature: Security Hardening
   # DEK key material protection
   # ---------------------------------------------------------------------------
 
+  @axonops-only
   Scenario: DEK GET response strips plaintext key material
     Given I POST "/dek-registry/v1/keks" with body:
       """
@@ -73,6 +74,7 @@ Feature: Security Hardening
     And the response field "encryptedKeyMaterial" should be "c2VjdXJpdHk="
     And the response field "keyMaterial" should be empty or absent
 
+  @axonops-only
   Scenario: DEK version GET response strips plaintext key material
     Given I POST "/dek-registry/v1/keks" with body:
       """

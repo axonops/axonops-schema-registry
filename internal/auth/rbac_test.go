@@ -380,7 +380,6 @@ func setUser(ctx context.Context, user *User) context.Context {
 	return ctx
 }
 
-
 func TestDefaultEndpointPermissionsIncludesDEKRegistry(t *testing.T) {
 	perms := DefaultEndpointPermissions()
 

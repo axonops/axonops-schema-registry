@@ -1808,7 +1808,6 @@ func TestSetConfig_BlockedByReadOnlyOverrideMode(t *testing.T) {
 	}
 }
 
-
 func TestWriteInternalErrorDoesNotLeakDetails(t *testing.T) {
 	w := httptest.NewRecorder()
 	sensitiveErr := fmt.Errorf("connection refused: postgres://user:password@db:5432/registry")
