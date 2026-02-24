@@ -168,7 +168,7 @@ Feature: KMS Server-Side Field-Level Encryption
       """
       {}
       """
-    Then the response status should be 200
+    Then the response status should be 204
     # Retrieve and verify key material persists
     When I GET "/dek-registry/v1/keks/lifecycle-enc-kek/deks/lifecycle.encrypted.field"
     Then the response status should be 200
