@@ -186,6 +186,29 @@ func (h *Handler) GetSchemaByID(w http.ResponseWriter, r *http.Request) {
 		schemaStr = h.registry.FormatSchema(r.Context(), registryCtx, schema, format)
 	}
 
+	// When referenceFormat is set, resolve reference schemas inline
+	if refFormat := r.URL.Query().Get("referenceFormat"); strings.EqualFold(refFormat, "RESOLVED") && len(schema.References) > 0 {
+		resolved := h.resolveReferenceSchemasForResponse(r.Context(), registryCtx, schema.References)
+		resp := map[string]interface{}{
+			"schema":     schemaStr,
+			"schemaType": schemaTypeForResponse(schema.SchemaType),
+			"references": resolved,
+		}
+		if schema.Metadata != nil {
+			resp["metadata"] = schema.Metadata
+		}
+		if schema.RuleSet != nil {
+			resp["ruleSet"] = schema.RuleSet
+		}
+		if r.URL.Query().Get("fetchMaxId") == "true" {
+			if maxID, err := h.registry.GetMaxSchemaID(r.Context(), registryCtx); err == nil {
+				resp["maxId"] = maxID
+			}
+		}
+		writeJSON(w, http.StatusOK, resp)
+		return
+	}
+
 	resp := types.SchemaByIDResponse{
 		Schema:     schemaStr,
 		SchemaType: schemaTypeForResponse(schema.SchemaType),
@@ -378,6 +401,28 @@ func (h *Handler) GetVersion(w http.ResponseWriter, r *http.Request) {
 	schemaStr := schema.Schema
 	if format := r.URL.Query().Get("format"); format != "" {
 		schemaStr = h.registry.FormatSchema(r.Context(), registryCtx, schema, format)
+	}
+
+	// When referenceFormat is set, resolve reference schemas inline
+	if refFormat := r.URL.Query().Get("referenceFormat"); strings.EqualFold(refFormat, "RESOLVED") && len(schema.References) > 0 {
+		resolved := h.resolveReferenceSchemasForResponse(r.Context(), registryCtx, schema.References)
+		resp := map[string]interface{}{
+			"subject":    schema.Subject,
+			"id":         schema.ID,
+			"version":    schema.Version,
+			"schemaType": schemaTypeForResponse(schema.SchemaType),
+			"schema":     schemaStr,
+			"references": resolved,
+		}
+		meta := withConfluentVersion(schema.Metadata, schema.Version)
+		if meta != nil {
+			resp["metadata"] = meta
+		}
+		if schema.RuleSet != nil {
+			resp["ruleSet"] = schema.RuleSet
+		}
+		writeJSON(w, http.StatusOK, resp)
+		return
 	}
 
 	resp := types.SubjectVersionResponse{
@@ -774,17 +819,7 @@ func (h *Handler) GetConfig(w http.ResponseWriter, r *http.Request) {
 			writeInternalError(w, err)
 			return
 		}
-		writeJSON(w, http.StatusOK, types.ConfigResponse{
-			CompatibilityLevel: config.CompatibilityLevel,
-			Normalize:          config.Normalize,
-			ValidateFields:     config.ValidateFields,
-			Alias:              config.Alias,
-			CompatibilityGroup: config.CompatibilityGroup,
-			DefaultMetadata:    config.DefaultMetadata,
-			OverrideMetadata:   config.OverrideMetadata,
-			DefaultRuleSet:     config.DefaultRuleSet,
-			OverrideRuleSet:    config.OverrideRuleSet,
-		})
+		writeJSON(w, http.StatusOK, configToResponse(config))
 		return
 	}
 
@@ -803,17 +838,7 @@ func (h *Handler) GetConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, types.ConfigResponse{
-		CompatibilityLevel: config.CompatibilityLevel,
-		Normalize:          config.Normalize,
-		ValidateFields:     config.ValidateFields,
-		Alias:              config.Alias,
-		CompatibilityGroup: config.CompatibilityGroup,
-		DefaultMetadata:    config.DefaultMetadata,
-		OverrideMetadata:   config.OverrideMetadata,
-		DefaultRuleSet:     config.DefaultRuleSet,
-		OverrideRuleSet:    config.OverrideRuleSet,
-	})
+	writeJSON(w, http.StatusOK, configToResponse(config))
 }
 
 // SetConfig handles PUT /config and PUT /config/{subject}
@@ -848,13 +873,15 @@ func (h *Handler) SetConfig(w http.ResponseWriter, r *http.Request) {
 	}
 
 	configOpts := registry.SetConfigOpts{
-		Alias:              req.Alias,
-		CompatibilityGroup: req.CompatibilityGroup,
-		ValidateFields:     req.ValidateFields,
-		DefaultMetadata:    req.DefaultMetadata,
-		OverrideMetadata:   req.OverrideMetadata,
-		DefaultRuleSet:     req.DefaultRuleSet,
-		OverrideRuleSet:    req.OverrideRuleSet,
+		Alias:               req.Alias,
+		CompatibilityGroup:  req.CompatibilityGroup,
+		ValidateFields:      req.ValidateFields,
+		DefaultMetadata:     req.DefaultMetadata,
+		OverrideMetadata:    req.OverrideMetadata,
+		DefaultRuleSet:      req.DefaultRuleSet,
+		OverrideRuleSet:     req.OverrideRuleSet,
+		AliasForDeks:        req.AliasForDeks,
+		CompatibilityPolicy: req.CompatibilityPolicy,
 	}
 	if err := h.registry.SetConfig(r.Context(), registryCtx, subject, req.Compatibility, req.Normalize, configOpts); err != nil {
 		if errors.Is(err, registry.ErrInvalidCompatibility) {
@@ -870,15 +897,17 @@ func (h *Handler) SetConfig(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := types.ConfigRequest{
-		Compatibility:      strings.ToUpper(req.Compatibility),
-		Normalize:          req.Normalize,
-		ValidateFields:     req.ValidateFields,
-		Alias:              req.Alias,
-		CompatibilityGroup: req.CompatibilityGroup,
-		DefaultMetadata:    req.DefaultMetadata,
-		OverrideMetadata:   req.OverrideMetadata,
-		DefaultRuleSet:     req.DefaultRuleSet,
-		OverrideRuleSet:    req.OverrideRuleSet,
+		Compatibility:       strings.ToUpper(req.Compatibility),
+		Normalize:           req.Normalize,
+		ValidateFields:      req.ValidateFields,
+		Alias:               req.Alias,
+		CompatibilityGroup:  req.CompatibilityGroup,
+		DefaultMetadata:     req.DefaultMetadata,
+		OverrideMetadata:    req.OverrideMetadata,
+		DefaultRuleSet:      req.DefaultRuleSet,
+		OverrideRuleSet:     req.OverrideRuleSet,
+		AliasForDeks:        req.AliasForDeks,
+		CompatibilityPolicy: req.CompatibilityPolicy,
 	}
 	writeJSON(w, http.StatusOK, resp)
 }
@@ -1160,6 +1189,23 @@ func parseVersion(s string) (int, error) {
 		return 0, errInvalidVersion
 	}
 	return v, nil
+}
+
+// configToResponse converts a ConfigRecord to a ConfigResponse.
+func configToResponse(config *storage.ConfigRecord) types.ConfigResponse {
+	return types.ConfigResponse{
+		CompatibilityLevel:  config.CompatibilityLevel,
+		Normalize:           config.Normalize,
+		ValidateFields:      config.ValidateFields,
+		Alias:               config.Alias,
+		CompatibilityGroup:  config.CompatibilityGroup,
+		DefaultMetadata:     config.DefaultMetadata,
+		OverrideMetadata:    config.OverrideMetadata,
+		DefaultRuleSet:      config.DefaultRuleSet,
+		OverrideRuleSet:     config.OverrideRuleSet,
+		AliasForDeks:        config.AliasForDeks,
+		CompatibilityPolicy: config.CompatibilityPolicy,
+	}
 }
 
 // writeJSON writes a JSON response.
@@ -1585,4 +1631,51 @@ func (h *Handler) GetServerVersion(w http.ResponseWriter, r *http.Request) {
 		Commit:    h.commit,
 		BuildTime: h.buildTime,
 	})
+}
+
+// GetSubjectMetadata handles GET /subjects/{subject}/metadata
+// Returns the metadata from the latest schema version for the subject.
+func (h *Handler) GetSubjectMetadata(w http.ResponseWriter, r *http.Request) {
+	registryCtx, subject := resolveSubjectAndContext(r)
+	if rejectGlobalContext(w, registryCtx) {
+		return
+	}
+	subject = h.resolveAlias(r.Context(), registryCtx, subject)
+
+	schema, err := h.registry.GetLatestSchema(r.Context(), registryCtx, subject)
+	if err != nil {
+		if errors.Is(err, storage.ErrSubjectNotFound) {
+			writeError(w, http.StatusNotFound, types.ErrorCodeSubjectNotFound, "Subject not found")
+			return
+		}
+		writeInternalError(w, err)
+		return
+	}
+
+	meta := schema.Metadata
+	if meta == nil {
+		meta = &storage.Metadata{}
+	}
+	writeJSON(w, http.StatusOK, meta)
+}
+
+// resolveReferenceSchemasForResponse resolves schema content for each reference
+// and returns them as ResolvedReferences suitable for JSON responses.
+func (h *Handler) resolveReferenceSchemasForResponse(ctx context.Context, registryCtx string, refs []storage.Reference) []types.ResolvedReference {
+	if len(refs) == 0 {
+		return nil
+	}
+	resolved := make([]types.ResolvedReference, len(refs))
+	for i, ref := range refs {
+		resolved[i] = types.ResolvedReference{
+			Name:    ref.Name,
+			Subject: ref.Subject,
+			Version: ref.Version,
+		}
+		schemaRecord, err := h.registry.GetSchemaBySubjectVersion(ctx, registryCtx, ref.Subject, ref.Version)
+		if err == nil {
+			resolved[i].Schema = schemaRecord.Schema
+		}
+	}
+	return resolved
 }

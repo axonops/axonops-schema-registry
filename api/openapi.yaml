@@ -1041,6 +1041,35 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
+  /subjects/{subject}/metadata:
+    get:
+      summary: Get subject metadata
+      description: >-
+        Returns the metadata from the latest schema version registered under the given
+        subject. This endpoint provides quick access to the data contract metadata
+        (tags, properties, sensitive fields) without retrieving the full schema.
+      operationId: getSubjectMetadata
+      tags:
+        - Subjects
+      parameters:
+        - $ref: '#/components/parameters/Subject'
+      responses:
+        '200':
+          description: >-
+            The metadata object from the latest schema version for the subject.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/Metadata'
+        '404':
+          description: Subject not found.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
   /subjects/{subject}:
     post:
       summary: Look up schema under a subject
@@ -2887,6 +2916,34 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '422':
           description: Invalid version identifier.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /contexts/{context}/subjects/{subject}/metadata:
+    get:
+      summary: "[Context-scoped] Get subject metadata"
+      description: >-
+        Context-scoped version of `GET /subjects/{subject}/metadata`. See the root-level
+        operation for full documentation.
+      operationId: getSubjectMetadataContext
+      tags:
+        - Subjects
+      parameters:
+        - $ref: '#/components/parameters/ContextParam'
+        - $ref: '#/components/parameters/Subject'
+      responses:
+        '200':
+          description: The metadata object from the latest schema version.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/Metadata'
+        '404':
+          description: Subject not found.
           content:
             application/vnd.schemaregistry.v1+json:
               schema:
@@ -4931,7 +4988,7 @@ paths:
           $ref: '#/components/responses/InternalServerError'
 
   /dek-registry/v1/keks/{name}/undelete:
-    put:
+    post:
       summary: Undelete a KEK
       description: >-
         Restores a previously soft-deleted Key Encryption Key (KEK). The KEK MUST currently
@@ -4958,6 +5015,52 @@ paths:
               example:
                 error_code: 40470
                 message: "KEK 'my-kek' not found"
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /dek-registry/v1/keks/{name}/test:
+    post:
+      summary: Test KEK connectivity
+      description: >-
+        Validates KMS connectivity for the specified KEK by performing a round-trip
+        encrypt/decrypt test. This is useful for verifying that the KMS provider is properly
+        configured and accessible. The test encrypts a test payload using the KEK's KMS key,
+        then decrypts it and verifies the result matches.
+      operationId: testKek
+      tags:
+        - DEK Registry
+      parameters:
+        - name: name
+          in: path
+          required: true
+          description: The name of the KEK to test.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: KMS connectivity test passed. Returns the KEK details.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/KEKResponse'
+        '404':
+          description: The specified KEK was not found.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error_code: 40470
+                message: "KEK 'my-kek' not found"
+        '422':
+          description: KMS connectivity test failed.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error_code: 42271
+                message: "KMS not configured"
         '500':
           $ref: '#/components/responses/InternalServerError'
 
@@ -5201,6 +5304,187 @@ paths:
                 message: "DEK was not deleted first before being permanently deleted"
         '500':
           $ref: '#/components/responses/InternalServerError'
+    post:
+      summary: Create a DEK with subject in path
+      description: >-
+        Creates a new Data Encryption Key (DEK) under the specified KEK for the subject
+        specified in the URL path. This is the preferred variant of DEK creation where the
+        subject is explicit in the path rather than the request body. When the `rewrap` query
+        parameter is set to `true`, the existing DEK's encrypted key material is re-encrypted
+        under the current KEK key version (used after KEK rotation).
+      operationId: createDekWithSubject
+      tags:
+        - DEK Registry
+      parameters:
+        - name: name
+          in: path
+          required: true
+          description: The name of the KEK under which to create the DEK.
+          schema:
+            type: string
+        - name: subject
+          in: path
+          required: true
+          description: The DEK subject name.
+          schema:
+            type: string
+        - name: rewrap
+          in: query
+          description: >-
+            When set to `true`, re-encrypts the existing DEK's key material under the current
+            KEK key version instead of creating a new DEK. Used after KEK rotation.
+          schema:
+            type: boolean
+            default: false
+      requestBody:
+        required: false
+        content:
+          application/vnd.schemaregistry.v1+json:
+            schema:
+              type: object
+              properties:
+                version:
+                  type: integer
+                  description: >-
+                    The version number for this DEK. If omitted, defaults to 1 or the next
+                    available version.
+                algorithm:
+                  type: string
+                  description: >-
+                    The encryption algorithm (e.g. `AES256_GCM`, `AES128_GCM`, `AES256_SIV`).
+                    Defaults to `AES256_GCM` if omitted.
+                  enum:
+                    - AES256_GCM
+                    - AES128_GCM
+                    - AES256_SIV
+                encryptedKeyMaterial:
+                  type: string
+                  description: >-
+                    Base64-encoded encrypted key material. If omitted and the KEK is shared with
+                    a KMS provider, the registry generates key material automatically.
+          application/json:
+            schema:
+              type: object
+              properties:
+                version:
+                  type: integer
+                algorithm:
+                  type: string
+                  enum:
+                    - AES256_GCM
+                    - AES128_GCM
+                    - AES256_SIV
+                encryptedKeyMaterial:
+                  type: string
+      responses:
+        '200':
+          description: The DEK was created (or rewrapped) successfully.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/DEKResponse'
+        '404':
+          description: The specified KEK was not found.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error_code: 40470
+                message: "KEK 'my-kek' not found"
+        '409':
+          description: A DEK for this subject and version already exists.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error_code: 40972
+                message: "DEK for subject 'my-topic-value' already exists"
+        '422':
+          description: Invalid DEK configuration or KMS failure during rewrap.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error_code: 42271
+                message: "Invalid DEK config"
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /dek-registry/v1/keks/{name}/deks/{subject}/versions/{version}/undelete:
+    post:
+      summary: Undelete a specific DEK version
+      description: >-
+        Restores a previously soft-deleted Data Encryption Key (DEK) version for the specified
+        subject under the given KEK. The DEK version MUST currently be in a soft-deleted state
+        for this operation to succeed.
+      operationId: undeleteDekVersion
+      tags:
+        - DEK Registry
+      parameters:
+        - name: name
+          in: path
+          required: true
+          description: The name of the KEK.
+          schema:
+            type: string
+        - name: subject
+          in: path
+          required: true
+          description: The DEK subject name.
+          schema:
+            type: string
+        - name: version
+          in: path
+          required: true
+          description: >-
+            The DEK version number to restore. MUST be a positive integer.
+          schema:
+            type: integer
+            minimum: 1
+        - name: algorithm
+          in: query
+          description: >-
+            Filter by encryption algorithm (e.g. `AES256_GCM`, `AES128_GCM`, `AES256_SIV`).
+          schema:
+            type: string
+      responses:
+        '204':
+          description: The DEK version was restored successfully.
+        '422':
+          description: >-
+            The version parameter is invalid. MUST be a positive integer (1 or greater).
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidVersion:
+                  summary: Invalid version
+                  value:
+                    error_code: 42202
+                    message: "Invalid version: must be a positive integer"
+        '404':
+          description: The specified KEK, DEK subject, or version was not found.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                kekNotFound:
+                  summary: KEK not found
+                  value:
+                    error_code: 40470
+                    message: "KEK 'my-kek' not found"
+                dekNotFound:
+                  summary: DEK not found
+                  value:
+                    error_code: 40471
+                    message: "DEK for subject 'my-topic-value' not found"
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   /dek-registry/v1/keks/{name}/deks/{subject}/versions:
     get:
@@ -5361,9 +5645,89 @@ paths:
                     message: "DEK version 5 not found"
         '500':
           $ref: '#/components/responses/InternalServerError'
+    delete:
+      summary: Delete a specific DEK version
+      description: >-
+        Deletes a specific version of a Data Encryption Key (DEK) for the specified subject
+        under the given KEK. By default this performs a soft-delete. To permanently remove the
+        DEK version, set `permanent=true`. A DEK version MUST be soft-deleted before it can be
+        permanently deleted.
+      operationId: deleteDekVersion
+      tags:
+        - DEK Registry
+      parameters:
+        - name: name
+          in: path
+          required: true
+          description: The name of the KEK.
+          schema:
+            type: string
+        - name: subject
+          in: path
+          required: true
+          description: The DEK subject name.
+          schema:
+            type: string
+        - name: version
+          in: path
+          required: true
+          description: >-
+            The DEK version number to delete. MUST be a positive integer.
+          schema:
+            type: integer
+            minimum: 1
+        - name: algorithm
+          in: query
+          description: >-
+            Filter by encryption algorithm (e.g. `AES256_GCM`, `AES128_GCM`, `AES256_SIV`).
+          schema:
+            type: string
+        - name: permanent
+          in: query
+          description: >-
+            When set to `true`, permanently removes the DEK version from storage. The DEK version
+            MUST have been soft-deleted first.
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '204':
+          description: The DEK version was deleted successfully.
+        '422':
+          description: >-
+            The version parameter is invalid. MUST be a positive integer (1 or greater).
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidVersion:
+                  summary: Invalid version
+                  value:
+                    error_code: 42202
+                    message: "Invalid version: must be a positive integer"
+        '404':
+          description: The specified KEK, DEK subject, or version was not found.
+          content:
+            application/vnd.schemaregistry.v1+json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                kekNotFound:
+                  summary: KEK not found
+                  value:
+                    error_code: 40470
+                    message: "KEK 'my-kek' not found"
+                dekNotFound:
+                  summary: DEK not found
+                  value:
+                    error_code: 40471
+                    message: "DEK for subject 'my-topic-value' not found"
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   /dek-registry/v1/keks/{name}/deks/{subject}/undelete:
-    put:
+    post:
       summary: Undelete a DEK
       description: >-
         Restores a previously soft-deleted Data Encryption Key (DEK) for the specified subject

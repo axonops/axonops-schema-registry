@@ -151,7 +151,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       }
       """
     When I DELETE "/dek-registry/v1/keks/soft-delete-kek"
-    Then the response status should be 200
+    Then the response status should be 204
 
   Scenario: Soft-deleted KEK not visible in default list
     Given I POST "/dek-registry/v1/keks" with body:
@@ -193,13 +193,11 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       }
       """
     And I DELETE "/dek-registry/v1/keks/undelete-kek"
-    When I PUT "/dek-registry/v1/keks/undelete-kek/undelete" with body:
+    When I POST "/dek-registry/v1/keks/undelete-kek/undelete" with body:
       """
       {}
       """
-    Then the response status should be 200
-    And the response should be valid JSON
-    And the response field "name" should be "undelete-kek"
+    Then the response status should be 204
     # Verify KEK is accessible again
     When I GET "/dek-registry/v1/keks/undelete-kek"
     Then the response status should be 200
@@ -215,7 +213,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       """
     And I DELETE "/dek-registry/v1/keks/permanent-delete-kek"
     When I DELETE "/dek-registry/v1/keks/permanent-delete-kek?permanent=true"
-    Then the response status should be 200
+    Then the response status should be 204
     And I GET "/dek-registry/v1/keks/permanent-delete-kek?deleted=true"
     And the response status should be 404
 
@@ -475,7 +473,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       {"subject":"delete.subject","algorithm":"AES256_GCM","encryptedKeyMaterial":"ZGVsZXRl"}
       """
     When I DELETE "/dek-registry/v1/keks/delete-dek-kek/deks/delete.subject"
-    Then the response status should be 200
+    Then the response status should be 204
 
   Scenario: Undelete DEK
     Given I POST "/dek-registry/v1/keks" with body:
@@ -487,13 +485,11 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       {"subject":"undelete.subject","algorithm":"AES256_GCM","encryptedKeyMaterial":"dW5kZWxldGU="}
       """
     And I DELETE "/dek-registry/v1/keks/undelete-dek-kek/deks/undelete.subject"
-    When I PUT "/dek-registry/v1/keks/undelete-dek-kek/deks/undelete.subject/undelete" with body:
+    When I POST "/dek-registry/v1/keks/undelete-dek-kek/deks/undelete.subject/undelete" with body:
       """
       {}
       """
-    Then the response status should be 200
-    And the response should be valid JSON
-    And the response field "subject" should be "undelete.subject"
+    Then the response status should be 204
 
   # ============================================================================
   # Advanced Scenarios (10 scenarios)
@@ -597,20 +593,20 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       """
     # Soft-delete and verify hidden
     When I DELETE "/dek-registry/v1/keks/lifecycle-kek"
-    Then the response status should be 200
+    Then the response status should be 204
     # Undelete and verify accessible
-    When I PUT "/dek-registry/v1/keks/lifecycle-kek/undelete" with body:
+    When I POST "/dek-registry/v1/keks/lifecycle-kek/undelete" with body:
       """
       {}
       """
-    Then the response status should be 200
+    Then the response status should be 204
     When I GET "/dek-registry/v1/keks/lifecycle-kek"
     Then the response status should be 200
     # Soft-delete again, then permanent delete
     When I DELETE "/dek-registry/v1/keks/lifecycle-kek"
-    Then the response status should be 200
+    Then the response status should be 204
     When I DELETE "/dek-registry/v1/keks/lifecycle-kek?permanent=true"
-    Then the response status should be 200
+    Then the response status should be 204
     When I GET "/dek-registry/v1/keks/lifecycle-kek?deleted=true"
     Then the response status should be 404
 
@@ -752,3 +748,438 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
     And the response should be valid JSON
     And the response field "encryptedKeyMaterial" should be "a2V5bWF0ZXJpYWw="
     And the response field "keyMaterial" should be empty or absent
+
+  # ============================================================================
+  # Confluent Wire-Compatibility: New Endpoints (5 scenarios)
+  # ============================================================================
+
+  Scenario: Create DEK with subject in path
+    Given I POST "/dek-registry/v1/keks" with body:
+      """
+      {"name":"path-create-kek","kmsType":"aws-kms","kmsKeyId":"arn:aws:kms:us-east-1:123456789012:key/pathcreate"}
+      """
+    When I POST "/dek-registry/v1/keks/path-create-kek/deks/path.subject" with body:
+      """
+      {"algorithm":"AES256_GCM","encryptedKeyMaterial":"cGF0aGNyZWF0ZQ=="}
+      """
+    Then the response status should be 200
+    And the response should be valid JSON
+    And the response field "kekName" should be "path-create-kek"
+    And the response field "subject" should be "path.subject"
+    And the response field "version" should be 1
+
+  Scenario: Create DEK with subject in path and empty body
+    Given I POST "/dek-registry/v1/keks" with body:
+      """
+      {"name":"empty-body-kek","kmsType":"aws-kms","kmsKeyId":"arn:aws:kms:us-east-1:123456789012:key/emptybody"}
+      """
+    When I POST "/dek-registry/v1/keks/empty-body-kek/deks/empty.subject"
+    Then the response status should be 200
+    And the response should be valid JSON
+    And the response field "subject" should be "empty.subject"
+    And the response field "algorithm" should be "AES256_GCM"
+
+  Scenario: Delete DEK by specific version
+    Given I POST "/dek-registry/v1/keks" with body:
+      """
+      {"name":"delver-kek","kmsType":"aws-kms","kmsKeyId":"arn:aws:kms:us-east-1:123456789012:key/delver"}
+      """
+    And I POST "/dek-registry/v1/keks/delver-kek/deks" with body:
+      """
+      {"subject":"delver.subject","algorithm":"AES256_GCM","encryptedKeyMaterial":"ZGVsdmVy"}
+      """
+    When I DELETE "/dek-registry/v1/keks/delver-kek/deks/delver.subject/versions/1"
+    Then the response status should be 204
+
+  Scenario: Undelete DEK by specific version
+    Given I POST "/dek-registry/v1/keks" with body:
+      """
+      {"name":"undelver-kek","kmsType":"aws-kms","kmsKeyId":"arn:aws:kms:us-east-1:123456789012:key/undelver"}
+      """
+    And I POST "/dek-registry/v1/keks/undelver-kek/deks" with body:
+      """
+      {"subject":"undelver.subject","algorithm":"AES256_GCM","encryptedKeyMaterial":"dW5kZWx2ZXI="}
+      """
+    And I DELETE "/dek-registry/v1/keks/undelver-kek/deks/undelver.subject/versions/1"
+    When I POST "/dek-registry/v1/keks/undelver-kek/deks/undelver.subject/versions/1/undelete" with body:
+      """
+      {}
+      """
+    Then the response status should be 204
+    # Verify DEK version is accessible again
+    When I GET "/dek-registry/v1/keks/undelver-kek/deks/undelver.subject/versions/1"
+    Then the response status should be 200
+
+  Scenario: Test KEK returns 422 without KMS configured
+    Given I POST "/dek-registry/v1/keks" with body:
+      """
+      {"name":"test-kms-kek","kmsType":"aws-kms","kmsKeyId":"arn:aws:kms:us-east-1:123456789012:key/testkms"}
+      """
+    When I POST "/dek-registry/v1/keks/test-kms-kek/test"
+    Then the response status should be 422
+    And the response should be valid JSON
+
+  # ============================================================================
+  # Rewrap DEK Scenarios (3 scenarios)
+  # ============================================================================
+
+  Scenario: Rewrap DEK returns 422 without KMS configured
+    Given I POST "/dek-registry/v1/keks" with body:
+      """
+      {"name":"rewrap-kek","kmsType":"aws-kms","kmsKeyId":"arn:aws:kms:us-east-1:123456789012:key/rewrap"}
+      """
+    And I POST "/dek-registry/v1/keks/rewrap-kek/deks" with body:
+      """
+      {"subject":"rewrap.subject","algorithm":"AES256_GCM","encryptedKeyMaterial":"cmV3cmFw"}
+      """
+    When I POST "/dek-registry/v1/keks/rewrap-kek/deks/rewrap.subject?rewrap=true" with body:
+      """
+      {}
+      """
+    Then the response status should be 422
+    And the response should be valid JSON
+
+  Scenario: Rewrap DEK for non-existent KEK returns 422 without KMS
+    # Without KMS configured, rewrap returns 422 before checking KEK existence
+    When I POST "/dek-registry/v1/keks/rewrap-missing-kek/deks/any.subject?rewrap=true" with body:
+      """
+      {}
+      """
+    Then the response status should be 422
+    And the response should be valid JSON
+
+  Scenario: Rewrap DEK for non-existent DEK returns 422 without KMS
+    # Without KMS configured, rewrap returns 422 before checking DEK existence
+    Given I POST "/dek-registry/v1/keks" with body:
+      """
+      {"name":"rewrap-nodek-kek","kmsType":"aws-kms","kmsKeyId":"arn:aws:kms:us-east-1:123456789012:key/rewnodek"}
+      """
+    When I POST "/dek-registry/v1/keks/rewrap-nodek-kek/deks/missing.subject?rewrap=true" with body:
+      """
+      {}
+      """
+    Then the response status should be 422
+    And the response should be valid JSON
+
+  # ============================================================================
+  # Error Path Scenarios (10 scenarios)
+  # ============================================================================
+
+  Scenario: Delete non-existent KEK returns 404
+    When I DELETE "/dek-registry/v1/keks/nonexistent-delete-kek"
+    Then the response status should be 404
+    And the response should be valid JSON
+    And the response should have error code 40470
+    And the response should contain "not found"
+
+  Scenario: Undelete non-existent KEK returns 404
+    When I POST "/dek-registry/v1/keks/nonexistent-undelete-kek/undelete" with body:
+      """
+      {}
+      """
+    Then the response status should be 404
+    And the response should be valid JSON
+    And the response should have error code 40470
+
+  Scenario: List DEKs for non-existent KEK returns 404
+    When I GET "/dek-registry/v1/keks/nonexistent-list-dek-kek/deks"
+    Then the response status should be 404
+    And the response should be valid JSON
+    And the response should have error code 40470
+
+  Scenario: Delete DEK version for non-existent KEK returns 404
+    When I DELETE "/dek-registry/v1/keks/nonexistent-delver-kek/deks/some.subject/versions/1"
+    Then the response status should be 404
+    And the response should be valid JSON
+    And the response should have error code 40471
+
+  Scenario: Delete DEK version that does not exist returns 404
+    Given I POST "/dek-registry/v1/keks" with body:
+      """
+      {"name":"delver-miss-kek","kmsType":"aws-kms","kmsKeyId":"arn:aws:kms:us-east-1:123456789012:key/delvermiss"}
+      """
+    When I DELETE "/dek-registry/v1/keks/delver-miss-kek/deks/nonexistent.subject/versions/1"
+    Then the response status should be 404
+    And the response should be valid JSON
+    And the response should have error code 40471
+
+  Scenario: Undelete DEK version for non-existent KEK returns 404
+    When I POST "/dek-registry/v1/keks/nonexistent-undver-kek/deks/some.subject/versions/1/undelete" with body:
+      """
+      {}
+      """
+    Then the response status should be 404
+    And the response should be valid JSON
+    And the response should have error code 40471
+
+  Scenario: Undelete DEK version that does not exist returns 404
+    Given I POST "/dek-registry/v1/keks" with body:
+      """
+      {"name":"undver-miss-kek","kmsType":"aws-kms","kmsKeyId":"arn:aws:kms:us-east-1:123456789012:key/undvermiss"}
+      """
+    When I POST "/dek-registry/v1/keks/undver-miss-kek/deks/nonexistent.subject/versions/1/undelete" with body:
+      """
+      {}
+      """
+    Then the response status should be 404
+    And the response should be valid JSON
+    And the response should have error code 40471
+
+  Scenario: Delete DEK version with invalid version returns 422
+    When I DELETE "/dek-registry/v1/keks/any-kek/deks/any.subject/versions/abc"
+    Then the response status should be 422
+    And the response should be valid JSON
+    And the response should have error code 42202
+    And the response should contain "positive integer"
+
+  Scenario: Delete DEK version with zero returns 422
+    When I DELETE "/dek-registry/v1/keks/any-kek/deks/any.subject/versions/0"
+    Then the response status should be 422
+    And the response should be valid JSON
+    And the response should have error code 42202
+
+  Scenario: Undelete DEK version with invalid version returns 422
+    When I POST "/dek-registry/v1/keks/any-kek/deks/any.subject/versions/abc/undelete" with body:
+      """
+      {}
+      """
+    Then the response status should be 422
+    And the response should be valid JSON
+    And the response should have error code 42202
+    And the response should contain "positive integer"
+
+  # ============================================================================
+  # Permanent Delete Scenarios (3 scenarios)
+  # ============================================================================
+
+  Scenario: Permanent delete DEK after soft-delete
+    Given I POST "/dek-registry/v1/keks" with body:
+      """
+      {"name":"permdel-dek-kek","kmsType":"aws-kms","kmsKeyId":"arn:aws:kms:us-east-1:123456789012:key/permdel"}
+      """
+    And I POST "/dek-registry/v1/keks/permdel-dek-kek/deks" with body:
+      """
+      {"subject":"permdel.subject","algorithm":"AES256_GCM","encryptedKeyMaterial":"cGVybWRlbA=="}
+      """
+    And I DELETE "/dek-registry/v1/keks/permdel-dek-kek/deks/permdel.subject"
+    When I DELETE "/dek-registry/v1/keks/permdel-dek-kek/deks/permdel.subject?permanent=true"
+    Then the response status should be 204
+    # Verify DEK is gone even with ?deleted=true
+    When I GET "/dek-registry/v1/keks/permdel-dek-kek/deks/permdel.subject?deleted=true"
+    Then the response status should be 404
+
+  Scenario: Permanent delete DEK version after soft-delete
+    Given I POST "/dek-registry/v1/keks" with body:
+      """
+      {"name":"permdel-ver-kek","kmsType":"aws-kms","kmsKeyId":"arn:aws:kms:us-east-1:123456789012:key/permdelver"}
+      """
+    And I POST "/dek-registry/v1/keks/permdel-ver-kek/deks" with body:
+      """
+      {"subject":"permdel.ver.subject","algorithm":"AES256_GCM","encryptedKeyMaterial":"cGVybWRlbHZlcg=="}
+      """
+    And I DELETE "/dek-registry/v1/keks/permdel-ver-kek/deks/permdel.ver.subject/versions/1"
+    When I DELETE "/dek-registry/v1/keks/permdel-ver-kek/deks/permdel.ver.subject/versions/1?permanent=true"
+    Then the response status should be 204
+    # Verify version is gone even with ?deleted=true
+    When I GET "/dek-registry/v1/keks/permdel-ver-kek/deks/permdel.ver.subject/versions/1?deleted=true"
+    Then the response status should be 404
+
+  Scenario: Permanent delete DEK without soft-delete first
+    Given I POST "/dek-registry/v1/keks" with body:
+      """
+      {"name":"permdel-direct-kek","kmsType":"aws-kms","kmsKeyId":"arn:aws:kms:us-east-1:123456789012:key/permdeldirect"}
+      """
+    And I POST "/dek-registry/v1/keks/permdel-direct-kek/deks" with body:
+      """
+      {"subject":"permdel.direct.subject","algorithm":"AES256_GCM","encryptedKeyMaterial":"ZGlyZWN0"}
+      """
+    When I DELETE "/dek-registry/v1/keks/permdel-direct-kek/deks/permdel.direct.subject?permanent=true"
+    Then the response status should be 204
+
+  # ============================================================================
+  # Algorithm Filter Scenarios (3 scenarios)
+  # ============================================================================
+
+  Scenario: Get DEK with wrong algorithm returns 404
+    Given I POST "/dek-registry/v1/keks" with body:
+      """
+      {"name":"algo-filter-kek","kmsType":"aws-kms","kmsKeyId":"arn:aws:kms:us-east-1:123456789012:key/algofilter"}
+      """
+    And I POST "/dek-registry/v1/keks/algo-filter-kek/deks" with body:
+      """
+      {"subject":"algo.filter.subject","algorithm":"AES256_GCM","encryptedKeyMaterial":"YWxnb2ZpbHRlcg=="}
+      """
+    When I GET "/dek-registry/v1/keks/algo-filter-kek/deks/algo.filter.subject?algorithm=AES128_GCM"
+    Then the response status should be 404
+    And the response should be valid JSON
+    And the response should have error code 40471
+
+  Scenario: Delete DEK filtered by algorithm
+    Given I POST "/dek-registry/v1/keks" with body:
+      """
+      {"name":"algo-del-kek","kmsType":"aws-kms","kmsKeyId":"arn:aws:kms:us-east-1:123456789012:key/algodel"}
+      """
+    And I POST "/dek-registry/v1/keks/algo-del-kek/deks" with body:
+      """
+      {"subject":"algo.del.subject","algorithm":"AES256_GCM","encryptedKeyMaterial":"YWxnb2RlbA=="}
+      """
+    When I DELETE "/dek-registry/v1/keks/algo-del-kek/deks/algo.del.subject?algorithm=AES256_GCM"
+    Then the response status should be 204
+
+  Scenario: List DEK versions filtered by algorithm
+    Given I POST "/dek-registry/v1/keks" with body:
+      """
+      {"name":"algo-list-kek","kmsType":"aws-kms","kmsKeyId":"arn:aws:kms:us-east-1:123456789012:key/algolist"}
+      """
+    And I POST "/dek-registry/v1/keks/algo-list-kek/deks" with body:
+      """
+      {"subject":"algo.list.subject","algorithm":"AES256_GCM","encryptedKeyMaterial":"YWxnb2xpc3Q="}
+      """
+    And I POST "/dek-registry/v1/keks/algo-list-kek/deks" with body:
+      """
+      {"subject":"algo.list.subject","algorithm":"AES128_GCM","encryptedKeyMaterial":"YWxnb2xpc3Qy"}
+      """
+    When I GET "/dek-registry/v1/keks/algo-list-kek/deks/algo.list.subject/versions?algorithm=AES256_GCM"
+    Then the response status should be 200
+    And the response should be valid JSON
+    And the response should be an array of length 1
+
+  # ============================================================================
+  # Deleted Flag Scenarios (4 scenarios)
+  # ============================================================================
+
+  Scenario: Soft-deleted DEK not visible in default get
+    Given I POST "/dek-registry/v1/keks" with body:
+      """
+      {"name":"delflag-kek","kmsType":"aws-kms","kmsKeyId":"arn:aws:kms:us-east-1:123456789012:key/delflag"}
+      """
+    And I POST "/dek-registry/v1/keks/delflag-kek/deks" with body:
+      """
+      {"subject":"delflag.subject","algorithm":"AES256_GCM","encryptedKeyMaterial":"ZGVsZmxhZw=="}
+      """
+    And I DELETE "/dek-registry/v1/keks/delflag-kek/deks/delflag.subject"
+    When I GET "/dek-registry/v1/keks/delflag-kek/deks/delflag.subject"
+    Then the response status should be 404
+    And the response should have error code 40471
+
+  Scenario: Soft-deleted DEK visible with deleted parameter
+    Given I POST "/dek-registry/v1/keks" with body:
+      """
+      {"name":"delflag-vis-kek","kmsType":"aws-kms","kmsKeyId":"arn:aws:kms:us-east-1:123456789012:key/delflagvis"}
+      """
+    And I POST "/dek-registry/v1/keks/delflag-vis-kek/deks" with body:
+      """
+      {"subject":"delflag.vis.subject","algorithm":"AES256_GCM","encryptedKeyMaterial":"ZGVsZmxhZ3Zpcw=="}
+      """
+    And I DELETE "/dek-registry/v1/keks/delflag-vis-kek/deks/delflag.vis.subject"
+    When I GET "/dek-registry/v1/keks/delflag-vis-kek/deks/delflag.vis.subject?deleted=true"
+    Then the response status should be 200
+    And the response should be valid JSON
+    And the response field "subject" should be "delflag.vis.subject"
+    And the response field "deleted" should be true
+
+  Scenario: List DEK subjects excludes soft-deleted by default
+    Given I POST "/dek-registry/v1/keks" with body:
+      """
+      {"name":"delflag-list-kek","kmsType":"aws-kms","kmsKeyId":"arn:aws:kms:us-east-1:123456789012:key/delflaglist"}
+      """
+    And I POST "/dek-registry/v1/keks/delflag-list-kek/deks" with body:
+      """
+      {"subject":"delflag.list.active","algorithm":"AES256_GCM","encryptedKeyMaterial":"YWN0aXZl"}
+      """
+    And I POST "/dek-registry/v1/keks/delflag-list-kek/deks" with body:
+      """
+      {"subject":"delflag.list.deleted","algorithm":"AES256_GCM","encryptedKeyMaterial":"ZGVsZXRlZA=="}
+      """
+    And I DELETE "/dek-registry/v1/keks/delflag-list-kek/deks/delflag.list.deleted"
+    When I GET "/dek-registry/v1/keks/delflag-list-kek/deks"
+    Then the response status should be 200
+    And the response should be valid JSON
+    And the response array should contain "delflag.list.active"
+    And the response array should not contain "delflag.list.deleted"
+
+  Scenario: List DEK subjects includes soft-deleted with deleted parameter
+    Given I POST "/dek-registry/v1/keks" with body:
+      """
+      {"name":"delflag-listdel-kek","kmsType":"aws-kms","kmsKeyId":"arn:aws:kms:us-east-1:123456789012:key/delflaglistdel"}
+      """
+    And I POST "/dek-registry/v1/keks/delflag-listdel-kek/deks" with body:
+      """
+      {"subject":"delflag.listdel.active","algorithm":"AES256_GCM","encryptedKeyMaterial":"YWN0aXZl"}
+      """
+    And I POST "/dek-registry/v1/keks/delflag-listdel-kek/deks" with body:
+      """
+      {"subject":"delflag.listdel.deleted","algorithm":"AES256_GCM","encryptedKeyMaterial":"ZGVsZXRlZA=="}
+      """
+    And I DELETE "/dek-registry/v1/keks/delflag-listdel-kek/deks/delflag.listdel.deleted"
+    When I GET "/dek-registry/v1/keks/delflag-listdel-kek/deks?deleted=true"
+    Then the response status should be 200
+    And the response should be valid JSON
+    And the response array should contain "delflag.listdel.active"
+    And the response array should contain "delflag.listdel.deleted"
+
+  # ============================================================================
+  # Pagination Scenarios (3 scenarios)
+  # ============================================================================
+
+  Scenario: List KEKs with offset and limit
+    Given I POST "/dek-registry/v1/keks" with body:
+      """
+      {"name":"page-kek-1","kmsType":"aws-kms","kmsKeyId":"arn:aws:kms:us-east-1:123456789012:key/page1"}
+      """
+    And I POST "/dek-registry/v1/keks" with body:
+      """
+      {"name":"page-kek-2","kmsType":"aws-kms","kmsKeyId":"arn:aws:kms:us-east-1:123456789012:key/page2"}
+      """
+    And I POST "/dek-registry/v1/keks" with body:
+      """
+      {"name":"page-kek-3","kmsType":"aws-kms","kmsKeyId":"arn:aws:kms:us-east-1:123456789012:key/page3"}
+      """
+    When I GET "/dek-registry/v1/keks?offset=0&limit=2"
+    Then the response status should be 200
+    And the response should be valid JSON
+    And the response should be an array of length 2
+
+  Scenario: List DEK subjects with offset and limit
+    Given I POST "/dek-registry/v1/keks" with body:
+      """
+      {"name":"page-dek-kek","kmsType":"aws-kms","kmsKeyId":"arn:aws:kms:us-east-1:123456789012:key/pagedek"}
+      """
+    And I POST "/dek-registry/v1/keks/page-dek-kek/deks" with body:
+      """
+      {"subject":"page.subject.1","algorithm":"AES256_GCM","encryptedKeyMaterial":"cGFnZTE="}
+      """
+    And I POST "/dek-registry/v1/keks/page-dek-kek/deks" with body:
+      """
+      {"subject":"page.subject.2","algorithm":"AES256_GCM","encryptedKeyMaterial":"cGFnZTI="}
+      """
+    And I POST "/dek-registry/v1/keks/page-dek-kek/deks" with body:
+      """
+      {"subject":"page.subject.3","algorithm":"AES256_GCM","encryptedKeyMaterial":"cGFnZTM="}
+      """
+    When I GET "/dek-registry/v1/keks/page-dek-kek/deks?offset=1&limit=1"
+    Then the response status should be 200
+    And the response should be valid JSON
+    And the response should be an array of length 1
+
+  Scenario: List DEK versions with offset and limit
+    Given I POST "/dek-registry/v1/keks" with body:
+      """
+      {"name":"page-ver-kek","kmsType":"aws-kms","kmsKeyId":"arn:aws:kms:us-east-1:123456789012:key/pagever"}
+      """
+    And I POST "/dek-registry/v1/keks/page-ver-kek/deks" with body:
+      """
+      {"subject":"page.ver.subject","algorithm":"AES256_GCM","encryptedKeyMaterial":"djE="}
+      """
+    And I POST "/dek-registry/v1/keks/page-ver-kek/deks" with body:
+      """
+      {"subject":"page.ver.subject","algorithm":"AES128_GCM","encryptedKeyMaterial":"djI="}
+      """
+    And I POST "/dek-registry/v1/keks/page-ver-kek/deks" with body:
+      """
+      {"subject":"page.ver.subject","algorithm":"AES256_SIV","encryptedKeyMaterial":"djM="}
+      """
+    When I GET "/dek-registry/v1/keks/page-ver-kek/deks/page.ver.subject/versions?offset=0&limit=2"
+    Then the response status should be 200
+    And the response should be valid JSON
+    And the response should be an array of length 2

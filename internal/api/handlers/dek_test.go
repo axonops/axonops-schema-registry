@@ -294,8 +294,8 @@ func TestDeleteKEK_Soft(t *testing.T) {
 	wDel := httptest.NewRecorder()
 	r.ServeHTTP(wDel, reqDel)
 
-	if wDel.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", wDel.Code, wDel.Body.String())
+	if wDel.Code != http.StatusNoContent {
+		t.Fatalf("expected 204, got %d: %s", wDel.Code, wDel.Body.String())
 	}
 
 	// Should not be found without deleted=true
@@ -336,8 +336,8 @@ func TestDeleteKEK_Permanent(t *testing.T) {
 	wDel := httptest.NewRecorder()
 	r.ServeHTTP(wDel, reqDel)
 
-	if wDel.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", wDel.Code, wDel.Body.String())
+	if wDel.Code != http.StatusNoContent {
+		t.Fatalf("expected 204, got %d: %s", wDel.Code, wDel.Body.String())
 	}
 
 	// Should not be found even with deleted=true
@@ -356,24 +356,24 @@ func TestUndeleteKEK_Success(t *testing.T) {
 
 	r := chi.NewRouter()
 	r.Delete("/dek-registry/v1/keks/{name}", h.DeleteKEK)
-	r.Put("/dek-registry/v1/keks/{name}/undelete", h.UndeleteKEK)
+	r.Post("/dek-registry/v1/keks/{name}/undelete", h.UndeleteKEK)
 	r.Get("/dek-registry/v1/keks/{name}", h.GetKEK)
 
 	// Soft delete
 	reqDel := httptest.NewRequest("DELETE", "/dek-registry/v1/keks/undel-kek", nil)
 	wDel := httptest.NewRecorder()
 	r.ServeHTTP(wDel, reqDel)
-	if wDel.Code != http.StatusOK {
+	if wDel.Code != http.StatusNoContent {
 		t.Fatalf("soft-delete failed: %d", wDel.Code)
 	}
 
 	// Undelete
-	reqUndel := httptest.NewRequest("PUT", "/dek-registry/v1/keks/undel-kek/undelete", nil)
+	reqUndel := httptest.NewRequest("POST", "/dek-registry/v1/keks/undel-kek/undelete", nil)
 	wUndel := httptest.NewRecorder()
 	r.ServeHTTP(wUndel, reqUndel)
 
-	if wUndel.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", wUndel.Code, wUndel.Body.String())
+	if wUndel.Code != http.StatusNoContent {
+		t.Fatalf("expected 204, got %d: %s", wUndel.Code, wUndel.Body.String())
 	}
 
 	// Should be found again without deleted=true
@@ -390,9 +390,9 @@ func TestUndeleteKEK_NotFound(t *testing.T) {
 	h := setupTestHandler(t)
 
 	r := chi.NewRouter()
-	r.Put("/dek-registry/v1/keks/{name}/undelete", h.UndeleteKEK)
+	r.Post("/dek-registry/v1/keks/{name}/undelete", h.UndeleteKEK)
 
-	req := httptest.NewRequest("PUT", "/dek-registry/v1/keks/nonexistent/undelete", nil)
+	req := httptest.NewRequest("POST", "/dek-registry/v1/keks/nonexistent/undelete", nil)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -731,8 +731,8 @@ func TestDeleteDEK_Soft(t *testing.T) {
 	wDel := httptest.NewRecorder()
 	r.ServeHTTP(wDel, reqDel)
 
-	if wDel.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", wDel.Code, wDel.Body.String())
+	if wDel.Code != http.StatusNoContent {
+		t.Fatalf("expected 204, got %d: %s", wDel.Code, wDel.Body.String())
 	}
 
 	// Should not be found without deleted=true
@@ -761,24 +761,24 @@ func TestUndeleteDEK_Success(t *testing.T) {
 
 	r := chi.NewRouter()
 	r.Delete("/dek-registry/v1/keks/{name}/deks/{subject}", h.DeleteDEK)
-	r.Put("/dek-registry/v1/keks/{name}/deks/{subject}/undelete", h.UndeleteDEK)
+	r.Post("/dek-registry/v1/keks/{name}/deks/{subject}/undelete", h.UndeleteDEK)
 	r.Get("/dek-registry/v1/keks/{name}/deks/{subject}", h.GetDEK)
 
 	// Soft delete
 	reqDel := httptest.NewRequest("DELETE", "/dek-registry/v1/keks/undeldek-kek/deks/undeldek-subject", nil)
 	wDel := httptest.NewRecorder()
 	r.ServeHTTP(wDel, reqDel)
-	if wDel.Code != http.StatusOK {
+	if wDel.Code != http.StatusNoContent {
 		t.Fatalf("soft-delete failed: %d", wDel.Code)
 	}
 
 	// Undelete
-	reqUndel := httptest.NewRequest("PUT", "/dek-registry/v1/keks/undeldek-kek/deks/undeldek-subject/undelete", nil)
+	reqUndel := httptest.NewRequest("POST", "/dek-registry/v1/keks/undeldek-kek/deks/undeldek-subject/undelete", nil)
 	wUndel := httptest.NewRecorder()
 	r.ServeHTTP(wUndel, reqUndel)
 
-	if wUndel.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", wUndel.Code, wUndel.Body.String())
+	if wUndel.Code != http.StatusNoContent {
+		t.Fatalf("expected 204, got %d: %s", wUndel.Code, wUndel.Body.String())
 	}
 
 	// Should be found again without deleted=true
@@ -788,5 +788,306 @@ func TestUndeleteDEK_Success(t *testing.T) {
 
 	if wGet.Code != http.StatusOK {
 		t.Errorf("expected 200 after undelete, got %d: %s", wGet.Code, wGet.Body.String())
+	}
+}
+
+// --- Version-specific DEK Delete/Undelete Tests ---
+
+func TestDeleteDEKVersion_Success(t *testing.T) {
+	h := setupTestHandler(t)
+	createKEK(t, h, "delver-kek", "aws-kms", "key-1")
+	createDEK(t, h, "delver-kek", "delver-subject")
+
+	r := chi.NewRouter()
+	r.Delete("/dek-registry/v1/keks/{name}/deks/{subject}/versions/{version}", h.DeleteDEKVersion)
+
+	req := httptest.NewRequest("DELETE", "/dek-registry/v1/keks/delver-kek/deks/delver-subject/versions/1", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNoContent {
+		t.Fatalf("expected 204, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestDeleteDEKVersion_InvalidVersion(t *testing.T) {
+	h := setupTestHandler(t)
+
+	r := chi.NewRouter()
+	r.Delete("/dek-registry/v1/keks/{name}/deks/{subject}/versions/{version}", h.DeleteDEKVersion)
+
+	tests := []struct {
+		name    string
+		version string
+	}{
+		{"non-numeric", "abc"},
+		{"zero", "0"},
+		{"negative", "-1"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest("DELETE", "/dek-registry/v1/keks/some-kek/deks/some-subject/versions/"+tc.version, nil)
+			w := httptest.NewRecorder()
+			r.ServeHTTP(w, req)
+
+			if w.Code != http.StatusUnprocessableEntity {
+				t.Errorf("expected 422, got %d", w.Code)
+			}
+			resp := decodeErrorResponse(t, w)
+			if resp.ErrorCode != types.ErrorCodeInvalidVersion {
+				t.Errorf("expected error_code %d, got %d", types.ErrorCodeInvalidVersion, resp.ErrorCode)
+			}
+		})
+	}
+}
+
+func TestDeleteDEKVersion_NotFound(t *testing.T) {
+	h := setupTestHandler(t)
+	createKEK(t, h, "delver-nf-kek", "aws-kms", "key-1")
+
+	r := chi.NewRouter()
+	r.Delete("/dek-registry/v1/keks/{name}/deks/{subject}/versions/{version}", h.DeleteDEKVersion)
+
+	req := httptest.NewRequest("DELETE", "/dek-registry/v1/keks/delver-nf-kek/deks/no-such-subject/versions/1", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d", w.Code)
+	}
+}
+
+func TestUndeleteDEKVersion_Success(t *testing.T) {
+	h := setupTestHandler(t)
+	createKEK(t, h, "undelver-kek", "aws-kms", "key-1")
+	createDEK(t, h, "undelver-kek", "undelver-subject")
+
+	r := chi.NewRouter()
+	r.Delete("/dek-registry/v1/keks/{name}/deks/{subject}/versions/{version}", h.DeleteDEKVersion)
+	r.Post("/dek-registry/v1/keks/{name}/deks/{subject}/versions/{version}/undelete", h.UndeleteDEKVersion)
+	r.Get("/dek-registry/v1/keks/{name}/deks/{subject}/versions/{version}", h.GetDEKVersion)
+
+	// Soft delete version 1
+	reqDel := httptest.NewRequest("DELETE", "/dek-registry/v1/keks/undelver-kek/deks/undelver-subject/versions/1", nil)
+	wDel := httptest.NewRecorder()
+	r.ServeHTTP(wDel, reqDel)
+	if wDel.Code != http.StatusNoContent {
+		t.Fatalf("delete failed: %d", wDel.Code)
+	}
+
+	// Undelete version 1
+	reqUndel := httptest.NewRequest("POST", "/dek-registry/v1/keks/undelver-kek/deks/undelver-subject/versions/1/undelete", nil)
+	wUndel := httptest.NewRecorder()
+	r.ServeHTTP(wUndel, reqUndel)
+	if wUndel.Code != http.StatusNoContent {
+		t.Fatalf("expected 204, got %d: %s", wUndel.Code, wUndel.Body.String())
+	}
+
+	// Should be accessible again
+	reqGet := httptest.NewRequest("GET", "/dek-registry/v1/keks/undelver-kek/deks/undelver-subject/versions/1", nil)
+	wGet := httptest.NewRecorder()
+	r.ServeHTTP(wGet, reqGet)
+	if wGet.Code != http.StatusOK {
+		t.Errorf("expected 200 after undelete, got %d", wGet.Code)
+	}
+}
+
+func TestUndeleteDEKVersion_InvalidVersion(t *testing.T) {
+	h := setupTestHandler(t)
+
+	r := chi.NewRouter()
+	r.Post("/dek-registry/v1/keks/{name}/deks/{subject}/versions/{version}/undelete", h.UndeleteDEKVersion)
+
+	req := httptest.NewRequest("POST", "/dek-registry/v1/keks/some-kek/deks/some-subject/versions/abc/undelete", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusUnprocessableEntity {
+		t.Errorf("expected 422, got %d", w.Code)
+	}
+}
+
+// --- CreateDEKWithSubject Tests ---
+
+func TestCreateDEKWithSubject_Success(t *testing.T) {
+	h := setupTestHandler(t)
+	createKEK(t, h, "pathcreate-kek", "aws-kms", "key-1")
+
+	body := types.CreateDEKRequest{
+		Algorithm:            "AES256_GCM",
+		EncryptedKeyMaterial: "encrypted-data",
+	}
+	bodyBytes, _ := json.Marshal(body)
+
+	r := chi.NewRouter()
+	r.Post("/dek-registry/v1/keks/{name}/deks/{subject}", h.CreateDEKWithSubject)
+
+	req := httptest.NewRequest("POST", "/dek-registry/v1/keks/pathcreate-kek/deks/path-subject", bytes.NewReader(bodyBytes))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp types.DEKResponse
+	json.NewDecoder(w.Body).Decode(&resp)
+	if resp.KEKName != "pathcreate-kek" {
+		t.Errorf("expected kekName pathcreate-kek, got %s", resp.KEKName)
+	}
+	if resp.Subject != "path-subject" {
+		t.Errorf("expected subject path-subject, got %s", resp.Subject)
+	}
+	if resp.Algorithm != "AES256_GCM" {
+		t.Errorf("expected algorithm AES256_GCM, got %s", resp.Algorithm)
+	}
+}
+
+func TestCreateDEKWithSubject_EmptyBody(t *testing.T) {
+	h := setupTestHandler(t)
+	createKEK(t, h, "emptybody-kek", "aws-kms", "key-1")
+
+	r := chi.NewRouter()
+	r.Post("/dek-registry/v1/keks/{name}/deks/{subject}", h.CreateDEKWithSubject)
+
+	req := httptest.NewRequest("POST", "/dek-registry/v1/keks/emptybody-kek/deks/empty-subject", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 with empty body, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp types.DEKResponse
+	json.NewDecoder(w.Body).Decode(&resp)
+	if resp.Subject != "empty-subject" {
+		t.Errorf("expected subject empty-subject, got %s", resp.Subject)
+	}
+	// Default algorithm should be applied by the registry layer
+	if resp.Algorithm != "AES256_GCM" {
+		t.Errorf("expected default algorithm AES256_GCM, got %s", resp.Algorithm)
+	}
+}
+
+func TestCreateDEKWithSubject_KEKNotFound(t *testing.T) {
+	h := setupTestHandler(t)
+
+	r := chi.NewRouter()
+	r.Post("/dek-registry/v1/keks/{name}/deks/{subject}", h.CreateDEKWithSubject)
+
+	req := httptest.NewRequest("POST", "/dek-registry/v1/keks/nonexistent-kek/deks/some-subject", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d: %s", w.Code, w.Body.String())
+	}
+
+	resp := decodeErrorResponse(t, w)
+	if resp.ErrorCode != types.ErrorCodeKEKNotFound {
+		t.Errorf("expected error_code %d, got %d", types.ErrorCodeKEKNotFound, resp.ErrorCode)
+	}
+}
+
+// --- TestKEK Tests ---
+
+func TestTestKEK_NoKMS(t *testing.T) {
+	h := setupTestHandler(t)
+	createKEK(t, h, "testkek-kek", "aws-kms", "key-1")
+
+	r := chi.NewRouter()
+	r.Post("/dek-registry/v1/keks/{name}/test", h.TestKEK)
+
+	req := httptest.NewRequest("POST", "/dek-registry/v1/keks/testkek-kek/test", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	// Should return 422 since no KMS is configured in test
+	if w.Code != http.StatusUnprocessableEntity {
+		t.Errorf("expected 422 (no KMS configured), got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestTestKEK_NotFound(t *testing.T) {
+	h := setupTestHandler(t)
+
+	r := chi.NewRouter()
+	r.Post("/dek-registry/v1/keks/{name}/test", h.TestKEK)
+
+	req := httptest.NewRequest("POST", "/dek-registry/v1/keks/nonexistent/test", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d", w.Code)
+	}
+}
+
+// --- Pagination Tests ---
+
+func TestListKEKs_Pagination(t *testing.T) {
+	h := setupTestHandler(t)
+	createKEK(t, h, "page-kek-a", "aws-kms", "key-1")
+	createKEK(t, h, "page-kek-b", "aws-kms", "key-2")
+	createKEK(t, h, "page-kek-c", "aws-kms", "key-3")
+
+	r := chi.NewRouter()
+	r.Get("/dek-registry/v1/keks", h.ListKEKs)
+
+	// Test limit
+	req := httptest.NewRequest("GET", "/dek-registry/v1/keks?limit=2", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+
+	var names []string
+	json.NewDecoder(w.Body).Decode(&names)
+	if len(names) != 2 {
+		t.Errorf("expected 2 items with limit=2, got %d: %v", len(names), names)
+	}
+
+	// Test offset
+	req2 := httptest.NewRequest("GET", "/dek-registry/v1/keks?offset=1&limit=1", nil)
+	w2 := httptest.NewRecorder()
+	r.ServeHTTP(w2, req2)
+
+	if w2.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w2.Code)
+	}
+
+	var names2 []string
+	json.NewDecoder(w2.Body).Decode(&names2)
+	if len(names2) != 1 {
+		t.Errorf("expected 1 item with offset=1&limit=1, got %d: %v", len(names2), names2)
+	}
+}
+
+func TestListDEKs_Pagination(t *testing.T) {
+	h := setupTestHandler(t)
+	createKEK(t, h, "pagedek-kek", "aws-kms", "key-1")
+	createDEK(t, h, "pagedek-kek", "subject-a")
+	createDEK(t, h, "pagedek-kek", "subject-b")
+	createDEK(t, h, "pagedek-kek", "subject-c")
+
+	r := chi.NewRouter()
+	r.Get("/dek-registry/v1/keks/{name}/deks", h.ListDEKs)
+
+	req := httptest.NewRequest("GET", "/dek-registry/v1/keks/pagedek-kek/deks?limit=2", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+
+	var subjects []string
+	json.NewDecoder(w.Body).Decode(&subjects)
+	if len(subjects) != 2 {
+		t.Errorf("expected 2 subjects with limit=2, got %d: %v", len(subjects), subjects)
 	}
 }

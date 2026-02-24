@@ -2008,6 +2008,29 @@ func (s *Store) UndeleteDEK(ctx context.Context, kekName, subject string, versio
 	return nil
 }
 
+// UpdateDEK updates the encrypted key material and timestamp of an existing DEK.
+func (s *Store) UpdateDEK(ctx context.Context, dek *storage.DEKRecord) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	subjectMap := s.deks[dek.KEKName]
+	if subjectMap == nil {
+		return storage.ErrDEKNotFound
+	}
+	versionMap := subjectMap[dek.Subject]
+	if versionMap == nil {
+		return storage.ErrDEKNotFound
+	}
+	existing, exists := versionMap[dek.Version]
+	if !exists {
+		return storage.ErrDEKNotFound
+	}
+
+	existing.EncryptedKeyMaterial = dek.EncryptedKeyMaterial
+	existing.Ts = dek.Ts
+	return nil
+}
+
 // normalizeMetadata returns a non-nil Metadata for consistent comparison.
 func normalizeMetadata(m *storage.Metadata) *storage.Metadata {
 	if m == nil {

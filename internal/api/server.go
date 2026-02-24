@@ -158,19 +158,26 @@ func (s *Server) setupRouter() {
 		// because encryption keys are shared resources across all contexts, matching
 		// Confluent's behavior.
 		r.Route("/dek-registry/v1", func(r chi.Router) {
+			// KEK endpoints
 			r.Get("/keks", h.ListKEKs)
 			r.Post("/keks", h.CreateKEK)
 			r.Get("/keks/{name}", h.GetKEK)
 			r.Put("/keks/{name}", h.UpdateKEK)
 			r.Delete("/keks/{name}", h.DeleteKEK)
-			r.Put("/keks/{name}/undelete", h.UndeleteKEK)
+			r.Post("/keks/{name}/undelete", h.UndeleteKEK)
+			r.Post("/keks/{name}/test", h.TestKEK)
+
+			// DEK endpoints
 			r.Get("/keks/{name}/deks", h.ListDEKs)
 			r.Post("/keks/{name}/deks", h.CreateDEK)
 			r.Get("/keks/{name}/deks/{subject}", h.GetDEK)
+			r.Post("/keks/{name}/deks/{subject}", h.CreateDEKWithSubject)
+			r.Delete("/keks/{name}/deks/{subject}", h.DeleteDEK)
+			r.Post("/keks/{name}/deks/{subject}/undelete", h.UndeleteDEK)
 			r.Get("/keks/{name}/deks/{subject}/versions", h.ListDEKVersions)
 			r.Get("/keks/{name}/deks/{subject}/versions/{version}", h.GetDEKVersion)
-			r.Delete("/keks/{name}/deks/{subject}", h.DeleteDEK)
-			r.Put("/keks/{name}/deks/{subject}/undelete", h.UndeleteDEK)
+			r.Delete("/keks/{name}/deks/{subject}/versions/{version}", h.DeleteDEKVersion)
+			r.Post("/keks/{name}/deks/{subject}/versions/{version}/undelete", h.UndeleteDEKVersion)
 		})
 
 		// Account endpoints (self-service, requires auth)
@@ -260,6 +267,7 @@ func (s *Server) mountRegistryRoutes(r chi.Router, h *handlers.Handler) {
 	r.Post("/subjects/{subject}", h.LookupSchema)
 	r.Delete("/subjects/{subject}", h.DeleteSubject)
 	r.Delete("/subjects/{subject}/versions/{version}", h.DeleteVersion)
+	r.Get("/subjects/{subject}/metadata", h.GetSubjectMetadata)
 
 	// Config
 	r.Get("/config", h.GetConfig)

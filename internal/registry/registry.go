@@ -486,6 +486,11 @@ func (r *Registry) GetSchemaBySubjectVersion(ctx context.Context, registryCtx st
 	return r.storage.GetSchemaBySubjectVersion(ctx, registryCtx, subject, version)
 }
 
+// GetLatestSchema retrieves the latest non-deleted schema for a subject.
+func (r *Registry) GetLatestSchema(ctx context.Context, registryCtx string, subject string) (*storage.SchemaRecord, error) {
+	return r.storage.GetLatestSchema(ctx, registryCtx, subject)
+}
+
 // GetSchemasBySubject returns all schemas for a subject, optionally including deleted.
 func (r *Registry) GetSchemasBySubject(ctx context.Context, registryCtx string, subject string, includeDeleted bool) ([]*storage.SchemaRecord, error) {
 	return r.storage.GetSchemasBySubject(ctx, registryCtx, subject, includeDeleted)
@@ -733,13 +738,15 @@ func (r *Registry) GetGlobalConfigDirect(ctx context.Context, registryCtx string
 
 // SetConfigOpts holds optional fields for configuration updates.
 type SetConfigOpts struct {
-	Alias              string
-	CompatibilityGroup string
-	ValidateFields     *bool
-	DefaultMetadata    *storage.Metadata
-	OverrideMetadata   *storage.Metadata
-	DefaultRuleSet     *storage.RuleSet
-	OverrideRuleSet    *storage.RuleSet
+	Alias               string
+	CompatibilityGroup  string
+	ValidateFields      *bool
+	DefaultMetadata     *storage.Metadata
+	OverrideMetadata    *storage.Metadata
+	DefaultRuleSet      *storage.RuleSet
+	OverrideRuleSet     *storage.RuleSet
+	AliasForDeks        string
+	CompatibilityPolicy string
 }
 
 // SetConfig sets the compatibility configuration for a subject within a context.
@@ -776,6 +783,8 @@ func (r *Registry) SetConfig(ctx context.Context, registryCtx string, subject st
 		config.OverrideMetadata = opt.OverrideMetadata
 		config.DefaultRuleSet = opt.DefaultRuleSet
 		config.OverrideRuleSet = opt.OverrideRuleSet
+		config.AliasForDeks = opt.AliasForDeks
+		config.CompatibilityPolicy = opt.CompatibilityPolicy
 	}
 
 	if subject == "" {

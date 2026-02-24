@@ -69,28 +69,32 @@ type LookupSchemaResponse struct {
 
 // ConfigResponse is the response for getting configuration.
 type ConfigResponse struct {
-	CompatibilityLevel string            `json:"compatibilityLevel"`
-	Normalize          *bool             `json:"normalize,omitempty"`
-	ValidateFields     *bool             `json:"validateFields,omitempty"`
-	Alias              string            `json:"alias,omitempty"`
-	CompatibilityGroup string            `json:"compatibilityGroup,omitempty"`
-	DefaultMetadata    *storage.Metadata `json:"defaultMetadata,omitempty"`
-	OverrideMetadata   *storage.Metadata `json:"overrideMetadata,omitempty"`
-	DefaultRuleSet     *storage.RuleSet  `json:"defaultRuleSet,omitempty"`
-	OverrideRuleSet    *storage.RuleSet  `json:"overrideRuleSet,omitempty"`
+	CompatibilityLevel  string            `json:"compatibilityLevel"`
+	Normalize           *bool             `json:"normalize,omitempty"`
+	ValidateFields      *bool             `json:"validateFields,omitempty"`
+	Alias               string            `json:"alias,omitempty"`
+	CompatibilityGroup  string            `json:"compatibilityGroup,omitempty"`
+	DefaultMetadata     *storage.Metadata `json:"defaultMetadata,omitempty"`
+	OverrideMetadata    *storage.Metadata `json:"overrideMetadata,omitempty"`
+	DefaultRuleSet      *storage.RuleSet  `json:"defaultRuleSet,omitempty"`
+	OverrideRuleSet     *storage.RuleSet  `json:"overrideRuleSet,omitempty"`
+	AliasForDeks        string            `json:"aliasForDeks,omitempty"`
+	CompatibilityPolicy string            `json:"compatibilityPolicy,omitempty"`
 }
 
 // ConfigRequest is the request body for setting configuration.
 type ConfigRequest struct {
-	Compatibility      string            `json:"compatibility"`
-	Normalize          *bool             `json:"normalize,omitempty"`
-	ValidateFields     *bool             `json:"validateFields,omitempty"`
-	Alias              string            `json:"alias,omitempty"`
-	CompatibilityGroup string            `json:"compatibilityGroup,omitempty"`
-	DefaultMetadata    *storage.Metadata `json:"defaultMetadata,omitempty"`
-	OverrideMetadata   *storage.Metadata `json:"overrideMetadata,omitempty"`
-	DefaultRuleSet     *storage.RuleSet  `json:"defaultRuleSet,omitempty"`
-	OverrideRuleSet    *storage.RuleSet  `json:"overrideRuleSet,omitempty"`
+	Compatibility       string            `json:"compatibility"`
+	Normalize           *bool             `json:"normalize,omitempty"`
+	ValidateFields      *bool             `json:"validateFields,omitempty"`
+	Alias               string            `json:"alias,omitempty"`
+	CompatibilityGroup  string            `json:"compatibilityGroup,omitempty"`
+	DefaultMetadata     *storage.Metadata `json:"defaultMetadata,omitempty"`
+	OverrideMetadata    *storage.Metadata `json:"overrideMetadata,omitempty"`
+	DefaultRuleSet      *storage.RuleSet  `json:"defaultRuleSet,omitempty"`
+	OverrideRuleSet     *storage.RuleSet  `json:"overrideRuleSet,omitempty"`
+	AliasForDeks        string            `json:"aliasForDeks,omitempty"`
+	CompatibilityPolicy string            `json:"compatibilityPolicy,omitempty"`
 }
 
 // ModeResponse is the response for getting mode.
@@ -150,6 +154,15 @@ type ServerVersionResponse struct {
 	Version   string `json:"version"`
 	Commit    string `json:"commit,omitempty"`
 	BuildTime string `json:"build_time,omitempty"`
+}
+
+// ResolvedReference is a schema reference with its schema content included.
+// Used when referenceFormat=RESOLVED is requested on schema GET endpoints.
+type ResolvedReference struct {
+	Name    string `json:"name"`
+	Subject string `json:"subject"`
+	Version int    `json:"version"`
+	Schema  string `json:"schema,omitempty"`
 }
 
 // Error codes matching Confluent Schema Registry

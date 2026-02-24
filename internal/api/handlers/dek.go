@@ -27,6 +27,7 @@ func (h *Handler) ListKEKs(w http.ResponseWriter, r *http.Request) {
 	for _, kek := range keks {
 		names = append(names, kek.Name)
 	}
+	names = applyStringPagination(names, r)
 	writeJSON(w, http.StatusOK, names)
 }
 
@@ -131,10 +132,10 @@ func (h *Handler) DeleteKEK(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]string{"name": name})
+	w.WriteHeader(http.StatusNoContent)
 }
 
-// UndeleteKEK handles PUT /dek-registry/v1/keks/{name}/undelete
+// UndeleteKEK handles POST /dek-registry/v1/keks/{name}/undelete
 func (h *Handler) UndeleteKEK(w http.ResponseWriter, r *http.Request) {
 	name := chi.URLParam(r, "name")
 
@@ -147,7 +148,7 @@ func (h *Handler) UndeleteKEK(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]string{"name": name})
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // ListDEKs handles GET /dek-registry/v1/keks/{name}/deks
@@ -168,6 +169,7 @@ func (h *Handler) ListDEKs(w http.ResponseWriter, r *http.Request) {
 	if subjects == nil {
 		subjects = []string{}
 	}
+	subjects = applyStringPagination(subjects, r)
 	writeJSON(w, http.StatusOK, subjects)
 }
 
@@ -249,6 +251,7 @@ func (h *Handler) ListDEKVersions(w http.ResponseWriter, r *http.Request) {
 	if versions == nil {
 		versions = []int{}
 	}
+	versions = applyIntPagination(versions, r)
 	writeJSON(w, http.StatusOK, versions)
 }
 
@@ -307,10 +310,10 @@ func (h *Handler) DeleteDEK(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]string{"subject": subject})
+	w.WriteHeader(http.StatusNoContent)
 }
 
-// UndeleteDEK handles PUT /dek-registry/v1/keks/{name}/deks/{subject}/undelete
+// UndeleteDEK handles POST /dek-registry/v1/keks/{name}/deks/{subject}/undelete
 func (h *Handler) UndeleteDEK(w http.ResponseWriter, r *http.Request) {
 	kekName := chi.URLParam(r, "name")
 	subject := chi.URLParam(r, "subject")
@@ -329,7 +332,163 @@ func (h *Handler) UndeleteDEK(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]string{"subject": subject})
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// DeleteDEKVersion handles DELETE /dek-registry/v1/keks/{name}/deks/{subject}/versions/{version}
+func (h *Handler) DeleteDEKVersion(w http.ResponseWriter, r *http.Request) {
+	kekName := chi.URLParam(r, "name")
+	subject := chi.URLParam(r, "subject")
+	versionStr := chi.URLParam(r, "version")
+	algorithm := r.URL.Query().Get("algorithm")
+	permanent := r.URL.Query().Get("permanent") == "true"
+
+	version, err := strconv.Atoi(versionStr)
+	if err != nil {
+		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidVersion, "Invalid version: must be a positive integer")
+		return
+	}
+	if version <= 0 {
+		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidVersion, "Invalid version: must be a positive integer")
+		return
+	}
+
+	if err := h.registry.DeleteDEK(r.Context(), kekName, subject, version, algorithm, permanent); err != nil {
+		if errors.Is(err, storage.ErrKEKNotFound) {
+			writeError(w, http.StatusNotFound, types.ErrorCodeKEKNotFound, "Key encryption key not found: "+kekName)
+			return
+		}
+		if errors.Is(err, storage.ErrDEKNotFound) {
+			writeError(w, http.StatusNotFound, types.ErrorCodeDEKNotFound, "Data encryption key not found")
+			return
+		}
+		writeInternalError(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// UndeleteDEKVersion handles POST /dek-registry/v1/keks/{name}/deks/{subject}/versions/{version}/undelete
+func (h *Handler) UndeleteDEKVersion(w http.ResponseWriter, r *http.Request) {
+	kekName := chi.URLParam(r, "name")
+	subject := chi.URLParam(r, "subject")
+	versionStr := chi.URLParam(r, "version")
+	algorithm := r.URL.Query().Get("algorithm")
+
+	version, err := strconv.Atoi(versionStr)
+	if err != nil {
+		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidVersion, "Invalid version: must be a positive integer")
+		return
+	}
+	if version <= 0 {
+		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidVersion, "Invalid version: must be a positive integer")
+		return
+	}
+
+	if err := h.registry.UndeleteDEK(r.Context(), kekName, subject, version, algorithm); err != nil {
+		if errors.Is(err, storage.ErrKEKNotFound) {
+			writeError(w, http.StatusNotFound, types.ErrorCodeKEKNotFound, "Key encryption key not found: "+kekName)
+			return
+		}
+		if errors.Is(err, storage.ErrDEKNotFound) {
+			writeError(w, http.StatusNotFound, types.ErrorCodeDEKNotFound, "Data encryption key not found")
+			return
+		}
+		writeInternalError(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// CreateDEKWithSubject handles POST /dek-registry/v1/keks/{name}/deks/{subject}
+// This is Confluent's preferred form where the subject comes from the URL path.
+// With ?rewrap=true, this triggers DEK rewrap (re-encryption under current KEK).
+func (h *Handler) CreateDEKWithSubject(w http.ResponseWriter, r *http.Request) {
+	kekName := chi.URLParam(r, "name")
+	subject := chi.URLParam(r, "subject")
+
+	if r.URL.Query().Get("rewrap") == "true" {
+		h.rewrapDEK(w, r, kekName, subject)
+		return
+	}
+
+	var req types.CreateDEKRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		// Empty body is valid — just use path params and defaults
+		if err.Error() != "EOF" {
+			writeError(w, http.StatusBadRequest, types.ErrorCodeInvalidSchema, "Invalid request body")
+			return
+		}
+	}
+
+	dek := &storage.DEKRecord{
+		KEKName:              kekName,
+		Subject:              subject,
+		Version:              req.Version,
+		Algorithm:            req.Algorithm,
+		EncryptedKeyMaterial: req.EncryptedKeyMaterial,
+	}
+
+	if err := h.registry.CreateDEK(r.Context(), dek); err != nil {
+		if errors.Is(err, storage.ErrKEKNotFound) {
+			writeError(w, http.StatusNotFound, types.ErrorCodeKEKNotFound, "Key encryption key not found: "+kekName)
+			return
+		}
+		if errors.Is(err, storage.ErrDEKExists) {
+			writeError(w, http.StatusConflict, types.ErrorCodeDEKExists, "Data encryption key already exists")
+			return
+		}
+		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidSchema, err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusOK, dekToResponse(dek))
+}
+
+// rewrapDEK re-encrypts a DEK's key material under the current KEK key version.
+func (h *Handler) rewrapDEK(w http.ResponseWriter, r *http.Request, kekName, subject string) {
+	algorithm := r.URL.Query().Get("algorithm")
+
+	dek, err := h.registry.RewrapDEK(r.Context(), kekName, subject, -1, algorithm)
+	if err != nil {
+		if errors.Is(err, storage.ErrKEKNotFound) {
+			writeError(w, http.StatusNotFound, types.ErrorCodeKEKNotFound, "Key encryption key not found: "+kekName)
+			return
+		}
+		if errors.Is(err, storage.ErrDEKNotFound) {
+			writeError(w, http.StatusNotFound, types.ErrorCodeDEKNotFound, "Data encryption key not found")
+			return
+		}
+		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidSchema, err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusOK, dekToGetResponse(dek))
+}
+
+// TestKEK handles POST /dek-registry/v1/keks/{name}/test
+// Validates that the KEK's KMS credentials are valid by performing a round-trip encrypt/decrypt test.
+func (h *Handler) TestKEK(w http.ResponseWriter, r *http.Request) {
+	name := chi.URLParam(r, "name")
+
+	kek, err := h.registry.GetKEK(r.Context(), name, false)
+	if err != nil {
+		if errors.Is(err, storage.ErrKEKNotFound) {
+			writeError(w, http.StatusNotFound, types.ErrorCodeKEKNotFound, "Key encryption key not found: "+name)
+			return
+		}
+		writeInternalError(w, err)
+		return
+	}
+
+	if err := h.registry.TestKEK(r.Context(), kek); err != nil {
+		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidSchema, "KMS connection test failed: "+err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusOK, kekToResponse(kek))
 }
 
 func kekToResponse(kek *storage.KEKRecord) types.KEKResponse {
@@ -370,4 +529,48 @@ func dekToGetResponse(dek *storage.DEKRecord) types.DEKResponse {
 		Ts:                   dek.Ts,
 		Deleted:              dek.Deleted,
 	}
+}
+
+// parsePaginationParams extracts offset and limit query parameters.
+func parsePaginationParams(r *http.Request) (offset, limit int) {
+	if v := r.URL.Query().Get("offset"); v != "" {
+		offset, _ = strconv.Atoi(v)
+		if offset < 0 {
+			offset = 0
+		}
+	}
+	if v := r.URL.Query().Get("limit"); v != "" {
+		limit, _ = strconv.Atoi(v)
+	}
+	return offset, limit
+}
+
+// applyStringPagination applies offset/limit pagination to a string slice.
+func applyStringPagination(items []string, r *http.Request) []string {
+	offset, limit := parsePaginationParams(r)
+	if offset > 0 {
+		if offset >= len(items) {
+			return []string{}
+		}
+		items = items[offset:]
+	}
+	if limit > 0 && limit < len(items) {
+		items = items[:limit]
+	}
+	return items
+}
+
+// applyIntPagination applies offset/limit pagination to an int slice.
+func applyIntPagination(items []int, r *http.Request) []int {
+	offset, limit := parsePaginationParams(r)
+	if offset > 0 {
+		if offset >= len(items) {
+			return []int{}
+		}
+		items = items[offset:]
+	}
+	if limit > 0 && limit < len(items) {
+		items = items[:limit]
+	}
+	return items
 }

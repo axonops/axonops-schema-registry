@@ -1,10 +1,12 @@
 package registry
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/axonops/axonops-schema-registry/internal/storage"
 )
@@ -122,4 +124,80 @@ func (r *Registry) DeleteDEK(ctx context.Context, kekName, subject string, versi
 // UndeleteDEK restores a soft-deleted Data Encryption Key.
 func (r *Registry) UndeleteDEK(ctx context.Context, kekName, subject string, version int, algorithm string) error {
 	return r.storage.UndeleteDEK(ctx, kekName, subject, version, algorithm)
+}
+
+// RewrapDEK re-encrypts a DEK's key material under the current KEK key version.
+// This is used after KEK rotation to update existing DEKs.
+func (r *Registry) RewrapDEK(ctx context.Context, kekName, subject string, version int, algorithm string) (*storage.DEKRecord, error) {
+	if r.kmsRegistry == nil {
+		return nil, fmt.Errorf("KMS not configured: rewrap requires a KMS provider")
+	}
+
+	kek, err := r.storage.GetKEK(ctx, kekName, false)
+	if err != nil {
+		return nil, err
+	}
+
+	provider := r.kmsRegistry.Get(kek.KmsType)
+	if provider == nil {
+		return nil, fmt.Errorf("no KMS provider registered for type %q", kek.KmsType)
+	}
+
+	dek, err := r.storage.GetDEK(ctx, kekName, subject, version, algorithm, false)
+	if err != nil {
+		return nil, err
+	}
+
+	if dek.EncryptedKeyMaterial == "" {
+		return nil, fmt.Errorf("DEK has no encrypted key material to rewrap")
+	}
+
+	ciphertext, err := base64.StdEncoding.DecodeString(dek.EncryptedKeyMaterial)
+	if err != nil {
+		return nil, fmt.Errorf("decode encrypted key material: %w", err)
+	}
+
+	plaintext, err := provider.Unwrap(ctx, kek.KmsKeyID, ciphertext, kek.KmsProps)
+	if err != nil {
+		return nil, fmt.Errorf("KMS unwrap: %w", err)
+	}
+
+	newCiphertext, err := provider.Wrap(ctx, kek.KmsKeyID, plaintext, kek.KmsProps)
+	if err != nil {
+		return nil, fmt.Errorf("KMS rewrap: %w", err)
+	}
+
+	dek.EncryptedKeyMaterial = base64.StdEncoding.EncodeToString(newCiphertext)
+	dek.Ts = time.Now().UnixMilli()
+
+	if err := r.storage.UpdateDEK(ctx, dek); err != nil {
+		return nil, err
+	}
+
+	return dek, nil
+}
+
+// TestKEK validates KMS connectivity by performing a round-trip encrypt/decrypt test.
+func (r *Registry) TestKEK(ctx context.Context, kek *storage.KEKRecord) error {
+	if r.kmsRegistry == nil {
+		return fmt.Errorf("KMS not configured")
+	}
+	provider := r.kmsRegistry.Get(kek.KmsType)
+	if provider == nil {
+		return fmt.Errorf("no KMS provider for type %q", kek.KmsType)
+	}
+
+	testData := []byte("schema-registry-kek-test")
+	wrapped, err := provider.Wrap(ctx, kek.KmsKeyID, testData, kek.KmsProps)
+	if err != nil {
+		return fmt.Errorf("wrap failed: %w", err)
+	}
+	unwrapped, err := provider.Unwrap(ctx, kek.KmsKeyID, wrapped, kek.KmsProps)
+	if err != nil {
+		return fmt.Errorf("unwrap failed: %w", err)
+	}
+	if !bytes.Equal(testData, unwrapped) {
+		return fmt.Errorf("round-trip test failed: plaintext mismatch")
+	}
+	return nil
 }

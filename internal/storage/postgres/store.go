@@ -2950,6 +2950,23 @@ func (s *Store) UndeleteDEK(ctx context.Context, kekName, subject string, versio
 	return nil
 }
 
+
+// UpdateDEK updates the encrypted key material and timestamp of an existing DEK.
+func (s *Store) UpdateDEK(ctx context.Context, dek *storage.DEKRecord) error {
+	query := `UPDATE deks SET encrypted_key_material = $1, ts = $2 WHERE kek_name = $3 AND subject = $4 AND version = $5 AND algorithm = $6`
+	result, err := s.db.ExecContext(ctx, query, dek.EncryptedKeyMaterial, dek.Ts, dek.KEKName, dek.Subject, dek.Version, dek.Algorithm)
+	if err != nil {
+		return err
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return storage.ErrDEKNotFound
+	}
+	return nil
+}
 // marshalJSONB marshals a value to JSON bytes for JSONB columns. Returns nil for nil input.
 func marshalJSONB(v interface{}) ([]byte, error) {
 	if v == nil {

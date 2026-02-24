@@ -77,6 +77,7 @@ type Rule struct {
 	OnSuccess string            `json:"onSuccess,omitempty"`
 	OnFailure string            `json:"onFailure,omitempty"`
 	Disabled  bool              `json:"disabled,omitempty"`
+	EnableAt  *int64            `json:"enableAt,omitempty"`
 }
 
 // SchemaRecord represents a stored schema.
@@ -110,16 +111,18 @@ type SubjectVersion struct {
 
 // ConfigRecord represents a compatibility configuration.
 type ConfigRecord struct {
-	Subject            string    `json:"subject,omitempty"` // Empty for global config
-	CompatibilityLevel string    `json:"compatibilityLevel"`
-	Normalize          *bool     `json:"normalize,omitempty"`
-	ValidateFields     *bool     `json:"validateFields,omitempty"`
-	Alias              string    `json:"alias,omitempty"`
-	CompatibilityGroup string    `json:"compatibilityGroup,omitempty"`
-	DefaultMetadata    *Metadata `json:"defaultMetadata,omitempty"`
-	OverrideMetadata   *Metadata `json:"overrideMetadata,omitempty"`
-	DefaultRuleSet     *RuleSet  `json:"defaultRuleSet,omitempty"`
-	OverrideRuleSet    *RuleSet  `json:"overrideRuleSet,omitempty"`
+	Subject             string    `json:"subject,omitempty"` // Empty for global config
+	CompatibilityLevel  string    `json:"compatibilityLevel"`
+	Normalize           *bool     `json:"normalize,omitempty"`
+	ValidateFields      *bool     `json:"validateFields,omitempty"`
+	Alias               string    `json:"alias,omitempty"`
+	CompatibilityGroup  string    `json:"compatibilityGroup,omitempty"`
+	DefaultMetadata     *Metadata `json:"defaultMetadata,omitempty"`
+	OverrideMetadata    *Metadata `json:"overrideMetadata,omitempty"`
+	DefaultRuleSet      *RuleSet  `json:"defaultRuleSet,omitempty"`
+	OverrideRuleSet     *RuleSet  `json:"overrideRuleSet,omitempty"`
+	AliasForDeks        string    `json:"aliasForDeks,omitempty"`
+	CompatibilityPolicy string    `json:"compatibilityPolicy,omitempty"`
 }
 
 // ModeRecord represents a mode configuration.
@@ -313,6 +316,9 @@ type Storage interface {
 	ListDEKVersions(ctx context.Context, kekName, subject string, algorithm string, includeDeleted bool) ([]int, error)
 	DeleteDEK(ctx context.Context, kekName, subject string, version int, algorithm string, permanent bool) error
 	UndeleteDEK(ctx context.Context, kekName, subject string, version int, algorithm string) error
+	// UpdateDEK updates the encrypted key material and timestamp of an existing DEK.
+	// Used by the rewrap operation after KEK rotation.
+	UpdateDEK(ctx context.Context, dek *DEKRecord) error
 
 	// Exporter operations (Confluent Schema Linking compatible)
 	CreateExporter(ctx context.Context, exporter *ExporterRecord) error

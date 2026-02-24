@@ -270,7 +270,7 @@ Feature: Authentication flows and RBAC
       """
     Then the response status should be 200
     When I DELETE "/dek-registry/v1/keks/admin-delete-kek"
-    Then the response status should be 200
+    Then the response status should be 204
 
   # ---------------------------------------------------------------------------
   # RBAC - Exporter endpoints

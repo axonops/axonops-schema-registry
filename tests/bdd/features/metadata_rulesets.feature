@@ -362,3 +362,71 @@ Feature: Metadata and RuleSets (Data Contracts)
     And the response body should contain "migrationRules"
     And the response body should contain "upgradeV1toV2"
     And the response body should contain "UPGRADE"
+
+  # ==========================================================================
+  # GET /subjects/{subject}/metadata ENDPOINT
+  # ==========================================================================
+
+  Scenario: Get subject metadata returns latest schema metadata
+    When I POST "/subjects/meta-endpoint-test/versions" with body:
+      """
+      {
+        "schema": "{\"type\":\"record\",\"name\":\"MetaEndV1\",\"fields\":[{\"name\":\"a\",\"type\":\"int\"}]}",
+        "metadata": {
+          "properties": {"owner": "team-alpha"},
+          "tags": {"a": ["PII"]},
+          "sensitive": ["a"]
+        }
+      }
+      """
+    Then the response status should be 200
+    When I GET "/subjects/meta-endpoint-test/metadata"
+    Then the response status should be 200
+    And the response should be valid JSON
+    And the response body should contain "team-alpha"
+    And the response body should contain "PII"
+
+  Scenario: Get subject metadata for non-existent subject returns 404
+    When I GET "/subjects/nonexistent-meta-subject/metadata"
+    Then the response status should be 404
+    And the response should have error code 40401
+
+  Scenario: Get subject metadata when no metadata exists returns empty object
+    When I POST "/subjects/meta-empty-test/versions" with body:
+      """
+      {
+        "schema": "{\"type\":\"record\",\"name\":\"NoMetaEndpoint\",\"fields\":[{\"name\":\"b\",\"type\":\"string\"}]}"
+      }
+      """
+    Then the response status should be 200
+    When I GET "/subjects/meta-empty-test/metadata"
+    Then the response status should be 200
+    And the response should be valid JSON
+
+  Scenario: Get subject metadata returns metadata from the latest version
+    # Register v1 with metadata
+    When I POST "/subjects/meta-latest-test/versions" with body:
+      """
+      {
+        "schema": "{\"type\":\"record\",\"name\":\"MetaLatest\",\"fields\":[{\"name\":\"c\",\"type\":\"int\"}]}",
+        "metadata": {
+          "properties": {"version": "v1"}
+        }
+      }
+      """
+    Then the response status should be 200
+    # Register v2 with updated metadata (add optional field for BACKWARD compat)
+    When I POST "/subjects/meta-latest-test/versions" with body:
+      """
+      {
+        "schema": "{\"type\":\"record\",\"name\":\"MetaLatest\",\"fields\":[{\"name\":\"c\",\"type\":\"int\"},{\"name\":\"d\",\"type\":[\"null\",\"string\"],\"default\":null}]}",
+        "metadata": {
+          "properties": {"version": "v2", "updated": "true"}
+        }
+      }
+      """
+    Then the response status should be 200
+    When I GET "/subjects/meta-latest-test/metadata"
+    Then the response status should be 200
+    And the response body should contain "v2"
+    And the response body should contain "updated"

@@ -442,4 +442,59 @@ func RunDEKTests(t *testing.T, newStore StoreFactory) {
 			t.Errorf("expected 3 versions with includeDeleted=true, got %d", len(versions))
 		}
 	})
+
+	t.Run("UpdateDEK", func(t *testing.T) {
+		store := newStore()
+		defer store.Close()
+		ctx := context.Background()
+
+		createTestKEK(t, ctx, store, "update-dek-kek")
+
+		dek := &storage.DEKRecord{
+			KEKName:              "update-dek-kek",
+			Subject:              "test-subject",
+			Algorithm:            "AES256_GCM",
+			EncryptedKeyMaterial: "original-material",
+		}
+		if err := store.CreateDEK(ctx, dek); err != nil {
+			t.Fatalf("CreateDEK: %v", err)
+		}
+
+		// Update the encrypted key material (simulates rewrap)
+		dek.EncryptedKeyMaterial = "rewrapped-material"
+		dek.Ts = 9999999
+		if err := store.UpdateDEK(ctx, dek); err != nil {
+			t.Fatalf("UpdateDEK: %v", err)
+		}
+
+		// Verify the update persisted
+		got, err := store.GetDEK(ctx, "update-dek-kek", "test-subject", 1, "AES256_GCM", false)
+		if err != nil {
+			t.Fatalf("GetDEK after update: %v", err)
+		}
+		if got.EncryptedKeyMaterial != "rewrapped-material" {
+			t.Errorf("expected encryptedKeyMaterial 'rewrapped-material', got %q", got.EncryptedKeyMaterial)
+		}
+		if got.Ts != 9999999 {
+			t.Errorf("expected ts 9999999, got %d", got.Ts)
+		}
+	})
+
+	t.Run("UpdateDEK_NotFound", func(t *testing.T) {
+		store := newStore()
+		defer store.Close()
+		ctx := context.Background()
+
+		dek := &storage.DEKRecord{
+			KEKName:              "nonexistent-kek",
+			Subject:              "nonexistent-subject",
+			Version:              1,
+			Algorithm:            "AES256_GCM",
+			EncryptedKeyMaterial: "material",
+		}
+		err := store.UpdateDEK(ctx, dek)
+		if !errors.Is(err, storage.ErrDEKNotFound) {
+			t.Errorf("expected ErrDEKNotFound, got %v", err)
+		}
+	})
 }
