@@ -164,7 +164,7 @@ Feature: KMS Server-Side Field-Level Encryption
     When I DELETE "/dek-registry/v1/keks/lifecycle-enc-kek/deks/lifecycle.encrypted.field"
     Then the response status should be 204
     # Undelete the DEK
-    When I PUT "/dek-registry/v1/keks/lifecycle-enc-kek/deks/lifecycle.encrypted.field/undelete" with body:
+    When I POST "/dek-registry/v1/keks/lifecycle-enc-kek/deks/lifecycle.encrypted.field/undelete" with body:
       """
       {}
       """
