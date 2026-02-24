@@ -1761,7 +1761,12 @@ func (s *Store) CreateDEK(ctx context.Context, dek *storage.DEKRecord) error {
 	}
 
 	dek.Ts = time.Now().UnixMilli()
-	s.deks[dek.KEKName][dek.Subject][dek.Version] = dek
+	// Deep-copy the record to prevent the caller from mutating stored state.
+	// Specifically, the registry layer sets dek.KeyMaterial (plaintext) after
+	// CreateDEK returns; we must not retain that plaintext in storage.
+	stored := *dek
+	stored.KeyMaterial = ""
+	s.deks[dek.KEKName][dek.Subject][dek.Version] = &stored
 	return nil
 }
 

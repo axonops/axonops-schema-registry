@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -176,7 +177,7 @@ func (h *Handler) GetSchemaByID(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusNotFound, types.ErrorCodeSchemaNotFound, "Schema not found")
 			return
 		}
-		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		writeInternalError(w, err)
 		return
 	}
 
@@ -218,7 +219,7 @@ func (h *Handler) ListSubjects(w http.ResponseWriter, r *http.Request) {
 
 	subjects, err := h.registry.ListSubjects(r.Context(), registryCtx, includeDeleted)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		writeInternalError(w, err)
 		return
 	}
 
@@ -294,7 +295,7 @@ func (h *Handler) GetVersions(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusNotFound, types.ErrorCodeSubjectNotFound, "Subject not found")
 			return
 		}
-		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		writeInternalError(w, err)
 		return
 	}
 
@@ -369,7 +370,7 @@ func (h *Handler) GetVersion(w http.ResponseWriter, r *http.Request) {
 				writeError(w, http.StatusNotFound, types.ErrorCodeVersionNotFound, "Version not found")
 				return
 			}
-			writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+			writeInternalError(w, err)
 			return
 		}
 	}
@@ -491,7 +492,7 @@ func (h *Handler) RegisterSchema(w http.ResponseWriter, r *http.Request) {
 
 	// Check mode enforcement
 	if mode, modeErr := h.checkModeForWrite(r, registryCtx, subject); modeErr != nil {
-		writeError(w, http.StatusInternalServerError, types.ErrorCodeStorageError, modeErr.Error())
+		writeInternalError(w, modeErr)
 		return
 	} else if mode != "" {
 		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeOperationNotPermitted,
@@ -541,7 +542,7 @@ func (h *Handler) RegisterSchema(w http.ResponseWriter, r *http.Request) {
 		// Confluent behavior: IMPORT mode requires explicit ID — normal registration is rejected with 42205.
 		mode, modeErr := h.registry.GetMode(r.Context(), registryCtx, subject)
 		if modeErr != nil {
-			writeError(w, http.StatusInternalServerError, types.ErrorCodeStorageError, modeErr.Error())
+			writeInternalError(w, modeErr)
 			return
 		}
 		if mode == "READONLY" || mode == "READONLY_OVERRIDE" {
@@ -586,7 +587,7 @@ func (h *Handler) RegisterSchema(w http.ResponseWriter, r *http.Request) {
 				fmt.Sprintf("Overwrite new schema with id %d is not permitted.", req.ID))
 			return
 		}
-		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		writeInternalError(w, err)
 		return
 	}
 
@@ -637,7 +638,7 @@ func (h *Handler) LookupSchema(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidSchema, err.Error())
 			return
 		}
-		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		writeInternalError(w, err)
 		return
 	}
 
@@ -668,7 +669,7 @@ func (h *Handler) DeleteSubject(w http.ResponseWriter, r *http.Request) {
 
 	// Check mode enforcement
 	if mode, modeErr := h.checkModeForWrite(r, registryCtx, subject); modeErr != nil {
-		writeError(w, http.StatusInternalServerError, types.ErrorCodeStorageError, modeErr.Error())
+		writeInternalError(w, modeErr)
 		return
 	} else if mode != "" {
 		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeOperationNotPermitted,
@@ -696,7 +697,7 @@ func (h *Handler) DeleteSubject(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeReferenceExists, err.Error())
 			return
 		}
-		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		writeInternalError(w, err)
 		return
 	}
 
@@ -715,7 +716,7 @@ func (h *Handler) DeleteVersion(w http.ResponseWriter, r *http.Request) {
 
 	// Check mode enforcement
 	if mode, modeErr := h.checkModeForWrite(r, registryCtx, subject); modeErr != nil {
-		writeError(w, http.StatusInternalServerError, types.ErrorCodeStorageError, modeErr.Error())
+		writeInternalError(w, modeErr)
 		return
 	} else if mode != "" {
 		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeOperationNotPermitted,
@@ -749,7 +750,7 @@ func (h *Handler) DeleteVersion(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeReferenceExists, err.Error())
 			return
 		}
-		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		writeInternalError(w, err)
 		return
 	}
 
@@ -770,7 +771,7 @@ func (h *Handler) GetConfig(w http.ResponseWriter, r *http.Request) {
 					fmt.Sprintf("Subject '%s' does not have subject-level compatibility configured", subject))
 				return
 			}
-			writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+			writeInternalError(w, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, types.ConfigResponse{
@@ -798,7 +799,7 @@ func (h *Handler) GetConfig(w http.ResponseWriter, r *http.Request) {
 		config, err = h.registry.GetConfigFull(r.Context(), registryCtx, subject)
 	}
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		writeInternalError(w, err)
 		return
 	}
 
@@ -821,7 +822,7 @@ func (h *Handler) SetConfig(w http.ResponseWriter, r *http.Request) {
 
 	// Check mode enforcement — Confluent blocks config writes in READONLY mode
 	if mode, modeErr := h.checkModeForWrite(r, registryCtx, subject); modeErr != nil {
-		writeError(w, http.StatusInternalServerError, types.ErrorCodeStorageError, modeErr.Error())
+		writeInternalError(w, modeErr)
 		return
 	} else if mode != "" {
 		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeOperationNotPermitted,
@@ -839,7 +840,7 @@ func (h *Handler) SetConfig(w http.ResponseWriter, r *http.Request) {
 	if req.Compatibility == "" {
 		level, err := h.registry.GetConfig(r.Context(), registryCtx, subject)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+			writeInternalError(w, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, types.ConfigRequest{Compatibility: level})
@@ -864,7 +865,7 @@ func (h *Handler) SetConfig(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidSchema, err.Error())
 			return
 		}
-		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		writeInternalError(w, err)
 		return
 	}
 
@@ -888,7 +889,7 @@ func (h *Handler) DeleteConfig(w http.ResponseWriter, r *http.Request) {
 
 	// Check mode enforcement — Confluent blocks config writes in READONLY mode
 	if mode, modeErr := h.checkModeForWrite(r, registryCtx, subject); modeErr != nil {
-		writeError(w, http.StatusInternalServerError, types.ErrorCodeStorageError, modeErr.Error())
+		writeInternalError(w, modeErr)
 		return
 	} else if mode != "" {
 		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeOperationNotPermitted,
@@ -902,7 +903,7 @@ func (h *Handler) DeleteConfig(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusNotFound, types.ErrorCodeSubjectNotFound, "Config not found for subject")
 			return
 		}
-		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		writeInternalError(w, err)
 		return
 	}
 
@@ -964,7 +965,7 @@ func (h *Handler) CheckCompatibility(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidVersion, err.Error())
 			return
 		}
-		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		writeInternalError(w, err)
 		return
 	}
 
@@ -1005,13 +1006,13 @@ func (h *Handler) GetReferencedBy(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusNotFound, types.ErrorCodeVersionNotFound, "Version not found")
 			return
 		}
-		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		writeInternalError(w, err)
 		return
 	}
 
 	refs, err := h.registry.GetReferencedBy(r.Context(), registryCtx, subject, version)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		writeInternalError(w, err)
 		return
 	}
 
@@ -1043,7 +1044,7 @@ func (h *Handler) GetMode(w http.ResponseWriter, r *http.Request) {
 					fmt.Sprintf("Subject '%s' does not have subject-level mode configured", subject))
 				return
 			}
-			writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+			writeInternalError(w, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, types.ModeResponse{
@@ -1062,7 +1063,7 @@ func (h *Handler) GetMode(w http.ResponseWriter, r *http.Request) {
 		mode, err = h.registry.GetMode(r.Context(), registryCtx, subject)
 	}
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		writeInternalError(w, err)
 		return
 	}
 
@@ -1088,12 +1089,12 @@ func (h *Handler) SetMode(w http.ResponseWriter, r *http.Request) {
 	if req.Mode == "" {
 		if subject != "" {
 			if _, err := h.registry.DeleteMode(r.Context(), registryCtx, subject); err != nil && !errors.Is(err, storage.ErrNotFound) {
-				writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+				writeInternalError(w, err)
 				return
 			}
 		} else {
 			if _, err := h.registry.DeleteGlobalMode(r.Context(), registryCtx); err != nil && !errors.Is(err, storage.ErrNotFound) {
-				writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+				writeInternalError(w, err)
 				return
 			}
 		}
@@ -1110,7 +1111,7 @@ func (h *Handler) SetMode(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeOperationNotPermitted, err.Error())
 			return
 		}
-		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		writeInternalError(w, err)
 		return
 	}
 
@@ -1178,6 +1179,14 @@ func writeError(w http.ResponseWriter, status int, code int, message string) {
 	})
 }
 
+// writeInternalError writes a generic 500 error response and logs the actual error.
+// This prevents leaking internal details (database connection strings, file paths,
+// stack traces) to clients while preserving the error for server-side debugging.
+func writeInternalError(w http.ResponseWriter, err error) {
+	slog.Error("internal server error", "error", err)
+	writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, "Internal server error")
+}
+
 // GetRawSchemaByID handles GET /schemas/ids/{id}/schema
 func (h *Handler) GetRawSchemaByID(w http.ResponseWriter, r *http.Request) {
 	registryCtx := getRegistryContext(r)
@@ -1198,7 +1207,7 @@ func (h *Handler) GetRawSchemaByID(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusNotFound, types.ErrorCodeSchemaNotFound, "Schema not found")
 			return
 		}
-		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		writeInternalError(w, err)
 		return
 	}
 
@@ -1236,7 +1245,7 @@ func (h *Handler) GetSubjectsBySchemaID(w http.ResponseWriter, r *http.Request) 
 			writeError(w, http.StatusNotFound, types.ErrorCodeSchemaNotFound, "Schema not found")
 			return
 		}
-		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		writeInternalError(w, err)
 		return
 	}
 
@@ -1282,7 +1291,7 @@ func (h *Handler) GetVersionsBySchemaID(w http.ResponseWriter, r *http.Request) 
 			writeError(w, http.StatusNotFound, types.ErrorCodeSchemaNotFound, "Schema not found")
 			return
 		}
-		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		writeInternalError(w, err)
 		return
 	}
 
@@ -1330,7 +1339,7 @@ func (h *Handler) ListSchemas(w http.ResponseWriter, r *http.Request) {
 
 	schemas, err := h.registry.ListSchemas(r.Context(), registryCtx, params)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		writeInternalError(w, err)
 		return
 	}
 
@@ -1416,7 +1425,7 @@ func (h *Handler) ImportSchemas(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusOK, resp)
 			return
 		}
-		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		writeInternalError(w, err)
 		return
 	}
 
@@ -1476,7 +1485,7 @@ func (h *Handler) GetRawSchemaByVersion(w http.ResponseWriter, r *http.Request) 
 			writeError(w, http.StatusNotFound, types.ErrorCodeVersionNotFound, "Version not found")
 			return
 		}
-		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		writeInternalError(w, err)
 		return
 	}
 
@@ -1497,7 +1506,7 @@ func (h *Handler) DeleteGlobalConfig(w http.ResponseWriter, r *http.Request) {
 
 	// Check mode enforcement — Confluent blocks config writes in READONLY mode
 	if mode, modeErr := h.checkModeForWrite(r, registryCtx, ""); modeErr != nil {
-		writeError(w, http.StatusInternalServerError, types.ErrorCodeStorageError, modeErr.Error())
+		writeInternalError(w, modeErr)
 		return
 	} else if mode != "" {
 		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeOperationNotPermitted,
@@ -1507,7 +1516,7 @@ func (h *Handler) DeleteGlobalConfig(w http.ResponseWriter, r *http.Request) {
 
 	level, err := h.registry.DeleteGlobalConfig(r.Context(), registryCtx)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		writeInternalError(w, err)
 		return
 	}
 
@@ -1526,7 +1535,7 @@ func (h *Handler) DeleteMode(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusNotFound, types.ErrorCodeSubjectNotFound, "Mode not found for subject")
 			return
 		}
-		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		writeInternalError(w, err)
 		return
 	}
 
@@ -1541,7 +1550,7 @@ func (h *Handler) DeleteGlobalMode(w http.ResponseWriter, r *http.Request) {
 
 	mode, err := h.registry.DeleteGlobalMode(r.Context(), registryCtx)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		writeInternalError(w, err)
 		return
 	}
 

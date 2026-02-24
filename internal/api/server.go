@@ -153,7 +153,10 @@ func (s *Server) setupRouter() {
 		// Mount all schema registry routes at root level (default context)
 		s.mountRegistryRoutes(r, h)
 
-		// DEK Registry routes (Confluent CSFLE compatible)
+		// DEK Registry routes (Confluent CSFLE compatible).
+		// KEK/DEK endpoints are intentionally global (not mounted under /contexts/{context})
+		// because encryption keys are shared resources across all contexts, matching
+		// Confluent's behavior.
 		r.Route("/dek-registry/v1", func(r chi.Router) {
 			r.Get("/keks", h.ListKEKs)
 			r.Post("/keks", h.CreateKEK)

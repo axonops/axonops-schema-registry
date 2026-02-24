@@ -111,7 +111,7 @@ func TestDataKeySpecForAlgorithm(t *testing.T) {
 	}{
 		{"AES128_GCM", 16},
 		{"AES256_GCM", 32},
-		{"AES256_SIV", 32},
+		{"AES256_SIV", 64},
 		{"UNKNOWN", 32},
 	}
 	for _, tt := range tests {

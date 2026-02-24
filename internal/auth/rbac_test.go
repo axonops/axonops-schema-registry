@@ -206,7 +206,7 @@ func TestGetRolePermissions(t *testing.T) {
 	readonlyPerms := GetRolePermissions(RoleReadOnly)
 	for _, p := range readonlyPerms {
 		switch p {
-		case PermissionSchemaRead, PermissionConfigRead, PermissionModeRead:
+		case PermissionSchemaRead, PermissionConfigRead, PermissionModeRead, PermissionEncryptionRead, PermissionExporterRead:
 			// OK
 		default:
 			t.Errorf("Readonly should not have permission %s", p)

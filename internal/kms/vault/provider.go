@@ -170,8 +170,10 @@ func keySizeForAlgorithm(algorithm string) int {
 	switch algorithm {
 	case "AES128_GCM":
 		return 16
-	case "AES256_GCM", "AES256_SIV":
+	case "AES256_GCM":
 		return 32
+	case "AES256_SIV":
+		return 64 // RFC 5297: AES-256-SIV requires 512-bit key (two 256-bit sub-keys)
 	default:
 		return 32 // default to 256-bit
 	}

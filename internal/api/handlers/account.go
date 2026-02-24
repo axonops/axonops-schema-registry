@@ -4,6 +4,7 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 
 	"github.com/axonops/axonops-schema-registry/internal/api/types"
@@ -38,7 +39,8 @@ func (h *AccountHandler) GetCurrentUser(w http.ResponseWriter, r *http.Request) 
 			writeAccountError(w, http.StatusNotFound, types.ErrorCodeUserNotFound, "User not found")
 			return
 		}
-		writeAccountError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		slog.Error("internal server error", "error", err)
+		writeAccountError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, "Internal server error")
 		return
 	}
 
@@ -83,7 +85,8 @@ func (h *AccountHandler) ChangePassword(w http.ResponseWriter, r *http.Request) 
 			writeAccountError(w, http.StatusNotFound, types.ErrorCodeUserNotFound, "User not found")
 			return
 		}
-		writeAccountError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		slog.Error("internal server error", "error", err)
+		writeAccountError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, "Internal server error")
 		return
 	}
 

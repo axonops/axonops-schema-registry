@@ -292,6 +292,12 @@ type Storage interface {
 	// Global config delete
 	DeleteGlobalConfig(ctx context.Context, registryCtx string) error
 
+	// KEK/DEK operations are intentionally NOT context-scoped. Encryption keys
+	// are global resources shared across all contexts/tenants, matching Confluent's
+	// behavior. This means a KEK created in one context is visible and usable from
+	// all contexts. This is a deliberate isolation boundary decision: schema data
+	// is isolated per-context, but encryption key management is global.
+
 	// KEK operations (CSFLE - Client-Side Field Level Encryption)
 	CreateKEK(ctx context.Context, kek *KEKRecord) error
 	GetKEK(ctx context.Context, name string, includeDeleted bool) (*KEKRecord, error)

@@ -18,7 +18,7 @@ func (h *Handler) ListKEKs(w http.ResponseWriter, r *http.Request) {
 
 	keks, err := h.registry.ListKEKs(r.Context(), includeDeleted)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		writeInternalError(w, err)
 		return
 	}
 
@@ -70,7 +70,7 @@ func (h *Handler) GetKEK(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusNotFound, types.ErrorCodeKEKNotFound, "Key encryption key not found: "+name)
 			return
 		}
-		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		writeInternalError(w, err)
 		return
 	}
 
@@ -94,7 +94,7 @@ func (h *Handler) UpdateKEK(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusNotFound, types.ErrorCodeKEKNotFound, "Key encryption key not found: "+name)
 			return
 		}
-		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		writeInternalError(w, err)
 		return
 	}
 
@@ -110,7 +110,7 @@ func (h *Handler) UpdateKEK(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.registry.UpdateKEK(r.Context(), existing); err != nil {
-		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		writeInternalError(w, err)
 		return
 	}
 
@@ -127,7 +127,7 @@ func (h *Handler) DeleteKEK(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusNotFound, types.ErrorCodeKEKNotFound, "Key encryption key not found: "+name)
 			return
 		}
-		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		writeInternalError(w, err)
 		return
 	}
 
@@ -143,7 +143,7 @@ func (h *Handler) UndeleteKEK(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusNotFound, types.ErrorCodeKEKNotFound, "Key encryption key not found: "+name)
 			return
 		}
-		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		writeInternalError(w, err)
 		return
 	}
 
@@ -161,7 +161,7 @@ func (h *Handler) ListDEKs(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusNotFound, types.ErrorCodeKEKNotFound, "Key encryption key not found: "+kekName)
 			return
 		}
-		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		writeInternalError(w, err)
 		return
 	}
 
@@ -222,7 +222,7 @@ func (h *Handler) GetDEK(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusNotFound, types.ErrorCodeDEKNotFound, "Data encryption key not found")
 			return
 		}
-		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		writeInternalError(w, err)
 		return
 	}
 
@@ -242,7 +242,7 @@ func (h *Handler) ListDEKVersions(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusNotFound, types.ErrorCodeKEKNotFound, "Key encryption key not found: "+kekName)
 			return
 		}
-		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		writeInternalError(w, err)
 		return
 	}
 
@@ -280,7 +280,7 @@ func (h *Handler) GetDEKVersion(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusNotFound, types.ErrorCodeDEKNotFound, "Data encryption key not found")
 			return
 		}
-		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		writeInternalError(w, err)
 		return
 	}
 
@@ -303,7 +303,7 @@ func (h *Handler) DeleteDEK(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusNotFound, types.ErrorCodeDEKNotFound, "Data encryption key not found")
 			return
 		}
-		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		writeInternalError(w, err)
 		return
 	}
 
@@ -325,7 +325,7 @@ func (h *Handler) UndeleteDEK(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusNotFound, types.ErrorCodeDEKNotFound, "Data encryption key not found")
 			return
 		}
-		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		writeInternalError(w, err)
 		return
 	}
 

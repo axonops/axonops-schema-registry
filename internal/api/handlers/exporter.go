@@ -15,7 +15,7 @@ import (
 func (h *Handler) ListExporters(w http.ResponseWriter, r *http.Request) {
 	names, err := h.registry.ListExporters(r.Context())
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		writeInternalError(w, err)
 		return
 	}
 	if names == nil {
@@ -68,7 +68,7 @@ func (h *Handler) GetExporter(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusNotFound, types.ErrorCodeExporterNotFound, "Exporter not found: "+name)
 			return
 		}
-		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		writeInternalError(w, err)
 		return
 	}
 
@@ -122,7 +122,7 @@ func (h *Handler) DeleteExporter(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusNotFound, types.ErrorCodeExporterNotFound, "Exporter not found: "+name)
 			return
 		}
-		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		writeInternalError(w, err)
 		return
 	}
 
@@ -138,7 +138,7 @@ func (h *Handler) PauseExporter(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusNotFound, types.ErrorCodeExporterNotFound, "Exporter not found: "+name)
 			return
 		}
-		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		writeInternalError(w, err)
 		return
 	}
 
@@ -154,7 +154,7 @@ func (h *Handler) ResumeExporter(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusNotFound, types.ErrorCodeExporterNotFound, "Exporter not found: "+name)
 			return
 		}
-		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		writeInternalError(w, err)
 		return
 	}
 
@@ -170,7 +170,7 @@ func (h *Handler) ResetExporter(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusNotFound, types.ErrorCodeExporterNotFound, "Exporter not found: "+name)
 			return
 		}
-		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		writeInternalError(w, err)
 		return
 	}
 
@@ -187,7 +187,7 @@ func (h *Handler) GetExporterStatus(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusNotFound, types.ErrorCodeExporterNotFound, "Exporter not found: "+name)
 			return
 		}
-		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		writeInternalError(w, err)
 		return
 	}
 
@@ -210,7 +210,7 @@ func (h *Handler) GetExporterConfig(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusNotFound, types.ErrorCodeExporterNotFound, "Exporter not found: "+name)
 			return
 		}
-		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		writeInternalError(w, err)
 		return
 	}
 
@@ -235,7 +235,7 @@ func (h *Handler) UpdateExporterConfig(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusNotFound, types.ErrorCodeExporterNotFound, "Exporter not found: "+name)
 			return
 		}
-		writeError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		writeInternalError(w, err)
 		return
 	}
 
