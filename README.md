@@ -7,6 +7,7 @@
 
   [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
   [![Go Version](https://img.shields.io/badge/Go-1.24+-00ADD8.svg)](https://go.dev/)
+  [![GitHub Stars](https://img.shields.io/github/stars/axonops/axonops-schema-registry)](https://github.com/axonops/axonops-schema-registry)
   [![GitHub Issues](https://img.shields.io/github/issues/axonops/axonops-schema-registry)](https://github.com/axonops/axonops-schema-registry/issues)
 
   [Getting Started](docs/getting-started.md) | [Documentation](docs/) | [API Reference](docs/api-reference.md) | [Report Issue](https://github.com/axonops/axonops-schema-registry/issues/new/choose)
@@ -54,6 +55,7 @@ Unlike Confluent Schema Registry, which uses Kafka itself (a special `_schemas` 
 - **Enterprise Security** -- LDAP, OIDC, mTLS, API keys, JWT, and RBAC out of the box
 - **Cloud Native** -- designed for Kubernetes with health checks, Prometheus metrics, and graceful shutdown
 - **Multi-Datacenter** -- active-active deployments with Cassandra's native cross-DC replication
+- **Enterprise Features, Zero Cost** -- RBAC, data contracts, CSFLE encryption, audit logging, and rate limiting are included free under Apache 2.0. With Confluent, these require a [commercial Enterprise license](https://docs.confluent.io/platform/current/installation/license.html).
 - **Strict Specification Compliance** -- enforces Avro, Protobuf, and JSON Schema specifications more faithfully than Confluent, catching invalid schemas at registration time rather than at runtime ([details](#strict-specification-compliance))
 - **Built-in API Documentation** -- OpenAPI spec with Swagger UI and ReDoc, always in sync with the codebase
 
@@ -71,30 +73,30 @@ Unlike Confluent Schema Registry, which uses Kafka itself (a special `_schemas` 
 | **Avro** | ✅ | ✅ | ✅ | ✅ |
 | **Protobuf** | ✅ | ✅ | ✅ | ✅ |
 | **JSON Schema** | ✅ | ✅ | ✅ | ✅ |
-| **Schema References** | ✅ | ✅ | ✅ | ✅ |
-| **All 7 Compat Modes** | ✅ | ✅ | ✅ | ✅ |
+| [**Schema References**](docs/schema-types.md) | ✅ | ✅ | ✅ | ✅ |
+| [**All 7 Compat Modes**](docs/compatibility.md) | ✅ | ✅ | ✅ | ✅ |
 | **Storage: Kafka** | ❌ | ✅ | ✅ | ✅ |
-| **Storage: PostgreSQL** | ✅ | ❌ | ❌ | ❌ |
-| **Storage: MySQL** | ✅ | ❌ | ❌ | ❌ |
-| **Storage: Cassandra** | ✅ | ❌ | ❌ | ❌ |
+| [**Storage: PostgreSQL**](docs/storage-backends.md) | ✅ | ❌ | ❌ | ❌ |
+| [**Storage: MySQL**](docs/storage-backends.md) | ✅ | ❌ | ❌ | ❌ |
+| [**Storage: Cassandra**](docs/storage-backends.md) | ✅ | ❌ | ❌ | ❌ |
 | **No Kafka Dependency** | ✅ | ❌ | ❌ | ❌ |
-| **Basic Auth** | ✅ | ❌ | ✅ | ✅ |
-| **API Keys** | ✅ | ❌ | ✅ | ❌ |
-| **LDAP/AD** | ✅ | ❌ | ✅ | ❌ |
-| **OIDC/OAuth2** | ✅ | ❌ | ✅ | ✅ |
+| [**Basic Auth**](docs/authentication.md) | ✅ | ✅ &sup3; | ✅ | ⚠️ &sup4; |
+| [**API Keys**](docs/authentication.md) | ✅ | ❌ | ✅ | ❌ |
+| [**LDAP/AD**](docs/authentication.md) | ✅ | ⚠️ &sup3; | ✅ | ❌ |
+| [**OIDC/OAuth2**](docs/authentication.md) | ✅ | ✅ &sup3; | ✅ | ❌ |
 | **mTLS** | ✅ | ✅ | ✅ | ✅ |
-| **RBAC** | ✅ | ❌ | ✅ | ⚠️ Limited |
-| **Audit Logging** | ✅ | ❌ | ✅ | ❌ |
-| **Rate Limiting** | ✅ | ❌ | ❌ | ❌ |
-| **Prometheus Metrics** | ✅ | ✅ | ✅ | ✅ |
+| [**RBAC**](docs/authentication.md) | ✅ | ❌ | ✅ | ⚠️ Limited |
+| [**Audit Logging**](docs/security.md) | ✅ | ❌ | ✅ | ❌ |
+| [**Rate Limiting**](docs/security.md) | ✅ | ❌ | ❌ | ❌ |
+| [**Prometheus Metrics**](docs/monitoring.md) | ✅ | ✅ | ✅ | ✅ |
 | **REST Proxy** | ❌ | Separate | Separate | ✅ |
 | **Schema Validation** | ✅ | ✅ | ✅ | ✅ |
-| **Strict Spec Compliance** | ✅ | ❌ | ❌ | ⚠️ Partial |
-| **Data Contracts** | ✅ | ❌ | ✅ | ❌ |
-| **Multi-Tenant Contexts** | ✅ | ✅ | ✅ | ❌ |
-| **DEK Registry (CSFLE)** | ✅ | ❌ | ✅ | ❌ |
-| **KMS Providers** | 2 + 3 &sup1; | ❌ | ✅ | ❌ |
-| **Exporter API** &sup2; | ✅ | ❌ | ✅ | ❌ |
+| [**Strict Spec Compliance**](#strict-specification-compliance) | ✅ | ❌ | ❌ | ⚠️ Partial |
+| [**Data Contracts**](docs/data-contracts.md) | ✅ | ❌ | ✅ | ❌ |
+| [**Multi-Tenant Contexts**](docs/contexts.md) | ✅ | ✅ | ✅ | ❌ |
+| [**DEK Registry (CSFLE)**](docs/encryption.md) | ✅ | ❌ | ✅ | ❌ |
+| [**KMS Providers**](docs/encryption.md) | 2 + 3 &sup1; | ❌ | ✅ | ❌ |
+| [**Exporter API**](docs/exporters.md) &sup2; | ✅ | ❌ | ✅ | ❌ |
 | **Single Binary** | ✅ | ❌ | ❌ | ❌ |
 | **Memory Footprint** | ~50MB | ~500MB+ | ~500MB+ | ~200MB+ |
 
@@ -103,6 +105,12 @@ Unlike Confluent Schema Registry, which uses Kafka itself (a special `_schemas` 
 &sup1; HashiCorp Vault and OpenBao Transit are production-ready. AWS KMS, Azure Key Vault, and GCP KMS support is coming soon.
 
 &sup2; Confluent-compatible exporter management API for schema replication configuration. AxonOps stores exporter definitions; active cross-registry replication requires an external agent.
+
+&sup3; Confluent OSS authentication requires Java JAAS LoginModule configuration. AxonOps provides all authentication methods as built-in features with simple YAML configuration -- no Java runtime, no external plugins, no license keys.
+
+&sup4; Karapace uses its own ACL-based credential mechanism rather than standard HTTP Basic Authentication.
+
+> **In short:** AxonOps gives you Confluent Enterprise-grade capabilities -- data contracts, client-side encryption, RBAC, audit logging, multi-tenant contexts, and rate limiting -- under the Apache 2.0 license, in a single ~50 MB binary, with no Kafka dependency for storage. If you need enterprise support, [AxonOps](https://axonops.com) offers commercial support plans.
 
 ## Quick Start
 
@@ -346,6 +354,7 @@ We welcome contributions from the community. Please read the [Development](docs/
 
 - **GitHub Issues** -- [Report bugs or request features](https://github.com/axonops/axonops-schema-registry/issues/new/choose)
 - **GitHub Discussions** -- [Ask questions and share ideas](https://github.com/axonops/axonops-schema-registry/discussions)
+- **Commercial Support** -- [axonops.com](https://axonops.com) for enterprise support plans
 - **Website** -- [axonops.com](https://axonops.com)
 
 If you find AxonOps Schema Registry useful, please consider giving us a star!
