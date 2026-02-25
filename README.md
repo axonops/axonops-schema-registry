@@ -80,7 +80,7 @@ Unlike Confluent Schema Registry, which uses Kafka itself (a special `_schemas` 
 | [**Storage: MySQL**](docs/storage-backends.md) | ✅ | ❌ | ❌ | ❌ |
 | [**Storage: Cassandra**](docs/storage-backends.md) | ✅ | ❌ | ❌ | ❌ |
 | **No Kafka Dependency** | ✅ | ❌ | ❌ | ❌ |
-| [**Basic Auth**](docs/authentication.md) | ✅ | ✅ &sup3; | ✅ | ⚠️ &sup4; |
+| [**Basic Auth**](docs/authentication.md) | ✅ | ✅ &sup3; | ✅ | ⚠️ ⁴ |
 | [**API Keys**](docs/authentication.md) | ✅ | ❌ | ✅ | ❌ |
 | [**LDAP/AD**](docs/authentication.md) | ✅ | ⚠️ &sup3; | ✅ | ❌ |
 | [**OIDC/OAuth2**](docs/authentication.md) | ✅ | ✅ &sup3; | ✅ | ❌ |
@@ -108,7 +108,7 @@ Unlike Confluent Schema Registry, which uses Kafka itself (a special `_schemas` 
 
 &sup3; Confluent OSS authentication requires Java JAAS LoginModule configuration. AxonOps provides all authentication methods as built-in features with simple YAML configuration -- no Java runtime, no external plugins, no license keys.
 
-&sup4; Karapace uses its own ACL-based credential mechanism rather than standard HTTP Basic Authentication.
+⁴ Karapace uses its own ACL-based credential mechanism rather than standard HTTP Basic Authentication.
 
 > **In short:** AxonOps gives you Confluent Enterprise-grade capabilities -- data contracts, client-side encryption, RBAC, audit logging, multi-tenant contexts, and rate limiting -- under the Apache 2.0 license, in a single ~50 MB binary, with no Kafka dependency for storage. If you need enterprise support, [AxonOps](https://axonops.com) offers commercial support plans.
 
