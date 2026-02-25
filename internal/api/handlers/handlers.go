@@ -1634,7 +1634,16 @@ func (h *Handler) GetServerVersion(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetSubjectMetadata handles GET /subjects/{subject}/metadata
-// Returns the metadata from the latest schema version for the subject.
+//
+// When called without key/value query parameters, returns the metadata from
+// the latest schema version for the subject (bare Metadata object).
+//
+// When called WITH key/value query parameters (as the Confluent Go client does
+// via GetLatestWithMetadata), searches all versions for the latest one whose
+// metadata properties match ALL specified key/value pairs, and returns a full
+// SubjectVersionResponse (with id, subject, version, schema, schemaType,
+// metadata, ruleSet). This is required for DOWNGRADE migration rule execution,
+// where the deserializer pins to an older schema version via metadata.
 func (h *Handler) GetSubjectMetadata(w http.ResponseWriter, r *http.Request) {
 	registryCtx, subject := resolveSubjectAndContext(r)
 	if rejectGlobalContext(w, registryCtx) {
@@ -1642,6 +1651,76 @@ func (h *Handler) GetSubjectMetadata(w http.ResponseWriter, r *http.Request) {
 	}
 	subject = h.resolveAlias(r.Context(), registryCtx, subject)
 
+	// Check for key/value metadata query parameters.
+	// The Confluent Go client sends: ?deleted=true&key=major&value=1
+	// Multiple key/value pairs are supported as repeated query params.
+	keys := r.URL.Query()["key"]
+	values := r.URL.Query()["value"]
+
+	if len(keys) > 0 && len(keys) == len(values) {
+		// Build the metadata filter map from key/value pairs.
+		metadataFilter := make(map[string]string, len(keys))
+		for i := range keys {
+			metadataFilter[keys[i]] = values[i]
+		}
+
+		includeDeleted := r.URL.Query().Get("deleted") == "true"
+
+		// Fetch all versions and find the latest matching the metadata filter.
+		schemas, err := h.registry.GetSchemasBySubject(r.Context(), registryCtx, subject, includeDeleted)
+		if err != nil {
+			if errors.Is(err, storage.ErrSubjectNotFound) {
+				writeError(w, http.StatusNotFound, types.ErrorCodeSubjectNotFound, "Subject not found")
+				return
+			}
+			writeInternalError(w, err)
+			return
+		}
+
+		// Search from newest to oldest for the latest version matching all metadata properties.
+		var matched *storage.SchemaRecord
+		for i := len(schemas) - 1; i >= 0; i-- {
+			s := schemas[i]
+			if s.Metadata == nil || s.Metadata.Properties == nil {
+				continue
+			}
+			allMatch := true
+			for k, v := range metadataFilter {
+				if propVal, ok := s.Metadata.Properties[k]; !ok || propVal != v {
+					allMatch = false
+					break
+				}
+			}
+			if allMatch {
+				matched = s
+				break
+			}
+		}
+
+		if matched == nil {
+			writeError(w, http.StatusNotFound, types.ErrorCodeSchemaNotFound,
+				"No schema version found matching the specified metadata")
+			return
+		}
+
+		// Return a full SubjectVersionResponse (same format as GET /subjects/{subject}/versions/{version}).
+		resp := types.SubjectVersionResponse{
+			Subject:    matched.Subject,
+			ID:         matched.ID,
+			Version:    matched.Version,
+			SchemaType: schemaTypeForResponse(matched.SchemaType),
+			Schema:     matched.Schema,
+			Metadata:   withConfluentVersion(matched.Metadata, matched.Version),
+			RuleSet:    matched.RuleSet,
+		}
+		if len(matched.References) > 0 {
+			resp.References = matched.References
+		}
+		writeJSON(w, http.StatusOK, resp)
+		return
+	}
+
+	// No key/value params: return bare metadata from latest version (original behavior).
 	schema, err := h.registry.GetLatestSchema(r.Context(), registryCtx, subject)
 	if err != nil {
 		if errors.Is(err, storage.ErrSubjectNotFound) {

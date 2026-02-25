@@ -271,13 +271,28 @@ public class TestHelper {
      * <p>The {@code use.latest.with.metadata} config tells the deserializer to find the
      * latest schema version whose metadata properties match the given map, rather than
      * using the absolute latest version.</p>
+     *
+     * <p>NOTE: The Confluent client expects this config value to be a JSON string
+     * (e.g., {@code "{\"major\":\"1\"}"}) not a {@code Map} object.</p>
      */
     static KafkaAvroDeserializer createMetadataPinnedDeserializer(
             String registryUrl, SchemaRegistryClient client, Map<String, String> metadata) {
+        // Convert the metadata map to a JSON string, as required by the Confluent client.
+        // e.g., Map.of("major", "1") -> "{\"major\":\"1\"}"
+        StringBuilder sb = new StringBuilder("{");
+        boolean first = true;
+        for (Map.Entry<String, String> entry : metadata.entrySet()) {
+            if (!first) sb.append(",");
+            sb.append("\"").append(entry.getKey()).append("\":\"").append(entry.getValue()).append("\"");
+            first = false;
+        }
+        sb.append("}");
+        String metadataJson = sb.toString();
+
         Map<String, Object> config = new HashMap<>();
         config.put("schema.registry.url", registryUrl);
         config.put("auto.register.schemas", false);
-        config.put("use.latest.with.metadata", metadata);
+        config.put("use.latest.with.metadata", metadataJson);
 
         KafkaAvroDeserializer deserializer = new KafkaAvroDeserializer(client);
         deserializer.configure(config, false);

@@ -3,7 +3,6 @@ package com.axonops.schemaregistry.compat;
 import io.confluent.kafka.schemaregistry.avro.AvroSchemaProvider;
 import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
-import io.confluent.kafka.schemaregistry.client.rest.exceptions.RestClientException;
 import io.confluent.kafka.schemaregistry.json.JsonSchemaProvider;
 import io.confluent.kafka.schemaregistry.protobuf.ProtobufSchemaProvider;
 import io.confluent.kafka.serializers.KafkaAvroDeserializer;
@@ -38,10 +37,6 @@ public class CompatibilityModesTest {
     private static final String CONFLUENT_VERSION = System.getProperty("confluent.version", "unknown");
     private static final String SUBJECT_PREFIX = "compat-modes-test-";
 
-    private static SchemaRegistryClient schemaRegistryClient;
-    private static KafkaAvroSerializer serializer;
-    private static KafkaAvroDeserializer deserializer;
-
     // Track subjects created during tests for cleanup
     private static final List<String> createdSubjects = new ArrayList<>();
 
@@ -49,38 +44,53 @@ public class CompatibilityModesTest {
     static void setUp() {
         System.out.println("Running compatibility mode tests with Confluent version: " + CONFLUENT_VERSION);
         System.out.println("Schema Registry URL: " + SCHEMA_REGISTRY_URL);
+    }
 
-        schemaRegistryClient = new CachedSchemaRegistryClient(
+    @AfterAll
+    static void tearDown() {
+        // Clean up created subjects
+        for (String subject : createdSubjects) {
+            TestHelper.deleteSubject(SCHEMA_REGISTRY_URL, subject);
+        }
+    }
+
+    /**
+     * Create a fresh SchemaRegistryClient to avoid cross-test cache pollution.
+     */
+    private static SchemaRegistryClient createFreshClient() {
+        return new CachedSchemaRegistryClient(
             Collections.singletonList(SCHEMA_REGISTRY_URL),
             100,
             Arrays.asList(new AvroSchemaProvider(), new JsonSchemaProvider(), new ProtobufSchemaProvider()),
             Collections.emptyMap(),
             Collections.emptyMap()
         );
-
-        Map<String, Object> serializerConfig = new HashMap<>();
-        serializerConfig.put("schema.registry.url", SCHEMA_REGISTRY_URL);
-        serializerConfig.put("auto.register.schemas", true);
-
-        serializer = new KafkaAvroSerializer(schemaRegistryClient);
-        serializer.configure(serializerConfig, false);
-
-        deserializer = new KafkaAvroDeserializer(schemaRegistryClient);
-        deserializer.configure(serializerConfig, false);
     }
 
-    @AfterAll
-    static void tearDown() {
-        if (serializer != null) {
-            serializer.close();
-        }
-        if (deserializer != null) {
-            deserializer.close();
-        }
-        // Clean up created subjects
-        for (String subject : createdSubjects) {
-            TestHelper.deleteSubject(SCHEMA_REGISTRY_URL, subject);
-        }
+    /**
+     * Create a fresh serializer with its own client to avoid cache collisions.
+     */
+    private static KafkaAvroSerializer createFreshSerializer(SchemaRegistryClient client) {
+        Map<String, Object> config = new HashMap<>();
+        config.put("schema.registry.url", SCHEMA_REGISTRY_URL);
+        config.put("auto.register.schemas", true);
+
+        KafkaAvroSerializer ser = new KafkaAvroSerializer(client);
+        ser.configure(config, false);
+        return ser;
+    }
+
+    /**
+     * Create a fresh deserializer with its own client to avoid cache collisions.
+     */
+    private static KafkaAvroDeserializer createFreshDeserializer(SchemaRegistryClient client) {
+        Map<String, Object> config = new HashMap<>();
+        config.put("schema.registry.url", SCHEMA_REGISTRY_URL);
+        config.put("auto.register.schemas", true);
+
+        KafkaAvroDeserializer deser = new KafkaAvroDeserializer(client);
+        deser.configure(config, false);
+        return deser;
     }
 
     /**
@@ -211,20 +221,29 @@ public class CompatibilityModesTest {
         v2Record.put("age", 30);
         v2Record.put("email", "alice@example.com");
 
-        // Serialize with v2 schema
-        byte[] serialized = serializer.serialize(subject, v2Record);
-        assertNotNull(serialized, "Serialized data should not be null");
+        // Use fresh client/serializer/deserializer to avoid cross-test cache pollution
+        SchemaRegistryClient client = createFreshClient();
+        KafkaAvroSerializer serializer = createFreshSerializer(client);
+        KafkaAvroDeserializer deserializer = createFreshDeserializer(client);
+        try {
+            // Serialize with v2 schema
+            byte[] serialized = serializer.serialize(subject, v2Record);
+            assertNotNull(serialized, "Serialized data should not be null");
 
-        // Deserialize — the deserializer uses the writer schema from the registry
-        // and the reader gets whatever fields it understands
-        GenericRecord deserialized = (GenericRecord) deserializer.deserialize(subject, serialized);
-        assertNotNull(deserialized, "Deserialized record should not be null");
+            // Deserialize — the deserializer uses the writer schema from the registry
+            // and the reader gets whatever fields it understands
+            GenericRecord deserialized = (GenericRecord) deserializer.deserialize(subject, serialized);
+            assertNotNull(deserialized, "Deserialized record should not be null");
 
-        // The deserialized record should have name and age
-        assertEquals("Alice", deserialized.get("name").toString(), "Name should match");
-        assertEquals(30, deserialized.get("age"), "Age should match");
+            // The deserialized record should have name and age
+            assertEquals("Alice", deserialized.get("name").toString(), "Name should match");
+            assertEquals(30, deserialized.get("age"), "Age should match");
 
-        System.out.println("FORWARD compatibility: field addition with default accepted and round-trip verified");
+            System.out.println("FORWARD compatibility: field addition with default accepted and round-trip verified");
+        } finally {
+            serializer.close();
+            deserializer.close();
+        }
     }
 
     @Test
@@ -324,32 +343,41 @@ public class CompatibilityModesTest {
         Schema schemaV1 = new Schema.Parser().parse(v1Schema);
         Schema schemaV2 = new Schema.Parser().parse(v2Schema);
 
-        // --- Test BACKWARD direction: serialize with v1, deserialize with v2 reader ---
-        GenericRecord v1Record = new GenericData.Record(schemaV1);
-        v1Record.put("name", "Bob");
-        v1Record.put("age", 25);
+        // Use fresh client/serializer/deserializer to avoid cross-test cache pollution
+        SchemaRegistryClient client = createFreshClient();
+        KafkaAvroSerializer serializer = createFreshSerializer(client);
+        KafkaAvroDeserializer deserializer = createFreshDeserializer(client);
+        try {
+            // --- Test BACKWARD direction: serialize with v1, deserialize with v2 reader ---
+            GenericRecord v1Record = new GenericData.Record(schemaV1);
+            v1Record.put("name", "Bob");
+            v1Record.put("age", 25);
 
-        byte[] serializedV1 = serializer.serialize(subject, v1Record);
-        GenericRecord deserializedFromV1 = (GenericRecord) deserializer.deserialize(subject, serializedV1);
+            byte[] serializedV1 = serializer.serialize(subject, v1Record);
+            GenericRecord deserializedFromV1 = (GenericRecord) deserializer.deserialize(subject, serializedV1);
 
-        assertNotNull(deserializedFromV1, "V1 data deserialized should not be null");
-        assertEquals("Bob", deserializedFromV1.get("name").toString(), "Name should match (BACKWARD)");
-        assertEquals(25, deserializedFromV1.get("age"), "Age should match (BACKWARD)");
+            assertNotNull(deserializedFromV1, "V1 data deserialized should not be null");
+            assertEquals("Bob", deserializedFromV1.get("name").toString(), "Name should match (BACKWARD)");
+            assertEquals(25, deserializedFromV1.get("age"), "Age should match (BACKWARD)");
 
-        // --- Test FORWARD direction: serialize with v2, deserialize with v1 reader ---
-        GenericRecord v2Record = new GenericData.Record(schemaV2);
-        v2Record.put("name", "Carol");
-        v2Record.put("age", 35);
-        v2Record.put("email", "carol@example.com");
+            // --- Test FORWARD direction: serialize with v2, deserialize with v1 reader ---
+            GenericRecord v2Record = new GenericData.Record(schemaV2);
+            v2Record.put("name", "Carol");
+            v2Record.put("age", 35);
+            v2Record.put("email", "carol@example.com");
 
-        byte[] serializedV2 = serializer.serialize(subject, v2Record);
-        GenericRecord deserializedFromV2 = (GenericRecord) deserializer.deserialize(subject, serializedV2);
+            byte[] serializedV2 = serializer.serialize(subject, v2Record);
+            GenericRecord deserializedFromV2 = (GenericRecord) deserializer.deserialize(subject, serializedV2);
 
-        assertNotNull(deserializedFromV2, "V2 data deserialized should not be null");
-        assertEquals("Carol", deserializedFromV2.get("name").toString(), "Name should match (FORWARD)");
-        assertEquals(35, deserializedFromV2.get("age"), "Age should match (FORWARD)");
+            assertNotNull(deserializedFromV2, "V2 data deserialized should not be null");
+            assertEquals("Carol", deserializedFromV2.get("name").toString(), "Name should match (FORWARD)");
+            assertEquals(35, deserializedFromV2.get("age"), "Age should match (FORWARD)");
 
-        System.out.println("FULL compatibility: bidirectional change accepted and both directions verified");
+            System.out.println("FULL compatibility: bidirectional change accepted and both directions verified");
+        } finally {
+            serializer.close();
+            deserializer.close();
+        }
     }
 
     @Test
