@@ -37,6 +37,7 @@ Unlike Confluent Schema Registry, which uses Kafka itself (a special `_schemas` 
 - [Features](#features)
 - [Architecture](#architecture)
 - [API Compatibility](#api-compatibility)
+- [Strict Specification Compliance](#strict-specification-compliance)
 - [Documentation](#documentation)
 - [Development](#development)
 - [Community & Support](#community--support)
@@ -53,6 +54,7 @@ Unlike Confluent Schema Registry, which uses Kafka itself (a special `_schemas` 
 - **Enterprise Security** -- LDAP, OIDC, mTLS, API keys, JWT, and RBAC out of the box
 - **Cloud Native** -- designed for Kubernetes with health checks, Prometheus metrics, and graceful shutdown
 - **Multi-Datacenter** -- active-active deployments with Cassandra's native cross-DC replication
+- **Strict Specification Compliance** -- enforces Avro, Protobuf, and JSON Schema specifications more faithfully than Confluent, catching invalid schemas at registration time rather than at runtime ([details](#strict-specification-compliance))
 - **Built-in API Documentation** -- OpenAPI spec with Swagger UI and ReDoc, always in sync with the codebase
 
 ## Feature Comparison
@@ -87,6 +89,7 @@ Unlike Confluent Schema Registry, which uses Kafka itself (a special `_schemas` 
 | **Prometheus Metrics** | ✅ | ✅ | ✅ | ✅ |
 | **REST Proxy** | ❌ | Separate | Separate | ✅ |
 | **Schema Validation** | ✅ | ✅ | ✅ | ✅ |
+| **Strict Spec Compliance** | ✅ | ❌ | ❌ | ⚠️ Partial |
 | **Data Contracts** | ✅ | ❌ | ✅ | ❌ |
 | **Multi-Tenant Contexts** | ✅ | ✅ | ✅ | ❌ |
 | **DEK Registry (CSFLE)** | ✅ | ❌ | ✅ | ❌ |
@@ -228,6 +231,43 @@ AxonOps Schema Registry implements the Confluent Schema Registry REST API v1:
 
 - **Contexts** -- Both Confluent and AxonOps Schema Registry support contexts for multi-tenancy. Subjects can be qualified with a context prefix (e.g., `:.mycontext:my-subject`), and schema IDs are unique within each context. AxonOps also supports URL prefix routing (`/contexts/.mycontext/subjects/...`) as an alternative. See the [Contexts](docs/contexts.md) guide for full documentation.
 - **Cluster coordination** -- Confluent uses Kafka's group protocol for leader election between registry instances. AxonOps instances are fully stateless with no leader election -- database-level constraints (transactions, LWTs) handle coordination instead.
+
+---
+
+## Strict Specification Compliance
+
+AxonOps Schema Registry enforces Avro, Protobuf, and JSON Schema specifications more faithfully than Confluent Schema Registry. This catches invalid schemas at registration time -- before they enter your pipeline and cause failures during serialization, deserialization, or code generation.
+
+### Schema Fingerprinting and Deduplication
+
+AxonOps uses **specification-correct canonical forms** for schema fingerprinting, producing better deduplication than Confluent's raw-string approach.
+
+| Behavior | AxonOps | Confluent | Why AxonOps is Better |
+|----------|---------|-----------|----------------------|
+| **Avro Parsing Canonical Form** | Follows the [Avro spec PCF](https://avro.apache.org/docs/current/specification/#parsing-canonical-form-for-schemas): strips `doc`, `aliases`, and `order` from the fingerprint | Includes `doc`, `aliases`, and `order` in the fingerprint | Two schemas that differ only in documentation or field ordering hints are logically identical. AxonOps correctly assigns them the same global ID, avoiding unnecessary schema proliferation. |
+| **JSON Schema key ordering** | Normalizes JSON key order before fingerprinting | Hashes the raw JSON string, so `{"type":"object","properties":...}` and `{"properties":...,"type":"object"}` get different IDs | JSON objects are unordered by specification ([RFC 8259](https://www.rfc-editor.org/rfc/rfc8259#section-4)). AxonOps correctly treats key-reordered schemas as identical. |
+
+### Stricter Schema Validation
+
+Confluent accepts several schemas that violate their respective specifications. AxonOps rejects them at registration time with a `422` error, preventing invalid schemas from entering the registry.
+
+| Invalid Schema | AxonOps | Confluent | Specification Reference |
+|---------------|---------|-----------|------------------------|
+| **Avro: invalid default type** (e.g., `"default": "not_a_number"` on an `int` field) | Rejects (422) | Accepts (200) | [Avro spec](https://avro.apache.org/docs/current/specification/#schema-record): *"A default value for this field, only used when reading instances that lack this field for schema evolution purposes. [...] The value type must match the field's schema type."* |
+| **Avro: enum with empty symbols** (`"symbols": []`) | Rejects (422) | Accepts (200) | [Avro spec](https://avro.apache.org/docs/current/specification/#enums): *"symbols: a JSON array, listing symbols, as JSON strings. All symbols in an enum must be unique."* An empty array produces an unusable enum type with no valid values. |
+| **Avro: fixed with size 0** (`"size": 0`) | Rejects (422) | Accepts (200) | [Avro spec](https://avro.apache.org/docs/current/specification/#fixed): *"size: an integer, specifying the number of bytes per value."* A zero-byte fixed type is meaningless and will fail during serialization. |
+| **Protobuf: duplicate field numbers** (two fields with the same number in one message) | Rejects (422) | Accepts (200) | [Protobuf spec](https://protobuf.dev/programming-guides/proto3/#assigning): *"Each field in the message definition has a unique number."* Duplicate field numbers produce ambiguous wire format encoding. |
+| **Protobuf: unresolvable imports** (`import "nonexistent/file.proto"`) | Rejects (422) | Accepts (200) | [Protobuf spec](https://protobuf.dev/programming-guides/proto3/#importing): Imports must resolve to a known `.proto` file. An unresolvable import will fail at compile time in any language. |
+
+### JSON Schema Draft-07 Boolean Root Schemas
+
+AxonOps supports [boolean root schemas](https://json-schema.org/draft-07/json-schema-core#section-4.3.2) (`true` and `false` as standalone schemas), which are valid in JSON Schema Draft-07 but uncommon. `true` accepts any instance, `false` rejects all instances.
+
+### Impact on Migration
+
+If you are migrating from Confluent and have schemas that contain the invalid patterns listed above, those schemas will be rejected by AxonOps during import. This is by design -- it surfaces latent problems in your schema definitions. You should fix the invalid schemas before migrating.
+
+For the fingerprinting differences, schemas that Confluent stored as separate global IDs (because they differ only in `doc`, `aliases`, `order`, or JSON key ordering) will be correctly deduplicated to a single global ID in AxonOps.
 
 ---
 
