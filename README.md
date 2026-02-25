@@ -191,37 +191,13 @@ Auth storage can optionally be separated into HashiCorp Vault.
 
 ## Architecture
 
-### Single Instance
+AxonOps Schema Registry is a **single stateless binary** that connects to any supported storage backend. There is no leader election and no inter-instance coordination -- database-level constraints handle concurrency.
 
-![Single Instance Architecture](assets/architecture-single.svg)
+- **Single instance** -- one binary, one database connection. Suitable for development or low-traffic production.
+- **High availability** -- multiple stateless instances behind a load balancer with database-level locking (PostgreSQL/MySQL).
+- **Multi-datacenter** -- active-active across datacenters using Cassandra's native cross-DC replication and lightweight transactions.
 
-A single stateless binary connecting to any supported storage backend. Suitable for development, testing, or low-traffic production.
-
-### High Availability (PostgreSQL/MySQL)
-
-**Write Path:**
-
-![HA Write Path](assets/architecture-ha-write.svg)
-
-**Read Path:**
-
-![HA Read Path](assets/architecture-ha-read.svg)
-
-Multiple stateless instances behind a load balancer. No leader election, no inter-instance coordination. Database-level concurrency control ensures consistency.
-
-### Distributed Multi-Datacenter (Cassandra)
-
-![Distributed Architecture](assets/architecture-distributed.svg)
-
-Active-active across datacenters with automatic cross-DC replication via Cassandra. Lightweight transactions ensure atomic ID allocation and fingerprint deduplication.
-
-### Authentication Flow
-
-![Authentication Flow](assets/auth-flow.svg)
-
-### Schema Registration Flow
-
-![Schema Registration Flow](assets/schema-flow.svg)
+See [Deployment](docs/deployment.md) for detailed architecture diagrams, topology options, and production configuration.
 
 ---
 
@@ -298,7 +274,7 @@ For the fingerprinting differences, schemas that Confluent stored as separate gl
 | [API Reference](docs/api-reference.md) | All 47+ endpoints with parameters, examples, and error codes |
 | [Authentication](docs/authentication.md) | All 6 auth methods, RBAC, user management, and admin CLI |
 | [Security](docs/security.md) | TLS, rate limiting, audit logging, credential storage, and hardening checklist |
-| [Deployment](docs/deployment.md) | Topologies, Docker Compose, Kubernetes manifests, systemd, and health checks |
+| [Deployment](docs/deployment.md) | Architecture diagrams, topologies, Docker Compose, Kubernetes manifests, systemd, and health checks |
 | [Monitoring](docs/monitoring.md) | Prometheus metrics, alerting rules, structured logging, and Grafana queries |
 | [Migration](docs/migration.md) | Migrating from Confluent Schema Registry with preserved schema IDs |
 | [Testing Strategy](docs/testing.md) | Testing philosophy, all test layers, how to run and write tests |

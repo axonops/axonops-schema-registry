@@ -144,6 +144,8 @@ When retrieving schemas, you can pass the query parameter `?referenceFormat=RESO
 
 ## How It Works: The Registration and Serialization Flow
 
+![Schema Registration Flow](../assets/schema-flow.svg)
+
 ### Producer: Registering and Serializing
 
 When a Kafka producer sends a message using a schema-aware serializer (such as the Confluent Avro serializer), the following happens:

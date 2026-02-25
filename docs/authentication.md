@@ -75,6 +75,10 @@ Authentication is optional but recommended for production deployments. When enab
 
 When authentication is disabled (the default), all endpoints are accessible without credentials. The health check (`/`) and metrics (`/metrics`) endpoints are always unauthenticated regardless of configuration.
 
+### Authentication Flow
+
+![Authentication Flow](../assets/auth-flow.svg)
+
 ## Enabling Authentication
 
 Add the `security.auth` section to your configuration file:
