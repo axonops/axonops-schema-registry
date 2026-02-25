@@ -171,6 +171,19 @@ func canonicalizeValue(v interface{}) string {
 func canonicalizeObject(obj map[string]interface{}) string {
 	schemaType, _ := obj["type"].(string)
 
+	// Per the Avro Parsing Canonical Form specification, named types must use
+	// fully-qualified names (namespace.name) and the separate "namespace" field
+	// is stripped. This ensures schemas with the same short name but different
+	// namespaces produce distinct fingerprints.
+	switch schemaType {
+	case "record", "error", "enum", "fixed":
+		if ns, ok := obj["namespace"].(string); ok && ns != "" {
+			if name, ok := obj["name"].(string); ok && !strings.Contains(name, ".") {
+				obj["name"] = ns + "." + name
+			}
+		}
+	}
+
 	// Define field order based on schema type
 	var fieldOrder []string
 	switch schemaType {

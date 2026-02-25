@@ -277,22 +277,22 @@ public class TestHelper {
      */
     static KafkaAvroDeserializer createMetadataPinnedDeserializer(
             String registryUrl, SchemaRegistryClient client, Map<String, String> metadata) {
-        // Convert the metadata map to a JSON string, as required by the Confluent client.
-        // e.g., Map.of("major", "1") -> "{\"major\":\"1\"}"
-        StringBuilder sb = new StringBuilder("{");
+        // The Confluent client's use.latest.with.metadata config expects a
+        // comma-separated key=value string (Kafka ConfigDef MAP format).
+        // e.g., Map.of("major", "1") -> "major=1"
+        StringBuilder sb = new StringBuilder();
         boolean first = true;
         for (Map.Entry<String, String> entry : metadata.entrySet()) {
             if (!first) sb.append(",");
-            sb.append("\"").append(entry.getKey()).append("\":\"").append(entry.getValue()).append("\"");
+            sb.append(entry.getKey()).append("=").append(entry.getValue());
             first = false;
         }
-        sb.append("}");
-        String metadataJson = sb.toString();
+        String metadataStr = sb.toString();
 
         Map<String, Object> config = new HashMap<>();
         config.put("schema.registry.url", registryUrl);
         config.put("auto.register.schemas", false);
-        config.put("use.latest.with.metadata", metadataJson);
+        config.put("use.latest.with.metadata", metadataStr);
 
         KafkaAvroDeserializer deserializer = new KafkaAvroDeserializer(client);
         deserializer.configure(config, false);

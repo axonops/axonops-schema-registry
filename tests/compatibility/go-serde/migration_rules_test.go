@@ -249,7 +249,7 @@ func TestDowngradeFieldRenameExecution(t *testing.T) {
 	// -- v1: Order with "state" field, metadata major=1 --
 	v1Schema := `{
 		"type": "record",
-		"name": "OrderV1",
+		"name": "Order",
 		"namespace": "com.example",
 		"fields": [
 			{"name": "orderId", "type": "string"},
@@ -268,7 +268,7 @@ func TestDowngradeFieldRenameExecution(t *testing.T) {
 	// -- v2: Order with "status" field, metadata major=2, UPGRADE + DOWNGRADE rules --
 	v2Schema := `{
 		"type": "record",
-		"name": "OrderV2",
+		"name": "Order",
 		"namespace": "com.example",
 		"fields": [
 			{"name": "orderId", "type": "string"},
@@ -335,7 +335,7 @@ func TestDowngradeMultipleFieldTransforms(t *testing.T) {
 	// -- v1: Shipment with "state" + "location" fields, metadata major=1 --
 	v1Schema := `{
 		"type": "record",
-		"name": "ShipmentV1",
+		"name": "Shipment",
 		"namespace": "com.example",
 		"fields": [
 			{"name": "shipmentId", "type": "string"},
@@ -355,7 +355,7 @@ func TestDowngradeMultipleFieldTransforms(t *testing.T) {
 	// -- v2: Shipment with "status" + "region" (two field renames), metadata major=2 --
 	v2Schema := `{
 		"type": "record",
-		"name": "ShipmentV2",
+		"name": "Shipment",
 		"namespace": "com.example",
 		"fields": [
 			{"name": "shipmentId", "type": "string"},
