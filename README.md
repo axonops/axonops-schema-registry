@@ -18,7 +18,7 @@
 
 ## Overview
 
-[AxonOps](https://axonops.com) Schema Registry is a **schema registry for Apache Kafka** that manages and enforces schemas for event-driven architectures. It stores versioned Avro, Protobuf, and JSON Schema definitions, validates compatibility between schema versions, and ensures producers and consumers agree on data formats.
+[AxonOps](https://axonops.com) Schema Registry is a **schema registry for Apache Kafka&reg;** that manages and enforces schemas for event-driven architectures. It stores versioned Avro, Protobuf, and JSON Schema definitions, validates compatibility between schema versions, and ensures producers and consumers agree on data formats.
 
 Unlike Confluent Schema Registry, which uses Kafka itself (a special `_schemas` topic) as its storage backend, AxonOps Schema Registry **does not require Kafka** for storage -- it uses standard databases (PostgreSQL, MySQL, or Cassandra) while remaining **fully API-compatible** with Confluent's REST API, serializers, and client libraries.
 
