@@ -62,6 +62,9 @@ func RegisterSchemaSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 	ctx.Step(`^I GET "([^"]*)"$`, func(path string) error {
 		return tc.GET(path)
 	})
+	ctx.Step(`^I POST "([^"]*)"$`, func(path string) error {
+		return tc.POST(path, nil)
+	})
 	ctx.Step(`^I POST "([^"]*)" with body:$`, func(path string, body *godog.DocString) error {
 		var req interface{}
 		if err := json.Unmarshal([]byte(body.Content), &req); err != nil {

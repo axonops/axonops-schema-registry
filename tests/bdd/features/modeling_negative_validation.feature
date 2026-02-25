@@ -114,6 +114,28 @@ message Bad {
     Then the response status should be 422
 
   # ==========================================================================
+  # CROSS-TYPE MISMATCH
+  # ==========================================================================
+
+  Scenario: Schema type mismatch — register Avro then Protobuf in same subject is rejected
+    When I register a schema under subject "neg-type-mismatch":
+      """
+      {"type":"record","name":"First","fields":[{"name":"id","type":"long"}]}
+      """
+    Then the response status should be 200
+    # Protobuf schema is valid but incompatible with existing Avro — 409
+    When I register a "PROTOBUF" schema under subject "neg-type-mismatch":
+      """
+syntax = "proto3";
+package test.neg;
+
+message Second {
+  int64 id = 1;
+}
+      """
+    Then the response status should be 409
+
+  # ==========================================================================
   # CROSS-TYPE BEHAVIORS
   # ==========================================================================
 
