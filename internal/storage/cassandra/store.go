@@ -2875,30 +2875,28 @@ func (s *Store) CreateDEK(ctx context.Context, dek *storage.DEKRecord) error {
 
 	dek.Ts = time.Now().UnixMilli()
 
-	// Check if DEK already exists for this kekName+subject+version
-	var existingVersion int
-	err := s.readQuery(
-		fmt.Sprintf(`SELECT version FROM %s.deks WHERE kek_name = ? AND subject = ? AND version = ?`, qident(s.cfg.Keyspace)),
-		dek.KEKName, dek.Subject, dek.Version,
-	).WithContext(ctx).Scan(&existingVersion)
-	if err == nil {
+	// Use INSERT IF NOT EXISTS (LWT) to atomically check-and-insert the DEK,
+	// avoiding the TOCTOU race of a separate SELECT + INSERT.
+	applied, err := casApplied(
+		s.session.Query(
+			fmt.Sprintf(`INSERT INTO %s.deks (kek_name, subject, version, algorithm, encrypted_key_material, deleted, ts)
+				VALUES (?, ?, ?, ?, ?, ?, ?) IF NOT EXISTS`, qident(s.cfg.Keyspace)),
+			dek.KEKName, dek.Subject, dek.Version, dek.Algorithm, dek.EncryptedKeyMaterial, false, dek.Ts,
+		).WithContext(ctx),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create DEK: %w", err)
+	}
+	if !applied {
 		return storage.ErrDEKExists
 	}
 
-	// Insert DEK and denormalization entry in a batch
-	batch := s.session.NewBatch(gocql.LoggedBatch).WithContext(ctx)
-	batch.Query(
-		fmt.Sprintf(`INSERT INTO %s.deks (kek_name, subject, version, algorithm, encrypted_key_material, deleted, ts)
-			VALUES (?, ?, ?, ?, ?, ?, ?)`, qident(s.cfg.Keyspace)),
-		dek.KEKName, dek.Subject, dek.Version, dek.Algorithm, dek.EncryptedKeyMaterial, false, dek.Ts,
-	)
-	batch.Query(
+	// Write the denormalization entry (idempotent — same kek_name+subject pair)
+	if err := s.session.Query(
 		fmt.Sprintf(`INSERT INTO %s.deks_by_kek (kek_name, subject) VALUES (?, ?)`, qident(s.cfg.Keyspace)),
 		dek.KEKName, dek.Subject,
-	)
-
-	if err := s.session.ExecuteBatch(batch); err != nil {
-		return fmt.Errorf("failed to create DEK: %w", err)
+	).WithContext(ctx).Exec(); err != nil {
+		return fmt.Errorf("failed to write DEK denormalization entry: %w", err)
 	}
 
 	return nil

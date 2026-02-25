@@ -1623,7 +1623,8 @@ func (s *Store) CreateKEK(ctx context.Context, kek *storage.KEKRecord) error {
 	kek.CreatedAt = now
 	kek.UpdatedAt = now
 
-	s.keks[kek.Name] = kek
+	stored := *kek
+	s.keks[kek.Name] = &stored
 	return nil
 }
 
@@ -1641,7 +1642,8 @@ func (s *Store) GetKEK(ctx context.Context, name string, includeDeleted bool) (*
 		return nil, storage.ErrKEKNotFound
 	}
 
-	return kek, nil
+	copy := *kek
+	return &copy, nil
 }
 
 // UpdateKEK updates an existing Key Encryption Key.
@@ -1661,7 +1663,8 @@ func (s *Store) UpdateKEK(ctx context.Context, kek *storage.KEKRecord) error {
 	kek.Ts = now.UnixMilli()
 	kek.UpdatedAt = now
 
-	s.keks[kek.Name] = kek
+	stored := *kek
+	s.keks[kek.Name] = &stored
 	return nil
 }
 
@@ -1716,7 +1719,8 @@ func (s *Store) ListKEKs(ctx context.Context, includeDeleted bool) ([]*storage.K
 		if !includeDeleted && kek.Deleted {
 			continue
 		}
-		keks = append(keks, kek)
+		copy := *kek
+		keks = append(keks, &copy)
 	}
 
 	sort.Slice(keks, func(i, j int) bool {
@@ -1819,7 +1823,8 @@ func (s *Store) GetDEK(ctx context.Context, kekName, subject string, version int
 		return nil, storage.ErrDEKNotFound
 	}
 
-	return dek, nil
+	copy := *dek
+	return &copy, nil
 }
 
 // ListDEKs returns the sorted list of unique subject names under a KEK.

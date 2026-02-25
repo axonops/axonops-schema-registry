@@ -265,7 +265,11 @@ func (h *Handler) ListSubjects(w http.ResponseWriter, r *http.Request) {
 
 	// For deletedOnly, filter to only deleted subjects by diffing with active set
 	if deletedOnly {
-		activeSubjects, _ := h.registry.ListSubjects(r.Context(), registryCtx, false)
+		activeSubjects, err := h.registry.ListSubjects(r.Context(), registryCtx, false)
+		if err != nil {
+			writeInternalError(w, err)
+			return
+		}
 		activeSet := make(map[string]bool, len(activeSubjects))
 		for _, s := range activeSubjects {
 			activeSet[s] = true
@@ -341,7 +345,11 @@ func (h *Handler) GetVersions(w http.ResponseWriter, r *http.Request) {
 
 	if deletedOnly {
 		// Filter to only deleted versions by getting all versions and non-deleted, then diffing
-		activeVersions, _ := h.registry.GetVersions(r.Context(), registryCtx, subject, false)
+		activeVersions, err := h.registry.GetVersions(r.Context(), registryCtx, subject, false)
+		if err != nil && !errors.Is(err, storage.ErrSubjectNotFound) {
+			writeInternalError(w, err)
+			return
+		}
 		activeSet := make(map[int]bool, len(activeVersions))
 		for _, v := range activeVersions {
 			activeSet[v] = true
