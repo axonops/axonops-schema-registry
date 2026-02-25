@@ -1,6 +1,6 @@
 module github.com/axonops/schema-registry-compatibility-tests
 
-go 1.24
+go 1.26
 
 require (
 	github.com/linkedin/goavro/v2 v2.13.0

@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 env:
-  GO_VERSION: '1.25.7'
+  GO_VERSION: '1.26.0'
 
 jobs:
   # Build binaries and run unit tests
@@ -99,7 +99,7 @@ jobs:
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v8
         with:
-          version: v2.4.0
+          version: v2.10.1
           args: --timeout=5m
 
       - name: go vet

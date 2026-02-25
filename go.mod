@@ -1,8 +1,6 @@
 module github.com/axonops/axonops-schema-registry
 
-go 1.24.0
-
-toolchain go1.25.7
+go 1.26.0
 
 require (
 	cloud.google.com/go/kms v1.26.0
@@ -19,7 +17,6 @@ require (
 	github.com/go-ldap/ldap/v3 v3.4.12
 	github.com/go-sql-driver/mysql v1.9.3
 	github.com/golang-jwt/jwt/v5 v5.3.0
-	github.com/google/uuid v1.6.0
 	github.com/hamba/avro/v2 v2.27.0
 	github.com/hashicorp/vault/api v1.22.0
 	github.com/lib/pq v1.10.9
@@ -71,6 +68,7 @@ require (
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/gofrs/uuid v4.3.1+incompatible // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
+	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.11 // indirect
 	github.com/googleapis/gax-go/v2 v2.17.0 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect

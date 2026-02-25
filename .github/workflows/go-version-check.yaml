@@ -1,0 +1,208 @@
+name: Go Version Check
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'  # Every Monday at 9:00 UTC
+  workflow_dispatch:       # Manual trigger
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  check-go-version:
+    name: Check for Go Updates
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get current Go version
+        id: current
+        run: |
+          CURRENT=$(grep "GO_VERSION:" .github/workflows/ci.yaml | head -1 | sed "s/.*GO_VERSION: '//;s/'//")
+          echo "version=$CURRENT" >> "$GITHUB_OUTPUT"
+          echo "Current Go version: $CURRENT"
+
+      - name: Check latest Go 1.26.x release
+        id: latest
+        run: |
+          LATEST=$(curl -s 'https://go.dev/dl/?mode=json' | \
+            jq -r '[.[] | select(.stable == true) | .version | select(startswith("go1.26."))] | sort_by(split(".") | map(ltrimstr("go")) | map(tonumber)) | last // empty' | \
+            sed 's/^go//')
+
+          if [ -z "$LATEST" ]; then
+            echo "No stable Go 1.26.x release found"
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "version=$LATEST" >> "$GITHUB_OUTPUT"
+          echo "found=true" >> "$GITHUB_OUTPUT"
+          echo "Latest Go 1.26.x: $LATEST"
+
+      - name: Compare versions
+        id: compare
+        run: |
+          if [ "${{ steps.latest.outputs.found }}" != "true" ]; then
+            echo "No new version found"
+            echo "needs_update=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          CURRENT="${{ steps.current.outputs.version }}"
+          LATEST="${{ steps.latest.outputs.version }}"
+
+          if [ "$CURRENT" = "$LATEST" ]; then
+            echo "Already on latest: $CURRENT"
+            echo "needs_update=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Update available: $CURRENT → $LATEST"
+            echo "needs_update=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check if branch already exists
+        if: steps.compare.outputs.needs_update == 'true'
+        id: branch
+        run: |
+          BRANCH="feature/goupgrade_${{ steps.latest.outputs.version }}"
+          if git ls-remote --heads origin "$BRANCH" | grep -q "$BRANCH"; then
+            echo "Branch $BRANCH already exists — skipping"
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Apply version updates
+        if: steps.compare.outputs.needs_update == 'true' && steps.branch.outputs.exists == 'false'
+        run: |
+          LATEST="${{ steps.latest.outputs.version }}"
+          BRANCH="feature/goupgrade_${LATEST}"
+          MAJOR_MINOR=$(echo "$LATEST" | grep -oP '^\d+\.\d+')
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+
+          # go.mod — update go directive (handles both X.Y.Z and X.Y formats)
+          sed -i -E "s/^go [0-9]+\.[0-9]+(\.[0-9]+)?/go ${LATEST}/" go.mod
+
+          # Dockerfile base images
+          sed -i -E "s|golang:[0-9]+\.[0-9]+-alpine|golang:${MAJOR_MINOR}-alpine|" Dockerfile
+          sed -i -E "s|golang:[0-9]+\.[0-9]+-alpine|golang:${MAJOR_MINOR}-alpine|" tests/bdd/docker/Dockerfile.registry
+
+          # CI and release workflow versions
+          sed -i -E "s/GO_VERSION: '[0-9]+\.[0-9]+\.[0-9]+'/GO_VERSION: '${LATEST}'/" .github/workflows/ci.yaml
+          sed -i -E "s/GO_VERSION: '[0-9]+\.[0-9]+\.[0-9]+'/GO_VERSION: '${LATEST}'/" .github/workflows/release.yaml
+
+          # Compatibility test go.mod
+          sed -i -E "s/^go [0-9]+\.[0-9]+/go ${MAJOR_MINOR}/" tests/compatibility/go/go.mod
+
+      - name: Setup Go and tidy modules
+        if: steps.compare.outputs.needs_update == 'true' && steps.branch.outputs.exists == 'false'
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ steps.latest.outputs.version }}
+
+      - name: Run go mod tidy
+        if: steps.compare.outputs.needs_update == 'true' && steps.branch.outputs.exists == 'false'
+        run: go mod tidy
+
+      - name: Commit and push
+        if: steps.compare.outputs.needs_update == 'true' && steps.branch.outputs.exists == 'false'
+        run: |
+          LATEST="${{ steps.latest.outputs.version }}"
+          BRANCH="feature/goupgrade_${LATEST}"
+
+          git add -A
+          git commit -m "feat: upgrade Go to ${LATEST}"
+          git push -u origin "$BRANCH"
+
+      - name: Wait for CI
+        if: steps.compare.outputs.needs_update == 'true' && steps.branch.outputs.exists == 'false'
+        id: ci
+        run: |
+          BRANCH="feature/goupgrade_${{ steps.latest.outputs.version }}"
+          echo "Waiting for CI to start on $BRANCH..."
+          sleep 30
+
+          # Wait up to 30 minutes for CI to complete
+          for i in $(seq 1 60); do
+            STATUS=$(gh run list --branch "$BRANCH" --workflow ci.yaml --limit 1 --json status,conclusion -q '.[0]' 2>/dev/null || echo '{}')
+            RUN_STATUS=$(echo "$STATUS" | jq -r '.status // "not_found"')
+            CONCLUSION=$(echo "$STATUS" | jq -r '.conclusion // "pending"')
+
+            if [ "$RUN_STATUS" = "completed" ]; then
+              echo "CI completed with conclusion: $CONCLUSION"
+              echo "conclusion=$CONCLUSION" >> "$GITHUB_OUTPUT"
+              break
+            fi
+
+            echo "CI status: $RUN_STATUS (attempt $i/60)"
+            sleep 30
+          done
+
+          if [ "$RUN_STATUS" != "completed" ]; then
+            echo "CI timed out after 30 minutes"
+            echo "conclusion=timeout" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create Pull Request
+        if: steps.compare.outputs.needs_update == 'true' && steps.branch.outputs.exists == 'false'
+        run: |
+          LATEST="${{ steps.latest.outputs.version }}"
+          MAJOR_MINOR=$(echo "$LATEST" | grep -oP '^\d+\.\d+')
+          CI_CONCLUSION="${{ steps.ci.outputs.conclusion }}"
+
+          if [ "$CI_CONCLUSION" = "success" ]; then
+            CI_NOTE="All CI checks passed."
+          elif [ "$CI_CONCLUSION" = "timeout" ]; then
+            CI_NOTE="**Warning:** CI timed out. Please check the workflow run manually."
+          else
+            CI_NOTE="**Warning:** CI completed with status: \`${CI_CONCLUSION}\`. Please review failures before merging."
+          fi
+
+          DRAFT_FLAG=""
+          if [ "$CI_CONCLUSION" != "success" ]; then
+            DRAFT_FLAG="--draft"
+          fi
+
+          BODY=$(cat <<EOF
+## Go ${LATEST} Upgrade
+
+Automated upgrade from Go ${{ steps.current.outputs.version }} to Go ${LATEST}.
+
+### Files Updated
+
+| File | Change |
+|------|--------|
+| \`go.mod\` | \`go ${LATEST}\` |
+| \`Dockerfile\` | \`golang:${MAJOR_MINOR}-alpine\` |
+| \`tests/bdd/docker/Dockerfile.registry\` | \`golang:${MAJOR_MINOR}-alpine\` |
+| \`.github/workflows/ci.yaml\` | \`GO_VERSION: '${LATEST}'\` |
+| \`.github/workflows/release.yaml\` | \`GO_VERSION: '${LATEST}'\` |
+| \`tests/compatibility/go/go.mod\` | \`go ${MAJOR_MINOR}\` |
+
+### Release Notes
+
+See: https://go.dev/doc/devel/release#go${MAJOR_MINOR}
+
+### CI Status
+
+${CI_NOTE}
+
+---
+*This PR was created automatically by the Go Version Check workflow.*
+EOF
+          )
+
+          gh pr create \
+            --title "feat: Upgrade Go to ${LATEST}" \
+            --body "$BODY" \
+            --assignee millerjp,hshimizu \
+            --label dependencies --label automated \
+            $DRAFT_FLAG
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
