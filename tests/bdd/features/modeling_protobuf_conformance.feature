@@ -415,3 +415,44 @@ message User {
 }
       """
     Then the response status should be 200
+
+  # ==========================================================================
+  # 19. PROTO2 EXTENSIONS
+  # ==========================================================================
+
+  Scenario: Proto2 extensions with extend block
+    When I register a "PROTOBUF" schema under subject "proto-conform-extensions":
+      """
+syntax = "proto2";
+package test.extensions;
+
+message Base {
+  required string name = 1;
+  extensions 100 to 199;
+}
+
+extend Base {
+  optional int32 age = 100;
+  optional string email = 101;
+}
+      """
+    Then the response status should be 200
+
+  # ==========================================================================
+  # 20. PROTO2 GROUPS
+  # ==========================================================================
+
+  Scenario: Proto2 groups with deprecated group keyword
+    When I register a "PROTOBUF" schema under subject "proto-conform-groups":
+      """
+syntax = "proto2";
+package test.groups;
+
+message SearchResponse {
+  repeated group Result = 1 {
+    required string url = 2;
+    optional string title = 3;
+  }
+}
+      """
+    Then the response status should be 200

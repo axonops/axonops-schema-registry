@@ -266,3 +266,66 @@ Feature: JSON Schema Conformance-Inspired Parsing
     And the response body should contain "properties"
     And the response body should contain "required"
     And the response body should contain "definitions"
+
+  # ==========================================================================
+  # 19. STANDALONE BOOLEAN ROOT SCHEMA — TRUE ACCEPTS EVERYTHING
+  # ==========================================================================
+
+  Scenario: Standalone boolean root schema true accepts everything
+    When I register a "JSON" schema under subject "json-conform-bool-true":
+      """
+      true
+      """
+    Then the response status should be 200
+
+  # ==========================================================================
+  # 20. STANDALONE BOOLEAN ROOT SCHEMA — FALSE REJECTS EVERYTHING
+  # ==========================================================================
+
+  Scenario: Standalone boolean root schema false rejects everything
+    When I register a "JSON" schema under subject "json-conform-bool-false":
+      """
+      false
+      """
+    Then the response status should be 200
+
+  # ==========================================================================
+  # 21. ADDITIONAL FORMAT ANNOTATIONS
+  # ==========================================================================
+
+  Scenario: Additional format annotations register successfully
+    When I register a "JSON" schema under subject "json-conform-fmt-hostname":
+      """
+      {"type":"string","format":"hostname"}
+      """
+    Then the response status should be 200
+    When I register a "JSON" schema under subject "json-conform-fmt-json-pointer":
+      """
+      {"type":"string","format":"json-pointer"}
+      """
+    Then the response status should be 200
+    When I register a "JSON" schema under subject "json-conform-fmt-regex":
+      """
+      {"type":"string","format":"regex"}
+      """
+    Then the response status should be 200
+    When I register a "JSON" schema under subject "json-conform-fmt-uri-ref":
+      """
+      {"type":"string","format":"uri-reference"}
+      """
+    Then the response status should be 200
+    When I register a "JSON" schema under subject "json-conform-fmt-uri-tmpl":
+      """
+      {"type":"string","format":"uri-template"}
+      """
+    Then the response status should be 200
+    When I register a "JSON" schema under subject "json-conform-fmt-iri":
+      """
+      {"type":"string","format":"iri"}
+      """
+    Then the response status should be 200
+    When I register a "JSON" schema under subject "json-conform-fmt-iri-ref":
+      """
+      {"type":"string","format":"iri-reference"}
+      """
+    Then the response status should be 200

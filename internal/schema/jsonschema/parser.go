@@ -37,9 +37,27 @@ func (p *Parser) Type() storage.SchemaType {
 // Parse parses and validates a JSON Schema.
 func (p *Parser) Parse(schemaStr string, refs []storage.Reference) (schema.ParsedSchema, error) {
 	// Parse the JSON to validate it's valid JSON
-	var schemaMap map[string]interface{}
-	if err := json.Unmarshal([]byte(schemaStr), &schemaMap); err != nil {
+	var raw interface{}
+	if err := json.Unmarshal([]byte(schemaStr), &raw); err != nil {
 		return nil, fmt.Errorf("invalid JSON: %w", err)
+	}
+
+	// JSON Schema Draft-07 allows boolean root schemas (true = accept all, false = reject all)
+	var schemaMap map[string]interface{}
+	var isBooleanSchema bool
+	switch v := raw.(type) {
+	case bool:
+		isBooleanSchema = true
+		// Represent as equivalent object schema for internal processing
+		if v {
+			schemaMap = map[string]interface{}{}
+		} else {
+			schemaMap = map[string]interface{}{"not": map[string]interface{}{}}
+		}
+	case map[string]interface{}:
+		schemaMap = v
+	default:
+		return nil, fmt.Errorf("invalid JSON Schema: root must be object or boolean")
 	}
 
 	// Create a new compiler for this parse to avoid resource conflicts
@@ -68,19 +86,21 @@ func (p *Parser) Parse(schemaStr string, refs []storage.Reference) (schema.Parse
 	}
 
 	return &ParsedJSONSchema{
-		raw:        schemaStr,
-		schemaMap:  schemaMap,
-		compiled:   compiled,
-		references: refs,
+		raw:             schemaStr,
+		schemaMap:       schemaMap,
+		compiled:        compiled,
+		references:      refs,
+		isBooleanSchema: isBooleanSchema,
 	}, nil
 }
 
 // ParsedJSONSchema represents a parsed JSON Schema.
 type ParsedJSONSchema struct {
-	raw        string
-	schemaMap  map[string]interface{}
-	compiled   *jsonschema.Schema
-	references []storage.Reference
+	raw             string
+	schemaMap       map[string]interface{}
+	compiled        *jsonschema.Schema
+	references      []storage.Reference
+	isBooleanSchema bool
 }
 
 // Type returns the schema type.
@@ -90,6 +110,10 @@ func (p *ParsedJSONSchema) Type() storage.SchemaType {
 
 // CanonicalString returns the canonical form of the schema.
 func (p *ParsedJSONSchema) CanonicalString() string {
+	if p.isBooleanSchema {
+		// Preserve boolean root schema as-is for correct fingerprinting
+		return strings.TrimSpace(p.raw)
+	}
 	return canonicalize(p.schemaMap)
 }
 
@@ -108,10 +132,11 @@ func (p *ParsedJSONSchema) RawSchema() interface{} {
 // Normalize returns a normalized copy of this schema with deterministic key ordering.
 func (p *ParsedJSONSchema) Normalize() schema.ParsedSchema {
 	return &ParsedJSONSchema{
-		raw:        p.CanonicalString(),
-		schemaMap:  p.schemaMap,
-		compiled:   p.compiled,
-		references: p.references,
+		raw:             p.CanonicalString(),
+		schemaMap:       p.schemaMap,
+		compiled:        p.compiled,
+		references:      p.references,
+		isBooleanSchema: p.isBooleanSchema,
 	}
 }
 

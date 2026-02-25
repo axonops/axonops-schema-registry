@@ -323,3 +323,39 @@ Feature: Avro Conformance-Inspired Parsing
       {"type":"enum","name":"Keywords","symbols":["null","boolean","int","long","float","double","string","bytes"]}
       """
     Then the response status should be 200
+
+  # ==========================================================================
+  # 17. ENUM WITH ALIASES
+  # ==========================================================================
+
+  Scenario: Enum with aliases attribute registers and round-trips
+    When I register a schema under subject "avro-conform-enum-aliases":
+      """
+      {"type":"record","name":"Container","namespace":"com.alias","fields":[
+        {"name":"status","type":{"type":"enum","name":"Status","aliases":["OldStatus","LegacyStatus"],"symbols":["ACTIVE","INACTIVE","PENDING"]}}
+      ]}
+      """
+    Then the response status should be 200
+    And I store the response field "id" as "enum_aliases_id"
+    When I get version 1 of subject "avro-conform-enum-aliases"
+    Then the response status should be 200
+    And the response body should contain "aliases"
+
+  # ==========================================================================
+  # 18. DECIMAL LOGICAL TYPE ON FIXED BACKING TYPE
+  # ==========================================================================
+
+  Scenario: Decimal logical type on fixed backing type registers and round-trips
+    When I register a schema under subject "avro-conform-decimal-fixed":
+      """
+      {"type":"record","name":"FinancialRecord","namespace":"com.finance","fields":[
+        {"name":"amount","type":{"type":"fixed","name":"Decimal","size":8,"logicalType":"decimal","precision":18,"scale":4}},
+        {"name":"balance","type":{"type":"bytes","logicalType":"decimal","precision":12,"scale":2}}
+      ]}
+      """
+    Then the response status should be 200
+    And I store the response field "id" as "decimal_fixed_id"
+    When I get version 1 of subject "avro-conform-decimal-fixed"
+    Then the response status should be 200
+    And the response body should contain "Decimal"
+    And the response body should contain "decimal"
