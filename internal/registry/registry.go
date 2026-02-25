@@ -3,9 +3,12 @@ package registry
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -115,7 +118,8 @@ func (r *Registry) RegisterSchema(ctx context.Context, registryCtx string, subje
 	// Soft CAS: if confluent:version is specified and doesn't match the existing version,
 	// dedup is skipped and a new version is created. This matches Confluent's behavior
 	// where confluent:version acts as a hint — mismatches never produce errors.
-	existing, err := r.storage.GetSchemaByFingerprint(ctx, registryCtx, subject, parsed.Fingerprint(), false)
+	globalFingerprint := computeGlobalFingerprint(parsed.Fingerprint(), refs)
+	existing, err := r.storage.GetSchemaByFingerprint(ctx, registryCtx, subject, globalFingerprint, false)
 	if err == nil && existing != nil {
 		if metadataEqualForDedup(existing.Metadata, opt.Metadata) && ruleSetEqual(existing.RuleSet, opt.RuleSet) {
 			if cvTarget <= 0 || cvTarget == existing.Version {
@@ -194,7 +198,7 @@ func (r *Registry) RegisterSchema(ctx context.Context, registryCtx string, subje
 		References:  refs,
 		Metadata:    opt.Metadata,
 		RuleSet:     opt.RuleSet,
-		Fingerprint: parsed.Fingerprint(),
+		Fingerprint: globalFingerprint,
 	}
 
 	// Store the schema
@@ -202,7 +206,7 @@ func (r *Registry) RegisterSchema(ctx context.Context, registryCtx string, subje
 		if errors.Is(err, storage.ErrSchemaExists) {
 			// Storage detected same fingerprint+metadata — return existing,
 			// but only if confluent:version soft CAS also matches.
-			existing, _ := r.storage.GetSchemaByFingerprint(ctx, registryCtx, subject, parsed.Fingerprint(), false)
+			existing, _ := r.storage.GetSchemaByFingerprint(ctx, registryCtx, subject, globalFingerprint, false)
 			if existing != nil && metadataEqual(existing.Metadata, opt.Metadata) && ruleSetEqual(existing.RuleSet, opt.RuleSet) {
 				if cvTarget <= 0 || cvTarget == existing.Version {
 					return autoPopulateConfluentVersion(existing), nil
@@ -260,7 +264,8 @@ func (r *Registry) RegisterSchemaWithID(ctx context.Context, registryCtx string,
 	}
 
 	// Check if schema already exists in this subject with same fingerprint (idempotent)
-	existing, err := r.storage.GetSchemaByFingerprint(ctx, registryCtx, subject, parsed.Fingerprint(), false)
+	globalFP := computeGlobalFingerprint(parsed.Fingerprint(), refs)
+	existing, err := r.storage.GetSchemaByFingerprint(ctx, registryCtx, subject, globalFP, false)
 	if err == nil && existing != nil {
 		return existing, nil
 	}
@@ -288,7 +293,7 @@ func (r *Registry) RegisterSchemaWithID(ctx context.Context, registryCtx string,
 		SchemaType:  schemaType,
 		Schema:      schemaStr,
 		References:  refs,
-		Fingerprint: parsed.Fingerprint(),
+		Fingerprint: globalFP,
 	}
 
 	if err := r.storage.ImportSchema(ctx, registryCtx, record); err != nil {
@@ -551,7 +556,7 @@ func (r *Registry) LookupSchema(ctx context.Context, registryCtx string, subject
 	}
 
 	// Look up by fingerprint, including deleted if requested
-	return r.storage.GetSchemaByFingerprint(ctx, registryCtx, subject, parsed.Fingerprint(), deleted)
+	return r.storage.GetSchemaByFingerprint(ctx, registryCtx, subject, computeGlobalFingerprint(parsed.Fingerprint(), refs), deleted)
 }
 
 // DeleteSubject deletes a subject within a context.
@@ -1132,7 +1137,7 @@ func (r *Registry) ImportSchemas(ctx context.Context, registryCtx string, schema
 			SchemaType:  schemaType,
 			Schema:      req.Schema,
 			References:  req.References,
-			Fingerprint: parsed.Fingerprint(),
+			Fingerprint: computeGlobalFingerprint(parsed.Fingerprint(), req.References),
 		}
 
 		// Import the schema
@@ -1382,24 +1387,80 @@ func (r *Registry) validateReservedFields(ctx context.Context, registryCtx strin
 	return msgs
 }
 
+// computeGlobalFingerprint computes a composite fingerprint that includes both the
+// schema content fingerprint and the references. This ensures that the same schema body
+// with different references produces different global IDs. For schemas without references,
+// it returns the original fingerprint unchanged for backward compatibility.
+func computeGlobalFingerprint(schemaFingerprint string, refs []storage.Reference) string {
+	if len(refs) == 0 {
+		return schemaFingerprint
+	}
+	h := sha256.New()
+	h.Write([]byte(schemaFingerprint))
+	// Sort refs for determinism
+	sorted := make([]storage.Reference, len(refs))
+	copy(sorted, refs)
+	sort.Slice(sorted, func(i, j int) bool {
+		if sorted[i].Subject != sorted[j].Subject {
+			return sorted[i].Subject < sorted[j].Subject
+		}
+		if sorted[i].Version != sorted[j].Version {
+			return sorted[i].Version < sorted[j].Version
+		}
+		return sorted[i].Name < sorted[j].Name
+	})
+	for _, ref := range sorted {
+		fmt.Fprintf(h, "\x00%s\x00%s\x00%d", ref.Name, ref.Subject, ref.Version)
+	}
+	return hex.EncodeToString(h.Sum(nil))
+}
+
 // resolveReferences looks up the schema content for each reference from storage.
+// It recursively resolves transitive references (e.g., A refs B, B refs C) using
+// depth-first traversal so that transitive dependencies appear before their dependents.
+// A seen map prevents cycles and ensures each subject:version is resolved only once.
 func (r *Registry) resolveReferences(ctx context.Context, registryCtx string, refs []storage.Reference) ([]storage.Reference, error) {
 	if len(refs) == 0 {
 		return refs, nil
 	}
-	resolved := make([]storage.Reference, len(refs))
-	for i, ref := range refs {
-		record, err := r.storage.GetSchemaBySubjectVersion(ctx, registryCtx, ref.Subject, ref.Version)
-		if err != nil {
-			return nil, fmt.Errorf("failed to resolve reference %q (subject=%s, version=%d): %w",
-				ref.Name, ref.Subject, ref.Version, err)
+
+	seen := make(map[string]bool)
+	var resolved []storage.Reference
+
+	var resolve func(refs []storage.Reference) error
+	resolve = func(refs []storage.Reference) error {
+		for _, ref := range refs {
+			key := fmt.Sprintf("%s:%d", ref.Subject, ref.Version)
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
+
+			record, err := r.storage.GetSchemaBySubjectVersion(ctx, registryCtx, ref.Subject, ref.Version)
+			if err != nil {
+				return fmt.Errorf("failed to resolve reference %q (subject=%s, version=%d): %w",
+					ref.Name, ref.Subject, ref.Version, err)
+			}
+
+			// Recursively resolve this record's own references FIRST
+			if len(record.References) > 0 {
+				if err := resolve(record.References); err != nil {
+					return err
+				}
+			}
+
+			resolved = append(resolved, storage.Reference{
+				Name:    ref.Name,
+				Subject: ref.Subject,
+				Version: ref.Version,
+				Schema:  record.Schema,
+			})
 		}
-		resolved[i] = storage.Reference{
-			Name:    ref.Name,
-			Subject: ref.Subject,
-			Version: ref.Version,
-			Schema:  record.Schema,
-		}
+		return nil
+	}
+
+	if err := resolve(refs); err != nil {
+		return nil, err
 	}
 	return resolved, nil
 }

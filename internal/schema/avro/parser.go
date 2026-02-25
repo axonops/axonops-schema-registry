@@ -51,6 +51,11 @@ func (p *Parser) Parse(schemaStr string, references []storage.Reference) (schema
 		return nil, fmt.Errorf("invalid Avro schema: %w", err)
 	}
 
+	// Validate additional constraints not enforced by hamba/avro parser
+	if validationErr := validateAvroSchema(avroSchema); validationErr != nil {
+		return nil, fmt.Errorf("invalid Avro schema: %w", validationErr)
+	}
+
 	// Generate canonical form
 	canonical := canonicalize(schemaStr)
 
@@ -304,4 +309,75 @@ func isNonCanonicalField(field string) bool {
 		"namespace": false, // namespace IS included for named types
 	}
 	return nonCanonical[field]
+}
+
+// validateAvroSchema recursively walks a parsed avro.Schema and checks for:
+// - Duplicate field names within a record
+// - Fixed types with size <= 0
+// It uses a visited set keyed by schema fingerprint to avoid infinite recursion
+// on self-referencing schemas.
+func validateAvroSchema(s avro.Schema) error {
+	visited := make(map[[32]byte]bool)
+	return validateAvroSchemaRecursive(s, visited)
+}
+
+func validateAvroSchemaRecursive(s avro.Schema, visited map[[32]byte]bool) error {
+	if s == nil {
+		return nil
+	}
+
+	// Skip RefSchema nodes — they are references to named types that have
+	// already been validated when the original definition was encountered.
+	if _, ok := s.(*avro.RefSchema); ok {
+		return nil
+	}
+
+	// Use the cache fingerprint to detect cycles in self-referencing schemas.
+	fp := s.CacheFingerprint()
+	if visited[fp] {
+		return nil
+	}
+	visited[fp] = true
+
+	switch schema := s.(type) {
+	case *avro.RecordSchema:
+		// Check for duplicate field names within this record.
+		seen := make(map[string]bool, len(schema.Fields()))
+		for _, f := range schema.Fields() {
+			name := f.Name()
+			if seen[name] {
+				return fmt.Errorf("record %q has duplicate field name %q", schema.FullName(), name)
+			}
+			seen[name] = true
+
+			// Recurse into the field's type.
+			if err := validateAvroSchemaRecursive(f.Type(), visited); err != nil {
+				return err
+			}
+		}
+
+	case *avro.FixedSchema:
+		if schema.Size() <= 0 {
+			return fmt.Errorf("fixed type %q has invalid size %d: must be greater than 0", schema.FullName(), schema.Size())
+		}
+
+	case *avro.ArraySchema:
+		if err := validateAvroSchemaRecursive(schema.Items(), visited); err != nil {
+			return err
+		}
+
+	case *avro.MapSchema:
+		if err := validateAvroSchemaRecursive(schema.Values(), visited); err != nil {
+			return err
+		}
+
+	case *avro.UnionSchema:
+		for _, t := range schema.Types() {
+			if err := validateAvroSchemaRecursive(t, visited); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }

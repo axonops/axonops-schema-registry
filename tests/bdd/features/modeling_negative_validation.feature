@@ -1,0 +1,146 @@
+@schema-modeling @negative
+Feature: Negative Validation
+  Tests that invalid schemas are correctly rejected with appropriate error
+  codes. Covers Avro, Protobuf, and JSON Schema negative cases plus
+  cross-type behaviors like idempotent re-registration and deduplication.
+
+  # ==========================================================================
+  # AVRO NEGATIVE CASES
+  # ==========================================================================
+
+  Scenario: Avro — invalid JSON is rejected
+    When I register a schema under subject "neg-avro-invalid-json":
+      """
+      {this is not valid json
+      """
+    Then the response status should be 422
+
+  Scenario: Avro — missing type field is rejected
+    When I register a schema under subject "neg-avro-no-type":
+      """
+      {"name":"Oops","fields":[{"name":"x","type":"int"}]}
+      """
+    Then the response status should be 422
+
+  Scenario: Avro — duplicate field names is rejected
+    When I register a schema under subject "neg-avro-dup-fields":
+      """
+      {"type":"record","name":"Bad","fields":[
+        {"name":"x","type":"int"},
+        {"name":"x","type":"string"}
+      ]}
+      """
+    Then the response status should be 422
+
+  Scenario: Avro — invalid default type is rejected
+    When I register a schema under subject "neg-avro-bad-default":
+      """
+      {"type":"record","name":"Bad","fields":[
+        {"name":"count","type":"int","default":"not_a_number"}
+      ]}
+      """
+    Then the response status should be 422
+
+  Scenario: Avro — unknown type reference without declaration is rejected
+    When I register a schema under subject "neg-avro-unknown-ref":
+      """
+      {"type":"record","name":"Bad","fields":[
+        {"name":"item","type":"com.unknown.NonexistentType"}
+      ]}
+      """
+    Then the response status should be 422
+
+  Scenario: Avro — enum with empty symbols is rejected
+    When I register a schema under subject "neg-avro-empty-enum":
+      """
+      {"type":"enum","name":"Empty","symbols":[]}
+      """
+    Then the response status should be 422
+
+  Scenario: Avro — fixed with size 0 is rejected
+    When I register a schema under subject "neg-avro-fixed-zero":
+      """
+      {"type":"fixed","name":"Zero","size":0}
+      """
+    Then the response status should be 422
+
+  # ==========================================================================
+  # PROTOBUF NEGATIVE CASES
+  # ==========================================================================
+
+  Scenario: Protobuf — invalid syntax is rejected
+    When I register a "PROTOBUF" schema under subject "neg-proto-invalid":
+      """
+this is not valid protobuf
+      """
+    Then the response status should be 422
+
+  Scenario: Protobuf — duplicate field number is rejected
+    When I register a "PROTOBUF" schema under subject "neg-proto-dup-num":
+      """
+syntax = "proto3";
+package test.neg;
+
+message Bad {
+  string a = 1;
+  int32 b = 1;
+}
+      """
+    Then the response status should be 422
+
+  Scenario: Protobuf — import without reference declaration is rejected
+    When I register a "PROTOBUF" schema under subject "neg-proto-missing-import":
+      """
+syntax = "proto3";
+package test.neg;
+
+import "nonexistent/file.proto";
+
+message Bad {
+  string name = 1;
+}
+      """
+    Then the response status should be 422
+
+  # ==========================================================================
+  # JSON SCHEMA NEGATIVE CASES
+  # ==========================================================================
+
+  Scenario: JSON Schema — invalid JSON is rejected
+    When I register a "JSON" schema under subject "neg-json-invalid":
+      """
+      {not valid json at all
+      """
+    Then the response status should be 422
+
+  # ==========================================================================
+  # CROSS-TYPE BEHAVIORS
+  # ==========================================================================
+
+  Scenario: Re-register identical schema returns 200 with same version
+    When I register a schema under subject "neg-idempotent":
+      """
+      {"type":"record","name":"Idem","fields":[{"name":"id","type":"long"}]}
+      """
+    Then the response status should be 200
+    And I store the response field "id" as "idem_id"
+    When I register a schema under subject "neg-idempotent":
+      """
+      {"type":"record","name":"Idem","fields":[{"name":"id","type":"long"}]}
+      """
+    Then the response status should be 200
+    And the response field "id" should equal stored "idem_id"
+
+  Scenario: Register same Avro under two subjects returns same global ID
+    When I register a schema under subject "neg-dedup-a":
+      """
+      {"type":"record","name":"Dedup","fields":[{"name":"x","type":"int"}]}
+      """
+    Then the response status should be 200
+    And I store the response field "id" as "dedup_global_id"
+    When I register a schema under subject "neg-dedup-b":
+      """
+      {"type":"record","name":"Dedup","fields":[{"name":"x","type":"int"}]}
+      """
+    Then the response status should be 200
+    And the response field "id" should equal stored "dedup_global_id"

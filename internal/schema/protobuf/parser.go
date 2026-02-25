@@ -41,9 +41,17 @@ func (p *Parser) Parse(schemaStr string, refs []storage.Reference) (schema.Parse
 	// Create a resolver with references and the schema content
 	resolver := p.resolver.withReferencesAndSchema(schemaStr, refs)
 
-	// Create compiler
+	// Create compiler with standard imports taking priority over hand-written
+	// stubs. This ensures the real descriptor.proto (with full Options messages)
+	// is used, enabling support for options like allow_alias and packed.
+	// The standard imports resolver is checked first; for non-standard files
+	// (user schemas, references), it returns not-found and the custom resolver
+	// handles them.
 	compiler := protocompile.Compiler{
-		Resolver:       resolver,
+		Resolver: protocompile.CompositeResolver{
+			protocompile.WithStandardImports(notFoundResolver{}),
+			resolver,
+		},
 		SourceInfoMode: protocompile.SourceInfoStandard,
 	}
 
