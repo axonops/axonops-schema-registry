@@ -140,10 +140,14 @@ func canonicalize(schemaStr string) string {
 		return strings.TrimSpace(schemaStr)
 	}
 
-	return canonicalizeValue(obj)
+	return canonicalizeValue(obj, "")
 }
 
-func canonicalizeValue(v interface{}) string {
+// canonicalizeValue converts a JSON value to its canonical Avro form.
+// parentNamespace is the namespace inherited from the enclosing named type,
+// per the Avro specification: a nested type without an explicit namespace
+// inherits the namespace of the most tightly enclosing named type.
+func canonicalizeValue(v interface{}, parentNamespace string) string {
 	switch val := v.(type) {
 	case string:
 		// Primitive type or named type reference
@@ -153,13 +157,13 @@ func canonicalizeValue(v interface{}) string {
 		// Union type
 		parts := make([]string, len(val))
 		for i, item := range val {
-			parts[i] = canonicalizeValue(item)
+			parts[i] = canonicalizeValue(item, parentNamespace)
 		}
 		return "[" + strings.Join(parts, ",") + "]"
 
 	case map[string]interface{}:
 		// Complex type (record, enum, array, map, fixed)
-		return canonicalizeObject(val)
+		return canonicalizeObject(val, parentNamespace)
 
 	default:
 		// Other JSON values (numbers, booleans)
@@ -168,19 +172,33 @@ func canonicalizeValue(v interface{}) string {
 	}
 }
 
-func canonicalizeObject(obj map[string]interface{}) string {
+// canonicalizeObject converts a JSON object to its canonical Avro form.
+// parentNamespace is the namespace inherited from the enclosing named type.
+func canonicalizeObject(obj map[string]interface{}, parentNamespace string) string {
 	schemaType, _ := obj["type"].(string)
+
+	// The resolved namespace for this type, used as parentNamespace for children.
+	resolvedNamespace := parentNamespace
 
 	// Per the Avro Parsing Canonical Form specification, named types must use
 	// fully-qualified names (namespace.name) and the separate "namespace" field
-	// is stripped. This ensures schemas with the same short name but different
-	// namespaces produce distinct fingerprints.
+	// is stripped. Avro namespace inheritance means that a nested named type
+	// without an explicit namespace inherits from the most tightly enclosing
+	// named type.
 	switch schemaType {
 	case "record", "error", "enum", "fixed":
-		if ns, ok := obj["namespace"].(string); ok && ns != "" {
-			if name, ok := obj["name"].(string); ok && !strings.Contains(name, ".") {
-				obj["name"] = ns + "." + name
-			}
+		name, _ := obj["name"].(string)
+		explicitNS, hasExplicitNS := obj["namespace"].(string)
+
+		if hasExplicitNS && explicitNS != "" {
+			// This type has an explicit namespace — use it.
+			resolvedNamespace = explicitNS
+		}
+		// resolvedNamespace is now either the explicit NS or inherited parentNamespace.
+
+		if !strings.Contains(name, ".") && resolvedNamespace != "" {
+			// Qualify the short name with the resolved namespace.
+			obj["name"] = resolvedNamespace + "." + name
 		}
 	}
 
@@ -227,7 +245,7 @@ func canonicalizeObject(obj map[string]interface{}) string {
 				fieldParts := make([]string, len(fields))
 				for i, f := range fields {
 					if fobj, ok := f.(map[string]interface{}); ok {
-						fieldParts[i] = canonicalizeField(fobj)
+						fieldParts[i] = canonicalizeField(fobj, resolvedNamespace)
 					}
 				}
 				valStr = "[" + strings.Join(fieldParts, ",") + "]"
@@ -242,7 +260,7 @@ func canonicalizeObject(obj map[string]interface{}) string {
 				valStr = "[" + strings.Join(symParts, ",") + "]"
 			}
 		default:
-			valStr = canonicalizeValue(val)
+			valStr = canonicalizeValue(val, resolvedNamespace)
 		}
 
 		if valStr != "" {
@@ -253,7 +271,10 @@ func canonicalizeObject(obj map[string]interface{}) string {
 	return "{" + strings.Join(parts, ",") + "}"
 }
 
-func canonicalizeField(field map[string]interface{}) string {
+// canonicalizeField converts a field definition to its canonical Avro form.
+// parentNamespace is the namespace of the enclosing record, passed through
+// to nested named types for namespace inheritance.
+func canonicalizeField(field map[string]interface{}, parentNamespace string) string {
 	parts := make([]string, 0)
 
 	// Field order: name, type, default
@@ -263,7 +284,7 @@ func canonicalizeField(field map[string]interface{}) string {
 		parts = append(parts, fmt.Sprintf(`"name":"%v"`, name))
 	}
 	if typ, ok := field["type"]; ok {
-		parts = append(parts, fmt.Sprintf(`"type":%s`, canonicalizeValue(typ)))
+		parts = append(parts, fmt.Sprintf(`"type":%s`, canonicalizeValue(typ, parentNamespace)))
 	}
 	if def, ok := field["default"]; ok {
 		defBytes, _ := json.Marshal(def)
