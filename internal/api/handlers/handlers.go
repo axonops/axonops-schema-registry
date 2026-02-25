@@ -181,6 +181,23 @@ func (h *Handler) GetSchemaByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// When ?subject= is provided, enrich the response with per-subject metadata
+	// and ruleSet. The global schema record (by ID) doesn't carry these because
+	// metadata/ruleSet are per-subject-version. The Confluent SerDe clients rely
+	// on this enrichment for migration rule discovery (UPGRADE/DOWNGRADE).
+	if subject := r.URL.Query().Get("subject"); subject != "" {
+		svs, _ := h.registry.GetVersionsBySchemaID(r.Context(), registryCtx, id, true)
+		for _, sv := range svs {
+			if sv.Subject == subject {
+				if full, err := h.registry.GetSchemaBySubjectVersion(r.Context(), registryCtx, subject, sv.Version); err == nil {
+					schema.Metadata = full.Metadata
+					schema.RuleSet = full.RuleSet
+				}
+				break
+			}
+		}
+	}
+
 	schemaStr := schema.Schema
 	if format := r.URL.Query().Get("format"); format != "" {
 		schemaStr = h.registry.FormatSchema(r.Context(), registryCtx, schema, format)
