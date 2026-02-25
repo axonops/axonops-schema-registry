@@ -108,6 +108,22 @@ type preparedStatements struct {
 
 // NewStore creates a new PostgreSQL store.
 func NewStore(config Config) (*Store, error) {
+	// Apply sensible defaults for zero-value pool settings so callers that
+	// only set Host/Port/User/Pass still get a bounded connection pool.
+	defaults := DefaultConfig()
+	if config.MaxOpenConns == 0 {
+		config.MaxOpenConns = defaults.MaxOpenConns
+	}
+	if config.MaxIdleConns == 0 {
+		config.MaxIdleConns = defaults.MaxIdleConns
+	}
+	if config.ConnMaxLifetime == 0 {
+		config.ConnMaxLifetime = defaults.ConnMaxLifetime
+	}
+	if config.ConnMaxIdleTime == 0 {
+		config.ConnMaxIdleTime = defaults.ConnMaxIdleTime
+	}
+
 	db, err := sql.Open("postgres", config.DSN())
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)

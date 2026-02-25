@@ -2973,7 +2973,7 @@ paths:
       tags:
         - Subjects
       parameters:
-        - $ref: '#/components/parameters/ContextParam'
+        - $ref: '#/components/parameters/contextParam'
         - $ref: '#/components/parameters/Subject'
       responses:
         '200':

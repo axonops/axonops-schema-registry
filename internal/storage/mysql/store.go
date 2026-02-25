@@ -20,10 +20,19 @@ import (
 // connection failures, which database/sql does NOT automatically retry.
 const maxRetries = 2
 
-// isInvalidConnErr checks if an error is a MySQL invalid connection error
-// that should be retried with a fresh connection.
+// isInvalidConnErr checks if an error is a transient MySQL connection error
+// that should be retried with a fresh connection.  go-mysql-driver reports
+// several distinct error strings for broken TCP connections depending on when
+// the failure is detected (idle pool check vs. mid-packet read).
 func isInvalidConnErr(err error) bool {
-	return err != nil && strings.Contains(err.Error(), "invalid connection")
+	if err == nil {
+		return false
+	}
+	s := err.Error()
+	return strings.Contains(s, "invalid connection") ||
+		strings.Contains(s, "unexpected EOF") ||
+		strings.Contains(s, "broken pipe") ||
+		strings.Contains(s, "connection reset by peer")
 }
 
 // Config holds MySQL connection configuration.
@@ -56,10 +65,12 @@ func DefaultConfig() Config {
 	}
 }
 
-// DSN returns the connection string.
+// DSN returns the connection string.  The timeout, readTimeout, and
+// writeTimeout parameters ensure the go-mysql-driver detects broken
+// connections promptly instead of relying on OS-level TCP timeouts.
 func (c Config) DSN() string {
 	return fmt.Sprintf(
-		"%s:%s@tcp(%s:%d)/%s?parseTime=true&tls=%s",
+		"%s:%s@tcp(%s:%d)/%s?parseTime=true&tls=%s&timeout=10s&readTimeout=30s&writeTimeout=30s",
 		c.Username, c.Password, c.Host, c.Port, c.Database, c.TLS,
 	)
 }
@@ -112,6 +123,22 @@ type preparedStatements struct {
 
 // NewStore creates a new MySQL store.
 func NewStore(config Config) (*Store, error) {
+	// Apply sensible defaults for zero-value pool settings so callers that
+	// only set Host/Port/User/Pass still get a bounded connection pool.
+	defaults := DefaultConfig()
+	if config.MaxOpenConns == 0 {
+		config.MaxOpenConns = defaults.MaxOpenConns
+	}
+	if config.MaxIdleConns == 0 {
+		config.MaxIdleConns = defaults.MaxIdleConns
+	}
+	if config.ConnMaxLifetime == 0 {
+		config.ConnMaxLifetime = defaults.ConnMaxLifetime
+	}
+	if config.ConnMaxIdleTime == 0 {
+		config.ConnMaxIdleTime = defaults.ConnMaxIdleTime
+	}
+
 	db, err := sql.Open("mysql", config.DSN())
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
