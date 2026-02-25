@@ -84,6 +84,7 @@ Feature: Avro Conformance-Inspired Parsing
   # 5. ORDER ATTRIBUTE STRIPPED FROM CANONICAL FORM
   # ==========================================================================
 
+  @axonops-only
   Scenario: Record with order attribute deduplicates against record without
     When I register a schema under subject "avro-conform-order-a":
       """
@@ -108,6 +109,7 @@ Feature: Avro Conformance-Inspired Parsing
   # 6. DOC AND ALIASES STRIPPED — SAME FINGERPRINT
   # ==========================================================================
 
+  @axonops-only
   Scenario: Doc and aliases are stripped producing same fingerprint
     When I register a schema under subject "avro-conform-doc-a":
       """

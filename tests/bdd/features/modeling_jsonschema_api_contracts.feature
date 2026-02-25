@@ -123,6 +123,7 @@ Feature: JSON Schema API Contract Domain Modeling
   # 7. JSON KEY REORDERING DEDUPLICATION
   # ==========================================================================
 
+  @axonops-only
   Scenario: Same logical schema with different key ordering produces same ID
     When I register a "JSON" schema under subject "api-keyorder-a":
       """

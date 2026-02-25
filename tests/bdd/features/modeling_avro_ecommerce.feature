@@ -233,6 +233,7 @@ Feature: Avro E-Commerce Domain Modeling
   # 8. IMPORT AND EVOLVE
   # ==========================================================================
 
+  @import
   Scenario: Import schema with specific ID then evolve via normal registration
     Given subject "ecom-import" has compatibility level "BACKWARD"
     When I set the global mode to "IMPORT"

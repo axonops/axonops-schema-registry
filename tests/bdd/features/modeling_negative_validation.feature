@@ -32,6 +32,7 @@ Feature: Negative Validation
       """
     Then the response status should be 422
 
+  @axonops-only
   Scenario: Avro — invalid default type is rejected
     When I register a schema under subject "neg-avro-bad-default":
       """
@@ -50,6 +51,7 @@ Feature: Negative Validation
       """
     Then the response status should be 422
 
+  @axonops-only
   Scenario: Avro — enum with empty symbols is rejected
     When I register a schema under subject "neg-avro-empty-enum":
       """
@@ -57,6 +59,7 @@ Feature: Negative Validation
       """
     Then the response status should be 422
 
+  @axonops-only
   Scenario: Avro — fixed with size 0 is rejected
     When I register a schema under subject "neg-avro-fixed-zero":
       """
@@ -75,6 +78,7 @@ this is not valid protobuf
       """
     Then the response status should be 422
 
+  @axonops-only
   Scenario: Protobuf — duplicate field number is rejected
     When I register a "PROTOBUF" schema under subject "neg-proto-dup-num":
       """
@@ -88,6 +92,7 @@ message Bad {
       """
     Then the response status should be 422
 
+  @axonops-only
   Scenario: Protobuf — import without reference declaration is rejected
     When I register a "PROTOBUF" schema under subject "neg-proto-missing-import":
       """

@@ -223,6 +223,7 @@ message B {
   # 6. IMPORT AND EVOLVE
   # ==========================================================================
 
+  @import
   Scenario: Import schema with specific ID then evolve via normal registration
     Given subject "lifecycle-import" has compatibility level "BACKWARD"
     When I set the global mode to "IMPORT"
