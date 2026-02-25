@@ -2875,6 +2875,22 @@ func (s *Store) CreateDEK(ctx context.Context, dek *storage.DEKRecord) error {
 
 	dek.Ts = time.Now().UnixMilli()
 
+	// Write the denormalization entry FIRST (idempotent — same kek_name+subject pair).
+	// This is safe to do before the LWT because:
+	//  1. The INSERT into deks_by_kek is idempotent (no IF NOT EXISTS needed).
+	//  2. If this succeeds but the LWT below fails, the phantom deks_by_kek entry
+	//     is harmless: ListDEKs already checks the deks table for active versions
+	//     and filters out subjects with no rows.
+	//  3. The reverse order (LWT first, denorm second) risks a DEK existing in the
+	//     deks table but missing from deks_by_kek, which causes ListDEKs to miss it
+	//     and DeleteKEK (permanent) to leave orphaned deks rows.
+	if err := s.session.Query(
+		fmt.Sprintf(`INSERT INTO %s.deks_by_kek (kek_name, subject) VALUES (?, ?)`, qident(s.cfg.Keyspace)),
+		dek.KEKName, dek.Subject,
+	).WithContext(ctx).Exec(); err != nil {
+		return fmt.Errorf("failed to write DEK denormalization entry: %w", err)
+	}
+
 	// Use INSERT IF NOT EXISTS (LWT) to atomically check-and-insert the DEK,
 	// avoiding the TOCTOU race of a separate SELECT + INSERT.
 	applied, err := casApplied(
@@ -2889,14 +2905,6 @@ func (s *Store) CreateDEK(ctx context.Context, dek *storage.DEKRecord) error {
 	}
 	if !applied {
 		return storage.ErrDEKExists
-	}
-
-	// Write the denormalization entry (idempotent — same kek_name+subject pair)
-	if err := s.session.Query(
-		fmt.Sprintf(`INSERT INTO %s.deks_by_kek (kek_name, subject) VALUES (?, ?)`, qident(s.cfg.Keyspace)),
-		dek.KEKName, dek.Subject,
-	).WithContext(ctx).Exec(); err != nil {
-		return fmt.Errorf("failed to write DEK denormalization entry: %w", err)
 	}
 
 	return nil

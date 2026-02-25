@@ -1289,13 +1289,13 @@ func TestGetKEK_ReturnsCopy_MutationDoesNotAffectStore(t *testing.T) {
 	got.Shared = true
 	got.KmsProps["new-key"] = "new-value"
 
-	// Verify store is unaffected
+	// Verify store is unaffected (including map fields — deep copy)
 	original, err := store.GetKEK(ctx, "test-kek", false)
 	require.NoError(t, err)
 	assert.Equal(t, "original doc", original.Doc)
 	assert.Equal(t, false, original.Shared)
-	// Note: KmsProps is a map - shallow copy means the map IS shared.
-	// This is acceptable since the handler replaces the entire map, not individual entries.
+	assert.NotContains(t, original.KmsProps, "new-key", "KmsProps map mutation must not affect the store")
+	assert.Equal(t, "http://localhost:8200", original.KmsProps["vault.url"])
 }
 
 func TestGetDEK_ReturnsCopy_MutationDoesNotAffectStore(t *testing.T) {

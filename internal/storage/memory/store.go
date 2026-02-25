@@ -151,6 +151,26 @@ func (s *Store) getContext(registryCtx string) *contextStore {
 	return s.contexts[registryCtx]
 }
 
+// copyStringMap returns a deep copy of a map[string]string.
+// Returns nil if the input is nil.
+func copyStringMap(m map[string]string) map[string]string {
+	if m == nil {
+		return nil
+	}
+	cp := make(map[string]string, len(m))
+	for k, v := range m {
+		cp[k] = v
+	}
+	return cp
+}
+
+// copyKEK returns a deep copy of a KEKRecord, including its KmsProps map.
+func copyKEK(kek *storage.KEKRecord) *storage.KEKRecord {
+	cp := *kek
+	cp.KmsProps = copyStringMap(kek.KmsProps)
+	return &cp
+}
+
 // CreateSchema stores a new schema record.
 // Uses per-context fingerprint deduplication: same schema content = same ID within a context.
 func (s *Store) CreateSchema(ctx context.Context, registryCtx string, record *storage.SchemaRecord) error {
@@ -1623,8 +1643,7 @@ func (s *Store) CreateKEK(ctx context.Context, kek *storage.KEKRecord) error {
 	kek.CreatedAt = now
 	kek.UpdatedAt = now
 
-	stored := *kek
-	s.keks[kek.Name] = &stored
+	s.keks[kek.Name] = copyKEK(kek)
 	return nil
 }
 
@@ -1642,8 +1661,7 @@ func (s *Store) GetKEK(ctx context.Context, name string, includeDeleted bool) (*
 		return nil, storage.ErrKEKNotFound
 	}
 
-	copy := *kek
-	return &copy, nil
+	return copyKEK(kek), nil
 }
 
 // UpdateKEK updates an existing Key Encryption Key.
@@ -1663,8 +1681,7 @@ func (s *Store) UpdateKEK(ctx context.Context, kek *storage.KEKRecord) error {
 	kek.Ts = now.UnixMilli()
 	kek.UpdatedAt = now
 
-	stored := *kek
-	s.keks[kek.Name] = &stored
+	s.keks[kek.Name] = copyKEK(kek)
 	return nil
 }
 
@@ -1719,8 +1736,7 @@ func (s *Store) ListKEKs(ctx context.Context, includeDeleted bool) ([]*storage.K
 		if !includeDeleted && kek.Deleted {
 			continue
 		}
-		copy := *kek
-		keks = append(keks, &copy)
+		keks = append(keks, copyKEK(kek))
 	}
 
 	sort.Slice(keks, func(i, j int) bool {
