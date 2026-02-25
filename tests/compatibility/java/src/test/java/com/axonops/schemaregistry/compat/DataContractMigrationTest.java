@@ -8,6 +8,8 @@ import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.junit.jupiter.api.*;
 
+import java.util.Map;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
@@ -29,6 +31,19 @@ import static org.junit.jupiter.api.Assertions.*;
  *   <li>Create a fresh client + deserializer with {@code use.latest.version=true}.</li>
  *   <li>Deserialize v1 bytes -- the deserializer fetches v2 as the reader schema
  *       and fires the UPGRADE rule to transform v1 data into v2 shape.</li>
+ * </ol>
+ *
+ * <p>Flow for DOWNGRADE tests:</p>
+ * <ol>
+ *   <li>Register v1 schema with metadata (e.g., {@code major=1}).</li>
+ *   <li>Register v2 schema with both UPGRADE and DOWNGRADE migration rules,
+ *       plus metadata (e.g., {@code major=2}).</li>
+ *   <li>Serialize data using v2 schema (via a rule-aware serializer with
+ *       {@code use.latest.version=true}).</li>
+ *   <li>Create a deserializer pinned to v1 via {@code use.latest.with.metadata}
+ *       matching {@code major=1}.</li>
+ *   <li>Deserialize the v2-encoded bytes -- the writer is v2 and the reader is v1,
+ *       so the DOWNGRADE rule fires to transform v2 data into v1 shape.</li>
  * </ol>
  */
 @Tag("data-contracts")
@@ -349,6 +364,226 @@ public class DataContractMigrationTest {
 
             ruleDeserializer.close();
             System.out.println("UPGRADE breaking-change bridge test passed. v2 schema ID: " + v2Id);
+
+        } finally {
+            TestHelper.deleteSubject(SCHEMA_REGISTRY_URL, subject);
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // Test 5: DOWNGRADE rule execution -- v2 data transformed back to v1 shape
+    // -----------------------------------------------------------------------
+
+    @Test
+    @Order(5)
+    @DisplayName("DOWNGRADE: field rename status -> state via JSONata migration rule (v2 writer, v1 reader)")
+    void testDowngradeFieldRenameExecution() {
+        String subject = "migration-downgrade-exec-" + System.currentTimeMillis() + "-value";
+        String topic = subject.replace("-value", "");
+
+        // v1 schema: Order with "state" field, tagged with metadata major=1
+        String v1SchemaStr = "{\"type\":\"record\",\"name\":\"Order\",\"namespace\":\"com.axonops.test.migration\","
+                + "\"fields\":[{\"name\":\"orderId\",\"type\":\"string\"},{\"name\":\"state\",\"type\":\"string\"}]}";
+
+        // v2 schema: Order with "status" field, tagged with metadata major=2
+        String v2SchemaStr = "{\"type\":\"record\",\"name\":\"Order\",\"namespace\":\"com.axonops.test.migration\","
+                + "\"fields\":[{\"name\":\"orderId\",\"type\":\"string\"},{\"name\":\"status\",\"type\":\"string\"}]}";
+
+        try {
+            // --- Step 1: Set compatibility to NONE ---
+            TestHelper.setSubjectConfig(SCHEMA_REGISTRY_URL, subject,
+                    "{\"compatibility\": \"NONE\"}");
+
+            // --- Step 2: Register v1 schema with metadata {major: "1"} ---
+            // We register via REST to include metadata properties, which allows
+            // the deserializer to target this version using use.latest.with.metadata.
+            String v1Body = "{"
+                    + "\"schema\": " + jsonEscape(v1SchemaStr) + ","
+                    + "\"schemaType\": \"AVRO\","
+                    + "\"metadata\": {"
+                    + "  \"properties\": {\"major\": \"1\"}"
+                    + "}"
+                    + "}";
+            int v1Id = TestHelper.registerSchemaWithRules(SCHEMA_REGISTRY_URL, subject, v1Body);
+            assertTrue(v1Id > 0, "v1 schema should be registered successfully");
+
+            // --- Step 3: Register v2 schema with UPGRADE+DOWNGRADE rules and metadata {major: "2"} ---
+            String v2Body = "{"
+                    + "\"schema\": " + jsonEscape(v2SchemaStr) + ","
+                    + "\"schemaType\": \"AVRO\","
+                    + "\"metadata\": {"
+                    + "  \"properties\": {\"major\": \"2\"}"
+                    + "},"
+                    + "\"ruleSet\": {"
+                    + "  \"migrationRules\": [{"
+                    + "    \"name\": \"upgradeStateToStatus\","
+                    + "    \"kind\": \"TRANSFORM\","
+                    + "    \"type\": \"JSONATA\","
+                    + "    \"mode\": \"UPGRADE\","
+                    + "    \"expr\": \"$merge([$sift($, function($v, $k) {$k != 'state'}), {'status': $.state}])\""
+                    + "  },{"
+                    + "    \"name\": \"downgradeStatusToState\","
+                    + "    \"kind\": \"TRANSFORM\","
+                    + "    \"type\": \"JSONATA\","
+                    + "    \"mode\": \"DOWNGRADE\","
+                    + "    \"expr\": \"$merge([$sift($, function($v, $k) {$k != 'status'}), {'state': $.status}])\""
+                    + "  }]"
+                    + "}"
+                    + "}";
+            int v2Id = TestHelper.registerSchemaWithRules(SCHEMA_REGISTRY_URL, subject, v2Body);
+            assertTrue(v2Id > 0, "v2 schema should be registered successfully");
+
+            // --- Step 4: Serialize data using v2 (latest) schema ---
+            // The serializer uses use.latest.version=true so it writes with the v2 schema ID.
+            SchemaRegistryClient producerClient = TestHelper.createClient(SCHEMA_REGISTRY_URL);
+            KafkaAvroSerializer ruleSerializer = TestHelper.createRuleAwareSerializer(SCHEMA_REGISTRY_URL, producerClient);
+
+            Schema v2Schema = new Schema.Parser().parse(v2SchemaStr);
+            GenericRecord v2Record = new GenericData.Record(v2Schema);
+            v2Record.put("orderId", "ORD-DG-001");
+            v2Record.put("status", "ACTIVE");
+
+            byte[] v2Bytes = ruleSerializer.serialize(topic, v2Record);
+            assertNotNull(v2Bytes, "Serialized v2 data should not be null");
+            ruleSerializer.close();
+
+            // --- Step 5: Deserialize with reader pinned to v1 via metadata ---
+            // By using use.latest.with.metadata={major: "1"}, the deserializer resolves
+            // v1 as the reader schema. Since the wire data was written with v2,
+            // the migration engine detects writer(v2) > reader(v1) and executes
+            // DOWNGRADE rules to transform "status" back to "state".
+            SchemaRegistryClient consumerClient = TestHelper.createClient(SCHEMA_REGISTRY_URL);
+            KafkaAvroDeserializer downgradeDeserializer = TestHelper.createMetadataPinnedDeserializer(
+                    SCHEMA_REGISTRY_URL, consumerClient, Map.of("major", "1"));
+
+            GenericRecord result = (GenericRecord) downgradeDeserializer.deserialize(topic, v2Bytes);
+
+            assertNotNull(result, "Deserialized record should not be null");
+            assertEquals("ORD-DG-001", result.get("orderId").toString(),
+                    "orderId should be preserved through DOWNGRADE migration");
+            assertEquals("ACTIVE", result.get("state").toString(),
+                    "status should be renamed back to state by DOWNGRADE rule");
+            // Verify that "status" field is NOT present in the v1 result schema
+            assertNull(result.getSchema().getField("status"),
+                    "v1 reader schema should not have a 'status' field");
+
+            downgradeDeserializer.close();
+            System.out.println("DOWNGRADE execution test passed. v2 data -> v1 shape. "
+                    + "v1 ID: " + v1Id + ", v2 ID: " + v2Id);
+
+        } finally {
+            TestHelper.deleteSubject(SCHEMA_REGISTRY_URL, subject);
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // Test 6: DOWNGRADE rule execution -- multiple field transforms
+    // -----------------------------------------------------------------------
+
+    @Test
+    @Order(6)
+    @DisplayName("DOWNGRADE: multiple field transforms (status->state, region->location) via JSONata")
+    void testDowngradeWithMultipleFieldTransforms() {
+        String subject = "migration-downgrade-multi-" + System.currentTimeMillis() + "-value";
+        String topic = subject.replace("-value", "");
+
+        // v1 schema: Shipment with "state" and "location" fields
+        String v1SchemaStr = "{\"type\":\"record\",\"name\":\"Shipment\",\"namespace\":\"com.axonops.test.migration\","
+                + "\"fields\":["
+                + "{\"name\":\"shipmentId\",\"type\":\"string\"},"
+                + "{\"name\":\"state\",\"type\":\"string\"},"
+                + "{\"name\":\"location\",\"type\":\"string\"}"
+                + "]}";
+
+        // v2 schema: Shipment with "status" and "region" fields (two renames)
+        String v2SchemaStr = "{\"type\":\"record\",\"name\":\"Shipment\",\"namespace\":\"com.axonops.test.migration\","
+                + "\"fields\":["
+                + "{\"name\":\"shipmentId\",\"type\":\"string\"},"
+                + "{\"name\":\"status\",\"type\":\"string\"},"
+                + "{\"name\":\"region\",\"type\":\"string\"}"
+                + "]}";
+
+        try {
+            // --- Step 1: Set compatibility to NONE ---
+            TestHelper.setSubjectConfig(SCHEMA_REGISTRY_URL, subject,
+                    "{\"compatibility\": \"NONE\"}");
+
+            // --- Step 2: Register v1 schema with metadata ---
+            String v1Body = "{"
+                    + "\"schema\": " + jsonEscape(v1SchemaStr) + ","
+                    + "\"schemaType\": \"AVRO\","
+                    + "\"metadata\": {"
+                    + "  \"properties\": {\"major\": \"1\"}"
+                    + "}"
+                    + "}";
+            int v1Id = TestHelper.registerSchemaWithRules(SCHEMA_REGISTRY_URL, subject, v1Body);
+            assertTrue(v1Id > 0, "v1 schema should be registered successfully");
+
+            // --- Step 3: Register v2 with UPGRADE+DOWNGRADE rules and metadata ---
+            // The DOWNGRADE JSONata expression renames both "status"->"state" and
+            // "region"->"location" in a single pass.
+            String v2Body = "{"
+                    + "\"schema\": " + jsonEscape(v2SchemaStr) + ","
+                    + "\"schemaType\": \"AVRO\","
+                    + "\"metadata\": {"
+                    + "  \"properties\": {\"major\": \"2\"}"
+                    + "},"
+                    + "\"ruleSet\": {"
+                    + "  \"migrationRules\": [{"
+                    + "    \"name\": \"upgradeFields\","
+                    + "    \"kind\": \"TRANSFORM\","
+                    + "    \"type\": \"JSONATA\","
+                    + "    \"mode\": \"UPGRADE\","
+                    + "    \"expr\": \"$merge([$sift($, function($v, $k) {$k != 'state' and $k != 'location'}), {'status': $.state, 'region': $.location}])\""
+                    + "  },{"
+                    + "    \"name\": \"downgradeFields\","
+                    + "    \"kind\": \"TRANSFORM\","
+                    + "    \"type\": \"JSONATA\","
+                    + "    \"mode\": \"DOWNGRADE\","
+                    + "    \"expr\": \"$merge([$sift($, function($v, $k) {$k != 'status' and $k != 'region'}), {'state': $.status, 'location': $.region}])\""
+                    + "  }]"
+                    + "}"
+                    + "}";
+            int v2Id = TestHelper.registerSchemaWithRules(SCHEMA_REGISTRY_URL, subject, v2Body);
+            assertTrue(v2Id > 0, "v2 schema should be registered successfully");
+
+            // --- Step 4: Serialize data using v2 schema ---
+            SchemaRegistryClient producerClient = TestHelper.createClient(SCHEMA_REGISTRY_URL);
+            KafkaAvroSerializer ruleSerializer = TestHelper.createRuleAwareSerializer(SCHEMA_REGISTRY_URL, producerClient);
+
+            Schema v2Schema = new Schema.Parser().parse(v2SchemaStr);
+            GenericRecord v2Record = new GenericData.Record(v2Schema);
+            v2Record.put("shipmentId", "SHIP-001");
+            v2Record.put("status", "IN_TRANSIT");
+            v2Record.put("region", "EU-WEST-1");
+
+            byte[] v2Bytes = ruleSerializer.serialize(topic, v2Record);
+            assertNotNull(v2Bytes, "Serialized v2 data should not be null");
+            ruleSerializer.close();
+
+            // --- Step 5: Deserialize with reader pinned to v1 ---
+            SchemaRegistryClient consumerClient = TestHelper.createClient(SCHEMA_REGISTRY_URL);
+            KafkaAvroDeserializer downgradeDeserializer = TestHelper.createMetadataPinnedDeserializer(
+                    SCHEMA_REGISTRY_URL, consumerClient, Map.of("major", "1"));
+
+            GenericRecord result = (GenericRecord) downgradeDeserializer.deserialize(topic, v2Bytes);
+
+            assertNotNull(result, "Deserialized record should not be null");
+            assertEquals("SHIP-001", result.get("shipmentId").toString(),
+                    "shipmentId should be preserved through DOWNGRADE migration");
+            assertEquals("IN_TRANSIT", result.get("state").toString(),
+                    "status should be renamed back to state by DOWNGRADE rule");
+            assertEquals("EU-WEST-1", result.get("location").toString(),
+                    "region should be renamed back to location by DOWNGRADE rule");
+            // Verify v1 schema shape
+            assertNull(result.getSchema().getField("status"),
+                    "v1 reader schema should not have a 'status' field");
+            assertNull(result.getSchema().getField("region"),
+                    "v1 reader schema should not have a 'region' field");
+
+            downgradeDeserializer.close();
+            System.out.println("DOWNGRADE multi-field test passed. v2 data -> v1 shape. "
+                    + "v1 ID: " + v1Id + ", v2 ID: " + v2Id);
 
         } finally {
             TestHelper.deleteSubject(SCHEMA_REGISTRY_URL, subject);

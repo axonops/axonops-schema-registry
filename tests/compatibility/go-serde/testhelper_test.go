@@ -230,6 +230,20 @@ func newRuleDeserializer(t *testing.T, client schemaregistry.Client) *avrov2.Des
 	return deser
 }
 
+// newMetadataPinnedDeserializer creates an avrov2 Deserializer that targets a
+// specific schema version via metadata properties. This is used for DOWNGRADE
+// rule testing: by pinning the reader to an older schema version (identified
+// by its metadata), the deserializer will execute DOWNGRADE migration rules
+// when it encounters data written with a newer schema version.
+func newMetadataPinnedDeserializer(t *testing.T, client schemaregistry.Client, metadata map[string]string) *avrov2.Deserializer {
+	t.Helper()
+	conf := avrov2.NewDeserializerConfig()
+	conf.UseLatestWithMetadata = metadata
+	deser, err := avrov2.NewDeserializer(client, serde.ValueSerde, conf)
+	require.NoError(t, err, "failed to create metadata-pinned deserializer")
+	return deser
+}
+
 // newCsfleSerializer creates an avrov2 Serializer configured for CSFLE.
 func newCsfleSerializer(t *testing.T, client schemaregistry.Client) *avrov2.Serializer {
 	t.Helper()
@@ -379,6 +393,20 @@ type PersonV1 struct {
 
 type PersonV2 struct {
 	FullName string `avro:"fullName" json:"fullName"`
+}
+
+// --- Downgrade Migration Test Structs ---
+
+type ShipmentV1 struct {
+	ShipmentID string `avro:"shipmentId" json:"shipmentId"`
+	State      string `avro:"state" json:"state"`
+	Location   string `avro:"location" json:"location"`
+}
+
+type ShipmentV2 struct {
+	ShipmentID string `avro:"shipmentId" json:"shipmentId"`
+	Status     string `avro:"status" json:"status"`
+	Region     string `avro:"region" json:"region"`
 }
 
 // --- CSFLE Test Structs ---

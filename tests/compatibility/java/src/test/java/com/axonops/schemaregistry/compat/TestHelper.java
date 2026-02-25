@@ -261,4 +261,35 @@ public class TestHelper {
         serializer.configure(config, false);
         return serializer;
     }
+
+    /**
+     * Create a KafkaAvroDeserializer that pins to a specific schema version via metadata.
+     * This is used for DOWNGRADE rule testing: by targeting an older schema version as the
+     * reader schema, the deserializer will execute DOWNGRADE migration rules to transform
+     * newer (writer) data into the older (reader) shape.
+     *
+     * <p>The {@code use.latest.with.metadata} config tells the deserializer to find the
+     * latest schema version whose metadata properties match the given map, rather than
+     * using the absolute latest version.</p>
+     */
+    static KafkaAvroDeserializer createMetadataPinnedDeserializer(
+            String registryUrl, SchemaRegistryClient client, Map<String, String> metadata) {
+        Map<String, Object> config = new HashMap<>();
+        config.put("schema.registry.url", registryUrl);
+        config.put("auto.register.schemas", false);
+        config.put("use.latest.with.metadata", metadata);
+
+        KafkaAvroDeserializer deserializer = new KafkaAvroDeserializer(client);
+        deserializer.configure(config, false);
+        return deserializer;
+    }
+
+    /**
+     * Register a schema with metadata properties via REST API.
+     * Returns the global schema ID. The metadata is included as a top-level
+     * "metadata" object in the request body alongside "schema" and "ruleSet".
+     */
+    static int registerSchemaWithMetadata(String registryUrl, String subject, String body) {
+        return registerSchemaWithRules(registryUrl, subject, body);
+    }
 }
