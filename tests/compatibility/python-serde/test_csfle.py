@@ -231,7 +231,9 @@ def new_csfle_serializer(client, schema_str):
         conf={
             "auto.register.schemas": False,
             "use.latest.version": True,
-            "rules.secret.access.key": VAULT_TOKEN,
+        },
+        rule_conf={
+            "secret.access.key": VAULT_TOKEN,
         },
     )
 
@@ -245,7 +247,9 @@ def new_csfle_deserializer(client, schema_str=None):
         from_dict=lambda obj, ctx: obj,
         conf={
             "use.latest.version": True,
-            "rules.secret.access.key": VAULT_TOKEN,
+        },
+        rule_conf={
+            "secret.access.key": VAULT_TOKEN,
         },
     )
 
