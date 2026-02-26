@@ -38,14 +38,16 @@ from confluent_kafka.serialization import SerializationContext, MessageField
 try:
     from confluent_kafka.schema_registry.rules.cel.cel_executor import CelExecutor
     from confluent_kafka.schema_registry.rules.cel.cel_field_executor import CelFieldExecutor
-    from confluent_kafka.schema_registry.serde import RuleRegistry
+    from confluent_kafka.schema_registry.rule_registry import RuleRegistry
 
     # CEL executors must be registered even for CSFLE (the ENCRYPT executor
     # depends on the rule infrastructure).
     RuleRegistry.register_rule_executor(CelExecutor())
     RuleRegistry.register_rule_executor(CelFieldExecutor())
     HAS_RULE_EXECUTORS = True
-except ImportError:
+except ImportError as e:
+    import sys
+    print(f"WARNING: Rule executors not available: {e}", file=sys.stderr)
     HAS_RULE_EXECUTORS = False
 
 try:
@@ -55,12 +57,14 @@ try:
     from confluent_kafka.schema_registry.rules.encryption.hcvault.hcvault_driver import (
         HcVaultKmsDriver,
     )
-    from confluent_kafka.schema_registry.serde import RuleRegistry as _RR
+    from confluent_kafka.schema_registry.rule_registry import RuleRegistry as _RR
 
     _RR.register_rule_executor(FieldEncryptionExecutor())
     HcVaultKmsDriver.register()
     HAS_ENCRYPTION = True
-except ImportError:
+except ImportError as e:
+    import sys
+    print(f"WARNING: Encryption executors not available: {e}", file=sys.stderr)
     HAS_ENCRYPTION = False
 
 
@@ -227,7 +231,9 @@ def new_csfle_serializer(client, schema_str):
         conf={
             "auto.register.schemas": False,
             "use.latest.version": True,
-            "rules.secret.access.key": VAULT_TOKEN,
+        },
+        rule_conf={
+            "secret.access.key": VAULT_TOKEN,
         },
     )
 
@@ -241,7 +247,9 @@ def new_csfle_deserializer(client, schema_str=None):
         from_dict=lambda obj, ctx: obj,
         conf={
             "use.latest.version": True,
-            "rules.secret.access.key": VAULT_TOKEN,
+        },
+        rule_conf={
+            "secret.access.key": VAULT_TOKEN,
         },
     )
 

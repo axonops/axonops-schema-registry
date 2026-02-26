@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"path"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -100,6 +102,21 @@ func (s *Server) setupRouter() {
 	r.Use(s.metrics.Middleware)
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(30 * time.Second))
+
+	// Clean double slashes from URL paths. Some clients (e.g., confluent-kafka-python's
+	// DekRegistryClient) construct URLs with "/".join() which produces double slashes
+	// when the path starts with "/".
+	r.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if strings.Contains(r.URL.Path, "//") {
+				r.URL.Path = path.Clean(r.URL.Path)
+				if r.URL.RawPath != "" {
+					r.URL.RawPath = path.Clean(r.URL.RawPath)
+				}
+			}
+			next.ServeHTTP(w, r)
+		})
+	})
 
 	// Request body size limit
 	maxBodySize := int64(10 << 20) // 10MB default
