@@ -3,6 +3,8 @@
 > **Purpose:** Define what users can do with the Web UI, how features behave, and in what order they should be delivered — so that claude-code can implement them and BDD tests can verify them.
 >
 > **Audience:** Implementers (claude-code), QA (BDD feature authors), product reviewers.
+>
+> **Companion doc:** [`implementation-specs.md`](implementation-specs.md) — page layouts (ASCII wireframes), exact API call mappings, TypeScript response types, form validation rules, Monaco Editor configuration, and comprehensive BDD feature files for every capability listed here.
 
 ---
 
