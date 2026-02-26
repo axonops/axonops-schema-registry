@@ -21,6 +21,9 @@ import { SchemaBrowserPage } from '@/features/schemas/schema-browser-page';
 import { SchemaByIdPage } from '@/features/schemas/schema-by-id-page';
 import { AboutPage } from '@/features/about/about-page';
 import { RegisterSchemaPage } from '@/features/authoring/register-schema-page';
+import { GlobalConfigPage } from '@/features/config/global-config-page';
+import { GlobalModesPage } from '@/features/config/global-modes-page';
+import { ImportPage } from '@/features/admin/import-page';
 
 // ── Query Client ──
 export const queryClient = new QueryClient({
@@ -142,6 +145,24 @@ const schemaByIdRoute = createRoute({
   component: SchemaByIdPage,
 });
 
+const configRoute = createRoute({
+  getParentRoute: () => authenticatedRoute,
+  path: '/ui/config',
+  component: GlobalConfigPage,
+});
+
+const modesRoute = createRoute({
+  getParentRoute: () => authenticatedRoute,
+  path: '/ui/modes',
+  component: GlobalModesPage,
+});
+
+const importRoute = createRoute({
+  getParentRoute: () => authenticatedRoute,
+  path: '/ui/import',
+  component: ImportPage,
+});
+
 const aboutRoute = createRoute({
   getParentRoute: () => authenticatedRoute,
   path: '/ui/about',
@@ -177,6 +198,9 @@ const routeTree = rootRoute.addChildren([
     schemaVersionRoute,
     schemasRoute,
     schemaByIdRoute,
+    configRoute,
+    modesRoute,
+    importRoute,
     aboutRoute,
   ]),
 ]);

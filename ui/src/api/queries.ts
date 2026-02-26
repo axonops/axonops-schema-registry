@@ -275,3 +275,122 @@ export function useDeleteVersion(subject: string) {
     },
   });
 }
+
+// ── Config Mutations ──
+
+export function useSetGlobalConfig() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (compatibility: string) =>
+      apiFetch<CompatibilityConfig>('/config', {
+        method: 'PUT',
+        body: JSON.stringify({ compatibility }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.config.global });
+    },
+  });
+}
+
+export function useSetSubjectConfig() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ subject, compatibility }: { subject: string; compatibility: string }) =>
+      apiFetch<CompatibilityConfig>(
+        `/config/${encodeURIComponent(subject)}`,
+        { method: 'PUT', body: JSON.stringify({ compatibility }) }
+      ),
+    onSuccess: (_data, { subject }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.subjects.config(subject) });
+    },
+  });
+}
+
+export function useDeleteSubjectConfig() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (subject: string) =>
+      apiFetch<CompatibilityConfig>(
+        `/config/${encodeURIComponent(subject)}`,
+        { method: 'DELETE' }
+      ),
+    onSuccess: (_data, subject) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.subjects.config(subject) });
+    },
+  });
+}
+
+// ── Mode Mutations ──
+
+export function useSetGlobalMode() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (mode: string) =>
+      apiFetch<ModeConfig>('/mode', {
+        method: 'PUT',
+        body: JSON.stringify({ mode }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.mode.global });
+    },
+  });
+}
+
+export function useSetSubjectMode() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ subject, mode }: { subject: string; mode: string }) =>
+      apiFetch<ModeConfig>(
+        `/mode/${encodeURIComponent(subject)}`,
+        { method: 'PUT', body: JSON.stringify({ mode }) }
+      ),
+    onSuccess: (_data, { subject }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.subjects.mode(subject) });
+    },
+  });
+}
+
+export function useDeleteSubjectMode() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (subject: string) =>
+      apiFetch<ModeConfig>(
+        `/mode/${encodeURIComponent(subject)}`,
+        { method: 'DELETE' }
+      ),
+    onSuccess: (_data, subject) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.subjects.mode(subject) });
+    },
+  });
+}
+
+// ── Import ──
+
+export interface ImportResult {
+  id?: number;
+  subject?: string;
+  version?: number;
+  error?: string;
+}
+
+export function useImportSchema() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: {
+      schema: string;
+      schemaType: string;
+      subject: string;
+      id: number;
+      version: number;
+      references?: Array<{ name: string; subject: string; version: number }>;
+    }) =>
+      apiFetch<{ id: number }>('/subjects/' + encodeURIComponent(body.subject) + '/versions', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.subjects.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.schemas.all });
+    },
+  });
+}
