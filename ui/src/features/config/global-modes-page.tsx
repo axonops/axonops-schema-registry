@@ -103,6 +103,7 @@ function SubjectModeRow({
         <Button
           variant="ghost"
           size="sm"
+          className="whitespace-nowrap"
           onClick={() => onReset(subject)}
           disabled={isResetting}
         >
@@ -332,7 +333,7 @@ function SubjectOverridesTable({
         <TableRow>
           <TableHead>Subject</TableHead>
           <TableHead>Mode</TableHead>
-          <TableHead className="text-right">Action</TableHead>
+          <TableHead className="text-right w-44">Action</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>

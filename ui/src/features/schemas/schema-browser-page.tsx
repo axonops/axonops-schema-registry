@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { useSchemasList } from '@/api/queries';
 import { PageBreadcrumbs } from '@/components/shared/breadcrumbs';
+import { Pagination, usePagination } from '@/components/shared/pagination';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -34,6 +35,8 @@ export function SchemaBrowserPage() {
   const filtered = schemas?.filter((s) =>
     s.subject.toLowerCase().includes(filter.toLowerCase())
   ) ?? [];
+
+  const { page, totalPages, paged, setPage } = usePagination(filtered);
 
   if (isLoading) {
     return (
@@ -102,40 +105,43 @@ export function SchemaBrowserPage() {
           No schemas found
         </div>
       ) : (
-        <div className="rounded-md border">
-          <Table data-testid="schemas-list-table">
-            <TableHeader>
-              <TableRow>
-                <TableHead>ID</TableHead>
-                <TableHead>Subject</TableHead>
-                <TableHead>Version</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>References</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((schema) => (
-                <TableRow
-                  key={`${schema.subject}-${schema.version}`}
-                  className="cursor-pointer"
-                  onClick={() => navigate({ to: '/ui/schemas/$id', params: { id: String(schema.id) } })}
-                >
-                  <TableCell>{schema.id}</TableCell>
-                  <TableCell className="font-medium">{schema.subject}</TableCell>
-                  <TableCell>v{schema.version}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{schema.schemaType}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    {schema.references && schema.references.length > 0
-                      ? `${schema.references.length} ref${schema.references.length > 1 ? 's' : ''}`
-                      : '—'}
-                  </TableCell>
+        <>
+          <div className="rounded-md border">
+            <Table data-testid="schemas-list-table">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>ID</TableHead>
+                  <TableHead>Subject</TableHead>
+                  <TableHead>Version</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>References</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+              </TableHeader>
+              <TableBody>
+                {paged.map((schema) => (
+                  <TableRow
+                    key={`${schema.subject}-${schema.version}`}
+                    className="cursor-pointer"
+                    onClick={() => navigate({ to: '/ui/schemas/$id', params: { id: String(schema.id) } })}
+                  >
+                    <TableCell>{schema.id}</TableCell>
+                    <TableCell className="font-medium">{schema.subject}</TableCell>
+                    <TableCell>v{schema.version}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{schema.schemaType}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      {schema.references && schema.references.length > 0
+                        ? `${schema.references.length} ref${schema.references.length > 1 ? 's' : ''}`
+                        : '—'}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+        </>
       )}
     </div>
   );

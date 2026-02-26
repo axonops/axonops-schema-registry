@@ -109,6 +109,7 @@ function SubjectConfigRowTracked({
         <Button
           variant="ghost"
           size="sm"
+          className="whitespace-nowrap"
           onClick={() => onReset(subject)}
           disabled={isResetting}
         >
@@ -163,7 +164,7 @@ function SubjectOverridesTable({
           <TableRow>
             <TableHead>Subject</TableHead>
             <TableHead>Compatibility Level</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
+            <TableHead className="text-right w-44">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>

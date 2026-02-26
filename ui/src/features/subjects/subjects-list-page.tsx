@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { useSubjects } from '@/api/queries';
 import { PageBreadcrumbs } from '@/components/shared/breadcrumbs';
+import { Pagination, usePagination } from '@/components/shared/pagination';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -28,6 +29,8 @@ export function SubjectsListPage() {
   const filtered = subjects?.filter((s) =>
     s.toLowerCase().includes(search.toLowerCase())
   ) ?? [];
+
+  const { page, totalPages, paged, setPage } = usePagination(filtered);
 
   const breadcrumbs = [{ label: 'Subjects' }];
 
@@ -115,7 +118,7 @@ export function SubjectsListPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filtered.map((subject) => (
+            {paged.map((subject) => (
               <TableRow
                 key={subject}
                 className="cursor-pointer"
@@ -135,6 +138,8 @@ export function SubjectsListPage() {
           </TableBody>
         </Table>
       </div>
+
+      <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
     </div>
   );
 }

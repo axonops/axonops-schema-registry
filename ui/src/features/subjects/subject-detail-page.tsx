@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from '@tanstack/react-router';
-import { useSubjectVersions, useSubjectVersion, useSubjectConfig, useSubjectMode, useGlobalConfig, useDeleteSubject } from '@/api/queries';
+import { useSubjectVersions, useSubjectVersion, useSubjectConfig, useSubjectMode, useGlobalConfig, useDeleteSubject, type SubjectVersion } from '@/api/queries';
 import { PageBreadcrumbs } from '@/components/shared/breadcrumbs';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { Badge } from '@/components/ui/badge';
@@ -164,33 +164,13 @@ export function SubjectDetailPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {versions?.sort((a, b) => b - a).map((version) => (
-              <TableRow
-                key={version}
-                className="cursor-pointer"
-                onClick={() => navigate({
-                  to: '/ui/subjects/$subject/versions/$version',
-                  params: { subject, version: String(version) },
-                })}
-                data-testid={`subject-version-row-${version}`}
-              >
-                <TableCell>
-                  <span className="font-medium">v{version}</span>
-                  {latestVersion && version === latestVersion.version && (
-                    <Badge variant="outline" className="ml-2 text-xs">latest</Badge>
-                  )}
-                </TableCell>
-                <TableCell>
-                  {latestVersion && version === latestVersion.version
-                    ? latestVersion.id
-                    : '—'}
-                </TableCell>
-                <TableCell>
-                  {latestVersion && version === latestVersion.version
-                    ? latestVersion.schemaType
-                    : '—'}
-                </TableCell>
-              </TableRow>
+            {versions?.sort((a, b) => b - a).map((v) => (
+              <VersionRow
+                key={v}
+                subject={subject}
+                version={v}
+                isLatest={latestVersion?.version === v}
+              />
             ))}
           </TableBody>
         </Table>
@@ -212,6 +192,35 @@ export function SubjectDetailPage() {
         isLoading={deleteMutation.isPending}
       />
     </div>
+  );
+}
+
+function VersionRow({ subject, version, isLatest }: { subject: string; version: number; isLatest: boolean }) {
+  const navigate = useNavigate();
+  const { data, isLoading } = useSubjectVersion(subject, version);
+
+  return (
+    <TableRow
+      className="cursor-pointer"
+      onClick={() => navigate({
+        to: '/ui/subjects/$subject/versions/$version',
+        params: { subject, version: String(version) },
+      })}
+      data-testid={`subject-version-row-${version}`}
+    >
+      <TableCell>
+        <span className="font-medium">v{version}</span>
+        {isLatest && (
+          <Badge variant="outline" className="ml-2 text-xs">latest</Badge>
+        )}
+      </TableCell>
+      <TableCell>
+        {isLoading ? <Skeleton className="h-4 w-16" /> : (data?.id ?? '—')}
+      </TableCell>
+      <TableCell>
+        {isLoading ? <Skeleton className="h-4 w-16" /> : (data?.schemaType ?? '—')}
+      </TableCell>
+    </TableRow>
   );
 }
 
