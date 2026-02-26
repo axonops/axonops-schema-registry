@@ -45,7 +45,9 @@ try:
     RuleRegistry.register_rule_executor(CelExecutor())
     RuleRegistry.register_rule_executor(CelFieldExecutor())
     HAS_RULE_EXECUTORS = True
-except ImportError:
+except ImportError as e:
+    import sys
+    print(f"WARNING: Rule executors not available: {e}", file=sys.stderr)
     HAS_RULE_EXECUTORS = False
 
 try:
@@ -60,7 +62,9 @@ try:
     _RR.register_rule_executor(FieldEncryptionExecutor())
     HcVaultKmsDriver.register()
     HAS_ENCRYPTION = True
-except ImportError:
+except ImportError as e:
+    import sys
+    print(f"WARNING: Encryption executors not available: {e}", file=sys.stderr)
     HAS_ENCRYPTION = False
 
 

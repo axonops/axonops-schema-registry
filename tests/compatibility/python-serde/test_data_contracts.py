@@ -43,7 +43,9 @@ try:
     RuleRegistry.register_rule_executor(CelFieldExecutor())
     RuleRegistry.register_rule_executor(JsonataExecutor())
     HAS_RULE_EXECUTORS = True
-except ImportError:
+except ImportError as e:
+    import sys
+    print(f"WARNING: Rule executors not available: {e}", file=sys.stderr)
     HAS_RULE_EXECUTORS = False
 
 # ---------------------------------------------------------------------------

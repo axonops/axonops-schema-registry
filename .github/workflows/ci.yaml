@@ -1526,9 +1526,29 @@ jobs:
         run: |
           python -m venv .venv
           source .venv/bin/activate
-          pip install --quiet --upgrade pip
-          pip install --quiet -r requirements.txt
-          pytest -v --tb=short
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          # Verify rule executor modules are importable AND can be instantiated
+          python -c "
+          from confluent_kafka.schema_registry.rules.cel.cel_executor import CelExecutor
+          from confluent_kafka.schema_registry.rules.cel.cel_field_executor import CelFieldExecutor
+          from confluent_kafka.schema_registry.rules.jsonata.jsonata_executor import JsonataExecutor
+          from confluent_kafka.schema_registry.rules.encryption.encrypt_executor import FieldEncryptionExecutor
+          from confluent_kafka.schema_registry.rules.encryption.hcvault.hcvault_driver import HcVaultKmsDriver
+          from confluent_kafka.schema_registry.serde import RuleRegistry
+          RuleRegistry.register_rule_executor(CelExecutor())
+          RuleRegistry.register_rule_executor(CelFieldExecutor())
+          RuleRegistry.register_rule_executor(JsonataExecutor())
+          RuleRegistry.register_rule_executor(FieldEncryptionExecutor())
+          HcVaultKmsDriver.register()
+          print('All rule executors registered OK')
+          "
+          # Run tests and capture output; fail CI if any tests are skipped
+          pytest -v --tb=short -rs 2>&1 | tee pytest_output.txt
+          if grep -q "skipped" pytest_output.txt; then
+            echo "::error::Tests were skipped! All Python serde tests must run in CI."
+            exit 1
+          fi
 
       - name: Show KMS container logs on failure
         if: failure()
