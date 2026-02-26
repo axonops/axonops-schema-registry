@@ -36,6 +36,10 @@ export const queryKeys = {
   auth: {
     config: ['auth', 'config'] as const,
   },
+  admin: {
+    users: ['admin', 'users'] as const,
+    apikeys: ['admin', 'apikeys'] as const,
+  },
 } as const;
 
 // ── Subjects ──
@@ -392,5 +396,168 @@ export function useImportSchema() {
       queryClient.invalidateQueries({ queryKey: queryKeys.subjects.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.schemas.all });
     },
+  });
+}
+
+// ── Admin: Users ──
+
+export interface User {
+  id: number;
+  username: string;
+  email: string;
+  role: 'super_admin' | 'admin' | 'developer' | 'readonly';
+  enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateUserRequest {
+  username: string;
+  password: string;
+  email: string;
+  role: 'admin' | 'developer' | 'readonly';
+  enabled?: boolean;
+}
+
+export interface UpdateUserRequest {
+  password?: string;
+  email?: string;
+  role?: string;
+  enabled?: boolean;
+}
+
+export function useUsers() {
+  return useQuery({
+    queryKey: queryKeys.admin.users,
+    queryFn: () => apiFetch<User[]>('/admin/users'),
+  });
+}
+
+export function useCreateUser() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CreateUserRequest) =>
+      apiFetch<User>('/admin/users', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.users });
+    },
+  });
+}
+
+export function useUpdateUser() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...data }: UpdateUserRequest & { id: number }) =>
+      apiFetch<User>(`/admin/users/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.users });
+    },
+  });
+}
+
+export function useDeleteUser() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) =>
+      apiFetch<void>(`/admin/users/${id}`, { method: 'DELETE' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.users });
+    },
+  });
+}
+
+// ── Admin: API Keys ──
+
+export interface ApiKey {
+  id: number;
+  key_prefix: string;
+  name: string;
+  role: 'admin' | 'developer' | 'readonly';
+  username: string;
+  created_at: string;
+  expires_at: string | null;
+  is_active: boolean;
+  revoked_at: string | null;
+}
+
+export interface CreateApiKeyRequest {
+  name: string;
+  role: 'admin' | 'developer' | 'readonly';
+  expires_in?: number;
+}
+
+export interface CreateApiKeyResponse extends ApiKey {
+  key: string;
+}
+
+export function useApiKeys() {
+  return useQuery({
+    queryKey: queryKeys.admin.apikeys,
+    queryFn: () => apiFetch<ApiKey[]>('/admin/apikeys'),
+  });
+}
+
+export function useCreateApiKey() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CreateApiKeyRequest) =>
+      apiFetch<CreateApiKeyResponse>('/admin/apikeys', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.apikeys });
+    },
+  });
+}
+
+export function useRevokeApiKey() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) =>
+      apiFetch<ApiKey>(`/admin/apikeys/${id}/revoke`, { method: 'POST' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.apikeys });
+    },
+  });
+}
+
+export function useRotateApiKey() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) =>
+      apiFetch<CreateApiKeyResponse>(`/admin/apikeys/${id}/rotate`, { method: 'POST' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.apikeys });
+    },
+  });
+}
+
+export function useDeleteApiKey() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) =>
+      apiFetch<void>(`/admin/apikeys/${id}`, { method: 'DELETE' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.apikeys });
+    },
+  });
+}
+
+// ── Self-Service ──
+
+export function useChangePassword() {
+  return useMutation({
+    mutationFn: (data: { current_password: string; new_password: string }) =>
+      apiFetch<void>('/admin/account/password', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
   });
 }

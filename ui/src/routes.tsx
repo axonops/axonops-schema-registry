@@ -24,6 +24,10 @@ import { RegisterSchemaPage } from '@/features/authoring/register-schema-page';
 import { GlobalConfigPage } from '@/features/config/global-config-page';
 import { GlobalModesPage } from '@/features/config/global-modes-page';
 import { ImportPage } from '@/features/admin/import-page';
+import { UsersPage } from '@/features/admin/users-page';
+import { ApiKeysPage } from '@/features/admin/apikeys-page';
+import { ProfilePage } from '@/features/account/profile-page';
+import { MyApiKeysPage } from '@/features/account/my-apikeys-page';
 
 // ── Query Client ──
 export const queryClient = new QueryClient({
@@ -163,6 +167,30 @@ const importRoute = createRoute({
   component: ImportPage,
 });
 
+const usersRoute = createRoute({
+  getParentRoute: () => authenticatedRoute,
+  path: '/ui/admin/users',
+  component: UsersPage,
+});
+
+const apikeysRoute = createRoute({
+  getParentRoute: () => authenticatedRoute,
+  path: '/ui/admin/apikeys',
+  component: ApiKeysPage,
+});
+
+const profileRoute = createRoute({
+  getParentRoute: () => authenticatedRoute,
+  path: '/ui/account',
+  component: ProfilePage,
+});
+
+const myApikeysRoute = createRoute({
+  getParentRoute: () => authenticatedRoute,
+  path: '/ui/account/apikeys',
+  component: MyApiKeysPage,
+});
+
 const aboutRoute = createRoute({
   getParentRoute: () => authenticatedRoute,
   path: '/ui/about',
@@ -201,6 +229,10 @@ const routeTree = rootRoute.addChildren([
     configRoute,
     modesRoute,
     importRoute,
+    usersRoute,
+    apikeysRoute,
+    profileRoute,
+    myApikeysRoute,
     aboutRoute,
   ]),
 ]);
