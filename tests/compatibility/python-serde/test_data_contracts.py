@@ -1432,7 +1432,7 @@ class TestGlobalPolicies:
 
             # Positive amount with notes should succeed.
             data = ser(
-                {"orderId": "V2-GOOD", "amount": 50.0, "notes": {"string": "priority order"}},
+                {"orderId": "V2-GOOD", "amount": 50.0, "notes": "priority order"},
                 ctx,
             )
             assert data is not None and len(data) > 0
