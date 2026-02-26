@@ -38,7 +38,7 @@ from confluent_kafka.serialization import SerializationContext, MessageField
 try:
     from confluent_kafka.schema_registry.rules.cel.cel_executor import CelExecutor
     from confluent_kafka.schema_registry.rules.cel.cel_field_executor import CelFieldExecutor
-    from confluent_kafka.schema_registry.serde import RuleRegistry
+    from confluent_kafka.schema_registry.rule_registry import RuleRegistry
 
     # CEL executors must be registered even for CSFLE (the ENCRYPT executor
     # depends on the rule infrastructure).
@@ -57,7 +57,7 @@ try:
     from confluent_kafka.schema_registry.rules.encryption.hcvault.hcvault_driver import (
         HcVaultKmsDriver,
     )
-    from confluent_kafka.schema_registry.serde import RuleRegistry as _RR
+    from confluent_kafka.schema_registry.rule_registry import RuleRegistry as _RR
 
     _RR.register_rule_executor(FieldEncryptionExecutor())
     HcVaultKmsDriver.register()

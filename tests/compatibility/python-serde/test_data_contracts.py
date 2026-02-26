@@ -37,7 +37,7 @@ try:
     from confluent_kafka.schema_registry.rules.cel.cel_executor import CelExecutor
     from confluent_kafka.schema_registry.rules.cel.cel_field_executor import CelFieldExecutor
     from confluent_kafka.schema_registry.rules.jsonata.jsonata_executor import JsonataExecutor
-    from confluent_kafka.schema_registry.serde import RuleRegistry
+    from confluent_kafka.schema_registry.rule_registry import RuleRegistry
 
     RuleRegistry.register_rule_executor(CelExecutor())
     RuleRegistry.register_rule_executor(CelFieldExecutor())
