@@ -1545,7 +1545,8 @@ jobs:
           "
           # Run tests and capture output; fail CI if any tests are skipped
           pytest -v --tb=short -rs 2>&1 | tee pytest_output.txt
-          if grep -q "skipped" pytest_output.txt; then
+          # Check pytest summary line for skipped tests (e.g., "2 passed, 25 skipped")
+          if grep -qE '[0-9]+ skipped' pytest_output.txt; then
             echo "::error::Tests were skipped! All Python serde tests must run in CI."
             exit 1
           fi
