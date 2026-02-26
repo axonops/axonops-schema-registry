@@ -5,7 +5,9 @@ import {
   useSubjects,
   useSubjectConfig,
   useSetGlobalConfig,
+  useSetSubjectConfig,
   useDeleteSubjectConfig,
+  useDeleteGlobalConfig,
 } from '@/api/queries';
 import { PageBreadcrumbs } from '@/components/shared/breadcrumbs';
 import { Button } from '@/components/ui/button';
@@ -26,8 +28,16 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { Info, RotateCcw, Loader2 } from 'lucide-react';
+import { Info, RotateCcw, Loader2, Plus } from 'lucide-react';
 
 const COMPATIBILITY_LEVELS = [
   {
@@ -198,10 +208,15 @@ export function GlobalConfigPage() {
   const { data: globalConfig, isLoading: isLoadingConfig } = useGlobalConfig();
   const { data: subjects } = useSubjects();
   const setGlobalConfig = useSetGlobalConfig();
+  const deleteGlobalConfig = useDeleteGlobalConfig();
+  const setSubjectConfig = useSetSubjectConfig();
   const deleteSubjectConfig = useDeleteSubjectConfig();
 
   const [selectedLevel, setSelectedLevel] = useState<string>('');
   const [resettingSubject, setResettingSubject] = useState<string | null>(null);
+  const [showOverrideDialog, setShowOverrideDialog] = useState(false);
+  const [overrideSubject, setOverrideSubject] = useState('');
+  const [overrideLevel, setOverrideLevel] = useState('BACKWARD');
 
   useEffect(() => {
     if (globalConfig?.compatibilityLevel) {
@@ -226,6 +241,35 @@ export function GlobalConfigPage() {
         );
       },
     });
+  };
+
+  const handleResetGlobal = () => {
+    deleteGlobalConfig.mutate(undefined, {
+      onSuccess: () => {
+        toast.success('Global compatibility reset to default (BACKWARD)');
+      },
+      onError: (error) => {
+        toast.error(error instanceof Error ? error.message : 'Failed to reset global config');
+      },
+    });
+  };
+
+  const handleSetOverride = () => {
+    if (!overrideSubject || !overrideLevel) return;
+    setSubjectConfig.mutate(
+      { subject: overrideSubject, compatibility: overrideLevel },
+      {
+        onSuccess: () => {
+          toast.success(`Set compatibility for "${overrideSubject}" to ${overrideLevel}`);
+          setShowOverrideDialog(false);
+          setOverrideSubject('');
+          setOverrideLevel('BACKWARD');
+        },
+        onError: (error) => {
+          toast.error(error instanceof Error ? error.message : 'Failed to set subject override');
+        },
+      }
+    );
   };
 
   const handleResetSubject = (subject: string) => {
@@ -310,6 +354,17 @@ export function GlobalConfigPage() {
                 )}
                 Save
               </Button>
+              <Button
+                variant="outline"
+                onClick={handleResetGlobal}
+                disabled={deleteGlobalConfig.isPending}
+                data-testid="config-global-reset-btn"
+              >
+                {deleteGlobalConfig.isPending && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                Reset to Default
+              </Button>
             </div>
 
             {globalConfig && (
@@ -326,7 +381,17 @@ export function GlobalConfigPage() {
         {/* Subject Overrides */}
         <Card>
           <CardHeader>
-            <CardTitle>Subject Overrides</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle>Subject Overrides</CardTitle>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setShowOverrideDialog(true)}
+                data-testid="config-set-override-btn"
+              >
+                <Plus className="mr-1 h-4 w-4" /> Set Override
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
             {subjects && subjects.length > 0 ? (
@@ -344,6 +409,57 @@ export function GlobalConfigPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={showOverrideDialog} onOpenChange={setShowOverrideDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Set Subject Compatibility Override</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Subject</Label>
+              <Select value={overrideSubject} onValueChange={setOverrideSubject}>
+                <SelectTrigger data-testid="config-override-subject-select">
+                  <SelectValue placeholder="Select a subject" />
+                </SelectTrigger>
+                <SelectContent>
+                  {(subjects ?? []).map((s) => (
+                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Compatibility Level</Label>
+              <Select value={overrideLevel} onValueChange={setOverrideLevel}>
+                <SelectTrigger data-testid="config-override-level-select">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {COMPATIBILITY_LEVELS.map((level) => (
+                    <SelectItem key={level.value} value={level.value}>
+                      {level.value}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowOverrideDialog(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSetOverride}
+              disabled={!overrideSubject || setSubjectConfig.isPending}
+              data-testid="config-override-save-btn"
+            >
+              {setSubjectConfig.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Set Override
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

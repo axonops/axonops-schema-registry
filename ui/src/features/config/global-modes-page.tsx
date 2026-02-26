@@ -5,7 +5,9 @@ import {
   useSubjects,
   useSubjectMode,
   useSetGlobalMode,
+  useSetSubjectMode,
   useDeleteSubjectMode,
+  useDeleteGlobalMode,
 } from '@/api/queries';
 import { PageBreadcrumbs } from '@/components/shared/breadcrumbs';
 import { Button } from '@/components/ui/button';
@@ -27,8 +29,16 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { Info, RotateCcw, Loader2, AlertTriangle } from 'lucide-react';
+import { Info, RotateCcw, Loader2, AlertTriangle, Plus } from 'lucide-react';
 
 const MODES = [
   {
@@ -129,11 +139,16 @@ export function GlobalModesPage() {
   const { data: subjects } = useSubjects();
 
   const setGlobalModeMutation = useSetGlobalMode();
+  const deleteGlobalModeMutation = useDeleteGlobalMode();
+  const setSubjectModeMutation = useSetSubjectMode();
   const deleteSubjectModeMutation = useDeleteSubjectMode();
 
   const [selectedMode, setSelectedMode] = useState<ModeValue>('READWRITE');
   const [resettingSubject, setResettingSubject] = useState<string | null>(null);
   const [overrideCount, setOverrideCount] = useState(0);
+  const [showOverrideDialog, setShowOverrideDialog] = useState(false);
+  const [overrideSubject, setOverrideSubject] = useState('');
+  const [overrideMode, setOverrideMode] = useState<ModeValue>('READWRITE');
 
   useEffect(() => {
     if (globalMode?.mode) {
@@ -154,6 +169,35 @@ export function GlobalModesPage() {
         );
       },
     });
+  };
+
+  const handleResetGlobalMode = () => {
+    deleteGlobalModeMutation.mutate(undefined, {
+      onSuccess: () => {
+        toast.success('Global mode reset to default (READWRITE)');
+      },
+      onError: (err) => {
+        toast.error(err instanceof Error ? err.message : 'Failed to reset global mode');
+      },
+    });
+  };
+
+  const handleSetOverride = () => {
+    if (!overrideSubject || !overrideMode) return;
+    setSubjectModeMutation.mutate(
+      { subject: overrideSubject, mode: overrideMode },
+      {
+        onSuccess: () => {
+          toast.success(`Set mode for "${overrideSubject}" to ${overrideMode}`);
+          setShowOverrideDialog(false);
+          setOverrideSubject('');
+          setOverrideMode('READWRITE');
+        },
+        onError: (err) => {
+          toast.error(err instanceof Error ? err.message : 'Failed to set subject mode');
+        },
+      }
+    );
   };
 
   const handleResetSubjectMode = (subject: string) => {
@@ -262,6 +306,17 @@ export function GlobalModesPage() {
                 )}
                 Save
               </Button>
+              <Button
+                variant="outline"
+                onClick={handleResetGlobalMode}
+                disabled={deleteGlobalModeMutation.isPending}
+                data-testid="mode-global-reset-btn"
+              >
+                {deleteGlobalModeMutation.isPending && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                Reset to Default
+              </Button>
             </div>
 
             {selectedMode === 'IMPORT' && (
@@ -288,7 +343,17 @@ export function GlobalModesPage() {
         {/* Subject Overrides Card */}
         <Card>
           <CardHeader>
-            <CardTitle>Subject Overrides</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle>Subject Overrides</CardTitle>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setShowOverrideDialog(true)}
+                data-testid="mode-set-override-btn"
+              >
+                <Plus className="mr-1 h-4 w-4" /> Set Override
+              </Button>
+            </div>
             {totalSubjects > 0 && (
               <p className="text-sm text-muted-foreground">
                 {overrideCount} of {totalSubjects} subject
@@ -312,6 +377,57 @@ export function GlobalModesPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={showOverrideDialog} onOpenChange={setShowOverrideDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Set Subject Mode Override</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Subject</Label>
+              <Select value={overrideSubject} onValueChange={setOverrideSubject}>
+                <SelectTrigger data-testid="mode-override-subject-select">
+                  <SelectValue placeholder="Select a subject" />
+                </SelectTrigger>
+                <SelectContent>
+                  {(subjects ?? []).map((s) => (
+                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Mode</Label>
+              <Select value={overrideMode} onValueChange={(v) => setOverrideMode(v as ModeValue)}>
+                <SelectTrigger data-testid="mode-override-mode-select">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {MODES.map((mode) => (
+                    <SelectItem key={mode.value} value={mode.value}>
+                      {mode.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowOverrideDialog(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSetOverride}
+              disabled={!overrideSubject || setSubjectModeMutation.isPending}
+              data-testid="mode-override-save-btn"
+            >
+              {setSubjectModeMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Set Override
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -561,3 +561,484 @@ export function useChangePassword() {
       }),
   });
 }
+
+// ── Delete Global Config / Mode ──
+
+export function useDeleteGlobalConfig() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      apiFetch<CompatibilityConfig>('/config', { method: 'DELETE' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.config.global });
+    },
+  });
+}
+
+export function useDeleteGlobalMode() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      apiFetch<ModeConfig>('/mode', { method: 'DELETE' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.mode.global });
+    },
+  });
+}
+
+// ── Compatibility Check ──
+
+export interface CompatibilityCheckResult {
+  is_compatible: boolean;
+  messages?: string[];
+}
+
+export function useCheckCompatibility() {
+  return useMutation({
+    mutationFn: ({
+      subject,
+      version,
+      schema,
+      schemaType,
+      references,
+    }: {
+      subject: string;
+      version?: number | string;
+      schema: string;
+      schemaType: string;
+      references?: Array<{ name: string; subject: string; version: number }>;
+    }) => {
+      const versionPath = version ? `/${version}` : '';
+      return apiFetch<CompatibilityCheckResult>(
+        `/compatibility/subjects/${encodeURIComponent(subject)}/versions${versionPath}?verbose=true`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ schema, schemaType, references }),
+        }
+      );
+    },
+  });
+}
+
+// ── Schema Lookup ──
+
+export function useSchemaLookup() {
+  return useMutation({
+    mutationFn: ({
+      subject,
+      schema,
+      schemaType,
+      references,
+    }: {
+      subject: string;
+      schema: string;
+      schemaType: string;
+      references?: Array<{ name: string; subject: string; version: number }>;
+    }) =>
+      apiFetch<SubjectVersion>(
+        `/subjects/${encodeURIComponent(subject)}`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ schema, schemaType, references }),
+        }
+      ),
+  });
+}
+
+// ── Roles ──
+
+export interface RoleInfo {
+  name: string;
+  description?: string;
+  permissions?: string[];
+}
+
+export function useRoles() {
+  return useQuery({
+    queryKey: ['admin', 'roles'] as const,
+    queryFn: () => apiFetch<RoleInfo[]>('/admin/roles'),
+    staleTime: Infinity,
+  });
+}
+
+// ── Health ──
+
+export interface HealthStatus {
+  status: 'UP' | 'DOWN';
+  reason?: string;
+}
+
+export function useHealthLive() {
+  return useQuery({
+    queryKey: ['health', 'live'] as const,
+    queryFn: () => apiFetch<HealthStatus>('/health/live'),
+    refetchInterval: 30_000,
+  });
+}
+
+export function useHealthReady() {
+  return useQuery({
+    queryKey: ['health', 'ready'] as const,
+    queryFn: () => apiFetch<HealthStatus>('/health/ready'),
+    refetchInterval: 30_000,
+  });
+}
+
+export function useHealthStartup() {
+  return useQuery({
+    queryKey: ['health', 'startup'] as const,
+    queryFn: () => apiFetch<HealthStatus>('/health/startup'),
+    refetchInterval: 30_000,
+  });
+}
+
+// ── Contexts ──
+
+export function useContexts() {
+  return useQuery({
+    queryKey: ['contexts'] as const,
+    queryFn: () => apiFetch<string[]>('/contexts'),
+  });
+}
+
+// ── Exporters ──
+
+export interface ExporterResponse {
+  name: string;
+  contextType?: string;
+  context?: string;
+  subjects?: string[];
+  subjectRenameFormat?: string;
+  config?: Record<string, string>;
+}
+
+export interface ExporterStatusResponse {
+  name: string;
+  state: string;
+  offset?: number;
+  ts?: number;
+  trace?: string;
+}
+
+export interface CreateExporterRequest {
+  name: string;
+  contextType?: string;
+  context?: string;
+  subjects?: string[];
+  subjectRenameFormat?: string;
+  config?: Record<string, string>;
+}
+
+export function useExporters() {
+  return useQuery({
+    queryKey: ['exporters'] as const,
+    queryFn: () => apiFetch<string[]>('/exporters'),
+  });
+}
+
+export function useExporter(name: string) {
+  return useQuery({
+    queryKey: ['exporters', name] as const,
+    queryFn: () => apiFetch<ExporterResponse>(`/exporters/${encodeURIComponent(name)}`),
+    enabled: !!name,
+  });
+}
+
+export function useExporterStatus(name: string) {
+  return useQuery({
+    queryKey: ['exporters', name, 'status'] as const,
+    queryFn: () => apiFetch<ExporterStatusResponse>(`/exporters/${encodeURIComponent(name)}/status`),
+    enabled: !!name,
+    refetchInterval: 10_000,
+  });
+}
+
+export function useExporterConfig(name: string) {
+  return useQuery({
+    queryKey: ['exporters', name, 'config'] as const,
+    queryFn: () => apiFetch<Record<string, string>>(`/exporters/${encodeURIComponent(name)}/config`),
+    enabled: !!name,
+  });
+}
+
+export function useCreateExporter() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CreateExporterRequest) =>
+      apiFetch<ExporterResponse>('/exporters', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['exporters'] });
+    },
+  });
+}
+
+export function useUpdateExporter() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ name, ...data }: CreateExporterRequest) =>
+      apiFetch<ExporterResponse>(`/exporters/${encodeURIComponent(name)}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['exporters'] });
+    },
+  });
+}
+
+export function useDeleteExporter() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (name: string) =>
+      apiFetch<void>(`/exporters/${encodeURIComponent(name)}`, { method: 'DELETE' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['exporters'] });
+    },
+  });
+}
+
+export function usePauseExporter() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (name: string) =>
+      apiFetch<void>(`/exporters/${encodeURIComponent(name)}/pause`, { method: 'PUT' }),
+    onSuccess: (_d, name) => {
+      queryClient.invalidateQueries({ queryKey: ['exporters', name, 'status'] });
+    },
+  });
+}
+
+export function useResumeExporter() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (name: string) =>
+      apiFetch<void>(`/exporters/${encodeURIComponent(name)}/resume`, { method: 'PUT' }),
+    onSuccess: (_d, name) => {
+      queryClient.invalidateQueries({ queryKey: ['exporters', name, 'status'] });
+    },
+  });
+}
+
+export function useResetExporter() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (name: string) =>
+      apiFetch<void>(`/exporters/${encodeURIComponent(name)}/reset`, { method: 'PUT' }),
+    onSuccess: (_d, name) => {
+      queryClient.invalidateQueries({ queryKey: ['exporters', name, 'status'] });
+    },
+  });
+}
+
+export function useUpdateExporterConfig() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ name, config }: { name: string; config: Record<string, string> }) =>
+      apiFetch<void>(`/exporters/${encodeURIComponent(name)}/config`, {
+        method: 'PUT',
+        body: JSON.stringify(config),
+      }),
+    onSuccess: (_d, { name }) => {
+      queryClient.invalidateQueries({ queryKey: ['exporters', name, 'config'] });
+    },
+  });
+}
+
+// ── DEK Registry: KEKs ──
+
+export interface KEKResponse {
+  name: string;
+  kmsType: string;
+  kmsKeyId: string;
+  kmsProps?: Record<string, string>;
+  doc?: string;
+  shared: boolean;
+  ts?: number;
+  deleted?: boolean;
+}
+
+export interface CreateKEKRequest {
+  name: string;
+  kmsType: string;
+  kmsKeyId: string;
+  kmsProps?: Record<string, string>;
+  doc?: string;
+  shared: boolean;
+}
+
+export function useKEKs(opts?: { deleted?: boolean }) {
+  const params = new URLSearchParams();
+  if (opts?.deleted) params.set('deleted', 'true');
+  const qs = params.toString() ? `?${params.toString()}` : '';
+  return useQuery({
+    queryKey: ['dek', 'keks', opts] as const,
+    queryFn: () => apiFetch<string[]>(`/dek-registry/v1/keks${qs}`),
+  });
+}
+
+export function useKEK(name: string) {
+  return useQuery({
+    queryKey: ['dek', 'keks', name] as const,
+    queryFn: () => apiFetch<KEKResponse>(`/dek-registry/v1/keks/${encodeURIComponent(name)}`),
+    enabled: !!name,
+  });
+}
+
+export function useCreateKEK() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CreateKEKRequest) =>
+      apiFetch<KEKResponse>('/dek-registry/v1/keks', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['dek', 'keks'] });
+    },
+  });
+}
+
+export function useUpdateKEK() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ name, ...data }: Partial<CreateKEKRequest> & { name: string }) =>
+      apiFetch<KEKResponse>(`/dek-registry/v1/keks/${encodeURIComponent(name)}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['dek', 'keks'] });
+    },
+  });
+}
+
+export function useDeleteKEK() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ name, permanent }: { name: string; permanent?: boolean }) =>
+      apiFetch<void>(
+        `/dek-registry/v1/keks/${encodeURIComponent(name)}${permanent ? '?permanent=true' : ''}`,
+        { method: 'DELETE' }
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['dek', 'keks'] });
+    },
+  });
+}
+
+export function useUndeleteKEK() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (name: string) =>
+      apiFetch<void>(`/dek-registry/v1/keks/${encodeURIComponent(name)}/undelete`, {
+        method: 'POST',
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['dek', 'keks'] });
+    },
+  });
+}
+
+export function useTestKEK() {
+  return useMutation({
+    mutationFn: (name: string) =>
+      apiFetch<void>(`/dek-registry/v1/keks/${encodeURIComponent(name)}/test`, {
+        method: 'POST',
+      }),
+  });
+}
+
+// ── DEK Registry: DEKs ──
+
+export interface DEKResponse {
+  kekName: string;
+  subject: string;
+  version: number;
+  algorithm: string;
+  encryptedKeyMaterial?: string;
+  keyMaterial?: string;
+  ts?: number;
+  deleted?: boolean;
+}
+
+export interface CreateDEKRequest {
+  subject: string;
+  version?: number;
+  algorithm?: string;
+  encryptedKeyMaterial?: string;
+}
+
+export function useDEKs(kekName: string) {
+  return useQuery({
+    queryKey: ['dek', 'keks', kekName, 'deks'] as const,
+    queryFn: () => apiFetch<string[]>(`/dek-registry/v1/keks/${encodeURIComponent(kekName)}/deks`),
+    enabled: !!kekName,
+  });
+}
+
+export function useDEK(kekName: string, subject: string) {
+  return useQuery({
+    queryKey: ['dek', 'keks', kekName, 'deks', subject] as const,
+    queryFn: () =>
+      apiFetch<DEKResponse>(
+        `/dek-registry/v1/keks/${encodeURIComponent(kekName)}/deks/${encodeURIComponent(subject)}`
+      ),
+    enabled: !!kekName && !!subject,
+  });
+}
+
+export function useDEKVersions(kekName: string, subject: string) {
+  return useQuery({
+    queryKey: ['dek', 'keks', kekName, 'deks', subject, 'versions'] as const,
+    queryFn: () =>
+      apiFetch<number[]>(
+        `/dek-registry/v1/keks/${encodeURIComponent(kekName)}/deks/${encodeURIComponent(subject)}/versions`
+      ),
+    enabled: !!kekName && !!subject,
+  });
+}
+
+export function useCreateDEK() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ kekName, ...data }: CreateDEKRequest & { kekName: string }) =>
+      apiFetch<DEKResponse>(`/dek-registry/v1/keks/${encodeURIComponent(kekName)}/deks`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['dek'] });
+    },
+  });
+}
+
+export function useDeleteDEK() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ kekName, subject, permanent }: { kekName: string; subject: string; permanent?: boolean }) =>
+      apiFetch<void>(
+        `/dek-registry/v1/keks/${encodeURIComponent(kekName)}/deks/${encodeURIComponent(subject)}${permanent ? '?permanent=true' : ''}`,
+        { method: 'DELETE' }
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['dek'] });
+    },
+  });
+}
+
+export function useUndeleteDEK() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ kekName, subject }: { kekName: string; subject: string }) =>
+      apiFetch<void>(
+        `/dek-registry/v1/keks/${encodeURIComponent(kekName)}/deks/${encodeURIComponent(subject)}/undelete`,
+        { method: 'POST' }
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['dek'] });
+    },
+  });
+}

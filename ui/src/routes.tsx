@@ -28,6 +28,8 @@ import { UsersPage } from '@/features/admin/users-page';
 import { ApiKeysPage } from '@/features/admin/apikeys-page';
 import { ProfilePage } from '@/features/account/profile-page';
 import { MyApiKeysPage } from '@/features/account/my-apikeys-page';
+import { CompatibilityCheckPage } from '@/features/tools/compatibility-check-page';
+import { SchemaLookupPage } from '@/features/tools/schema-lookup-page';
 
 // ── Query Client ──
 export const queryClient = new QueryClient({
@@ -191,6 +193,18 @@ const myApikeysRoute = createRoute({
   component: MyApiKeysPage,
 });
 
+const compatibilityCheckRoute = createRoute({
+  getParentRoute: () => authenticatedRoute,
+  path: '/ui/tools/compatibility',
+  component: CompatibilityCheckPage,
+});
+
+const schemaLookupRoute = createRoute({
+  getParentRoute: () => authenticatedRoute,
+  path: '/ui/tools/lookup',
+  component: SchemaLookupPage,
+});
+
 const aboutRoute = createRoute({
   getParentRoute: () => authenticatedRoute,
   path: '/ui/about',
@@ -231,6 +245,8 @@ const routeTree = rootRoute.addChildren([
     importRoute,
     usersRoute,
     apikeysRoute,
+    compatibilityCheckRoute,
+    schemaLookupRoute,
     profileRoute,
     myApikeysRoute,
     aboutRoute,

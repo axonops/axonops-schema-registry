@@ -22,6 +22,8 @@ import {
   Info,
   User,
   Database,
+  CircleCheck,
+  SearchCheck,
 } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 
@@ -53,6 +55,13 @@ const navGroups: NavGroup[] = [
       { title: 'Modes', url: '/ui/modes', icon: ToggleLeft, testId: 'nav-sidebar-modes-link' },
     ],
     minRole: ['super_admin', 'admin'],
+  },
+  {
+    label: 'TOOLS',
+    items: [
+      { title: 'Compatibility Check', url: '/ui/tools/compatibility', icon: CircleCheck, testId: 'nav-sidebar-compat-check-link' },
+      { title: 'Schema Lookup', url: '/ui/tools/lookup', icon: SearchCheck, testId: 'nav-sidebar-schema-lookup-link' },
+    ],
   },
   {
     label: 'ADMINISTRATION',
