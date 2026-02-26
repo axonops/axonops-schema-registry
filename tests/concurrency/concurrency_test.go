@@ -1274,3 +1274,1210 @@ func TestSchemaIDUniqueness(t *testing.T) {
 	t.Logf("Schema ID uniqueness verified: %d unique IDs allocated, %d successes, %d errors",
 		len(idSet), successCount, errorCount)
 }
+
+// TestConcurrentSubjectDeletion tests soft-deleting many subjects concurrently.
+// Verifies that all deletes succeed and subjects appear in the deleted list but not the active list.
+func TestConcurrentSubjectDeletion(t *testing.T) {
+	prefix := fmt.Sprintf("del-subj-%d", time.Now().UnixNano())
+	inst := instances[0]
+
+	// Setup: register numConcurrent subjects sequentially
+	subjects := make([]string, numConcurrent)
+	for i := 0; i < numConcurrent; i++ {
+		subjects[i] = fmt.Sprintf("%s-%d", prefix, i)
+		schema := map[string]interface{}{
+			"schema": fmt.Sprintf(`{"type":"record","name":"Del%d","fields":[{"name":"id","type":"int"}]}`, i),
+		}
+		resp, err := doRequest("POST", inst.addr+"/subjects/"+subjects[i]+"/versions", schema)
+		if err != nil {
+			t.Fatalf("Failed to register subject %s: %v", subjects[i], err)
+		}
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			resp.Body.Close()
+			t.Fatalf("Failed to register subject %s: status %d, body: %s", subjects[i], resp.StatusCode, body)
+		}
+		io.Copy(io.Discard, resp.Body)
+		resp.Body.Close()
+	}
+
+	// Concurrent: each goroutine soft-deletes its own subject
+	var wg sync.WaitGroup
+	var successCount, errorCount int64
+	errorMsgs := make(chan string, numConcurrent)
+
+	for i := 0; i < numConcurrent; i++ {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+			inst := getRandomInstance()
+			resp, err := doRequest("DELETE", inst.addr+"/subjects/"+subjects[idx], nil)
+			if err != nil {
+				atomic.AddInt64(&errorCount, 1)
+				errorMsgs <- fmt.Sprintf("worker %d: %v", idx, err)
+				return
+			}
+			if resp.StatusCode == http.StatusOK {
+				atomic.AddInt64(&successCount, 1)
+			} else {
+				body, _ := io.ReadAll(resp.Body)
+				atomic.AddInt64(&errorCount, 1)
+				errorMsgs <- fmt.Sprintf("worker %d: status %d, body: %s", idx, resp.StatusCode, string(body))
+			}
+			io.Copy(io.Discard, resp.Body)
+			resp.Body.Close()
+		}(i)
+	}
+
+	wg.Wait()
+	close(errorMsgs)
+
+	for errMsg := range errorMsgs {
+		t.Logf("Error: %s", errMsg)
+	}
+
+	// INVARIANT: All deletes should return 200
+	if successCount != int64(numConcurrent) {
+		t.Errorf("Expected %d successful deletes, got %d (errors: %d)", numConcurrent, successCount, errorCount)
+	}
+
+	// INVARIANT: GET /subjects (active) should not contain any test subjects
+	resp, err := doRequest("GET", inst.addr+"/subjects", nil)
+	if err != nil {
+		t.Fatalf("Failed to list subjects: %v", err)
+	}
+	var activeSubjects []string
+	json.NewDecoder(resp.Body).Decode(&activeSubjects)
+	io.Copy(io.Discard, resp.Body)
+	resp.Body.Close()
+
+	for _, s := range activeSubjects {
+		if strings.HasPrefix(s, prefix) {
+			t.Errorf("Subject %s should not appear in active subjects after soft-delete", s)
+		}
+	}
+
+	// INVARIANT: GET /subjects?deleted=true should contain all test subjects
+	resp, err = doRequest("GET", inst.addr+"/subjects?deleted=true", nil)
+	if err != nil {
+		t.Fatalf("Failed to list deleted subjects: %v", err)
+	}
+	var deletedSubjects []string
+	json.NewDecoder(resp.Body).Decode(&deletedSubjects)
+	io.Copy(io.Discard, resp.Body)
+	resp.Body.Close()
+
+	deletedSet := make(map[string]bool)
+	for _, s := range deletedSubjects {
+		deletedSet[s] = true
+	}
+	for _, s := range subjects {
+		if !deletedSet[s] {
+			t.Errorf("Subject %s should appear in deleted subjects list", s)
+		}
+	}
+
+	t.Logf("Concurrent subject deletion: %d successes, %d errors", successCount, errorCount)
+}
+
+// TestConcurrentPermanentDeletion tests soft-deleting then permanently deleting subjects concurrently.
+// Verifies that subjects are fully removed after permanent deletion.
+func TestConcurrentPermanentDeletion(t *testing.T) {
+	prefix := fmt.Sprintf("perm-del-%d", time.Now().UnixNano())
+	inst := instances[0]
+
+	// Setup: register numConcurrent subjects and store (subject, schemaID) pairs
+	type subjectSchema struct {
+		subject  string
+		schemaID int64
+	}
+	pairs := make([]subjectSchema, numConcurrent)
+	for i := 0; i < numConcurrent; i++ {
+		pairs[i].subject = fmt.Sprintf("%s-%d", prefix, i)
+		schema := map[string]interface{}{
+			"schema": fmt.Sprintf(`{"type":"record","name":"PermDel%d","fields":[{"name":"id","type":"int"}]}`, i),
+		}
+		resp, err := doRequest("POST", inst.addr+"/subjects/"+pairs[i].subject+"/versions", schema)
+		if err != nil {
+			t.Fatalf("Failed to register subject %s: %v", pairs[i].subject, err)
+		}
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			resp.Body.Close()
+			t.Fatalf("Failed to register subject %s: status %d, body: %s", pairs[i].subject, resp.StatusCode, body)
+		}
+		var result struct {
+			ID int64 `json:"id"`
+		}
+		json.NewDecoder(resp.Body).Decode(&result)
+		io.Copy(io.Discard, resp.Body)
+		resp.Body.Close()
+		pairs[i].schemaID = result.ID
+	}
+
+	// Concurrent: each goroutine soft-deletes then permanent-deletes its own subject
+	var wg sync.WaitGroup
+	var successCount, errorCount int64
+	errorMsgs := make(chan string, numConcurrent*2)
+
+	for i := 0; i < numConcurrent; i++ {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+			inst := getRandomInstance()
+
+			// Soft-delete first
+			resp, err := doRequest("DELETE", inst.addr+"/subjects/"+pairs[idx].subject, nil)
+			if err != nil {
+				atomic.AddInt64(&errorCount, 1)
+				errorMsgs <- fmt.Sprintf("worker %d soft-delete: %v", idx, err)
+				return
+			}
+			if resp.StatusCode != http.StatusOK {
+				body, _ := io.ReadAll(resp.Body)
+				resp.Body.Close()
+				atomic.AddInt64(&errorCount, 1)
+				errorMsgs <- fmt.Sprintf("worker %d soft-delete: status %d, body: %s", idx, resp.StatusCode, string(body))
+				return
+			}
+			io.Copy(io.Discard, resp.Body)
+			resp.Body.Close()
+
+			// Permanent-delete
+			resp, err = doRequest("DELETE", inst.addr+"/subjects/"+pairs[idx].subject+"?permanent=true", nil)
+			if err != nil {
+				atomic.AddInt64(&errorCount, 1)
+				errorMsgs <- fmt.Sprintf("worker %d perm-delete: %v", idx, err)
+				return
+			}
+			if resp.StatusCode == http.StatusOK {
+				atomic.AddInt64(&successCount, 1)
+			} else {
+				body, _ := io.ReadAll(resp.Body)
+				atomic.AddInt64(&errorCount, 1)
+				errorMsgs <- fmt.Sprintf("worker %d perm-delete: status %d, body: %s", idx, resp.StatusCode, string(body))
+			}
+			io.Copy(io.Discard, resp.Body)
+			resp.Body.Close()
+		}(i)
+	}
+
+	wg.Wait()
+	close(errorMsgs)
+
+	for errMsg := range errorMsgs {
+		t.Logf("Error: %s", errMsg)
+	}
+
+	// INVARIANT: Both calls succeed
+	if successCount != int64(numConcurrent) {
+		t.Errorf("Expected %d successful permanent deletes, got %d (errors: %d)", numConcurrent, successCount, errorCount)
+	}
+
+	// INVARIANT: test subjects don't appear in GET /subjects?deleted=true
+	resp, err := doRequest("GET", inst.addr+"/subjects?deleted=true", nil)
+	if err != nil {
+		t.Fatalf("Failed to list deleted subjects: %v", err)
+	}
+	var deletedSubjects []string
+	json.NewDecoder(resp.Body).Decode(&deletedSubjects)
+	io.Copy(io.Discard, resp.Body)
+	resp.Body.Close()
+
+	for _, s := range deletedSubjects {
+		if strings.HasPrefix(s, prefix) {
+			t.Errorf("Subject %s should not appear in deleted subjects after permanent delete", s)
+		}
+	}
+
+	// INVARIANT: each schema ID's GET /schemas/ids/{id}/subjects returns 404 or empty array
+	for _, p := range pairs {
+		resp, err := doRequest("GET", fmt.Sprintf("%s/schemas/ids/%d/subjects", inst.addr, p.schemaID), nil)
+		if err != nil {
+			t.Errorf("Failed to check schema ID %d subjects: %v", p.schemaID, err)
+			continue
+		}
+		if resp.StatusCode == http.StatusNotFound {
+			io.Copy(io.Discard, resp.Body)
+			resp.Body.Close()
+			continue
+		}
+		if resp.StatusCode == http.StatusOK {
+			var subjects []string
+			json.NewDecoder(resp.Body).Decode(&subjects)
+			io.Copy(io.Discard, resp.Body)
+			resp.Body.Close()
+			// Filter for our test prefix
+			for _, s := range subjects {
+				if strings.HasPrefix(s, prefix) {
+					t.Errorf("Schema ID %d still references permanently deleted subject %s", p.schemaID, s)
+				}
+			}
+			continue
+		}
+		io.Copy(io.Discard, resp.Body)
+		resp.Body.Close()
+	}
+
+	t.Logf("Concurrent permanent deletion: %d successes, %d errors", successCount, errorCount)
+}
+
+// TestConcurrentVersionDeletion tests deleting multiple versions from one subject concurrently.
+// Verifies that all version deletes succeed and no versions remain.
+func TestConcurrentVersionDeletion(t *testing.T) {
+	subject := fmt.Sprintf("ver-del-%d", time.Now().UnixNano())
+	inst := instances[0]
+
+	// Set compatibility to NONE to allow arbitrary schemas
+	configReq := map[string]string{"compatibility": "NONE"}
+	resp, err := doRequest("PUT", inst.addr+"/config/"+subject, configReq)
+	if err != nil {
+		t.Fatalf("Failed to set config: %v", err)
+	}
+	io.Copy(io.Discard, resp.Body)
+	resp.Body.Close()
+
+	// Register numConcurrent unique schemas -> versions 1..N
+	for i := 0; i < numConcurrent; i++ {
+		schema := map[string]interface{}{
+			"schema": fmt.Sprintf(`{"type":"record","name":"VerDel","fields":[{"name":"f%d","type":"int"}]}`, i),
+		}
+		resp, err := doRequest("POST", inst.addr+"/subjects/"+subject+"/versions", schema)
+		if err != nil {
+			t.Fatalf("Failed to register version %d: %v", i+1, err)
+		}
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			resp.Body.Close()
+			t.Fatalf("Failed to register version %d: status %d, body: %s", i+1, resp.StatusCode, body)
+		}
+		io.Copy(io.Discard, resp.Body)
+		resp.Body.Close()
+	}
+
+	// Concurrent: each goroutine deletes its assigned version
+	var wg sync.WaitGroup
+	var successCount, errorCount int64
+	errorMsgs := make(chan string, numConcurrent)
+
+	for i := 0; i < numConcurrent; i++ {
+		wg.Add(1)
+		go func(version int) {
+			defer wg.Done()
+			inst := getRandomInstance()
+			resp, err := doRequest("DELETE", fmt.Sprintf("%s/subjects/%s/versions/%d", inst.addr, subject, version), nil)
+			if err != nil {
+				atomic.AddInt64(&errorCount, 1)
+				errorMsgs <- fmt.Sprintf("version %d: %v", version, err)
+				return
+			}
+			if resp.StatusCode == http.StatusOK {
+				atomic.AddInt64(&successCount, 1)
+			} else {
+				body, _ := io.ReadAll(resp.Body)
+				atomic.AddInt64(&errorCount, 1)
+				errorMsgs <- fmt.Sprintf("version %d: status %d, body: %s", version, resp.StatusCode, string(body))
+			}
+			io.Copy(io.Discard, resp.Body)
+			resp.Body.Close()
+		}(i + 1) // versions are 1-indexed
+	}
+
+	wg.Wait()
+	close(errorMsgs)
+
+	for errMsg := range errorMsgs {
+		t.Logf("Error: %s", errMsg)
+	}
+
+	// INVARIANT: All deletes return 200
+	if successCount != int64(numConcurrent) {
+		t.Errorf("Expected %d successful version deletes, got %d (errors: %d)", numConcurrent, successCount, errorCount)
+	}
+
+	// INVARIANT: GET /subjects/{subject}/versions returns empty array or 404
+	resp, err = doRequest("GET", inst.addr+"/subjects/"+subject+"/versions", nil)
+	if err != nil {
+		t.Fatalf("Failed to get versions: %v", err)
+	}
+	if resp.StatusCode == http.StatusNotFound {
+		// Subject not found after all versions deleted - acceptable
+		io.Copy(io.Discard, resp.Body)
+		resp.Body.Close()
+	} else if resp.StatusCode == http.StatusOK {
+		var versions []int
+		json.NewDecoder(resp.Body).Decode(&versions)
+		io.Copy(io.Discard, resp.Body)
+		resp.Body.Close()
+		if len(versions) > 0 {
+			t.Errorf("Expected empty versions after all deletes, got %v", versions)
+		}
+	} else {
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		t.Errorf("Unexpected status %d getting versions: %s", resp.StatusCode, string(body))
+	}
+
+	t.Logf("Concurrent version deletion: %d successes, %d errors", successCount, errorCount)
+}
+
+// TestConcurrentDeleteAndReRegister tests concurrent soft-deletion and re-registration of a subject.
+// Verifies no 5xx errors occur under contention between deleters and registrars.
+func TestConcurrentDeleteAndReRegister(t *testing.T) {
+	subject := fmt.Sprintf("del-rereg-%d", time.Now().UnixNano())
+	inst := instances[0]
+
+	// Setup: register initial schema with compat=NONE
+	schema := map[string]interface{}{
+		"schema": `{"type":"record","name":"DelReReg","fields":[{"name":"id","type":"int"}]}`,
+	}
+	resp, err := doRequest("POST", inst.addr+"/subjects/"+subject+"/versions", schema)
+	if err != nil {
+		t.Fatalf("Failed to register initial schema: %v", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		t.Fatalf("Failed to register initial schema: status %d, body: %s", resp.StatusCode, body)
+	}
+	io.Copy(io.Discard, resp.Body)
+	resp.Body.Close()
+
+	configReq := map[string]string{"compatibility": "NONE"}
+	resp, err = doRequest("PUT", inst.addr+"/config/"+subject, configReq)
+	if err != nil {
+		t.Fatalf("Failed to set config: %v", err)
+	}
+	io.Copy(io.Discard, resp.Body)
+	resp.Body.Close()
+
+	// Concurrent: half workers soft-delete, half register new schemas
+	var wg sync.WaitGroup
+	var serverErrors int64
+	errorMsgs := make(chan string, numConcurrent*numOperations)
+	opsPerWorker := numOperations / numConcurrent
+	if opsPerWorker < 1 {
+		opsPerWorker = 1
+	}
+
+	for i := 0; i < numConcurrent; i++ {
+		wg.Add(1)
+		go func(workerID int) {
+			defer wg.Done()
+
+			for j := 0; j < opsPerWorker; j++ {
+				inst := getRandomInstance()
+
+				if workerID%2 == 0 {
+					// Deleter
+					resp, err := doRequest("DELETE", inst.addr+"/subjects/"+subject, nil)
+					if err != nil {
+						continue
+					}
+					if resp.StatusCode >= 500 {
+						body, _ := io.ReadAll(resp.Body)
+						atomic.AddInt64(&serverErrors, 1)
+						errorMsgs <- fmt.Sprintf("worker %d delete op %d: 5xx status %d, body: %s", workerID, j, resp.StatusCode, string(body))
+					}
+					io.Copy(io.Discard, resp.Body)
+					resp.Body.Close()
+				} else {
+					// Registrar
+					s := map[string]interface{}{
+						"schema": fmt.Sprintf(`{"type":"record","name":"DelReReg","fields":[{"name":"f%d_%d","type":"int"}]}`, workerID, j),
+					}
+					resp, err := doRequest("POST", inst.addr+"/subjects/"+subject+"/versions", s)
+					if err != nil {
+						continue
+					}
+					if resp.StatusCode >= 500 {
+						body, _ := io.ReadAll(resp.Body)
+						atomic.AddInt64(&serverErrors, 1)
+						errorMsgs <- fmt.Sprintf("worker %d register op %d: 5xx status %d, body: %s", workerID, j, resp.StatusCode, string(body))
+					}
+					io.Copy(io.Discard, resp.Body)
+					resp.Body.Close()
+				}
+			}
+		}(i)
+	}
+
+	wg.Wait()
+	close(errorMsgs)
+
+	for errMsg := range errorMsgs {
+		t.Logf("Error: %s", errMsg)
+	}
+
+	// INVARIANT: Zero 5xx errors
+	if serverErrors > 0 {
+		t.Errorf("Expected zero 5xx errors, got %d", serverErrors)
+	}
+
+	// INVARIANT: After, subject is queryable (GET returns 200 or 404, no 5xx)
+	resp, err = doRequest("GET", inst.addr+"/subjects/"+subject+"/versions/latest", nil)
+	if err != nil {
+		t.Fatalf("Failed to query subject after test: %v", err)
+	}
+	if resp.StatusCode >= 500 {
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		t.Errorf("Subject query returned 5xx after test: status %d, body: %s", resp.StatusCode, body)
+	} else {
+		io.Copy(io.Discard, resp.Body)
+		resp.Body.Close()
+	}
+
+	t.Logf("Concurrent delete and re-register: zero 5xx errors verified, final subject status: %d", resp.StatusCode)
+}
+
+// TestConcurrentModeChanges tests concurrent global mode changes.
+// Verifies no 5xx errors and final mode is a valid value.
+func TestConcurrentModeChanges(t *testing.T) {
+	inst := instances[0]
+
+	// MUST defer reset to READWRITE at the TOP of function
+	defer func() {
+		modeReq := map[string]string{"mode": "READWRITE"}
+		resp, err := doRequest("PUT", inst.addr+"/mode?force=true", modeReq)
+		if err == nil {
+			io.Copy(io.Discard, resp.Body)
+			resp.Body.Close()
+		}
+	}()
+
+	modes := []string{"READWRITE", "READONLY", "IMPORT"}
+
+	var wg sync.WaitGroup
+	var serverErrors int64
+	errorMsgs := make(chan string, numConcurrent*numOperations)
+	opsPerWorker := numOperations / numConcurrent
+	if opsPerWorker < 1 {
+		opsPerWorker = 1
+	}
+
+	for i := 0; i < numConcurrent; i++ {
+		wg.Add(1)
+		go func(workerID int) {
+			defer wg.Done()
+
+			for j := 0; j < opsPerWorker; j++ {
+				inst := getRandomInstance()
+				mode := modes[(workerID+j)%len(modes)]
+
+				modeReq := map[string]string{"mode": mode}
+				resp, err := doRequest("PUT", inst.addr+"/mode?force=true", modeReq)
+				if err != nil {
+					continue
+				}
+				if resp.StatusCode >= 500 {
+					body, _ := io.ReadAll(resp.Body)
+					atomic.AddInt64(&serverErrors, 1)
+					errorMsgs <- fmt.Sprintf("worker %d op %d mode %s: 5xx status %d, body: %s", workerID, j, mode, resp.StatusCode, string(body))
+				}
+				io.Copy(io.Discard, resp.Body)
+				resp.Body.Close()
+			}
+		}(i)
+	}
+
+	wg.Wait()
+	close(errorMsgs)
+
+	for errMsg := range errorMsgs {
+		t.Logf("Error: %s", errMsg)
+	}
+
+	// INVARIANT: Zero 5xx errors
+	if serverErrors > 0 {
+		t.Errorf("Expected zero 5xx errors, got %d", serverErrors)
+	}
+
+	// INVARIANT: Final GET /mode returns valid value
+	resp, err := doRequest("GET", inst.addr+"/mode", nil)
+	if err != nil {
+		t.Fatalf("Failed to get mode: %v", err)
+	}
+	var modeResp struct {
+		Mode string `json:"mode"`
+	}
+	json.NewDecoder(resp.Body).Decode(&modeResp)
+	io.Copy(io.Discard, resp.Body)
+	resp.Body.Close()
+
+	validModes := map[string]bool{"READWRITE": true, "READONLY": true, "IMPORT": true}
+	if !validModes[modeResp.Mode] {
+		t.Errorf("Final mode is invalid: %q (expected READWRITE, READONLY, or IMPORT)", modeResp.Mode)
+	}
+
+	t.Logf("Concurrent mode changes: zero 5xx errors, final mode: %s", modeResp.Mode)
+}
+
+// TestConcurrentReadonlyEnforcement tests that READONLY mode blocks writes but allows reads.
+// Phase 1: concurrent writes in READWRITE mode (some succeed).
+// Phase 2: set READONLY mode.
+// Phase 3: concurrent writes (all rejected) and reads (all succeed).
+func TestConcurrentReadonlyEnforcement(t *testing.T) {
+	subject := fmt.Sprintf("readonly-enforce-%d", time.Now().UnixNano())
+	inst := instances[0]
+
+	// MUST defer reset to READWRITE at the TOP
+	defer func() {
+		modeReq := map[string]string{"mode": "READWRITE"}
+		resp, err := doRequest("PUT", inst.addr+"/mode?force=true", modeReq)
+		if err == nil {
+			io.Copy(io.Discard, resp.Body)
+			resp.Body.Close()
+		}
+	}()
+
+	// Ensure READWRITE mode
+	modeReq := map[string]string{"mode": "READWRITE"}
+	resp, err := doRequest("PUT", inst.addr+"/mode?force=true", modeReq)
+	if err != nil {
+		t.Fatalf("Failed to set READWRITE mode: %v", err)
+	}
+	io.Copy(io.Discard, resp.Body)
+	resp.Body.Close()
+
+	// Setup: register subject with compat=NONE
+	schema := map[string]interface{}{
+		"schema": `{"type":"record","name":"ReadonlyEnforce","fields":[{"name":"id","type":"int"}]}`,
+	}
+	resp, err = doRequest("POST", inst.addr+"/subjects/"+subject+"/versions", schema)
+	if err != nil {
+		t.Fatalf("Failed to register initial schema: %v", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		t.Fatalf("Failed to register: status %d, body: %s", resp.StatusCode, body)
+	}
+	io.Copy(io.Discard, resp.Body)
+	resp.Body.Close()
+
+	configReq := map[string]string{"compatibility": "NONE"}
+	resp, err = doRequest("PUT", inst.addr+"/config/"+subject, configReq)
+	if err != nil {
+		t.Fatalf("Failed to set config: %v", err)
+	}
+	io.Copy(io.Discard, resp.Body)
+	resp.Body.Close()
+
+	// Phase 1: concurrent writers in READWRITE mode
+	var wg1 sync.WaitGroup
+	var phase1Success int64
+	for i := 0; i < numConcurrent; i++ {
+		wg1.Add(1)
+		go func(workerID int) {
+			defer wg1.Done()
+			inst := getRandomInstance()
+			s := map[string]interface{}{
+				"schema": fmt.Sprintf(`{"type":"record","name":"ReadonlyEnforce","fields":[{"name":"p1w%d","type":"int"}]}`, workerID),
+			}
+			resp, err := doRequest("POST", inst.addr+"/subjects/"+subject+"/versions", s)
+			if err != nil {
+				return
+			}
+			if resp.StatusCode == http.StatusOK {
+				atomic.AddInt64(&phase1Success, 1)
+			}
+			io.Copy(io.Discard, resp.Body)
+			resp.Body.Close()
+		}(i)
+	}
+	wg1.Wait()
+	t.Logf("Phase 1 (READWRITE): %d successful writes", phase1Success)
+
+	// Phase 2: set READONLY mode
+	modeReq = map[string]string{"mode": "READONLY"}
+	resp, err = doRequest("PUT", inst.addr+"/mode?force=true", modeReq)
+	if err != nil {
+		t.Fatalf("Failed to set READONLY mode: %v", err)
+	}
+	io.Copy(io.Discard, resp.Body)
+	resp.Body.Close()
+
+	// Phase 3: concurrent writers (expect all 422) and readers (expect all 200)
+	var wg3 sync.WaitGroup
+	var writeRejected, writeAccepted, writeServerError int64
+	var readSuccess, readError, readServerError int64
+
+	for i := 0; i < numConcurrent; i++ {
+		// Writer
+		wg3.Add(1)
+		go func(workerID int) {
+			defer wg3.Done()
+			inst := getRandomInstance()
+			s := map[string]interface{}{
+				"schema": fmt.Sprintf(`{"type":"record","name":"ReadonlyEnforce","fields":[{"name":"p3w%d","type":"int"}]}`, workerID),
+			}
+			resp, err := doRequest("POST", inst.addr+"/subjects/"+subject+"/versions", s)
+			if err != nil {
+				return
+			}
+			switch {
+			case resp.StatusCode == http.StatusUnprocessableEntity:
+				atomic.AddInt64(&writeRejected, 1)
+			case resp.StatusCode == http.StatusOK:
+				atomic.AddInt64(&writeAccepted, 1)
+			case resp.StatusCode >= 500:
+				atomic.AddInt64(&writeServerError, 1)
+			}
+			io.Copy(io.Discard, resp.Body)
+			resp.Body.Close()
+		}(i)
+
+		// Reader
+		wg3.Add(1)
+		go func(workerID int) {
+			defer wg3.Done()
+			inst := getRandomInstance()
+			resp, err := doRequest("GET", inst.addr+"/subjects/"+subject+"/versions/latest", nil)
+			if err != nil {
+				atomic.AddInt64(&readError, 1)
+				return
+			}
+			switch {
+			case resp.StatusCode == http.StatusOK:
+				atomic.AddInt64(&readSuccess, 1)
+			case resp.StatusCode >= 500:
+				atomic.AddInt64(&readServerError, 1)
+			default:
+				atomic.AddInt64(&readError, 1)
+			}
+			io.Copy(io.Discard, resp.Body)
+			resp.Body.Close()
+		}(i)
+	}
+	wg3.Wait()
+
+	// INVARIANT: Zero 5xx errors
+	if writeServerError > 0 || readServerError > 0 {
+		t.Errorf("5xx errors: writes=%d, reads=%d", writeServerError, readServerError)
+	}
+
+	// INVARIANT: All phase-3 writes rejected (422)
+	if writeAccepted > 0 {
+		t.Errorf("Expected all writes rejected in READONLY mode, but %d were accepted", writeAccepted)
+	}
+	if writeRejected == 0 {
+		t.Errorf("Expected some writes to be rejected, but none were")
+	}
+
+	// INVARIANT: All phase-3 reads succeed
+	if readSuccess != int64(numConcurrent) {
+		t.Errorf("Expected %d successful reads, got %d (errors: %d)", numConcurrent, readSuccess, readError)
+	}
+
+	t.Logf("READONLY enforcement: writes rejected=%d accepted=%d, reads success=%d error=%d",
+		writeRejected, writeAccepted, readSuccess, readError)
+}
+
+// TestConcurrentSchemaLookup tests concurrent schema lookups while new schemas are being registered.
+// Verifies that all lookups returning 200 have a valid schema ID and no 5xx errors occur.
+func TestConcurrentSchemaLookup(t *testing.T) {
+	subject := fmt.Sprintf("lookup-%d", time.Now().UnixNano())
+	inst := instances[0]
+
+	// Setup: register initial schema with compat=NONE
+	initialSchema := map[string]interface{}{
+		"schema": `{"type":"record","name":"Lookup","fields":[{"name":"id","type":"int"}]}`,
+	}
+	resp, err := doRequest("POST", inst.addr+"/subjects/"+subject+"/versions", initialSchema)
+	if err != nil {
+		t.Fatalf("Failed to register initial schema: %v", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		t.Fatalf("Failed to register: status %d, body: %s", resp.StatusCode, body)
+	}
+	io.Copy(io.Discard, resp.Body)
+	resp.Body.Close()
+
+	configReq := map[string]string{"compatibility": "NONE"}
+	resp, err = doRequest("PUT", inst.addr+"/config/"+subject, configReq)
+	if err != nil {
+		t.Fatalf("Failed to set config: %v", err)
+	}
+	io.Copy(io.Discard, resp.Body)
+	resp.Body.Close()
+
+	// Concurrent: half workers lookup, half register new schemas
+	var wg sync.WaitGroup
+	var lookupSuccess, lookupInvalidID, lookupOther int64
+	var registerSuccess, registerError int64
+	var serverErrors int64
+	errorMsgs := make(chan string, numConcurrent*2)
+
+	for i := 0; i < numConcurrent; i++ {
+		wg.Add(1)
+		go func(workerID int) {
+			defer wg.Done()
+			inst := getRandomInstance()
+
+			if workerID%2 == 0 {
+				// Lookup: POST /subjects/{subject} with the initial schema body
+				resp, err := doRequest("POST", inst.addr+"/subjects/"+subject, initialSchema)
+				if err != nil {
+					return
+				}
+				if resp.StatusCode >= 500 {
+					body, _ := io.ReadAll(resp.Body)
+					atomic.AddInt64(&serverErrors, 1)
+					errorMsgs <- fmt.Sprintf("lookup worker %d: 5xx status %d, body: %s", workerID, resp.StatusCode, string(body))
+					io.Copy(io.Discard, resp.Body)
+					resp.Body.Close()
+					return
+				}
+				if resp.StatusCode == http.StatusOK {
+					var result struct {
+						ID int64 `json:"id"`
+					}
+					json.NewDecoder(resp.Body).Decode(&result)
+					if result.ID > 0 {
+						atomic.AddInt64(&lookupSuccess, 1)
+					} else {
+						atomic.AddInt64(&lookupInvalidID, 1)
+						errorMsgs <- fmt.Sprintf("lookup worker %d: 200 but id=%d", workerID, result.ID)
+					}
+				} else {
+					atomic.AddInt64(&lookupOther, 1)
+				}
+				io.Copy(io.Discard, resp.Body)
+				resp.Body.Close()
+			} else {
+				// Register: POST /subjects/{subject}/versions with new unique schema
+				s := map[string]interface{}{
+					"schema": fmt.Sprintf(`{"type":"record","name":"Lookup","fields":[{"name":"w%d","type":"int"}]}`, workerID),
+				}
+				resp, err := doRequest("POST", inst.addr+"/subjects/"+subject+"/versions", s)
+				if err != nil {
+					return
+				}
+				if resp.StatusCode >= 500 {
+					body, _ := io.ReadAll(resp.Body)
+					atomic.AddInt64(&serverErrors, 1)
+					errorMsgs <- fmt.Sprintf("register worker %d: 5xx status %d, body: %s", workerID, resp.StatusCode, string(body))
+				} else if resp.StatusCode == http.StatusOK {
+					atomic.AddInt64(&registerSuccess, 1)
+				} else {
+					atomic.AddInt64(&registerError, 1)
+				}
+				io.Copy(io.Discard, resp.Body)
+				resp.Body.Close()
+			}
+		}(i)
+	}
+
+	wg.Wait()
+	close(errorMsgs)
+
+	for errMsg := range errorMsgs {
+		t.Logf("Error: %s", errMsg)
+	}
+
+	// INVARIANT: All lookups returning 200 have valid id > 0
+	if lookupInvalidID > 0 {
+		t.Errorf("Lookups with invalid ID: %d", lookupInvalidID)
+	}
+
+	// INVARIANT: Zero 5xx
+	if serverErrors > 0 {
+		t.Errorf("Expected zero 5xx errors, got %d", serverErrors)
+	}
+
+	t.Logf("Concurrent schema lookup: lookups success=%d invalidID=%d other=%d, registers success=%d error=%d",
+		lookupSuccess, lookupInvalidID, lookupOther, registerSuccess, registerError)
+}
+
+// TestConcurrentSubjectListDuringMutations tests listing subjects while writers and deleters are active.
+// Verifies every GET /subjects returning 200 is valid JSON and no 5xx errors occur.
+func TestConcurrentSubjectListDuringMutations(t *testing.T) {
+	prefix := fmt.Sprintf("list-mut-%d", time.Now().UnixNano())
+
+	var wg sync.WaitGroup
+	var serverErrors int64
+	var readSuccess, readInvalidJSON int64
+	errorMsgs := make(chan string, numConcurrent*numOperations)
+	opsPerWorker := numOperations / numConcurrent
+	if opsPerWorker < 1 {
+		opsPerWorker = 1
+	}
+
+	for i := 0; i < numConcurrent; i++ {
+		wg.Add(1)
+		go func(workerID int) {
+			defer wg.Done()
+
+			role := workerID % 3 // 0=writer, 1=deleter, 2=reader
+
+			for j := 0; j < opsPerWorker; j++ {
+				inst := getRandomInstance()
+
+				switch role {
+				case 0:
+					// Writer: register to unique subjects
+					subject := fmt.Sprintf("%s-w-%d-%d", prefix, workerID, j)
+					s := map[string]interface{}{
+						"schema": fmt.Sprintf(`{"type":"record","name":"ListMut%d%d","fields":[{"name":"id","type":"int"}]}`, workerID, j),
+					}
+					resp, err := doRequest("POST", inst.addr+"/subjects/"+subject+"/versions", s)
+					if err != nil {
+						continue
+					}
+					if resp.StatusCode >= 500 {
+						body, _ := io.ReadAll(resp.Body)
+						atomic.AddInt64(&serverErrors, 1)
+						errorMsgs <- fmt.Sprintf("writer %d op %d: 5xx status %d, body: %s", workerID, j, resp.StatusCode, string(body))
+					}
+					io.Copy(io.Discard, resp.Body)
+					resp.Body.Close()
+
+				case 1:
+					// Deleter: register then delete unique subjects
+					subject := fmt.Sprintf("%s-d-%d-%d", prefix, workerID, j)
+					s := map[string]interface{}{
+						"schema": fmt.Sprintf(`{"type":"record","name":"ListMutDel%d%d","fields":[{"name":"id","type":"int"}]}`, workerID, j),
+					}
+					resp, err := doRequest("POST", inst.addr+"/subjects/"+subject+"/versions", s)
+					if err != nil {
+						continue
+					}
+					if resp.StatusCode >= 500 {
+						body, _ := io.ReadAll(resp.Body)
+						atomic.AddInt64(&serverErrors, 1)
+						errorMsgs <- fmt.Sprintf("deleter-reg %d op %d: 5xx status %d, body: %s", workerID, j, resp.StatusCode, string(body))
+					}
+					io.Copy(io.Discard, resp.Body)
+					resp.Body.Close()
+
+					// Delete the subject
+					resp, err = doRequest("DELETE", inst.addr+"/subjects/"+subject, nil)
+					if err != nil {
+						continue
+					}
+					if resp.StatusCode >= 500 {
+						body, _ := io.ReadAll(resp.Body)
+						atomic.AddInt64(&serverErrors, 1)
+						errorMsgs <- fmt.Sprintf("deleter-del %d op %d: 5xx status %d, body: %s", workerID, j, resp.StatusCode, string(body))
+					}
+					io.Copy(io.Discard, resp.Body)
+					resp.Body.Close()
+
+				case 2:
+					// Reader: GET /subjects
+					resp, err := doRequest("GET", inst.addr+"/subjects", nil)
+					if err != nil {
+						continue
+					}
+					if resp.StatusCode >= 500 {
+						body, _ := io.ReadAll(resp.Body)
+						atomic.AddInt64(&serverErrors, 1)
+						errorMsgs <- fmt.Sprintf("reader %d op %d: 5xx status %d, body: %s", workerID, j, resp.StatusCode, string(body))
+						io.Copy(io.Discard, resp.Body)
+						resp.Body.Close()
+						continue
+					}
+					if resp.StatusCode == http.StatusOK {
+						body, _ := io.ReadAll(resp.Body)
+						resp.Body.Close()
+						var subjects []string
+						if err := json.Unmarshal(body, &subjects); err != nil {
+							atomic.AddInt64(&readInvalidJSON, 1)
+							errorMsgs <- fmt.Sprintf("reader %d op %d: invalid JSON: %v, body: %s", workerID, j, err, string(body))
+						} else {
+							atomic.AddInt64(&readSuccess, 1)
+						}
+					} else {
+						io.Copy(io.Discard, resp.Body)
+						resp.Body.Close()
+					}
+				}
+			}
+		}(i)
+	}
+
+	wg.Wait()
+	close(errorMsgs)
+
+	for errMsg := range errorMsgs {
+		t.Logf("Error: %s", errMsg)
+	}
+
+	// INVARIANT: Every GET /subjects returning 200 is valid JSON array
+	if readInvalidJSON > 0 {
+		t.Errorf("Got %d invalid JSON responses from GET /subjects", readInvalidJSON)
+	}
+
+	// INVARIANT: Zero 5xx errors
+	if serverErrors > 0 {
+		t.Errorf("Expected zero 5xx errors, got %d", serverErrors)
+	}
+
+	t.Logf("Concurrent subject list during mutations: reads success=%d invalidJSON=%d, 5xx=%d",
+		readSuccess, readInvalidJSON, serverErrors)
+}
+
+// TestConcurrentCrossOperationStorm tests a storm of mixed operation types against a single subject.
+// Workers perform register, GET latest, DELETE, PUT config, and POST lookup concurrently.
+func TestConcurrentCrossOperationStorm(t *testing.T) {
+	subject := fmt.Sprintf("storm-%d", time.Now().UnixNano())
+	inst := instances[0]
+
+	// Setup: register initial schema with compat=NONE
+	schema := map[string]interface{}{
+		"schema": `{"type":"record","name":"Storm","fields":[{"name":"id","type":"int"}]}`,
+	}
+	resp, err := doRequest("POST", inst.addr+"/subjects/"+subject+"/versions", schema)
+	if err != nil {
+		t.Fatalf("Failed to register initial schema: %v", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		t.Fatalf("Failed to register: status %d, body: %s", resp.StatusCode, body)
+	}
+	io.Copy(io.Discard, resp.Body)
+	resp.Body.Close()
+
+	configReq := map[string]string{"compatibility": "NONE"}
+	resp, err = doRequest("PUT", inst.addr+"/config/"+subject, configReq)
+	if err != nil {
+		t.Fatalf("Failed to set config: %v", err)
+	}
+	io.Copy(io.Discard, resp.Body)
+	resp.Body.Close()
+
+	var wg sync.WaitGroup
+	var serverErrors int64
+	errorMsgs := make(chan string, numConcurrent*numOperations)
+	opsPerWorker := numOperations / numConcurrent
+	if opsPerWorker < 1 {
+		opsPerWorker = 1
+	}
+
+	compatLevels := []string{"NONE", "BACKWARD", "FORWARD", "FULL"}
+
+	for i := 0; i < numConcurrent; i++ {
+		wg.Add(1)
+		go func(workerID int) {
+			defer wg.Done()
+
+			opType := workerID % 5
+
+			for j := 0; j < opsPerWorker; j++ {
+				inst := getRandomInstance()
+
+				var resp *http.Response
+				var err error
+
+				switch opType {
+				case 0:
+					// Register new schema
+					s := map[string]interface{}{
+						"schema": fmt.Sprintf(`{"type":"record","name":"Storm","fields":[{"name":"w%d_j%d","type":"int"}]}`, workerID, j),
+					}
+					resp, err = doRequest("POST", inst.addr+"/subjects/"+subject+"/versions", s)
+				case 1:
+					// GET latest
+					resp, err = doRequest("GET", inst.addr+"/subjects/"+subject+"/versions/latest", nil)
+				case 2:
+					// DELETE subject (soft)
+					resp, err = doRequest("DELETE", inst.addr+"/subjects/"+subject, nil)
+				case 3:
+					// PUT config (cycle through compat levels)
+					level := compatLevels[(workerID+j)%len(compatLevels)]
+					cr := map[string]string{"compatibility": level}
+					resp, err = doRequest("PUT", inst.addr+"/config/"+subject, cr)
+				case 4:
+					// POST lookup
+					resp, err = doRequest("POST", inst.addr+"/subjects/"+subject, schema)
+				}
+
+				if err != nil {
+					continue
+				}
+				if resp.StatusCode >= 500 {
+					body, _ := io.ReadAll(resp.Body)
+					atomic.AddInt64(&serverErrors, 1)
+					errorMsgs <- fmt.Sprintf("worker %d (op=%d) iter %d: 5xx status %d, body: %s", workerID, opType, j, resp.StatusCode, string(body))
+				}
+				io.Copy(io.Discard, resp.Body)
+				resp.Body.Close()
+			}
+		}(i)
+	}
+
+	wg.Wait()
+	close(errorMsgs)
+
+	for errMsg := range errorMsgs {
+		t.Logf("Error: %s", errMsg)
+	}
+
+	// INVARIANT: Zero 5xx errors
+	if serverErrors > 0 {
+		t.Errorf("Expected zero 5xx errors, got %d", serverErrors)
+	}
+
+	// INVARIANT: After, subject is queryable (no 5xx)
+	// Re-register to ensure subject exists for final check
+	resp, err = doRequest("POST", inst.addr+"/subjects/"+subject+"/versions", schema)
+	if err == nil {
+		io.Copy(io.Discard, resp.Body)
+		resp.Body.Close()
+	}
+
+	resp, err = doRequest("GET", inst.addr+"/subjects/"+subject+"/versions/latest", nil)
+	if err != nil {
+		t.Fatalf("Failed to query subject after storm: %v", err)
+	}
+	if resp.StatusCode >= 500 {
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		t.Errorf("Subject query returned 5xx after storm: status %d, body: %s", resp.StatusCode, body)
+	} else {
+		io.Copy(io.Discard, resp.Body)
+		resp.Body.Close()
+	}
+
+	t.Logf("Cross-operation storm: %d 5xx errors", serverErrors)
+}
+
+// TestConcurrentMultiSchemaTypeRegistration tests concurrent registration of Protobuf and JSON Schema types.
+// Verifies all registrations succeed, each ID returns the correct schemaType, and all IDs are unique.
+func TestConcurrentMultiSchemaTypeRegistration(t *testing.T) {
+	prefix := fmt.Sprintf("multi-type-%d", time.Now().UnixNano())
+
+	type regResult struct {
+		schemaID   int64
+		schemaType string
+		subject    string
+	}
+
+	var wg sync.WaitGroup
+	var successCount, errorCount int64
+	results := make(chan regResult, numConcurrent)
+	errorMsgs := make(chan string, numConcurrent)
+
+	for i := 0; i < numConcurrent; i++ {
+		wg.Add(1)
+		go func(workerID int) {
+			defer wg.Done()
+			inst := getRandomInstance()
+
+			var subject string
+			var body map[string]interface{}
+
+			if workerID%2 == 0 {
+				// Protobuf
+				subject = fmt.Sprintf("%s-proto-%d", prefix, workerID)
+				body = map[string]interface{}{
+					"schema":     fmt.Sprintf(`syntax = "proto3"; message Test%d { string name = 1; }`, workerID),
+					"schemaType": "PROTOBUF",
+				}
+			} else {
+				// JSON Schema
+				subject = fmt.Sprintf("%s-json-%d", prefix, workerID)
+				body = map[string]interface{}{
+					"schema":     fmt.Sprintf(`{"$schema":"http://json-schema.org/draft-07/schema#","title":"Test%d","type":"object","properties":{"name":{"type":"string"}},"required":["name"]}`, workerID),
+					"schemaType": "JSON",
+				}
+			}
+
+			resp, err := doRequest("POST", inst.addr+"/subjects/"+subject+"/versions", body)
+			if err != nil {
+				atomic.AddInt64(&errorCount, 1)
+				errorMsgs <- fmt.Sprintf("worker %d: %v", workerID, err)
+				return
+			}
+
+			if resp.StatusCode == http.StatusOK {
+				var result struct {
+					ID int64 `json:"id"`
+				}
+				json.NewDecoder(resp.Body).Decode(&result)
+				if result.ID > 0 {
+					atomic.AddInt64(&successCount, 1)
+					expectedType := "PROTOBUF"
+					if workerID%2 != 0 {
+						expectedType = "JSON"
+					}
+					results <- regResult{schemaID: result.ID, schemaType: expectedType, subject: subject}
+				} else {
+					atomic.AddInt64(&errorCount, 1)
+					errorMsgs <- fmt.Sprintf("worker %d: 200 but id=%d", workerID, result.ID)
+				}
+			} else {
+				body, _ := io.ReadAll(resp.Body)
+				atomic.AddInt64(&errorCount, 1)
+				errorMsgs <- fmt.Sprintf("worker %d: status %d, body: %s", workerID, resp.StatusCode, string(body))
+			}
+			io.Copy(io.Discard, resp.Body)
+			resp.Body.Close()
+		}(i)
+	}
+
+	wg.Wait()
+	close(results)
+	close(errorMsgs)
+
+	for errMsg := range errorMsgs {
+		t.Logf("Error: %s", errMsg)
+	}
+
+	// INVARIANT: All registrations succeed (200)
+	if errorCount > 0 {
+		t.Errorf("Expected all registrations to succeed, got %d errors", errorCount)
+	}
+
+	// Collect results
+	allResults := make([]regResult, 0)
+	for r := range results {
+		allResults = append(allResults, r)
+	}
+
+	// INVARIANT: All IDs unique
+	idSet := make(map[int64]int)
+	for _, r := range allResults {
+		idSet[r.schemaID]++
+	}
+	for id, count := range idSet {
+		if count > 1 {
+			t.Errorf("Schema ID %d was assigned %d times (should be unique)", id, count)
+		}
+	}
+
+	// INVARIANT: Each ID via GET /schemas/ids/{id} returns correct schemaType
+	inst := instances[0]
+	for _, r := range allResults {
+		resp, err := doRequest("GET", fmt.Sprintf("%s/schemas/ids/%d", inst.addr, r.schemaID), nil)
+		if err != nil {
+			t.Errorf("Failed to GET schema ID %d: %v", r.schemaID, err)
+			continue
+		}
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			resp.Body.Close()
+			t.Errorf("GET schema ID %d: status %d, body: %s", r.schemaID, resp.StatusCode, string(body))
+			continue
+		}
+		var schemaResp struct {
+			SchemaType string `json:"schemaType"`
+		}
+		json.NewDecoder(resp.Body).Decode(&schemaResp)
+		io.Copy(io.Discard, resp.Body)
+		resp.Body.Close()
+
+		// Confluent convention: AVRO is returned as empty string or "AVRO"
+		actualType := schemaResp.SchemaType
+		if actualType != r.schemaType {
+			t.Errorf("Schema ID %d: expected schemaType %q, got %q", r.schemaID, r.schemaType, actualType)
+		}
+	}
+
+	t.Logf("Multi-schema type registration: %d successes, %d errors, %d unique IDs",
+		successCount, errorCount, len(idSet))
+}
