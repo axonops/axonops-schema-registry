@@ -2,6 +2,7 @@ import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { AppSidebar } from './app-sidebar';
 import { TopBar } from './top-bar';
 import { StatusBar } from './status-bar';
+import { CommandPalette } from '@/components/shared/command-palette';
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -14,6 +15,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         </main>
         <StatusBar />
       </SidebarInset>
+      <CommandPalette />
     </SidebarProvider>
   );
 }

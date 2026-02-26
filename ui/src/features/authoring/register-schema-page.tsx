@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useNavigate, useParams } from '@tanstack/react-router';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch, ApiClientError } from '@/api/client';
@@ -21,7 +21,160 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
-import { CheckCircle, XCircle, Plus, X, Loader2 } from 'lucide-react';
+import { CheckCircle, XCircle, Plus, X, Loader2, FileCode } from 'lucide-react';
+
+// ---------------------------------------------------------------------------
+// Schema templates
+// ---------------------------------------------------------------------------
+
+interface SchemaTemplate {
+  label: string;
+  value: string;
+  schema: string;
+}
+
+const AVRO_TEMPLATES: SchemaTemplate[] = [
+  {
+    label: 'Simple Record',
+    value: 'avro-simple-record',
+    schema: JSON.stringify(
+      {
+        type: 'record',
+        name: 'ExampleRecord',
+        namespace: 'com.example',
+        fields: [
+          { name: 'id', type: 'long' },
+          { name: 'name', type: 'string' },
+          { name: 'active', type: 'boolean' },
+        ],
+      },
+      null,
+      2
+    ),
+  },
+  {
+    label: 'Record with Nullable',
+    value: 'avro-nullable-record',
+    schema: JSON.stringify(
+      {
+        type: 'record',
+        name: 'UserRecord',
+        namespace: 'com.example',
+        fields: [
+          { name: 'id', type: 'long' },
+          { name: 'username', type: 'string' },
+          { name: 'email', type: ['null', 'string'], default: null },
+          { name: 'age', type: ['null', 'int'], default: null },
+        ],
+      },
+      null,
+      2
+    ),
+  },
+  {
+    label: 'Enum Type',
+    value: 'avro-enum',
+    schema: JSON.stringify(
+      {
+        type: 'enum',
+        name: 'Status',
+        namespace: 'com.example',
+        symbols: ['ACTIVE', 'INACTIVE', 'PENDING', 'DELETED'],
+      },
+      null,
+      2
+    ),
+  },
+];
+
+const PROTOBUF_TEMPLATES: SchemaTemplate[] = [
+  {
+    label: 'proto3 Message',
+    value: 'proto-message',
+    schema: `syntax = "proto3";
+
+package example;
+
+message ExampleMessage {
+  int64 id = 1;
+  string name = 2;
+  bool active = 3;
+}`,
+  },
+  {
+    label: 'Message with Enum',
+    value: 'proto-enum',
+    schema: `syntax = "proto3";
+
+package example;
+
+enum Status {
+  STATUS_UNSPECIFIED = 0;
+  STATUS_ACTIVE = 1;
+  STATUS_INACTIVE = 2;
+}
+
+message UserMessage {
+  int64 id = 1;
+  string name = 2;
+  Status status = 3;
+}`,
+  },
+];
+
+const JSON_TEMPLATES: SchemaTemplate[] = [
+  {
+    label: 'Object Schema',
+    value: 'json-object',
+    schema: JSON.stringify(
+      {
+        $schema: 'http://json-schema.org/draft-07/schema#',
+        type: 'object',
+        properties: {
+          id: { type: 'integer' },
+          name: { type: 'string', minLength: 1 },
+          email: { type: 'string', format: 'email' },
+        },
+        required: ['id', 'name'],
+        additionalProperties: false,
+      },
+      null,
+      2
+    ),
+  },
+  {
+    label: 'Array Schema',
+    value: 'json-array',
+    schema: JSON.stringify(
+      {
+        $schema: 'http://json-schema.org/draft-07/schema#',
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            id: { type: 'integer' },
+            value: { type: 'string' },
+          },
+          required: ['id', 'value'],
+        },
+        minItems: 1,
+        uniqueItems: true,
+      },
+      null,
+      2
+    ),
+  },
+];
+
+const TEMPLATES_BY_TYPE: Record<SchemaType, SchemaTemplate[]> = {
+  AVRO: AVRO_TEMPLATES,
+  PROTOBUF: PROTOBUF_TEMPLATES,
+  JSON: JSON_TEMPLATES,
+};
+
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
 
 interface Reference {
   name: string;
@@ -62,6 +215,22 @@ export function RegisterSchemaPage() {
     }
     setSchemaType(latestVersion.schemaType as SchemaType);
   }, [latestVersion]);
+
+  // Template handling
+  const availableTemplates = useMemo(
+    () => TEMPLATES_BY_TYPE[schemaType] ?? [],
+    [schemaType]
+  );
+
+  const handleTemplateSelect = useCallback(
+    (templateValue: string) => {
+      const template = availableTemplates.find((t) => t.value === templateValue);
+      if (template) {
+        setSchema(template.schema);
+      }
+    },
+    [availableTemplates]
+  );
 
   // Compatibility check
   const compatMutation = useMutation({
@@ -168,6 +337,7 @@ export function RegisterSchemaPage() {
       ];
 
   const canSubmit = subject.trim() && schema.trim() && !registerMutation.isPending;
+  const editorIsEmpty = !schema.trim();
 
   return (
     <div data-testid="register-schema-page">
@@ -223,18 +393,41 @@ export function RegisterSchemaPage() {
       <div className="mb-4 space-y-2">
         <div className="flex items-center justify-between">
           <Label>Schema</Label>
-          {isNewVersion && latestVersion && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={handleStartFromLatest}
-              data-testid="register-start-from-latest-btn"
-            >
-              Start from latest v{latestVersion.version}
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            {isNewVersion && latestVersion && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={handleStartFromLatest}
+                data-testid="register-start-from-latest-btn"
+              >
+                Start from latest v{latestVersion.version}
+              </Button>
+            )}
+          </div>
         </div>
+
+        {/* Template selector — visible only when the editor is empty */}
+        {editorIsEmpty && availableTemplates.length > 0 && (
+          <div className="flex items-center gap-2" data-testid="register-template-section">
+            <FileCode className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm text-muted-foreground">Start from template:</span>
+            <Select onValueChange={handleTemplateSelect} data-testid="register-template-select">
+              <SelectTrigger className="w-52" data-testid="register-template-select">
+                <SelectValue placeholder="Choose a template" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableTemplates.map((tpl) => (
+                  <SelectItem key={tpl.value} value={tpl.value}>
+                    {tpl.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
         <SchemaEditor
           value={schema}
           onChange={setSchema}
