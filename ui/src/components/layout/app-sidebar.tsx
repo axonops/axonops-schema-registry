@@ -24,6 +24,9 @@ import {
   Database,
   CircleCheck,
   SearchCheck,
+  ArrowRightLeft,
+  ShieldCheck,
+  Layers,
 } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 
@@ -53,6 +56,7 @@ const navGroups: NavGroup[] = [
     items: [
       { title: 'Compatibility', url: '/ui/config', icon: Settings, testId: 'nav-sidebar-config-link' },
       { title: 'Modes', url: '/ui/modes', icon: ToggleLeft, testId: 'nav-sidebar-modes-link' },
+      { title: 'Exporters', url: '/ui/exporters', icon: ArrowRightLeft, testId: 'nav-sidebar-exporters-link' },
     ],
     minRole: ['super_admin', 'admin'],
   },
@@ -62,6 +66,13 @@ const navGroups: NavGroup[] = [
       { title: 'Compatibility Check', url: '/ui/tools/compatibility', icon: CircleCheck, testId: 'nav-sidebar-compat-check-link' },
       { title: 'Schema Lookup', url: '/ui/tools/lookup', icon: SearchCheck, testId: 'nav-sidebar-schema-lookup-link' },
     ],
+  },
+  {
+    label: 'SECURITY',
+    items: [
+      { title: 'Encryption Keys', url: '/ui/encryption', icon: ShieldCheck, testId: 'nav-sidebar-encryption-link' },
+    ],
+    minRole: ['super_admin', 'admin'],
   },
   {
     label: 'ADMINISTRATION',
@@ -82,6 +93,7 @@ const navGroups: NavGroup[] = [
   {
     label: 'SYSTEM',
     items: [
+      { title: 'Contexts', url: '/ui/contexts', icon: Layers, testId: 'nav-sidebar-contexts-link' },
       { title: 'About', url: '/ui/about', icon: Info, testId: 'nav-sidebar-about-link' },
     ],
   },

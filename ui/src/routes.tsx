@@ -30,6 +30,12 @@ import { ProfilePage } from '@/features/account/profile-page';
 import { MyApiKeysPage } from '@/features/account/my-apikeys-page';
 import { CompatibilityCheckPage } from '@/features/tools/compatibility-check-page';
 import { SchemaLookupPage } from '@/features/tools/schema-lookup-page';
+import { ExportersPage } from '@/features/exporters/exporters-page';
+import { ExporterDetailPage } from '@/features/exporters/exporter-detail-page';
+import { KEKsPage } from '@/features/encryption/keks-page';
+import { KEKDetailPage } from '@/features/encryption/kek-detail-page';
+import { DEKDetailPage } from '@/features/encryption/dek-detail-page';
+import { ContextsPage } from '@/features/contexts/contexts-page';
 
 // ── Query Client ──
 export const queryClient = new QueryClient({
@@ -205,6 +211,42 @@ const schemaLookupRoute = createRoute({
   component: SchemaLookupPage,
 });
 
+const exportersRoute = createRoute({
+  getParentRoute: () => authenticatedRoute,
+  path: '/ui/exporters',
+  component: ExportersPage,
+});
+
+const exporterDetailRoute = createRoute({
+  getParentRoute: () => authenticatedRoute,
+  path: '/ui/exporters/$name',
+  component: ExporterDetailPage,
+});
+
+const encryptionRoute = createRoute({
+  getParentRoute: () => authenticatedRoute,
+  path: '/ui/encryption',
+  component: KEKsPage,
+});
+
+const kekDetailRoute = createRoute({
+  getParentRoute: () => authenticatedRoute,
+  path: '/ui/encryption/$name',
+  component: KEKDetailPage,
+});
+
+const dekDetailRoute = createRoute({
+  getParentRoute: () => authenticatedRoute,
+  path: '/ui/encryption/$name/deks/$subject',
+  component: DEKDetailPage,
+});
+
+const contextsRoute = createRoute({
+  getParentRoute: () => authenticatedRoute,
+  path: '/ui/contexts',
+  component: ContextsPage,
+});
+
 const aboutRoute = createRoute({
   getParentRoute: () => authenticatedRoute,
   path: '/ui/about',
@@ -247,8 +289,14 @@ const routeTree = rootRoute.addChildren([
     apikeysRoute,
     compatibilityCheckRoute,
     schemaLookupRoute,
+    exportersRoute,
+    exporterDetailRoute,
+    encryptionRoute,
+    kekDetailRoute,
+    dekDetailRoute,
     profileRoute,
     myApikeysRoute,
+    contextsRoute,
     aboutRoute,
   ]),
 ]);

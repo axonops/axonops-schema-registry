@@ -1,4 +1,4 @@
-import { useServerVersion, useClusterId, useSchemaTypes, useSubjects, useSchemasList } from '@/api/queries';
+import { useServerVersion, useClusterId, useSchemaTypes, useSubjects, useSchemasList, useHealthLive, useHealthReady, useHealthStartup } from '@/api/queries';
 import { PageBreadcrumbs } from '@/components/shared/breadcrumbs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -10,6 +10,9 @@ export function AboutPage() {
   const { data: schemaTypes } = useSchemaTypes();
   const { data: subjects } = useSubjects();
   const { data: schemas } = useSchemasList();
+  const { data: liveness, isLoading: loadingLive } = useHealthLive();
+  const { data: readiness, isLoading: loadingReady } = useHealthReady();
+  const { data: startup, isLoading: loadingStartup } = useHealthStartup();
 
   const breadcrumbs = [{ label: 'About' }];
 
@@ -57,6 +60,19 @@ export function AboutPage() {
         </CardContent>
       </Card>
 
+      <Card className="mb-6" data-testid="about-health-panel">
+        <CardHeader>
+          <CardTitle className="text-sm font-medium">Health Status</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-3 gap-4">
+            <HealthIndicator label="Liveness" status={liveness} isLoading={loadingLive} testId="about-health-live" />
+            <HealthIndicator label="Readiness" status={readiness} isLoading={loadingReady} testId="about-health-ready" />
+            <HealthIndicator label="Startup" status={startup} isLoading={loadingStartup} testId="about-health-startup" />
+          </div>
+        </CardContent>
+      </Card>
+
       <Card data-testid="about-stats-panel">
         <CardHeader>
           <CardTitle className="text-sm font-medium">Statistics</CardTitle>
@@ -87,6 +103,32 @@ function StatCard({ label, value, testId }: { label: string; value: number; test
     <div className="rounded-lg border p-4 text-center" data-testid={testId}>
       <div className="text-3xl font-bold">{value}</div>
       <div className="text-sm text-muted-foreground">{label}</div>
+    </div>
+  );
+}
+
+function HealthIndicator({ label, status, isLoading, testId }: { label: string; status?: { status: string; reason?: string }; isLoading: boolean; testId: string }) {
+  const isUp = status?.status === 'UP';
+  return (
+    <div className="flex items-center gap-3 rounded-lg border p-4" data-testid={testId}>
+      {isLoading ? (
+        <Skeleton className="h-3 w-3 rounded-full" />
+      ) : (
+        <span className={`inline-block h-3 w-3 rounded-full ${isUp ? 'bg-green-500' : 'bg-red-500'}`} />
+      )}
+      <div>
+        <div className="text-sm font-medium">{label}</div>
+        {isLoading ? (
+          <Skeleton className="mt-1 h-4 w-12" />
+        ) : (
+          <Badge variant={isUp ? 'outline' : 'destructive'} className="mt-1">
+            {status?.status ?? 'UNKNOWN'}
+          </Badge>
+        )}
+        {status?.reason && (
+          <div className="mt-1 text-xs text-muted-foreground">{status.reason}</div>
+        )}
+      </div>
     </div>
   );
 }
