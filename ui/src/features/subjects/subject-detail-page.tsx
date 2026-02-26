@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { useNavigate, useParams } from '@tanstack/react-router';
-import { useSubjectVersions, useSubjectVersion, useSubjectConfig, useSubjectMode, useGlobalConfig } from '@/api/queries';
+import { useSubjectVersions, useSubjectVersion, useSubjectConfig, useSubjectMode, useGlobalConfig, useDeleteSubject } from '@/api/queries';
 import { PageBreadcrumbs } from '@/components/shared/breadcrumbs';
+import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -11,8 +13,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { AlertCircle, RefreshCw } from 'lucide-react';
+import { AlertCircle, RefreshCw, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 
 export function SubjectDetailPage() {
   const { subject } = useParams({ strict: false }) as { subject: string };
@@ -22,6 +25,10 @@ export function SubjectDetailPage() {
   const { data: subjectMode } = useSubjectMode(subject);
   const { data: globalConfig } = useGlobalConfig();
   const navigate = useNavigate();
+  const deleteMutation = useDeleteSubject(subject);
+
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deletePermanent, setDeletePermanent] = useState(false);
 
   const breadcrumbs = [
     { label: 'Subjects', href: '/ui/subjects' },
@@ -30,6 +37,28 @@ export function SubjectDetailPage() {
 
   const compatLevel = subjectConfig?.compatibilityLevel ?? globalConfig?.compatibilityLevel ?? 'BACKWARD';
   const modeValue = subjectMode?.mode ?? 'READWRITE';
+
+  const handleDelete = (permanent: boolean) => {
+    setDeletePermanent(permanent);
+    setShowDeleteDialog(true);
+  };
+
+  const confirmDelete = () => {
+    deleteMutation.mutate({ permanent: deletePermanent }, {
+      onSuccess: (deletedVersions) => {
+        toast.success(
+          deletePermanent
+            ? `Permanently deleted subject "${subject}" (${deletedVersions.length} versions)`
+            : `Soft-deleted subject "${subject}" (${deletedVersions.length} versions)`
+        );
+        setShowDeleteDialog(false);
+        navigate({ to: '/ui/subjects' });
+      },
+      onError: (err) => {
+        toast.error(err instanceof Error ? err.message : 'Failed to delete subject');
+      },
+    });
+  };
 
   if (isLoading) {
     return (
@@ -82,8 +111,33 @@ export function SubjectDetailPage() {
             )}
           </div>
         </div>
-        <div className="text-sm text-muted-foreground">
-          {versions?.length ?? 0} version{(versions?.length ?? 0) !== 1 ? 's' : ''}
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            onClick={() => navigate({
+              to: '/ui/subjects/$subject/register',
+              params: { subject },
+            })}
+            data-testid="subject-register-btn"
+          >
+            <Plus className="mr-1 h-4 w-4" /> Register New Version
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleDelete(false)}
+            data-testid="subject-soft-delete-btn"
+          >
+            <Trash2 className="mr-1 h-4 w-4" /> Soft Delete
+          </Button>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => handleDelete(true)}
+            data-testid="subject-permanent-delete-btn"
+          >
+            <Trash2 className="mr-1 h-4 w-4" /> Permanent Delete
+          </Button>
         </div>
       </div>
 
@@ -95,6 +149,10 @@ export function SubjectDetailPage() {
           </pre>
         </div>
       )}
+
+      <div className="mb-2 text-sm text-muted-foreground">
+        {versions?.length ?? 0} version{(versions?.length ?? 0) !== 1 ? 's' : ''}
+      </div>
 
       <div className="rounded-md border">
         <Table data-testid="subject-versions-table">
@@ -137,6 +195,22 @@ export function SubjectDetailPage() {
           </TableBody>
         </Table>
       </div>
+
+      <ConfirmDialog
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        title={deletePermanent ? 'Permanently Delete Subject' : 'Soft-Delete Subject'}
+        description={
+          deletePermanent
+            ? `This will permanently delete "${subject}" and all its versions. This cannot be undone.`
+            : `This will soft-delete "${subject}". It can be re-registered later.`
+        }
+        confirmLabel={deletePermanent ? 'Delete Permanently' : 'Soft Delete'}
+        destructive={deletePermanent}
+        confirmText={deletePermanent ? subject : undefined}
+        onConfirm={confirmDelete}
+        isLoading={deleteMutation.isPending}
+      />
     </div>
   );
 }

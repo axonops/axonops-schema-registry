@@ -20,6 +20,7 @@ import { SchemaVersionPage } from '@/features/schemas/schema-version-page';
 import { SchemaBrowserPage } from '@/features/schemas/schema-browser-page';
 import { SchemaByIdPage } from '@/features/schemas/schema-by-id-page';
 import { AboutPage } from '@/features/about/about-page';
+import { RegisterSchemaPage } from '@/features/authoring/register-schema-page';
 
 // ── Query Client ──
 export const queryClient = new QueryClient({
@@ -123,6 +124,12 @@ const schemaVersionRoute = createRoute({
   component: SchemaVersionPage,
 });
 
+const registerSchemaRoute = createRoute({
+  getParentRoute: () => authenticatedRoute,
+  path: '/ui/subjects/$subject/register',
+  component: RegisterSchemaPage,
+});
+
 const schemasRoute = createRoute({
   getParentRoute: () => authenticatedRoute,
   path: '/ui/schemas',
@@ -166,6 +173,7 @@ const routeTree = rootRoute.addChildren([
   authenticatedRoute.addChildren([
     subjectsRoute,
     subjectDetailRoute,
+    registerSchemaRoute,
     schemaVersionRoute,
     schemasRoute,
     schemaByIdRoute,

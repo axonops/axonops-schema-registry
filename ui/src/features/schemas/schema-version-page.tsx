@@ -1,11 +1,23 @@
+import { useState } from 'react';
 import { useParams, useNavigate } from '@tanstack/react-router';
-import { useSubjectVersion, useReferencedBy } from '@/api/queries';
+import { useSubjectVersion, useSubjectVersions, useReferencedBy, useDeleteVersion } from '@/api/queries';
 import { PageBreadcrumbs } from '@/components/shared/breadcrumbs';
+import { SchemaEditor } from '@/components/schema-editor/schema-editor';
+import { SchemaDiffViewer } from '@/components/schema-editor/schema-diff-viewer';
+import { ConfirmDialog } from '@/components/shared/confirm-dialog';
+import type { SchemaType } from '@/components/schema-editor/monaco-config';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Copy, Download, AlertCircle, RefreshCw } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Copy, Download, AlertCircle, RefreshCw, Trash2, GitCompareArrows } from 'lucide-react';
 import { toast } from 'sonner';
 
 export function SchemaVersionPage() {
@@ -15,8 +27,19 @@ export function SchemaVersionPage() {
   };
   const version = parseInt(versionStr, 10);
   const { data, isLoading, isError, error, refetch } = useSubjectVersion(subject, version);
+  const { data: allVersions } = useSubjectVersions(subject);
   const { data: referencedBy } = useReferencedBy(subject, version);
   const navigate = useNavigate();
+  const deleteMutation = useDeleteVersion(subject);
+
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deletePermanent, setDeletePermanent] = useState(false);
+  const [showDiff, setShowDiff] = useState(false);
+  const [diffVersion, setDiffVersion] = useState<string>('');
+
+  // Load the comparison version for diff
+  const diffVersionNum = diffVersion ? parseInt(diffVersion, 10) : 0;
+  const { data: diffData } = useSubjectVersion(subject, diffVersionNum);
 
   const breadcrumbs = [
     { label: 'Subjects', href: '/ui/subjects' },
@@ -41,6 +64,34 @@ export function SchemaVersionPage() {
     a.click();
     URL.revokeObjectURL(url);
   };
+
+  const handleDelete = (permanent: boolean) => {
+    setDeletePermanent(permanent);
+    setShowDeleteDialog(true);
+  };
+
+  const confirmDelete = () => {
+    deleteMutation.mutate({ version, permanent: deletePermanent }, {
+      onSuccess: () => {
+        toast.success(
+          deletePermanent
+            ? `Permanently deleted version ${version}`
+            : `Soft-deleted version ${version}`
+        );
+        setShowDeleteDialog(false);
+        navigate({
+          to: '/ui/subjects/$subject',
+          params: { subject },
+        });
+      },
+      onError: (err) => {
+        toast.error(err instanceof Error ? err.message : 'Failed to delete version');
+      },
+    });
+  };
+
+  // Available versions for diff (all except current)
+  const diffVersionOptions = (allVersions ?? []).filter(v => v !== version).sort((a, b) => b - a);
 
   if (isLoading) {
     return (
@@ -73,6 +124,8 @@ export function SchemaVersionPage() {
 
   if (!data) return null;
 
+  const schemaType = (data.schemaType || 'AVRO') as SchemaType;
+
   return (
     <div data-testid="schema-version-page">
       <PageBreadcrumbs items={breadcrumbs} />
@@ -95,23 +148,86 @@ export function SchemaVersionPage() {
           <Button variant="outline" size="sm" onClick={handleDownload} data-testid="schema-download-btn">
             <Download className="mr-1 h-4 w-4" /> Download
           </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleDelete(false)}
+            data-testid="version-soft-delete-btn"
+          >
+            <Trash2 className="mr-1 h-4 w-4" /> Soft Delete
+          </Button>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => handleDelete(true)}
+            data-testid="version-permanent-delete-btn"
+          >
+            <Trash2 className="mr-1 h-4 w-4" /> Permanent Delete
+          </Button>
         </div>
       </div>
 
-      {/* Schema viewer */}
+      {/* Schema viewer with Monaco */}
       <Card className="mb-6">
         <CardHeader>
           <CardTitle className="text-sm font-medium">Schema</CardTitle>
         </CardHeader>
         <CardContent>
-          <pre
-            className="max-h-96 overflow-auto rounded bg-muted p-4 text-sm"
+          <SchemaEditor
+            value={formatSchema(data.schema)}
+            schemaType={schemaType}
+            readOnly
+            height="350px"
             data-testid="schema-viewer"
-          >
-            {formatSchema(data.schema)}
-          </pre>
+          />
         </CardContent>
       </Card>
+
+      {/* Version Diff */}
+      {diffVersionOptions.length > 0 && (
+        <Card className="mb-6">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-medium">
+                <GitCompareArrows className="mr-1 inline h-4 w-4" />
+                Compare with another version
+              </CardTitle>
+              <div className="flex items-center gap-2">
+                <Select value={diffVersion} onValueChange={(v) => { setDiffVersion(v); setShowDiff(true); }}>
+                  <SelectTrigger className="w-32" data-testid="diff-version-select">
+                    <SelectValue placeholder="Select..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {diffVersionOptions.map(v => (
+                      <SelectItem key={v} value={String(v)}>v{v}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {showDiff && (
+                  <Button variant="ghost" size="sm" onClick={() => { setShowDiff(false); setDiffVersion(''); }}>
+                    Hide
+                  </Button>
+                )}
+              </div>
+            </div>
+          </CardHeader>
+          {showDiff && diffData && (
+            <CardContent>
+              <div className="mb-2 flex gap-4 text-xs text-muted-foreground">
+                <span>Left: v{diffVersionNum}</span>
+                <span>Right: v{version} (current)</span>
+              </div>
+              <SchemaDiffViewer
+                original={formatSchema(diffData.schema)}
+                modified={formatSchema(data.schema)}
+                schemaType={schemaType}
+                height="350px"
+                data-testid="schema-diff-viewer"
+              />
+            </CardContent>
+          )}
+        </Card>
+      )}
 
       {/* References */}
       {data.references && data.references.length > 0 && (
@@ -161,6 +277,21 @@ export function SchemaVersionPage() {
           </CardContent>
         </Card>
       )}
+
+      <ConfirmDialog
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        title={deletePermanent ? 'Permanently Delete Version' : 'Soft-Delete Version'}
+        description={
+          deletePermanent
+            ? `This will permanently delete version ${version} of "${subject}". This cannot be undone.`
+            : `This will soft-delete version ${version} of "${subject}".`
+        }
+        confirmLabel={deletePermanent ? 'Delete Permanently' : 'Soft Delete'}
+        destructive={deletePermanent}
+        onConfirm={confirmDelete}
+        isLoading={deleteMutation.isPending}
+      />
     </div>
   );
 }
