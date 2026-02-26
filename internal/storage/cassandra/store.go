@@ -1262,6 +1262,13 @@ func (s *Store) cleanupOrphanedSchema(ctx context.Context, registryCtx string, s
 		return // Still referenced, don't clean up
 	}
 
+	// Read fingerprint from schemas_by_id BEFORE deleting it
+	var fingerprint string
+	_ = s.readQuery(
+		fmt.Sprintf(`SELECT fingerprint FROM %s.schemas_by_id WHERE registry_ctx = ? AND schema_id = ?`, qident(s.cfg.Keyspace)),
+		registryCtx, schemaID,
+	).WithContext(ctx).Scan(&fingerprint)
+
 	// Not referenced — clean up schemas_by_id within this context
 	if err := s.writeQuery(
 		fmt.Sprintf(`DELETE FROM %s.schemas_by_id WHERE registry_ctx = ? AND schema_id = ?`, qident(s.cfg.Keyspace)),
@@ -1278,16 +1285,21 @@ func (s *Store) cleanupOrphanedSchema(ctx context.Context, registryCtx string, s
 		slog.Warn("failed to clean up orphaned schema references", "registry_ctx", registryCtx, "schema_id", schemaID, "error", err)
 	}
 
-	// Clean up fingerprint mapping
-	var fp string
-	if err := s.readQuery(
-		fmt.Sprintf(`SELECT fingerprint FROM %s.schema_fingerprints WHERE registry_ctx = ? AND fingerprint = ?`, qident(s.cfg.Keyspace)),
-		registryCtx, "",
-	).WithContext(ctx).Scan(&fp); err == nil {
-		// We don't know the fingerprint from schema_id easily, but we can skip this
-		// since the fingerprint table will just have a stale entry that won't cause harm.
-		// A more complete solution would store fingerprint in schemas_by_id (which we do)
-		// and use it here.
+	// Clean up fingerprint mapping if no other schema uses it
+	if fingerprint != "" {
+		var otherID int
+		if err := s.readQuery(
+			fmt.Sprintf(`SELECT schema_id FROM %s.schemas_by_id WHERE registry_ctx = ? AND fingerprint = ? LIMIT 1`, qident(s.cfg.Keyspace)),
+			registryCtx, fingerprint,
+		).WithContext(ctx).Scan(&otherID); err != nil {
+			// No other schema uses this fingerprint — safe to clean up
+			if err := s.writeQuery(
+				fmt.Sprintf(`DELETE FROM %s.schema_fingerprints WHERE registry_ctx = ? AND fingerprint = ?`, qident(s.cfg.Keyspace)),
+				registryCtx, fingerprint,
+			).WithContext(ctx).Exec(); err != nil {
+				slog.Warn("failed to clean up orphaned fingerprint", "registry_ctx", registryCtx, "fingerprint", fingerprint, "error", err)
+			}
+		}
 	}
 }
 
@@ -1418,6 +1430,19 @@ func (s *Store) DeleteSubject(ctx context.Context, registryCtx string, subject s
 			registryCtx, subject,
 		).WithContext(ctx).Exec(); err != nil {
 			slog.Warn("failed to delete subject_latest", "subject", subject, "error", err)
+		}
+		// Clean up per-subject config and mode
+		if err := s.writeQuery(
+			fmt.Sprintf(`DELETE FROM %s.subject_configs WHERE registry_ctx = ? AND subject = ?`, qident(s.cfg.Keyspace)),
+			registryCtx, subject,
+		).WithContext(ctx).Exec(); err != nil {
+			slog.Warn("failed to delete subject_configs", "subject", subject, "error", err)
+		}
+		if err := s.writeQuery(
+			fmt.Sprintf(`DELETE FROM %s.modes WHERE registry_ctx = ? AND key = ?`, qident(s.cfg.Keyspace)),
+			registryCtx, subject,
+		).WithContext(ctx).Exec(); err != nil {
+			slog.Warn("failed to delete subject mode", "subject", subject, "error", err)
 		}
 	} else {
 		// Soft delete: batch all version updates (same partition = unlogged batch is atomic)
