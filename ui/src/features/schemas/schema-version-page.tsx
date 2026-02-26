@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from '@tanstack/react-router';
-import { useSubjectVersion, useSubjectVersions, useReferencedBy, useDeleteVersion } from '@/api/queries';
+import { useSubjectVersion, useSubjectVersions, useReferencedBy, useDeleteVersion, queryKeys, type SubjectVersion } from '@/api/queries';
+import { useQuery } from '@tanstack/react-query';
+import { apiFetch } from '@/api/client';
 import { PageBreadcrumbs } from '@/components/shared/breadcrumbs';
 import { SchemaEditor } from '@/components/schema-editor/schema-editor';
 import { SchemaDiffViewer } from '@/components/schema-editor/schema-diff-viewer';
@@ -37,9 +39,15 @@ export function SchemaVersionPage() {
   const [showDiff, setShowDiff] = useState(false);
   const [diffVersion, setDiffVersion] = useState<string>('');
 
-  // Load the comparison version for diff
+  // Load the comparison version for diff (only when a version is selected)
   const diffVersionNum = diffVersion ? parseInt(diffVersion, 10) : 0;
-  const { data: diffData } = useSubjectVersion(subject, diffVersionNum);
+  const { data: diffData } = useQuery({
+    queryKey: queryKeys.subjects.version(subject, diffVersionNum),
+    queryFn: () => apiFetch<SubjectVersion>(
+      `/subjects/${encodeURIComponent(subject)}/versions/${diffVersionNum}`
+    ),
+    enabled: !!subject && diffVersionNum > 0,
+  });
 
   const breadcrumbs = [
     { label: 'Subjects', href: '/ui/subjects' },

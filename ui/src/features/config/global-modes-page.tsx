@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import {
   useGlobalMode,
@@ -175,9 +175,9 @@ export function GlobalModesPage() {
     });
   };
 
-  const handleOverrideCountChange = (count: number) => {
+  const handleOverrideCountChange = useCallback((count: number) => {
     setOverrideCount(count);
-  };
+  }, []);
 
   if (isLoadingGlobal) {
     return (
@@ -360,7 +360,7 @@ function OverrideRows({
 }) {
   const [overrideSet, setOverrideSet] = useState<Set<string>>(new Set());
 
-  const handleOverrideStatus = (subject: string, hasOverride: boolean) => {
+  const handleOverrideStatus = useCallback((subject: string, hasOverride: boolean) => {
     setOverrideSet((prev) => {
       const next = new Set(prev);
       if (hasOverride) {
@@ -368,9 +368,10 @@ function OverrideRows({
       } else {
         next.delete(subject);
       }
+      if (next.size === prev.size && [...next].every((s) => prev.has(s))) return prev;
       return next;
     });
-  };
+  }, []);
 
   useEffect(() => {
     onOverrideCountChange(overrideSet.size);
