@@ -13,17 +13,14 @@ func RunConfigTests(t *testing.T, newStore StoreFactory) {
 
 	// --- Global Config ---
 
-	t.Run("GetGlobalConfig_Default", func(t *testing.T) {
+	t.Run("GetGlobalConfig_NotSet", func(t *testing.T) {
 		store := newStore()
 		defer store.Close()
 		ctx := context.Background()
 
-		config, err := store.GetGlobalConfig(ctx)
-		if err != nil {
-			t.Fatalf("GetGlobalConfig: expected seeded default, got error %v", err)
-		}
-		if config.CompatibilityLevel != "BACKWARD" {
-			t.Errorf("expected BACKWARD, got %q", config.CompatibilityLevel)
+		_, err := store.GetGlobalConfig(ctx, ".")
+		if err != storage.ErrNotFound {
+			t.Fatalf("GetGlobalConfig: expected ErrNotFound for unset config, got %v", err)
 		}
 	})
 
@@ -32,12 +29,12 @@ func RunConfigTests(t *testing.T, newStore StoreFactory) {
 		defer store.Close()
 		ctx := context.Background()
 
-		err := store.SetGlobalConfig(ctx, &storage.ConfigRecord{CompatibilityLevel: "FULL"})
+		err := store.SetGlobalConfig(ctx, ".", &storage.ConfigRecord{CompatibilityLevel: "FULL"})
 		if err != nil {
 			t.Fatalf("SetGlobalConfig: %v", err)
 		}
 
-		config, err := store.GetGlobalConfig(ctx)
+		config, err := store.GetGlobalConfig(ctx, ".")
 		if err != nil {
 			t.Fatalf("GetGlobalConfig: %v", err)
 		}
@@ -46,23 +43,20 @@ func RunConfigTests(t *testing.T, newStore StoreFactory) {
 		}
 	})
 
-	t.Run("DeleteGlobalConfig_ResetsToDefault", func(t *testing.T) {
+	t.Run("DeleteGlobalConfig_RemovesConfig", func(t *testing.T) {
 		store := newStore()
 		defer store.Close()
 		ctx := context.Background()
 
-		store.SetGlobalConfig(ctx, &storage.ConfigRecord{CompatibilityLevel: "NONE"})
+		store.SetGlobalConfig(ctx, ".", &storage.ConfigRecord{CompatibilityLevel: "NONE"})
 
-		if err := store.DeleteGlobalConfig(ctx); err != nil {
+		if err := store.DeleteGlobalConfig(ctx, "."); err != nil {
 			t.Fatalf("DeleteGlobalConfig: %v", err)
 		}
 
-		config, err := store.GetGlobalConfig(ctx)
-		if err != nil {
-			t.Fatalf("GetGlobalConfig after delete: expected reset to default, got error %v", err)
-		}
-		if config.CompatibilityLevel != "BACKWARD" {
-			t.Errorf("expected BACKWARD after delete, got %q", config.CompatibilityLevel)
+		_, err := store.GetGlobalConfig(ctx, ".")
+		if err != storage.ErrNotFound {
+			t.Fatalf("GetGlobalConfig after delete: expected ErrNotFound, got %v", err)
 		}
 	})
 
@@ -73,12 +67,12 @@ func RunConfigTests(t *testing.T, newStore StoreFactory) {
 		defer store.Close()
 		ctx := context.Background()
 
-		err := store.SetConfig(ctx, "my-subject", &storage.ConfigRecord{CompatibilityLevel: "FORWARD"})
+		err := store.SetConfig(ctx, ".", "my-subject", &storage.ConfigRecord{CompatibilityLevel: "FORWARD"})
 		if err != nil {
 			t.Fatalf("SetConfig: %v", err)
 		}
 
-		config, err := store.GetConfig(ctx, "my-subject")
+		config, err := store.GetConfig(ctx, ".", "my-subject")
 		if err != nil {
 			t.Fatalf("GetConfig: %v", err)
 		}
@@ -95,13 +89,13 @@ func RunConfigTests(t *testing.T, newStore StoreFactory) {
 		defer store.Close()
 		ctx := context.Background()
 
-		store.SetConfig(ctx, "my-subject", &storage.ConfigRecord{CompatibilityLevel: "NONE"})
+		store.SetConfig(ctx, ".", "my-subject", &storage.ConfigRecord{CompatibilityLevel: "NONE"})
 
-		if err := store.DeleteConfig(ctx, "my-subject"); err != nil {
+		if err := store.DeleteConfig(ctx, ".", "my-subject"); err != nil {
 			t.Fatalf("DeleteConfig: %v", err)
 		}
 
-		_, err := store.GetConfig(ctx, "my-subject")
+		_, err := store.GetConfig(ctx, ".", "my-subject")
 		if err != storage.ErrNotFound {
 			t.Errorf("expected ErrNotFound after delete, got %v", err)
 		}
@@ -112,7 +106,7 @@ func RunConfigTests(t *testing.T, newStore StoreFactory) {
 		defer store.Close()
 		ctx := context.Background()
 
-		_, err := store.GetConfig(ctx, "nonexistent")
+		_, err := store.GetConfig(ctx, ".", "nonexistent")
 		if err != storage.ErrNotFound {
 			t.Errorf("expected ErrNotFound, got %v", err)
 		}
@@ -123,7 +117,7 @@ func RunConfigTests(t *testing.T, newStore StoreFactory) {
 		defer store.Close()
 		ctx := context.Background()
 
-		err := store.DeleteConfig(ctx, "nonexistent")
+		err := store.DeleteConfig(ctx, ".", "nonexistent")
 		if err != storage.ErrNotFound {
 			t.Errorf("expected ErrNotFound, got %v", err)
 		}
@@ -134,11 +128,11 @@ func RunConfigTests(t *testing.T, newStore StoreFactory) {
 		defer store.Close()
 		ctx := context.Background()
 
-		store.SetConfig(ctx, "sub-a", &storage.ConfigRecord{CompatibilityLevel: "NONE"})
-		store.SetConfig(ctx, "sub-b", &storage.ConfigRecord{CompatibilityLevel: "FULL"})
+		store.SetConfig(ctx, ".", "sub-a", &storage.ConfigRecord{CompatibilityLevel: "NONE"})
+		store.SetConfig(ctx, ".", "sub-b", &storage.ConfigRecord{CompatibilityLevel: "FULL"})
 
-		configA, _ := store.GetConfig(ctx, "sub-a")
-		configB, _ := store.GetConfig(ctx, "sub-b")
+		configA, _ := store.GetConfig(ctx, ".", "sub-a")
+		configB, _ := store.GetConfig(ctx, ".", "sub-b")
 		if configA.CompatibilityLevel != "NONE" {
 			t.Errorf("sub-a: expected NONE, got %q", configA.CompatibilityLevel)
 		}
@@ -149,17 +143,14 @@ func RunConfigTests(t *testing.T, newStore StoreFactory) {
 
 	// --- Global Mode ---
 
-	t.Run("GetGlobalMode_Default", func(t *testing.T) {
+	t.Run("GetGlobalMode_NotSet", func(t *testing.T) {
 		store := newStore()
 		defer store.Close()
 		ctx := context.Background()
 
-		mode, err := store.GetGlobalMode(ctx)
-		if err != nil {
-			t.Fatalf("GetGlobalMode: expected seeded default, got error %v", err)
-		}
-		if mode.Mode != "READWRITE" {
-			t.Errorf("expected READWRITE, got %q", mode.Mode)
+		_, err := store.GetGlobalMode(ctx, ".")
+		if err != storage.ErrNotFound {
+			t.Fatalf("GetGlobalMode: expected ErrNotFound for unset mode, got %v", err)
 		}
 	})
 
@@ -168,17 +159,34 @@ func RunConfigTests(t *testing.T, newStore StoreFactory) {
 		defer store.Close()
 		ctx := context.Background()
 
-		err := store.SetGlobalMode(ctx, &storage.ModeRecord{Mode: "READONLY"})
+		err := store.SetGlobalMode(ctx, ".", &storage.ModeRecord{Mode: "READONLY"})
 		if err != nil {
 			t.Fatalf("SetGlobalMode: %v", err)
 		}
 
-		mode, err := store.GetGlobalMode(ctx)
+		mode, err := store.GetGlobalMode(ctx, ".")
 		if err != nil {
 			t.Fatalf("GetGlobalMode: %v", err)
 		}
 		if mode.Mode != "READONLY" {
 			t.Errorf("expected READONLY, got %q", mode.Mode)
+		}
+	})
+
+	t.Run("DeleteGlobalMode_RemovesMode", func(t *testing.T) {
+		store := newStore()
+		defer store.Close()
+		ctx := context.Background()
+
+		store.SetGlobalMode(ctx, ".", &storage.ModeRecord{Mode: "READONLY"})
+
+		if err := store.DeleteGlobalMode(ctx, "."); err != nil {
+			t.Fatalf("DeleteGlobalMode: %v", err)
+		}
+
+		_, err := store.GetGlobalMode(ctx, ".")
+		if err != storage.ErrNotFound {
+			t.Fatalf("GetGlobalMode after delete: expected ErrNotFound, got %v", err)
 		}
 	})
 
@@ -189,12 +197,12 @@ func RunConfigTests(t *testing.T, newStore StoreFactory) {
 		defer store.Close()
 		ctx := context.Background()
 
-		err := store.SetMode(ctx, "my-subject", &storage.ModeRecord{Mode: "IMPORT"})
+		err := store.SetMode(ctx, ".", "my-subject", &storage.ModeRecord{Mode: "IMPORT"})
 		if err != nil {
 			t.Fatalf("SetMode: %v", err)
 		}
 
-		mode, err := store.GetMode(ctx, "my-subject")
+		mode, err := store.GetMode(ctx, ".", "my-subject")
 		if err != nil {
 			t.Fatalf("GetMode: %v", err)
 		}
@@ -211,13 +219,13 @@ func RunConfigTests(t *testing.T, newStore StoreFactory) {
 		defer store.Close()
 		ctx := context.Background()
 
-		store.SetMode(ctx, "my-subject", &storage.ModeRecord{Mode: "IMPORT"})
+		store.SetMode(ctx, ".", "my-subject", &storage.ModeRecord{Mode: "IMPORT"})
 
-		if err := store.DeleteMode(ctx, "my-subject"); err != nil {
+		if err := store.DeleteMode(ctx, ".", "my-subject"); err != nil {
 			t.Fatalf("DeleteMode: %v", err)
 		}
 
-		_, err := store.GetMode(ctx, "my-subject")
+		_, err := store.GetMode(ctx, ".", "my-subject")
 		if err != storage.ErrNotFound {
 			t.Errorf("expected ErrNotFound after delete, got %v", err)
 		}
@@ -228,7 +236,7 @@ func RunConfigTests(t *testing.T, newStore StoreFactory) {
 		defer store.Close()
 		ctx := context.Background()
 
-		_, err := store.GetMode(ctx, "nonexistent")
+		_, err := store.GetMode(ctx, ".", "nonexistent")
 		if err != storage.ErrNotFound {
 			t.Errorf("expected ErrNotFound, got %v", err)
 		}
@@ -239,7 +247,7 @@ func RunConfigTests(t *testing.T, newStore StoreFactory) {
 		defer store.Close()
 		ctx := context.Background()
 
-		err := store.DeleteMode(ctx, "nonexistent")
+		err := store.DeleteMode(ctx, ".", "nonexistent")
 		if err != storage.ErrNotFound {
 			t.Errorf("expected ErrNotFound, got %v", err)
 		}

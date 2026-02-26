@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -1654,5 +1655,308 @@ func TestGetReferencedBy_InvalidVersion(t *testing.T) {
 
 	if w.Code != http.StatusUnprocessableEntity {
 		t.Errorf("expected 422, got %d", w.Code)
+	}
+}
+
+// --- READONLY Mode Blocks Config Changes ---
+
+func setReadOnlyMode(t *testing.T, h *Handler) {
+	t.Helper()
+	modeReq := types.ModeRequest{Mode: "READONLY"}
+	modeBytes, _ := json.Marshal(modeReq)
+
+	r := chi.NewRouter()
+	r.Put("/mode", h.SetMode)
+
+	req := httptest.NewRequest("PUT", "/mode?force=true", bytes.NewReader(modeBytes))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("setReadOnlyMode failed: %d %s", w.Code, w.Body.String())
+	}
+}
+
+func setReadWriteMode(t *testing.T, h *Handler) {
+	t.Helper()
+	modeReq := types.ModeRequest{Mode: "READWRITE"}
+	modeBytes, _ := json.Marshal(modeReq)
+
+	r := chi.NewRouter()
+	r.Put("/mode", h.SetMode)
+
+	req := httptest.NewRequest("PUT", "/mode?force=true", bytes.NewReader(modeBytes))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("setReadWriteMode failed: %d %s", w.Code, w.Body.String())
+	}
+}
+
+func TestSetConfig_BlockedByReadOnlyMode(t *testing.T) {
+	h := setupTestHandler(t)
+
+	// Register a schema so subject exists
+	registerSchema(t, h, "ro-config-test", `{"type":"record","name":"ROConfig","fields":[{"name":"a","type":"string"}]}`)
+
+	// Set mode to READONLY
+	setReadOnlyMode(t, h)
+	defer setReadWriteMode(t, h)
+
+	// Try to set config — should be blocked
+	configReq := types.ConfigRequest{Compatibility: "NONE"}
+	configBytes, _ := json.Marshal(configReq)
+
+	r := chi.NewRouter()
+	r.Put("/config/{subject}", h.SetConfig)
+
+	req := httptest.NewRequest("PUT", "/config/ro-config-test", bytes.NewReader(configBytes))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusUnprocessableEntity {
+		t.Errorf("expected 422, got %d: %s", w.Code, w.Body.String())
+	}
+
+	resp := decodeErrorResponse(t, w)
+	if resp.ErrorCode != types.ErrorCodeOperationNotPermitted {
+		t.Errorf("expected error code %d, got %d", types.ErrorCodeOperationNotPermitted, resp.ErrorCode)
+	}
+}
+
+func TestDeleteConfig_BlockedByReadOnlyMode(t *testing.T) {
+	h := setupTestHandler(t)
+
+	// Register a schema and set a config first
+	registerSchema(t, h, "ro-cfgdel-test", `{"type":"record","name":"ROCfgDel","fields":[{"name":"a","type":"string"}]}`)
+
+	// Set config first
+	configReq := types.ConfigRequest{Compatibility: "NONE"}
+	configBytes, _ := json.Marshal(configReq)
+	{
+		r := chi.NewRouter()
+		r.Put("/config/{subject}", h.SetConfig)
+		req := httptest.NewRequest("PUT", "/config/ro-cfgdel-test", bytes.NewReader(configBytes))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		if w.Code != http.StatusOK {
+			t.Fatalf("SetConfig failed: %d %s", w.Code, w.Body.String())
+		}
+	}
+
+	// Set mode to READONLY
+	setReadOnlyMode(t, h)
+	defer setReadWriteMode(t, h)
+
+	// Try to delete config — should be blocked
+	r := chi.NewRouter()
+	r.Delete("/config/{subject}", h.DeleteConfig)
+
+	req := httptest.NewRequest("DELETE", "/config/ro-cfgdel-test", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusUnprocessableEntity {
+		t.Errorf("expected 422, got %d: %s", w.Code, w.Body.String())
+	}
+
+	resp := decodeErrorResponse(t, w)
+	if resp.ErrorCode != types.ErrorCodeOperationNotPermitted {
+		t.Errorf("expected error code %d, got %d", types.ErrorCodeOperationNotPermitted, resp.ErrorCode)
+	}
+}
+
+func TestSetConfig_BlockedByReadOnlyOverrideMode(t *testing.T) {
+	h := setupTestHandler(t)
+
+	registerSchema(t, h, "roo-config-test", `{"type":"record","name":"ROOConfig","fields":[{"name":"a","type":"string"}]}`)
+
+	// Set mode to READONLY_OVERRIDE
+	modeReq := types.ModeRequest{Mode: "READONLY_OVERRIDE"}
+	modeBytes, _ := json.Marshal(modeReq)
+	{
+		r := chi.NewRouter()
+		r.Put("/mode", h.SetMode)
+		req := httptest.NewRequest("PUT", "/mode?force=true", bytes.NewReader(modeBytes))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		if w.Code != http.StatusOK {
+			t.Fatalf("setMode failed: %d %s", w.Code, w.Body.String())
+		}
+	}
+	defer setReadWriteMode(t, h)
+
+	// Try to set config — should be blocked
+	configReq := types.ConfigRequest{Compatibility: "NONE"}
+	configBytes, _ := json.Marshal(configReq)
+
+	r := chi.NewRouter()
+	r.Put("/config/{subject}", h.SetConfig)
+
+	req := httptest.NewRequest("PUT", "/config/roo-config-test", bytes.NewReader(configBytes))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusUnprocessableEntity {
+		t.Errorf("expected 422, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestWriteInternalErrorDoesNotLeakDetails(t *testing.T) {
+	w := httptest.NewRecorder()
+	sensitiveErr := fmt.Errorf("connection refused: postgres://user:password@db:5432/registry")
+	writeInternalError(w, sensitiveErr)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("expected status 500, got %d", w.Code)
+	}
+
+	body := w.Body.String()
+
+	if !strings.Contains(body, "Internal server error") {
+		t.Errorf("response body should contain generic message, got: %s", body)
+	}
+
+	// Verify no sensitive details are leaked to the client
+	leaked := []string{"postgres", "password", "connection refused", "db:5432"}
+	for _, secret := range leaked {
+		if strings.Contains(body, secret) {
+			t.Errorf("response body must not contain %q, got: %s", secret, body)
+		}
+	}
+
+	contentType := w.Header().Get("Content-Type")
+	if contentType != "application/vnd.schemaregistry.v1+json" {
+		t.Errorf("expected Content-Type application/vnd.schemaregistry.v1+json, got %s", contentType)
+	}
+}
+
+// --- deletedOnly error propagation ---
+
+// failOnCallStore wraps a real storage.Storage and injects errors on specific call numbers
+// for ListSubjects and GetSchemasBySubject. This lets us test that the handler properly
+// propagates errors from the second call in deletedOnly mode (where the handler makes
+// two storage calls and diffs the results).
+type failOnCallStore struct {
+	storage.Storage
+	listSubjectsCalls             int
+	failOnListSubjectsCall        int
+	getSchemasBySubjectCalls      int
+	failOnGetSchemasBySubjectCall int
+}
+
+func (f *failOnCallStore) ListSubjects(ctx context.Context, registryCtx string, includeDeleted bool) ([]string, error) {
+	f.listSubjectsCalls++
+	if f.failOnListSubjectsCall > 0 && f.listSubjectsCalls == f.failOnListSubjectsCall {
+		return nil, fmt.Errorf("injected ListSubjects error on call %d", f.listSubjectsCalls)
+	}
+	return f.Storage.ListSubjects(ctx, registryCtx, includeDeleted)
+}
+
+func (f *failOnCallStore) GetSchemasBySubject(ctx context.Context, registryCtx string, subject string, includeDeleted bool) ([]*storage.SchemaRecord, error) {
+	f.getSchemasBySubjectCalls++
+	if f.failOnGetSchemasBySubjectCall > 0 && f.getSchemasBySubjectCalls == f.failOnGetSchemasBySubjectCall {
+		return nil, fmt.Errorf("injected GetSchemasBySubject error on call %d", f.getSchemasBySubjectCalls)
+	}
+	return f.Storage.GetSchemasBySubject(ctx, registryCtx, subject, includeDeleted)
+}
+
+func TestListSubjects_DeletedOnly_ErrorPropagation(t *testing.T) {
+	// Set up a real store with a subject so the first ListSubjects call returns data.
+	realStore := memory.NewStore()
+	schemaReg := schema.NewRegistry()
+	schemaReg.Register(avro.NewParser())
+	compatChecker := compatibility.NewChecker()
+	compatChecker.Register(storage.SchemaTypeAvro, avrocompat.NewChecker())
+
+	// Create a registry with the real store first to seed data.
+	seedReg := registry.New(realStore, schemaReg, compatChecker, "BACKWARD")
+	seedHandler := New(seedReg)
+
+	// Register a schema, then soft-delete the subject so it appears in
+	// the "deleted" list but not in the "active" list.
+	registerSchema(t, seedHandler, "deleted-sub", `{"type":"string"}`)
+	{
+		r := chi.NewRouter()
+		r.Delete("/subjects/{subject}", seedHandler.DeleteSubject)
+		req := httptest.NewRequest("DELETE", "/subjects/deleted-sub", nil)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		if w.Code != http.StatusOK {
+			t.Fatalf("soft-delete failed: %d %s", w.Code, w.Body.String())
+		}
+	}
+
+	// Now wrap the store so the second ListSubjects call (the active-set query) fails.
+	failStore := &failOnCallStore{
+		Storage:                realStore,
+		failOnListSubjectsCall: 2, // fail on the second call
+	}
+	failReg := registry.New(failStore, schemaReg, compatChecker, "BACKWARD")
+	failHandler := New(failReg)
+
+	r := chi.NewRouter()
+	r.Get("/subjects", failHandler.ListSubjects)
+
+	req := httptest.NewRequest("GET", "/subjects?deletedOnly=true", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500 when second ListSubjects call fails, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestGetVersions_DeletedOnly_ErrorPropagation(t *testing.T) {
+	// Set up a real store with a subject that has a soft-deleted version.
+	realStore := memory.NewStore()
+	schemaReg := schema.NewRegistry()
+	schemaReg.Register(avro.NewParser())
+	compatChecker := compatibility.NewChecker()
+	compatChecker.Register(storage.SchemaTypeAvro, avrocompat.NewChecker())
+
+	seedReg := registry.New(realStore, schemaReg, compatChecker, "BACKWARD")
+	seedHandler := New(seedReg)
+
+	// Register two versions, then soft-delete version 1 so deletedOnly has something to diff.
+	registerSchema(t, seedHandler, "ver-test", `{"type":"record","name":"V","fields":[{"name":"id","type":"long"}]}`)
+	registerSchema(t, seedHandler, "ver-test", `{"type":"record","name":"V","fields":[{"name":"id","type":"long"},{"name":"n","type":"string","default":""}]}`)
+	{
+		r := chi.NewRouter()
+		r.Delete("/subjects/{subject}/versions/{version}", seedHandler.DeleteVersion)
+		req := httptest.NewRequest("DELETE", "/subjects/ver-test/versions/1", nil)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		if w.Code != http.StatusOK {
+			t.Fatalf("soft-delete version failed: %d %s", w.Code, w.Body.String())
+		}
+	}
+
+	// Now wrap the store so the second GetSchemasBySubject call fails.
+	// The handler's deletedOnly path calls GetVersions twice via the registry,
+	// and GetVersions calls GetSchemasBySubject internally.
+	failStore := &failOnCallStore{
+		Storage:                       realStore,
+		failOnGetSchemasBySubjectCall: 2, // fail on the second call
+	}
+	failReg := registry.New(failStore, schemaReg, compatChecker, "BACKWARD")
+	failHandler := New(failReg)
+
+	r := chi.NewRouter()
+	r.Get("/subjects/{subject}/versions", failHandler.GetVersions)
+
+	req := httptest.NewRequest("GET", "/subjects/ver-test/versions?deletedOnly=true", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500 when second GetSchemasBySubject call fails, got %d: %s", w.Code, w.Body.String())
 	}
 }

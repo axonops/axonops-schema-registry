@@ -16,12 +16,19 @@ import (
 // Design notes:
 // - schema_id is INT to match Confluent wire format (4-byte schema id)
 // - Schemas are stored with SAI indexes for efficient secondary lookups:
+//
 //   - schemas_by_id: primary lookup by global ID, SAI on fingerprint for dedup
+//
 //   - subject_versions: versions within a subject, SAI on schema_id + deleted
+//
 //   - subject_latest: track latest version per subject (also used for subject listing)
 //
-// - Block-based ID allocation reduces LWT contention
-// - TimeUUID for timestamps (Cassandra-native)
+//   - Block-based ID allocation reduces LWT contention
+//
+//   - TimeUUID for timestamps (Cassandra-native)
+//
+//   - All data tables include registry_ctx for multi-tenant context support.
+//     registry_ctx is part of the partition key so that queries are scoped to a single context.
 func Migrate(session *gocql.Session, keyspace string) error {
 	stmts := []string{
 		// Keyspace creation
@@ -29,65 +36,74 @@ func Migrate(session *gocql.Session, keyspace string) error {
 			WITH REPLICATION = {'class': 'SimpleStrategy', 'replication_factor': 1}
 			AND durable_writes = true`, qident(keyspace)),
 
-		// Table 1: schemas_by_id - lookup by global schema ID
+		// Table 1: schemas_by_id - lookup by context-scoped schema ID
 		// Primary lookup table for deserialization.
 		// SAI index on fingerprint replaces the old schemas_by_fingerprint table.
+		// registry_ctx is part of the partition key so IDs are per-context.
 		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s.schemas_by_id (
-			schema_id      int PRIMARY KEY,
+			registry_ctx   text,
+			schema_id      int,
 			schema_type    text,
 			fingerprint    text,
 			schema_text    text,
 			canonical_text text,
 			created_at     timeuuid,
 			metadata       text,
-			ruleset        text
+			ruleset        text,
+			PRIMARY KEY ((registry_ctx, schema_id))
 		)`, qident(keyspace)),
 
-		// Table 2: subject_versions - versions within a subject
-		// Partitioned by subject for efficient queries.
+		// Table 2: subject_versions - versions within a subject, scoped by context
+		// Partitioned by (registry_ctx, subject) for efficient queries.
 		// SAI indexes on schema_id and deleted enable cross-partition lookups.
 		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s.subject_versions (
-			subject     text,
-			version     int,
-			schema_id   int,
-			deleted     boolean,
-			created_at  timeuuid,
-			metadata    text,
-			ruleset     text,
-			PRIMARY KEY ((subject), version)
+			registry_ctx text,
+			subject      text,
+			version      int,
+			schema_id    int,
+			deleted      boolean,
+			created_at   timeuuid,
+			metadata     text,
+			ruleset      text,
+			PRIMARY KEY ((registry_ctx, subject), version)
 		) WITH CLUSTERING ORDER BY (version ASC)`, qident(keyspace)),
 
-		// Table 3: subject_latest - track latest version per subject
-		// Avoids scanning partitions to find latest. Also serves as subject listing
-		// (replaces the old bucketed subjects table).
+		// Table 3: subject_latest - track latest version per subject, scoped by context
+		// Avoids scanning partitions to find latest. Also serves as subject listing.
+		// Partitioned by (registry_ctx, subject) so different contexts can use the same subject name.
 		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s.subject_latest (
-			subject          text PRIMARY KEY,
+			registry_ctx     text,
+			subject          text,
 			latest_version   int,
 			latest_schema_id int,
-			updated_at       timeuuid
+			updated_at       timeuuid,
+			PRIMARY KEY ((registry_ctx, subject))
 		)`, qident(keyspace)),
 
-		// Table 4: schema_references - schema dependencies
+		// Table 4: schema_references - schema dependencies, scoped by context
 		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s.schema_references (
-			schema_id   int,
-			name        text,
-			ref_subject text,
-			ref_version int,
-			PRIMARY KEY ((schema_id), name)
+			registry_ctx text,
+			schema_id    int,
+			name         text,
+			ref_subject  text,
+			ref_version  int,
+			PRIMARY KEY ((registry_ctx, schema_id), name)
 		)`, qident(keyspace)),
 
-		// Table 5: references_by_target - reverse lookup for "referenced by"
+		// Table 5: references_by_target - reverse lookup for "referenced by", scoped by context
 		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s.references_by_target (
+			registry_ctx   text,
 			ref_subject    text,
 			ref_version    int,
 			schema_subject text,
 			schema_version int,
-			PRIMARY KEY ((ref_subject, ref_version), schema_subject, schema_version)
+			PRIMARY KEY ((registry_ctx, ref_subject, ref_version), schema_subject, schema_version)
 		)`, qident(keyspace)),
 
-		// Table 6: subject_configs - compatibility configuration per subject
+		// Table 6: subject_configs - compatibility configuration per subject, scoped by context
 		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s.subject_configs (
-			subject              text PRIMARY KEY,
+			registry_ctx         text,
+			subject              text,
 			compatibility        text,
 			alias                text,
 			normalize            boolean,
@@ -97,12 +113,14 @@ func Migrate(session *gocql.Session, keyspace string) error {
 			default_ruleset      text,
 			override_ruleset     text,
 			compatibility_group  text,
-			updated_at           timeuuid
+			updated_at           timeuuid,
+			PRIMARY KEY ((registry_ctx, subject))
 		)`, qident(keyspace)),
 
-		// Table 7: global_config - global compatibility configuration
+		// Table 7: global_config - global compatibility configuration, scoped by context
 		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s.global_config (
-			key                  text PRIMARY KEY,
+			registry_ctx         text,
+			key                  text,
 			compatibility        text,
 			alias                text,
 			normalize            boolean,
@@ -112,24 +130,29 @@ func Migrate(session *gocql.Session, keyspace string) error {
 			default_ruleset      text,
 			override_ruleset     text,
 			compatibility_group  text,
-			updated_at           timeuuid
+			updated_at           timeuuid,
+			PRIMARY KEY ((registry_ctx, key))
 		)`, qident(keyspace)),
 
-		// Table 8: modes - registry running mode (READWRITE/READONLY/etc)
+		// Table 8: modes - registry running mode, scoped by context
 		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s.modes (
-			key        text PRIMARY KEY,
-			mode       text,
-			updated_at timeuuid
+			registry_ctx text,
+			key          text,
+			mode         text,
+			updated_at   timeuuid,
+			PRIMARY KEY ((registry_ctx, key))
 		)`, qident(keyspace)),
 
-		// Table 9: id_alloc - block-based ID allocation
+		// Table 9: id_alloc - block-based ID allocation, scoped by context
 		// Uses LWT for atomic block reservation
 		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s.id_alloc (
-			name    text PRIMARY KEY,
-			next_id int
+			registry_ctx text,
+			name         text,
+			next_id      int,
+			PRIMARY KEY ((registry_ctx, name))
 		)`, qident(keyspace)),
 
-		// Table 10: users_by_id - user records
+		// Table 10: users_by_id - user records (global, not per-context)
 		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s.users_by_id (
 			user_id       bigint PRIMARY KEY,
 			email         text,
@@ -141,7 +164,7 @@ func Migrate(session *gocql.Session, keyspace string) error {
 			updated_at    timeuuid
 		)`, qident(keyspace)),
 
-		// Table 11: users_by_email - lookup by email (used as users_by_username)
+		// Table 11: users_by_email - lookup by email (global, not per-context)
 		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s.users_by_email (
 			email         text PRIMARY KEY,
 			user_id       bigint,
@@ -153,7 +176,7 @@ func Migrate(session *gocql.Session, keyspace string) error {
 			updated_at    timeuuid
 		)`, qident(keyspace)),
 
-		// Table 12: api_keys_by_id - API key records
+		// Table 12: api_keys_by_id - API key records (global, not per-context)
 		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s.api_keys_by_id (
 			api_key_id   bigint PRIMARY KEY,
 			user_id      bigint,
@@ -167,7 +190,7 @@ func Migrate(session *gocql.Session, keyspace string) error {
 			last_used    timestamp
 		)`, qident(keyspace)),
 
-		// Table 13: api_keys_by_user - lookup by user
+		// Table 13: api_keys_by_user - lookup by user (global, not per-context)
 		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s.api_keys_by_user (
 			user_id      bigint,
 			api_key_id   bigint,
@@ -182,7 +205,7 @@ func Migrate(session *gocql.Session, keyspace string) error {
 			PRIMARY KEY ((user_id), api_key_id)
 		)`, qident(keyspace)),
 
-		// Table 14: api_keys_by_hash - lookup by hash for authentication
+		// Table 14: api_keys_by_hash - lookup by hash for authentication (global, not per-context)
 		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s.api_keys_by_hash (
 			api_key_hash text PRIMARY KEY,
 			api_key_id   bigint,
@@ -196,19 +219,82 @@ func Migrate(session *gocql.Session, keyspace string) error {
 			last_used    timestamp
 		)`, qident(keyspace)),
 
-		// Table 15: schema_fingerprints - atomic fingerprint→schema_id deduplication
-		// Uses LWT (INSERT IF NOT EXISTS) to guarantee exactly one schema_id per fingerprint.
-		// This replaces the SAI-based dedup on schemas_by_id which was eventually consistent
-		// and could not prevent concurrent writers from allocating duplicate IDs.
+		// Table 15: schema_fingerprints - atomic fingerprint->schema_id deduplication, scoped by context
+		// Uses LWT (INSERT IF NOT EXISTS) to guarantee exactly one schema_id per fingerprint per context.
 		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s.schema_fingerprints (
-			fingerprint text PRIMARY KEY,
-			schema_id   int
+			registry_ctx text,
+			fingerprint  text,
+			schema_id    int,
+			PRIMARY KEY ((registry_ctx, fingerprint))
+		)`, qident(keyspace)),
+
+		// Table 16: contexts - tracks all registry contexts
+		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s.contexts (
+			registry_ctx text PRIMARY KEY,
+			created_at   timeuuid
+		)`, qident(keyspace)),
+
+		// Table 17: keks - Key Encryption Keys for CSFLE (global, not per-context)
+		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s.keks (
+			name       text PRIMARY KEY,
+			kms_type   text,
+			kms_key_id text,
+			kms_props  text,
+			doc        text,
+			shared     boolean,
+			deleted    boolean,
+			ts         bigint,
+			created_at timestamp,
+			updated_at timestamp
+		)`, qident(keyspace)),
+
+		// Table 18: deks - Data Encryption Keys, partitioned by (kek_name, subject), clustered by version DESC
+		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s.deks (
+			kek_name              text,
+			subject               text,
+			version               int,
+			algorithm             text,
+			encrypted_key_material text,
+			deleted               boolean,
+			ts                    bigint,
+			PRIMARY KEY ((kek_name, subject), version)
+		) WITH CLUSTERING ORDER BY (version DESC)`, qident(keyspace)),
+
+		// Table 19: deks_by_kek - denormalized lookup for listing subjects under a KEK
+		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s.deks_by_kek (
+			kek_name text,
+			subject  text,
+			PRIMARY KEY (kek_name, subject)
+		)`, qident(keyspace)),
+
+		// Table 20: exporters - schema exporters
+		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s.exporters (
+			name                  text PRIMARY KEY,
+			context_type          text,
+			context               text,
+			subjects              text,
+			subject_rename_format text,
+			config                text,
+			created_at            timestamp,
+			updated_at            timestamp
+		)`, qident(keyspace)),
+
+		// Table 21: exporter_statuses - exporter status tracking
+		fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s.exporter_statuses (
+			name       text PRIMARY KEY,
+			state      text,
+			offset_val bigint,
+			ts         bigint,
+			trace      text
 		)`, qident(keyspace)),
 	}
 
 	for _, stmt := range stmts {
 		if err := session.Query(stmt).Exec(); err != nil {
-			return fmt.Errorf("cassandra migrate failed: %w (stmt=%s)", err, oneLine(stmt))
+			// Ignore "already exists" for tables/keyspaces (idempotent)
+			if !strings.Contains(err.Error(), "already exist") {
+				return fmt.Errorf("cassandra migrate failed: %w (stmt=%s)", err, oneLine(stmt))
+			}
 		}
 	}
 
@@ -243,6 +329,19 @@ func Migrate(session *gocql.Session, keyspace string) error {
 		fmt.Sprintf(`ALTER TABLE %s.global_config ADD override_ruleset text`, qident(keyspace)),
 		fmt.Sprintf(`ALTER TABLE %s.global_config ADD compatibility_group text`, qident(keyspace)),
 		fmt.Sprintf(`ALTER TABLE %s.global_config ADD validate_fields boolean`, qident(keyspace)),
+
+		// Add registry_ctx to tables that may have been created before context support.
+		// These ALTERs are no-ops on fresh installs where the column is already in CREATE TABLE.
+		fmt.Sprintf(`ALTER TABLE %s.schemas_by_id ADD registry_ctx text`, qident(keyspace)),
+		fmt.Sprintf(`ALTER TABLE %s.subject_versions ADD registry_ctx text`, qident(keyspace)),
+		fmt.Sprintf(`ALTER TABLE %s.subject_latest ADD registry_ctx text`, qident(keyspace)),
+		fmt.Sprintf(`ALTER TABLE %s.schema_references ADD registry_ctx text`, qident(keyspace)),
+		fmt.Sprintf(`ALTER TABLE %s.references_by_target ADD registry_ctx text`, qident(keyspace)),
+		fmt.Sprintf(`ALTER TABLE %s.subject_configs ADD registry_ctx text`, qident(keyspace)),
+		fmt.Sprintf(`ALTER TABLE %s.global_config ADD registry_ctx text`, qident(keyspace)),
+		fmt.Sprintf(`ALTER TABLE %s.modes ADD registry_ctx text`, qident(keyspace)),
+		fmt.Sprintf(`ALTER TABLE %s.id_alloc ADD registry_ctx text`, qident(keyspace)),
+		fmt.Sprintf(`ALTER TABLE %s.schema_fingerprints ADD registry_ctx text`, qident(keyspace)),
 	}
 	for _, stmt := range alterStmts {
 		if err := session.Query(stmt).Exec(); err != nil {
@@ -254,29 +353,6 @@ func Migrate(session *gocql.Session, keyspace string) error {
 		}
 	}
 
-	// Backfill schema_fingerprints from existing schemas_by_id data.
-	// This handles production upgrades where schemas_by_id has data that predates
-	// the schema_fingerprints table. Uses IF NOT EXISTS so the first schema_id
-	// encountered for each fingerprint wins (idempotent, safe to re-run).
-	iter := session.Query(
-		fmt.Sprintf(`SELECT schema_id, fingerprint FROM %s.schemas_by_id`, qident(keyspace)),
-	).Iter()
-	var bfID int
-	var bfFP string
-	for iter.Scan(&bfID, &bfFP) {
-		if bfFP != "" {
-			// Best effort — IF NOT EXISTS handles duplicates gracefully
-			_ = session.Query(
-				fmt.Sprintf(`INSERT INTO %s.schema_fingerprints (fingerprint, schema_id) VALUES (?, ?) IF NOT EXISTS`, qident(keyspace)),
-				bfFP, bfID,
-			).Exec()
-		}
-	}
-	if err := iter.Close(); err != nil {
-		// Non-fatal: table may be empty on fresh install
-		_ = err
-	}
-
 	// SAI indexes (Cassandra 5.0+ required) — replace the old schemas_by_fingerprint
 	// and subjects tables with efficient secondary lookups.
 	saiStmts := []string{
@@ -286,6 +362,13 @@ func Migrate(session *gocql.Session, keyspace string) error {
 		fmt.Sprintf(`CREATE CUSTOM INDEX IF NOT EXISTS idx_sv_schema_id ON %s.subject_versions (schema_id) USING 'StorageAttachedIndex'`, qident(keyspace)),
 		// Deleted flag lookup on subject_versions — enables efficient non-deleted filtering
 		fmt.Sprintf(`CREATE CUSTOM INDEX IF NOT EXISTS idx_sv_deleted ON %s.subject_versions (deleted) USING 'StorageAttachedIndex'`, qident(keyspace)),
+		// Registry context lookup on subject_latest — enables listing subjects within a context
+		fmt.Sprintf(`CREATE CUSTOM INDEX IF NOT EXISTS idx_sl_registry_ctx ON %s.subject_latest (registry_ctx) USING 'StorageAttachedIndex'`, qident(keyspace)),
+		// Registry context lookup on subject_versions — enables queries by registryCtx+schema_id
+		// without providing the full partition key (registry_ctx, subject).
+		fmt.Sprintf(`CREATE CUSTOM INDEX IF NOT EXISTS idx_sv_registry_ctx ON %s.subject_versions (registry_ctx) USING 'StorageAttachedIndex'`, qident(keyspace)),
+		// Deleted flag on deks — enables efficient non-deleted filtering for DEK queries
+		fmt.Sprintf(`CREATE CUSTOM INDEX IF NOT EXISTS idx_deks_deleted ON %s.deks (deleted) USING 'StorageAttachedIndex'`, qident(keyspace)),
 	}
 	for _, stmt := range saiStmts {
 		if err := session.Query(stmt).Exec(); err != nil {
@@ -302,37 +385,147 @@ func Migrate(session *gocql.Session, keyspace string) error {
 		fmt.Sprintf(`DROP TABLE IF EXISTS %s.schemas_by_fingerprint`, qident(keyspace)),
 		fmt.Sprintf(`DROP TABLE IF EXISTS %s.subjects`, qident(keyspace)),
 	}
+
+	// Migration: subject_latest needs (registry_ctx, subject) as partition key for
+	// multi-context support. If the old table has subject-only PK, drop and recreate.
+	// Detection: try to query with registry_ctx in the partition key. If it fails, the
+	// table has the old schema. Simpler: just check if registry_ctx is in the PK by
+	// attempting a query — but the safest approach is to always recreate on this branch.
+	var pkCheck string
+	if err := session.Query(
+		fmt.Sprintf(`SELECT subject FROM %s.subject_latest WHERE registry_ctx = ? AND subject = ?`, qident(keyspace)),
+		"__pk_check__", "__pk_check__",
+	).Scan(&pkCheck); err != nil {
+		// If the error mentions "registry_ctx" as invalid or not part of the PK,
+		// the old table schema exists — drop it so CREATE TABLE IF NOT EXISTS can recreate.
+		if strings.Contains(err.Error(), "registry_ctx") ||
+			strings.Contains(err.Error(), "partition key") ||
+			strings.Contains(err.Error(), "PRIMARY KEY") {
+			dropStmts = append(dropStmts, fmt.Sprintf(`DROP TABLE IF EXISTS %s.subject_latest`, qident(keyspace)))
+		}
+		// ErrNotFound is fine — means the table has the correct PK
+	}
 	for _, stmt := range dropStmts {
 		if err := session.Query(stmt).Exec(); err != nil {
 			return fmt.Errorf("cassandra migrate failed: %w (stmt=%s)", err, oneLine(stmt))
 		}
 	}
 
-	// Initialize allocator row
+	// Initialize allocator row for default context
 	if err := session.Query(
-		fmt.Sprintf(`INSERT INTO %s.id_alloc (name, next_id) VALUES (?, ?) IF NOT EXISTS`, qident(keyspace)),
-		"schema_id", 1,
+		fmt.Sprintf(`INSERT INTO %s.id_alloc (registry_ctx, name, next_id) VALUES (?, ?, ?) IF NOT EXISTS`, qident(keyspace)),
+		".", "schema_id", 1,
 	).Exec(); err != nil {
 		return fmt.Errorf("cassandra migrate failed inserting allocator row: %w", err)
 	}
 
-	// Initialize global config default
+	// Initialize global config default for default context
 	if err := session.Query(
-		fmt.Sprintf(`INSERT INTO %s.global_config (key, compatibility, updated_at) VALUES (?, ?, now()) IF NOT EXISTS`, qident(keyspace)),
-		"global", "BACKWARD",
+		fmt.Sprintf(`INSERT INTO %s.global_config (registry_ctx, key, compatibility, updated_at) VALUES (?, ?, ?, now()) IF NOT EXISTS`, qident(keyspace)),
+		".", "global", "BACKWARD",
 	).Exec(); err != nil {
 		return fmt.Errorf("cassandra migrate failed inserting global config: %w", err)
 	}
 
-	// Initialize global mode default
+	// Initialize global mode default for default context
 	if err := session.Query(
-		fmt.Sprintf(`INSERT INTO %s.modes (key, mode, updated_at) VALUES (?, ?, now()) IF NOT EXISTS`, qident(keyspace)),
-		"global", "READWRITE",
+		fmt.Sprintf(`INSERT INTO %s.modes (registry_ctx, key, mode, updated_at) VALUES (?, ?, ?, now()) IF NOT EXISTS`, qident(keyspace)),
+		".", "global", "READWRITE",
 	).Exec(); err != nil {
 		return fmt.Errorf("cassandra migrate failed inserting global mode: %w", err)
 	}
 
+	// Initialize default context
+	if err := session.Query(
+		fmt.Sprintf(`INSERT INTO %s.contexts (registry_ctx, created_at) VALUES (?, now()) IF NOT EXISTS`, qident(keyspace)),
+		".",
+	).Exec(); err != nil {
+		return fmt.Errorf("cassandra migrate failed inserting default context: %w", err)
+	}
+
+	// Backfill: migrate data from old table layouts (without registry_ctx in PK) to new layout.
+	// This is a best-effort migration for production upgrades. On fresh installs these
+	// loops simply do nothing because the old tables either don't exist or are empty.
+	backfillSchemasByID(session, keyspace)
+	backfillSubjectVersions(session, keyspace)
+	backfillSubjectLatest(session, keyspace)
+	backfillSchemaFingerprints(session, keyspace)
+
 	return nil
+}
+
+// backfillSchemasByID copies rows from old schemas_by_id (no registry_ctx in PK) into new layout.
+// If the table already has registry_ctx in PK, the INSERT IF NOT EXISTS is a no-op.
+func backfillSchemasByID(session *gocql.Session, keyspace string) {
+	iter := session.Query(
+		fmt.Sprintf(`SELECT schema_id, schema_type, fingerprint, schema_text, canonical_text, created_at, metadata, ruleset FROM %s.schemas_by_id`, qident(keyspace)),
+	).Iter()
+	var sid int
+	var stype, fp, stext, canonical string
+	var createdAt gocql.UUID
+	var metadata, ruleset string
+	for iter.Scan(&sid, &stype, &fp, &stext, &canonical, &createdAt, &metadata, &ruleset) {
+		_ = session.Query(
+			fmt.Sprintf(`INSERT INTO %s.schemas_by_id (registry_ctx, schema_id, schema_type, fingerprint, schema_text, canonical_text, created_at, metadata, ruleset) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) IF NOT EXISTS`, qident(keyspace)),
+			".", sid, stype, fp, stext, canonical, createdAt, metadata, ruleset,
+		).Exec()
+	}
+	_ = iter.Close()
+}
+
+// backfillSubjectVersions copies rows from old subject_versions (no registry_ctx in PK) into new layout.
+func backfillSubjectVersions(session *gocql.Session, keyspace string) {
+	iter := session.Query(
+		fmt.Sprintf(`SELECT subject, version, schema_id, deleted, created_at, metadata, ruleset FROM %s.subject_versions`, qident(keyspace)),
+	).Iter()
+	var subject string
+	var version, schemaID int
+	var deleted bool
+	var createdAt gocql.UUID
+	var metadata, ruleset string
+	for iter.Scan(&subject, &version, &schemaID, &deleted, &createdAt, &metadata, &ruleset) {
+		_ = session.Query(
+			fmt.Sprintf(`INSERT INTO %s.subject_versions (registry_ctx, subject, version, schema_id, deleted, created_at, metadata, ruleset) VALUES (?, ?, ?, ?, ?, ?, ?, ?) IF NOT EXISTS`, qident(keyspace)),
+			".", subject, version, schemaID, deleted, createdAt, metadata, ruleset,
+		).Exec()
+	}
+	_ = iter.Close()
+}
+
+// backfillSubjectLatest sets registry_ctx on existing rows.
+func backfillSubjectLatest(session *gocql.Session, keyspace string) {
+	iter := session.Query(
+		fmt.Sprintf(`SELECT subject, latest_version, latest_schema_id, updated_at FROM %s.subject_latest`, qident(keyspace)),
+	).Iter()
+	var subject string
+	var latestVersion, latestSchemaID int
+	var updatedAt gocql.UUID
+	for iter.Scan(&subject, &latestVersion, &latestSchemaID, &updatedAt) {
+		// Set registry_ctx = '.' on existing rows
+		_ = session.Query(
+			fmt.Sprintf(`UPDATE %s.subject_latest SET registry_ctx = ? WHERE subject = ?`, qident(keyspace)),
+			".", subject,
+		).Exec()
+	}
+	_ = iter.Close()
+}
+
+// backfillSchemaFingerprints copies rows from old schema_fingerprints (no registry_ctx in PK) into new layout.
+func backfillSchemaFingerprints(session *gocql.Session, keyspace string) {
+	iter := session.Query(
+		fmt.Sprintf(`SELECT fingerprint, schema_id FROM %s.schema_fingerprints`, qident(keyspace)),
+	).Iter()
+	var fp string
+	var sid int
+	for iter.Scan(&fp, &sid) {
+		if fp != "" {
+			_ = session.Query(
+				fmt.Sprintf(`INSERT INTO %s.schema_fingerprints (registry_ctx, fingerprint, schema_id) VALUES (?, ?, ?) IF NOT EXISTS`, qident(keyspace)),
+				".", fp, sid,
+			).Exec()
+		}
+	}
+	_ = iter.Close()
 }
 
 // qident quotes a Cassandra identifier if needed.

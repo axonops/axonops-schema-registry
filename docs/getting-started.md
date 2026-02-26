@@ -346,6 +346,7 @@ curl -X PUT http://localhost:8081/config/users-value \
 
 ## Next Steps
 
+- [Best Practices](best-practices.md) -- schema design patterns, naming conventions, evolution strategies, and common mistakes
 - [Installation](installation.md) -- production deployment options, systemd units, and platform-specific packages
 - [Configuration](configuration.md) -- full YAML configuration reference covering server, storage, security, and logging options
 - [Storage Backends](storage-backends.md) -- choosing between PostgreSQL, MySQL, Cassandra, and in-memory storage

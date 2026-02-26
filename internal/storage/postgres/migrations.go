@@ -40,7 +40,9 @@ var migrations = []string{
 	)`,
 
 	// Migration 4: Global configuration (using empty string as subject)
-	`INSERT INTO configs (subject, compatibility_level) VALUES ('', 'BACKWARD') ON CONFLICT (subject) DO NOTHING`,
+	// Uses WHERE NOT EXISTS instead of ON CONFLICT to stay idempotent after the
+	// primary key is later changed from (subject) to (registry_ctx, subject).
+	`INSERT INTO configs (subject, compatibility_level) SELECT '', 'BACKWARD' WHERE NOT EXISTS (SELECT 1 FROM configs WHERE subject = '')`,
 
 	// Migration 5: Mode configuration
 	`CREATE TABLE IF NOT EXISTS modes (
@@ -49,10 +51,14 @@ var migrations = []string{
 	)`,
 
 	// Migration 6: Global mode
-	`INSERT INTO modes (subject, mode) VALUES ('', 'READWRITE') ON CONFLICT (subject) DO NOTHING`,
+	`INSERT INTO modes (subject, mode) SELECT '', 'READWRITE' WHERE NOT EXISTS (SELECT 1 FROM modes WHERE subject = '')`,
 
-	// Migration 7: Schema versions view for efficient lookups
-	`CREATE OR REPLACE VIEW schema_versions AS
+	// Migration 7: Schema versions view for efficient lookups.
+	// Uses DROP+CREATE instead of CREATE OR REPLACE because later migrations
+	// add registry_ctx to the view, and PostgreSQL cannot add/drop columns
+	// via CREATE OR REPLACE VIEW on re-run.
+	`DROP VIEW IF EXISTS schema_versions`,
+	`CREATE VIEW schema_versions AS
 	SELECT subject, MAX(version) as latest_version, COUNT(*) as version_count
 	FROM schemas
 	WHERE deleted = FALSE
@@ -127,7 +133,159 @@ var migrations = []string{
 
 	// Migration 16: Backfill schema_fingerprints from existing schemas data.
 	// Uses MIN(id) to preserve the same global IDs that were previously returned.
+	// Uses WHERE NOT EXISTS instead of ON CONFLICT to stay idempotent after the
+	// primary key is later changed from (fingerprint) to (registry_ctx, fingerprint).
 	`INSERT INTO schema_fingerprints (fingerprint, schema_id)
-	 SELECT fingerprint, MIN(id) FROM schemas GROUP BY fingerprint
-	 ON CONFLICT (fingerprint) DO NOTHING`,
+	 SELECT s.fingerprint, MIN(s.id) FROM schemas s
+	 WHERE NOT EXISTS (SELECT 1 FROM schema_fingerprints sf WHERE sf.fingerprint = s.fingerprint)
+	 GROUP BY s.fingerprint`,
+
+	// ---------------------------------------------------------------
+	// Migrations 17+: Multi-tenant context support (issue #264)
+	// Adds registry_ctx column to all schema/config/mode tables.
+	// Schema IDs become per-context. Default context is ".".
+	// ---------------------------------------------------------------
+
+	// Migration 17: Add registry_ctx column to schemas table.
+	`ALTER TABLE schemas ADD COLUMN IF NOT EXISTS registry_ctx VARCHAR(255) NOT NULL DEFAULT '.'`,
+
+	// Migration 18: Drop old unique constraints that don't include registry_ctx.
+	// New context-scoped constraints are added in migration 19.
+	`ALTER TABLE schemas DROP CONSTRAINT IF EXISTS schemas_subject_version_key`,
+
+	// Migration 19: Drop old fingerprint unique constraint.
+	`ALTER TABLE schemas DROP CONSTRAINT IF EXISTS schemas_subject_fingerprint_key`,
+
+	// Migration 20: Create context-scoped unique indexes on schemas.
+	`CREATE UNIQUE INDEX IF NOT EXISTS idx_schemas_ctx_subj_ver ON schemas(registry_ctx, subject, version)`,
+
+	// Migration 21: Create context-scoped fingerprint uniqueness.
+	`CREATE UNIQUE INDEX IF NOT EXISTS idx_schemas_ctx_subj_fp ON schemas(registry_ctx, subject, fingerprint)`,
+
+	// Migration 22: Add registry_ctx to schema_fingerprints.
+	`ALTER TABLE schema_fingerprints ADD COLUMN IF NOT EXISTS registry_ctx VARCHAR(255) NOT NULL DEFAULT '.'`,
+
+	// Migration 23: Drop old schema_fingerprints primary key (fingerprint only).
+	`ALTER TABLE schema_fingerprints DROP CONSTRAINT IF EXISTS schema_fingerprints_pkey`,
+
+	// Migration 24: Add new compound primary key to schema_fingerprints.
+	`ALTER TABLE schema_fingerprints ADD CONSTRAINT schema_fingerprints_pkey PRIMARY KEY (registry_ctx, fingerprint)`,
+
+	// Migration 25: Drop old UNIQUE constraint on schema_id (IDs are now per-context).
+	`ALTER TABLE schema_fingerprints DROP CONSTRAINT IF EXISTS schema_fingerprints_schema_id_key`,
+
+	// Migration 26: Add per-context unique constraint on schema_id.
+	`CREATE UNIQUE INDEX IF NOT EXISTS idx_schema_fp_ctx_id ON schema_fingerprints(registry_ctx, schema_id)`,
+
+	// Migration 27: Add registry_ctx to configs.
+	`ALTER TABLE configs ADD COLUMN IF NOT EXISTS registry_ctx VARCHAR(255) NOT NULL DEFAULT '.'`,
+
+	// Migration 28: Drop old configs primary key (subject only).
+	`ALTER TABLE configs DROP CONSTRAINT IF EXISTS configs_pkey`,
+
+	// Migration 29: Add new compound primary key to configs.
+	`ALTER TABLE configs ADD CONSTRAINT configs_pkey PRIMARY KEY (registry_ctx, subject)`,
+
+	// Migration 30: Add registry_ctx to modes.
+	`ALTER TABLE modes ADD COLUMN IF NOT EXISTS registry_ctx VARCHAR(255) NOT NULL DEFAULT '.'`,
+
+	// Migration 31: Drop old modes primary key (subject only).
+	`ALTER TABLE modes DROP CONSTRAINT IF EXISTS modes_pkey`,
+
+	// Migration 32: Add new compound primary key to modes.
+	`ALTER TABLE modes ADD CONSTRAINT modes_pkey PRIMARY KEY (registry_ctx, subject)`,
+
+	// Migration 33: Per-context ID allocation table.
+	// Each context has its own ID sequence starting at 1.
+	`CREATE TABLE IF NOT EXISTS ctx_id_alloc (
+		registry_ctx VARCHAR(255) PRIMARY KEY,
+		next_id BIGINT NOT NULL DEFAULT 1
+	)`,
+
+	// Migration 34: Seed ctx_id_alloc for default context with current max ID.
+	`INSERT INTO ctx_id_alloc (registry_ctx, next_id)
+	 SELECT '.', COALESCE(MAX(schema_id), 0) + 1 FROM schema_fingerprints WHERE registry_ctx = '.'
+	 ON CONFLICT (registry_ctx) DO NOTHING`,
+
+	// Migration 35: Contexts tracking table.
+	`CREATE TABLE IF NOT EXISTS contexts (
+		registry_ctx VARCHAR(255) PRIMARY KEY,
+		created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+	)`,
+
+	// Migration 36: Seed default context.
+	`INSERT INTO contexts (registry_ctx) VALUES ('.') ON CONFLICT DO NOTHING`,
+
+	// Migration 37: Add registry_ctx to schema_references.
+	`ALTER TABLE schema_references ADD COLUMN IF NOT EXISTS registry_ctx VARCHAR(255) NOT NULL DEFAULT '.'`,
+
+	// Migration 38: Index for context-scoped queries on schemas.
+	`CREATE INDEX IF NOT EXISTS idx_schemas_registry_ctx ON schemas(registry_ctx)`,
+
+	// Migration 39: Drop the old schema_versions view before recreating.
+	// PostgreSQL cannot rename columns via CREATE OR REPLACE VIEW.
+	`DROP VIEW IF EXISTS schema_versions`,
+
+	// Migration 40: Recreate schema_versions view with registry_ctx.
+	`CREATE VIEW schema_versions AS
+	SELECT registry_ctx, subject, MAX(version) as latest_version, COUNT(*) as version_count
+	FROM schemas
+	WHERE deleted = FALSE
+	GROUP BY registry_ctx, subject`,
+
+	// Migration 41: Relax fingerprint uniqueness per subject.
+	// The same schema text (fingerprint) can now appear in multiple versions of
+	// the same subject when metadata or ruleSet differ (Confluent compatibility).
+	// Drop the unique index and replace with a non-unique index for lookups.
+	`DROP INDEX IF EXISTS idx_schemas_ctx_subj_fp`,
+	`CREATE INDEX IF NOT EXISTS idx_schemas_ctx_subj_fp ON schemas(registry_ctx, subject, fingerprint)`,
+
+	// Migration 42: KEKs table (CSFLE)
+	`CREATE TABLE IF NOT EXISTS keks (
+		name VARCHAR(255) PRIMARY KEY,
+		kms_type VARCHAR(50) NOT NULL,
+		kms_key_id VARCHAR(500) NOT NULL,
+		kms_props JSONB,
+		doc TEXT,
+		shared BOOLEAN NOT NULL DEFAULT FALSE,
+		deleted BOOLEAN NOT NULL DEFAULT FALSE,
+		ts BIGINT NOT NULL DEFAULT 0,
+		created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+		updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+	)`,
+
+	// Migration 43: DEKs table (CSFLE)
+	`CREATE TABLE IF NOT EXISTS deks (
+		kek_name VARCHAR(255) NOT NULL,
+		subject VARCHAR(255) NOT NULL,
+		version INTEGER NOT NULL,
+		algorithm VARCHAR(50) NOT NULL DEFAULT 'AES256_GCM',
+		encrypted_key_material TEXT,
+		deleted BOOLEAN NOT NULL DEFAULT FALSE,
+		ts BIGINT NOT NULL DEFAULT 0,
+		PRIMARY KEY (kek_name, subject, version, algorithm)
+	)`,
+
+	`CREATE INDEX IF NOT EXISTS idx_deks_kek_name ON deks(kek_name)`,
+
+	// Migration 44: Exporters table
+	`CREATE TABLE IF NOT EXISTS exporters (
+		name VARCHAR(255) PRIMARY KEY,
+		context_type VARCHAR(50),
+		context VARCHAR(255),
+		subjects JSONB,
+		subject_rename_format VARCHAR(255),
+		config JSONB,
+		created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+		updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+	)`,
+
+	// Migration 45: Exporter statuses table
+	`CREATE TABLE IF NOT EXISTS exporter_statuses (
+		name VARCHAR(255) PRIMARY KEY REFERENCES exporters(name) ON DELETE CASCADE,
+		state VARCHAR(50) NOT NULL DEFAULT 'PAUSED',
+		"offset" BIGINT NOT NULL DEFAULT 0,
+		ts BIGINT NOT NULL DEFAULT 0,
+		trace TEXT
+	)`,
 }

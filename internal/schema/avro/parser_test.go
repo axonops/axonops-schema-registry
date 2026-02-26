@@ -1,6 +1,7 @@
 package avro
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/axonops/axonops-schema-registry/internal/storage"
@@ -712,5 +713,520 @@ func TestParser_ParseUnusedReferencesGraceful(t *testing.T) {
 	}
 	if parsed.Fingerprint() == "" {
 		t.Error("Expected non-empty fingerprint")
+	}
+}
+
+// --- Avro Namespace Inheritance Tests ---
+// Per the Avro specification, a nested named type (record, enum, fixed) without
+// an explicit namespace inherits the namespace from its most tightly enclosing
+// named type. These tests verify that the canonical form correctly resolves
+// inherited namespaces, producing fully-qualified names in all cases.
+
+func TestCanonicalize_NestedRecordInheritsNamespace(t *testing.T) {
+	// Inner has no explicit namespace → should inherit "com.example" from Outer.
+	schema := `{
+		"type": "record",
+		"name": "Outer",
+		"namespace": "com.example",
+		"fields": [
+			{"name": "inner", "type": {
+				"type": "record",
+				"name": "Inner",
+				"fields": [
+					{"name": "value", "type": "string"}
+				]
+			}}
+		]
+	}`
+
+	canonical := canonicalize(schema)
+	if !strings.Contains(canonical, `"name":"com.example.Inner"`) {
+		t.Errorf("Inner should inherit namespace com.example, got: %s", canonical)
+	}
+	if !strings.Contains(canonical, `"name":"com.example.Outer"`) {
+		t.Errorf("Outer should be fully qualified, got: %s", canonical)
+	}
+}
+
+func TestCanonicalize_NestedEnumInheritsNamespace(t *testing.T) {
+	// Enum Status has no explicit namespace → should inherit "com.example" from Outer.
+	schema := `{
+		"type": "record",
+		"name": "Outer",
+		"namespace": "com.example",
+		"fields": [
+			{"name": "status", "type": {
+				"type": "enum",
+				"name": "Status",
+				"symbols": ["ACTIVE", "INACTIVE"]
+			}}
+		]
+	}`
+
+	canonical := canonicalize(schema)
+	if !strings.Contains(canonical, `"name":"com.example.Status"`) {
+		t.Errorf("Enum Status should inherit namespace com.example, got: %s", canonical)
+	}
+}
+
+func TestCanonicalize_NestedFixedInheritsNamespace(t *testing.T) {
+	// Fixed Hash has no explicit namespace → should inherit "com.example" from Outer.
+	schema := `{
+		"type": "record",
+		"name": "Outer",
+		"namespace": "com.example",
+		"fields": [
+			{"name": "hash", "type": {
+				"type": "fixed",
+				"name": "Hash",
+				"size": 16
+			}}
+		]
+	}`
+
+	canonical := canonicalize(schema)
+	if !strings.Contains(canonical, `"name":"com.example.Hash"`) {
+		t.Errorf("Fixed Hash should inherit namespace com.example, got: %s", canonical)
+	}
+}
+
+func TestCanonicalize_ThreeLevelDeepInheritance(t *testing.T) {
+	// L2 and L3 have no explicit namespace → both should inherit "com.example" from L1.
+	schema := `{
+		"type": "record",
+		"name": "L1",
+		"namespace": "com.example",
+		"fields": [
+			{"name": "l2", "type": {
+				"type": "record",
+				"name": "L2",
+				"fields": [
+					{"name": "l3", "type": {
+						"type": "record",
+						"name": "L3",
+						"fields": [
+							{"name": "value", "type": "string"}
+						]
+					}}
+				]
+			}}
+		]
+	}`
+
+	canonical := canonicalize(schema)
+	if !strings.Contains(canonical, `"name":"com.example.L1"`) {
+		t.Errorf("L1 should be fully qualified, got: %s", canonical)
+	}
+	if !strings.Contains(canonical, `"name":"com.example.L2"`) {
+		t.Errorf("L2 should inherit namespace com.example, got: %s", canonical)
+	}
+	if !strings.Contains(canonical, `"name":"com.example.L3"`) {
+		t.Errorf("L3 should inherit namespace com.example, got: %s", canonical)
+	}
+}
+
+func TestCanonicalize_NestedTypeOverridesNamespace(t *testing.T) {
+	// Inner has its own namespace "com.other" → should NOT inherit from Outer's "com.example".
+	schema := `{
+		"type": "record",
+		"name": "Outer",
+		"namespace": "com.example",
+		"fields": [
+			{"name": "inner", "type": {
+				"type": "record",
+				"name": "Inner",
+				"namespace": "com.other",
+				"fields": [
+					{"name": "value", "type": "string"}
+				]
+			}}
+		]
+	}`
+
+	canonical := canonicalize(schema)
+	if !strings.Contains(canonical, `"name":"com.example.Outer"`) {
+		t.Errorf("Outer should be com.example.Outer, got: %s", canonical)
+	}
+	if !strings.Contains(canonical, `"name":"com.other.Inner"`) {
+		t.Errorf("Inner should use its own namespace com.other, got: %s", canonical)
+	}
+}
+
+func TestCanonicalize_OverriddenNamespacePropagates(t *testing.T) {
+	// Middle overrides namespace to "com.middle". Leaf has no namespace → should inherit "com.middle".
+	schema := `{
+		"type": "record",
+		"name": "Top",
+		"namespace": "com.top",
+		"fields": [
+			{"name": "mid", "type": {
+				"type": "record",
+				"name": "Middle",
+				"namespace": "com.middle",
+				"fields": [
+					{"name": "leaf", "type": {
+						"type": "record",
+						"name": "Leaf",
+						"fields": [
+							{"name": "data", "type": "string"}
+						]
+					}}
+				]
+			}}
+		]
+	}`
+
+	canonical := canonicalize(schema)
+	if !strings.Contains(canonical, `"name":"com.top.Top"`) {
+		t.Errorf("Top should be com.top.Top, got: %s", canonical)
+	}
+	if !strings.Contains(canonical, `"name":"com.middle.Middle"`) {
+		t.Errorf("Middle should be com.middle.Middle, got: %s", canonical)
+	}
+	if !strings.Contains(canonical, `"name":"com.middle.Leaf"`) {
+		t.Errorf("Leaf should inherit com.middle from Middle, got: %s", canonical)
+	}
+}
+
+func TestCanonicalize_AlreadyQualifiedNameNotDoubled(t *testing.T) {
+	// Inner already has a fully-qualified name with dot → should not be re-qualified.
+	schema := `{
+		"type": "record",
+		"name": "Outer",
+		"namespace": "com.example",
+		"fields": [
+			{"name": "inner", "type": {
+				"type": "record",
+				"name": "org.other.Inner",
+				"fields": [
+					{"name": "value", "type": "string"}
+				]
+			}}
+		]
+	}`
+
+	canonical := canonicalize(schema)
+	if !strings.Contains(canonical, `"name":"org.other.Inner"`) {
+		t.Errorf("Already-qualified name should not be modified, got: %s", canonical)
+	}
+}
+
+func TestCanonicalize_NoNamespaceAtAll(t *testing.T) {
+	// No namespace anywhere → names should remain unqualified (short).
+	schema := `{
+		"type": "record",
+		"name": "Outer",
+		"fields": [
+			{"name": "inner", "type": {
+				"type": "record",
+				"name": "Inner",
+				"fields": [
+					{"name": "value", "type": "string"}
+				]
+			}}
+		]
+	}`
+
+	canonical := canonicalize(schema)
+	if strings.Contains(canonical, `"name":"."`) {
+		t.Errorf("Should not produce empty namespace prefix, got: %s", canonical)
+	}
+	// Names should just be "Outer" and "Inner" with no dots
+	if !strings.Contains(canonical, `"name":"Outer"`) {
+		t.Errorf("Outer should be unqualified, got: %s", canonical)
+	}
+	if !strings.Contains(canonical, `"name":"Inner"`) {
+		t.Errorf("Inner should be unqualified, got: %s", canonical)
+	}
+}
+
+func TestCanonicalize_InheritanceThroughArrayItems(t *testing.T) {
+	// Named type inside an array items inherits namespace from enclosing record.
+	schema := `{
+		"type": "record",
+		"name": "Order",
+		"namespace": "com.shop",
+		"fields": [
+			{"name": "items", "type": {
+				"type": "array",
+				"items": {
+					"type": "record",
+					"name": "LineItem",
+					"fields": [
+						{"name": "product", "type": "string"},
+						{"name": "qty", "type": "int"}
+					]
+				}
+			}}
+		]
+	}`
+
+	canonical := canonicalize(schema)
+	if !strings.Contains(canonical, `"name":"com.shop.Order"`) {
+		t.Errorf("Order should be fully qualified, got: %s", canonical)
+	}
+	if !strings.Contains(canonical, `"name":"com.shop.LineItem"`) {
+		t.Errorf("LineItem in array items should inherit com.shop, got: %s", canonical)
+	}
+}
+
+func TestCanonicalize_InheritanceThroughMapValues(t *testing.T) {
+	// Named type inside map values inherits namespace from enclosing record.
+	schema := `{
+		"type": "record",
+		"name": "Registry",
+		"namespace": "com.example",
+		"fields": [
+			{"name": "configs", "type": {
+				"type": "map",
+				"values": {
+					"type": "record",
+					"name": "Config",
+					"fields": [
+						{"name": "key", "type": "string"},
+						{"name": "enabled", "type": "boolean"}
+					]
+				}
+			}}
+		]
+	}`
+
+	canonical := canonicalize(schema)
+	if !strings.Contains(canonical, `"name":"com.example.Config"`) {
+		t.Errorf("Config in map values should inherit com.example, got: %s", canonical)
+	}
+}
+
+func TestCanonicalize_InheritanceThroughUnion(t *testing.T) {
+	// Named type inside a union inherits namespace from enclosing record.
+	schema := `{
+		"type": "record",
+		"name": "Event",
+		"namespace": "com.events",
+		"fields": [
+			{"name": "payload", "type": ["null", {
+				"type": "record",
+				"name": "Detail",
+				"fields": [
+					{"name": "info", "type": "string"}
+				]
+			}]}
+		]
+	}`
+
+	canonical := canonicalize(schema)
+	if !strings.Contains(canonical, `"name":"com.events.Detail"`) {
+		t.Errorf("Detail in union should inherit com.events, got: %s", canonical)
+	}
+}
+
+func TestFingerprint_ExplicitVsInheritedNamespacesMatch(t *testing.T) {
+	parser := NewParser()
+
+	// Schema 1: Inner has explicit namespace matching parent
+	schemaExplicit := `{
+		"type": "record",
+		"name": "Outer",
+		"namespace": "com.example",
+		"fields": [
+			{"name": "inner", "type": {
+				"type": "record",
+				"name": "Inner",
+				"namespace": "com.example",
+				"fields": [
+					{"name": "value", "type": "string"}
+				]
+			}}
+		]
+	}`
+
+	// Schema 2: Inner has no namespace (inherits com.example from parent)
+	schemaInherited := `{
+		"type": "record",
+		"name": "Outer",
+		"namespace": "com.example",
+		"fields": [
+			{"name": "inner", "type": {
+				"type": "record",
+				"name": "Inner",
+				"fields": [
+					{"name": "value", "type": "string"}
+				]
+			}}
+		]
+	}`
+
+	parsed1, err := parser.Parse(schemaExplicit, nil)
+	if err != nil {
+		t.Fatalf("Parse explicit failed: %v", err)
+	}
+	parsed2, err := parser.Parse(schemaInherited, nil)
+	if err != nil {
+		t.Fatalf("Parse inherited failed: %v", err)
+	}
+
+	if parsed1.Fingerprint() != parsed2.Fingerprint() {
+		t.Errorf("Explicit and inherited namespaces should produce same fingerprint.\n  Explicit:  %s\n  Inherited: %s",
+			parsed1.CanonicalString(), parsed2.CanonicalString())
+	}
+}
+
+func TestFingerprint_DifferentInheritedNamespacesAreDifferent(t *testing.T) {
+	parser := NewParser()
+
+	// Schema 1: Inner inherits "com.alpha" from parent
+	schema1 := `{
+		"type": "record",
+		"name": "Outer",
+		"namespace": "com.alpha",
+		"fields": [
+			{"name": "inner", "type": {
+				"type": "record",
+				"name": "Inner",
+				"fields": [{"name": "v", "type": "string"}]
+			}}
+		]
+	}`
+
+	// Schema 2: Inner inherits "com.beta" from parent
+	schema2 := `{
+		"type": "record",
+		"name": "Outer",
+		"namespace": "com.beta",
+		"fields": [
+			{"name": "inner", "type": {
+				"type": "record",
+				"name": "Inner",
+				"fields": [{"name": "v", "type": "string"}]
+			}}
+		]
+	}`
+
+	parsed1, err := parser.Parse(schema1, nil)
+	if err != nil {
+		t.Fatalf("Parse schema1 failed: %v", err)
+	}
+	parsed2, err := parser.Parse(schema2, nil)
+	if err != nil {
+		t.Fatalf("Parse schema2 failed: %v", err)
+	}
+
+	if parsed1.Fingerprint() == parsed2.Fingerprint() {
+		t.Errorf("Different inherited namespaces should produce different fingerprints.\n  Schema1: %s\n  Schema2: %s",
+			parsed1.CanonicalString(), parsed2.CanonicalString())
+	}
+}
+
+func TestCanonicalize_RealWorldPaymentEventInheritance(t *testing.T) {
+	// Real-world schema: PaymentEvent has namespace "com.example.payments".
+	// Nested types Currency (enum), PaymentStatus (enum), Customer (record),
+	// Address (record), LineItem (record) all lack explicit namespaces and
+	// must inherit from their enclosing types.
+	schema := `{
+		"type": "record",
+		"name": "PaymentEvent",
+		"namespace": "com.example.payments",
+		"fields": [
+			{"name": "event_id", "type": "string"},
+			{"name": "currency", "type": {"type": "enum", "name": "Currency", "symbols": ["USD", "EUR", "GBP"]}},
+			{"name": "status", "type": {"type": "enum", "name": "PaymentStatus", "symbols": ["PENDING", "COMPLETED"]}},
+			{"name": "customer", "type": {
+				"type": "record",
+				"name": "Customer",
+				"fields": [
+					{"name": "id", "type": "long"},
+					{"name": "name", "type": "string"},
+					{"name": "address", "type": {
+						"type": "record",
+						"name": "Address",
+						"fields": [
+							{"name": "street", "type": "string"},
+							{"name": "city", "type": "string"}
+						]
+					}}
+				]
+			}},
+			{"name": "items", "type": {"type": "array", "items": {
+				"type": "record",
+				"name": "LineItem",
+				"fields": [
+					{"name": "product_id", "type": "string"},
+					{"name": "quantity", "type": "int"}
+				]
+			}}}
+		]
+	}`
+
+	canonical := canonicalize(schema)
+
+	// All named types should be qualified with com.example.payments
+	expectedNames := []string{
+		`"name":"com.example.payments.PaymentEvent"`,
+		`"name":"com.example.payments.Currency"`,
+		`"name":"com.example.payments.PaymentStatus"`,
+		`"name":"com.example.payments.Customer"`,
+		`"name":"com.example.payments.Address"`,
+		`"name":"com.example.payments.LineItem"`,
+	}
+	for _, expected := range expectedNames {
+		if !strings.Contains(canonical, expected) {
+			t.Errorf("Expected %s in canonical form, got: %s", expected, canonical)
+		}
+	}
+}
+
+func TestCanonicalize_MixedExplicitAndInheritedNamespaces(t *testing.T) {
+	// Top-level: com.example
+	// Customer: explicit com.customers (overrides)
+	// Preference: no namespace → inherits com.customers from Customer
+	// LineItem: no namespace → inherits com.example from Order (top-level)
+	schema := `{
+		"type": "record",
+		"name": "Order",
+		"namespace": "com.example",
+		"fields": [
+			{"name": "customer", "type": {
+				"type": "record",
+				"name": "Customer",
+				"namespace": "com.customers",
+				"fields": [
+					{"name": "id", "type": "long"},
+					{"name": "pref", "type": {
+						"type": "record",
+						"name": "Preference",
+						"fields": [
+							{"name": "key", "type": "string"},
+							{"name": "value", "type": "string"}
+						]
+					}}
+				]
+			}},
+			{"name": "item", "type": {
+				"type": "record",
+				"name": "LineItem",
+				"fields": [
+					{"name": "product", "type": "string"}
+				]
+			}}
+		]
+	}`
+
+	canonical := canonicalize(schema)
+
+	// Order → com.example.Order
+	if !strings.Contains(canonical, `"name":"com.example.Order"`) {
+		t.Errorf("Order should be com.example.Order, got: %s", canonical)
+	}
+	// Customer → com.customers.Customer (explicit override)
+	if !strings.Contains(canonical, `"name":"com.customers.Customer"`) {
+		t.Errorf("Customer should be com.customers.Customer, got: %s", canonical)
+	}
+	// Preference → com.customers.Preference (inherits from Customer)
+	if !strings.Contains(canonical, `"name":"com.customers.Preference"`) {
+		t.Errorf("Preference should inherit com.customers from Customer, got: %s", canonical)
+	}
+	// LineItem → com.example.LineItem (inherits from Order, not from Customer)
+	if !strings.Contains(canonical, `"name":"com.example.LineItem"`) {
+		t.Errorf("LineItem should inherit com.example from Order, got: %s", canonical)
 	}
 }

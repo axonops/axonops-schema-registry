@@ -1,195 +1,86 @@
-// Package context provides multi-tenancy support via contexts.
+// Package context provides multi-tenancy support via schema registry contexts.
+// Contexts are Confluent-compatible namespaces that isolate subjects, schema IDs,
+// compatibility config, and modes within a single Schema Registry instance.
 package context
 
 import (
 	"context"
 	"fmt"
 	"strings"
-	"sync"
-
-	"github.com/axonops/axonops-schema-registry/internal/storage"
 )
 
-// Context represents a schema registry context for multi-tenancy.
-type Context struct {
-	Name        string            `json:"name"`
-	Description string            `json:"description,omitempty"`
-	Config      *ContextConfig    `json:"config,omitempty"`
-	Metadata    map[string]string `json:"metadata,omitempty"`
+// DefaultContext is the name of the default registry context.
+const DefaultContext = "."
+
+// GlobalContext is the special cross-context config/mode namespace.
+// Confluent-compatible: only config and mode operations are allowed on this context.
+// Schemas and subjects CANNOT be registered under __GLOBAL.
+const GlobalContext = ".__GLOBAL"
+
+// RegistryContextKey is the context key for storing the registry context name in request context.
+type registryContextKeyType string
+
+const registryContextKey registryContextKeyType = "schema_registry_context"
+
+// WithRegistryContext adds a registry context name to the request context.
+func WithRegistryContext(ctx context.Context, registryCtx string) context.Context {
+	return context.WithValue(ctx, registryContextKey, registryCtx)
 }
 
-// ContextConfig holds configuration for a context.
-type ContextConfig struct {
-	CompatibilityLevel string `json:"compatibilityLevel,omitempty"`
-	Mode               string `json:"mode,omitempty"`
-}
-
-// ContextManager manages contexts for multi-tenancy.
-type ContextManager struct {
-	mu         sync.RWMutex
-	contexts   map[string]*Context
-	defaultCtx *Context
-	storage    storage.Storage
-}
-
-// NewContextManager creates a new context manager.
-func NewContextManager(store storage.Storage) *ContextManager {
-	cm := &ContextManager{
-		contexts: make(map[string]*Context),
-		storage:  store,
-		defaultCtx: &Context{
-			Name:        ".",
-			Description: "Default context",
-			Config: &ContextConfig{
-				CompatibilityLevel: "BACKWARD",
-				Mode:               "READWRITE",
-			},
-		},
-	}
-	cm.contexts["."] = cm.defaultCtx
-	return cm
-}
-
-// CreateContext creates a new context.
-func (cm *ContextManager) CreateContext(ctx *Context) error {
-	cm.mu.Lock()
-	defer cm.mu.Unlock()
-
-	if ctx.Name == "" {
-		return fmt.Errorf("context name is required")
-	}
-
-	if !isValidContextName(ctx.Name) {
-		return fmt.Errorf("invalid context name: %s", ctx.Name)
-	}
-
-	if _, exists := cm.contexts[ctx.Name]; exists {
-		return fmt.Errorf("context already exists: %s", ctx.Name)
-	}
-
-	// Inherit from default if not specified
-	if ctx.Config == nil {
-		ctx.Config = &ContextConfig{
-			CompatibilityLevel: cm.defaultCtx.Config.CompatibilityLevel,
-			Mode:               cm.defaultCtx.Config.Mode,
+// RegistryContextFromRequest retrieves the registry context name from request context.
+// Returns DefaultContext (".") if not set.
+func RegistryContextFromRequest(ctx context.Context) string {
+	if v := ctx.Value(registryContextKey); v != nil {
+		if s, ok := v.(string); ok && s != "" {
+			return s
 		}
 	}
-
-	cm.contexts[ctx.Name] = ctx
-	return nil
+	return DefaultContext
 }
 
-// GetContext retrieves a context by name.
-func (cm *ContextManager) GetContext(name string) (*Context, error) {
-	cm.mu.RLock()
-	defer cm.mu.RUnlock()
-
-	ctx, exists := cm.contexts[name]
-	if !exists {
-		return nil, fmt.Errorf("context not found: %s", name)
-	}
-
-	return ctx, nil
-}
-
-// ListContexts returns all contexts.
-func (cm *ContextManager) ListContexts() []*Context {
-	cm.mu.RLock()
-	defer cm.mu.RUnlock()
-
-	result := make([]*Context, 0, len(cm.contexts))
-	for _, ctx := range cm.contexts {
-		result = append(result, ctx)
-	}
-	return result
-}
-
-// UpdateContext updates an existing context.
-func (cm *ContextManager) UpdateContext(ctx *Context) error {
-	cm.mu.Lock()
-	defer cm.mu.Unlock()
-
-	if _, exists := cm.contexts[ctx.Name]; !exists {
-		return fmt.Errorf("context not found: %s", ctx.Name)
-	}
-
-	cm.contexts[ctx.Name] = ctx
-	return nil
-}
-
-// DeleteContext deletes a context.
-func (cm *ContextManager) DeleteContext(name string) error {
-	cm.mu.Lock()
-	defer cm.mu.Unlock()
-
-	if name == "." {
-		return fmt.Errorf("cannot delete default context")
-	}
-
-	if _, exists := cm.contexts[name]; !exists {
-		return fmt.Errorf("context not found: %s", name)
-	}
-
-	delete(cm.contexts, name)
-	return nil
-}
-
-// GetDefaultContext returns the default context.
-func (cm *ContextManager) GetDefaultContext() *Context {
-	cm.mu.RLock()
-	defer cm.mu.RUnlock()
-	return cm.defaultCtx
-}
-
-// SetDefaultConfig sets the default context configuration.
-func (cm *ContextManager) SetDefaultConfig(config *ContextConfig) {
-	cm.mu.Lock()
-	defer cm.mu.Unlock()
-	cm.defaultCtx.Config = config
-}
-
-// ResolveSubject resolves a subject name with context prefix.
-// Format: :.context.:subject or just subject (uses default context)
-func (cm *ContextManager) ResolveSubject(subject string) (contextName, resolvedSubject string) {
-	if strings.HasPrefix(subject, ":.") && strings.Contains(subject[2:], ".:") {
-		// Format: :.context.:subject
-		parts := strings.SplitN(subject[2:], ".:", 2)
-		if len(parts) == 2 {
-			return parts[0], parts[1]
+// ResolveSubject resolves a subject name that may contain a context prefix.
+// Confluent format: :.contextname:subject → (contextname, subject)
+// Plain subject: mysubject → (DefaultContext, mysubject)
+//
+// Context names in the prefix include a leading dot: :.TestContext:mysubject
+// The returned context name includes the dot: ".TestContext"
+func ResolveSubject(subject string) (registryCtx, resolvedSubject string) {
+	if strings.HasPrefix(subject, ":.") {
+		// Find the second colon after the leading ":."
+		rest := subject[2:] // everything after ":."
+		idx := strings.Index(rest, ":")
+		if idx > 0 {
+			// :.contextname:subject (subject may be empty for context-level operations)
+			ctxName := "." + rest[:idx] // prepend dot for display form
+			subj := rest[idx+1:]
+			return ctxName, subj
 		}
 	}
-	return ".", subject
+	return DefaultContext, subject
 }
 
-// FormatSubject formats a subject with context prefix.
-func (cm *ContextManager) FormatSubject(contextName, subject string) string {
-	if contextName == "." || contextName == "" {
+// FormatSubject formats a subject with a context prefix.
+// Returns just the subject name for the default context.
+// For non-default contexts: :.contextname:subject
+func FormatSubject(registryCtx, subject string) string {
+	if registryCtx == DefaultContext || registryCtx == "" {
 		return subject
 	}
-	return fmt.Sprintf(":.%s.:%s", contextName, subject)
+	// registryCtx already includes the leading dot (e.g., ".TestContext")
+	// Output: :.TestContext:subject
+	return fmt.Sprintf(":%s:%s", registryCtx, subject)
 }
 
-// GetContextConfig gets the effective configuration for a context.
-func (cm *ContextManager) GetContextConfig(name string) (*ContextConfig, error) {
-	cm.mu.RLock()
-	defer cm.mu.RUnlock()
-
-	ctx, exists := cm.contexts[name]
-	if !exists {
-		return nil, fmt.Errorf("context not found: %s", name)
-	}
-
-	// Return context config or inherit from default
-	if ctx.Config != nil {
-		return ctx.Config, nil
-	}
-	return cm.defaultCtx.Config, nil
-}
-
-// isValidContextName validates a context name.
-func isValidContextName(name string) bool {
+// IsValidContextName validates a context name.
+// Context names can contain alphanumeric characters, dashes, underscores, and dots.
+// The leading dot is part of the display name (e.g., ".TestContext").
+func IsValidContextName(name string) bool {
 	if name == "" || len(name) > 255 {
 		return false
+	}
+	// The default context "." is always valid
+	if name == DefaultContext {
+		return true
 	}
 	// Allow alphanumeric, dash, underscore, dot
 	for _, c := range name {
@@ -200,29 +91,24 @@ func isValidContextName(name string) bool {
 	return true
 }
 
+// NormalizeContextName ensures a context name is in the proper display form.
+// If the name doesn't start with ".", it prepends one.
+// The special value ":.:" maps to the default context ".".
+func NormalizeContextName(name string) string {
+	if name == ":.:" || name == "" {
+		return DefaultContext
+	}
+	if !strings.HasPrefix(name, ".") {
+		return "." + name
+	}
+	return name
+}
+
+// IsGlobalContext returns true if the context name is the special __GLOBAL context.
+func IsGlobalContext(name string) bool {
+	return name == GlobalContext
+}
+
 func isAlphaNumeric(c rune) bool {
 	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
-}
-
-// ContextKey is the context key for storing context info in request context.
-type ContextKey string
-
-const (
-	// CurrentContextKey is the key for the current context in request context.
-	CurrentContextKey ContextKey = "schema_registry_context"
-)
-
-// WithContext adds a context to the request context.
-func WithContext(ctx context.Context, schemaCtx *Context) context.Context {
-	return context.WithValue(ctx, CurrentContextKey, schemaCtx)
-}
-
-// FromContext retrieves the context from request context.
-func FromContext(ctx context.Context) *Context {
-	if v := ctx.Value(CurrentContextKey); v != nil {
-		if c, ok := v.(*Context); ok {
-			return c
-		}
-	}
-	return nil
 }

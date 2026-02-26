@@ -42,6 +42,14 @@ const (
 	// Import permissions (for migration)
 	PermissionImport Permission = "import:write"
 
+	// Encryption permissions (KEK/DEK management)
+	PermissionEncryptionRead  Permission = "encryption:read"
+	PermissionEncryptionWrite Permission = "encryption:write"
+
+	// Exporter permissions
+	PermissionExporterRead  Permission = "exporter:read"
+	PermissionExporterWrite Permission = "exporter:write"
+
 	// Admin permissions
 	PermissionAdminRead  Permission = "admin:read"
 	PermissionAdminWrite Permission = "admin:write"
@@ -55,6 +63,8 @@ var rolePermissions = map[Role][]Permission{
 		PermissionModeRead, PermissionModeWrite,
 		PermissionImport,
 		PermissionAdminRead, PermissionAdminWrite,
+		PermissionEncryptionRead, PermissionEncryptionWrite,
+		PermissionExporterRead, PermissionExporterWrite,
 	},
 	RoleAdmin: {
 		PermissionSchemaRead, PermissionSchemaWrite, PermissionSchemaDelete,
@@ -62,16 +72,22 @@ var rolePermissions = map[Role][]Permission{
 		PermissionModeRead, PermissionModeWrite,
 		PermissionImport,
 		PermissionAdminRead,
+		PermissionEncryptionRead, PermissionEncryptionWrite,
+		PermissionExporterRead, PermissionExporterWrite,
 	},
 	RoleDeveloper: {
 		PermissionSchemaRead, PermissionSchemaWrite,
 		PermissionConfigRead,
 		PermissionModeRead,
+		PermissionEncryptionRead,
+		PermissionExporterRead,
 	},
 	RoleReadOnly: {
 		PermissionSchemaRead,
 		PermissionConfigRead,
 		PermissionModeRead,
+		PermissionEncryptionRead,
+		PermissionExporterRead,
 	},
 }
 
@@ -181,7 +197,53 @@ func DefaultEndpointPermissions() []EndpointPermission {
 
 		// Import operations (migration)
 		{Method: "POST", PathPrefix: "/import", Permission: PermissionImport},
+
+		// DEK Registry (encryption key management)
+		{Method: "GET", PathPrefix: "/dek-registry", Permission: PermissionEncryptionRead},
+		{Method: "POST", PathPrefix: "/dek-registry", Permission: PermissionEncryptionWrite},
+		{Method: "PUT", PathPrefix: "/dek-registry", Permission: PermissionEncryptionWrite},
+		{Method: "DELETE", PathPrefix: "/dek-registry", Permission: PermissionEncryptionWrite},
+
+		// Exporter operations
+		{Method: "GET", PathPrefix: "/exporters", Permission: PermissionExporterRead},
+		{Method: "POST", PathPrefix: "/exporters", Permission: PermissionExporterWrite},
+		{Method: "PUT", PathPrefix: "/exporters", Permission: PermissionExporterWrite},
+		{Method: "DELETE", PathPrefix: "/exporters", Permission: PermissionExporterWrite},
+
+		// Mode delete operations
+		{Method: "DELETE", PathPrefix: "/mode", Permission: PermissionModeWrite},
+
+		// Admin operations (user management, API keys, roles)
+		{Method: "GET", PathPrefix: "/admin", Permission: PermissionAdminRead},
+		{Method: "POST", PathPrefix: "/admin", Permission: PermissionAdminWrite},
+		{Method: "PUT", PathPrefix: "/admin", Permission: PermissionAdminWrite},
+		{Method: "DELETE", PathPrefix: "/admin", Permission: PermissionAdminWrite},
+
+		// Self-service account operations (any authenticated user)
+		{Method: "GET", PathPrefix: "/me", Permission: PermissionSchemaRead},
+		{Method: "POST", PathPrefix: "/me", Permission: PermissionSchemaRead},
+
+		// Contexts and metadata (read-only, any authenticated user)
+		{Method: "GET", PathPrefix: "/contexts", Permission: PermissionSchemaRead},
+		{Method: "GET", PathPrefix: "/v1/metadata", Permission: PermissionSchemaRead},
 	}
+}
+
+// normalizePathForRBAC strips the /contexts/{context} prefix from a URL path
+// so that context-scoped routes match the same RBAC permissions as root routes.
+// For example, /contexts/.TestContext/subjects/foo → /subjects/foo.
+func normalizePathForRBAC(path string) string {
+	const prefix = "/contexts/"
+	if strings.HasPrefix(path, prefix) {
+		// Find the end of the context name (next slash after /contexts/)
+		rest := path[len(prefix):]
+		idx := strings.Index(rest, "/")
+		if idx >= 0 {
+			return rest[idx:] // Return everything after /contexts/{context}
+		}
+		return "/" // Context path with no sub-path
+	}
+	return path
 }
 
 // AuthorizeEndpoint returns middleware that checks endpoint-based permissions.
@@ -195,9 +257,15 @@ func (a *Authorizer) AuthorizeEndpoint(permissions []EndpointPermission) func(ht
 
 			user := GetUser(r.Context())
 
+			// Normalize path to strip /contexts/{context} prefix so that
+			// context-scoped routes match the same permissions as root routes.
+			normalizedPath := normalizePathForRBAC(r.URL.Path)
+
 			// Find matching permission
+			matched := false
 			for _, ep := range permissions {
-				if r.Method == ep.Method && strings.HasPrefix(r.URL.Path, ep.PathPrefix) {
+				if r.Method == ep.Method && strings.HasPrefix(normalizedPath, ep.PathPrefix) {
+					matched = true
 					if user == nil {
 						http.Error(w, "Unauthorized", http.StatusUnauthorized)
 						return
@@ -209,6 +277,14 @@ func (a *Authorizer) AuthorizeEndpoint(permissions []EndpointPermission) func(ht
 					}
 					break
 				}
+			}
+
+			// Deny-by-default: if RBAC is enabled and a user is authenticated
+			// but no permission entry matched, block access. This prevents
+			// newly added routes from being accidentally unprotected.
+			if !matched && user != nil {
+				http.Error(w, "Forbidden", http.StatusForbidden)
+				return
 			}
 
 			next.ServeHTTP(w, r)

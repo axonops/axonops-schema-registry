@@ -7,6 +7,7 @@
 
   [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
   [![Go Version](https://img.shields.io/badge/Go-1.24+-00ADD8.svg)](https://go.dev/)
+  [![GitHub Stars](https://img.shields.io/github/stars/axonops/axonops-schema-registry)](https://github.com/axonops/axonops-schema-registry)
   [![GitHub Issues](https://img.shields.io/github/issues/axonops/axonops-schema-registry)](https://github.com/axonops/axonops-schema-registry/issues)
 
   [Getting Started](docs/getting-started.md) | [Documentation](docs/) | [API Reference](docs/api-reference.md) | [Report Issue](https://github.com/axonops/axonops-schema-registry/issues/new/choose)
@@ -17,7 +18,7 @@
 
 ## Overview
 
-[AxonOps](https://axonops.com) Schema Registry is a **schema registry for Apache Kafka** that manages and enforces schemas for event-driven architectures. It stores versioned Avro, Protobuf, and JSON Schema definitions, validates compatibility between schema versions, and ensures producers and consumers agree on data formats.
+[AxonOps](https://axonops.com) Schema Registry is a **schema registry for Apache Kafka&reg;** that manages and enforces schemas for event-driven architectures. It stores versioned Avro, Protobuf, and JSON Schema definitions, validates compatibility between schema versions, and ensures producers and consumers agree on data formats.
 
 Unlike Confluent Schema Registry, which uses Kafka itself (a special `_schemas` topic) as its storage backend, AxonOps Schema Registry **does not require Kafka** for storage -- it uses standard databases (PostgreSQL, MySQL, or Cassandra) while remaining **fully API-compatible** with Confluent's REST API, serializers, and client libraries.
 
@@ -37,13 +38,14 @@ Unlike Confluent Schema Registry, which uses Kafka itself (a special `_schemas` 
 - [Features](#features)
 - [Architecture](#architecture)
 - [API Compatibility](#api-compatibility)
+- [Strict Specification Compliance](#strict-specification-compliance)
 - [Documentation](#documentation)
 - [Development](#development)
 - [Community & Support](#community--support)
 - [License](#license)
 - [Legal Notices](#legal-notices)
 
-**New to schema registries?** Read the [Fundamentals](docs/fundamentals.md) guide to understand what a schema registry is, why it matters, and how it fits into an event-driven architecture.
+**New to schema registries?** Read the [Fundamentals](docs/fundamentals.md) guide to understand what a schema registry is, why it matters, and how it fits into an event-driven architecture. **Ready to design your schemas?** See [Best Practices](docs/best-practices.md) for patterns, naming conventions, and evolution strategies.
 
 ## Why AxonOps Schema Registry?
 
@@ -53,6 +55,8 @@ Unlike Confluent Schema Registry, which uses Kafka itself (a special `_schemas` 
 - **Enterprise Security** -- LDAP, OIDC, mTLS, API keys, JWT, and RBAC out of the box
 - **Cloud Native** -- designed for Kubernetes with health checks, Prometheus metrics, and graceful shutdown
 - **Multi-Datacenter** -- active-active deployments with Cassandra's native cross-DC replication
+- **Enterprise Features, Zero Cost** -- RBAC, data contracts, CSFLE encryption, audit logging, and rate limiting are included free under Apache 2.0. With Confluent, these require a [commercial Enterprise license](https://docs.confluent.io/platform/current/installation/license.html).
+- **Strict Specification Compliance** -- enforces Avro, Protobuf, and JSON Schema specifications more faithfully than Confluent, catching invalid schemas at registration time rather than at runtime ([details](#strict-specification-compliance))
 - **Built-in API Documentation** -- OpenAPI spec with Swagger UI and ReDoc, always in sync with the codebase
 
 ## Feature Comparison
@@ -69,30 +73,44 @@ Unlike Confluent Schema Registry, which uses Kafka itself (a special `_schemas` 
 | **Avro** | ✅ | ✅ | ✅ | ✅ |
 | **Protobuf** | ✅ | ✅ | ✅ | ✅ |
 | **JSON Schema** | ✅ | ✅ | ✅ | ✅ |
-| **Schema References** | ✅ | ✅ | ✅ | ✅ |
-| **All 7 Compat Modes** | ✅ | ✅ | ✅ | ✅ |
+| [**Schema References**](docs/schema-types.md) | ✅ | ✅ | ✅ | ✅ |
+| [**All 7 Compat Modes**](docs/compatibility.md) | ✅ | ✅ | ✅ | ✅ |
 | **Storage: Kafka** | ❌ | ✅ | ✅ | ✅ |
-| **Storage: PostgreSQL** | ✅ | ❌ | ❌ | ❌ |
-| **Storage: MySQL** | ✅ | ❌ | ❌ | ❌ |
-| **Storage: Cassandra** | ✅ | ❌ | ❌ | ❌ |
+| [**Storage: PostgreSQL**](docs/storage-backends.md) | ✅ | ❌ | ❌ | ❌ |
+| [**Storage: MySQL**](docs/storage-backends.md) | ✅ | ❌ | ❌ | ❌ |
+| [**Storage: Cassandra**](docs/storage-backends.md) | ✅ | ❌ | ❌ | ❌ |
 | **No Kafka Dependency** | ✅ | ❌ | ❌ | ❌ |
-| **Basic Auth** | ✅ | ❌ | ✅ | ✅ |
-| **API Keys** | ✅ | ❌ | ✅ | ❌ |
-| **LDAP/AD** | ✅ | ❌ | ✅ | ❌ |
-| **OIDC/OAuth2** | ✅ | ❌ | ✅ | ✅ |
+| [**Basic Auth**](docs/authentication.md) | ✅ | ✅ &sup3; | ✅ | ⚠️ ⁴ |
+| [**API Keys**](docs/authentication.md) | ✅ | ❌ | ✅ | ❌ |
+| [**LDAP/AD**](docs/authentication.md) | ✅ | ⚠️ &sup3; | ✅ | ❌ |
+| [**OIDC/OAuth2**](docs/authentication.md) | ✅ | ✅ &sup3; | ✅ | ❌ |
 | **mTLS** | ✅ | ✅ | ✅ | ✅ |
-| **RBAC** | ✅ | ❌ | ✅ | ⚠️ Limited |
-| **Audit Logging** | ✅ | ❌ | ✅ | ❌ |
-| **Rate Limiting** | ✅ | ❌ | ❌ | ❌ |
-| **Prometheus Metrics** | ✅ | ✅ | ✅ | ✅ |
+| [**RBAC**](docs/authentication.md) | ✅ | ❌ | ✅ | ⚠️ Limited |
+| [**Audit Logging**](docs/security.md) | ✅ | ❌ | ✅ | ❌ |
+| [**Rate Limiting**](docs/security.md) | ✅ | ❌ | ❌ | ❌ |
+| [**Prometheus Metrics**](docs/monitoring.md) | ✅ | ✅ | ✅ | ✅ |
 | **REST Proxy** | ❌ | Separate | Separate | ✅ |
 | **Schema Validation** | ✅ | ✅ | ✅ | ✅ |
-| **Multi-Tenant Contexts** | [Planned](https://github.com/axonops/axonops-schema-registry/issues/264) | ✅ | ✅ | ❌ |
-| **Schema Linking** | ❌ | ❌ | ✅ | ❌ |
+| [**Strict Spec Compliance**](#strict-specification-compliance) | ✅ | ❌ | ❌ | ⚠️ Partial |
+| [**Data Contracts**](docs/data-contracts.md) | ✅ | ❌ | ✅ | ❌ |
+| [**Multi-Tenant Contexts**](docs/contexts.md) | ✅ | ✅ | ✅ | ❌ |
+| [**DEK Registry (CSFLE)**](docs/encryption.md) | ✅ | ❌ | ✅ | ❌ |
+| [**KMS Providers**](docs/encryption.md) | 2 + 3 &sup1; | ❌ | ✅ | ❌ |
+| [**Exporter API**](docs/exporters.md) &sup2; | ✅ | ❌ | ✅ | ❌ |
 | **Single Binary** | ✅ | ❌ | ❌ | ❌ |
 | **Memory Footprint** | ~50MB | ~500MB+ | ~500MB+ | ~200MB+ |
 
 </div>
+
+&sup1; HashiCorp Vault and OpenBao Transit are production-ready. AWS KMS, Azure Key Vault, and GCP KMS support is coming soon.
+
+&sup2; Confluent-compatible exporter management API for schema replication configuration. AxonOps stores exporter definitions; active cross-registry replication requires an external agent.
+
+&sup3; Confluent OSS authentication requires Java JAAS LoginModule configuration. AxonOps provides all authentication methods as built-in features with simple YAML configuration -- no Java runtime, no external plugins, no license keys.
+
+⁴ Karapace uses its own ACL-based credential mechanism rather than standard HTTP Basic Authentication.
+
+> **In short:** AxonOps gives you Confluent Enterprise-grade capabilities -- data contracts, client-side encryption, RBAC, audit logging, multi-tenant contexts, and rate limiting -- under the Apache 2.0 license, in a single ~50 MB binary, with no Kafka dependency for storage. If you need enterprise support, [AxonOps](https://axonops.com) offers commercial support plans.
 
 ## Quick Start
 
@@ -127,6 +145,14 @@ See the [Getting Started](docs/getting-started.md) guide for Kafka client integr
 - **7 Compatibility Modes** -- NONE, BACKWARD, FORWARD, FULL, and transitive variants
 - **Normalization** -- canonical form generation for content-addressed deduplication
 - **Soft Delete** -- recoverable deletion with permanent delete option
+- **Multi-Tenant Contexts** -- namespace isolation with independent schema IDs, subjects, compatibility config, and modes per context ([docs](docs/contexts.md))
+- **Data Contracts** -- schema metadata (tags, properties, sensitive fields), rule sets (domain rules, migration rules, encoding rules), and config-level defaults/overrides with 3-layer merge ([docs](docs/data-contracts.md))
+
+### Encryption
+
+- **DEK Registry** -- Client-Side Field Level Encryption (CSFLE) with KEK/DEK management, compatible with Confluent's Enterprise CSFLE feature ([docs](docs/encryption.md))
+- **KMS Providers** -- HashiCorp Vault and OpenBao Transit for production use. AWS KMS, Azure Key Vault, and GCP KMS coming soon.
+- **Exporter API** -- Confluent-compatible exporter management API for schema replication configuration ([docs](docs/exporters.md))
 
 ### Storage Backends
 
@@ -165,37 +191,13 @@ Auth storage can optionally be separated into HashiCorp Vault.
 
 ## Architecture
 
-### Single Instance
+AxonOps Schema Registry is a **single stateless binary** that connects to any supported storage backend. There is no leader election and no inter-instance coordination -- database-level constraints handle concurrency.
 
-![Single Instance Architecture](assets/architecture-single.svg)
+- **Single instance** -- one binary, one database connection. Suitable for development or low-traffic production.
+- **High availability** -- multiple stateless instances behind a load balancer with database-level locking (PostgreSQL/MySQL).
+- **Multi-datacenter** -- active-active across datacenters using Cassandra's native cross-DC replication and lightweight transactions.
 
-A single stateless binary connecting to any supported storage backend. Suitable for development, testing, or low-traffic production.
-
-### High Availability (PostgreSQL/MySQL)
-
-**Write Path:**
-
-![HA Write Path](assets/architecture-ha-write.svg)
-
-**Read Path:**
-
-![HA Read Path](assets/architecture-ha-read.svg)
-
-Multiple stateless instances behind a load balancer. No leader election, no inter-instance coordination. Database-level concurrency control ensures consistency.
-
-### Distributed Multi-Datacenter (Cassandra)
-
-![Distributed Architecture](assets/architecture-distributed.svg)
-
-Active-active across datacenters with automatic cross-DC replication via Cassandra. Lightweight transactions ensure atomic ID allocation and fingerprint deduplication.
-
-### Authentication Flow
-
-![Authentication Flow](assets/auth-flow.svg)
-
-### Schema Registration Flow
-
-![Schema Registration Flow](assets/schema-flow.svg)
+See [Deployment](docs/deployment.md) for detailed architecture diagrams, topology options, and production configuration.
 
 ---
 
@@ -203,15 +205,53 @@ Active-active across datacenters with automatic cross-DC replication via Cassand
 
 AxonOps Schema Registry implements the Confluent Schema Registry REST API v1:
 
-- **All endpoints** -- schemas, subjects, compatibility, config, mode, import
+- **All endpoints** -- schemas, subjects, compatibility, config, mode, import, DEK Registry (CSFLE), and Exporters (Schema Linking)
 - **All serializers** -- compatible with Confluent's Avro, Protobuf, and JSON Schema serializers
 - **All client libraries** -- works with `confluent-kafka-go`, `confluent-kafka-python`, and Java Kafka clients
+- **DEK Registry** -- full Confluent Enterprise CSFLE parity (KEK/DEK management with 5 KMS providers), available at no additional cost
 - **Error format** -- HTTP status codes and error response JSON match Confluent behavior
 
 **Known differences:**
 
-- **Contexts** -- In Confluent Schema Registry, contexts are a multi-tenancy feature that allows multiple schemas with the same subject names and IDs to coexist in separate namespaces (e.g. `".team-a"`, `".team-b"`). Subjects are qualified with a context prefix (e.g. `:.mycontext:my-subject`), and schema IDs are unique within each context. This is primarily used for Schema Linking and enterprise multi-tenant deployments. AxonOps Schema Registry operates as a single-tenant registry -- the `GET /contexts` endpoint always returns `["."]` (the default context only), and context-qualified subject names are not supported. See [#264](https://github.com/axonops/axonops-schema-registry/issues/264) for the feature request to add context support.
+- **Contexts** -- Both Confluent and AxonOps Schema Registry support contexts for multi-tenancy. Subjects can be qualified with a context prefix (e.g., `:.mycontext:my-subject`), and schema IDs are unique within each context. AxonOps also supports URL prefix routing (`/contexts/.mycontext/subjects/...`) as an alternative. See the [Contexts](docs/contexts.md) guide for full documentation.
 - **Cluster coordination** -- Confluent uses Kafka's group protocol for leader election between registry instances. AxonOps instances are fully stateless with no leader election -- database-level constraints (transactions, LWTs) handle coordination instead.
+
+---
+
+## Strict Specification Compliance
+
+AxonOps Schema Registry enforces Avro, Protobuf, and JSON Schema specifications more faithfully than Confluent Schema Registry. This catches invalid schemas at registration time -- before they enter your pipeline and cause failures during serialization, deserialization, or code generation.
+
+### Schema Fingerprinting and Deduplication
+
+AxonOps uses **specification-correct canonical forms** for schema fingerprinting, producing better deduplication than Confluent's raw-string approach.
+
+| Behavior | AxonOps | Confluent | Why AxonOps is Better |
+|----------|---------|-----------|----------------------|
+| **Avro Parsing Canonical Form** | Follows the [Avro spec PCF](https://avro.apache.org/docs/current/specification/#parsing-canonical-form-for-schemas): strips `doc`, `aliases`, and `order` from the fingerprint | Includes `doc`, `aliases`, and `order` in the fingerprint | Two schemas that differ only in documentation or field ordering hints are logically identical. AxonOps correctly assigns them the same global ID, avoiding unnecessary schema proliferation. |
+| **JSON Schema key ordering** | Normalizes JSON key order before fingerprinting | Hashes the raw JSON string, so `{"type":"object","properties":...}` and `{"properties":...,"type":"object"}` get different IDs | JSON objects are unordered by specification ([RFC 8259](https://www.rfc-editor.org/rfc/rfc8259#section-4)). AxonOps correctly treats key-reordered schemas as identical. |
+
+### Stricter Schema Validation
+
+Confluent accepts several schemas that violate their respective specifications. AxonOps rejects them at registration time with a `422` error, preventing invalid schemas from entering the registry.
+
+| Invalid Schema | AxonOps | Confluent | Specification Reference |
+|---------------|---------|-----------|------------------------|
+| **Avro: invalid default type** (e.g., `"default": "not_a_number"` on an `int` field) | Rejects (422) | Accepts (200) | [Avro spec](https://avro.apache.org/docs/current/specification/#schema-record): *"A default value for this field, only used when reading instances that lack this field for schema evolution purposes. [...] The value type must match the field's schema type."* |
+| **Avro: enum with empty symbols** (`"symbols": []`) | Rejects (422) | Accepts (200) | [Avro spec](https://avro.apache.org/docs/current/specification/#enums): *"symbols: a JSON array, listing symbols, as JSON strings. All symbols in an enum must be unique."* An empty array produces an unusable enum type with no valid values. |
+| **Avro: fixed with size 0** (`"size": 0`) | Rejects (422) | Accepts (200) | [Avro spec](https://avro.apache.org/docs/current/specification/#fixed): *"size: an integer, specifying the number of bytes per value."* A zero-byte fixed type is meaningless and will fail during serialization. |
+| **Protobuf: duplicate field numbers** (two fields with the same number in one message) | Rejects (422) | Accepts (200) | [Protobuf spec](https://protobuf.dev/programming-guides/proto3/#assigning): *"Each field in the message definition has a unique number."* Duplicate field numbers produce ambiguous wire format encoding. |
+| **Protobuf: unresolvable imports** (`import "nonexistent/file.proto"`) | Rejects (422) | Accepts (200) | [Protobuf spec](https://protobuf.dev/programming-guides/proto3/#importing): Imports must resolve to a known `.proto` file. An unresolvable import will fail at compile time in any language. |
+
+### JSON Schema Draft-07 Boolean Root Schemas
+
+AxonOps supports [boolean root schemas](https://json-schema.org/draft-07/json-schema-core#section-4.3.2) (`true` and `false` as standalone schemas), which are valid in JSON Schema Draft-07 but uncommon. `true` accepts any instance, `false` rejects all instances.
+
+### Impact on Migration
+
+If you are migrating from Confluent and have schemas that contain the invalid patterns listed above, those schemas will be rejected by AxonOps during import. This is by design -- it surfaces latent problems in your schema definitions. You should fix the invalid schemas before migrating.
+
+For the fingerprinting differences, schemas that Confluent stored as separate global IDs (because they differ only in `doc`, `aliases`, `order`, or JSON key ordering) will be correctly deduplicated to a single global ID in AxonOps.
 
 ---
 
@@ -222,20 +262,25 @@ AxonOps Schema Registry implements the Confluent Schema Registry REST API v1:
 | Guide | Description |
 |-------|-------------|
 | [Fundamentals](docs/fundamentals.md) | What is a schema registry, core concepts, and how it fits into Kafka |
+| [Best Practices](docs/best-practices.md) | Schema design patterns, naming conventions, evolution strategies, and common mistakes |
 | [Getting Started](docs/getting-started.md) | Run the registry and register your first schemas in five minutes |
 | [Installation](docs/installation.md) | Docker, APT, YUM, binary, Kubernetes, and from-source installation |
 | [Configuration](docs/configuration.md) | Complete YAML reference with all fields, defaults, and environment variables |
 | [Storage Backends](docs/storage-backends.md) | PostgreSQL, MySQL, Cassandra, and in-memory backend setup and tuning |
 | [Schema Types](docs/schema-types.md) | Avro, Protobuf, and JSON Schema support with reference examples |
 | [Compatibility](docs/compatibility.md) | All 7 compatibility modes with per-type rules and configuration |
+| [Contexts](docs/contexts.md) | Multi-tenancy via contexts: namespace isolation, qualified subjects, URL routing |
+| [Data Contracts](docs/data-contracts.md) | Metadata, rule sets, config defaults/overrides, and governance policies |
 | [API Reference](docs/api-reference.md) | All 47+ endpoints with parameters, examples, and error codes |
 | [Authentication](docs/authentication.md) | All 6 auth methods, RBAC, user management, and admin CLI |
 | [Security](docs/security.md) | TLS, rate limiting, audit logging, credential storage, and hardening checklist |
-| [Deployment](docs/deployment.md) | Topologies, Docker Compose, Kubernetes manifests, systemd, and health checks |
+| [Deployment](docs/deployment.md) | Architecture diagrams, topologies, Docker Compose, Kubernetes manifests, systemd, and health checks |
 | [Monitoring](docs/monitoring.md) | Prometheus metrics, alerting rules, structured logging, and Grafana queries |
 | [Migration](docs/migration.md) | Migrating from Confluent Schema Registry with preserved schema IDs |
 | [Testing Strategy](docs/testing.md) | Testing philosophy, all test layers, how to run and write tests |
 | [Development](docs/development.md) | Building from source, running the test suite, and contributing |
+| [Encryption](docs/encryption.md) | DEK Registry, Client-Side Field Level Encryption (CSFLE), and KMS providers |
+| [Exporters](docs/exporters.md) | Schema Linking via exporter management API |
 | [Troubleshooting](docs/troubleshooting.md) | Common issues, diagnostic commands, and error code reference |
 
 </div>
@@ -285,6 +330,7 @@ We welcome contributions from the community. Please read the [Development](docs/
 
 - **GitHub Issues** -- [Report bugs or request features](https://github.com/axonops/axonops-schema-registry/issues/new/choose)
 - **GitHub Discussions** -- [Ask questions and share ideas](https://github.com/axonops/axonops-schema-registry/discussions)
+- **Commercial Support** -- [axonops.com](https://axonops.com) for enterprise support plans
 - **Website** -- [axonops.com](https://axonops.com)
 
 If you find AxonOps Schema Registry useful, please consider giving us a star!

@@ -18,6 +18,7 @@ This guide covers building AxonOps Schema Registry from source, running the test
   - [Migration Tests](#migration-tests)
   - [API Endpoint Tests](#api-endpoint-tests)
   - [Compatibility Tests](#compatibility-tests)
+  - [Go SerDe Data Contract & CSFLE Tests](#go-serde-data-contract--csfle-tests)
   - [Full Test Suite](#full-test-suite)
   - [Coverage](#coverage)
 - [Code Quality](#code-quality)
@@ -113,13 +114,17 @@ internal/
     vault/                        HashiCorp Vault auth storage
   metrics/                        Prometheus metrics
 tests/
-  bdd/                            BDD/Cucumber tests (76 feature files, 1,387 scenarios)
+  bdd/                            BDD/Cucumber tests (76 feature files, ~1,400 scenarios)
   integration/                    Integration tests
   concurrency/                    Concurrency tests
   storage/conformance/            Storage conformance suite
   migration/                      Migration tests
   api/                            External API tests
-  compatibility/                  Multi-language compatibility tests (Go/Java/Python)
+  compatibility/                  Multi-language compatibility tests
+    go/                           Go serializer tests
+    go-serde/                     Go SerDe data contract + CSFLE tests (30 tests, 7 files)
+    java/                         Java Confluent SerDe tests (wire compat + data contracts + CSFLE)
+    python/                       Python serializer tests
 ```
 
 ## Running Tests
@@ -224,6 +229,62 @@ Verifies wire compatibility with real Confluent serializer clients in Go, Java (
 make test-compatibility
 ```
 
+
+### Data Contract & CSFLE Tests
+
+Java integration tests using real Confluent SerDe clients to verify end-to-end data contract rule execution and CSFLE field-level encryption against the running schema registry.
+
+```bash
+# Start schema registry
+make run &
+
+# Data contract tests (no KMS required)
+cd tests/compatibility/java
+mvn test -P confluent-8.1 -Dschema.registry.url=http://localhost:8081 -Dgroups=data-contracts
+
+# CSFLE tests (requires Vault)
+cd tests/bdd && docker compose -f docker-compose.kms.yml up -d vault && docker compose -f docker-compose.kms.yml run --rm setup-kms
+cd ../../tests/compatibility/java
+mvn test -P confluent-8.1 \
+  -Dschema.registry.url=http://localhost:8081 \
+  -Dgroups=csfle \
+  -Dvault.url=http://localhost:18200 \
+  -Dvault.token=test-root-token
+```
+
+Requires Maven and Java 17+. The tests use JUnit 5 tags (`data-contracts`, `csfle`) to separate data contract tests from CSFLE tests that require KMS infrastructure.
+
+### Go SerDe Data Contract & CSFLE Tests
+
+Go integration tests using `confluent-kafka-go/v2` (v2.8.0) schema registry client to verify data contract rule execution (CEL conditions, CEL_FIELD transforms, JSONata migration rules, global policies) and CSFLE field-level encryption via Vault Transit KMS. No CGO is required since only the `schemaregistry/*` sub-packages are imported.
+
+**30 tests across 7 files** in `tests/compatibility/go-serde/`.
+
+```bash
+# Start schema registry
+make run &
+
+# Data contract tests only (no KMS required)
+cd tests/compatibility/go-serde
+SCHEMA_REGISTRY_URL=http://localhost:8081 go test -v -run "TestCel|TestMigration|TestGlobalPolicies" ./...
+
+# CSFLE tests (requires Vault)
+cd tests/bdd && docker compose -f docker-compose.kms.yml up -d vault && docker compose -f docker-compose.kms.yml run --rm setup-kms
+cd ../../tests/compatibility/go-serde
+SCHEMA_REGISTRY_URL=http://localhost:8081 \
+  VAULT_URL=http://localhost:18200 \
+  VAULT_TOKEN=test-root-token \
+  go test -v -run "TestCsfle" -timeout 10m ./...
+
+# All Go SerDe tests
+SCHEMA_REGISTRY_URL=http://localhost:8081 \
+  VAULT_URL=http://localhost:18200 \
+  VAULT_TOKEN=test-root-token \
+  go test -v -timeout 10m ./...
+```
+
+A convenience script is also available: `tests/compatibility/go-serde/run_tests.sh`.
+
 ### Full Test Suite
 
 Run everything:
@@ -325,6 +386,9 @@ GitHub Actions runs the following on every push:
 - Auth tests (LDAP, Vault, OIDC)
 - Migration tests
 - Compatibility tests (Go, Java, Python)
+- Data contract & CSFLE tests (Java SerDe with Vault)
+- Data contract & CSFLE tests (Go SerDe with Vault)
+- BDD KMS encryption tests (memory, PostgreSQL, MySQL, Cassandra)
 - Docker image build
 
 ## Code Conventions

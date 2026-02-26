@@ -292,24 +292,46 @@ func (rw *responseWriter) WriteHeader(code int) {
 
 // normalizePath normalizes a URL path to reduce cardinality.
 func normalizePath(path string) string {
-	// Handle common schema registry paths
-	switch {
-	case startsWith(path, "/subjects/") && contains(path, "/versions/"):
-		return "/subjects/{subject}/versions/{version}"
-	case startsWith(path, "/subjects/") && endsWith(path, "/versions"):
-		return "/subjects/{subject}/versions"
-	case startsWith(path, "/subjects/"):
-		return "/subjects/{subject}"
-	case startsWith(path, "/schemas/ids/"):
-		return "/schemas/ids/{id}"
-	case startsWith(path, "/config/"):
-		return "/config/{subject}"
-	case startsWith(path, "/mode/"):
-		return "/mode/{subject}"
-	case startsWith(path, "/compatibility/subjects/"):
-		return "/compatibility/subjects/{subject}/versions/{version}"
+	// Strip /contexts/{context} prefix and normalize the inner path,
+	// then re-add the normalized prefix to avoid metric label explosion.
+	contextPrefix := ""
+	innerPath := path
+	if startsWith(path, "/contexts/") {
+		rest := path[len("/contexts/"):]
+		idx := 0
+		for idx < len(rest) && rest[idx] != '/' {
+			idx++
+		}
+		contextPrefix = "/contexts/{context}"
+		if idx < len(rest) {
+			innerPath = rest[idx:]
+		} else {
+			return contextPrefix
+		}
 	}
-	return path
+
+	// Handle common schema registry paths
+	var normalized string
+	switch {
+	case startsWith(innerPath, "/subjects/") && contains(innerPath, "/versions/"):
+		normalized = "/subjects/{subject}/versions/{version}"
+	case startsWith(innerPath, "/subjects/") && endsWith(innerPath, "/versions"):
+		normalized = "/subjects/{subject}/versions"
+	case startsWith(innerPath, "/subjects/"):
+		normalized = "/subjects/{subject}"
+	case startsWith(innerPath, "/schemas/ids/"):
+		normalized = "/schemas/ids/{id}"
+	case startsWith(innerPath, "/config/"):
+		normalized = "/config/{subject}"
+	case startsWith(innerPath, "/mode/"):
+		normalized = "/mode/{subject}"
+	case startsWith(innerPath, "/compatibility/subjects/"):
+		normalized = "/compatibility/subjects/{subject}/versions/{version}"
+	default:
+		normalized = innerPath
+	}
+
+	return contextPrefix + normalized
 }
 
 // String helper functions to avoid importing strings package

@@ -44,10 +44,12 @@ func truncatePostgres(t *testing.T, cfg postgres.Config) {
 	defer db.Close()
 
 	stmts := []string{
-		"TRUNCATE TABLE api_keys, users, schema_references, schema_fingerprints, schemas, modes, configs CASCADE",
+		"TRUNCATE TABLE exporter_statuses, exporters, deks, keks, api_keys, users, schema_references, schema_fingerprints, schemas, modes, configs, ctx_id_alloc, contexts CASCADE",
 		"ALTER SEQUENCE schemas_id_seq RESTART WITH 1",
-		"INSERT INTO configs (subject, compatibility_level) VALUES ('', 'BACKWARD') ON CONFLICT (subject) DO NOTHING",
-		"INSERT INTO modes (subject, mode) VALUES ('', 'READWRITE') ON CONFLICT (subject) DO NOTHING",
+		// Re-seed context and ID allocation but NOT global config/mode — the
+		// conformance tests start from a clean state and set their own.
+		"INSERT INTO ctx_id_alloc (registry_ctx, next_id) VALUES ('.', 1) ON CONFLICT (registry_ctx) DO NOTHING",
+		"INSERT INTO contexts (registry_ctx) VALUES ('.') ON CONFLICT DO NOTHING",
 	}
 	for _, s := range stmts {
 		if _, err := db.Exec(s); err != nil {

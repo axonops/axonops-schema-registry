@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
@@ -38,7 +39,8 @@ func (h *AdminHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
 
 	users, err := h.authService.ListUsers(r.Context())
 	if err != nil {
-		writeAdminError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		slog.Error("internal server error", "error", err)
+		writeAdminError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, "Internal server error")
 		return
 	}
 
@@ -98,7 +100,8 @@ func (h *AdminHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 			writeAdminError(w, http.StatusBadRequest, types.ErrorCodeInvalidRole, err.Error())
 			return
 		}
-		writeAdminError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		slog.Error("internal server error", "error", err)
+		writeAdminError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, "Internal server error")
 		return
 	}
 
@@ -123,7 +126,8 @@ func (h *AdminHandler) GetUser(w http.ResponseWriter, r *http.Request) {
 			writeAdminError(w, http.StatusNotFound, types.ErrorCodeUserNotFound, "User not found")
 			return
 		}
-		writeAdminError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		slog.Error("internal server error", "error", err)
+		writeAdminError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, "Internal server error")
 		return
 	}
 
@@ -172,7 +176,8 @@ func (h *AdminHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 			writeAdminError(w, http.StatusBadRequest, types.ErrorCodeInvalidRole, err.Error())
 			return
 		}
-		writeAdminError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		slog.Error("internal server error", "error", err)
+		writeAdminError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, "Internal server error")
 		return
 	}
 
@@ -196,7 +201,8 @@ func (h *AdminHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 			writeAdminError(w, http.StatusNotFound, types.ErrorCodeUserNotFound, "User not found")
 			return
 		}
-		writeAdminError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		slog.Error("internal server error", "error", err)
+		writeAdminError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, "Internal server error")
 		return
 	}
 
@@ -226,7 +232,8 @@ func (h *AdminHandler) ListAPIKeys(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err != nil {
-		writeAdminError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		slog.Error("internal server error", "error", err)
+		writeAdminError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, "Internal server error")
 		return
 	}
 
@@ -319,7 +326,8 @@ func (h *AdminHandler) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 			writeAdminError(w, http.StatusConflict, types.ErrorCodeAPIKeyExists, "API key name already exists for this user")
 			return
 		}
-		writeAdminError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		slog.Error("internal server error", "error", err)
+		writeAdminError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, "Internal server error")
 		return
 	}
 
@@ -357,7 +365,8 @@ func (h *AdminHandler) GetAPIKey(w http.ResponseWriter, r *http.Request) {
 			writeAdminError(w, http.StatusNotFound, types.ErrorCodeAPIKeyNotFound, "API key not found")
 			return
 		}
-		writeAdminError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		slog.Error("internal server error", "error", err)
+		writeAdminError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, "Internal server error")
 		return
 	}
 
@@ -403,7 +412,8 @@ func (h *AdminHandler) UpdateAPIKey(w http.ResponseWriter, r *http.Request) {
 			writeAdminError(w, http.StatusBadRequest, types.ErrorCodeInvalidRole, err.Error())
 			return
 		}
-		writeAdminError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		slog.Error("internal server error", "error", err)
+		writeAdminError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, "Internal server error")
 		return
 	}
 
@@ -427,7 +437,8 @@ func (h *AdminHandler) DeleteAPIKey(w http.ResponseWriter, r *http.Request) {
 			writeAdminError(w, http.StatusNotFound, types.ErrorCodeAPIKeyNotFound, "API key not found")
 			return
 		}
-		writeAdminError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		slog.Error("internal server error", "error", err)
+		writeAdminError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, "Internal server error")
 		return
 	}
 
@@ -451,13 +462,15 @@ func (h *AdminHandler) RevokeAPIKey(w http.ResponseWriter, r *http.Request) {
 			writeAdminError(w, http.StatusNotFound, types.ErrorCodeAPIKeyNotFound, "API key not found")
 			return
 		}
-		writeAdminError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		slog.Error("internal server error", "error", err)
+		writeAdminError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, "Internal server error")
 		return
 	}
 
 	key, err := h.authService.GetAPIKeyByID(r.Context(), id)
 	if err != nil {
-		writeAdminError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		slog.Error("internal server error", "error", err)
+		writeAdminError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, "Internal server error")
 		return
 	}
 
@@ -500,7 +513,8 @@ func (h *AdminHandler) RotateAPIKey(w http.ResponseWriter, r *http.Request) {
 			writeAdminError(w, http.StatusNotFound, types.ErrorCodeAPIKeyNotFound, "API key not found")
 			return
 		}
-		writeAdminError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, err.Error())
+		slog.Error("internal server error", "error", err)
+		writeAdminError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, "Internal server error")
 		return
 	}
 

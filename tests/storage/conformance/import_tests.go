@@ -25,11 +25,11 @@ func RunImportTests(t *testing.T, newStore StoreFactory) {
 			Schema:      `{"type":"string"}`,
 			Fingerprint: "fp-import-1",
 		}
-		if err := store.ImportSchema(ctx, rec); err != nil {
+		if err := store.ImportSchema(ctx, ".", rec); err != nil {
 			t.Fatalf("ImportSchema: %v", err)
 		}
 
-		got, err := store.GetSchemaByID(ctx, 100)
+		got, err := store.GetSchemaByID(ctx, ".", 100)
 		if err != nil {
 			t.Fatalf("GetSchemaByID: %v", err)
 		}
@@ -54,9 +54,9 @@ func RunImportTests(t *testing.T, newStore StoreFactory) {
 			Schema:      `syntax = "proto3"; message M { string f = 1; }`,
 			Fingerprint: "fp-import-sv",
 		}
-		store.ImportSchema(ctx, rec)
+		store.ImportSchema(ctx, ".", rec)
 
-		got, err := store.GetSchemaBySubjectVersion(ctx, "imp-sv", 3)
+		got, err := store.GetSchemaBySubjectVersion(ctx, ".", "imp-sv", 3)
 		if err != nil {
 			t.Fatalf("GetSchemaBySubjectVersion: %v", err)
 		}
@@ -72,9 +72,9 @@ func RunImportTests(t *testing.T, newStore StoreFactory) {
 
 		r1 := &storage.SchemaRecord{ID: 50, Subject: "s-a", Version: 1, SchemaType: storage.SchemaTypeAvro, Schema: `{"type":"string"}`, Fingerprint: "fp-ic-1"}
 		r2 := &storage.SchemaRecord{ID: 50, Subject: "s-b", Version: 1, SchemaType: storage.SchemaTypeAvro, Schema: `{"type":"int"}`, Fingerprint: "fp-ic-2"}
-		store.ImportSchema(ctx, r1)
+		store.ImportSchema(ctx, ".", r1)
 
-		err := store.ImportSchema(ctx, r2)
+		err := store.ImportSchema(ctx, ".", r2)
 		if err != storage.ErrSchemaIDConflict {
 			t.Errorf("expected ErrSchemaIDConflict, got %v", err)
 		}
@@ -87,9 +87,9 @@ func RunImportTests(t *testing.T, newStore StoreFactory) {
 
 		r1 := &storage.SchemaRecord{ID: 60, Subject: "s", Version: 1, SchemaType: storage.SchemaTypeAvro, Schema: `{"type":"string"}`, Fingerprint: "fp-vc-1"}
 		r2 := &storage.SchemaRecord{ID: 61, Subject: "s", Version: 1, SchemaType: storage.SchemaTypeAvro, Schema: `{"type":"int"}`, Fingerprint: "fp-vc-2"}
-		store.ImportSchema(ctx, r1)
+		store.ImportSchema(ctx, ".", r1)
 
-		err := store.ImportSchema(ctx, r2)
+		err := store.ImportSchema(ctx, ".", r2)
 		if err != storage.ErrSchemaExists {
 			t.Errorf("expected ErrSchemaExists for version conflict, got %v", err)
 		}
@@ -100,11 +100,11 @@ func RunImportTests(t *testing.T, newStore StoreFactory) {
 		defer store.Close()
 		ctx := context.Background()
 
-		if err := store.SetNextID(ctx, 500); err != nil {
+		if err := store.SetNextID(ctx, ".", 500); err != nil {
 			t.Fatalf("SetNextID: %v", err)
 		}
 
-		id, err := store.NextID(ctx)
+		id, err := store.NextID(ctx, ".")
 		if err != nil {
 			t.Fatalf("NextID: %v", err)
 		}
@@ -112,7 +112,7 @@ func RunImportTests(t *testing.T, newStore StoreFactory) {
 			t.Errorf("expected 500, got %d", id)
 		}
 
-		id, err = store.NextID(ctx)
+		id, err = store.NextID(ctx, ".")
 		if err != nil {
 			t.Fatalf("NextID: %v", err)
 		}
@@ -136,13 +136,13 @@ func RunImportTests(t *testing.T, newStore StoreFactory) {
 				Schema:      `{"type":"string"}`,
 				Fingerprint: fmt.Sprintf("fp-itc-%d", id),
 			}
-			if err := store.ImportSchema(ctx, rec); err != nil {
+			if err := store.ImportSchema(ctx, ".", rec); err != nil {
 				t.Fatalf("ImportSchema(id=%d): %v", id, err)
 			}
 		}
 
 		// Set next ID after the highest import
-		if err := store.SetNextID(ctx, 31); err != nil {
+		if err := store.SetNextID(ctx, ".", 31); err != nil {
 			t.Fatalf("SetNextID: %v", err)
 		}
 
@@ -153,7 +153,7 @@ func RunImportTests(t *testing.T, newStore StoreFactory) {
 			Schema:      `{"type":"int"}`,
 			Fingerprint: "fp-after-import",
 		}
-		if err := store.CreateSchema(ctx, newRec); err != nil {
+		if err := store.CreateSchema(ctx, ".", newRec); err != nil {
 			t.Fatalf("CreateSchema: %v", err)
 		}
 		if newRec.ID != 31 {
@@ -184,10 +184,10 @@ func RunImportTests(t *testing.T, newStore StoreFactory) {
 				Schema:      `{"type":"string"}`,
 				Fingerprint: fmt.Sprintf("fp-imp-%d", e.id),
 			}
-			store.ImportSchema(ctx, rec)
+			store.ImportSchema(ctx, ".", rec)
 		}
 
-		subjects, err := store.ListSubjects(ctx, false)
+		subjects, err := store.ListSubjects(ctx, ".", false)
 		if err != nil {
 			t.Fatalf("ListSubjects: %v", err)
 		}
@@ -195,7 +195,7 @@ func RunImportTests(t *testing.T, newStore StoreFactory) {
 			t.Errorf("expected 2 subjects, got %d", len(subjects))
 		}
 
-		schemas, err := store.GetSchemasBySubject(ctx, "sub-a", false)
+		schemas, err := store.GetSchemasBySubject(ctx, ".", "sub-a", false)
 		if err != nil {
 			t.Fatalf("GetSchemasBySubject: %v", err)
 		}
@@ -217,7 +217,7 @@ func RunImportTests(t *testing.T, newStore StoreFactory) {
 			Schema:      `{"type":"record","name":"Base","fields":[{"name":"id","type":"long"}]}`,
 			Fingerprint: "fp-base-imp",
 		}
-		store.ImportSchema(ctx, base)
+		store.ImportSchema(ctx, ".", base)
 
 		child := &storage.SchemaRecord{
 			ID:          2,
@@ -228,11 +228,11 @@ func RunImportTests(t *testing.T, newStore StoreFactory) {
 			Fingerprint: "fp-child-imp",
 			References:  []storage.Reference{{Name: "Base", Subject: "base-type", Version: 1}},
 		}
-		if err := store.ImportSchema(ctx, child); err != nil {
+		if err := store.ImportSchema(ctx, ".", child); err != nil {
 			t.Fatalf("ImportSchema(child): %v", err)
 		}
 
-		refs, err := store.GetReferencedBy(ctx, "base-type", 1)
+		refs, err := store.GetReferencedBy(ctx, ".", "base-type", 1)
 		if err != nil {
 			t.Fatalf("GetReferencedBy: %v", err)
 		}

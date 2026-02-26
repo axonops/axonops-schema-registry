@@ -454,7 +454,7 @@ func TestImportWithReferences(t *testing.T) {
 
 	// Verify reference is stored
 	ctx := context.Background()
-	schema, err := store.GetSchemaByID(ctx, 2)
+	schema, err := store.GetSchemaByID(ctx, ".", 2)
 	if err != nil {
 		t.Fatalf("Failed to get schema: %v", err)
 	}
@@ -577,7 +577,7 @@ func TestImportPreservesSchemaTypes(t *testing.T) {
 	// Verify schema types
 	ctx := context.Background()
 
-	avroSchema, err := store.GetSchemaByID(ctx, 100)
+	avroSchema, err := store.GetSchemaByID(ctx, ".", 100)
 	if err != nil {
 		t.Fatalf("Failed to get AVRO schema: %v", err)
 	}
@@ -585,7 +585,7 @@ func TestImportPreservesSchemaTypes(t *testing.T) {
 		t.Errorf("Expected AVRO type, got %s", avroSchema.SchemaType)
 	}
 
-	jsonSchema, err := store.GetSchemaByID(ctx, 200)
+	jsonSchema, err := store.GetSchemaByID(ctx, ".", 200)
 	if err != nil {
 		t.Fatalf("Failed to get JSON schema: %v", err)
 	}

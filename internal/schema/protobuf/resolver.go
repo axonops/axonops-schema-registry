@@ -46,7 +46,7 @@ func (r *referenceResolver) withReferencesAndSchema(schema string, refs []storag
 // FindFileByPath implements protocompile.Resolver.
 func (r *referenceResolver) FindFileByPath(path string) (protocompile.SearchResult, error) {
 	// Check well-known types first
-	if content, ok := r.wellKnown[path]; ok {
+	if content, ok := r.wellKnown[path]; ok && content != "" {
 		return protocompile.SearchResult{
 			Source: strings.NewReader(content),
 		}, nil
@@ -73,6 +73,10 @@ func (e *fileNotFoundError) Error() string {
 }
 
 // getWellKnownTypes returns proto definitions for well-known types.
+// Note: descriptor.proto is intentionally left empty so that
+// protocompile.WithStandardImports provides the full definition
+// (which includes complete Options messages needed for features
+// like allow_alias and packed).
 func getWellKnownTypes() map[string]string {
 	return map[string]string{
 		"google/protobuf/any.proto": `
@@ -140,126 +144,23 @@ package google.protobuf;
 message FieldMask {
   repeated string paths = 1;
 }`,
-		"google/protobuf/descriptor.proto": descriptorProto,
+		// Note: at compile time, descriptor.proto is provided by
+		// protocompile.WithStandardImports (via CompositeResolver priority)
+		// with the full definition including complete Options messages.
+		// This stub exists only for backward compatibility with direct
+		// FindFileByPath callers.
+		"google/protobuf/descriptor.proto": `syntax = "proto2"; package google.protobuf;`,
 	}
 }
 
-// descriptorProto is a minimal descriptor.proto for self-describing messages
-const descriptorProto = `
-syntax = "proto2";
-package google.protobuf;
+// notFoundResolver is a resolver that always returns not-found. It is used as
+// the inner resolver for protocompile.WithStandardImports so that standard
+// imports are always provided from the real protobuf definitions.
+type notFoundResolver struct{}
 
-message FileDescriptorSet {
-  repeated FileDescriptorProto file = 1;
+func (notFoundResolver) FindFileByPath(path string) (protocompile.SearchResult, error) {
+	return protocompile.SearchResult{}, &fileNotFoundError{path: path}
 }
-
-message FileDescriptorProto {
-  optional string name = 1;
-  optional string package = 2;
-  repeated string dependency = 3;
-  repeated int32 public_dependency = 10;
-  repeated int32 weak_dependency = 11;
-  repeated DescriptorProto message_type = 4;
-  repeated EnumDescriptorProto enum_type = 5;
-  repeated ServiceDescriptorProto service = 6;
-  repeated FieldDescriptorProto extension = 7;
-  optional FileOptions options = 8;
-  optional SourceCodeInfo source_code_info = 9;
-  optional string syntax = 12;
-}
-
-message DescriptorProto {
-  optional string name = 1;
-  repeated FieldDescriptorProto field = 2;
-  repeated FieldDescriptorProto extension = 6;
-  repeated DescriptorProto nested_type = 3;
-  repeated EnumDescriptorProto enum_type = 4;
-  repeated OneofDescriptorProto oneof_decl = 8;
-  optional MessageOptions options = 7;
-}
-
-message FieldDescriptorProto {
-  optional string name = 1;
-  optional int32 number = 3;
-  optional Label label = 4;
-  optional Type type = 5;
-  optional string type_name = 6;
-  optional string extendee = 2;
-  optional string default_value = 7;
-  optional int32 oneof_index = 9;
-  optional string json_name = 10;
-  optional FieldOptions options = 8;
-
-  enum Type {
-    TYPE_DOUBLE = 1;
-    TYPE_FLOAT = 2;
-    TYPE_INT64 = 3;
-    TYPE_UINT64 = 4;
-    TYPE_INT32 = 5;
-    TYPE_FIXED64 = 6;
-    TYPE_FIXED32 = 7;
-    TYPE_BOOL = 8;
-    TYPE_STRING = 9;
-    TYPE_GROUP = 10;
-    TYPE_MESSAGE = 11;
-    TYPE_BYTES = 12;
-    TYPE_UINT32 = 13;
-    TYPE_ENUM = 14;
-    TYPE_SFIXED32 = 15;
-    TYPE_SFIXED64 = 16;
-    TYPE_SINT32 = 17;
-    TYPE_SINT64 = 18;
-  }
-
-  enum Label {
-    LABEL_OPTIONAL = 1;
-    LABEL_REQUIRED = 2;
-    LABEL_REPEATED = 3;
-  }
-}
-
-message OneofDescriptorProto {
-  optional string name = 1;
-  optional OneofOptions options = 2;
-}
-
-message EnumDescriptorProto {
-  optional string name = 1;
-  repeated EnumValueDescriptorProto value = 2;
-  optional EnumOptions options = 3;
-}
-
-message EnumValueDescriptorProto {
-  optional string name = 1;
-  optional int32 number = 2;
-  optional EnumValueOptions options = 3;
-}
-
-message ServiceDescriptorProto {
-  optional string name = 1;
-  repeated MethodDescriptorProto method = 2;
-  optional ServiceOptions options = 3;
-}
-
-message MethodDescriptorProto {
-  optional string name = 1;
-  optional string input_type = 2;
-  optional string output_type = 3;
-  optional MethodOptions options = 4;
-  optional bool client_streaming = 5;
-  optional bool server_streaming = 6;
-}
-
-message FileOptions {}
-message MessageOptions {}
-message FieldOptions {}
-message OneofOptions {}
-message EnumOptions {}
-message EnumValueOptions {}
-message ServiceOptions {}
-message MethodOptions {}
-message SourceCodeInfo {}
-`
 
 // Ensure referenceResolver implements the required interface
 var _ protocompile.Resolver = (*referenceResolver)(nil)

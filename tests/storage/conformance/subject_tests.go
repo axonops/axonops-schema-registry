@@ -17,7 +17,7 @@ func RunSubjectTests(t *testing.T, newStore StoreFactory) {
 		defer store.Close()
 		ctx := context.Background()
 
-		subjects, err := store.ListSubjects(ctx, false)
+		subjects, err := store.ListSubjects(ctx, ".", false)
 		if err != nil {
 			t.Fatalf("ListSubjects: %v", err)
 		}
@@ -38,10 +38,10 @@ func RunSubjectTests(t *testing.T, newStore StoreFactory) {
 				Schema:      `{"type":"string"}`,
 				Fingerprint: fmt.Sprintf("fp-ls-%d", i),
 			}
-			store.CreateSchema(ctx, rec)
+			store.CreateSchema(ctx, ".", rec)
 		}
 
-		subjects, err := store.ListSubjects(ctx, false)
+		subjects, err := store.ListSubjects(ctx, ".", false)
 		if err != nil {
 			t.Fatalf("ListSubjects: %v", err)
 		}
@@ -60,10 +60,10 @@ func RunSubjectTests(t *testing.T, newStore StoreFactory) {
 		ctx := context.Background()
 
 		rec := &storage.SchemaRecord{Subject: "s", SchemaType: storage.SchemaTypeAvro, Schema: `{"type":"string"}`, Fingerprint: "fp-sub-del"}
-		store.CreateSchema(ctx, rec)
-		store.DeleteSubject(ctx, "s", false)
+		store.CreateSchema(ctx, ".", rec)
+		store.DeleteSubject(ctx, ".", "s", false)
 
-		subjects, err := store.ListSubjects(ctx, false)
+		subjects, err := store.ListSubjects(ctx, ".", false)
 		if err != nil {
 			t.Fatalf("ListSubjects: %v", err)
 		}
@@ -78,10 +78,10 @@ func RunSubjectTests(t *testing.T, newStore StoreFactory) {
 		ctx := context.Background()
 
 		rec := &storage.SchemaRecord{Subject: "s", SchemaType: storage.SchemaTypeAvro, Schema: `{"type":"string"}`, Fingerprint: "fp-sub-idel"}
-		store.CreateSchema(ctx, rec)
-		store.DeleteSubject(ctx, "s", false)
+		store.CreateSchema(ctx, ".", rec)
+		store.DeleteSubject(ctx, ".", "s", false)
 
-		subjects, err := store.ListSubjects(ctx, true)
+		subjects, err := store.ListSubjects(ctx, ".", true)
 		if err != nil {
 			t.Fatalf("ListSubjects: %v", err)
 		}
@@ -97,10 +97,10 @@ func RunSubjectTests(t *testing.T, newStore StoreFactory) {
 
 		r1 := &storage.SchemaRecord{Subject: "s", SchemaType: storage.SchemaTypeAvro, Schema: `{"type":"string"}`, Fingerprint: "fp-dss-1"}
 		r2 := &storage.SchemaRecord{Subject: "s", SchemaType: storage.SchemaTypeAvro, Schema: `{"type":"int"}`, Fingerprint: "fp-dss-2"}
-		store.CreateSchema(ctx, r1)
-		store.CreateSchema(ctx, r2)
+		store.CreateSchema(ctx, ".", r1)
+		store.CreateSchema(ctx, ".", r2)
 
-		versions, err := store.DeleteSubject(ctx, "s", false)
+		versions, err := store.DeleteSubject(ctx, ".", "s", false)
 		if err != nil {
 			t.Fatalf("DeleteSubject(soft): %v", err)
 		}
@@ -109,7 +109,7 @@ func RunSubjectTests(t *testing.T, newStore StoreFactory) {
 		}
 
 		// Subject should not be visible
-		exists, _ := store.SubjectExists(ctx, "s")
+		exists, _ := store.SubjectExists(ctx, ".", "s")
 		if exists {
 			t.Error("subject should not exist after soft delete")
 		}
@@ -121,14 +121,14 @@ func RunSubjectTests(t *testing.T, newStore StoreFactory) {
 		ctx := context.Background()
 
 		rec := &storage.SchemaRecord{Subject: "s", SchemaType: storage.SchemaTypeAvro, Schema: `{"type":"string"}`, Fingerprint: "fp-dsp"}
-		store.CreateSchema(ctx, rec)
+		store.CreateSchema(ctx, ".", rec)
 
 		// Must soft-delete before permanent delete (two-step delete)
-		_, err := store.DeleteSubject(ctx, "s", false)
+		_, err := store.DeleteSubject(ctx, ".", "s", false)
 		if err != nil {
 			t.Fatalf("DeleteSubject(soft): %v", err)
 		}
-		versions, err := store.DeleteSubject(ctx, "s", true)
+		versions, err := store.DeleteSubject(ctx, ".", "s", true)
 		if err != nil {
 			t.Fatalf("DeleteSubject(permanent): %v", err)
 		}
@@ -137,7 +137,7 @@ func RunSubjectTests(t *testing.T, newStore StoreFactory) {
 		}
 
 		// Subject should not appear even with includeDeleted
-		subjects, _ := store.ListSubjects(ctx, true)
+		subjects, _ := store.ListSubjects(ctx, ".", true)
 		if len(subjects) != 0 {
 			t.Errorf("expected 0 subjects after permanent delete, got %d", len(subjects))
 		}
@@ -149,9 +149,9 @@ func RunSubjectTests(t *testing.T, newStore StoreFactory) {
 		ctx := context.Background()
 
 		rec := &storage.SchemaRecord{Subject: "s", SchemaType: storage.SchemaTypeAvro, Schema: `{"type":"string"}`, Fingerprint: "fp-se-t"}
-		store.CreateSchema(ctx, rec)
+		store.CreateSchema(ctx, ".", rec)
 
-		exists, err := store.SubjectExists(ctx, "s")
+		exists, err := store.SubjectExists(ctx, ".", "s")
 		if err != nil {
 			t.Fatalf("SubjectExists: %v", err)
 		}
@@ -165,7 +165,7 @@ func RunSubjectTests(t *testing.T, newStore StoreFactory) {
 		defer store.Close()
 		ctx := context.Background()
 
-		exists, err := store.SubjectExists(ctx, "nonexistent")
+		exists, err := store.SubjectExists(ctx, ".", "nonexistent")
 		if err != nil {
 			t.Fatalf("SubjectExists: %v", err)
 		}
@@ -180,10 +180,10 @@ func RunSubjectTests(t *testing.T, newStore StoreFactory) {
 		ctx := context.Background()
 
 		rec := &storage.SchemaRecord{Subject: "s", SchemaType: storage.SchemaTypeAvro, Schema: `{"type":"string"}`, Fingerprint: "fp-se-ad"}
-		store.CreateSchema(ctx, rec)
-		store.DeleteSubject(ctx, "s", false)
+		store.CreateSchema(ctx, ".", rec)
+		store.DeleteSubject(ctx, ".", "s", false)
 
-		exists, err := store.SubjectExists(ctx, "s")
+		exists, err := store.SubjectExists(ctx, ".", "s")
 		if err != nil {
 			t.Fatalf("SubjectExists: %v", err)
 		}

@@ -175,15 +175,15 @@ Feature: Mode Enforcement
     And the response field "id" should be 99992
     When I set the global mode to "READWRITE"
 
-  @axonops-only
-  Scenario: IMPORT mode allows registration without explicit ID
+  Scenario: IMPORT mode rejects registration without explicit ID
     When I set the global mode to "IMPORT"
     Then the response status should be 200
     When I register a schema under subject "mode-import-no-id":
       """
       {"type":"record","name":"ImportNoId","fields":[{"name":"b","type":"string"}]}
       """
-    Then the response status should be 200
+    Then the response status should be 422
+    And the response should have error code 42205
     When I set the global mode to "READWRITE"
 
   # ==========================================================================

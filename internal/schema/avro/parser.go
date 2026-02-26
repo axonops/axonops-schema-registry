@@ -51,6 +51,11 @@ func (p *Parser) Parse(schemaStr string, references []storage.Reference) (schema
 		return nil, fmt.Errorf("invalid Avro schema: %w", err)
 	}
 
+	// Validate additional constraints not enforced by hamba/avro parser
+	if validationErr := validateAvroSchema(avroSchema); validationErr != nil {
+		return nil, fmt.Errorf("invalid Avro schema: %w", validationErr)
+	}
+
 	// Generate canonical form
 	canonical := canonicalize(schemaStr)
 
@@ -140,10 +145,14 @@ func canonicalize(schemaStr string) string {
 		return strings.TrimSpace(schemaStr)
 	}
 
-	return canonicalizeValue(obj)
+	return canonicalizeValue(obj, "")
 }
 
-func canonicalizeValue(v interface{}) string {
+// canonicalizeValue converts a JSON value to its canonical Avro form.
+// parentNamespace is the namespace inherited from the enclosing named type,
+// per the Avro specification: a nested type without an explicit namespace
+// inherits the namespace of the most tightly enclosing named type.
+func canonicalizeValue(v interface{}, parentNamespace string) string {
 	switch val := v.(type) {
 	case string:
 		// Primitive type or named type reference
@@ -153,13 +162,13 @@ func canonicalizeValue(v interface{}) string {
 		// Union type
 		parts := make([]string, len(val))
 		for i, item := range val {
-			parts[i] = canonicalizeValue(item)
+			parts[i] = canonicalizeValue(item, parentNamespace)
 		}
 		return "[" + strings.Join(parts, ",") + "]"
 
 	case map[string]interface{}:
 		// Complex type (record, enum, array, map, fixed)
-		return canonicalizeObject(val)
+		return canonicalizeObject(val, parentNamespace)
 
 	default:
 		// Other JSON values (numbers, booleans)
@@ -168,8 +177,35 @@ func canonicalizeValue(v interface{}) string {
 	}
 }
 
-func canonicalizeObject(obj map[string]interface{}) string {
+// canonicalizeObject converts a JSON object to its canonical Avro form.
+// parentNamespace is the namespace inherited from the enclosing named type.
+func canonicalizeObject(obj map[string]interface{}, parentNamespace string) string {
 	schemaType, _ := obj["type"].(string)
+
+	// The resolved namespace for this type, used as parentNamespace for children.
+	resolvedNamespace := parentNamespace
+
+	// Per the Avro Parsing Canonical Form specification, named types must use
+	// fully-qualified names (namespace.name) and the separate "namespace" field
+	// is stripped. Avro namespace inheritance means that a nested named type
+	// without an explicit namespace inherits from the most tightly enclosing
+	// named type.
+	switch schemaType {
+	case "record", "error", "enum", "fixed":
+		name, _ := obj["name"].(string)
+		explicitNS, hasExplicitNS := obj["namespace"].(string)
+
+		if hasExplicitNS && explicitNS != "" {
+			// This type has an explicit namespace — use it.
+			resolvedNamespace = explicitNS
+		}
+		// resolvedNamespace is now either the explicit NS or inherited parentNamespace.
+
+		if !strings.Contains(name, ".") && resolvedNamespace != "" {
+			// Qualify the short name with the resolved namespace.
+			obj["name"] = resolvedNamespace + "." + name
+		}
+	}
 
 	// Define field order based on schema type
 	var fieldOrder []string
@@ -214,7 +250,7 @@ func canonicalizeObject(obj map[string]interface{}) string {
 				fieldParts := make([]string, len(fields))
 				for i, f := range fields {
 					if fobj, ok := f.(map[string]interface{}); ok {
-						fieldParts[i] = canonicalizeField(fobj)
+						fieldParts[i] = canonicalizeField(fobj, resolvedNamespace)
 					}
 				}
 				valStr = "[" + strings.Join(fieldParts, ",") + "]"
@@ -229,7 +265,7 @@ func canonicalizeObject(obj map[string]interface{}) string {
 				valStr = "[" + strings.Join(symParts, ",") + "]"
 			}
 		default:
-			valStr = canonicalizeValue(val)
+			valStr = canonicalizeValue(val, resolvedNamespace)
 		}
 
 		if valStr != "" {
@@ -240,7 +276,10 @@ func canonicalizeObject(obj map[string]interface{}) string {
 	return "{" + strings.Join(parts, ",") + "}"
 }
 
-func canonicalizeField(field map[string]interface{}) string {
+// canonicalizeField converts a field definition to its canonical Avro form.
+// parentNamespace is the namespace of the enclosing record, passed through
+// to nested named types for namespace inheritance.
+func canonicalizeField(field map[string]interface{}, parentNamespace string) string {
 	parts := make([]string, 0)
 
 	// Field order: name, type, default
@@ -250,7 +289,7 @@ func canonicalizeField(field map[string]interface{}) string {
 		parts = append(parts, fmt.Sprintf(`"name":"%v"`, name))
 	}
 	if typ, ok := field["type"]; ok {
-		parts = append(parts, fmt.Sprintf(`"type":%s`, canonicalizeValue(typ)))
+		parts = append(parts, fmt.Sprintf(`"type":%s`, canonicalizeValue(typ, parentNamespace)))
 	}
 	if def, ok := field["default"]; ok {
 		defBytes, _ := json.Marshal(def)
@@ -270,4 +309,75 @@ func isNonCanonicalField(field string) bool {
 		"namespace": false, // namespace IS included for named types
 	}
 	return nonCanonical[field]
+}
+
+// validateAvroSchema recursively walks a parsed avro.Schema and checks for:
+// - Duplicate field names within a record
+// - Fixed types with size <= 0
+// It uses a visited set keyed by schema fingerprint to avoid infinite recursion
+// on self-referencing schemas.
+func validateAvroSchema(s avro.Schema) error {
+	visited := make(map[[32]byte]bool)
+	return validateAvroSchemaRecursive(s, visited)
+}
+
+func validateAvroSchemaRecursive(s avro.Schema, visited map[[32]byte]bool) error {
+	if s == nil {
+		return nil
+	}
+
+	// Skip RefSchema nodes — they are references to named types that have
+	// already been validated when the original definition was encountered.
+	if _, ok := s.(*avro.RefSchema); ok {
+		return nil
+	}
+
+	// Use the cache fingerprint to detect cycles in self-referencing schemas.
+	fp := s.CacheFingerprint()
+	if visited[fp] {
+		return nil
+	}
+	visited[fp] = true
+
+	switch schema := s.(type) {
+	case *avro.RecordSchema:
+		// Check for duplicate field names within this record.
+		seen := make(map[string]bool, len(schema.Fields()))
+		for _, f := range schema.Fields() {
+			name := f.Name()
+			if seen[name] {
+				return fmt.Errorf("record %q has duplicate field name %q", schema.FullName(), name)
+			}
+			seen[name] = true
+
+			// Recurse into the field's type.
+			if err := validateAvroSchemaRecursive(f.Type(), visited); err != nil {
+				return err
+			}
+		}
+
+	case *avro.FixedSchema:
+		if schema.Size() <= 0 {
+			return fmt.Errorf("fixed type %q has invalid size %d: must be greater than 0", schema.FullName(), schema.Size())
+		}
+
+	case *avro.ArraySchema:
+		if err := validateAvroSchemaRecursive(schema.Items(), visited); err != nil {
+			return err
+		}
+
+	case *avro.MapSchema:
+		if err := validateAvroSchemaRecursive(schema.Values(), visited); err != nil {
+			return err
+		}
+
+	case *avro.UnionSchema:
+		for _, t := range schema.Types() {
+			if err := validateAvroSchemaRecursive(t, visited); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }

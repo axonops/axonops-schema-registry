@@ -24,6 +24,7 @@ type TestContext struct {
 	LastJSON       map[string]interface{}
 	LastJSONArray  []interface{}
 	StoredValues   map[string]interface{} // for passing values between steps
+	AuthHeader     string                 // Authorization header value (e.g., "Basic ...")
 	client         *http.Client
 }
 
@@ -44,6 +45,7 @@ func (tc *TestContext) Reset() {
 	tc.LastJSON = nil
 	tc.LastJSONArray = nil
 	tc.StoredValues = make(map[string]interface{})
+	tc.AuthHeader = ""
 }
 
 // resolveVars replaces {{key}} placeholders in a string with stored values.
@@ -75,6 +77,9 @@ func (tc *TestContext) DoRequest(method, path string, body interface{}) error {
 	}
 	req.Header.Set("Content-Type", "application/vnd.schemaregistry.v1+json")
 	req.Header.Set("Accept", "application/vnd.schemaregistry.v1+json")
+	if tc.AuthHeader != "" {
+		req.Header.Set("Authorization", tc.AuthHeader)
+	}
 
 	resp, err := tc.client.Do(req)
 	if err != nil {
@@ -129,6 +134,11 @@ func (tc *TestContext) DELETE(path string) error {
 	return tc.DoRequest("DELETE", path, nil)
 }
 
+// PATCH sends a PATCH request with no body.
+func (tc *TestContext) PATCH(path string) error {
+	return tc.DoRequest("PATCH", path, nil)
+}
+
 // DoRawRequest sends an HTTP request with a raw string body (not JSON-marshaled).
 func (tc *TestContext) DoRawRequest(method, path string, body string) error {
 	path = tc.resolveVars(path)
@@ -145,6 +155,9 @@ func (tc *TestContext) DoRawRequest(method, path string, body string) error {
 	}
 	req.Header.Set("Content-Type", "application/vnd.schemaregistry.v1+json")
 	req.Header.Set("Accept", "application/vnd.schemaregistry.v1+json")
+	if tc.AuthHeader != "" {
+		req.Header.Set("Authorization", tc.AuthHeader)
+	}
 
 	resp, err := tc.client.Do(req)
 	if err != nil {
