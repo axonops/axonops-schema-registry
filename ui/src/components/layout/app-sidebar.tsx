@@ -28,8 +28,19 @@ import {
   ShieldCheck,
   Layers,
   FileText,
+  LayoutDashboard,
+  FilePlus2,
 } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
+import { useRegistryContext } from '@/context/registry-context';
+import { useContexts } from '@/api/queries';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 interface NavItem {
   title: string;
@@ -46,14 +57,21 @@ interface NavGroup {
 
 const navGroups: NavGroup[] = [
   {
-    label: 'SCHEMAS',
+    label: 'OVERVIEW',
     items: [
-      { title: 'Subjects', url: '/ui/subjects', icon: BookOpen, testId: 'nav-sidebar-subjects-link' },
-      { title: 'Schema Browser', url: '/ui/schemas', icon: Search, testId: 'nav-sidebar-schemas-link' },
+      { title: 'Dashboard', url: '/ui/dashboard', icon: LayoutDashboard, testId: 'nav-sidebar-dashboard-link' },
     ],
   },
   {
-    label: 'CONFIGURATION',
+    label: 'SCHEMAS',
+    items: [
+      { title: 'Subjects', url: '/ui/subjects', icon: BookOpen, testId: 'nav-sidebar-subjects-link' },
+      { title: 'Register Schema', url: '/ui/register', icon: FilePlus2, testId: 'nav-sidebar-register-link' },
+      { title: 'Search', url: '/ui/search', icon: Search, testId: 'nav-sidebar-search-link' },
+    ],
+  },
+  {
+    label: 'GOVERNANCE',
     items: [
       { title: 'Compatibility', url: '/ui/config', icon: Settings, testId: 'nav-sidebar-config-link' },
       { title: 'Modes', url: '/ui/modes', icon: ToggleLeft, testId: 'nav-sidebar-modes-link' },
@@ -64,7 +82,7 @@ const navGroups: NavGroup[] = [
   {
     label: 'TOOLS',
     items: [
-      { title: 'Compatibility Check', url: '/ui/tools/compatibility', icon: CircleCheck, testId: 'nav-sidebar-compat-check-link' },
+      { title: 'Compat Check', url: '/ui/tools/compatibility', icon: CircleCheck, testId: 'nav-sidebar-compat-check-link' },
       { title: 'Schema Lookup', url: '/ui/tools/lookup', icon: SearchCheck, testId: 'nav-sidebar-schema-lookup-link' },
     ],
   },
@@ -76,13 +94,21 @@ const navGroups: NavGroup[] = [
     minRole: ['super_admin', 'admin'],
   },
   {
-    label: 'ADMINISTRATION',
+    label: 'DATA MANAGEMENT',
     items: [
+      { title: 'Import', url: '/ui/import', icon: Upload, testId: 'nav-sidebar-import-link' },
       { title: 'Users', url: '/ui/admin/users', icon: Users, testId: 'nav-sidebar-users-link' },
       { title: 'API Keys', url: '/ui/admin/apikeys', icon: KeyRound, testId: 'nav-sidebar-apikeys-link' },
-      { title: 'Import', url: '/ui/import', icon: Upload, testId: 'nav-sidebar-import-link' },
     ],
     minRole: ['super_admin', 'admin'],
+  },
+  {
+    label: 'REFERENCE',
+    items: [
+      { title: 'API Docs', url: '/ui/api-docs', icon: FileText, testId: 'nav-sidebar-api-docs-link' },
+      { title: 'Contexts', url: '/ui/contexts', icon: Layers, testId: 'nav-sidebar-contexts-link' },
+      { title: 'About', url: '/ui/about', icon: Info, testId: 'nav-sidebar-about-link' },
+    ],
   },
   {
     label: 'ACCOUNT',
@@ -91,20 +117,16 @@ const navGroups: NavGroup[] = [
       { title: 'My API Keys', url: '/ui/account/apikeys', icon: KeyRound, testId: 'nav-sidebar-my-apikeys-link' },
     ],
   },
-  {
-    label: 'SYSTEM',
-    items: [
-      { title: 'API Docs', url: '/ui/api-docs', icon: FileText, testId: 'nav-sidebar-api-docs-link' },
-      { title: 'Contexts', url: '/ui/contexts', icon: Layers, testId: 'nav-sidebar-contexts-link' },
-      { title: 'About', url: '/ui/about', icon: Info, testId: 'nav-sidebar-about-link' },
-    ],
-  },
 ];
 
 export function AppSidebar() {
   const { user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const { selectedContext, setSelectedContext } = useRegistryContext();
+  const { data: contexts } = useContexts();
+
+  const showContextSwitcher = contexts && contexts.length > 1;
 
   const isActive = (url: string) => {
     return location.pathname === url || location.pathname.startsWith(url + '/');
@@ -123,6 +145,22 @@ export function AppSidebar() {
           <Database className="h-5 w-5" />
           <span className="font-semibold text-sm">Schema Registry</span>
         </div>
+        {showContextSwitcher && (
+          <Select
+            value={selectedContext || '__default__'}
+            onValueChange={(v) => setSelectedContext(v === '__default__' ? '' : v)}
+          >
+            <SelectTrigger className="mt-2 h-7 text-xs" data-testid="context-switcher">
+              <SelectValue placeholder="Default Context" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__default__">Default Context</SelectItem>
+              {contexts.filter((c) => c !== '.').map((ctx) => (
+                <SelectItem key={ctx} value={ctx}>{ctx}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
       </SidebarHeader>
       <SidebarContent>
         {navGroups.filter(hasRole).map((group) => (

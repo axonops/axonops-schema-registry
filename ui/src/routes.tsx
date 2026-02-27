@@ -11,6 +11,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { AuthProvider, useAuth } from '@/context/auth-context';
+import { RegistryContextProvider } from '@/context/registry-context';
 import { ThemeProvider } from '@/context/theme-context';
 import { AppLayout } from '@/components/layout/app-layout';
 import { LoginPage } from '@/features/auth/login-page';
@@ -21,6 +22,7 @@ import { SchemaBrowserPage } from '@/features/schemas/schema-browser-page';
 import { SchemaByIdPage } from '@/features/schemas/schema-by-id-page';
 import { AboutPage } from '@/features/about/about-page';
 import { RegisterSchemaPage } from '@/features/authoring/register-schema-page';
+import { RegisterNewPage } from '@/features/authoring/register-new-page';
 import { GlobalConfigPage } from '@/features/config/global-config-page';
 import { GlobalModesPage } from '@/features/config/global-modes-page';
 import { ImportPage } from '@/features/admin/import-page';
@@ -37,6 +39,8 @@ import { KEKDetailPage } from '@/features/encryption/kek-detail-page';
 import { DEKDetailPage } from '@/features/encryption/dek-detail-page';
 import { ContextsPage } from '@/features/contexts/contexts-page';
 import { ApiDocsPage } from '@/features/docs/api-docs-page';
+import { DashboardPage } from '@/features/dashboard/dashboard-page';
+import { SearchPage } from '@/features/search/search-page';
 
 // ── Query Client ──
 export const queryClient = new QueryClient({
@@ -78,10 +82,12 @@ const rootRoute = createRootRoute({
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <AuthProvider>
-          <TooltipProvider>
-            <Outlet />
-            <Toaster position="bottom-right" />
-          </TooltipProvider>
+          <RegistryContextProvider>
+            <TooltipProvider>
+              <Outlet />
+              <Toaster position="bottom-right" />
+            </TooltipProvider>
+          </RegistryContextProvider>
         </AuthProvider>
       </ThemeProvider>
     </QueryClientProvider>
@@ -96,7 +102,7 @@ const loginRoute = createRoute({
     const { isAuthenticated } = useAuth();
     const navigate = useNavigate();
     const searchParams = new URLSearchParams(window.location.search);
-    const redirectTo = searchParams.get('redirect') || '/ui/subjects';
+    const redirectTo = searchParams.get('redirect') || '/ui/dashboard';
 
     useEffect(() => {
       if (isAuthenticated) {
@@ -122,6 +128,12 @@ const authenticatedRoute = createRoute({
 });
 
 // ── Page Routes ──
+const dashboardRoute = createRoute({
+  getParentRoute: () => authenticatedRoute,
+  path: '/ui/dashboard',
+  component: DashboardPage,
+});
+
 const subjectsRoute = createRoute({
   getParentRoute: () => authenticatedRoute,
   path: '/ui/subjects',
@@ -146,10 +158,22 @@ const registerSchemaRoute = createRoute({
   component: RegisterSchemaPage,
 });
 
+const registerNewRoute = createRoute({
+  getParentRoute: () => authenticatedRoute,
+  path: '/ui/register',
+  component: RegisterNewPage,
+});
+
 const schemasRoute = createRoute({
   getParentRoute: () => authenticatedRoute,
   path: '/ui/schemas',
   component: SchemaBrowserPage,
+});
+
+const searchRoute = createRoute({
+  getParentRoute: () => authenticatedRoute,
+  path: '/ui/search',
+  component: SearchPage,
 });
 
 const schemaByIdRoute = createRoute({
@@ -260,12 +284,12 @@ const aboutRoute = createRoute({
   component: AboutPage,
 });
 
-// ── Redirect / → /ui/subjects ──
+// ── Redirect / → /ui/dashboard ──
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/',
   beforeLoad: () => {
-    throw redirect({ to: '/ui/subjects' });
+    throw redirect({ to: '/ui/dashboard' });
   },
 });
 
@@ -273,7 +297,7 @@ const uiIndexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/ui',
   beforeLoad: () => {
-    throw redirect({ to: '/ui/subjects' });
+    throw redirect({ to: '/ui/dashboard' });
   },
 });
 
@@ -283,11 +307,14 @@ const routeTree = rootRoute.addChildren([
   indexRoute,
   uiIndexRoute,
   authenticatedRoute.addChildren([
+    dashboardRoute,
     subjectsRoute,
     subjectDetailRoute,
     registerSchemaRoute,
+    registerNewRoute,
     schemaVersionRoute,
     schemasRoute,
+    searchRoute,
     schemaByIdRoute,
     configRoute,
     modesRoute,

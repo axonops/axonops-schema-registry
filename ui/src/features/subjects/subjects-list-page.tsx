@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
-import { useSubjects } from '@/api/queries';
+import { useSubjects, useSubjectVersion, useSubjectVersions, useSubjectConfig, useSubjectMetadata } from '@/api/queries';
 import { PageBreadcrumbs } from '@/components/shared/breadcrumbs';
 import { Pagination, usePagination } from '@/components/shared/pagination';
+import { TagBadges } from '@/components/shared/tag-badges';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -17,14 +18,12 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Search, RefreshCw, AlertCircle } from 'lucide-react';
+import { Search, RefreshCw, AlertCircle, Shield } from 'lucide-react';
 
 export function SubjectsListPage() {
   const [showDeleted, setShowDeleted] = useState(false);
   const [search, setSearch] = useState('');
   const { data: subjects, isLoading, isError, error, refetch } = useSubjects({ deleted: showDeleted });
-
-  const navigate = useNavigate();
 
   const filtered = subjects?.filter((s) =>
     s.toLowerCase().includes(search.toLowerCase())
@@ -115,25 +114,15 @@ export function SubjectsListPage() {
           <TableHeader>
             <TableRow>
               <TableHead>Subject</TableHead>
+              <TableHead>Type</TableHead>
+              <TableHead>Versions</TableHead>
+              <TableHead>Compatibility</TableHead>
+              <TableHead>Tags</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {paged.map((subject) => (
-              <TableRow
-                key={subject}
-                className="cursor-pointer"
-                onClick={() => navigate({ to: '/ui/subjects/$subject', params: { subject } })}
-                data-testid={`subjects-row-${subject}`}
-              >
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">{subject}</span>
-                    {subject.startsWith(':.') && (
-                      <Badge variant="outline" className="text-xs">context</Badge>
-                    )}
-                  </div>
-                </TableCell>
-              </TableRow>
+              <SubjectRow key={subject} subject={subject} />
             ))}
           </TableBody>
         </Table>
@@ -141,5 +130,51 @@ export function SubjectsListPage() {
 
       <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
     </div>
+  );
+}
+
+function SubjectRow({ subject }: { subject: string }) {
+  const navigate = useNavigate();
+  const { data: latestVersion, isLoading: loadingVersion } = useSubjectVersion(subject, 'latest');
+  const { data: versions, isLoading: loadingVersions } = useSubjectVersions(subject);
+  const { data: config } = useSubjectConfig(subject);
+  const { data: metadata } = useSubjectMetadata(subject);
+
+  return (
+    <TableRow
+      className="cursor-pointer"
+      onClick={() => navigate({ to: '/ui/subjects/$subject', params: { subject } })}
+      data-testid={`subjects-row-${subject}`}
+    >
+      <TableCell>
+        <span className="font-medium">{subject}</span>
+        {subject.startsWith(':.') && (
+          <Badge variant="outline" className="ml-2 text-xs">context</Badge>
+        )}
+        {metadata?.sensitive && metadata.sensitive.length > 0 && (
+          <Shield className="ml-2 inline h-3.5 w-3.5 text-amber-500" />
+        )}
+      </TableCell>
+      <TableCell>
+        {loadingVersion ? <Skeleton className="h-4 w-16" /> : (
+          <Badge variant="secondary">{latestVersion?.schemaType ?? '—'}</Badge>
+        )}
+      </TableCell>
+      <TableCell>
+        {loadingVersions ? <Skeleton className="h-4 w-8" /> : (versions?.length ?? 0)}
+      </TableCell>
+      <TableCell>
+        {config?.compatibilityLevel ? (
+          <Badge variant="outline">{config.compatibilityLevel}</Badge>
+        ) : (
+          <span className="text-xs text-muted-foreground">Global</span>
+        )}
+      </TableCell>
+      <TableCell>
+        {metadata?.tags ? <TagBadges tags={metadata.tags} /> : (
+          <span className="text-xs text-muted-foreground">—</span>
+        )}
+      </TableCell>
+    </TableRow>
   );
 }

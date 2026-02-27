@@ -64,6 +64,34 @@ export function useSubjectVersions(subject: string) {
   });
 }
 
+// ── Metadata & Rules Types ──
+
+export interface SchemaMetadata {
+  tags?: Record<string, string[]>;
+  properties?: Record<string, string>;
+  sensitive?: string[];
+}
+
+export interface Rule {
+  name: string;
+  doc?: string;
+  kind: 'CONDITION' | 'TRANSFORM';
+  mode: 'WRITE' | 'READ' | 'WRITEREAD';
+  type?: string;
+  tags?: string[];
+  params?: Record<string, string>;
+  expr?: string;
+  onSuccess?: string;
+  onFailure?: string;
+  disabled?: boolean;
+}
+
+export interface RuleSet {
+  migrationRules?: Rule[];
+  domainRules?: Rule[];
+  encodingRules?: Rule[];
+}
+
 export interface SubjectVersion {
   subject: string;
   id: number;
@@ -71,6 +99,8 @@ export interface SubjectVersion {
   schemaType: string;
   schema: string;
   references?: Array<{ name: string; subject: string; version: number }>;
+  metadata?: SchemaMetadata;
+  ruleSet?: RuleSet;
 }
 
 export function useSubjectVersion(subject: string, version: number | string) {
@@ -126,6 +156,76 @@ export function useSubjectMode(subject: string) {
       }
     },
     enabled: !!subject,
+  });
+}
+
+// ── Subject Metadata ──
+
+export function useSubjectMetadata(subject: string) {
+  return useQuery({
+    queryKey: ['subjects', subject, 'metadata'] as const,
+    queryFn: async () => {
+      try {
+        return await apiFetch<SchemaMetadata>(
+          `/subjects/${encodeURIComponent(subject)}/metadata`
+        );
+      } catch (e) {
+        if (e instanceof ApiClientError && e.status === 404) {
+          return null;
+        }
+        throw e;
+      }
+    },
+    enabled: !!subject,
+  });
+}
+
+// ── Subject Full Config (includes metadata, ruleSet, alias, etc.) ──
+
+export interface SubjectFullConfig {
+  compatibilityLevel?: string;
+  compatibilityGroup?: string;
+  alias?: string;
+  normalize?: boolean;
+  validateFields?: boolean;
+  defaultMetadata?: SchemaMetadata;
+  overrideMetadata?: SchemaMetadata;
+  defaultRuleSet?: RuleSet;
+  overrideRuleSet?: RuleSet;
+}
+
+export function useSubjectFullConfig(subject: string) {
+  return useQuery({
+    queryKey: ['subjects', subject, 'fullConfig'] as const,
+    queryFn: async () => {
+      try {
+        return await apiFetch<SubjectFullConfig>(
+          `/config/${encodeURIComponent(subject)}`
+        );
+      } catch (e) {
+        if (e instanceof ApiClientError && e.status === 404) {
+          return null;
+        }
+        throw e;
+      }
+    },
+    enabled: !!subject,
+  });
+}
+
+export function useSetSubjectFullConfig() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ subject, ...data }: { subject: string } & Partial<SubjectFullConfig>) =>
+      apiFetch<SubjectFullConfig>(
+        `/config/${encodeURIComponent(subject)}`,
+        { method: 'PUT', body: JSON.stringify(data) }
+      ),
+    onSuccess: (_data, { subject }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.subjects.config(subject) });
+      queryClient.invalidateQueries({ queryKey: ['subjects', subject, 'fullConfig'] });
+      queryClient.invalidateQueries({ queryKey: ['subjects', subject, 'metadata'] });
+    },
   });
 }
 

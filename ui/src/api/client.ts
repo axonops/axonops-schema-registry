@@ -3,6 +3,35 @@ import type { paths } from '@/types/api';
 
 let accessToken: string | null = null;
 let onAuthFailure: (() => void) | null = null;
+let _contextPrefix = '';
+
+export function setContextPrefix(prefix: string) {
+  _contextPrefix = prefix;
+}
+
+export function getContextPrefix(): string {
+  return _contextPrefix;
+}
+
+// Paths that should be prepended with the registry context prefix.
+// These are the context-aware API routes.
+const CONTEXT_AWARE_PREFIXES = [
+  '/subjects',
+  '/schemas',
+  '/config',
+  '/mode',
+  '/compatibility',
+  '/exporters',
+  '/dek-registry',
+];
+
+function withContextPrefix(path: string): string {
+  if (!_contextPrefix) return path;
+  const isContextAware = CONTEXT_AWARE_PREFIXES.some(
+    (prefix) => path === prefix || path.startsWith(prefix + '/') || path.startsWith(prefix + '?'),
+  );
+  return isContextAware ? _contextPrefix + path : path;
+}
 
 export function setToken(token: string | null) {
   accessToken = token;
@@ -68,7 +97,7 @@ export async function apiFetch<T>(
     headers['Content-Type'] = 'application/vnd.schemaregistry.v1+json';
   }
 
-  const response = await fetch(path, { ...options, headers });
+  const response = await fetch(withContextPrefix(path), { ...options, headers });
 
   if (response.status === 401) {
     setToken(null);

@@ -21,6 +21,8 @@ import {
 } from '@/components/ui/select';
 import { Copy, Download, AlertCircle, RefreshCw, Trash2, GitCompareArrows } from 'lucide-react';
 import { toast } from 'sonner';
+import { MetadataPanel } from '@/components/shared/metadata-panel';
+import { RuleSetPanel } from '@/components/shared/rule-set-panel';
 
 export function SchemaVersionPage() {
   const { subject, version: versionStr } = useParams({ strict: false }) as {
@@ -285,6 +287,16 @@ export function SchemaVersionPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Metadata */}
+      <div className="mt-6">
+        <MetadataPanel metadata={data.metadata} title="Schema Metadata" />
+      </div>
+
+      {/* Rules */}
+      <div className="mt-6">
+        <RuleSetPanel ruleSet={data.ruleSet} title="Rules" />
+      </div>
 
       <ConfirmDialog
         open={showDeleteDialog}

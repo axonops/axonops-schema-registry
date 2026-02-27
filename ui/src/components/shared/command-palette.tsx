@@ -14,6 +14,14 @@ import {
   User,
   Info,
   Hash,
+  LayoutDashboard,
+  FilePlus2,
+  CircleCheck,
+  SearchCheck,
+  ArrowRightLeft,
+  ShieldCheck,
+  FileText,
+  Layers,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -32,13 +40,21 @@ interface ResultItem {
 }
 
 const pages: PageItem[] = [
+  { label: 'Dashboard', path: '/ui/dashboard', icon: LayoutDashboard },
   { label: 'Subjects', path: '/ui/subjects', icon: BookOpen },
-  { label: 'Schema Browser', path: '/ui/schemas', icon: Search },
+  { label: 'Register Schema', path: '/ui/register', icon: FilePlus2 },
+  { label: 'Search', path: '/ui/search', icon: Search },
   { label: 'Compatibility', path: '/ui/config', icon: Settings },
   { label: 'Modes', path: '/ui/modes', icon: ToggleLeft },
+  { label: 'Exporters', path: '/ui/exporters', icon: ArrowRightLeft },
+  { label: 'Compat Check', path: '/ui/tools/compatibility', icon: CircleCheck },
+  { label: 'Schema Lookup', path: '/ui/tools/lookup', icon: SearchCheck },
+  { label: 'Encryption Keys', path: '/ui/encryption', icon: ShieldCheck },
   { label: 'Import', path: '/ui/import', icon: Upload },
   { label: 'Users', path: '/ui/admin/users', icon: Users },
   { label: 'API Keys', path: '/ui/admin/apikeys', icon: KeyRound },
+  { label: 'API Docs', path: '/ui/api-docs', icon: FileText },
+  { label: 'Contexts', path: '/ui/contexts', icon: Layers },
   { label: 'My Profile', path: '/ui/account', icon: User },
   { label: 'My API Keys', path: '/ui/account/apikeys', icon: KeyRound },
   { label: 'About', path: '/ui/about', icon: Info },
