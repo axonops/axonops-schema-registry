@@ -11,20 +11,49 @@ const breadcrumbs = [{ label: 'API Documentation' }];
 const REDOC_CDN = 'https://cdn.redoc.ly/redoc/latest/bundles/redoc.standalone.js';
 
 /**
- * Determine the base URL for the Schema Registry backend.
- * In dev (Vite proxy) this is just the current origin; in production
- * the UI is served from /ui/ on the same host as the API.
+ * The spec URL. In the Vite build the file is served from public/openapi.yaml
+ * at the base path (/ui/). At runtime we try the bundled copy first, then
+ * fall back to the backend's /openapi.yaml (requires docs_enabled: true).
  */
+function getSpecUrl(): string {
+  // Vite sets import.meta.env.BASE_URL to the `base` config value ("/ui/")
+  return `${import.meta.env.BASE_URL}openapi.yaml`;
+}
+
 function getApiBase(): string {
   return window.location.origin;
 }
 
+/**
+ * Wait for `window.Redoc` to be defined after the script loads.
+ * The CDN script may need a tick after onload before the global is available.
+ */
+function waitForRedoc(maxWait = 5000): Promise<void> {
+  return new Promise((resolve, reject) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if ((window as any).Redoc) {
+      resolve();
+      return;
+    }
+    const start = Date.now();
+    const interval = setInterval(() => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if ((window as any).Redoc) {
+        clearInterval(interval);
+        resolve();
+      } else if (Date.now() - start > maxWait) {
+        clearInterval(interval);
+        reject(new Error('Redoc failed to initialize after script loaded'));
+      }
+    }, 50);
+  });
+}
+
 export function ApiDocsPage() {
-  const [redocLoaded, setRedocLoaded] = useState(false);
+  const [redocReady, setRedocReady] = useState(false);
   const [redocError, setRedocError] = useState<string | null>(null);
   const [darkMode, setDarkMode] = useState(false);
   const redocContainerRef = useRef<HTMLDivElement>(null);
-  const redocInitRef = useRef(false);
 
   // Detect dark mode from the document
   useEffect(() => {
@@ -38,31 +67,49 @@ export function ApiDocsPage() {
     return () => observer.disconnect();
   }, []);
 
-  // Load the Redoc standalone script
+  // Load the Redoc standalone script and wait for the global
   useEffect(() => {
-    if (document.querySelector('script[data-redoc-standalone]')) {
-      setRedocLoaded(true);
-      return;
+    let cancelled = false;
+
+    async function loadRedoc() {
+      try {
+        // If script already in DOM, just wait for global
+        if (document.querySelector('script[data-redoc-standalone]')) {
+          await waitForRedoc();
+          if (!cancelled) setRedocReady(true);
+          return;
+        }
+
+        await new Promise<void>((resolve, reject) => {
+          const script = document.createElement('script');
+          script.src = REDOC_CDN;
+          script.async = true;
+          script.setAttribute('data-redoc-standalone', 'true');
+          script.onload = () => resolve();
+          script.onerror = () => reject(new Error('Failed to load Redoc script from CDN'));
+          document.head.appendChild(script);
+        });
+
+        await waitForRedoc();
+        if (!cancelled) setRedocReady(true);
+      } catch (err) {
+        if (!cancelled) {
+          setRedocError(err instanceof Error ? err.message : 'Failed to load Redoc');
+        }
+      }
     }
 
-    const script = document.createElement('script');
-    script.src = REDOC_CDN;
-    script.async = true;
-    script.setAttribute('data-redoc-standalone', 'true');
-    script.onload = () => setRedocLoaded(true);
-    script.onerror = () => setRedocError('Failed to load Redoc. Check your internet connection.');
-    document.head.appendChild(script);
+    loadRedoc();
+    return () => { cancelled = true; };
   }, []);
 
   const initRedoc = useCallback(() => {
-    if (!redocContainerRef.current || !redocLoaded) return;
-    if (redocInitRef.current) {
-      // Clear and re-init on theme change
-      redocContainerRef.current.innerHTML = '';
-    }
-    redocInitRef.current = true;
+    const container = redocContainerRef.current;
+    if (!container || !redocReady) return;
+    const specUrl = getSpecUrl();
 
-    const specUrl = `${getApiBase()}/openapi.yaml`;
+    // Clear previous render
+    container.innerHTML = '';
 
     const redocOptions = {
       scrollYOffset: 0,
@@ -105,20 +152,20 @@ export function ApiDocsPage() {
 
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (window as any).Redoc.init(specUrl, redocOptions, redocContainerRef.current);
+      (window as any).Redoc.init(specUrl, redocOptions, container);
     } catch (err) {
       setRedocError(
         err instanceof Error ? err.message : 'Failed to initialize Redoc'
       );
     }
-  }, [redocLoaded, darkMode]);
+  }, [redocReady, darkMode]);
 
-  // Initialize/re-initialize Redoc when loaded or theme changes
+  // Initialize/re-initialize Redoc when ready or theme changes
   useEffect(() => {
-    if (redocLoaded) {
+    if (redocReady) {
       initRedoc();
     }
-  }, [redocLoaded, initRedoc]);
+  }, [redocReady, initRedoc]);
 
   const apiBase = getApiBase();
 
@@ -169,9 +216,9 @@ export function ApiDocsPage() {
 
           <div className="mt-4 rounded-md border border-blue-200 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-950">
             <p className="text-xs text-blue-800 dark:text-blue-300">
-              <strong>Note:</strong> Swagger UI and the OpenAPI spec download require the backend
-              to have <code className="rounded bg-blue-100 px-1 dark:bg-blue-900">server.docs_enabled: true</code> in
-              its configuration. The Redoc reference below loads from the same endpoint.
+              <strong>Note:</strong> The Swagger UI link requires the backend to have{' '}
+              <code className="rounded bg-blue-100 px-1 dark:bg-blue-900">server.docs_enabled: true</code>.
+              The Redoc reference below is bundled with the UI and always available.
             </p>
           </div>
         </CardContent>
@@ -184,7 +231,7 @@ export function ApiDocsPage() {
         </Alert>
       )}
 
-      {!redocLoaded && !redocError && (
+      {!redocReady && !redocError && (
         <div className="flex items-center justify-center py-12">
           <Loader2 className="mr-2 h-6 w-6 animate-spin text-muted-foreground" />
           <span className="text-sm text-muted-foreground">Loading API documentation...</span>
