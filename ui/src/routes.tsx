@@ -36,6 +36,7 @@ import { KEKsPage } from '@/features/encryption/keks-page';
 import { KEKDetailPage } from '@/features/encryption/kek-detail-page';
 import { DEKDetailPage } from '@/features/encryption/dek-detail-page';
 import { ContextsPage } from '@/features/contexts/contexts-page';
+import { ApiDocsPage } from '@/features/docs/api-docs-page';
 
 // ── Query Client ──
 export const queryClient = new QueryClient({
@@ -247,6 +248,12 @@ const contextsRoute = createRoute({
   component: ContextsPage,
 });
 
+const apiDocsRoute = createRoute({
+  getParentRoute: () => authenticatedRoute,
+  path: '/ui/api-docs',
+  component: ApiDocsPage,
+});
+
 const aboutRoute = createRoute({
   getParentRoute: () => authenticatedRoute,
   path: '/ui/about',
@@ -297,6 +304,7 @@ const routeTree = rootRoute.addChildren([
     profileRoute,
     myApikeysRoute,
     contextsRoute,
+    apiDocsRoute,
     aboutRoute,
   ]),
 ]);

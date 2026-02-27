@@ -27,6 +27,7 @@ import {
   ArrowRightLeft,
   ShieldCheck,
   Layers,
+  FileText,
 } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 
@@ -93,6 +94,7 @@ const navGroups: NavGroup[] = [
   {
     label: 'SYSTEM',
     items: [
+      { title: 'API Docs', url: '/ui/api-docs', icon: FileText, testId: 'nav-sidebar-api-docs-link' },
       { title: 'Contexts', url: '/ui/contexts', icon: Layers, testId: 'nav-sidebar-contexts-link' },
       { title: 'About', url: '/ui/about', icon: Info, testId: 'nav-sidebar-about-link' },
     ],

@@ -27,6 +27,11 @@ export default defineConfig({
       "/ui/auth": "http://localhost:8081",
       "/v1": "http://localhost:8081",
       "/metrics": "http://localhost:8081",
+      "/docs": "http://localhost:8081",
+      "/openapi.yaml": "http://localhost:8081",
+      "/health": "http://localhost:8081",
+      "/dek-registry": "http://localhost:8081",
+      "/exporters": "http://localhost:8081",
     },
   },
 })
