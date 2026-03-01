@@ -18,9 +18,6 @@ import (
 	"github.com/axonops/axonops-schema-registry/internal/storage"
 )
 
-// errInvalidVersion is returned when a version string is not valid.
-var errInvalidVersion = errors.New("invalid version")
-
 // schemaTypeForResponse returns the schema type string for API responses.
 // Always returns a non-empty type string; defaults to "AVRO" if unset.
 func schemaTypeForResponse(st storage.SchemaType) string {
@@ -64,52 +61,6 @@ func NewWithConfig(reg *registry.Registry, cfg Config) *Handler {
 		version:   cfg.Version,
 		commit:    cfg.Commit,
 		buildTime: cfg.BuildTime,
-	}
-}
-
-// checkModeForWrite checks if the current mode allows write operations for the given subject.
-// Returns:
-//   - mode string: non-empty if writes are blocked by READONLY or READONLY_OVERRIDE
-//   - error: non-nil if the mode check itself failed (e.g. storage unreachable)
-//
-// Both READONLY and READONLY_OVERRIDE block data and config writes.
-func (h *Handler) checkModeForWrite(r *http.Request, registryCtx string, subject string) (string, error) {
-	mode, err := h.registry.GetMode(r.Context(), registryCtx, subject)
-	if err != nil {
-		return "", fmt.Errorf("failed to check mode: %w", err)
-	}
-	if mode == "READONLY" || mode == "READONLY_OVERRIDE" {
-		return mode, nil
-	}
-	return "", nil
-}
-
-// resolveAlias resolves a subject alias. If the subject has an alias configured,
-// the alias target is returned. Otherwise the original subject is returned.
-// Alias resolution is single-level (no recursive chaining).
-func (h *Handler) resolveAlias(ctx context.Context, registryCtx string, subject string) string {
-	if subject == "" {
-		return subject
-	}
-	config, err := h.registry.GetSubjectConfigFull(ctx, registryCtx, subject)
-	if err == nil && config.Alias != "" {
-		return config.Alias
-	}
-	return subject
-}
-
-// parseSchemaType validates and returns the schema type from a request.
-// Confluent is case-sensitive: only "AVRO", "PROTOBUF", and "JSON" are accepted.
-// Empty string defaults to AVRO. Returns empty string and false for invalid types.
-func parseSchemaType(raw string) (storage.SchemaType, bool) {
-	if raw == "" {
-		return storage.SchemaTypeAvro, true
-	}
-	switch storage.SchemaType(raw) {
-	case storage.SchemaTypeAvro, storage.SchemaTypeProtobuf, storage.SchemaTypeJSON:
-		return storage.SchemaType(raw), true
-	default:
-		return "", false
 	}
 }
 
@@ -327,7 +278,7 @@ func (h *Handler) GetVersions(w http.ResponseWriter, r *http.Request) {
 	if rejectGlobalContext(w, registryCtx) {
 		return
 	}
-	subject = h.resolveAlias(r.Context(), registryCtx, subject)
+	subject = h.registry.ResolveAlias(r.Context(), registryCtx, subject)
 	deleted := r.URL.Query().Get("deleted") == "true"
 	deletedOnly := r.URL.Query().Get("deletedOnly") == "true"
 
@@ -378,10 +329,10 @@ func (h *Handler) GetVersion(w http.ResponseWriter, r *http.Request) {
 	if rejectGlobalContext(w, registryCtx) {
 		return
 	}
-	subject = h.resolveAlias(r.Context(), registryCtx, subject)
+	subject = h.registry.ResolveAlias(r.Context(), registryCtx, subject)
 	versionStr := chi.URLParam(r, "version")
 
-	version, err := parseVersion(versionStr)
+	version, err := registry.ParseVersion(versionStr)
 	if err != nil {
 		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidVersion,
 			fmt.Sprintf("The specified version '%s' is not a valid version id. Allowed values are between [1, 2^31-1] and the string \"latest\"", versionStr))
@@ -558,10 +509,10 @@ func (h *Handler) RegisterSchema(w http.ResponseWriter, r *http.Request) {
 	if rejectGlobalContext(w, registryCtx) {
 		return
 	}
-	subject = h.resolveAlias(r.Context(), registryCtx, subject)
+	subject = h.registry.ResolveAlias(r.Context(), registryCtx, subject)
 
 	// Check mode enforcement
-	if mode, modeErr := h.checkModeForWrite(r, registryCtx, subject); modeErr != nil {
+	if mode, modeErr := h.registry.CheckModeForWrite(r.Context(), registryCtx, subject); modeErr != nil {
 		writeInternalError(w, modeErr)
 		return
 	} else if mode != "" {
@@ -581,7 +532,7 @@ func (h *Handler) RegisterSchema(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	schemaType, ok := parseSchemaType(req.SchemaType)
+	schemaType, ok := storage.ParseSchemaType(req.SchemaType)
 	if !ok {
 		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidSchema,
 			fmt.Sprintf("Invalid schema type '%s'. Accepted types are AVRO, PROTOBUF, and JSON", req.SchemaType))
@@ -672,7 +623,7 @@ func (h *Handler) LookupSchema(w http.ResponseWriter, r *http.Request) {
 	if rejectGlobalContext(w, registryCtx) {
 		return
 	}
-	subject = h.resolveAlias(r.Context(), registryCtx, subject)
+	subject = h.registry.ResolveAlias(r.Context(), registryCtx, subject)
 	deleted := r.URL.Query().Get("deleted") == "true"
 
 	var req types.LookupSchemaRequest
@@ -686,7 +637,7 @@ func (h *Handler) LookupSchema(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	schemaType, ok := parseSchemaType(req.SchemaType)
+	schemaType, ok := storage.ParseSchemaType(req.SchemaType)
 	if !ok {
 		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidSchema,
 			fmt.Sprintf("Invalid schema type '%s'. Accepted types are AVRO, PROTOBUF, and JSON", req.SchemaType))
@@ -734,11 +685,11 @@ func (h *Handler) DeleteSubject(w http.ResponseWriter, r *http.Request) {
 	if rejectGlobalContext(w, registryCtx) {
 		return
 	}
-	subject = h.resolveAlias(r.Context(), registryCtx, subject)
+	subject = h.registry.ResolveAlias(r.Context(), registryCtx, subject)
 	permanent := r.URL.Query().Get("permanent") == "true"
 
 	// Check mode enforcement
-	if mode, modeErr := h.checkModeForWrite(r, registryCtx, subject); modeErr != nil {
+	if mode, modeErr := h.registry.CheckModeForWrite(r.Context(), registryCtx, subject); modeErr != nil {
 		writeInternalError(w, modeErr)
 		return
 	} else if mode != "" {
@@ -780,12 +731,12 @@ func (h *Handler) DeleteVersion(w http.ResponseWriter, r *http.Request) {
 	if rejectGlobalContext(w, registryCtx) {
 		return
 	}
-	subject = h.resolveAlias(r.Context(), registryCtx, subject)
+	subject = h.registry.ResolveAlias(r.Context(), registryCtx, subject)
 	versionStr := chi.URLParam(r, "version")
 	permanent := r.URL.Query().Get("permanent") == "true"
 
 	// Check mode enforcement
-	if mode, modeErr := h.checkModeForWrite(r, registryCtx, subject); modeErr != nil {
+	if mode, modeErr := h.registry.CheckModeForWrite(r.Context(), registryCtx, subject); modeErr != nil {
 		writeInternalError(w, modeErr)
 		return
 	} else if mode != "" {
@@ -794,7 +745,7 @@ func (h *Handler) DeleteVersion(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	version, err := parseVersion(versionStr)
+	version, err := registry.ParseVersion(versionStr)
 	if err != nil {
 		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidVersion,
 			fmt.Sprintf("The specified version '%s' is not a valid version id. Allowed values are between [1, 2^31-1] and the string \"latest\"", versionStr))
@@ -871,7 +822,7 @@ func (h *Handler) SetConfig(w http.ResponseWriter, r *http.Request) {
 	registryCtx, subject := resolveSubjectAndContext(r)
 
 	// Check mode enforcement — Confluent blocks config writes in READONLY mode
-	if mode, modeErr := h.checkModeForWrite(r, registryCtx, subject); modeErr != nil {
+	if mode, modeErr := h.registry.CheckModeForWrite(r.Context(), registryCtx, subject); modeErr != nil {
 		writeInternalError(w, modeErr)
 		return
 	} else if mode != "" {
@@ -942,7 +893,7 @@ func (h *Handler) DeleteConfig(w http.ResponseWriter, r *http.Request) {
 	registryCtx, subject := resolveSubjectAndContext(r)
 
 	// Check mode enforcement — Confluent blocks config writes in READONLY mode
-	if mode, modeErr := h.checkModeForWrite(r, registryCtx, subject); modeErr != nil {
+	if mode, modeErr := h.registry.CheckModeForWrite(r.Context(), registryCtx, subject); modeErr != nil {
 		writeInternalError(w, modeErr)
 		return
 	} else if mode != "" {
@@ -972,7 +923,7 @@ func (h *Handler) CheckCompatibility(w http.ResponseWriter, r *http.Request) {
 	if rejectGlobalContext(w, registryCtx) {
 		return
 	}
-	subject = h.resolveAlias(r.Context(), registryCtx, subject)
+	subject = h.registry.ResolveAlias(r.Context(), registryCtx, subject)
 	versionStr := chi.URLParam(r, "version")
 
 	var req types.CompatibilityCheckRequest
@@ -986,7 +937,7 @@ func (h *Handler) CheckCompatibility(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	schemaType, ok := parseSchemaType(req.SchemaType)
+	schemaType, ok := storage.ParseSchemaType(req.SchemaType)
 	if !ok {
 		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidSchema,
 			fmt.Sprintf("Invalid schema type: %s", req.SchemaType))
@@ -1039,10 +990,10 @@ func (h *Handler) GetReferencedBy(w http.ResponseWriter, r *http.Request) {
 	if rejectGlobalContext(w, registryCtx) {
 		return
 	}
-	subject = h.resolveAlias(r.Context(), registryCtx, subject)
+	subject = h.registry.ResolveAlias(r.Context(), registryCtx, subject)
 	versionStr := chi.URLParam(r, "version")
 
-	version, err := parseVersion(versionStr)
+	version, err := registry.ParseVersion(versionStr)
 	if err != nil {
 		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidVersion,
 			fmt.Sprintf("The specified version '%s' is not a valid version id. Allowed values are between [1, 2^31-1] and the string \"latest\"", versionStr))
@@ -1174,8 +1125,6 @@ func (h *Handler) SetMode(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// parseVersion parses a version string, handling "latest" and "-1".
-// Returns errInvalidVersion for non-numeric strings, zero, or negative values (other than -1).
 // parsePagination extracts offset and limit query params and applies them to a slice length.
 // Returns the start and end indices for slicing.
 func parsePagination(r *http.Request, total int) (start, end int) {
@@ -1202,19 +1151,6 @@ func parsePagination(r *http.Request, total int) (start, end int) {
 	return start, end
 }
 
-func parseVersion(s string) (int, error) {
-	if s == "latest" || s == "-1" {
-		return -1, nil
-	}
-	v, err := strconv.Atoi(s)
-	if err != nil {
-		return 0, errInvalidVersion
-	}
-	if v < 1 {
-		return 0, errInvalidVersion
-	}
-	return v, nil
-}
 
 // configToResponse converts a ConfigRecord to a ConfigResponse.
 func configToResponse(config *storage.ConfigRecord) types.ConfigResponse {
@@ -1525,10 +1461,10 @@ func (h *Handler) GetRawSchemaByVersion(w http.ResponseWriter, r *http.Request) 
 	if rejectGlobalContext(w, registryCtx) {
 		return
 	}
-	subject = h.resolveAlias(r.Context(), registryCtx, subject)
+	subject = h.registry.ResolveAlias(r.Context(), registryCtx, subject)
 	versionStr := chi.URLParam(r, "version")
 
-	version, err := parseVersion(versionStr)
+	version, err := registry.ParseVersion(versionStr)
 	if err != nil {
 		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidVersion,
 			fmt.Sprintf("The specified version '%s' is not a valid version id. Allowed values are between [1, 2^31-1] and the string \"latest\"", versionStr))
@@ -1576,7 +1512,7 @@ func (h *Handler) DeleteGlobalConfig(w http.ResponseWriter, r *http.Request) {
 	registryCtx := getRegistryContext(r)
 
 	// Check mode enforcement — Confluent blocks config writes in READONLY mode
-	if mode, modeErr := h.checkModeForWrite(r, registryCtx, ""); modeErr != nil {
+	if mode, modeErr := h.registry.CheckModeForWrite(r.Context(), registryCtx, ""); modeErr != nil {
 		writeInternalError(w, modeErr)
 		return
 	} else if mode != "" {
@@ -1674,7 +1610,7 @@ func (h *Handler) GetSubjectMetadata(w http.ResponseWriter, r *http.Request) {
 	if rejectGlobalContext(w, registryCtx) {
 		return
 	}
-	subject = h.resolveAlias(r.Context(), registryCtx, subject)
+	subject = h.registry.ResolveAlias(r.Context(), registryCtx, subject)
 
 	// Check for key/value metadata query parameters.
 	// The Confluent Go client sends: ?deleted=true&key=major&value=1
