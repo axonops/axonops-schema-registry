@@ -17,6 +17,16 @@ type Config struct {
 	Compatibility CompatibilityConfig `yaml:"compatibility"`
 	Logging       LoggingConfig       `yaml:"logging"`
 	Security      SecurityConfig      `yaml:"security"`
+	MCP           MCPConfig           `yaml:"mcp"`
+}
+
+// MCPConfig represents MCP (Model Context Protocol) server configuration.
+type MCPConfig struct {
+	Enabled   bool   `yaml:"enabled"`
+	Host      string `yaml:"host"`
+	Port      int    `yaml:"port"`
+	AuthToken string `yaml:"auth_token"` // Bearer token for v1 auth
+	ReadOnly  bool   `yaml:"read_only"`  // Restrict to read-only tools
 }
 
 // ServerConfig represents HTTP server configuration.
@@ -286,6 +296,10 @@ func DefaultConfig() *Config {
 				},
 			},
 		},
+		MCP: MCPConfig{
+			Host: "0.0.0.0",
+			Port: 9081,
+		},
 	}
 }
 
@@ -439,6 +453,25 @@ func (c *Config) applyEnvOverrides() {
 		}
 	}
 
+	// MCP overrides
+	if v := os.Getenv("SCHEMA_REGISTRY_MCP_ENABLED"); v != "" {
+		c.MCP.Enabled = strings.ToLower(v) == "true" || v == "1"
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_MCP_HOST"); v != "" {
+		c.MCP.Host = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_MCP_PORT"); v != "" {
+		if port, err := strconv.Atoi(v); err == nil {
+			c.MCP.Port = port
+		}
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_MCP_AUTH_TOKEN"); v != "" {
+		c.MCP.AuthToken = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_MCP_READ_ONLY"); v != "" {
+		c.MCP.ReadOnly = strings.ToLower(v) == "true" || v == "1"
+	}
+
 	// Docs enabled override
 	if v := os.Getenv("SCHEMA_REGISTRY_DOCS_ENABLED"); v != "" {
 		c.Server.DocsEnabled = strings.ToLower(v) == "true" || v == "1"
@@ -546,4 +579,9 @@ func (c *Config) Validate() error {
 // Address returns the server address string.
 func (c *Config) Address() string {
 	return fmt.Sprintf("%s:%d", c.Server.Host, c.Server.Port)
+}
+
+// MCPAddress returns the MCP server address string.
+func (c *Config) MCPAddress() string {
+	return fmt.Sprintf("%s:%d", c.MCP.Host, c.MCP.Port)
 }

@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -19,6 +20,7 @@ import (
 	protocompat "github.com/axonops/axonops-schema-registry/internal/compatibility/protobuf"
 	"github.com/axonops/axonops-schema-registry/internal/config"
 	"github.com/axonops/axonops-schema-registry/internal/kms"
+	mcpkg "github.com/axonops/axonops-schema-registry/internal/mcp"
 	openbaokms "github.com/axonops/axonops-schema-registry/internal/kms/openbao"
 	vaultkms "github.com/axonops/axonops-schema-registry/internal/kms/vault"
 	"github.com/axonops/axonops-schema-registry/internal/registry"
@@ -248,6 +250,17 @@ func main() {
 	// Create and start the HTTP server
 	server := api.NewServer(cfg, reg, logger, serverOpts...)
 
+	// Create and start the MCP server if enabled
+	var mcpServer *mcpkg.Server
+	if cfg.MCP.Enabled {
+		mcpServer = mcpkg.New(&cfg.MCP, reg, logger, version)
+		go func() {
+			if err := mcpServer.Start(); err != nil && err != http.ErrServerClosed {
+				logger.Error("MCP server error", slog.String("error", err.Error()))
+			}
+		}()
+	}
+
 	// Handle shutdown signals
 	shutdown := make(chan os.Signal, 1)
 	signal.Notify(shutdown, syscall.SIGINT, syscall.SIGTERM)
@@ -273,6 +286,13 @@ func main() {
 
 		if err := server.Shutdown(ctx); err != nil {
 			logger.Error("shutdown error", slog.String("error", err.Error()))
+		}
+
+		// Stop MCP server
+		if mcpServer != nil {
+			if err := mcpServer.Shutdown(ctx); err != nil {
+				logger.Error("MCP shutdown error", slog.String("error", err.Error()))
+			}
 		}
 
 		// Stop auth service background goroutines

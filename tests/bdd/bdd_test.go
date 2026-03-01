@@ -119,7 +119,7 @@ func TestMain(m *testing.M) {
 }
 
 // newTestServer creates a fresh in-process schema registry backed by memory storage.
-func newTestServer() (*httptest.Server, storage.Storage) {
+func newTestServer() (*httptest.Server, storage.Storage, *registry.Registry) {
 	store := memory.NewStore()
 
 	schemaRegistry := schema.NewRegistry()
@@ -140,7 +140,7 @@ func newTestServer() (*httptest.Server, storage.Storage) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 	server := api.NewServer(cfg, reg, logger)
 
-	return httptest.NewServer(server), store
+	return httptest.NewServer(server), store, reg
 }
 
 // newAuthTestServer creates an in-process schema registry with authentication enabled.
@@ -209,7 +209,7 @@ func newAuthTestServer() (*httptest.Server, storage.Storage, *auth.Service) {
 // newKMSTestServer creates an in-process schema registry with KMS providers configured.
 // It reads KMS_VAULT_ADDR/KMS_VAULT_TOKEN and KMS_BAO_ADDR/KMS_BAO_TOKEN env vars to
 // configure Vault and OpenBao KMS providers respectively.
-func newKMSTestServer() (*httptest.Server, storage.Storage) {
+func newKMSTestServer() (*httptest.Server, storage.Storage, *registry.Registry) {
 	store := memory.NewStore()
 
 	schemaRegistry := schema.NewRegistry()
@@ -255,7 +255,7 @@ func newKMSTestServer() (*httptest.Server, storage.Storage) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 	server := api.NewServer(cfg, reg, logger)
 
-	return httptest.NewServer(server), store
+	return httptest.NewServer(server), store, reg
 }
 
 func TestFeatures(t *testing.T) {
@@ -270,13 +270,13 @@ func TestFeatures(t *testing.T) {
 		// Confluent: exclude operational, import (our custom API), axonops-only, contexts (our multi-tenant),
 		// pending-impl, data-contracts (ruleSet features require commercial Confluent license),
 		// and all backend tags.
-		tags = "~@operational && ~@import && ~@axonops-only && ~@contexts && ~@pending-impl && ~@data-contracts && ~@auth && ~@kms && ~@memory && ~@postgres && ~@mysql && ~@cassandra"
+		tags = "~@operational && ~@import && ~@axonops-only && ~@contexts && ~@pending-impl && ~@data-contracts && ~@auth && ~@kms && ~@mcp && ~@memory && ~@postgres && ~@mysql && ~@cassandra"
 	} else if dockerMode {
 		// Only run operational scenarios tagged for this backend, exclude other backends.
-		// Auth tests require in-process server with auth enabled, skip in Docker mode.
+		// Auth and MCP tests require in-process server, skip in Docker mode.
 		// KMS tests are included when BDD_KMS=true (schema-registry has KMS providers configured).
 		allBackends := []string{"memory", "postgres", "mysql", "cassandra"}
-		excludes := []string{"~@pending-impl", "~@auth"}
+		excludes := []string{"~@pending-impl", "~@auth", "~@mcp"}
 		if os.Getenv("BDD_KMS") != "true" {
 			excludes = append(excludes, "~@kms")
 		}
@@ -327,12 +327,14 @@ func TestFeatures(t *testing.T) {
 				var ts *httptest.Server
 				var st storage.Storage
 				ctx.Before(func(gctx context.Context, sc *godog.Scenario) (context.Context, error) {
+					var reg *registry.Registry
 					if hasTag(sc, "@kms") {
-						ts, st = newKMSTestServer()
+						ts, st, reg = newKMSTestServer()
 					} else {
-						ts, st = newTestServer()
+						ts, st, reg = newTestServer()
 					}
 					tc.BaseURL = ts.URL
+					tc.Registry = reg
 					return gctx, nil
 				})
 				ctx.After(func(gctx context.Context, sc *godog.Scenario, err error) (context.Context, error) {
@@ -355,6 +357,7 @@ func TestFeatures(t *testing.T) {
 			steps.RegisterAuthSteps(ctx, tc)
 			steps.RegisterEncryptionSteps(ctx, tc)
 			steps.RegisterConcurrencySteps(ctx, tc)
+			steps.RegisterMCPSteps(ctx, tc)
 		},
 		Options: &opts,
 	}

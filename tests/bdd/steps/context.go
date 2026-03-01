@@ -26,6 +26,11 @@ type TestContext struct {
 	StoredValues   map[string]interface{} // for passing values between steps
 	AuthHeader     string                 // Authorization header value (e.g., "Basic ...")
 	client         *http.Client
+
+	// MCP fields — populated by MCP step definitions for @mcp scenarios.
+	Registry      interface{} // *registry.Registry — stored as interface to avoid import cycle
+	MCPResultText string      // text from last MCP tool call
+	MCPError      error       // error from last MCP tool call
 }
 
 // NewTestContext creates a fresh test context.
