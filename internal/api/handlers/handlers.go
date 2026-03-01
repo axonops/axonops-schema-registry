@@ -1151,7 +1151,6 @@ func parsePagination(r *http.Request, total int) (start, end int) {
 	return start, end
 }
 
-
 // configToResponse converts a ConfigRecord to a ConfigResponse.
 func configToResponse(config *storage.ConfigRecord) types.ConfigResponse {
 	return types.ConfigResponse{

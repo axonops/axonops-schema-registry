@@ -4,9 +4,9 @@ import "testing"
 
 func TestParseSchemaType(t *testing.T) {
 	tests := []struct {
-		input   string
-		want    SchemaType
-		wantOK  bool
+		input  string
+		want   SchemaType
+		wantOK bool
 	}{
 		{"", SchemaTypeAvro, true},
 		{"AVRO", SchemaTypeAvro, true},
