@@ -552,11 +552,11 @@ func (s *Service) ValidateAPIKey(ctx context.Context, rawKey string) (*storage.A
 		return nil, storage.ErrAPIKeyExpired
 	}
 
-	// Update last used time (non-blocking)
-	go func() {
-		bgCtx := context.Background()
-		_ = s.storage.UpdateAPIKeyLastUsed(bgCtx, record.ID)
-	}()
+	// Update last used time (non-blocking). Use WithoutCancel so the update
+	// completes even after the HTTP request context is cancelled.
+	go func(ctx context.Context) {
+		_ = s.storage.UpdateAPIKeyLastUsed(ctx, record.ID)
+	}(context.WithoutCancel(ctx))
 
 	return record, nil
 }
