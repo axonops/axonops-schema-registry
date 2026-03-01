@@ -1,7 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useUsers, useCreateUser, useUpdateUser, useDeleteUser } from '@/api/queries';
 import type { User, CreateUserRequest, UpdateUserRequest } from '@/api/queries';
-import { useAuth } from '@/context/auth-context';
 import { PageBreadcrumbs } from '@/components/shared/breadcrumbs';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { Button } from '@/components/ui/button';
@@ -10,7 +9,6 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
@@ -18,66 +16,21 @@ import { Plus, Pencil, Trash2, Search, AlertCircle, RefreshCw } from 'lucide-rea
 
 // ── Types ──
 
-type UserRole = User['role'];
-
 interface UserFormState {
   username: string;
-  email: string;
   password: string;
-  role: UserRole;
   enabled: boolean;
 }
 
 const INITIAL_FORM_STATE: UserFormState = {
   username: '',
-  email: '',
   password: '',
-  role: 'developer',
   enabled: true,
 };
-
-// ── Role Badge helpers ──
-
-function roleBadgeVariant(role: UserRole): 'destructive' | 'default' | 'secondary' | 'outline' {
-  switch (role) {
-    case 'super_admin':
-      return 'destructive';
-    case 'admin':
-      return 'default';
-    case 'developer':
-      return 'secondary';
-    case 'readonly':
-      return 'outline';
-  }
-}
-
-function roleDisplayLabel(role: UserRole): string {
-  switch (role) {
-    case 'super_admin':
-      return 'Super Admin';
-    case 'admin':
-      return 'Admin';
-    case 'developer':
-      return 'Developer';
-    case 'readonly':
-      return 'Read Only';
-  }
-}
-
-// ── Available roles based on current user's role ──
-
-function getAvailableRoles(currentUserRole: UserRole | undefined): UserRole[] {
-  if (currentUserRole === 'super_admin') {
-    return ['super_admin', 'admin', 'developer', 'readonly'];
-  }
-  // Admin users cannot assign or see super_admin
-  return ['admin', 'developer', 'readonly'];
-}
 
 // ── Component ──
 
 export function UsersPage() {
-  const { user: currentUser } = useAuth();
   const { data: users, isLoading, isError, error, refetch } = useUsers();
   const createUser = useCreateUser();
   const updateUser = useUpdateUser();
@@ -94,30 +47,14 @@ export function UsersPage() {
   // Delete confirmation
   const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
 
-  const isSuperAdmin = currentUser?.role === 'super_admin';
-  const availableRoles = getAvailableRoles(currentUser?.role);
-
   // ── Filtered users ──
 
   const filteredUsers = useMemo(() => {
     if (!users) return [];
-
-    let visible = users;
-
-    // Admin users cannot see super_admin users
-    if (!isSuperAdmin) {
-      visible = visible.filter((u) => u.role !== 'super_admin');
-    }
-
-    if (!searchQuery.trim()) return visible;
-
+    if (!searchQuery.trim()) return users;
     const query = searchQuery.toLowerCase().trim();
-    return visible.filter(
-      (u) =>
-        u.username.toLowerCase().includes(query) ||
-        u.email.toLowerCase().includes(query)
-    );
-  }, [users, searchQuery, isSuperAdmin]);
+    return users.filter((u) => u.username.toLowerCase().includes(query));
+  }, [users, searchQuery]);
 
   // ── Form handlers ──
 
@@ -131,9 +68,7 @@ export function UsersPage() {
     setEditingUser(user);
     setFormState({
       username: user.username,
-      email: user.email,
       password: '',
-      role: user.role,
       enabled: user.enabled,
     });
     setFormOpen(true);
@@ -147,11 +82,8 @@ export function UsersPage() {
 
   const handleFormSubmit = () => {
     if (editingUser) {
-      // Update existing user
-      const payload: UpdateUserRequest & { id: number } = {
-        id: editingUser.id,
-        email: formState.email,
-        role: formState.role,
+      const payload: UpdateUserRequest & { username: string } = {
+        username: editingUser.username,
         enabled: formState.enabled,
       };
       if (formState.password.trim()) {
@@ -167,13 +99,9 @@ export function UsersPage() {
         },
       });
     } else {
-      // Create new user
       const payload: CreateUserRequest = {
         username: formState.username,
         password: formState.password,
-        email: formState.email,
-        role: formState.role as CreateUserRequest['role'],
-        enabled: formState.enabled,
       };
       createUser.mutate(payload, {
         onSuccess: () => {
@@ -189,7 +117,7 @@ export function UsersPage() {
 
   const handleDeleteConfirm = () => {
     if (!deleteTarget) return;
-    deleteUser.mutate(deleteTarget.id, {
+    deleteUser.mutate(deleteTarget.username, {
       onSuccess: () => {
         toast.success(`User "${deleteTarget.username}" deleted successfully`);
         setDeleteTarget(null);
@@ -201,10 +129,8 @@ export function UsersPage() {
   };
 
   const isFormValid = editingUser
-    ? formState.email.trim() !== ''
-    : formState.username.trim() !== '' &&
-      formState.email.trim() !== '' &&
-      formState.password.trim() !== '';
+    ? true // editing always valid (password optional, enabled toggle is always set)
+    : formState.username.trim().length >= 2 && formState.password.trim().length >= 4;
 
   const isFormSubmitting = createUser.isPending || updateUser.isPending;
 
@@ -228,7 +154,7 @@ export function UsersPage() {
         <Input
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search by username or email..."
+          placeholder="Search by username..."
           className="pl-9"
           data-testid="users-search-input"
         />
@@ -282,22 +208,14 @@ export function UsersPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Username</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Role</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredUsers.map((u) => (
-                    <TableRow key={u.id}>
+                    <TableRow key={u.username}>
                       <TableCell className="font-medium">{u.username}</TableCell>
-                      <TableCell>{u.email}</TableCell>
-                      <TableCell>
-                        <Badge variant={roleBadgeVariant(u.role)}>
-                          {roleDisplayLabel(u.role)}
-                        </Badge>
-                      </TableCell>
                       <TableCell>
                         <Badge variant={u.enabled ? 'outline' : 'secondary'}>
                           {u.enabled ? 'Enabled' : 'Disabled'}
@@ -351,24 +269,9 @@ export function UsersPage() {
                 onChange={(e) =>
                   setFormState((prev) => ({ ...prev, username: e.target.value }))
                 }
-                placeholder="Enter username"
+                placeholder="Enter username (min 2 characters)"
                 disabled={!!editingUser}
                 data-testid="user-form-username-input"
-              />
-            </div>
-
-            {/* Email */}
-            <div className="space-y-2">
-              <Label htmlFor="user-form-email">Email</Label>
-              <Input
-                id="user-form-email"
-                type="email"
-                value={formState.email}
-                onChange={(e) =>
-                  setFormState((prev) => ({ ...prev, email: e.target.value }))
-                }
-                placeholder="Enter email address"
-                data-testid="user-form-email-input"
               />
             </div>
 
@@ -389,31 +292,9 @@ export function UsersPage() {
                 onChange={(e) =>
                   setFormState((prev) => ({ ...prev, password: e.target.value }))
                 }
-                placeholder={editingUser ? 'Leave blank to keep current' : 'Enter password'}
+                placeholder={editingUser ? 'Leave blank to keep current' : 'Minimum 4 characters'}
                 data-testid="user-form-password-input"
               />
-            </div>
-
-            {/* Role */}
-            <div className="space-y-2">
-              <Label>Role</Label>
-              <Select
-                value={formState.role}
-                onValueChange={(value) =>
-                  setFormState((prev) => ({ ...prev, role: value as UserRole }))
-                }
-              >
-                <SelectTrigger data-testid="user-form-role-select">
-                  <SelectValue placeholder="Select a role" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableRoles.map((role) => (
-                    <SelectItem key={role} value={role}>
-                      {roleDisplayLabel(role)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </div>
 
             {/* Enabled toggle */}
@@ -423,7 +304,7 @@ export function UsersPage() {
                   Enabled
                 </Label>
                 <p className="text-xs text-muted-foreground">
-                  Disabled users cannot log in or access the registry.
+                  Disabled users cannot log in.
                 </p>
               </div>
               <Switch

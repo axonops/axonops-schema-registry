@@ -1724,3 +1724,186 @@ jobs:
         if: always()
         working-directory: tests/bdd
         run: docker compose -f docker-compose.confluent.yml down -v || true
+
+  # ---------- Web UI jobs ----------
+
+  ui-build:
+    name: UI Build & Unit Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ui
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Build React frontend
+        run: npm run build
+
+      - name: Embed frontend
+        run: rm -rf web/dist && cp -r dist/ web/dist/
+
+      - name: Run Go unit tests
+        run: go test -race -v ./internal/...
+
+      - name: Build UI binary
+        run: go build -o schema-registry-ui ./cmd/schema-registry-ui
+
+      - name: TypeScript check
+        run: npx tsc --noEmit
+
+      - name: Upload UI binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-binary
+          path: ui/schema-registry-ui
+
+  ui-integration:
+    name: UI Integration Tests
+    runs-on: ubuntu-latest
+    needs: [ui-build]
+    defaults:
+      run:
+        working-directory: ui
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Build frontend
+        run: npm run build && rm -rf web/dist && cp -r dist/ web/dist/
+
+      - name: Run integration tests
+        run: go test -race -v -tags=integration ./tests/integration/...
+
+      - name: Run BDD tests
+        run: go test -race -v -tags=bdd ./tests/bdd/...
+
+  ui-docker:
+    name: UI Docker Build
+    runs-on: ubuntu-latest
+    needs: [ui-build]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build UI Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile.ui
+          push: false
+          tags: axonops/schema-registry-ui:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  ui-e2e:
+    name: UI E2E Tests (Playwright)
+    runs-on: ubuntu-latest
+    needs: [ui-build]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Build SR binary
+        run: go build -o /tmp/schema-registry ./cmd/schema-registry
+
+      - name: Build UI binary
+        working-directory: ui
+        run: |
+          npm ci
+          npm run build
+          rm -rf web/dist && cp -r dist/ web/dist/
+          go build -o /tmp/schema-registry-ui ./cmd/schema-registry-ui
+
+      - name: Install Playwright browsers
+        working-directory: ui
+        run: npx playwright install --with-deps chromium
+
+      - name: Start Schema Registry
+        run: |
+          cat > /tmp/sr-config.yaml <<EOF
+          server:
+            host: "0.0.0.0"
+            port: 8081
+          storage:
+            type: memory
+          compatibility:
+            default_level: BACKWARD
+          EOF
+          /tmp/schema-registry --config /tmp/sr-config.yaml &
+          sleep 2
+          curl -sf http://localhost:8081/
+
+      - name: Seed demo data
+        run: bash ui/scripts/demo-seed.sh http://localhost:8081
+
+      - name: Start UI server
+        run: |
+          cat > /tmp/ui-config.yaml <<EOF
+          server:
+            host: "0.0.0.0"
+            port: 8080
+          registry:
+            url: "http://localhost:8081"
+          auth:
+            htpasswd_file: "/tmp/sr-ui-htpasswd"
+            session_secret: "ci-test-secret"
+            session_ttl: 3600
+            cookie_name: "sr_session"
+            cookie_secure: false
+          EOF
+          /tmp/schema-registry-ui --config /tmp/ui-config.yaml &
+          sleep 2
+          curl -sf http://localhost:8080/ui/
+
+      - name: Run Playwright tests
+        working-directory: ui
+        run: npx playwright test --reporter=github
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: ui/test-results/

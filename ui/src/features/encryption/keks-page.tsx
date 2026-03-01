@@ -7,7 +7,6 @@ import {
   useDeleteKEK,
   useUndeleteKEK,
   useTestKEK,
-  type KEKResponse,
   type CreateKEKRequest,
 } from '@/api/queries';
 import { PageBreadcrumbs } from '@/components/shared/breadcrumbs';

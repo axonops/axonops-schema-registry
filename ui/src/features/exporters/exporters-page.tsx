@@ -9,14 +9,11 @@ import {
   usePauseExporter,
   useResumeExporter,
   useResetExporter,
-  type ExporterResponse,
-  type ExporterStatusResponse,
   type CreateExporterRequest,
 } from '@/api/queries';
 import { PageBreadcrumbs } from '@/components/shared/breadcrumbs';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { KeyValueEditor } from '@/components/shared/key-value-editor';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -225,7 +222,6 @@ export function ExportersPage() {
   const pauseExporter = usePauseExporter();
   const resumeExporter = useResumeExporter();
   const resetExporter = useResetExporter();
-  const navigate = useNavigate();
 
   // Search
   const [search, setSearch] = useState('');

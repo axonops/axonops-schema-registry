@@ -72,10 +72,7 @@ export function TopBar() {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56" data-testid="user-menu">
           <DropdownMenuLabel>
-            <div className="flex flex-col">
-              <span>{user?.username}</span>
-              <span className="text-xs font-normal text-muted-foreground">{user?.role}</span>
-            </div>
+            <span>{user?.username}</span>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={() => navigate({ to: '/ui/about' })}>

@@ -16,7 +16,7 @@ const keyColorClasses: string[] = [
   'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300',
 ];
 
-function getColorForKey(key: string, index: number): string {
+function getColorForKey(_key: string, index: number): string {
   return keyColorClasses[index % keyColorClasses.length];
 }
 

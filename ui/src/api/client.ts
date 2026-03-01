@@ -1,7 +1,6 @@
 import createClient from 'openapi-fetch';
 import type { paths } from '@/types/api';
 
-let accessToken: string | null = null;
 let onAuthFailure: (() => void) | null = null;
 let _contextPrefix = '';
 
@@ -14,15 +13,15 @@ export function getContextPrefix(): string {
 }
 
 // Paths that should be prepended with the registry context prefix.
-// These are the context-aware API routes.
+// These are the context-aware API routes (under /api/v1).
 const CONTEXT_AWARE_PREFIXES = [
-  '/subjects',
-  '/schemas',
-  '/config',
-  '/mode',
-  '/compatibility',
-  '/exporters',
-  '/dek-registry',
+  '/api/v1/subjects',
+  '/api/v1/schemas',
+  '/api/v1/config',
+  '/api/v1/mode',
+  '/api/v1/compatibility',
+  '/api/v1/exporters',
+  '/api/v1/dek-registry',
 ];
 
 function withContextPrefix(path: string): string {
@@ -30,15 +29,9 @@ function withContextPrefix(path: string): string {
   const isContextAware = CONTEXT_AWARE_PREFIXES.some(
     (prefix) => path === prefix || path.startsWith(prefix + '/') || path.startsWith(prefix + '?'),
   );
-  return isContextAware ? _contextPrefix + path : path;
-}
-
-export function setToken(token: string | null) {
-  accessToken = token;
-}
-
-export function getToken(): string | null {
-  return accessToken;
+  if (!isContextAware) return path;
+  // Insert context prefix after /api/v1: /api/v1/subjects → /api/v1/contexts/ctx/subjects
+  return path.replace('/api/v1/', `/api/v1/contexts/${_contextPrefix}/`);
 }
 
 export function setOnAuthFailure(handler: () => void) {
@@ -47,20 +40,17 @@ export function setOnAuthFailure(handler: () => void) {
 
 export const api = createClient<paths>({
   baseUrl: '',
+  credentials: 'same-origin',
 });
 
-// Add auth middleware
+// Add middleware for accept header and 401 handling
 api.use({
   async onRequest({ request }) {
-    if (accessToken) {
-      request.headers.set('Authorization', `Bearer ${accessToken}`);
-    }
     request.headers.set('Accept', 'application/vnd.schemaregistry.v1+json, application/json');
     return request;
   },
   async onResponse({ response }) {
     if (response.status === 401) {
-      setToken(null);
       onAuthFailure?.();
     }
     return response;
@@ -89,18 +79,17 @@ export async function apiFetch<T>(
     ...(options.headers as Record<string, string> || {}),
   };
 
-  if (accessToken) {
-    headers['Authorization'] = `Bearer ${accessToken}`;
-  }
-
   if (options.body && !headers['Content-Type']) {
     headers['Content-Type'] = 'application/vnd.schemaregistry.v1+json';
   }
 
-  const response = await fetch(withContextPrefix(path), { ...options, headers });
+  const response = await fetch(withContextPrefix(path), {
+    ...options,
+    headers,
+    credentials: 'same-origin',
+  });
 
   if (response.status === 401) {
-    setToken(null);
     onAuthFailure?.();
     throw new ApiClientError(401, 'Session expired. Please sign in again.');
   }
@@ -114,7 +103,7 @@ export async function apiFetch<T>(
   if (!response.ok) {
     throw new ApiClientError(
       response.status,
-      body.message || `Request failed with status ${response.status}`,
+      body.message || body.error || `Request failed with status ${response.status}`,
       body.error_code
     );
   }

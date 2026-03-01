@@ -1,0 +1,49 @@
+# E2E test environment: Schema Registry + UI server + demo data.
+#
+# Usage (from ui/ directory):
+#   docker compose -f tests/e2e/docker-compose.e2e.yml up -d --build --wait
+#   npx playwright test
+#   docker compose -f tests/e2e/docker-compose.e2e.yml down -v
+
+services:
+  schema-registry:
+    build:
+      context: ../../
+      dockerfile: Dockerfile
+    ports:
+      - "8081:8081"
+    environment:
+      - SR_STORAGE_TYPE=memory
+      - SR_DOCS_ENABLED=true
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:8081/"]
+      interval: 3s
+      timeout: 2s
+      retries: 15
+
+  ui:
+    build:
+      context: ../../
+      dockerfile: Dockerfile.ui
+    ports:
+      - "8080:8080"
+    environment:
+      - SR_UI_REGISTRY_URL=http://schema-registry:8081
+      - SR_UI_SESSION_SECRET=e2e-test-secret
+    volumes:
+      - ui-htpasswd:/etc/schema-registry-ui
+    depends_on:
+      schema-registry:
+        condition: service_healthy
+
+  seed:
+    image: curlimages/curl:latest
+    depends_on:
+      schema-registry:
+        condition: service_healthy
+    volumes:
+      - ../../../ui/scripts/demo-seed.sh:/seed.sh:ro
+    entrypoint: ["sh", "/seed.sh", "http://schema-registry:8081"]
+
+volumes:
+  ui-htpasswd:

@@ -1,0 +1,50 @@
+# Development docker-compose: Schema Registry (memory backend) + UI server + demo data.
+#
+# Usage:
+#   docker compose -f docker-compose.dev.yml up --build
+#
+# Then visit http://localhost:8080/ui/ — login with admin/admin.
+# Demo data (schemas, encryption keys, exporters, rules) is auto-seeded.
+
+services:
+  schema-registry:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8081:8081"
+    environment:
+      - SR_STORAGE_TYPE=memory
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:8081/"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  ui:
+    build:
+      context: .
+      dockerfile: Dockerfile.ui
+    ports:
+      - "8080:8080"
+    environment:
+      - SR_UI_REGISTRY_URL=http://schema-registry:8081
+      - SR_UI_SESSION_SECRET=dev-secret-change-in-production
+    volumes:
+      - ui-htpasswd:/etc/schema-registry-ui
+    depends_on:
+      schema-registry:
+        condition: service_healthy
+
+  # One-shot container that seeds demo data after SR is healthy.
+  seed:
+    image: curlimages/curl:latest
+    depends_on:
+      schema-registry:
+        condition: service_healthy
+    volumes:
+      - ./ui/scripts/demo-seed.sh:/seed.sh:ro
+    entrypoint: ["sh", "/seed.sh", "http://schema-registry:8081"]
+
+volumes:
+  ui-htpasswd:

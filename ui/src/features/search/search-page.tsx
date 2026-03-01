@@ -234,7 +234,7 @@ export function SearchPage() {
 
                       {/* Version + ID */}
                       <div className="text-sm text-muted-foreground">
-                        v{schema.version} &middot; ID {schema.id}
+                        {`v${schema.version} · ID ${schema.id}`}
                       </div>
 
                       {/* Type Badge + Sensitive Indicator */}
@@ -248,22 +248,22 @@ export function SearchPage() {
                       </div>
 
                       {/* Tags (best-effort — SchemaListItem may not include metadata) */}
-                      {(schema as Record<string, unknown>).metadata &&
-                        typeof (schema as Record<string, unknown>).metadata === 'object' && (
+                      {!!(schema as unknown as Record<string, unknown>).metadata &&
+                        typeof (schema as unknown as Record<string, unknown>).metadata === 'object' && (
                           <>
                             <TagBadges
                               tags={
-                                ((schema as Record<string, unknown>).metadata as {
+                                ((schema as unknown as Record<string, unknown>).metadata as {
                                   tags?: Record<string, string[]>;
                                 })?.tags
                               }
                             />
                             {/* Sensitive fields indicator */}
-                            {((schema as Record<string, unknown>).metadata as {
+                            {((schema as unknown as Record<string, unknown>).metadata as {
                               sensitive?: string[];
                             })?.sensitive &&
                               (
-                                (schema as Record<string, unknown>).metadata as {
+                                (schema as unknown as Record<string, unknown>).metadata as {
                                   sensitive?: string[];
                                 }
                               ).sensitive!.length > 0 && (
@@ -272,14 +272,14 @@ export function SearchPage() {
                                   <span>
                                     {
                                       (
-                                        (schema as Record<string, unknown>).metadata as {
+                                        (schema as unknown as Record<string, unknown>).metadata as {
                                           sensitive: string[];
                                         }
                                       ).sensitive.length
                                     }{' '}
                                     sensitive field
                                     {(
-                                      (schema as Record<string, unknown>).metadata as {
+                                      (schema as unknown as Record<string, unknown>).metadata as {
                                         sensitive: string[];
                                       }
                                     ).sensitive.length > 1

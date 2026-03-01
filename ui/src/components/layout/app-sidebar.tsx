@@ -17,7 +17,6 @@ import {
   Settings,
   ToggleLeft,
   Users,
-  KeyRound,
   Upload,
   Info,
   User,
@@ -31,7 +30,6 @@ import {
   LayoutDashboard,
   FilePlus2,
 } from 'lucide-react';
-import { useAuth } from '@/context/auth-context';
 import { useRegistryContext } from '@/context/registry-context';
 import { useContexts } from '@/api/queries';
 import {
@@ -52,7 +50,6 @@ interface NavItem {
 interface NavGroup {
   label: string;
   items: NavItem[];
-  minRole?: string[];
 }
 
 const navGroups: NavGroup[] = [
@@ -77,7 +74,6 @@ const navGroups: NavGroup[] = [
       { title: 'Modes', url: '/ui/modes', icon: ToggleLeft, testId: 'nav-sidebar-modes-link' },
       { title: 'Exporters', url: '/ui/exporters', icon: ArrowRightLeft, testId: 'nav-sidebar-exporters-link' },
     ],
-    minRole: ['super_admin', 'admin'],
   },
   {
     label: 'TOOLS',
@@ -91,16 +87,13 @@ const navGroups: NavGroup[] = [
     items: [
       { title: 'Encryption Keys', url: '/ui/encryption', icon: ShieldCheck, testId: 'nav-sidebar-encryption-link' },
     ],
-    minRole: ['super_admin', 'admin'],
   },
   {
     label: 'DATA MANAGEMENT',
     items: [
       { title: 'Import', url: '/ui/import', icon: Upload, testId: 'nav-sidebar-import-link' },
       { title: 'Users', url: '/ui/admin/users', icon: Users, testId: 'nav-sidebar-users-link' },
-      { title: 'API Keys', url: '/ui/admin/apikeys', icon: KeyRound, testId: 'nav-sidebar-apikeys-link' },
     ],
-    minRole: ['super_admin', 'admin'],
   },
   {
     label: 'REFERENCE',
@@ -114,13 +107,11 @@ const navGroups: NavGroup[] = [
     label: 'ACCOUNT',
     items: [
       { title: 'My Profile', url: '/ui/account', icon: User, testId: 'nav-sidebar-profile-link' },
-      { title: 'My API Keys', url: '/ui/account/apikeys', icon: KeyRound, testId: 'nav-sidebar-my-apikeys-link' },
     ],
   },
 ];
 
 export function AppSidebar() {
-  const { user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const { selectedContext, setSelectedContext } = useRegistryContext();
@@ -132,11 +123,7 @@ export function AppSidebar() {
     return location.pathname === url || location.pathname.startsWith(url + '/');
   };
 
-  const hasRole = (group: NavGroup) => {
-    if (!group.minRole) return true;
-    if (!user) return false;
-    return group.minRole.includes(user.role);
-  };
+  // All users see all navigation (no role-based filtering in open source)
 
   return (
     <Sidebar data-testid="app-sidebar">
@@ -163,7 +150,7 @@ export function AppSidebar() {
         )}
       </SidebarHeader>
       <SidebarContent>
-        {navGroups.filter(hasRole).map((group) => (
+        {navGroups.map((group) => (
           <SidebarGroup key={group.label}>
             <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
             <SidebarGroupContent>

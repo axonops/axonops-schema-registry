@@ -10,7 +10,6 @@ import {
   ToggleLeft,
   Upload,
   Users,
-  KeyRound,
   User,
   Info,
   Hash,
@@ -52,11 +51,9 @@ const pages: PageItem[] = [
   { label: 'Encryption Keys', path: '/ui/encryption', icon: ShieldCheck },
   { label: 'Import', path: '/ui/import', icon: Upload },
   { label: 'Users', path: '/ui/admin/users', icon: Users },
-  { label: 'API Keys', path: '/ui/admin/apikeys', icon: KeyRound },
   { label: 'API Docs', path: '/ui/api-docs', icon: FileText },
   { label: 'Contexts', path: '/ui/contexts', icon: Layers },
   { label: 'My Profile', path: '/ui/account', icon: User },
-  { label: 'My API Keys', path: '/ui/account/apikeys', icon: KeyRound },
   { label: 'About', path: '/ui/about', icon: Info },
 ];
 

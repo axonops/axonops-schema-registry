@@ -1,0 +1,89 @@
+# Combined Schema Registry + UI server image.
+#
+# Build:
+#   docker build -f Dockerfile.server-ui -t axonops/schema-registry-server-ui .
+#
+# Run:
+#   docker run -p 8081:8081 -p 8080:8080 axonops/schema-registry-server-ui
+#
+# The entrypoint starts both the Schema Registry (port 8081) and the
+# UI server (port 8080) under a lightweight supervisor.
+
+# ── Stage 1: Build React SPA ──
+FROM node:22-alpine AS frontend
+
+WORKDIR /app
+
+COPY ui/package.json ui/package-lock.json ./
+RUN npm ci
+
+COPY ui/ .
+RUN npm run build
+
+# ── Stage 2: Build Schema Registry binary ──
+FROM golang:1.26-alpine AS sr-builder
+
+WORKDIR /app
+
+RUN apk add --no-cache git ca-certificates
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+
+ARG VERSION=dev
+ARG COMMIT=unknown
+ARG BUILD_DATE=unknown
+
+RUN CGO_ENABLED=0 GOOS=linux go build \
+    -ldflags "-X main.version=${VERSION} -X main.commit=${COMMIT} -X main.buildDate=${BUILD_DATE} -s -w" \
+    -o /schema-registry ./cmd/schema-registry
+
+# ── Stage 3: Build UI server binary ──
+FROM golang:1.26-alpine AS ui-builder
+
+WORKDIR /app
+
+RUN apk add --no-cache git ca-certificates
+
+COPY ui/go.mod ui/go.sum ./
+RUN go mod download
+
+COPY ui/cmd/ cmd/
+COPY ui/internal/ internal/
+COPY ui/web/ web/
+
+COPY --from=frontend /app/dist/ web/dist/
+
+ARG VERSION=dev
+ARG COMMIT=unknown
+ARG BUILD_DATE=unknown
+
+RUN CGO_ENABLED=0 GOOS=linux go build \
+    -ldflags "-X main.version=${VERSION} -X main.commit=${COMMIT} -X main.buildDate=${BUILD_DATE} -s -w" \
+    -o /schema-registry-ui ./cmd/schema-registry-ui
+
+# ── Stage 4: Runtime ──
+FROM alpine:3.19
+
+RUN apk add --no-cache ca-certificates tzdata
+
+RUN addgroup -g 1000 schemaregistry && \
+    adduser -u 1000 -G schemaregistry -s /bin/sh -D schemaregistry
+
+WORKDIR /app
+
+COPY --from=sr-builder /schema-registry /app/schema-registry
+COPY --from=ui-builder /schema-registry-ui /app/schema-registry-ui
+COPY scripts/server-ui-entrypoint.sh /app/entrypoint.sh
+
+RUN chmod +x /app/entrypoint.sh && \
+    mkdir -p /etc/schema-registry-ui && \
+    chown -R schemaregistry:schemaregistry /app /etc/schema-registry-ui
+
+USER schemaregistry
+
+EXPOSE 8081 8080
+
+ENTRYPOINT ["/app/entrypoint.sh"]

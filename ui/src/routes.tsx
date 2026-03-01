@@ -27,9 +27,7 @@ import { GlobalConfigPage } from '@/features/config/global-config-page';
 import { GlobalModesPage } from '@/features/config/global-modes-page';
 import { ImportPage } from '@/features/admin/import-page';
 import { UsersPage } from '@/features/admin/users-page';
-import { ApiKeysPage } from '@/features/admin/apikeys-page';
 import { ProfilePage } from '@/features/account/profile-page';
-import { MyApiKeysPage } from '@/features/account/my-apikeys-page';
 import { CompatibilityCheckPage } from '@/features/tools/compatibility-check-page';
 import { SchemaLookupPage } from '@/features/tools/schema-lookup-page';
 import { ExportersPage } from '@/features/exporters/exporters-page';
@@ -206,22 +204,10 @@ const usersRoute = createRoute({
   component: UsersPage,
 });
 
-const apikeysRoute = createRoute({
-  getParentRoute: () => authenticatedRoute,
-  path: '/ui/admin/apikeys',
-  component: ApiKeysPage,
-});
-
 const profileRoute = createRoute({
   getParentRoute: () => authenticatedRoute,
   path: '/ui/account',
   component: ProfilePage,
-});
-
-const myApikeysRoute = createRoute({
-  getParentRoute: () => authenticatedRoute,
-  path: '/ui/account/apikeys',
-  component: MyApiKeysPage,
 });
 
 const compatibilityCheckRoute = createRoute({
@@ -320,7 +306,6 @@ const routeTree = rootRoute.addChildren([
     modesRoute,
     importRoute,
     usersRoute,
-    apikeysRoute,
     compatibilityCheckRoute,
     schemaLookupRoute,
     exportersRoute,
@@ -329,7 +314,6 @@ const routeTree = rootRoute.addChildren([
     kekDetailRoute,
     dekDetailRoute,
     profileRoute,
-    myApikeysRoute,
     contextsRoute,
     apiDocsRoute,
     aboutRoute,

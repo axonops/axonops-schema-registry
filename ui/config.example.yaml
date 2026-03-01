@@ -1,0 +1,15 @@
+server:
+  host: "0.0.0.0"
+  port: 8080
+
+registry:
+  url: "http://localhost:8081"
+  api_token: ""          # Bearer token for SR (optional)
+  api_key: ""            # X-API-Key header (optional, use one or neither)
+
+auth:
+  htpasswd_file: "/etc/schema-registry-ui/htpasswd"
+  session_secret: "change-me-to-a-random-32-char-string"
+  session_ttl: 3600      # seconds
+  cookie_name: "sr_session"
+  cookie_secure: false   # true for HTTPS

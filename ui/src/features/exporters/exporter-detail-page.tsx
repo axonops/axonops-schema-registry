@@ -4,7 +4,6 @@ import {
   useExporter,
   useExporterStatus,
   useExporterConfig,
-  useUpdateExporter,
   useDeleteExporter,
   usePauseExporter,
   useResumeExporter,
@@ -77,7 +76,6 @@ export function ExporterDetailPage() {
   } = useExporterConfig(name);
 
   // Mutations
-  const updateExporter = useUpdateExporter();
   const deleteExporter = useDeleteExporter();
   const pauseExporter = usePauseExporter();
   const resumeExporter = useResumeExporter();

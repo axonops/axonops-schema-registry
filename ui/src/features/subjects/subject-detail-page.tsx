@@ -12,7 +12,6 @@ import {
   useSetSubjectMode,
   useDeleteSubjectConfig,
   useDeleteSubjectMode,
-  type SubjectVersion,
 } from '@/api/queries';
 import { PageBreadcrumbs } from '@/components/shared/breadcrumbs';
 import { ConfirmDialog } from '@/components/shared/confirm-dialog';

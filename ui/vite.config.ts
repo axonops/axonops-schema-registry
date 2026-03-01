@@ -16,22 +16,9 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      "/subjects": "http://localhost:8081",
-      "/schemas": "http://localhost:8081",
-      "/config": "http://localhost:8081",
-      "/mode": "http://localhost:8081",
-      "/compatibility": "http://localhost:8081",
-      "/contexts": "http://localhost:8081",
-      "/admin": "http://localhost:8081",
-      "/import": "http://localhost:8081",
-      "/ui/auth": "http://localhost:8081",
-      "/v1": "http://localhost:8081",
-      "/metrics": "http://localhost:8081",
-      "/docs": "http://localhost:8081",
-      "/openapi.yaml": "http://localhost:8081",
-      "/health": "http://localhost:8081",
-      "/dek-registry": "http://localhost:8081",
-      "/exporters": "http://localhost:8081",
+      // All API calls go through the Go UI server
+      "/api": "http://localhost:8080",
+      "/health": "http://localhost:8080",
     },
   },
 })
