@@ -52,6 +52,34 @@ func (s *Server) registerResources() {
 		MIMEType:    "application/json",
 	}, s.handleContextsResource)
 
+	s.mcpServer.AddResource(&gomcp.Resource{
+		URI:         "schema://mode",
+		Name:        "global-mode",
+		Description: "Global registry mode (READWRITE, READONLY, READONLY_OVERRIDE, IMPORT)",
+		MIMEType:    "application/json",
+	}, s.handleGlobalModeResource)
+
+	s.mcpServer.AddResource(&gomcp.Resource{
+		URI:         "schema://keks",
+		Name:        "keks",
+		Description: "List of all Key Encryption Keys (KEKs) for client-side field encryption",
+		MIMEType:    "application/json",
+	}, s.handleKEKsListResource)
+
+	s.mcpServer.AddResource(&gomcp.Resource{
+		URI:         "schema://exporters",
+		Name:        "exporters",
+		Description: "List of all schema exporter names",
+		MIMEType:    "application/json",
+	}, s.handleExportersListResource)
+
+	s.mcpServer.AddResource(&gomcp.Resource{
+		URI:         "schema://status",
+		Name:        "server-status",
+		Description: "Server health status, storage connectivity, and uptime",
+		MIMEType:    "application/json",
+	}, s.handleStatusResource)
+
 	// --- Templated resources ---
 
 	s.mcpServer.AddResourceTemplate(&gomcp.ResourceTemplate{
@@ -123,6 +151,20 @@ func (s *Server) registerResources() {
 		Description: "Key Encryption Key (KEK) details by name",
 		MIMEType:    "application/json",
 	}, s.handleKEKDetailResource)
+
+	s.mcpServer.AddResourceTemplate(&gomcp.ResourceTemplate{
+		URITemplate: "schema://keks/{name}/deks",
+		Name:        "kek-deks",
+		Description: "DEK subjects under a specific KEK",
+		MIMEType:    "application/json",
+	}, s.handleKEKDEKsResource)
+
+	s.mcpServer.AddResourceTemplate(&gomcp.ResourceTemplate{
+		URITemplate: "schema://contexts/{context}/subjects",
+		Name:        "context-subjects",
+		Description: "List of subjects in a specific registry context",
+		MIMEType:    "application/json",
+	}, s.handleContextSubjectsResource)
 }
 
 // --- Resource result helpers ---
@@ -181,6 +223,12 @@ func extractURIParam(uri, param string) (string, error) {
 		}
 	case "name":
 		if (host == "exporters" || host == "keks") && len(path) > 1 {
+			parts := strings.SplitN(path[1:], "/", 2)
+			return parts[0], nil
+		}
+	case "context":
+		if host == "contexts" && len(path) > 1 {
+			// schema://contexts/{context}/subjects
 			parts := strings.SplitN(path[1:], "/", 2)
 			return parts[0], nil
 		}
@@ -398,4 +446,74 @@ func (s *Server) handleKEKDetailResource(ctx context.Context, req *gomcp.ReadRes
 		return nil, fmt.Errorf("get KEK %q: %w", name, err)
 	}
 	return resourceJSON(req.Params.URI, kek)
+}
+
+func (s *Server) handleGlobalModeResource(ctx context.Context, req *gomcp.ReadResourceRequest) (*gomcp.ReadResourceResult, error) {
+	mode, err := s.registry.GetMode(ctx, registrycontext.DefaultContext, "")
+	if err != nil {
+		return nil, fmt.Errorf("get global mode: %w", err)
+	}
+	return resourceJSON(req.Params.URI, map[string]string{"mode": mode})
+}
+
+func (s *Server) handleKEKsListResource(ctx context.Context, req *gomcp.ReadResourceRequest) (*gomcp.ReadResourceResult, error) {
+	keks, err := s.registry.ListKEKs(ctx, false)
+	if err != nil {
+		return nil, fmt.Errorf("list KEKs: %w", err)
+	}
+	if keks == nil {
+		keks = []*storage.KEKRecord{}
+	}
+	return resourceJSON(req.Params.URI, keks)
+}
+
+func (s *Server) handleExportersListResource(ctx context.Context, req *gomcp.ReadResourceRequest) (*gomcp.ReadResourceResult, error) {
+	exporters, err := s.registry.ListExporters(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list exporters: %w", err)
+	}
+	if exporters == nil {
+		exporters = []string{}
+	}
+	return resourceJSON(req.Params.URI, exporters)
+}
+
+func (s *Server) handleStatusResource(ctx context.Context, req *gomcp.ReadResourceRequest) (*gomcp.ReadResourceResult, error) {
+	healthy := s.registry.IsHealthy(ctx)
+	status := map[string]any{
+		"healthy":    healthy,
+		"version":    s.version,
+		"cluster_id": s.clusterID,
+	}
+	return resourceJSON(req.Params.URI, status)
+}
+
+func (s *Server) handleKEKDEKsResource(ctx context.Context, req *gomcp.ReadResourceRequest) (*gomcp.ReadResourceResult, error) {
+	name, err := extractURIParam(req.Params.URI, "name")
+	if err != nil {
+		return nil, err
+	}
+	deks, err := s.registry.ListDEKs(ctx, name, false)
+	if err != nil {
+		return nil, fmt.Errorf("list DEKs for KEK %q: %w", name, err)
+	}
+	if deks == nil {
+		deks = []string{}
+	}
+	return resourceJSON(req.Params.URI, deks)
+}
+
+func (s *Server) handleContextSubjectsResource(ctx context.Context, req *gomcp.ReadResourceRequest) (*gomcp.ReadResourceResult, error) {
+	registryCtx, err := extractURIParam(req.Params.URI, "context")
+	if err != nil {
+		return nil, err
+	}
+	subjects, err := s.registry.ListSubjects(ctx, registryCtx, false)
+	if err != nil {
+		return nil, fmt.Errorf("list subjects in context %q: %w", registryCtx, err)
+	}
+	if subjects == nil {
+		subjects = []string{}
+	}
+	return resourceJSON(req.Params.URI, subjects)
 }

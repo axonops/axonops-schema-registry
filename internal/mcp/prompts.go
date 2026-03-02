@@ -108,6 +108,38 @@ func (s *Server) registerPrompts() {
 			{Name: "use_case", Description: "Use case description (e.g. event streaming, REST API, RPC)", Required: true},
 		},
 	}, s.handleCompareFormatsPrompt)
+
+	s.mcpServer.AddPrompt(&gomcp.Prompt{
+		Name:        "schema-getting-started",
+		Description: "Quick-start guide introducing available tools and common schema registry operations",
+		Arguments:   []*gomcp.PromptArgument{},
+	}, s.handleGettingStartedPrompt)
+
+	s.mcpServer.AddPrompt(&gomcp.Prompt{
+		Name:        "troubleshooting",
+		Description: "Diagnostic guide for common schema registry issues and errors",
+		Arguments:   []*gomcp.PromptArgument{},
+	}, s.handleTroubleshootingPrompt)
+
+	s.mcpServer.AddPrompt(&gomcp.Prompt{
+		Name:        "schema-impact-analysis",
+		Description: "Guided workflow for assessing the impact of a proposed schema change across dependents",
+		Arguments: []*gomcp.PromptArgument{
+			{Name: "subject", Description: "Subject name to analyse impact for", Required: true},
+		},
+	}, s.handleImpactAnalysisPrompt)
+
+	s.mcpServer.AddPrompt(&gomcp.Prompt{
+		Name:        "schema-naming-conventions",
+		Description: "Guide to subject naming strategies (topic_name, record_name, topic_record_name)",
+		Arguments:   []*gomcp.PromptArgument{},
+	}, s.handleNamingConventionsPrompt)
+
+	s.mcpServer.AddPrompt(&gomcp.Prompt{
+		Name:        "context-management",
+		Description: "Guide for managing multi-tenant contexts and the 4-tier config/mode inheritance chain",
+		Arguments:   []*gomcp.PromptArgument{},
+	}, s.handleContextManagementPrompt)
 }
 
 // --- Prompt handlers ---
@@ -686,6 +718,231 @@ Available tools: list_versions, get_schema_version, get_latest_schema, get_confi
 
 	return &gomcp.GetPromptResult{
 		Description: fmt.Sprintf("Version history audit for %q", subject),
+		Messages:    []*gomcp.PromptMessage{promptMessage("user", guidance)},
+	}, nil
+}
+
+func (s *Server) handleGettingStartedPrompt(_ context.Context, _ *gomcp.GetPromptRequest) (*gomcp.GetPromptResult, error) {
+	guidance := `Welcome to the Schema Registry MCP server. Here's a quick-start guide.
+
+## Core operations
+
+- **list_subjects** — see all registered subjects
+- **get_latest_schema** — fetch the current schema for a subject
+- **register_schema** — register a new schema version
+- **check_compatibility** — test a schema before registering
+
+## Discovery
+
+- **search_schemas** — search schema content by keyword or regex
+- **match_subjects** — find subjects by name pattern (regex, glob, or fuzzy)
+- **get_registry_statistics** — overview of subjects, versions, types, KEKs, and exporters
+
+## Schema intelligence
+
+- **score_schema_quality** — analyse naming, docs, type safety, and evolution readiness
+- **diff_schemas** — compare two schema versions structurally
+- **find_similar_schemas** — find schemas with overlapping field sets
+- **suggest_schema_evolution** — generate a compatible schema change
+- **explain_compatibility_failure** — human-readable explanations for compat errors
+
+## Configuration
+
+- **get_config / set_config** — manage compatibility levels (BACKWARD, FORWARD, FULL, NONE)
+- **get_mode / set_mode** — manage modes (READWRITE, READONLY, IMPORT)
+
+## Encryption (CSFLE)
+
+- **create_kek / create_dek** — set up client-side field encryption
+- **list_keks / list_deks** — inspect encryption keys
+
+## Resources (read-only data)
+
+Resources are available via URI patterns like ` + "`schema://subjects`" + `, ` + "`schema://subjects/{name}`" + `, etc.
+
+## Getting help
+
+Use the other prompts for detailed guidance: design-schema, evolve-schema, check-compatibility, troubleshooting, setup-encryption, and more.`
+
+	return &gomcp.GetPromptResult{
+		Description: "Quick-start guide for the Schema Registry MCP server",
+		Messages:    []*gomcp.PromptMessage{promptMessage("user", guidance)},
+	}, nil
+}
+
+func (s *Server) handleTroubleshootingPrompt(_ context.Context, _ *gomcp.GetPromptRequest) (*gomcp.GetPromptResult, error) {
+	guidance := `Diagnostic guide for common schema registry issues.
+
+## Step 1: Check health
+Use **health_check** to verify the registry is running and storage is connected.
+
+## Step 2: Identify the error
+
+| Error Code | Meaning | Likely cause |
+|------------|---------|--------------|
+| 42201 | Invalid schema | Malformed JSON, missing required Avro/Protobuf/JSON Schema fields |
+| 42203 | Invalid compatibility level | Typo in compatibility level string |
+| 409 | Incompatible schema | Schema violates the configured compatibility level |
+| 40401 | Subject not found | Typo in subject name, or subject was soft-deleted |
+| 40402 | Version not found | Version number does not exist for this subject |
+| 40403 | Schema not found | Global schema ID does not exist |
+| 50001 | Internal error | Storage backend issue, check server logs |
+
+## Step 3: Debug by category
+
+**Registration failures:**
+1. Use **validate_schema** to check syntax without registering
+2. Use **get_config** to check the compatibility level
+3. Use **check_compatibility** to test against existing versions
+4. Use **explain_compatibility_failure** for detailed fix suggestions
+
+**Subject/version not found:**
+1. Use **list_subjects** to see all subjects (add include_deleted for soft-deleted)
+2. Use **match_subjects** with fuzzy mode to find similar names
+3. Use **list_versions** to check available versions
+
+**Performance issues:**
+1. Use **get_registry_statistics** to check registry size
+2. Use **count_versions** to check version count per subject
+3. Large registries (>10k subjects) may need pagination on search operations
+
+**Encryption issues:**
+1. Use **list_keks** to verify KEK exists
+2. Use **test_kek** to verify KMS connectivity
+3. Use **list_deks** to check DEK status
+
+Available tools: health_check, get_server_info, validate_schema, check_compatibility, explain_compatibility_failure, list_subjects, match_subjects`
+
+	return &gomcp.GetPromptResult{
+		Description: "Troubleshooting guide for schema registry issues",
+		Messages:    []*gomcp.PromptMessage{promptMessage("user", guidance)},
+	}, nil
+}
+
+func (s *Server) handleImpactAnalysisPrompt(ctx context.Context, req *gomcp.GetPromptRequest) (*gomcp.GetPromptResult, error) {
+	subject := req.Params.Arguments["subject"]
+	if subject == "" {
+		return nil, fmt.Errorf("required argument 'subject' is missing")
+	}
+
+	guidance := fmt.Sprintf(`Assess the impact of a proposed schema change on subject %q.
+
+## Step 1: Understand the current state
+1. Use **get_latest_schema** to fetch the current schema for %q
+2. Use **get_config** to check the compatibility level
+3. Use **list_versions** to see the version history
+
+## Step 2: Find dependents
+1. Use **get_referenced_by** to find schemas that reference this subject
+2. Use **get_dependency_graph** to see the full transitive dependency tree
+3. Use **find_similar_schemas** to identify structurally related schemas
+
+## Step 3: Check field usage
+1. Use **check_field_consistency** for fields you plan to change
+2. Use **find_schemas_by_field** to find other schemas using the same field names
+
+## Step 4: Validate the change
+1. Use **check_compatibility** to test your proposed schema
+2. Use **check_compatibility_multi** if the schema is used across multiple subjects
+3. Use **explain_compatibility_failure** if compatibility fails
+4. Use **diff_schemas** to see a structural comparison
+
+## Step 5: Plan the rollout
+1. Use **suggest_schema_evolution** to generate a compatible schema
+2. Use **plan_migration_path** if the change requires multiple steps
+3. Consider using **set_mode** READONLY on the subject during migration`, subject, subject)
+
+	latest, err := s.registry.GetLatestSchema(ctx, registrycontext.DefaultContext, subject)
+	if err == nil && latest != nil {
+		guidance += fmt.Sprintf("\n\nCurrent version: %d, type: %s", latest.Version, latest.SchemaType)
+	}
+
+	return &gomcp.GetPromptResult{
+		Description: fmt.Sprintf("Impact analysis guide for %q", subject),
+		Messages:    []*gomcp.PromptMessage{promptMessage("user", guidance)},
+	}, nil
+}
+
+func (s *Server) handleNamingConventionsPrompt(_ context.Context, _ *gomcp.GetPromptRequest) (*gomcp.GetPromptResult, error) {
+	guidance := `Guide to subject naming strategies in the schema registry.
+
+## Naming strategies
+
+### topic_name (default)
+Pattern: ` + "`{topic}-key`" + ` or ` + "`{topic}-value`" + `
+Examples: ` + "`orders-key`" + `, ` + "`orders-value`" + `, ` + "`user-events-value`" + `
+Use when: one schema per Kafka topic, simple key/value distinction.
+
+### record_name
+Pattern: ` + "`{fully.qualified.RecordName}`" + `
+Examples: ` + "`com.example.Order`" + `, ` + "`com.example.UserEvent`" + `
+Use when: multiple event types share a topic, schemas identified by record name.
+
+### topic_record_name
+Pattern: ` + "`{topic}-{fully.qualified.RecordName}`" + `
+Examples: ` + "`orders-com.example.OrderCreated`" + `, ` + "`orders-com.example.OrderShipped`" + `
+Use when: multiple event types per topic and you want topic context in the subject name.
+
+## Validation
+Use **validate_subject_name** to check if a name conforms to a strategy:
+- validate_subject_name(subject: "orders-value", strategy: "topic_name")
+- validate_subject_name(subject: "com.example.Order", strategy: "record_name")
+
+## Best practices
+- Pick one strategy per environment and use it consistently
+- Use **detect_schema_patterns** to check current naming convention coverage
+- Use **match_subjects** to find subjects that deviate from the dominant pattern
+- Avoid mixing strategies in the same registry context
+- Use lowercase with hyphens for topic names: ` + "`user-events`" + ` not ` + "`UserEvents`" + `
+- Use reverse-domain namespace for record names: ` + "`com.company.domain.Type`" + ``
+
+	return &gomcp.GetPromptResult{
+		Description: "Subject naming conventions guide",
+		Messages:    []*gomcp.PromptMessage{promptMessage("user", guidance)},
+	}, nil
+}
+
+func (s *Server) handleContextManagementPrompt(_ context.Context, _ *gomcp.GetPromptRequest) (*gomcp.GetPromptResult, error) {
+	guidance := `Guide for managing multi-tenant contexts in the schema registry.
+
+## What are contexts?
+Contexts are tenant namespaces that isolate schemas, subjects, and configuration. The default context is "." (dot). Contexts enable multi-tenancy — different teams, environments, or applications can have independent schema registries within the same server.
+
+## Listing and navigating contexts
+- **list_contexts** — list all available contexts
+- **list_subjects** — lists subjects in the default context
+- Subjects can be qualified with context: ` + "`:.staging:my-subject`" + `
+
+## The 4-tier config/mode inheritance chain
+Configuration and mode settings cascade through 4 levels:
+
+1. **Server default** — hardcoded BACKWARD compatibility, READWRITE mode
+2. **Global (__GLOBAL)** — set via set_config/set_mode with no subject
+3. **Context global** — per-context default (overrides __GLOBAL)
+4. **Per-subject** — most specific (overrides everything above)
+
+To check effective config: **get_config** with a subject name returns the resolved value.
+To check effective mode: **get_mode** with a subject name returns the resolved value.
+
+## Managing configuration per context
+- **set_config** — set compatibility level (per-subject or global)
+- **delete_config** — remove per-subject config (falls back to context global)
+- **set_mode** — set mode (READWRITE, READONLY, READONLY_OVERRIDE, IMPORT)
+- **delete_mode** — remove per-subject mode (falls back to context global)
+
+## Import and migration
+- Use **set_mode** with mode IMPORT to enable ID-preserving schema import
+- Use **import_schemas** to bulk import schemas with preserved IDs
+- Reset mode after import: **set_mode** with mode READWRITE
+
+## Resources
+- ` + "`schema://contexts`" + ` — list all contexts
+- ` + "`schema://contexts/{context}/subjects`" + ` — subjects in a specific context
+
+Available tools: list_contexts, get_config, set_config, delete_config, get_mode, set_mode, delete_mode, import_schemas`
+
+	return &gomcp.GetPromptResult{
+		Description: "Multi-tenant context management guide",
 		Messages:    []*gomcp.PromptMessage{promptMessage("user", guidance)},
 	}, nil
 }

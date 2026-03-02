@@ -157,3 +157,38 @@ Feature: MCP Resources — Read-Only Registry State
       """
     When I read MCP resource "schema://schemas/1/versions"
     Then the MCP resource result should contain "res-schema-versions-test"
+
+  # ==========================================================================
+  # 4. ADDITIONAL STATIC RESOURCES
+  # ==========================================================================
+
+  Scenario: Read global mode resource
+    When I read MCP resource "schema://mode"
+    Then the MCP resource result should contain "mode"
+
+  Scenario: Read KEKs list resource
+    When I read MCP resource "schema://keks"
+    Then the MCP resource result should contain "["
+
+  Scenario: Read exporters list resource
+    When I read MCP resource "schema://exporters"
+    Then the MCP resource result should contain "[]"
+
+  Scenario: Read server status resource
+    When I read MCP resource "schema://status"
+    Then the MCP resource result should contain "healthy"
+
+  # ==========================================================================
+  # 5. ADDITIONAL TEMPLATED RESOURCES
+  # ==========================================================================
+
+  Scenario: Read context subjects resource
+    When I call MCP tool "register_schema" with JSON input:
+      """
+      {
+        "subject": "res-ctx-subjects-test",
+        "schema": "{\"type\":\"string\"}"
+      }
+      """
+    When I read MCP resource "schema://contexts/./subjects"
+    Then the MCP resource result should contain "res-ctx-subjects-test"

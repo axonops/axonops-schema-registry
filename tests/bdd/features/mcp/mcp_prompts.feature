@@ -179,3 +179,45 @@ Feature: MCP Prompts — Pre-Built Conversation Templates
       | subject | prompt-quality-test |
     Then the MCP prompt result should contain "prompt-quality-test"
     And the MCP prompt result should contain "Naming conventions"
+
+  # ==========================================================================
+  # 9. GETTING STARTED AND TROUBLESHOOTING PROMPTS
+  # ==========================================================================
+
+  Scenario: Get getting-started prompt
+    When I get MCP prompt "schema-getting-started"
+    Then the MCP prompt result should contain "list_subjects"
+    And the MCP prompt result should contain "register_schema"
+    And the MCP prompt result should contain "check_compatibility"
+
+  Scenario: Get troubleshooting prompt
+    When I get MCP prompt "troubleshooting"
+    Then the MCP prompt result should contain "health_check"
+    And the MCP prompt result should contain "42201"
+    And the MCP prompt result should contain "409"
+
+  Scenario: Get impact analysis prompt
+    When I call MCP tool "register_schema" with JSON input:
+      """
+      {
+        "subject": "prompt-impact-test",
+        "schema": "{\"type\":\"string\"}"
+      }
+      """
+    When I get MCP prompt "schema-impact-analysis" with arguments:
+      | subject | prompt-impact-test |
+    Then the MCP prompt result should contain "prompt-impact-test"
+    And the MCP prompt result should contain "get_dependency_graph"
+    And the MCP prompt result should contain "check_compatibility"
+
+  Scenario: Get naming conventions prompt
+    When I get MCP prompt "schema-naming-conventions"
+    Then the MCP prompt result should contain "topic_name"
+    And the MCP prompt result should contain "record_name"
+    And the MCP prompt result should contain "topic_record_name"
+
+  Scenario: Get context management prompt
+    When I get MCP prompt "context-management"
+    Then the MCP prompt result should contain "list_contexts"
+    And the MCP prompt result should contain "READWRITE"
+    And the MCP prompt result should contain "inheritance"
