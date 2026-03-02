@@ -39,6 +39,9 @@ func (s *Server) registerTools() {
 	s.registerExporterTools()
 	s.registerMetadataTools()
 	s.registerAdminTools()
+	s.registerValidationTools()
+	s.registerComparisonTools()
+	s.registerIntelligenceTools()
 
 	addToolIfAllowed(s, &gomcp.Tool{
 		Name:        "list_subjects",

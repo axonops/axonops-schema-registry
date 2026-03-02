@@ -982,6 +982,72 @@ func (r *Registry) GetReferencedBy(ctx context.Context, registryCtx string, subj
 	return r.storage.GetReferencedBy(ctx, registryCtx, subject, version)
 }
 
+// ValidateResult holds the result of a schema validation.
+type ValidateResult struct {
+	Valid       bool   `json:"valid"`
+	SchemaType  string `json:"schema_type"`
+	Fingerprint string `json:"fingerprint,omitempty"`
+	Canonical   string `json:"canonical,omitempty"`
+	Error       string `json:"error,omitempty"`
+}
+
+// ValidateSchema parses a schema and returns whether it is valid.
+func (r *Registry) ValidateSchema(ctx context.Context, registryCtx string, schemaStr string, schemaType storage.SchemaType, refs []storage.Reference) (*ValidateResult, error) {
+	if schemaType == "" {
+		schemaType = storage.SchemaTypeAvro
+	}
+	parser, ok := r.schemaParser.Get(schemaType)
+	if !ok {
+		return &ValidateResult{Valid: false, SchemaType: string(schemaType), Error: "unsupported schema type"}, nil
+	}
+	resolvedRefs, err := r.resolveReferences(ctx, registryCtx, refs)
+	if err != nil {
+		return &ValidateResult{Valid: false, SchemaType: string(schemaType), Error: fmt.Sprintf("failed to resolve references: %v", err)}, nil
+	}
+	parsed, err := parser.Parse(schemaStr, resolvedRefs)
+	if err != nil {
+		return &ValidateResult{Valid: false, SchemaType: string(schemaType), Error: err.Error()}, nil
+	}
+	return &ValidateResult{
+		Valid:       true,
+		SchemaType:  string(schemaType),
+		Fingerprint: parsed.Fingerprint(),
+		Canonical:   parsed.CanonicalString(),
+	}, nil
+}
+
+// NormalizeResult holds the result of a schema normalization.
+type NormalizeResult struct {
+	Normalized  string `json:"normalized"`
+	Fingerprint string `json:"fingerprint"`
+	SchemaType  string `json:"schema_type"`
+}
+
+// NormalizeSchema parses and normalizes a schema, returning the canonical form.
+func (r *Registry) NormalizeSchema(ctx context.Context, registryCtx string, schemaStr string, schemaType storage.SchemaType, refs []storage.Reference) (*NormalizeResult, error) {
+	if schemaType == "" {
+		schemaType = storage.SchemaTypeAvro
+	}
+	parser, ok := r.schemaParser.Get(schemaType)
+	if !ok {
+		return nil, fmt.Errorf("unsupported schema type: %s: %w", schemaType, ErrUnsupportedSchemaType)
+	}
+	resolvedRefs, err := r.resolveReferences(ctx, registryCtx, refs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve references: %w", err)
+	}
+	parsed, err := parser.Parse(schemaStr, resolvedRefs)
+	if err != nil {
+		return nil, fmt.Errorf("invalid schema: %w", errors.Join(err, ErrInvalidSchema))
+	}
+	normalized := parsed.Normalize()
+	return &NormalizeResult{
+		Normalized:  normalized.CanonicalString(),
+		Fingerprint: normalized.Fingerprint(),
+		SchemaType:  string(schemaType),
+	}, nil
+}
+
 // GetSchemaTypes returns the supported schema types.
 func (r *Registry) GetSchemaTypes() []string {
 	return r.schemaParser.Types()
