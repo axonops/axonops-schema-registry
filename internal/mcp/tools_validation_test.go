@@ -247,3 +247,26 @@ func TestCountVersions(t *testing.T) {
 		t.Fatalf("expected count=1, got: %s", text)
 	}
 }
+
+func TestCountSubjects(t *testing.T) {
+	cs, reg := newTestMCPClient(t)
+
+	registerTestSchema(t, reg, "count-subj-1", `{"type":"string"}`)
+	registerTestSchema(t, reg, "count-subj-2", `{"type":"int"}`)
+
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name: "count_subjects",
+	})
+	if err != nil {
+		t.Fatalf("CallTool: %v", err)
+	}
+	text := resultText(t, result)
+	var out map[string]any
+	if err := json.Unmarshal([]byte(text), &out); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	count := out["count"].(float64)
+	if count < 2 {
+		t.Fatalf("expected count >= 2, got: %s", text)
+	}
+}

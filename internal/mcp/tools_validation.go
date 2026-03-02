@@ -72,6 +72,12 @@ func (s *Server) registerValidationTools() {
 		Description: "Count the number of schema versions registered for a subject.",
 		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
 	}, instrumentedHandler(s, "count_versions", s.handleCountVersions))
+
+	addToolIfAllowed(s, &gomcp.Tool{
+		Name:        "count_subjects",
+		Description: "Count the total number of registered subjects in the registry.",
+		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
+	}, instrumentedHandler(s, "count_subjects", s.handleCountSubjects))
 }
 
 // --- validate_schema ---
@@ -456,5 +462,19 @@ func (s *Server) handleCountVersions(ctx context.Context, _ *gomcp.CallToolReque
 	return jsonResult(map[string]any{
 		"subject": input.Subject,
 		"count":   len(versions),
+	})
+}
+
+// --- count_subjects ---
+
+type countSubjectsInput struct{}
+
+func (s *Server) handleCountSubjects(ctx context.Context, _ *gomcp.CallToolRequest, _ countSubjectsInput) (*gomcp.CallToolResult, any, error) {
+	subjects, err := s.registry.ListSubjects(ctx, registrycontext.DefaultContext, false)
+	if err != nil {
+		return errorResult(err), nil, nil
+	}
+	return jsonResult(map[string]any{
+		"count": len(subjects),
 	})
 }

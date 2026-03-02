@@ -113,3 +113,10 @@ Feature: MCP Validation, Export, and Statistics Tools
     When I call MCP tool "count_versions" with input:
       | subject | count-val-test |
     Then the MCP result should contain "\"count\":1"
+
+  # --- count_subjects ---
+
+  Scenario: Count subjects in the registry
+    Given I register an Avro schema for subject "count-subj-val-test"
+    When I call MCP tool "count_subjects"
+    Then the MCP result should contain "count"
