@@ -33,6 +33,7 @@ type MCPConfig struct {
 	AllowedOrigins       []string `yaml:"allowed_origins"`       // Origin header allowlist (empty = allow all)
 	RequireConfirmations bool     `yaml:"require_confirmations"` // Enable two-phase confirmations for destructive ops
 	ConfirmationTTLSecs  int      `yaml:"confirmation_ttl"`      // Confirmation token TTL in seconds (default: 300)
+	LogSchemas           bool     `yaml:"log_schemas"`           // Log full schema bodies in debug output (default: false)
 }
 
 // ServerConfig represents HTTP server configuration.
@@ -313,8 +314,13 @@ func DefaultConfig() *Config {
 			},
 		},
 		MCP: MCPConfig{
-			Host: "0.0.0.0",
+			Host: "127.0.0.1",
 			Port: 9081,
+			AllowedOrigins: []string{
+				"http://localhost:*",
+				"https://localhost:*",
+				"vscode-webview://*",
+			},
 		},
 	}
 }
@@ -501,6 +507,9 @@ func (c *Config) applyEnvOverrides() {
 		if n, err := strconv.Atoi(v); err == nil {
 			c.MCP.ConfirmationTTLSecs = n
 		}
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_MCP_LOG_SCHEMAS"); v != "" {
+		c.MCP.LogSchemas = strings.ToLower(v) == "true" || v == "1"
 	}
 
 	// Docs enabled override

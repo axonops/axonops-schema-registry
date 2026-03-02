@@ -3147,6 +3147,88 @@ func TestIsOriginAllowed(t *testing.T) {
 	}
 }
 
+func TestOriginMatchesPattern(t *testing.T) {
+	tests := []struct {
+		pattern string
+		origin  string
+		want    bool
+	}{
+		// Exact match
+		{"https://app.example.com", "https://app.example.com", true},
+		{"https://app.example.com", "https://evil.example.com", false},
+
+		// Case-insensitive
+		{"https://APP.example.com", "https://app.EXAMPLE.com", true},
+
+		// Wildcard at end (port wildcard)
+		{"http://localhost:*", "http://localhost:3000", true},
+		{"http://localhost:*", "http://localhost:8081", true},
+		{"http://localhost:*", "http://localhost", false}, // no colon+port
+		{"https://localhost:*", "https://localhost:443", true},
+
+		// Wildcard scheme suffix
+		{"vscode-webview://*", "vscode-webview://abcdef123", true},
+		{"vscode-webview://*", "vscode-webview://", true},
+
+		// Full wildcard
+		{"*", "https://anything.example.com", true},
+
+		// Wildcard in middle
+		{"http://*.example.com", "http://app.example.com", true},
+		{"http://*.example.com", "http://evil.example.com", true},
+		{"http://*.example.com", "http://app.other.com", false},
+
+		// No match
+		{"http://localhost:*", "https://evil.com", false},
+	}
+	for _, tt := range tests {
+		got := originMatchesPattern(tt.pattern, tt.origin)
+		if got != tt.want {
+			t.Errorf("originMatchesPattern(%q, %q) = %v, want %v", tt.pattern, tt.origin, got, tt.want)
+		}
+	}
+}
+
+func TestOriginMiddleware_WildcardPattern(t *testing.T) {
+	s := &Server{
+		config: &config.MCPConfig{AllowedOrigins: []string{"http://localhost:*", "vscode-webview://*"}},
+		logger: testLogger(),
+	}
+
+	handler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	mw := s.originMiddleware(handler)
+
+	// Allowed: localhost with port
+	req, _ := http.NewRequest("GET", "/mcp", nil)
+	req.Header.Set("Origin", "http://localhost:3000")
+	w := &testResponseWriter{}
+	mw.ServeHTTP(w, req)
+	if w.code != http.StatusOK {
+		t.Errorf("expected OK for http://localhost:3000, got %d", w.code)
+	}
+
+	// Allowed: vscode-webview
+	req, _ = http.NewRequest("GET", "/mcp", nil)
+	req.Header.Set("Origin", "vscode-webview://webview-abc123")
+	w = &testResponseWriter{}
+	mw.ServeHTTP(w, req)
+	if w.code != http.StatusOK {
+		t.Errorf("expected OK for vscode-webview origin, got %d", w.code)
+	}
+
+	// Blocked: non-matching origin
+	req, _ = http.NewRequest("GET", "/mcp", nil)
+	req.Header.Set("Origin", "https://evil.example.com")
+	w = &testResponseWriter{}
+	mw.ServeHTTP(w, req)
+	if w.code != http.StatusForbidden {
+		t.Errorf("expected 403 for evil origin, got %d", w.code)
+	}
+}
+
 // ===================== Confirmation Store Tests =====================
 
 func TestConfirmationStore_GenerateAndValidate(t *testing.T) {

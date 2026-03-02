@@ -51,15 +51,54 @@ func (s *Server) originMiddleware(next http.Handler) http.Handler {
 }
 
 // isOriginAllowed checks whether the given origin is in the allowlist.
-// Supports exact match (case-insensitive) and "*" wildcard.
+// Supports exact match (case-insensitive), "*" wildcard (allow all),
+// and glob-style patterns where "*" matches any substring within a
+// component (e.g., "http://localhost:*" matches "http://localhost:3000",
+// "vscode-webview://*" matches any vscode-webview origin).
 func (s *Server) isOriginAllowed(origin string) bool {
 	for _, allowed := range s.config.AllowedOrigins {
 		if allowed == "*" {
 			return true
 		}
-		if strings.EqualFold(allowed, origin) {
+		if originMatchesPattern(allowed, origin) {
 			return true
 		}
 	}
 	return false
+}
+
+// originMatchesPattern checks if an origin matches a pattern.
+// The pattern may contain "*" wildcards that match any sequence of
+// characters. Matching is case-insensitive.
+func originMatchesPattern(pattern, origin string) bool {
+	p := strings.ToLower(pattern)
+	o := strings.ToLower(origin)
+
+	// Fast path: no wildcard, exact match.
+	if !strings.Contains(p, "*") {
+		return p == o
+	}
+
+	// Split on "*" and ensure each part appears in order.
+	parts := strings.Split(p, "*")
+	idx := 0
+	for i, part := range parts {
+		if part == "" {
+			continue
+		}
+		pos := strings.Index(o[idx:], part)
+		if pos < 0 {
+			return false
+		}
+		// First segment must be a prefix.
+		if i == 0 && pos != 0 {
+			return false
+		}
+		idx += pos + len(part)
+	}
+	// Last segment must be a suffix (unless pattern ends with *).
+	if last := parts[len(parts)-1]; last != "" {
+		return strings.HasSuffix(o, last)
+	}
+	return true
 }
