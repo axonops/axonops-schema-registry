@@ -133,9 +133,10 @@ func instrumentedHandler[T any](s *Server, name string, handler gomcp.ToolHandle
 		// Record Prometheus metrics.
 		if s.metrics != nil {
 			s.metrics.RecordMCPToolCall(name, status, duration)
-			// TODO: Per-principal MCP metrics — requires per-session auth
-			// identity extraction. Will be addressed during integrated
-			// MCP testing via docker-compose and BDD.
+			// Per-principal MCP metrics. Currently hardcoded to "mcp-client"
+			// until per-session auth identity extraction is implemented
+			// during integrated MCP testing via docker-compose and BDD.
+			s.metrics.RecordPrincipalMCPCall("mcp-client", name, status)
 		}
 
 		// Structured log output.

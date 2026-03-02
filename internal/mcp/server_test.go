@@ -2205,6 +2205,7 @@ func newTestMCPClientWithMetrics(t *testing.T) (*gomcp.ClientSession, *metrics.M
 	reg := registry.New(store, schemaReg, compatChecker, "BACKWARD")
 
 	m := metrics.New()
+	m.EnablePrincipalMetrics()
 	cfg := &config.MCPConfig{Host: "localhost", Port: 0}
 	srv := New(cfg, reg, testLogger(), "test-version", WithMetrics(m))
 
@@ -2281,6 +2282,47 @@ func TestInstrumentedHandlerRecordsErrors(t *testing.T) {
 	totalVal := getCounterValue(t, m.MCPToolCallsTotal, "get_schema_by_id", "error")
 	if totalVal != 1 {
 		t.Errorf("expected MCPToolCallsTotal(error)=1, got=%v", totalVal)
+	}
+}
+
+func TestInstrumentedHandlerRecordsPrincipalMetrics(t *testing.T) {
+	cs, m := newTestMCPClientWithMetrics(t)
+
+	// Call a tool that should succeed.
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name: "health_check",
+	})
+	if err != nil {
+		t.Fatalf("CallTool: %v", err)
+	}
+	if result.IsError {
+		t.Fatal("expected success")
+	}
+
+	// Verify per-principal MCP metric was recorded with "mcp-client" principal.
+	val := getCounterValue(t, m.PrincipalMCPCallsTotal, "mcp-client", "health_check", "success")
+	if val != 1 {
+		t.Errorf("expected PrincipalMCPCallsTotal(mcp-client, health_check, success)=1, got=%v", val)
+	}
+
+	// Call a tool that returns an error.
+	_, _ = cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name:      "get_schema_by_id",
+		Arguments: json.RawMessage(`{"id": 999999}`),
+	})
+
+	errVal := getCounterValue(t, m.PrincipalMCPCallsTotal, "mcp-client", "get_schema_by_id", "error")
+	if errVal != 1 {
+		t.Errorf("expected PrincipalMCPCallsTotal(mcp-client, get_schema_by_id, error)=1, got=%v", errVal)
+	}
+
+	// Call health_check again and verify increment.
+	_, _ = cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name: "health_check",
+	})
+	val = getCounterValue(t, m.PrincipalMCPCallsTotal, "mcp-client", "health_check", "success")
+	if val != 2 {
+		t.Errorf("expected PrincipalMCPCallsTotal(mcp-client, health_check, success)=2, got=%v", val)
 	}
 }
 
