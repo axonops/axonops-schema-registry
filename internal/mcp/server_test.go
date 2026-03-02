@@ -1428,6 +1428,238 @@ func TestUpdateExporter(t *testing.T) {
 	}
 }
 
+// --- Phase 8: Metadata, alias, and advanced tool tests ---
+
+func TestGetConfigFull(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	// Global default should return BACKWARD with full record
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name: "get_config_full",
+	})
+	if err != nil {
+		t.Fatalf("get_config_full: %v", err)
+	}
+	text := resultText(t, result)
+	if !strings.Contains(text, "BACKWARD") {
+		t.Errorf("expected BACKWARD in result, got: %s", text)
+	}
+	if !strings.Contains(text, "compatibilityLevel") {
+		t.Errorf("expected full record fields, got: %s", text)
+	}
+}
+
+func TestSetConfigFullWithAlias(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	// Set config with alias
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name: "set_config_full",
+		Arguments: map[string]any{
+			"subject":              "alias-src",
+			"compatibility_level": "BACKWARD",
+			"alias":               "alias-target",
+		},
+	})
+	if err != nil {
+		t.Fatalf("set_config_full: %v", err)
+	}
+	if result.IsError {
+		t.Fatalf("expected success, got error: %s", resultText(t, result))
+	}
+
+	// Get full config and verify alias
+	result, err = cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name:      "get_config_full",
+		Arguments: map[string]any{"subject": "alias-src"},
+	})
+	if err != nil {
+		t.Fatalf("get_config_full: %v", err)
+	}
+	text := resultText(t, result)
+	if !strings.Contains(text, "alias-target") {
+		t.Errorf("expected alias in config, got: %s", text)
+	}
+}
+
+func TestSetConfigFullWithMetadata(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name: "set_config_full",
+		Arguments: map[string]any{
+			"subject":              "meta-subj",
+			"compatibility_level": "FULL",
+			"default_metadata": map[string]any{
+				"properties": map[string]any{"owner": "team-data"},
+				"tags":       map[string]any{"pii": []any{"email", "phone"}},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("set_config_full: %v", err)
+	}
+	if result.IsError {
+		t.Fatalf("expected success, got error: %s", resultText(t, result))
+	}
+
+	// Get subject config full
+	result, err = cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name:      "get_subject_config_full",
+		Arguments: map[string]any{"subject": "meta-subj"},
+	})
+	if err != nil {
+		t.Fatalf("get_subject_config_full: %v", err)
+	}
+	text := resultText(t, result)
+	if !strings.Contains(text, "team-data") {
+		t.Errorf("expected metadata properties, got: %s", text)
+	}
+	if !strings.Contains(text, "pii") {
+		t.Errorf("expected metadata tags, got: %s", text)
+	}
+}
+
+func TestResolveAlias(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	// Set up alias
+	_, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name: "set_config_full",
+		Arguments: map[string]any{
+			"subject":              "my-alias",
+			"compatibility_level": "BACKWARD",
+			"alias":               "real-subject",
+		},
+	})
+	if err != nil {
+		t.Fatalf("set_config_full: %v", err)
+	}
+
+	// Resolve alias
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name:      "resolve_alias",
+		Arguments: map[string]any{"subject": "my-alias"},
+	})
+	if err != nil {
+		t.Fatalf("resolve_alias: %v", err)
+	}
+	text := resultText(t, result)
+	if !strings.Contains(text, "real-subject") {
+		t.Errorf("expected resolved alias, got: %s", text)
+	}
+
+	// No alias — should resolve to self
+	result, err = cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name:      "resolve_alias",
+		Arguments: map[string]any{"subject": "no-alias"},
+	})
+	if err != nil {
+		t.Fatalf("resolve_alias: %v", err)
+	}
+	text = resultText(t, result)
+	if !strings.Contains(text, "no-alias") {
+		t.Errorf("expected self-resolve, got: %s", text)
+	}
+}
+
+func TestGetSchemasBySubject(t *testing.T) {
+	cs, reg := newTestMCPClient(t)
+
+	v1 := `{"type":"record","name":"Test","fields":[{"name":"a","type":"string"}]}`
+	v2 := `{"type":"record","name":"Test","fields":[{"name":"a","type":"string"},{"name":"b","type":["null","string"],"default":null}]}`
+	registerTestSchema(t, reg, "multi-ver", v1)
+	registerTestSchema(t, reg, "multi-ver", v2)
+
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name:      "get_schemas_by_subject",
+		Arguments: map[string]any{"subject": "multi-ver"},
+	})
+	if err != nil {
+		t.Fatalf("get_schemas_by_subject: %v", err)
+	}
+	text := resultText(t, result)
+	// Should contain both versions
+	if !strings.Contains(text, `"version":1`) || !strings.Contains(text, `"version":2`) {
+		t.Errorf("expected both versions, got: %s", text)
+	}
+}
+
+func TestCheckWriteMode(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	// Default READWRITE mode should be writable
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name: "check_write_mode",
+	})
+	if err != nil {
+		t.Fatalf("check_write_mode: %v", err)
+	}
+	text := resultText(t, result)
+	if !strings.Contains(text, "true") {
+		t.Errorf("expected writable:true, got: %s", text)
+	}
+
+	// Set to READONLY
+	_, err = cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name:      "set_mode",
+		Arguments: map[string]any{"subject": "ro-subj", "mode": "READONLY"},
+	})
+	if err != nil {
+		t.Fatalf("set_mode: %v", err)
+	}
+
+	result, err = cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name:      "check_write_mode",
+		Arguments: map[string]any{"subject": "ro-subj"},
+	})
+	if err != nil {
+		t.Fatalf("check_write_mode: %v", err)
+	}
+	text = resultText(t, result)
+	if !strings.Contains(text, "READONLY") {
+		t.Errorf("expected READONLY blocking mode, got: %s", text)
+	}
+	if !strings.Contains(text, "false") {
+		t.Errorf("expected writable:false, got: %s", text)
+	}
+}
+
+func TestFormatSchema(t *testing.T) {
+	cs, reg := newTestMCPClient(t)
+	registerTestSchema(t, reg, "format-test", `{"type":"string"}`)
+
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name:      "format_schema",
+		Arguments: map[string]any{"subject": "format-test", "version": 1},
+	})
+	if err != nil {
+		t.Fatalf("format_schema: %v", err)
+	}
+	text := resultText(t, result)
+	if !strings.Contains(text, "string") {
+		t.Errorf("expected schema content, got: %s", text)
+	}
+	if !strings.Contains(text, "format-test") {
+		t.Errorf("expected subject in result, got: %s", text)
+	}
+}
+
+func TestGetGlobalConfigDirect(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name: "get_global_config_direct",
+	})
+	if err != nil {
+		t.Fatalf("get_global_config_direct: %v", err)
+	}
+	text := resultText(t, result)
+	if !strings.Contains(text, "BACKWARD") {
+		t.Errorf("expected BACKWARD default, got: %s", text)
+	}
+}
+
 // resultText extracts the text from the first TextContent in a CallToolResult.
 func resultText(t *testing.T, result *gomcp.CallToolResult) string {
 	t.Helper()
