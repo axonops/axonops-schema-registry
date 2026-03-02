@@ -79,6 +79,22 @@ func (s *Server) registerAdminTools() {
 		Description: "Revoke (disable) an API key without deleting it.",
 	}, s.handleRevokeAPIKey)
 
+	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
+		Name:        "change_password",
+		Description: "Change a user's password. Requires the user's ID, old password, and new password.",
+	}, s.handleChangePassword)
+
+	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
+		Name:        "rotate_apikey",
+		Description: "Rotate an API key: creates a new key with the same settings and revokes the old one. Returns the new raw key (only shown once). Requires id and expires_in (seconds).",
+	}, s.handleRotateAPIKey)
+
+	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
+		Name:        "get_user_by_username",
+		Description: "Get a user by username.",
+		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
+	}, s.handleGetUserByUsername)
+
 	// Roles
 	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
 		Name:        "list_roles",
@@ -330,6 +346,65 @@ func (s *Server) handleRevokeAPIKey(ctx context.Context, _ *gomcp.CallToolReques
 		return errorResult(err), nil, nil
 	}
 	return jsonResult(map[string]bool{"revoked": true})
+}
+
+// --- Password & key rotation handlers ---
+
+type changePasswordInput struct {
+	ID          int64  `json:"id"`
+	OldPassword string `json:"old_password"`
+	NewPassword string `json:"new_password"`
+}
+
+func (s *Server) handleChangePassword(ctx context.Context, _ *gomcp.CallToolRequest, input changePasswordInput) (*gomcp.CallToolResult, any, error) {
+	if err := s.authService.ChangePassword(ctx, input.ID, input.OldPassword, input.NewPassword); err != nil {
+		return errorResult(err), nil, nil
+	}
+	return jsonResult(map[string]bool{"changed": true})
+}
+
+type rotateAPIKeyInput struct {
+	ID        int64 `json:"id"`
+	ExpiresIn int64 `json:"expires_in"` // seconds
+}
+
+func (s *Server) handleRotateAPIKey(ctx context.Context, _ *gomcp.CallToolRequest, input rotateAPIKeyInput) (*gomcp.CallToolResult, any, error) {
+	if input.ExpiresIn <= 0 {
+		return errorResult(fmt.Errorf("expires_in is required and must be positive (duration in seconds)")), nil, nil
+	}
+	expiresAt := time.Now().UTC().Add(time.Duration(input.ExpiresIn) * time.Second)
+	result, err := s.authService.RotateAPIKey(ctx, input.ID, expiresAt)
+	if err != nil {
+		return errorResult(err), nil, nil
+	}
+	return jsonResult(map[string]any{
+		"id":         result.ID,
+		"key":        result.Key,
+		"key_prefix": result.KeyPrefix,
+		"name":       result.Name,
+		"role":       result.Role,
+		"user_id":    result.UserID,
+		"enabled":    result.Enabled,
+		"expires_at": result.ExpiresAt.Format(time.RFC3339),
+	})
+}
+
+type getUserByUsernameInput struct {
+	Username string `json:"username"`
+}
+
+func (s *Server) handleGetUserByUsername(ctx context.Context, _ *gomcp.CallToolRequest, input getUserByUsernameInput) (*gomcp.CallToolResult, any, error) {
+	user, err := s.authService.GetUserByUsername(ctx, input.Username)
+	if err != nil {
+		return errorResult(err), nil, nil
+	}
+	return jsonResult(map[string]any{
+		"id":       user.ID,
+		"username": user.Username,
+		"email":    user.Email,
+		"role":     user.Role,
+		"enabled":  user.Enabled,
+	})
 }
 
 // --- Roles handler ---

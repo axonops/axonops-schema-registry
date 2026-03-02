@@ -1987,6 +1987,115 @@ func TestRevokeAPIKey(t *testing.T) {
 	}
 }
 
+func TestChangePassword(t *testing.T) {
+	cs, authSvc := newTestMCPClientWithAuth(t)
+
+	user, err := authSvc.CreateUser(context.Background(), auth.CreateUserRequest{
+		Username: "pwuser", Password: "oldpass123", Role: "developer", Enabled: true,
+	})
+	if err != nil {
+		t.Fatalf("create user: %v", err)
+	}
+
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name: "change_password",
+		Arguments: map[string]any{
+			"id":           float64(user.ID),
+			"old_password": "oldpass123",
+			"new_password": "newpass456",
+		},
+	})
+	if err != nil {
+		t.Fatalf("change_password: %v", err)
+	}
+	text := resultText(t, result)
+	if !strings.Contains(text, "true") {
+		t.Fatalf("expected changed:true, got: %s", text)
+	}
+
+	// Verify old password no longer works
+	_, err = authSvc.ValidateCredentials(context.Background(), "pwuser", "oldpass123")
+	if err == nil {
+		t.Fatal("expected old password to fail")
+	}
+
+	// Verify new password works
+	_, err = authSvc.ValidateCredentials(context.Background(), "pwuser", "newpass456")
+	if err != nil {
+		t.Fatalf("expected new password to work: %v", err)
+	}
+}
+
+func TestRotateAPIKey(t *testing.T) {
+	cs, authSvc := newTestMCPClientWithAuth(t)
+
+	user, err := authSvc.CreateUser(context.Background(), auth.CreateUserRequest{
+		Username: "rotateuser", Password: "pass123", Role: "developer", Enabled: true,
+	})
+	if err != nil {
+		t.Fatalf("create user: %v", err)
+	}
+
+	key, err := authSvc.CreateAPIKey(context.Background(), auth.CreateAPIKeyRequest{
+		UserID:    user.ID,
+		Name:      "rotate-me",
+		Role:      "developer",
+		ExpiresAt: time.Now().Add(time.Hour),
+	})
+	if err != nil {
+		t.Fatalf("create api key: %v", err)
+	}
+
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name: "rotate_apikey",
+		Arguments: map[string]any{
+			"id":         float64(key.ID),
+			"expires_in": float64(7200),
+		},
+	})
+	if err != nil {
+		t.Fatalf("rotate_apikey: %v", err)
+	}
+	text := resultText(t, result)
+	if !strings.Contains(text, "key") {
+		t.Fatalf("expected new key in result, got: %s", text)
+	}
+	// The result should contain a new key (different ID)
+	var rotated map[string]any
+	if err := json.Unmarshal([]byte(text), &rotated); err != nil {
+		t.Fatalf("parse rotate result: %v", err)
+	}
+	if rotated["id"].(float64) == float64(key.ID) {
+		t.Fatal("expected new key to have different ID")
+	}
+}
+
+func TestGetUserByUsername(t *testing.T) {
+	cs, authSvc := newTestMCPClientWithAuth(t)
+
+	_, err := authSvc.CreateUser(context.Background(), auth.CreateUserRequest{
+		Username: "findme", Password: "pass123", Role: "admin", Enabled: true,
+	})
+	if err != nil {
+		t.Fatalf("create user: %v", err)
+	}
+
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name:      "get_user_by_username",
+		Arguments: map[string]any{"username": "findme"},
+	})
+	if err != nil {
+		t.Fatalf("get_user_by_username: %v", err)
+	}
+	text := resultText(t, result)
+	if !strings.Contains(text, "findme") {
+		t.Fatalf("expected username, got: %s", text)
+	}
+	if !strings.Contains(text, "admin") {
+		t.Fatalf("expected role, got: %s", text)
+	}
+}
+
 // resultText extracts the text from the first TextContent in a CallToolResult.
 func resultText(t *testing.T, result *gomcp.CallToolResult) string {
 	t.Helper()

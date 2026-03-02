@@ -74,3 +74,43 @@ Feature: MCP Admin Tools
     When I call MCP tool "get_apikey" with input:
       | id | 1 |
     Then the MCP result should not contain "\"enabled\":true"
+
+  Scenario: Change user password
+    When I call MCP tool "create_user" with JSON input:
+      """
+      {"username": "pwuser", "password": "oldpass", "role": "developer"}
+      """
+    Then the MCP result should contain "pwuser"
+    When I call MCP tool "change_password" with JSON input:
+      """
+      {"id": 1, "old_password": "oldpass", "new_password": "newpass"}
+      """
+    Then the MCP result should contain "true"
+
+  Scenario: Get user by username
+    When I call MCP tool "create_user" with JSON input:
+      """
+      {"username": "findme", "password": "secret123", "role": "admin"}
+      """
+    Then the MCP result should contain "findme"
+    When I call MCP tool "get_user_by_username" with input:
+      | username | findme |
+    Then the MCP result should contain "findme"
+    And the MCP result should contain "admin"
+
+  Scenario: Rotate an API key
+    When I call MCP tool "create_user" with JSON input:
+      """
+      {"username": "rotateowner", "password": "secret123", "role": "developer"}
+      """
+    When I call MCP tool "create_apikey" with JSON input:
+      """
+      {"user_id": 1, "name": "rotate-key", "role": "developer", "expires_in": 3600}
+      """
+    Then the MCP result should contain "rotate-key"
+    When I call MCP tool "rotate_apikey" with JSON input:
+      """
+      {"id": 1, "expires_in": 7200}
+      """
+    Then the MCP result should contain "key"
+    And the MCP result should contain "rotated"
