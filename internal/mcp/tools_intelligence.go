@@ -809,4 +809,3 @@ func (s *Server) allSubjectFields(ctx context.Context) (map[string][]FieldInfo, 
 	}
 	return result, nil
 }
-

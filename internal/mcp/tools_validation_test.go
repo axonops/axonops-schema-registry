@@ -247,4 +247,3 @@ func TestCountVersions(t *testing.T) {
 		t.Fatalf("expected count=1, got: %s", text)
 	}
 }
-

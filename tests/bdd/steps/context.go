@@ -28,12 +28,12 @@ type TestContext struct {
 	client         *http.Client
 
 	// MCP fields — populated by MCP step definitions for @mcp scenarios.
-	Registry      interface{} // *registry.Registry — stored as interface to avoid import cycle
-	MCPResultText   string // text from last MCP tool call
-	MCPError        error  // error from last MCP tool call
-	MCPResourceText string // text from last MCP resource read
-	MCPPromptText   string // text from last MCP prompt get (all messages concatenated)
-	MCPPromptDesc   string // description from last MCP prompt get
+	Registry        interface{} // *registry.Registry — stored as interface to avoid import cycle
+	MCPResultText   string      // text from last MCP tool call
+	MCPError        error       // error from last MCP tool call
+	MCPResourceText string      // text from last MCP resource read
+	MCPPromptText   string      // text from last MCP prompt get (all messages concatenated)
+	MCPPromptDesc   string      // description from last MCP prompt get
 }
 
 // NewTestContext creates a fresh test context.
