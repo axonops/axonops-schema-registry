@@ -253,7 +253,11 @@ func main() {
 	// Create and start the MCP server if enabled
 	var mcpServer *mcpkg.Server
 	if cfg.MCP.Enabled {
-		mcpServer = mcpkg.New(&cfg.MCP, reg, logger, version)
+		var mcpOpts []mcpkg.Option
+		if authService != nil {
+			mcpOpts = append(mcpOpts, mcpkg.WithAuthService(authService))
+		}
+		mcpServer = mcpkg.New(&cfg.MCP, reg, logger, version, mcpOpts...)
 		go func() {
 			if err := mcpServer.Start(); err != nil && err != http.ErrServerClosed {
 				logger.Error("MCP server error", slog.String("error", err.Error()))

@@ -7,9 +7,11 @@ import (
 	"log/slog"
 	"strings"
 	"testing"
+	"time"
 
 	gomcp "github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"github.com/axonops/axonops-schema-registry/internal/auth"
 	"github.com/axonops/axonops-schema-registry/internal/compatibility"
 	avrocompat "github.com/axonops/axonops-schema-registry/internal/compatibility/avro"
 	jsoncompat "github.com/axonops/axonops-schema-registry/internal/compatibility/jsonschema"
@@ -1657,6 +1659,331 @@ func TestGetGlobalConfigDirect(t *testing.T) {
 	text := resultText(t, result)
 	if !strings.Contains(text, "BACKWARD") {
 		t.Errorf("expected BACKWARD default, got: %s", text)
+	}
+}
+
+// newTestMCPClientWithAuth creates a test MCP server with auth service enabled.
+func newTestMCPClientWithAuth(t *testing.T) (*gomcp.ClientSession, *auth.Service) {
+	t.Helper()
+
+	store := memory.NewStore()
+	t.Cleanup(func() { store.Close() })
+
+	schemaReg := schema.NewRegistry()
+	schemaReg.Register(avro.NewParser())
+	schemaReg.Register(protobuf.NewParser())
+	schemaReg.Register(jsonschema.NewParser())
+
+	compatChecker := compatibility.NewChecker()
+	compatChecker.Register(storage.SchemaTypeAvro, avrocompat.NewChecker())
+	compatChecker.Register(storage.SchemaTypeProtobuf, protocompat.NewChecker())
+	compatChecker.Register(storage.SchemaTypeJSON, jsoncompat.NewChecker())
+
+	reg := registry.New(store, schemaReg, compatChecker, "BACKWARD")
+
+	authSvc := auth.NewServiceWithConfig(store, auth.ServiceConfig{})
+	t.Cleanup(func() { authSvc.Close() })
+
+	cfg := &config.MCPConfig{Host: "localhost", Port: 0}
+	srv := New(cfg, reg, testLogger(), "test-version", WithAuthService(authSvc))
+
+	ctx := context.Background()
+	ct, st := gomcp.NewInMemoryTransports()
+
+	ss, err := srv.MCPServer().Connect(ctx, st, nil)
+	if err != nil {
+		t.Fatalf("server connect: %v", err)
+	}
+	t.Cleanup(func() { ss.Close() })
+
+	client := gomcp.NewClient(&gomcp.Implementation{Name: "test-client", Version: "1.0"}, nil)
+	cs, err := client.Connect(ctx, ct, nil)
+	if err != nil {
+		t.Fatalf("client connect: %v", err)
+	}
+	t.Cleanup(func() { cs.Close() })
+
+	return cs, authSvc
+}
+
+// --- Admin tool tests ---
+
+func TestListRoles(t *testing.T) {
+	cs, _ := newTestMCPClientWithAuth(t)
+
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name: "list_roles",
+	})
+	if err != nil {
+		t.Fatalf("CallTool: %v", err)
+	}
+	text := resultText(t, result)
+	if !strings.Contains(text, "super_admin") {
+		t.Fatalf("expected super_admin in roles, got: %s", text)
+	}
+	if !strings.Contains(text, "readonly") {
+		t.Fatalf("expected readonly in roles, got: %s", text)
+	}
+}
+
+func TestCreateAndGetUser(t *testing.T) {
+	cs, _ := newTestMCPClientWithAuth(t)
+
+	// Create user
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name: "create_user",
+		Arguments: map[string]any{
+			"username": "testuser",
+			"password": "secret123",
+			"role":     "developer",
+		},
+	})
+	if err != nil {
+		t.Fatalf("create_user: %v", err)
+	}
+	text := resultText(t, result)
+	if !strings.Contains(text, "testuser") {
+		t.Fatalf("expected username in result, got: %s", text)
+	}
+
+	// Parse the ID from the result
+	var created map[string]any
+	if err := json.Unmarshal([]byte(text), &created); err != nil {
+		t.Fatalf("parse create result: %v", err)
+	}
+	userID := created["id"].(float64)
+
+	// Get user by ID
+	result, err = cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name:      "get_user",
+		Arguments: map[string]any{"id": userID},
+	})
+	if err != nil {
+		t.Fatalf("get_user: %v", err)
+	}
+	text = resultText(t, result)
+	if !strings.Contains(text, "testuser") {
+		t.Fatalf("expected username in get result, got: %s", text)
+	}
+	if !strings.Contains(text, "developer") {
+		t.Fatalf("expected role in get result, got: %s", text)
+	}
+}
+
+func TestListUsers(t *testing.T) {
+	cs, authSvc := newTestMCPClientWithAuth(t)
+
+	// Create two users
+	for _, name := range []string{"alice", "bob"} {
+		_, err := authSvc.CreateUser(context.Background(), auth.CreateUserRequest{
+			Username: name, Password: "pass123", Role: "developer", Enabled: true,
+		})
+		if err != nil {
+			t.Fatalf("create user %s: %v", name, err)
+		}
+	}
+
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name: "list_users",
+	})
+	if err != nil {
+		t.Fatalf("list_users: %v", err)
+	}
+	text := resultText(t, result)
+	if !strings.Contains(text, "alice") || !strings.Contains(text, "bob") {
+		t.Fatalf("expected both users, got: %s", text)
+	}
+}
+
+func TestUpdateUser(t *testing.T) {
+	cs, authSvc := newTestMCPClientWithAuth(t)
+
+	user, err := authSvc.CreateUser(context.Background(), auth.CreateUserRequest{
+		Username: "updateme", Password: "pass123", Role: "developer", Enabled: true,
+	})
+	if err != nil {
+		t.Fatalf("create user: %v", err)
+	}
+
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name: "update_user",
+		Arguments: map[string]any{
+			"id":   float64(user.ID),
+			"role": "admin",
+		},
+	})
+	if err != nil {
+		t.Fatalf("update_user: %v", err)
+	}
+	text := resultText(t, result)
+	if !strings.Contains(text, "admin") {
+		t.Fatalf("expected updated role, got: %s", text)
+	}
+}
+
+func TestDeleteUser(t *testing.T) {
+	cs, authSvc := newTestMCPClientWithAuth(t)
+
+	user, err := authSvc.CreateUser(context.Background(), auth.CreateUserRequest{
+		Username: "deleteme", Password: "pass123", Role: "developer", Enabled: true,
+	})
+	if err != nil {
+		t.Fatalf("create user: %v", err)
+	}
+
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name:      "delete_user",
+		Arguments: map[string]any{"id": float64(user.ID)},
+	})
+	if err != nil {
+		t.Fatalf("delete_user: %v", err)
+	}
+	text := resultText(t, result)
+	if !strings.Contains(text, "true") {
+		t.Fatalf("expected deleted:true, got: %s", text)
+	}
+}
+
+func TestCreateAndGetAPIKey(t *testing.T) {
+	cs, authSvc := newTestMCPClientWithAuth(t)
+
+	user, err := authSvc.CreateUser(context.Background(), auth.CreateUserRequest{
+		Username: "keyowner", Password: "pass123", Role: "developer", Enabled: true,
+	})
+	if err != nil {
+		t.Fatalf("create user: %v", err)
+	}
+
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name: "create_apikey",
+		Arguments: map[string]any{
+			"user_id":    float64(user.ID),
+			"name":       "test-key",
+			"role":       "developer",
+			"expires_in": float64(3600),
+		},
+	})
+	if err != nil {
+		t.Fatalf("create_apikey: %v", err)
+	}
+	text := resultText(t, result)
+	if !strings.Contains(text, "test-key") {
+		t.Fatalf("expected key name, got: %s", text)
+	}
+	if !strings.Contains(text, "key") {
+		t.Fatalf("expected raw key in result, got: %s", text)
+	}
+
+	// Parse ID
+	var created map[string]any
+	if err := json.Unmarshal([]byte(text), &created); err != nil {
+		t.Fatalf("parse create result: %v", err)
+	}
+	keyID := created["id"].(float64)
+
+	// Get API key
+	result, err = cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name:      "get_apikey",
+		Arguments: map[string]any{"id": keyID},
+	})
+	if err != nil {
+		t.Fatalf("get_apikey: %v", err)
+	}
+	text = resultText(t, result)
+	if !strings.Contains(text, "test-key") {
+		t.Fatalf("expected key name in get result, got: %s", text)
+	}
+}
+
+func TestListAPIKeys(t *testing.T) {
+	cs, authSvc := newTestMCPClientWithAuth(t)
+
+	user, err := authSvc.CreateUser(context.Background(), auth.CreateUserRequest{
+		Username: "keyuser", Password: "pass123", Role: "developer", Enabled: true,
+	})
+	if err != nil {
+		t.Fatalf("create user: %v", err)
+	}
+
+	// Create API key directly via auth service
+	_, err = authSvc.CreateAPIKey(context.Background(), auth.CreateAPIKeyRequest{
+		UserID:    user.ID,
+		Name:      "key1",
+		Role:      "developer",
+		ExpiresAt: func() time.Time { return time.Now().Add(time.Hour) }(),
+	})
+	if err != nil {
+		t.Fatalf("create api key: %v", err)
+	}
+
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name: "list_apikeys",
+	})
+	if err != nil {
+		t.Fatalf("list_apikeys: %v", err)
+	}
+	text := resultText(t, result)
+	if !strings.Contains(text, "key1") {
+		t.Fatalf("expected key1 in list, got: %s", text)
+	}
+
+	// List by user_id
+	result, err = cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name:      "list_apikeys",
+		Arguments: map[string]any{"user_id": float64(user.ID)},
+	})
+	if err != nil {
+		t.Fatalf("list_apikeys by user: %v", err)
+	}
+	text = resultText(t, result)
+	if !strings.Contains(text, "key1") {
+		t.Fatalf("expected key1 in filtered list, got: %s", text)
+	}
+}
+
+func TestRevokeAPIKey(t *testing.T) {
+	cs, authSvc := newTestMCPClientWithAuth(t)
+
+	user, err := authSvc.CreateUser(context.Background(), auth.CreateUserRequest{
+		Username: "revokeuser", Password: "pass123", Role: "developer", Enabled: true,
+	})
+	if err != nil {
+		t.Fatalf("create user: %v", err)
+	}
+
+	key, err := authSvc.CreateAPIKey(context.Background(), auth.CreateAPIKeyRequest{
+		UserID:    user.ID,
+		Name:      "revoke-me",
+		Role:      "developer",
+		ExpiresAt: func() time.Time { return time.Now().Add(time.Hour) }(),
+	})
+	if err != nil {
+		t.Fatalf("create api key: %v", err)
+	}
+
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name:      "revoke_apikey",
+		Arguments: map[string]any{"id": float64(key.ID)},
+	})
+	if err != nil {
+		t.Fatalf("revoke_apikey: %v", err)
+	}
+	text := resultText(t, result)
+	if !strings.Contains(text, "true") {
+		t.Fatalf("expected revoked:true, got: %s", text)
+	}
+
+	// Verify it's disabled
+	result, err = cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name:      "get_apikey",
+		Arguments: map[string]any{"id": float64(key.ID)},
+	})
+	if err != nil {
+		t.Fatalf("get_apikey after revoke: %v", err)
+	}
+	text = resultText(t, result)
+	if strings.Contains(text, `"enabled":true`) {
+		t.Fatalf("expected key to be disabled after revoke, got: %s", text)
 	}
 }
 

@@ -11,22 +11,34 @@ import (
 
 	gomcp "github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"github.com/axonops/axonops-schema-registry/internal/auth"
 	"github.com/axonops/axonops-schema-registry/internal/config"
 	"github.com/axonops/axonops-schema-registry/internal/registry"
 )
 
 // Server wraps the MCP protocol server and HTTP transport.
 type Server struct {
-	mcpServer  *gomcp.Server
-	httpServer *http.Server
-	registry   *registry.Registry
-	config     *config.MCPConfig
-	logger     *slog.Logger
-	version    string
+	mcpServer   *gomcp.Server
+	httpServer  *http.Server
+	registry    *registry.Registry
+	authService *auth.Service
+	config      *config.MCPConfig
+	logger      *slog.Logger
+	version     string
+}
+
+// Option configures an MCP server.
+type Option func(*Server)
+
+// WithAuthService sets the auth service for admin user/API key management tools.
+func WithAuthService(svc *auth.Service) Option {
+	return func(s *Server) {
+		s.authService = svc
+	}
 }
 
 // New creates a new MCP server.
-func New(cfg *config.MCPConfig, reg *registry.Registry, logger *slog.Logger, version string) *Server {
+func New(cfg *config.MCPConfig, reg *registry.Registry, logger *slog.Logger, version string, opts ...Option) *Server {
 	if logger == nil {
 		logger = slog.New(slog.NewTextHandler(io.Discard, nil))
 	}
@@ -35,6 +47,10 @@ func New(cfg *config.MCPConfig, reg *registry.Registry, logger *slog.Logger, ver
 		config:   cfg,
 		logger:   logger,
 		version:  version,
+	}
+
+	for _, opt := range opts {
+		opt(s)
 	}
 
 	s.mcpServer = gomcp.NewServer(&gomcp.Implementation{

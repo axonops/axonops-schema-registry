@@ -12,9 +12,11 @@ import (
 	"github.com/cucumber/godog"
 	gomcp "github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"github.com/axonops/axonops-schema-registry/internal/auth"
 	"github.com/axonops/axonops-schema-registry/internal/config"
 	mcpkg "github.com/axonops/axonops-schema-registry/internal/mcp"
 	"github.com/axonops/axonops-schema-registry/internal/registry"
+	"github.com/axonops/axonops-schema-registry/internal/storage"
 )
 
 // mcpState holds per-scenario MCP client state.
@@ -36,7 +38,14 @@ func getMCPSession(tc *TestContext) (*gomcp.ClientSession, error) {
 	}
 
 	cfg := &config.MCPConfig{Host: "localhost", Port: 0}
-	srv := mcpkg.New(cfg, reg, nil, "bdd-test")
+
+	var mcpOpts []mcpkg.Option
+	if st, ok := tc.StoredValues["_storage"].(storage.Storage); ok {
+		authSvc := auth.NewServiceWithConfig(st, auth.ServiceConfig{})
+		mcpOpts = append(mcpOpts, mcpkg.WithAuthService(authSvc))
+	}
+
+	srv := mcpkg.New(cfg, reg, nil, "bdd-test", mcpOpts...)
 
 	ctx := context.Background()
 	ct, st := gomcp.NewInMemoryTransports()

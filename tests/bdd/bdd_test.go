@@ -335,6 +335,7 @@ func TestFeatures(t *testing.T) {
 					}
 					tc.BaseURL = ts.URL
 					tc.Registry = reg
+					tc.StoredValues["_storage"] = st
 					return gctx, nil
 				})
 				ctx.After(func(gctx context.Context, sc *godog.Scenario, err error) (context.Context, error) {
