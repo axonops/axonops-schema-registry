@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"context"
+	"fmt"
 
 	gomcp "github.com/modelcontextprotocol/go-sdk/mcp"
 
@@ -62,6 +63,24 @@ func (s *Server) registerMetadataTools() {
 		Description: "Get the global configuration for the current context directly, without falling back to the __GLOBAL context. Returns server default if no context-level global config is set.",
 		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
 	}, s.handleGetGlobalConfigDirect)
+
+	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
+		Name:        "get_subject_metadata",
+		Description: "Get metadata for a subject. Without filters, returns the metadata from the latest schema version. With key/value filters, searches all versions for the latest one whose metadata properties match ALL specified key/value pairs and returns a full schema record.",
+		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
+	}, s.handleGetSubjectMetadata)
+
+	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
+		Name:        "get_cluster_id",
+		Description: "Get the schema registry cluster ID.",
+		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
+	}, s.handleGetClusterID)
+
+	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
+		Name:        "get_server_version",
+		Description: "Get detailed server version information including version, commit hash, and build time.",
+		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
+	}, s.handleGetServerVersion)
 }
 
 // --- Handler types and implementations ---
@@ -227,4 +246,78 @@ func (s *Server) handleGetGlobalConfigDirect(ctx context.Context, _ *gomcp.CallT
 		return errorResult(err), nil, nil
 	}
 	return jsonResult(config)
+}
+
+// --- Subject metadata handler ---
+
+type getSubjectMetadataInput struct {
+	Subject        string            `json:"subject"`
+	MetadataFilter map[string]string `json:"metadata_filter,omitempty"`
+	Deleted        bool              `json:"deleted,omitempty"`
+}
+
+func (s *Server) handleGetSubjectMetadata(ctx context.Context, _ *gomcp.CallToolRequest, input getSubjectMetadataInput) (*gomcp.CallToolResult, any, error) {
+	if len(input.MetadataFilter) > 0 {
+		// Search all versions for the latest matching the metadata filter.
+		schemas, err := s.registry.GetSchemasBySubject(ctx, registrycontext.DefaultContext, input.Subject, input.Deleted)
+		if err != nil {
+			return errorResult(err), nil, nil
+		}
+
+		for i := len(schemas) - 1; i >= 0; i-- {
+			rec := schemas[i]
+			if rec.Metadata == nil || rec.Metadata.Properties == nil {
+				continue
+			}
+			allMatch := true
+			for k, v := range input.MetadataFilter {
+				if propVal, ok := rec.Metadata.Properties[k]; !ok || propVal != v {
+					allMatch = false
+					break
+				}
+			}
+			if allMatch {
+				return jsonResult(rec)
+			}
+		}
+		return errorResult(fmt.Errorf("no schema version found matching the specified metadata")), nil, nil
+	}
+
+	// No filter: return bare metadata from latest version.
+	schema, err := s.registry.GetLatestSchema(ctx, registrycontext.DefaultContext, input.Subject)
+	if err != nil {
+		return errorResult(err), nil, nil
+	}
+	meta := schema.Metadata
+	if meta == nil {
+		meta = &storage.Metadata{}
+	}
+	return jsonResult(meta)
+}
+
+// --- Cluster ID and server version handlers ---
+
+type getClusterIDInput struct{}
+
+func (s *Server) handleGetClusterID(_ context.Context, _ *gomcp.CallToolRequest, _ getClusterIDInput) (*gomcp.CallToolResult, any, error) {
+	id := s.clusterID
+	if id == "" {
+		id = "default-cluster"
+	}
+	return jsonResult(map[string]string{"id": id})
+}
+
+type getServerVersionInput struct{}
+
+func (s *Server) handleGetServerVersion(_ context.Context, _ *gomcp.CallToolRequest, _ getServerVersionInput) (*gomcp.CallToolResult, any, error) {
+	resp := map[string]string{
+		"version": s.version,
+	}
+	if s.commit != "" {
+		resp["commit"] = s.commit
+	}
+	if s.buildTime != "" {
+		resp["build_time"] = s.buildTime
+	}
+	return jsonResult(resp)
 }

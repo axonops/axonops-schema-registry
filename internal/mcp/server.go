@@ -25,6 +25,9 @@ type Server struct {
 	config      *config.MCPConfig
 	logger      *slog.Logger
 	version     string
+	commit      string
+	buildTime   string
+	clusterID   string
 }
 
 // Option configures an MCP server.
@@ -34,6 +37,21 @@ type Option func(*Server)
 func WithAuthService(svc *auth.Service) Option {
 	return func(s *Server) {
 		s.authService = svc
+	}
+}
+
+// WithBuildInfo sets commit hash and build time for the server version tool.
+func WithBuildInfo(commit, buildTime string) Option {
+	return func(s *Server) {
+		s.commit = commit
+		s.buildTime = buildTime
+	}
+}
+
+// WithClusterID sets the cluster ID for the cluster ID tool.
+func WithClusterID(id string) Option {
+	return func(s *Server) {
+		s.clusterID = id
 	}
 }
 

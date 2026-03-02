@@ -71,3 +71,17 @@ Feature: MCP Metadata, Alias & Advanced Tools
   Scenario: Get global config direct
     When I call MCP tool "get_global_config_direct"
     Then the MCP result should contain "BACKWARD"
+
+  Scenario: Get subject metadata
+    Given I register an Avro schema for subject "metadata-subj"
+    When I call MCP tool "get_subject_metadata" with input:
+      | subject | metadata-subj |
+    Then the MCP result should not contain "error"
+
+  Scenario: Get cluster ID
+    When I call MCP tool "get_cluster_id"
+    Then the MCP result should contain "id"
+
+  Scenario: Get server version
+    When I call MCP tool "get_server_version"
+    Then the MCP result should contain "version"

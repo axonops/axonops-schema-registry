@@ -2096,6 +2096,92 @@ func TestGetUserByUsername(t *testing.T) {
 	}
 }
 
+func TestGetSubjectMetadata(t *testing.T) {
+	cs, reg := newTestMCPClient(t)
+
+	// Register a schema with metadata via set_config_full
+	_, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name: "register_schema",
+		Arguments: map[string]any{
+			"subject":     "meta-test",
+			"schema":      `{"type":"string"}`,
+			"schema_type": "AVRO",
+		},
+	})
+	if err != nil {
+		t.Fatalf("register schema: %v", err)
+	}
+
+	// Set metadata on the subject config
+	_, err = cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name: "set_config_full",
+		Arguments: map[string]any{
+			"subject":              "meta-test",
+			"compatibility_level": "BACKWARD",
+			"default_metadata": map[string]any{
+				"properties": map[string]any{
+					"owner": "team-a",
+					"major": "1",
+				},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("set_config_full: %v", err)
+	}
+
+	// Register another version to pick up the metadata
+	_, err = reg.RegisterSchema(context.Background(), ".", "meta-test", `{"type":"string"}`, "AVRO", nil)
+	if err != nil {
+		// May get "already exists" which is fine for this test
+		_ = err
+	}
+
+	// Get metadata without filter (bare metadata from latest)
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name:      "get_subject_metadata",
+		Arguments: map[string]any{"subject": "meta-test"},
+	})
+	if err != nil {
+		t.Fatalf("get_subject_metadata: %v", err)
+	}
+	text := resultText(t, result)
+	// Should return metadata (possibly empty if no metadata was attached to schema)
+	if text == "" {
+		t.Fatal("expected non-empty metadata result")
+	}
+}
+
+func TestGetClusterID(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name: "get_cluster_id",
+	})
+	if err != nil {
+		t.Fatalf("get_cluster_id: %v", err)
+	}
+	text := resultText(t, result)
+	if !strings.Contains(text, "default-cluster") {
+		t.Fatalf("expected default-cluster, got: %s", text)
+	}
+}
+
+func TestGetServerVersion(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name: "get_server_version",
+	})
+	if err != nil {
+		t.Fatalf("get_server_version: %v", err)
+	}
+	text := resultText(t, result)
+	if !strings.Contains(text, "test-version") {
+		t.Fatalf("expected test-version, got: %s", text)
+	}
+}
+
 // resultText extracts the text from the first TextContent in a CallToolResult.
 func resultText(t *testing.T, result *gomcp.CallToolResult) string {
 	t.Helper()

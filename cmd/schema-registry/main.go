@@ -257,6 +257,10 @@ func main() {
 		if authService != nil {
 			mcpOpts = append(mcpOpts, mcpkg.WithAuthService(authService))
 		}
+		mcpOpts = append(mcpOpts, mcpkg.WithBuildInfo(commit, buildDate))
+		if cfg.Server.ClusterID != "" {
+			mcpOpts = append(mcpOpts, mcpkg.WithClusterID(cfg.Server.ClusterID))
+		}
 		mcpServer = mcpkg.New(&cfg.MCP, reg, logger, version, mcpOpts...)
 		go func() {
 			if err := mcpServer.Start(); err != nil && err != http.ErrServerClosed {
