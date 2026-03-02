@@ -616,6 +616,145 @@ func TestCheckCompatibilityFail(t *testing.T) {
 	}
 }
 
+// --- Phase 4: Config & mode tool tests ---
+
+func TestGetConfigDefault(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name: "get_config",
+	})
+	if err != nil {
+		t.Fatalf("CallTool: %v", err)
+	}
+	text := resultText(t, result)
+	if !strings.Contains(text, "BACKWARD") {
+		t.Errorf("expected BACKWARD in result, got: %s", text)
+	}
+}
+
+func TestSetAndGetConfig(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	// Set config on a subject
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name:      "set_config",
+		Arguments: map[string]any{"subject": "cfg-test", "compatibility_level": "FULL"},
+	})
+	if err != nil {
+		t.Fatalf("set_config: %v", err)
+	}
+	text := resultText(t, result)
+	if !strings.Contains(text, "FULL") {
+		t.Errorf("expected FULL in set result, got: %s", text)
+	}
+
+	// Get it back
+	result, err = cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name:      "get_config",
+		Arguments: map[string]any{"subject": "cfg-test"},
+	})
+	if err != nil {
+		t.Fatalf("get_config: %v", err)
+	}
+	text = resultText(t, result)
+	if !strings.Contains(text, "FULL") {
+		t.Errorf("expected FULL in get result, got: %s", text)
+	}
+}
+
+func TestDeleteConfig(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	// Set then delete
+	_, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name:      "set_config",
+		Arguments: map[string]any{"subject": "cfg-del", "compatibility_level": "NONE"},
+	})
+	if err != nil {
+		t.Fatalf("set_config: %v", err)
+	}
+
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name:      "delete_config",
+		Arguments: map[string]any{"subject": "cfg-del"},
+	})
+	if err != nil {
+		t.Fatalf("delete_config: %v", err)
+	}
+	text := resultText(t, result)
+	if !strings.Contains(text, "NONE") {
+		t.Errorf("expected previous level NONE, got: %s", text)
+	}
+}
+
+func TestGetModeDefault(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name: "get_mode",
+	})
+	if err != nil {
+		t.Fatalf("CallTool: %v", err)
+	}
+	text := resultText(t, result)
+	if !strings.Contains(text, "READWRITE") {
+		t.Errorf("expected READWRITE in result, got: %s", text)
+	}
+}
+
+func TestSetAndGetMode(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name:      "set_mode",
+		Arguments: map[string]any{"subject": "mode-test", "mode": "READONLY"},
+	})
+	if err != nil {
+		t.Fatalf("set_mode: %v", err)
+	}
+	text := resultText(t, result)
+	if !strings.Contains(text, "READONLY") {
+		t.Errorf("expected READONLY in set result, got: %s", text)
+	}
+
+	result, err = cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name:      "get_mode",
+		Arguments: map[string]any{"subject": "mode-test"},
+	})
+	if err != nil {
+		t.Fatalf("get_mode: %v", err)
+	}
+	text = resultText(t, result)
+	if !strings.Contains(text, "READONLY") {
+		t.Errorf("expected READONLY in get result, got: %s", text)
+	}
+}
+
+func TestDeleteMode(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	_, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name:      "set_mode",
+		Arguments: map[string]any{"subject": "mode-del", "mode": "READONLY"},
+	})
+	if err != nil {
+		t.Fatalf("set_mode: %v", err)
+	}
+
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name:      "delete_mode",
+		Arguments: map[string]any{"subject": "mode-del"},
+	})
+	if err != nil {
+		t.Fatalf("delete_mode: %v", err)
+	}
+	text := resultText(t, result)
+	if !strings.Contains(text, "READONLY") {
+		t.Errorf("expected previous mode READONLY, got: %s", text)
+	}
+}
+
 // resultText extracts the text from the first TextContent in a CallToolResult.
 func resultText(t *testing.T, result *gomcp.CallToolResult) string {
 	t.Helper()
