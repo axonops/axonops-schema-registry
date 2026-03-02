@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
+	gomcp "github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/prometheus/client_golang/prometheus"
 	prometheusmodel "github.com/prometheus/client_model/go"
-	gomcp "github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/axonops/axonops-schema-registry/internal/auth"
 	"github.com/axonops/axonops-schema-registry/internal/compatibility"
@@ -1461,7 +1461,7 @@ func TestSetConfigFullWithAlias(t *testing.T) {
 	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
 		Name: "set_config_full",
 		Arguments: map[string]any{
-			"subject":              "alias-src",
+			"subject":             "alias-src",
 			"compatibility_level": "BACKWARD",
 			"alias":               "alias-target",
 		},
@@ -1493,7 +1493,7 @@ func TestSetConfigFullWithMetadata(t *testing.T) {
 	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
 		Name: "set_config_full",
 		Arguments: map[string]any{
-			"subject":              "meta-subj",
+			"subject":             "meta-subj",
 			"compatibility_level": "FULL",
 			"default_metadata": map[string]any{
 				"properties": map[string]any{"owner": "team-data"},
@@ -1532,7 +1532,7 @@ func TestResolveAlias(t *testing.T) {
 	_, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
 		Name: "set_config_full",
 		Arguments: map[string]any{
-			"subject":              "my-alias",
+			"subject":             "my-alias",
 			"compatibility_level": "BACKWARD",
 			"alias":               "real-subject",
 		},
@@ -2119,7 +2119,7 @@ func TestGetSubjectMetadata(t *testing.T) {
 	_, err = cs.CallTool(context.Background(), &gomcp.CallToolParams{
 		Name: "set_config_full",
 		Arguments: map[string]any{
-			"subject":              "meta-test",
+			"subject":             "meta-test",
 			"compatibility_level": "BACKWARD",
 			"default_metadata": map[string]any{
 				"properties": map[string]any{

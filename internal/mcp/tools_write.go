@@ -36,13 +36,13 @@ func (s *Server) registerSchemaWriteTools() {
 // --- Handler input types and implementations ---
 
 type registerSchemaInput struct {
-	Subject    string             `json:"subject"`
-	Schema     string             `json:"schema"`
-	SchemaType string             `json:"schema_type,omitempty"`
+	Subject    string              `json:"subject"`
+	Schema     string              `json:"schema"`
+	SchemaType string              `json:"schema_type,omitempty"`
 	References []storage.Reference `json:"references,omitempty"`
-	Normalize  bool               `json:"normalize,omitempty"`
-	Metadata   *storage.Metadata  `json:"metadata,omitempty"`
-	RuleSet    *storage.RuleSet   `json:"rule_set,omitempty"`
+	Normalize  bool                `json:"normalize,omitempty"`
+	Metadata   *storage.Metadata   `json:"metadata,omitempty"`
+	RuleSet    *storage.RuleSet    `json:"rule_set,omitempty"`
 }
 
 func (s *Server) handleRegisterSchema(ctx context.Context, _ *gomcp.CallToolRequest, input registerSchemaInput) (*gomcp.CallToolResult, any, error) {
@@ -87,11 +87,11 @@ func (s *Server) handleDeleteVersion(ctx context.Context, _ *gomcp.CallToolReque
 }
 
 type checkCompatibilityInput struct {
-	Subject    string             `json:"subject"`
-	Schema     string             `json:"schema"`
-	SchemaType string             `json:"schema_type,omitempty"`
+	Subject    string              `json:"subject"`
+	Schema     string              `json:"schema"`
+	SchemaType string              `json:"schema_type,omitempty"`
 	References []storage.Reference `json:"references,omitempty"`
-	Version    string             `json:"version,omitempty"`
+	Version    string              `json:"version,omitempty"`
 }
 
 func (s *Server) handleCheckCompatibility(ctx context.Context, _ *gomcp.CallToolRequest, input checkCompatibilityInput) (*gomcp.CallToolResult, any, error) {

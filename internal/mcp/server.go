@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"time"
 
 	gomcp "github.com/modelcontextprotocol/go-sdk/mcp"
 
@@ -115,8 +116,9 @@ func (s *Server) Start() error {
 	mux.Handle("/mcp", handler)
 
 	s.httpServer = &http.Server{
-		Addr:    addr,
-		Handler: mux,
+		Addr:              addr,
+		Handler:           mux,
+		ReadHeaderTimeout: 10 * time.Second,
 	}
 
 	ln, err := net.Listen("tcp", addr)
