@@ -41,6 +41,11 @@ const (
 	// Subject events
 	AuditEventSubjectDelete AuditEventType = "subject_delete"
 	AuditEventSubjectList   AuditEventType = "subject_list"
+
+	// MCP events
+	AuditEventMCPToolCall    AuditEventType = "mcp_tool_call"
+	AuditEventMCPToolError   AuditEventType = "mcp_tool_error"
+	AuditEventMCPAdminAction AuditEventType = "mcp_admin_action"
 )
 
 // AuditEvent represents an audit log entry.
@@ -88,6 +93,9 @@ func NewAuditLogger(cfg config.AuditConfig) (*AuditLogger, error) {
 		al.enabledEvents[AuditEventAuthFailure] = true
 		al.enabledEvents[AuditEventAuthForbidden] = true
 		al.enabledEvents[AuditEventSubjectDelete] = true
+		al.enabledEvents[AuditEventMCPToolCall] = true
+		al.enabledEvents[AuditEventMCPToolError] = true
+		al.enabledEvents[AuditEventMCPAdminAction] = true
 	} else {
 		for _, event := range cfg.Events {
 			al.enabledEvents[AuditEventType(event)] = true
@@ -345,6 +353,33 @@ func (al *AuditLogger) LogEvent(eventType AuditEventType, r *http.Request, statu
 		StatusCode: statusCode,
 		Subject:    extractSubject(r.URL.Path),
 		Error:      errStr,
+	}
+
+	al.Log(event)
+}
+
+// LogMCPEvent logs an MCP tool call audit event.
+func (al *AuditLogger) LogMCPEvent(eventType AuditEventType, toolName, status string, duration time.Duration, err error, metadata map[string]string) {
+	if !al.config.Enabled {
+		return
+	}
+
+	var errStr string
+	if err != nil {
+		errStr = err.Error()
+	}
+
+	event := &AuditEvent{
+		Timestamp: time.Now(),
+		EventType: eventType,
+		Method:    "MCP",
+		Path:      toolName,
+		Duration:  duration,
+		Error:     errStr,
+		Metadata:  metadata,
+	}
+	if status == "error" {
+		event.StatusCode = 1
 	}
 
 	al.Log(event)

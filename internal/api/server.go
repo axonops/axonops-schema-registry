@@ -33,6 +33,7 @@ type Server struct {
 	authorizer    *auth.Authorizer
 	authService   *auth.Service
 	rateLimiter   *auth.RateLimiter
+	auditLogger   *auth.AuditLogger
 	version       string
 	commit        string
 }
@@ -64,6 +65,13 @@ func WithRateLimiter(rateLimiter *auth.RateLimiter) ServerOption {
 	}
 }
 
+// WithAuditLogger configures audit logging for the server.
+func WithAuditLogger(al *auth.AuditLogger) ServerOption {
+	return func(s *Server) {
+		s.auditLogger = al
+	}
+}
+
 // NewServer creates a new HTTP server.
 func NewServer(cfg *config.Config, reg *registry.Registry, logger *slog.Logger, opts ...ServerOption) *Server {
 	s := &Server{
@@ -76,6 +84,14 @@ func NewServer(cfg *config.Config, reg *registry.Registry, logger *slog.Logger, 
 	// Apply options
 	for _, opt := range opts {
 		opt(s)
+	}
+
+	// Wire metrics to auth components so they can record Prometheus metrics.
+	if s.authenticator != nil {
+		s.authenticator.SetMetrics(s.metrics)
+	}
+	if s.rateLimiter != nil {
+		s.rateLimiter.SetMetrics(s.metrics)
 	}
 
 	s.setupRouter()
@@ -99,6 +115,9 @@ func (s *Server) setupRouter() {
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
 	r.Use(s.loggingMiddleware)
+	if s.auditLogger != nil {
+		r.Use(s.auditLogger.Middleware)
+	}
 	r.Use(s.metrics.Middleware)
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(30 * time.Second))

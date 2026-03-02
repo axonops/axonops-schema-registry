@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/axonops/axonops-schema-registry/internal/config"
+	"github.com/axonops/axonops-schema-registry/internal/metrics"
 )
 
 // RateLimiter implements token bucket rate limiting.
@@ -17,6 +18,7 @@ type RateLimiter struct {
 	global    *tokenBucket
 	clients   map[string]*tokenBucket
 	endpoints map[string]*tokenBucket
+	metrics   *metrics.Metrics // Prometheus metrics (optional)
 }
 
 // tokenBucket implements the token bucket algorithm.
@@ -83,6 +85,11 @@ func (tb *tokenBucket) remaining() int {
 	return int(tb.tokens)
 }
 
+// SetMetrics sets the Prometheus metrics instance for recording rate limit metrics.
+func (rl *RateLimiter) SetMetrics(m *metrics.Metrics) {
+	rl.metrics = m
+}
+
 // Middleware returns HTTP middleware for rate limiting.
 func (rl *RateLimiter) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -110,6 +117,9 @@ func (rl *RateLimiter) Middleware(next http.Handler) http.Handler {
 		w.Header().Set("X-RateLimit-Remaining", strconv.Itoa(bucket.remaining()))
 
 		if !bucket.allow() {
+			if rl.metrics != nil {
+				rl.metrics.RecordRateLimitHit(key)
+			}
 			w.Header().Set("Retry-After", "1")
 			http.Error(w, "Rate limit exceeded", http.StatusTooManyRequests)
 			return

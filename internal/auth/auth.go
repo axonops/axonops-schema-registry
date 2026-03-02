@@ -7,10 +7,12 @@ import (
 	"encoding/base64"
 	"net/http"
 	"strings"
+	"time"
 
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/axonops/axonops-schema-registry/internal/config"
+	"github.com/axonops/axonops-schema-registry/internal/metrics"
 )
 
 // ContextKey is used for storing auth info in context.
@@ -41,6 +43,7 @@ type Authenticator struct {
 	oidcProvider *OIDCProvider      // OIDC authentication provider
 	jwtProvider  *JWTProvider       // JWT authentication provider
 	apiKeys      map[string]*APIKey // key -> APIKey (for legacy/config-based auth)
+	metrics      *metrics.Metrics   // Prometheus metrics (optional)
 }
 
 // APIKey represents an API key.
@@ -80,6 +83,11 @@ func (a *Authenticator) SetJWTProvider(p *JWTProvider) {
 	a.jwtProvider = p
 }
 
+// SetMetrics sets the Prometheus metrics instance for recording auth metrics.
+func (a *Authenticator) SetMetrics(m *metrics.Metrics) {
+	a.metrics = m
+}
+
 // AddAPIKey adds an API key (for legacy/config-based auth).
 func (a *Authenticator) AddAPIKey(key *APIKey) {
 	a.apiKeys[key.Key] = key
@@ -93,22 +101,42 @@ func (a *Authenticator) Middleware(next http.Handler) http.Handler {
 			return
 		}
 
+		start := time.Now()
+
 		// Try each enabled authentication method
 		for _, method := range a.config.Methods {
 			user, ok := a.authenticate(r, method)
 			if ok {
+				if a.metrics != nil {
+					a.metrics.RecordAuthAttempt(user.Method, true, "", time.Since(start))
+				}
 				// Store user in context
 				ctx := context.WithValue(r.Context(), UserContextKey, user)
 				ctx = context.WithValue(ctx, RoleContextKey, user.Role)
 				if user.ID > 0 {
 					ctx = context.WithValue(ctx, UserIDContextKey, user.ID)
 				}
+
+				// Record per-principal HTTP request metrics.
+				if a.metrics != nil {
+					rw := &principalResponseWriter{ResponseWriter: w, statusCode: http.StatusOK}
+					wrappedNext := http.HandlerFunc(func(w2 http.ResponseWriter, r2 *http.Request) {
+						next.ServeHTTP(w2, r2)
+					})
+					wrappedNext.ServeHTTP(rw, r.WithContext(ctx))
+					a.metrics.RecordPrincipalRequest(user.Username, r.Method, normalizePrincipalPath(r.URL.Path), http.StatusText(rw.statusCode))
+					return
+				}
+
 				next.ServeHTTP(w, r.WithContext(ctx))
 				return
 			}
 		}
 
 		// No authentication succeeded
+		if a.metrics != nil {
+			a.metrics.RecordAuthAttempt("unknown", false, "no_valid_credentials", time.Since(start))
+		}
 		a.unauthorized(w, r)
 	})
 }
@@ -376,4 +404,50 @@ func HashPassword(password string) (string, error) {
 // ConstantTimeCompare performs a constant-time string comparison.
 func ConstantTimeCompare(a, b string) bool {
 	return subtle.ConstantTimeCompare([]byte(a), []byte(b)) == 1
+}
+
+// principalResponseWriter captures the status code for per-principal metrics.
+type principalResponseWriter struct {
+	http.ResponseWriter
+	statusCode int
+}
+
+func (rw *principalResponseWriter) WriteHeader(code int) {
+	rw.statusCode = code
+	rw.ResponseWriter.WriteHeader(code)
+}
+
+// normalizePrincipalPath normalizes URL paths to reduce cardinality for per-principal metrics.
+func normalizePrincipalPath(path string) string {
+	// Strip /contexts/{context} prefix
+	if strings.HasPrefix(path, "/contexts/") {
+		rest := path[len("/contexts/"):]
+		idx := strings.IndexByte(rest, '/')
+		if idx >= 0 {
+			path = rest[idx:]
+		} else {
+			return "/contexts"
+		}
+	}
+
+	switch {
+	case strings.HasPrefix(path, "/subjects/") && strings.Contains(path, "/versions"):
+		return "/subjects/*/versions/*"
+	case strings.HasPrefix(path, "/subjects/"):
+		return "/subjects/*"
+	case strings.HasPrefix(path, "/schemas/ids/"):
+		return "/schemas/ids/*"
+	case strings.HasPrefix(path, "/config/"):
+		return "/config/*"
+	case strings.HasPrefix(path, "/mode/"):
+		return "/mode/*"
+	case strings.HasPrefix(path, "/compatibility/"):
+		return "/compatibility/*"
+	case strings.HasPrefix(path, "/dek-registry/"):
+		return "/dek-registry/*"
+	case strings.HasPrefix(path, "/admin/"):
+		return "/admin/*"
+	default:
+		return path
+	}
 }

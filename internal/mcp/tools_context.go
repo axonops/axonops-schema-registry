@@ -15,12 +15,12 @@ func (s *Server) registerContextTools() {
 		Name:        "list_contexts",
 		Description: "List all tenant contexts in the schema registry. Each context is an isolated namespace for subjects and schemas.",
 		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
-	}, s.handleListContexts)
+	}, instrumentedHandler(s, "list_contexts", s.handleListContexts))
 
 	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
 		Name:        "import_schemas",
 		Description: "Bulk import schemas with preserved IDs (for Confluent migration). Registry mode MUST be set to IMPORT first.",
-	}, s.handleImportSchemas)
+	}, instrumentedHandler(s, "import_schemas", s.handleImportSchemas))
 }
 
 type listContextsInput struct{}

@@ -16,71 +16,71 @@ func (s *Server) registerMetadataTools() {
 		Name:        "get_config_full",
 		Description: "Get the full configuration record for a subject or global default, including metadata, ruleSets, alias, compatibilityGroup, and all data contract fields. Uses 4-tier fallback: subject → context global → __GLOBAL → server default.",
 		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
-	}, s.handleGetConfigFull)
+	}, instrumentedHandler(s, "get_config_full", s.handleGetConfigFull))
 
 	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
 		Name:        "set_config_full",
 		Description: "Set the full configuration for a subject or globally, including compatibility level plus optional data contract fields: alias, compatibilityGroup, defaultMetadata, overrideMetadata, defaultRuleSet, overrideRuleSet.",
-	}, s.handleSetConfigFull)
+	}, instrumentedHandler(s, "set_config_full", s.handleSetConfigFull))
 
 	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
 		Name:        "get_subject_config_full",
 		Description: "Get the full configuration record for a specific subject only, without falling back to global config. Returns error if no subject-level config is set.",
 		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
-	}, s.handleGetSubjectConfigFull)
+	}, instrumentedHandler(s, "get_subject_config_full", s.handleGetSubjectConfigFull))
 
 	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
 		Name:        "resolve_alias",
 		Description: "Resolve a subject alias. If the subject has an alias configured, returns the alias target. Otherwise returns the original subject name. Resolution is single-level (no recursive chaining).",
 		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
-	}, s.handleResolveAlias)
+	}, instrumentedHandler(s, "resolve_alias", s.handleResolveAlias))
 
 	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
 		Name:        "get_schemas_by_subject",
 		Description: "Get all schema versions for a subject. Returns full schema records for every version, optionally including soft-deleted versions.",
 		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
-	}, s.handleGetSchemasBySubject)
+	}, instrumentedHandler(s, "get_schemas_by_subject", s.handleGetSchemasBySubject))
 
 	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
 		Name:        "check_write_mode",
 		Description: "Check if write operations are allowed for a subject. Returns the blocking mode name (READONLY or READONLY_OVERRIDE) or empty string if writes are allowed.",
 		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
-	}, s.handleCheckWriteMode)
+	}, instrumentedHandler(s, "check_write_mode", s.handleCheckWriteMode))
 
 	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
 		Name:        "test_kek",
 		Description: "Test a KEK's KMS connectivity by performing a round-trip encrypt/decrypt test. Requires a KMS provider to be configured.",
-	}, s.handleTestKEK)
+	}, instrumentedHandler(s, "test_kek", s.handleTestKEK))
 
 	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
 		Name:        "format_schema",
 		Description: "Format a schema by subject and version. Supported formats depend on schema type. Returns the formatted schema string.",
 		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
-	}, s.handleFormatSchema)
+	}, instrumentedHandler(s, "format_schema", s.handleFormatSchema))
 
 	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
 		Name:        "get_global_config_direct",
 		Description: "Get the global configuration for the current context directly, without falling back to the __GLOBAL context. Returns server default if no context-level global config is set.",
 		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
-	}, s.handleGetGlobalConfigDirect)
+	}, instrumentedHandler(s, "get_global_config_direct", s.handleGetGlobalConfigDirect))
 
 	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
 		Name:        "get_subject_metadata",
 		Description: "Get metadata for a subject. Without filters, returns the metadata from the latest schema version. With key/value filters, searches all versions for the latest one whose metadata properties match ALL specified key/value pairs and returns a full schema record.",
 		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
-	}, s.handleGetSubjectMetadata)
+	}, instrumentedHandler(s, "get_subject_metadata", s.handleGetSubjectMetadata))
 
 	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
 		Name:        "get_cluster_id",
 		Description: "Get the schema registry cluster ID.",
 		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
-	}, s.handleGetClusterID)
+	}, instrumentedHandler(s, "get_cluster_id", s.handleGetClusterID))
 
 	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
 		Name:        "get_server_version",
 		Description: "Get detailed server version information including version, commit hash, and build time.",
 		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
-	}, s.handleGetServerVersion)
+	}, instrumentedHandler(s, "get_server_version", s.handleGetServerVersion))
 }
 
 // --- Handler types and implementations ---

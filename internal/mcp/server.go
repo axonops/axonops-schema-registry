@@ -13,6 +13,7 @@ import (
 
 	"github.com/axonops/axonops-schema-registry/internal/auth"
 	"github.com/axonops/axonops-schema-registry/internal/config"
+	"github.com/axonops/axonops-schema-registry/internal/metrics"
 	"github.com/axonops/axonops-schema-registry/internal/registry"
 )
 
@@ -24,6 +25,8 @@ type Server struct {
 	authService *auth.Service
 	config      *config.MCPConfig
 	logger      *slog.Logger
+	metrics     *metrics.Metrics
+	auditLogger *auth.AuditLogger
 	version     string
 	commit      string
 	buildTime   string
@@ -52,6 +55,20 @@ func WithBuildInfo(commit, buildTime string) Option {
 func WithClusterID(id string) Option {
 	return func(s *Server) {
 		s.clusterID = id
+	}
+}
+
+// WithMetrics sets the Prometheus metrics instance for MCP tool call tracking.
+func WithMetrics(m *metrics.Metrics) Option {
+	return func(s *Server) {
+		s.metrics = m
+	}
+}
+
+// WithAuditLogger sets the audit logger for MCP tool call audit trail.
+func WithAuditLogger(al *auth.AuditLogger) Option {
+	return func(s *Server) {
+		s.auditLogger = al
 	}
 }
 

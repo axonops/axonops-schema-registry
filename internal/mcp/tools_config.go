@@ -13,33 +13,33 @@ func (s *Server) registerConfigTools() {
 		Name:        "get_config",
 		Description: "Get the compatibility configuration for a subject or the global default. Omit subject for global config.",
 		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
-	}, s.handleGetConfig)
+	}, instrumentedHandler(s, "get_config", s.handleGetConfig))
 
 	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
 		Name:        "set_config",
 		Description: "Set the compatibility level for a subject or globally. Valid levels: NONE, BACKWARD, BACKWARD_TRANSITIVE, FORWARD, FORWARD_TRANSITIVE, FULL, FULL_TRANSITIVE",
-	}, s.handleSetConfig)
+	}, instrumentedHandler(s, "set_config", s.handleSetConfig))
 
 	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
 		Name:        "delete_config",
 		Description: "Delete the compatibility configuration for a subject (reverts to global default) or delete the global config",
-	}, s.handleDeleteConfig)
+	}, instrumentedHandler(s, "delete_config", s.handleDeleteConfig))
 
 	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
 		Name:        "get_mode",
 		Description: "Get the registry mode for a subject or the global default. Modes: READWRITE, READONLY, READONLY_OVERRIDE, IMPORT",
 		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
-	}, s.handleGetMode)
+	}, instrumentedHandler(s, "get_mode", s.handleGetMode))
 
 	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
 		Name:        "set_mode",
 		Description: "Set the registry mode for a subject or globally. Valid modes: READWRITE, READONLY, READONLY_OVERRIDE, IMPORT",
-	}, s.handleSetMode)
+	}, instrumentedHandler(s, "set_mode", s.handleSetMode))
 
 	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
 		Name:        "delete_mode",
 		Description: "Delete the mode for a subject (reverts to global default) or delete the global mode",
-	}, s.handleDeleteMode)
+	}, instrumentedHandler(s, "delete_mode", s.handleDeleteMode))
 }
 
 // --- Handler input types and implementations ---

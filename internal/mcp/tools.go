@@ -4,10 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"strings"
+	"time"
 
 	gomcp "github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"github.com/axonops/axonops-schema-registry/internal/auth"
 	registrycontext "github.com/axonops/axonops-schema-registry/internal/context"
 )
 
@@ -18,7 +21,7 @@ func (s *Server) registerTools() {
 		Annotations: &gomcp.ToolAnnotations{
 			ReadOnlyHint: true,
 		},
-	}, s.handleHealthCheck)
+	}, instrumentedHandler(s, "health_check", s.handleHealthCheck))
 
 	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
 		Name:        "get_server_info",
@@ -26,7 +29,7 @@ func (s *Server) registerTools() {
 		Annotations: &gomcp.ToolAnnotations{
 			ReadOnlyHint: true,
 		},
-	}, s.handleGetServerInfo)
+	}, instrumentedHandler(s, "get_server_info", s.handleGetServerInfo))
 
 	s.registerSchemaReadTools()
 	s.registerSchemaWriteTools()
@@ -43,7 +46,7 @@ func (s *Server) registerTools() {
 		Annotations: &gomcp.ToolAnnotations{
 			ReadOnlyHint: true,
 		},
-	}, s.handleListSubjects)
+	}, instrumentedHandler(s, "list_subjects", s.handleListSubjects))
 }
 
 type healthCheckInput struct{}
@@ -106,4 +109,57 @@ func (s *Server) handleListSubjects(ctx context.Context, _ *gomcp.CallToolReques
 			&gomcp.TextContent{Text: string(data)},
 		},
 	}, nil, nil
+}
+
+// instrumentedHandler wraps an MCP tool handler with metrics, audit logging,
+// and structured logging.
+func instrumentedHandler[T any](s *Server, name string, handler gomcp.ToolHandlerFor[T, any]) gomcp.ToolHandlerFor[T, any] {
+	return func(ctx context.Context, req *gomcp.CallToolRequest, input T) (*gomcp.CallToolResult, any, error) {
+		start := time.Now()
+
+		if s.metrics != nil {
+			s.metrics.MCPToolCallsActive.Inc()
+			defer s.metrics.MCPToolCallsActive.Dec()
+		}
+
+		result, output, err := handler(ctx, req, input)
+
+		duration := time.Since(start)
+		status := "success"
+		if err != nil || (result != nil && result.IsError) {
+			status = "error"
+		}
+
+		// Record Prometheus metrics.
+		if s.metrics != nil {
+			s.metrics.RecordMCPToolCall(name, status, duration)
+			// TODO: Per-principal MCP metrics — requires per-session auth
+			// identity extraction. Will be addressed during integrated
+			// MCP testing via docker-compose and BDD.
+		}
+
+		// Structured log output.
+		s.logger.Info("mcp_tool_call",
+			slog.String("tool", name),
+			slog.String("status", status),
+			slog.Duration("duration", duration),
+		)
+
+		// Audit trail.
+		if s.auditLogger != nil {
+			var auditErr error
+			if err != nil {
+				auditErr = err
+			} else if result != nil && result.IsError {
+				auditErr = fmt.Errorf("tool returned error")
+			}
+			eventType := auth.AuditEventMCPToolCall
+			if auditErr != nil {
+				eventType = auth.AuditEventMCPToolError
+			}
+			s.auditLogger.LogMCPEvent(eventType, name, status, duration, auditErr, nil)
+		}
+
+		return result, output, err
+	}
 }

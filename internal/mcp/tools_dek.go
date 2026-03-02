@@ -13,73 +13,73 @@ func (s *Server) registerDEKTools() {
 	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
 		Name:        "create_kek",
 		Description: "Create a new Key Encryption Key (KEK) for client-side field encryption (CSFLE). A KEK wraps Data Encryption Keys (DEKs) via a KMS provider.",
-	}, s.handleCreateKEK)
+	}, instrumentedHandler(s, "create_kek", s.handleCreateKEK))
 
 	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
 		Name:        "get_kek",
 		Description: "Get a Key Encryption Key (KEK) by name. Use deleted=true to include soft-deleted KEKs.",
 		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
-	}, s.handleGetKEK)
+	}, instrumentedHandler(s, "get_kek", s.handleGetKEK))
 
 	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
 		Name:        "update_kek",
 		Description: "Update an existing Key Encryption Key (KEK). Only kms_props, doc, and shared can be changed.",
-	}, s.handleUpdateKEK)
+	}, instrumentedHandler(s, "update_kek", s.handleUpdateKEK))
 
 	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
 		Name:        "delete_kek",
 		Description: "Delete a Key Encryption Key (KEK). Use permanent=true for hard delete (default is soft-delete).",
-	}, s.handleDeleteKEK)
+	}, instrumentedHandler(s, "delete_kek", s.handleDeleteKEK))
 
 	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
 		Name:        "undelete_kek",
 		Description: "Restore a soft-deleted Key Encryption Key (KEK).",
-	}, s.handleUndeleteKEK)
+	}, instrumentedHandler(s, "undelete_kek", s.handleUndeleteKEK))
 
 	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
 		Name:        "list_keks",
 		Description: "List all Key Encryption Keys (KEKs). Use deleted=true to include soft-deleted KEKs.",
 		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
-	}, s.handleListKEKs)
+	}, instrumentedHandler(s, "list_keks", s.handleListKEKs))
 
 	// DEK tools
 	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
 		Name:        "create_dek",
 		Description: "Create a new Data Encryption Key (DEK) under a KEK. The DEK is used for client-side field encryption.",
-	}, s.handleCreateDEK)
+	}, instrumentedHandler(s, "create_dek", s.handleCreateDEK))
 
 	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
 		Name:        "get_dek",
 		Description: "Get a Data Encryption Key (DEK) by KEK name, subject, version, and algorithm.",
 		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
-	}, s.handleGetDEK)
+	}, instrumentedHandler(s, "get_dek", s.handleGetDEK))
 
 	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
 		Name:        "list_deks",
 		Description: "List all subject names that have DEKs under a given KEK.",
 		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
-	}, s.handleListDEKs)
+	}, instrumentedHandler(s, "list_deks", s.handleListDEKs))
 
 	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
 		Name:        "list_dek_versions",
 		Description: "List all version numbers for a DEK subject under a given KEK.",
 		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
-	}, s.handleListDEKVersions)
+	}, instrumentedHandler(s, "list_dek_versions", s.handleListDEKVersions))
 
 	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
 		Name:        "delete_dek",
 		Description: "Delete a Data Encryption Key (DEK). Use permanent=true for hard delete (default is soft-delete).",
-	}, s.handleDeleteDEK)
+	}, instrumentedHandler(s, "delete_dek", s.handleDeleteDEK))
 
 	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
 		Name:        "undelete_dek",
 		Description: "Restore a soft-deleted Data Encryption Key (DEK).",
-	}, s.handleUndeleteDEK)
+	}, instrumentedHandler(s, "undelete_dek", s.handleUndeleteDEK))
 
 	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
 		Name:        "rewrap_dek",
 		Description: "Re-encrypt a DEK's key material under the current KEK key version. Used after KEK rotation.",
-	}, s.handleRewrapDEK)
+	}, instrumentedHandler(s, "rewrap_dek", s.handleRewrapDEK))
 }
 
 // --- KEK handlers ---

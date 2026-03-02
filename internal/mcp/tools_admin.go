@@ -21,86 +21,86 @@ func (s *Server) registerAdminTools() {
 		Name:        "list_users",
 		Description: "List all users in the schema registry.",
 		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
-	}, s.handleListUsers)
+	}, instrumentedHandler(s, "list_users", s.handleListUsers))
 
 	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
 		Name:        "create_user",
 		Description: "Create a new user. Requires username, password, and role (super_admin, admin, developer, readonly).",
-	}, s.handleCreateUser)
+	}, instrumentedHandler(s, "create_user", s.handleCreateUser))
 
 	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
 		Name:        "get_user",
 		Description: "Get a user by ID.",
 		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
-	}, s.handleGetUser)
+	}, instrumentedHandler(s, "get_user", s.handleGetUser))
 
 	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
 		Name:        "update_user",
 		Description: "Update a user's email, password, role, or enabled status.",
-	}, s.handleUpdateUser)
+	}, instrumentedHandler(s, "update_user", s.handleUpdateUser))
 
 	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
 		Name:        "delete_user",
 		Description: "Delete a user by ID.",
 		Annotations: &gomcp.ToolAnnotations{DestructiveHint: boolPtr(true)},
-	}, s.handleDeleteUser)
+	}, instrumentedHandler(s, "delete_user", s.handleDeleteUser))
 
 	// API key management
 	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
 		Name:        "list_apikeys",
 		Description: "List all API keys, optionally filtered by user_id.",
 		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
-	}, s.handleListAPIKeys)
+	}, instrumentedHandler(s, "list_apikeys", s.handleListAPIKeys))
 
 	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
 		Name:        "create_apikey",
 		Description: "Create a new API key for a user. Returns the raw key (only shown once). Requires user_id, name, role, and expires_in (seconds).",
-	}, s.handleCreateAPIKey)
+	}, instrumentedHandler(s, "create_apikey", s.handleCreateAPIKey))
 
 	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
 		Name:        "get_apikey",
 		Description: "Get an API key by ID.",
 		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
-	}, s.handleGetAPIKey)
+	}, instrumentedHandler(s, "get_apikey", s.handleGetAPIKey))
 
 	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
 		Name:        "update_apikey",
 		Description: "Update an API key's name, role, or enabled status.",
-	}, s.handleUpdateAPIKey)
+	}, instrumentedHandler(s, "update_apikey", s.handleUpdateAPIKey))
 
 	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
 		Name:        "delete_apikey",
 		Description: "Delete an API key by ID.",
 		Annotations: &gomcp.ToolAnnotations{DestructiveHint: boolPtr(true)},
-	}, s.handleDeleteAPIKey)
+	}, instrumentedHandler(s, "delete_apikey", s.handleDeleteAPIKey))
 
 	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
 		Name:        "revoke_apikey",
 		Description: "Revoke (disable) an API key without deleting it.",
-	}, s.handleRevokeAPIKey)
+	}, instrumentedHandler(s, "revoke_apikey", s.handleRevokeAPIKey))
 
 	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
 		Name:        "change_password",
 		Description: "Change a user's password. Requires the user's ID, old password, and new password.",
-	}, s.handleChangePassword)
+	}, instrumentedHandler(s, "change_password", s.handleChangePassword))
 
 	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
 		Name:        "rotate_apikey",
 		Description: "Rotate an API key: creates a new key with the same settings and revokes the old one. Returns the new raw key (only shown once). Requires id and expires_in (seconds).",
-	}, s.handleRotateAPIKey)
+	}, instrumentedHandler(s, "rotate_apikey", s.handleRotateAPIKey))
 
 	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
 		Name:        "get_user_by_username",
 		Description: "Get a user by username.",
 		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
-	}, s.handleGetUserByUsername)
+	}, instrumentedHandler(s, "get_user_by_username", s.handleGetUserByUsername))
 
 	// Roles
 	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
 		Name:        "list_roles",
 		Description: "List all available RBAC roles with their permissions.",
 		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
-	}, s.handleListRoles)
+	}, instrumentedHandler(s, "list_roles", s.handleListRoles))
 }
 
 func boolPtr(b bool) *bool { return &b }

@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
+	prometheusmodel "github.com/prometheus/client_model/go"
 	gomcp "github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/axonops/axonops-schema-registry/internal/auth"
@@ -17,6 +19,7 @@ import (
 	jsoncompat "github.com/axonops/axonops-schema-registry/internal/compatibility/jsonschema"
 	protocompat "github.com/axonops/axonops-schema-registry/internal/compatibility/protobuf"
 	"github.com/axonops/axonops-schema-registry/internal/config"
+	"github.com/axonops/axonops-schema-registry/internal/metrics"
 	"github.com/axonops/axonops-schema-registry/internal/registry"
 	"github.com/axonops/axonops-schema-registry/internal/schema"
 	"github.com/axonops/axonops-schema-registry/internal/schema/avro"
@@ -2180,6 +2183,135 @@ func TestGetServerVersion(t *testing.T) {
 	if !strings.Contains(text, "test-version") {
 		t.Fatalf("expected test-version, got: %s", text)
 	}
+}
+
+// newTestMCPClientWithMetrics creates a test MCP server with Prometheus metrics wired.
+func newTestMCPClientWithMetrics(t *testing.T) (*gomcp.ClientSession, *metrics.Metrics) {
+	t.Helper()
+
+	store := memory.NewStore()
+	t.Cleanup(func() { store.Close() })
+
+	schemaReg := schema.NewRegistry()
+	schemaReg.Register(avro.NewParser())
+	schemaReg.Register(protobuf.NewParser())
+	schemaReg.Register(jsonschema.NewParser())
+
+	compatChecker := compatibility.NewChecker()
+	compatChecker.Register(storage.SchemaTypeAvro, avrocompat.NewChecker())
+	compatChecker.Register(storage.SchemaTypeProtobuf, protocompat.NewChecker())
+	compatChecker.Register(storage.SchemaTypeJSON, jsoncompat.NewChecker())
+
+	reg := registry.New(store, schemaReg, compatChecker, "BACKWARD")
+
+	m := metrics.New()
+	cfg := &config.MCPConfig{Host: "localhost", Port: 0}
+	srv := New(cfg, reg, testLogger(), "test-version", WithMetrics(m))
+
+	ctx := context.Background()
+	ct, st := gomcp.NewInMemoryTransports()
+
+	ss, err := srv.MCPServer().Connect(ctx, st, nil)
+	if err != nil {
+		t.Fatalf("server connect: %v", err)
+	}
+	t.Cleanup(func() { ss.Close() })
+
+	client := gomcp.NewClient(&gomcp.Implementation{Name: "test-client", Version: "1.0"}, nil)
+	cs, err := client.Connect(ctx, ct, nil)
+	if err != nil {
+		t.Fatalf("client connect: %v", err)
+	}
+	t.Cleanup(func() { cs.Close() })
+
+	return cs, m
+}
+
+func TestInstrumentedHandlerRecordsMetrics(t *testing.T) {
+	cs, m := newTestMCPClientWithMetrics(t)
+
+	// Call a tool that should succeed.
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name: "health_check",
+	})
+	if err != nil {
+		t.Fatalf("CallTool: %v", err)
+	}
+	if result.IsError {
+		t.Fatal("expected success")
+	}
+
+	// Verify the metrics were recorded.
+	// Use the Prometheus test helper to get counter values.
+	val := getCounterValue(t, m.MCPToolCallsTotal, "health_check", "success")
+	if val != 1 {
+		t.Errorf("expected MCPToolCallsTotal=1, got=%v", val)
+	}
+
+	// Call again to verify increment.
+	_, _ = cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name: "health_check",
+	})
+	val = getCounterValue(t, m.MCPToolCallsTotal, "health_check", "success")
+	if val != 2 {
+		t.Errorf("expected MCPToolCallsTotal=2, got=%v", val)
+	}
+}
+
+func TestInstrumentedHandlerRecordsErrors(t *testing.T) {
+	cs, m := newTestMCPClientWithMetrics(t)
+
+	// Call a tool that will return an error (get schema by non-existent ID).
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name:      "get_schema_by_id",
+		Arguments: json.RawMessage(`{"id": 999999}`),
+	})
+	if err != nil {
+		t.Fatalf("CallTool: %v", err)
+	}
+	if !result.IsError {
+		t.Fatal("expected error result")
+	}
+
+	// Verify error metric was recorded.
+	errVal := getCounterValue(t, m.MCPToolCallErrors, "get_schema_by_id")
+	if errVal != 1 {
+		t.Errorf("expected MCPToolCallErrors=1, got=%v", errVal)
+	}
+	totalVal := getCounterValue(t, m.MCPToolCallsTotal, "get_schema_by_id", "error")
+	if totalVal != 1 {
+		t.Errorf("expected MCPToolCallsTotal(error)=1, got=%v", totalVal)
+	}
+}
+
+func TestInstrumentedHandlerWithoutMetrics(t *testing.T) {
+	// Create server without metrics — verify no panic.
+	cs, _ := newTestMCPClient(t)
+
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name: "health_check",
+	})
+	if err != nil {
+		t.Fatalf("CallTool: %v", err)
+	}
+	if result.IsError {
+		t.Fatal("expected success")
+	}
+}
+
+// getCounterValue reads the current value of a Prometheus CounterVec for the given labels.
+func getCounterValue(t *testing.T, cv *prometheus.CounterVec, labelValues ...string) float64 {
+	t.Helper()
+	counter, err := cv.GetMetricWithLabelValues(labelValues...)
+	if err != nil {
+		t.Fatalf("GetMetricWithLabelValues: %v", err)
+	}
+	// Use the Write method to extract the value.
+	var m prometheusmodel.Metric
+	if err := counter.Write(&m); err != nil {
+		t.Fatalf("Write metric: %v", err)
+	}
+	return m.GetCounter().GetValue()
 }
 
 // resultText extracts the text from the first TextContent in a CallToolResult.

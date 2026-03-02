@@ -14,23 +14,23 @@ func (s *Server) registerSchemaWriteTools() {
 	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
 		Name:        "register_schema",
 		Description: "Register a new schema version for a subject. If the same schema already exists, returns the existing record.",
-	}, s.handleRegisterSchema)
+	}, instrumentedHandler(s, "register_schema", s.handleRegisterSchema))
 
 	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
 		Name:        "delete_subject",
 		Description: "Delete a subject and all its schema versions. Soft-deletes by default; use permanent=true for hard delete.",
-	}, s.handleDeleteSubject)
+	}, instrumentedHandler(s, "delete_subject", s.handleDeleteSubject))
 
 	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
 		Name:        "delete_version",
 		Description: "Delete a specific schema version. Soft-deletes by default; use permanent=true for hard delete (requires prior soft-delete).",
-	}, s.handleDeleteVersion)
+	}, instrumentedHandler(s, "delete_version", s.handleDeleteVersion))
 
 	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
 		Name:        "check_compatibility",
 		Description: "Check if a schema is compatible with existing versions of a subject according to the configured compatibility level",
 		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
-	}, s.handleCheckCompatibility)
+	}, instrumentedHandler(s, "check_compatibility", s.handleCheckCompatibility))
 }
 
 // --- Handler input types and implementations ---

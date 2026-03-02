@@ -124,6 +124,16 @@ type SecurityConfig struct {
 	Auth         AuthConfig      `yaml:"auth"`
 	RateLimiting RateLimitConfig `yaml:"rate_limiting"`
 	Audit        AuditConfig     `yaml:"audit"`
+	Metrics      SecurityMetrics `yaml:"metrics"`
+}
+
+// SecurityMetrics represents security-related metrics configuration.
+type SecurityMetrics struct {
+	// PerPrincipalMetrics enables per-principal (user identity) Prometheus metrics
+	// tracking request counts, errors, and endpoint usage by authenticated principal.
+	// This adds a `principal` label to metrics, which MAY increase cardinality.
+	// Default: true.
+	PerPrincipalMetrics *bool `yaml:"per_principal_metrics"`
 }
 
 // TLSConfig represents TLS configuration.

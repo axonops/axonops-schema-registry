@@ -218,3 +218,106 @@ func TestContains(t *testing.T) {
 		t.Error("Expected contains to return false")
 	}
 }
+
+func TestMCPMetricsRegistered(t *testing.T) {
+	m := New()
+	if m.MCPToolCallsTotal == nil {
+		t.Error("Expected MCPToolCallsTotal to be initialized")
+	}
+	if m.MCPToolCallDuration == nil {
+		t.Error("Expected MCPToolCallDuration to be initialized")
+	}
+	if m.MCPToolCallErrors == nil {
+		t.Error("Expected MCPToolCallErrors to be initialized")
+	}
+	if m.MCPToolCallsActive == nil {
+		t.Error("Expected MCPToolCallsActive to be initialized")
+	}
+
+	// Verify they appear in /metrics output.
+	m.RecordMCPToolCall("test_tool", "success", 10*time.Millisecond)
+
+	handler := m.Handler()
+	req := httptest.NewRequest("GET", "/metrics", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	body, _ := io.ReadAll(rr.Body)
+	content := string(body)
+
+	for _, metric := range []string{
+		"schema_registry_mcp_tool_calls_total",
+		"schema_registry_mcp_tool_call_duration_seconds",
+		"schema_registry_mcp_tool_calls_active",
+	} {
+		if !strings.Contains(content, metric) {
+			t.Errorf("Expected metrics output to contain %s", metric)
+		}
+	}
+}
+
+func TestRecordMCPToolCall(t *testing.T) {
+	m := New()
+
+	m.RecordMCPToolCall("register_schema", "success", 15*time.Millisecond)
+	m.RecordMCPToolCall("get_schema_by_id", "error", 5*time.Millisecond)
+	m.RecordMCPToolCall("register_schema", "success", 20*time.Millisecond)
+
+	// Verify no panic — counters were incremented correctly.
+}
+
+func TestMCPToolCallsActive(t *testing.T) {
+	m := New()
+
+	m.MCPToolCallsActive.Inc()
+	m.MCPToolCallsActive.Inc()
+	m.MCPToolCallsActive.Dec()
+
+	// Should be 1 after Inc, Inc, Dec. No panic.
+}
+
+func TestEnablePrincipalMetrics(t *testing.T) {
+	m := New()
+
+	// Before enabling, principal metrics should be nil.
+	if m.PrincipalRequestsTotal != nil {
+		t.Error("Expected PrincipalRequestsTotal to be nil before enabling")
+	}
+
+	m.EnablePrincipalMetrics()
+
+	if m.PrincipalRequestsTotal == nil {
+		t.Error("Expected PrincipalRequestsTotal to be initialized after enabling")
+	}
+	if m.PrincipalMCPCallsTotal == nil {
+		t.Error("Expected PrincipalMCPCallsTotal to be initialized after enabling")
+	}
+
+	// Record some metrics — should not panic.
+	m.RecordPrincipalRequest("admin", "GET", "/subjects", "OK")
+	m.RecordPrincipalRequest("api-user", "POST", "/subjects/*", "OK")
+	m.RecordPrincipalMCPCall("mcp-client", "register_schema", "success")
+
+	// Verify they appear in /metrics output.
+	handler := m.Handler()
+	req := httptest.NewRequest("GET", "/metrics", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	body, _ := io.ReadAll(rr.Body)
+	content := string(body)
+	if !strings.Contains(content, "schema_registry_principal_requests_total") {
+		t.Error("Expected metrics output to contain schema_registry_principal_requests_total")
+	}
+	if !strings.Contains(content, "schema_registry_principal_mcp_calls_total") {
+		t.Error("Expected metrics output to contain schema_registry_principal_mcp_calls_total")
+	}
+}
+
+func TestRecordPrincipalMetrics_Disabled(t *testing.T) {
+	m := New()
+
+	// Without enabling principal metrics, these should be no-ops (no panic).
+	m.RecordPrincipalRequest("admin", "GET", "/subjects", "OK")
+	m.RecordPrincipalMCPCall("mcp-client", "health_check", "success")
+}

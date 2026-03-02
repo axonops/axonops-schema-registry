@@ -53,12 +53,11 @@ func main() {
 		os.Exit(0)
 	}
 
-	// Setup logger
+	// Bootstrap logger (JSON, used until config is loaded).
 	logLevel := slog.LevelInfo
 	if os.Getenv("SCHEMA_REGISTRY_LOG_LEVEL") == "debug" {
 		logLevel = slog.LevelDebug
 	}
-
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 		Level: logLevel,
 	}))
@@ -70,6 +69,26 @@ func main() {
 		logger.Error("failed to load configuration", slog.String("error", err.Error()))
 		os.Exit(1)
 	}
+
+	// Reconfigure logger from config (format + level).
+	switch cfg.Logging.Level {
+	case "debug":
+		logLevel = slog.LevelDebug
+	case "warn", "warning":
+		logLevel = slog.LevelWarn
+	case "error":
+		logLevel = slog.LevelError
+	default:
+		logLevel = slog.LevelInfo
+	}
+	var logHandler slog.Handler
+	if cfg.Logging.Format == "text" {
+		logHandler = slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: logLevel})
+	} else {
+		logHandler = slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: logLevel})
+	}
+	logger = slog.New(logHandler)
+	slog.SetDefault(logger)
 
 	logger.Info("starting schema registry",
 		slog.String("version", version),
@@ -109,6 +128,23 @@ func main() {
 	// Create server options
 	var serverOpts []api.ServerOption
 	serverOpts = append(serverOpts, api.WithBuildInfo(version, commit))
+
+	// Create audit logger if enabled
+	var auditLogger *auth.AuditLogger
+	if cfg.Security.Audit.Enabled {
+		var err error
+		auditLogger, err = auth.NewAuditLogger(cfg.Security.Audit)
+		if err != nil {
+			logger.Error("failed to create audit logger", slog.String("error", err.Error()))
+			os.Exit(1)
+		}
+		serverOpts = append(serverOpts, api.WithAuditLogger(auditLogger))
+		logger.Info("audit logging enabled",
+			slog.String("log_file", cfg.Security.Audit.LogFile),
+			slog.Bool("include_body", cfg.Security.Audit.IncludeBody),
+		)
+	}
+
 	var authService *auth.Service
 	var vaultStore *vault.Store
 
@@ -250,6 +286,12 @@ func main() {
 	// Create and start the HTTP server
 	server := api.NewServer(cfg, reg, logger, serverOpts...)
 
+	// Enable per-principal metrics if configured (default: enabled).
+	if cfg.Security.Metrics.PerPrincipalMetrics == nil || *cfg.Security.Metrics.PerPrincipalMetrics {
+		server.Metrics().EnablePrincipalMetrics()
+		logger.Info("per-principal metrics enabled")
+	}
+
 	// Create and start the MCP server if enabled
 	var mcpServer *mcpkg.Server
 	if cfg.MCP.Enabled {
@@ -260,6 +302,10 @@ func main() {
 		mcpOpts = append(mcpOpts, mcpkg.WithBuildInfo(commit, buildDate))
 		if cfg.Server.ClusterID != "" {
 			mcpOpts = append(mcpOpts, mcpkg.WithClusterID(cfg.Server.ClusterID))
+		}
+		mcpOpts = append(mcpOpts, mcpkg.WithMetrics(server.Metrics()))
+		if auditLogger != nil {
+			mcpOpts = append(mcpOpts, mcpkg.WithAuditLogger(auditLogger))
 		}
 		mcpServer = mcpkg.New(&cfg.MCP, reg, logger, version, mcpOpts...)
 		go func() {
@@ -300,6 +346,13 @@ func main() {
 		if mcpServer != nil {
 			if err := mcpServer.Shutdown(ctx); err != nil {
 				logger.Error("MCP shutdown error", slog.String("error", err.Error()))
+			}
+		}
+
+		// Close audit logger
+		if auditLogger != nil {
+			if err := auditLogger.Close(); err != nil {
+				logger.Error("audit logger close error", slog.String("error", err.Error()))
 			}
 		}
 

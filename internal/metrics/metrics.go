@@ -45,6 +45,16 @@ type Metrics struct {
 	// Rate limit metrics
 	RateLimitHits *prometheus.CounterVec
 
+	// MCP metrics
+	MCPToolCallsTotal   *prometheus.CounterVec
+	MCPToolCallDuration *prometheus.HistogramVec
+	MCPToolCallErrors   *prometheus.CounterVec
+	MCPToolCallsActive  prometheus.Gauge
+
+	// Per-principal metrics (optional, may be nil if disabled)
+	PrincipalRequestsTotal *prometheus.CounterVec // labels: principal, method, path, status
+	PrincipalMCPCallsTotal *prometheus.CounterVec // labels: principal, tool, status
+
 	registry *prometheus.Registry
 }
 
@@ -214,6 +224,39 @@ func New() *Metrics {
 		[]string{"client"},
 	)
 
+	// MCP metrics
+	m.MCPToolCallsTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "schema_registry_mcp_tool_calls_total",
+			Help: "Total number of MCP tool invocations",
+		},
+		[]string{"tool", "status"},
+	)
+
+	m.MCPToolCallDuration = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "schema_registry_mcp_tool_call_duration_seconds",
+			Help:    "MCP tool call latency in seconds",
+			Buckets: prometheus.DefBuckets,
+		},
+		[]string{"tool"},
+	)
+
+	m.MCPToolCallErrors = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "schema_registry_mcp_tool_call_errors_total",
+			Help: "Total number of MCP tool calls that returned errors",
+		},
+		[]string{"tool"},
+	)
+
+	m.MCPToolCallsActive = prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "schema_registry_mcp_tool_calls_active",
+			Help: "Number of MCP tool calls currently being processed",
+		},
+	)
+
 	// Register all collectors
 	m.registry.MustRegister(
 		m.RequestsTotal,
@@ -235,6 +278,10 @@ func New() *Metrics {
 		m.AuthFailures,
 		m.AuthLatency,
 		m.RateLimitHits,
+		m.MCPToolCallsTotal,
+		m.MCPToolCallDuration,
+		m.MCPToolCallErrors,
+		m.MCPToolCallsActive,
 	)
 
 	// Also register the default collectors (go runtime, process info)
@@ -415,4 +462,49 @@ func (m *Metrics) UpdateSubjectCount(count float64) {
 // UpdateCacheSize updates the cache size.
 func (m *Metrics) UpdateCacheSize(cache string, size float64) {
 	m.CacheSize.WithLabelValues(cache).Set(size)
+}
+
+// EnablePrincipalMetrics registers per-principal metric collectors.
+// Call this when per_principal_metrics is enabled in config.
+func (m *Metrics) EnablePrincipalMetrics() {
+	m.PrincipalRequestsTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "schema_registry_principal_requests_total",
+			Help: "Total HTTP requests per authenticated principal",
+		},
+		[]string{"principal", "method", "path", "status"},
+	)
+
+	m.PrincipalMCPCallsTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "schema_registry_principal_mcp_calls_total",
+			Help: "Total MCP tool calls per authenticated principal",
+		},
+		[]string{"principal", "tool", "status"},
+	)
+
+	m.registry.MustRegister(m.PrincipalRequestsTotal, m.PrincipalMCPCallsTotal)
+}
+
+// RecordPrincipalRequest records an HTTP request for a specific principal.
+func (m *Metrics) RecordPrincipalRequest(principal, method, path, status string) {
+	if m.PrincipalRequestsTotal != nil {
+		m.PrincipalRequestsTotal.WithLabelValues(principal, method, path, status).Inc()
+	}
+}
+
+// RecordPrincipalMCPCall records an MCP tool call for a specific principal.
+func (m *Metrics) RecordPrincipalMCPCall(principal, tool, status string) {
+	if m.PrincipalMCPCallsTotal != nil {
+		m.PrincipalMCPCallsTotal.WithLabelValues(principal, tool, status).Inc()
+	}
+}
+
+// RecordMCPToolCall records an MCP tool call.
+func (m *Metrics) RecordMCPToolCall(tool, status string, duration time.Duration) {
+	m.MCPToolCallsTotal.WithLabelValues(tool, status).Inc()
+	m.MCPToolCallDuration.WithLabelValues(tool).Observe(duration.Seconds())
+	if status == "error" {
+		m.MCPToolCallErrors.WithLabelValues(tool).Inc()
+	}
 }

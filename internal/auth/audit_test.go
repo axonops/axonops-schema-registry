@@ -499,3 +499,119 @@ func TestAuditLogger_LogEvent_WithError(t *testing.T) {
 		t.Error("expected log entry")
 	}
 }
+
+func TestLogMCPEvent(t *testing.T) {
+	dir := t.TempDir()
+	logFile := filepath.Join(dir, "audit.log")
+
+	al, err := NewAuditLogger(config.AuditConfig{
+		Enabled: true,
+		LogFile: logFile,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer al.Close()
+
+	al.LogMCPEvent(AuditEventMCPToolCall, "register_schema", "success", 15*time.Millisecond, nil, map[string]string{"subject": "test"})
+
+	al.Close()
+
+	data, err := os.ReadFile(logFile)
+	if err != nil {
+		t.Fatalf("failed to read log file: %v", err)
+	}
+	content := string(data)
+	if !strings.Contains(content, "register_schema") {
+		t.Error("expected log to contain tool name")
+	}
+	if !strings.Contains(content, "MCP") {
+		t.Error("expected log to contain MCP method")
+	}
+}
+
+func TestLogMCPEvent_Error(t *testing.T) {
+	dir := t.TempDir()
+	logFile := filepath.Join(dir, "audit.log")
+
+	al, err := NewAuditLogger(config.AuditConfig{
+		Enabled: true,
+		LogFile: logFile,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer al.Close()
+
+	al.LogMCPEvent(AuditEventMCPToolError, "get_schema_by_id", "error", 5*time.Millisecond, http.ErrNotSupported, nil)
+
+	al.Close()
+
+	data, _ := os.ReadFile(logFile)
+	content := string(data)
+	if !strings.Contains(content, "get_schema_by_id") {
+		t.Error("expected log to contain tool name")
+	}
+}
+
+func TestLogMCPEvent_Disabled(t *testing.T) {
+	al, err := NewAuditLogger(config.AuditConfig{Enabled: false})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer al.Close()
+
+	// Should not panic.
+	al.LogMCPEvent(AuditEventMCPToolCall, "health_check", "success", time.Millisecond, nil, nil)
+}
+
+func TestMCPEventTypeFiltering(t *testing.T) {
+	dir := t.TempDir()
+	logFile := filepath.Join(dir, "audit.log")
+
+	// Only enable mcp_tool_error, not mcp_tool_call
+	al, err := NewAuditLogger(config.AuditConfig{
+		Enabled: true,
+		LogFile: logFile,
+		Events:  []string{"mcp_tool_error"},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer al.Close()
+
+	// This should be filtered out
+	al.LogMCPEvent(AuditEventMCPToolCall, "health_check", "success", time.Millisecond, nil, nil)
+	// This should be logged
+	al.LogMCPEvent(AuditEventMCPToolError, "get_schema_by_id", "error", time.Millisecond, http.ErrNotSupported, nil)
+
+	al.Close()
+
+	data, _ := os.ReadFile(logFile)
+	content := string(data)
+	if strings.Contains(content, "health_check") {
+		t.Error("expected mcp_tool_call to be filtered out")
+	}
+	if !strings.Contains(content, "get_schema_by_id") {
+		t.Error("expected mcp_tool_error to be logged")
+	}
+}
+
+func TestNewAuditLogger_DefaultIncludesMCPEvents(t *testing.T) {
+	al, err := NewAuditLogger(config.AuditConfig{Enabled: true})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer al.Close()
+
+	mcpEvents := []AuditEventType{
+		AuditEventMCPToolCall,
+		AuditEventMCPToolError,
+		AuditEventMCPAdminAction,
+	}
+	for _, evt := range mcpEvents {
+		if !al.enabledEvents[evt] {
+			t.Errorf("expected MCP event %s to be enabled by default", evt)
+		}
+	}
+}
