@@ -95,6 +95,8 @@ func New(cfg *config.MCPConfig, reg *registry.Registry, logger *slog.Logger, ver
 	}, nil)
 
 	s.registerTools()
+	s.registerResources()
+	s.registerPrompts()
 	return s
 }
 
@@ -113,7 +115,7 @@ func (s *Server) Start() error {
 	)
 
 	mux := http.NewServeMux()
-	mux.Handle("/mcp", handler)
+	mux.Handle("/mcp", s.authMiddleware(handler))
 
 	s.httpServer = &http.Server{
 		Addr:              addr,

@@ -11,13 +11,13 @@ import (
 )
 
 func (s *Server) registerContextTools() {
-	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
+	addToolIfAllowed(s, &gomcp.Tool{
 		Name:        "list_contexts",
 		Description: "List all tenant contexts in the schema registry. Each context is an isolated namespace for subjects and schemas.",
 		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
 	}, instrumentedHandler(s, "list_contexts", s.handleListContexts))
 
-	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
+	addToolIfAllowed(s, &gomcp.Tool{
 		Name:        "import_schemas",
 		Description: "Bulk import schemas with preserved IDs (for Confluent migration). Registry mode MUST be set to IMPORT first.",
 	}, instrumentedHandler(s, "import_schemas", s.handleImportSchemas))

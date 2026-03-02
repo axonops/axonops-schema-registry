@@ -9,61 +9,61 @@ import (
 )
 
 func (s *Server) registerExporterTools() {
-	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
+	addToolIfAllowed(s, &gomcp.Tool{
 		Name:        "list_exporters",
 		Description: "List all exporter names. Exporters replicate schemas to a destination schema registry (Schema Linking).",
 		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
 	}, instrumentedHandler(s, "list_exporters", s.handleListExporters))
 
-	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
+	addToolIfAllowed(s, &gomcp.Tool{
 		Name:        "create_exporter",
 		Description: "Create a new schema exporter for cross-cluster schema replication. Context types: AUTO, CUSTOM, NONE.",
 	}, instrumentedHandler(s, "create_exporter", s.handleCreateExporter))
 
-	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
+	addToolIfAllowed(s, &gomcp.Tool{
 		Name:        "get_exporter",
 		Description: "Get an exporter's configuration by name.",
 		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
 	}, instrumentedHandler(s, "get_exporter", s.handleGetExporter))
 
-	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
+	addToolIfAllowed(s, &gomcp.Tool{
 		Name:        "update_exporter",
 		Description: "Update an existing exporter's settings (context type, subjects, rename format, config).",
 	}, instrumentedHandler(s, "update_exporter", s.handleUpdateExporter))
 
-	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
+	addToolIfAllowed(s, &gomcp.Tool{
 		Name:        "delete_exporter",
 		Description: "Delete an exporter by name.",
 	}, instrumentedHandler(s, "delete_exporter", s.handleDeleteExporter))
 
-	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
+	addToolIfAllowed(s, &gomcp.Tool{
 		Name:        "pause_exporter",
 		Description: "Pause a running exporter. The exporter retains its current offset and can be resumed later.",
 	}, instrumentedHandler(s, "pause_exporter", s.handlePauseExporter))
 
-	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
+	addToolIfAllowed(s, &gomcp.Tool{
 		Name:        "resume_exporter",
 		Description: "Resume a paused exporter. The exporter continues from its last offset.",
 	}, instrumentedHandler(s, "resume_exporter", s.handleResumeExporter))
 
-	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
+	addToolIfAllowed(s, &gomcp.Tool{
 		Name:        "reset_exporter",
 		Description: "Reset an exporter's offset back to zero, causing it to re-export all schemas.",
 	}, instrumentedHandler(s, "reset_exporter", s.handleResetExporter))
 
-	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
+	addToolIfAllowed(s, &gomcp.Tool{
 		Name:        "get_exporter_status",
 		Description: "Get the current status of an exporter (state, offset, error trace).",
 		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
 	}, instrumentedHandler(s, "get_exporter_status", s.handleGetExporterStatus))
 
-	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
+	addToolIfAllowed(s, &gomcp.Tool{
 		Name:        "get_exporter_config",
 		Description: "Get the destination configuration of an exporter.",
 		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
 	}, instrumentedHandler(s, "get_exporter_config", s.handleGetExporterConfig))
 
-	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
+	addToolIfAllowed(s, &gomcp.Tool{
 		Name:        "update_exporter_config",
 		Description: "Update the destination configuration of an exporter.",
 	}, instrumentedHandler(s, "update_exporter_config", s.handleUpdateExporterConfig))

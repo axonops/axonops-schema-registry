@@ -22,11 +22,14 @@ type Config struct {
 
 // MCPConfig represents MCP (Model Context Protocol) server configuration.
 type MCPConfig struct {
-	Enabled   bool   `yaml:"enabled"`
-	Host      string `yaml:"host"`
-	Port      int    `yaml:"port"`
-	AuthToken string `yaml:"auth_token"` // Bearer token for v1 auth
-	ReadOnly  bool   `yaml:"read_only"`  // Restrict to read-only tools
+	Enabled      bool     `yaml:"enabled"`
+	Host         string   `yaml:"host"`
+	Port         int      `yaml:"port"`
+	AuthToken    string   `yaml:"auth_token"`    // Bearer token for v1 auth
+	ReadOnly     bool     `yaml:"read_only"`     // Restrict to read-only tools
+	ToolPolicy   string   `yaml:"tool_policy"`   // "allow_all" (default), "deny_list", "allow_list"
+	AllowedTools []string `yaml:"allowed_tools"` // Tools to allow (for allow_list mode)
+	DeniedTools  []string `yaml:"denied_tools"`  // Tools to deny (for deny_list mode)
 }
 
 // ServerConfig represents HTTP server configuration.

@@ -334,6 +334,184 @@ func RegisterMCPSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 		return nil
 	})
 
+	// --- MCP tool listing steps ---
+
+	ctx.Step(`^I list MCP tools$`, func() error {
+		cs, err := getMCPSession(tc)
+		if err != nil {
+			return err
+		}
+		result, err := cs.ListTools(context.Background(), &gomcp.ListToolsParams{})
+		if err != nil {
+			return fmt.Errorf("ListTools: %w", err)
+		}
+		var names []string
+		for _, tool := range result.Tools {
+			names = append(names, tool.Name)
+		}
+		data, _ := json.Marshal(names)
+		tc.MCPResultText = string(data)
+		tc.MCPError = nil
+		return nil
+	})
+
+	// --- MCP Resource steps ---
+
+	ctx.Step(`^I read MCP resource "([^"]*)"$`, func(uri string) error {
+		cs, err := getMCPSession(tc)
+		if err != nil {
+			return err
+		}
+		result, err := cs.ReadResource(context.Background(), &gomcp.ReadResourceParams{
+			URI: uri,
+		})
+		if err != nil {
+			tc.MCPError = err
+			tc.MCPResourceText = ""
+			return nil
+		}
+		tc.MCPError = nil
+		if len(result.Contents) == 0 {
+			tc.MCPResourceText = ""
+			return nil
+		}
+		tc.MCPResourceText = result.Contents[0].Text
+		return nil
+	})
+
+	ctx.Step(`^the MCP resource result should contain "(.+)"$`, func(expected string) error {
+		if tc.MCPError != nil {
+			return fmt.Errorf("MCP resource read failed: %v", tc.MCPError)
+		}
+		expected = strings.ReplaceAll(expected, `\"`, `"`)
+		if !strings.Contains(tc.MCPResourceText, expected) {
+			return fmt.Errorf("expected MCP resource result to contain %q, got: %s", expected, tc.MCPResourceText)
+		}
+		return nil
+	})
+
+	ctx.Step(`^the MCP resource result should not contain "(.+)"$`, func(unexpected string) error {
+		if tc.MCPError != nil {
+			return fmt.Errorf("MCP resource read failed: %v", tc.MCPError)
+		}
+		unexpected = strings.ReplaceAll(unexpected, `\"`, `"`)
+		if strings.Contains(tc.MCPResourceText, unexpected) {
+			return fmt.Errorf("expected MCP resource result NOT to contain %q, got: %s", unexpected, tc.MCPResourceText)
+		}
+		return nil
+	})
+
+	ctx.Step(`^the MCP resource read should fail$`, func() error {
+		if tc.MCPError == nil {
+			return fmt.Errorf("expected MCP resource read to fail, but it succeeded with: %s", tc.MCPResourceText)
+		}
+		return nil
+	})
+
+	// --- MCP Prompt steps ---
+
+	ctx.Step(`^I get MCP prompt "([^"]*)"$`, func(name string) error {
+		cs, err := getMCPSession(tc)
+		if err != nil {
+			return err
+		}
+		result, err := cs.GetPrompt(context.Background(), &gomcp.GetPromptParams{
+			Name: name,
+		})
+		if err != nil {
+			tc.MCPError = err
+			tc.MCPPromptText = ""
+			tc.MCPPromptDesc = ""
+			return nil
+		}
+		tc.MCPError = nil
+		tc.MCPPromptDesc = result.Description
+		var texts []string
+		for _, msg := range result.Messages {
+			data, merr := msg.Content.MarshalJSON()
+			if merr != nil {
+				continue
+			}
+			var wire struct {
+				Text string `json:"text"`
+			}
+			if jerr := json.Unmarshal(data, &wire); jerr == nil {
+				texts = append(texts, wire.Text)
+			}
+		}
+		tc.MCPPromptText = strings.Join(texts, "\n")
+		return nil
+	})
+
+	ctx.Step(`^I get MCP prompt "([^"]*)" with arguments:$`, func(name string, table *godog.Table) error {
+		cs, err := getMCPSession(tc)
+		if err != nil {
+			return err
+		}
+		args := make(map[string]string)
+		for _, row := range table.Rows {
+			if len(row.Cells) >= 2 {
+				args[row.Cells[0].Value] = row.Cells[1].Value
+			}
+		}
+		result, err := cs.GetPrompt(context.Background(), &gomcp.GetPromptParams{
+			Name:      name,
+			Arguments: args,
+		})
+		if err != nil {
+			tc.MCPError = err
+			tc.MCPPromptText = ""
+			tc.MCPPromptDesc = ""
+			return nil
+		}
+		tc.MCPError = nil
+		tc.MCPPromptDesc = result.Description
+		var texts []string
+		for _, msg := range result.Messages {
+			data, merr := msg.Content.MarshalJSON()
+			if merr != nil {
+				continue
+			}
+			var wire struct {
+				Text string `json:"text"`
+			}
+			if jerr := json.Unmarshal(data, &wire); jerr == nil {
+				texts = append(texts, wire.Text)
+			}
+		}
+		tc.MCPPromptText = strings.Join(texts, "\n")
+		return nil
+	})
+
+	ctx.Step(`^the MCP prompt result should contain "(.+)"$`, func(expected string) error {
+		if tc.MCPError != nil {
+			return fmt.Errorf("MCP prompt get failed: %v", tc.MCPError)
+		}
+		expected = strings.ReplaceAll(expected, `\"`, `"`)
+		if !strings.Contains(tc.MCPPromptText, expected) {
+			return fmt.Errorf("expected MCP prompt result to contain %q, got: %s", expected, tc.MCPPromptText)
+		}
+		return nil
+	})
+
+	ctx.Step(`^the MCP prompt description should contain "(.+)"$`, func(expected string) error {
+		if tc.MCPError != nil {
+			return fmt.Errorf("MCP prompt get failed: %v", tc.MCPError)
+		}
+		expected = strings.ReplaceAll(expected, `\"`, `"`)
+		if !strings.Contains(tc.MCPPromptDesc, expected) {
+			return fmt.Errorf("expected MCP prompt description to contain %q, got: %s", expected, tc.MCPPromptDesc)
+		}
+		return nil
+	})
+
+	ctx.Step(`^the MCP prompt get should fail$`, func() error {
+		if tc.MCPError == nil {
+			return fmt.Errorf("expected MCP prompt get to fail, but it succeeded")
+		}
+		return nil
+	})
+
 	ctx.Step(`^I can unwrap the MCP result encrypted key material using KMS type "([^"]*)" and key ID "([^"]*)"$`, func(kmsType, keyID string) error {
 		if tc.MCPError != nil {
 			return fmt.Errorf("MCP call failed: %v", tc.MCPError)

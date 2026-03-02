@@ -15,7 +15,7 @@ import (
 )
 
 func (s *Server) registerTools() {
-	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
+	addToolIfAllowed(s, &gomcp.Tool{
 		Name:        "health_check",
 		Description: "Check if the schema registry is healthy and responding",
 		Annotations: &gomcp.ToolAnnotations{
@@ -23,7 +23,7 @@ func (s *Server) registerTools() {
 		},
 	}, instrumentedHandler(s, "health_check", s.handleHealthCheck))
 
-	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
+	addToolIfAllowed(s, &gomcp.Tool{
 		Name:        "get_server_info",
 		Description: "Get schema registry server information including version and supported schema types",
 		Annotations: &gomcp.ToolAnnotations{
@@ -40,7 +40,7 @@ func (s *Server) registerTools() {
 	s.registerMetadataTools()
 	s.registerAdminTools()
 
-	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
+	addToolIfAllowed(s, &gomcp.Tool{
 		Name:        "list_subjects",
 		Description: "List all registered subjects in the schema registry",
 		Annotations: &gomcp.ToolAnnotations{
@@ -109,6 +109,50 @@ func (s *Server) handleListSubjects(ctx context.Context, _ *gomcp.CallToolReques
 			&gomcp.TextContent{Text: string(data)},
 		},
 	}, nil, nil
+}
+
+// isToolAllowed checks if a tool should be registered based on the tool policy
+// and read-only mode. Returns false if the tool should be hidden from clients.
+func (s *Server) isToolAllowed(name string, readOnly bool) bool {
+	// Read-only mode: skip non-read-only tools
+	if s.config.ReadOnly && !readOnly {
+		return false
+	}
+
+	policy := s.config.ToolPolicy
+	if policy == "" {
+		policy = "allow_all"
+	}
+
+	switch policy {
+	case "deny_list":
+		for _, denied := range s.config.DeniedTools {
+			if denied == name {
+				return false
+			}
+		}
+		return true
+	case "allow_list":
+		for _, allowed := range s.config.AllowedTools {
+			if allowed == name {
+				return true
+			}
+		}
+		return false
+	default: // "allow_all"
+		return true
+	}
+}
+
+// addToolIfAllowed registers a tool only if it passes the tool policy and
+// read-only mode checks. Denied tools are invisible to MCP clients.
+// The handler should already be wrapped with instrumentedHandler.
+func addToolIfAllowed[T any](s *Server, tool *gomcp.Tool, handler gomcp.ToolHandlerFor[T, any]) {
+	readOnly := tool.Annotations != nil && tool.Annotations.ReadOnlyHint
+	if !s.isToolAllowed(tool.Name, readOnly) {
+		return
+	}
+	gomcp.AddTool(s.mcpServer, tool, handler)
 }
 
 // instrumentedHandler wraps an MCP tool handler with metrics, audit logging,

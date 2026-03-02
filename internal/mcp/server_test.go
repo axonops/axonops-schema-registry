@@ -3,8 +3,10 @@ package mcp
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
+	"net/http"
 	"strings"
 	"testing"
 	"time"
@@ -2373,4 +2375,652 @@ func resultText(t *testing.T, result *gomcp.CallToolResult) string {
 		t.Fatalf("unmarshal content: %v", err)
 	}
 	return wire.Text
+}
+
+// resourceText extracts the text from the first ResourceContents in a ReadResourceResult.
+func resourceText(t *testing.T, result *gomcp.ReadResourceResult) string {
+	t.Helper()
+	if len(result.Contents) == 0 {
+		t.Fatal("empty resource contents")
+	}
+	return result.Contents[0].Text
+}
+
+// --- MCP Resource tests ---
+
+func TestReadServerInfoResource(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	result, err := cs.ReadResource(context.Background(), &gomcp.ReadResourceParams{
+		URI: "schema://server/info",
+	})
+	if err != nil {
+		t.Fatalf("ReadResource: %v", err)
+	}
+	text := resourceText(t, result)
+	for _, want := range []string{"test-version", "AVRO", "PROTOBUF", "JSON"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("expected %q in result, got: %s", want, text)
+		}
+	}
+}
+
+func TestReadSubjectsResourceEmpty(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	result, err := cs.ReadResource(context.Background(), &gomcp.ReadResourceParams{
+		URI: "schema://subjects",
+	})
+	if err != nil {
+		t.Fatalf("ReadResource: %v", err)
+	}
+	text := resourceText(t, result)
+	if text != "[]" {
+		t.Fatalf("expected '[]', got: %s", text)
+	}
+}
+
+func TestReadSubjectsResourceWithData(t *testing.T) {
+	cs, reg := newTestMCPClient(t)
+	registerTestSchema(t, reg, "resource-test-subj", `{"type":"string"}`)
+
+	result, err := cs.ReadResource(context.Background(), &gomcp.ReadResourceParams{
+		URI: "schema://subjects",
+	})
+	if err != nil {
+		t.Fatalf("ReadResource: %v", err)
+	}
+	text := resourceText(t, result)
+	if !strings.Contains(text, "resource-test-subj") {
+		t.Errorf("expected subject in result, got: %s", text)
+	}
+}
+
+func TestReadSubjectDetailResource(t *testing.T) {
+	cs, reg := newTestMCPClient(t)
+	registerTestSchema(t, reg, "detail-test", `{"type":"string"}`)
+
+	result, err := cs.ReadResource(context.Background(), &gomcp.ReadResourceParams{
+		URI: "schema://subjects/detail-test",
+	})
+	if err != nil {
+		t.Fatalf("ReadResource: %v", err)
+	}
+	text := resourceText(t, result)
+	if !strings.Contains(text, "detail-test") {
+		t.Errorf("expected subject name, got: %s", text)
+	}
+	if !strings.Contains(text, "latest") {
+		t.Errorf("expected latest field, got: %s", text)
+	}
+}
+
+func TestReadSubjectVersionsResource(t *testing.T) {
+	cs, reg := newTestMCPClient(t)
+	registerTestSchema(t, reg, "versions-test", `{"type":"string"}`)
+
+	result, err := cs.ReadResource(context.Background(), &gomcp.ReadResourceParams{
+		URI: "schema://subjects/versions-test/versions",
+	})
+	if err != nil {
+		t.Fatalf("ReadResource: %v", err)
+	}
+	text := resourceText(t, result)
+	if !strings.Contains(text, "1") {
+		t.Errorf("expected version 1, got: %s", text)
+	}
+}
+
+func TestReadSubjectVersionDetailResource(t *testing.T) {
+	cs, reg := newTestMCPClient(t)
+	registerTestSchema(t, reg, "version-detail-test", `{"type":"string"}`)
+
+	result, err := cs.ReadResource(context.Background(), &gomcp.ReadResourceParams{
+		URI: "schema://subjects/version-detail-test/versions/1",
+	})
+	if err != nil {
+		t.Fatalf("ReadResource: %v", err)
+	}
+	text := resourceText(t, result)
+	if !strings.Contains(text, "version-detail-test") {
+		t.Errorf("expected subject in result, got: %s", text)
+	}
+	if !strings.Contains(text, "AVRO") {
+		t.Errorf("expected schema type, got: %s", text)
+	}
+}
+
+func TestReadSubjectConfigResource(t *testing.T) {
+	cs, reg := newTestMCPClient(t)
+	registerTestSchema(t, reg, "config-res-test", `{"type":"string"}`)
+
+	result, err := cs.ReadResource(context.Background(), &gomcp.ReadResourceParams{
+		URI: "schema://subjects/config-res-test/config",
+	})
+	if err != nil {
+		t.Fatalf("ReadResource: %v", err)
+	}
+	text := resourceText(t, result)
+	if !strings.Contains(text, "BACKWARD") {
+		t.Errorf("expected compatibility level, got: %s", text)
+	}
+}
+
+func TestReadSubjectModeResource(t *testing.T) {
+	cs, reg := newTestMCPClient(t)
+	registerTestSchema(t, reg, "mode-res-test", `{"type":"string"}`)
+
+	result, err := cs.ReadResource(context.Background(), &gomcp.ReadResourceParams{
+		URI: "schema://subjects/mode-res-test/mode",
+	})
+	if err != nil {
+		t.Fatalf("ReadResource: %v", err)
+	}
+	text := resourceText(t, result)
+	if !strings.Contains(text, "mode") {
+		t.Errorf("expected mode field, got: %s", text)
+	}
+}
+
+func TestReadSchemaByIDResource(t *testing.T) {
+	cs, reg := newTestMCPClient(t)
+	rec := registerTestSchema(t, reg, "schema-res-test", `{"type":"string"}`)
+
+	result, err := cs.ReadResource(context.Background(), &gomcp.ReadResourceParams{
+		URI: fmt.Sprintf("schema://schemas/%d", rec.ID),
+	})
+	if err != nil {
+		t.Fatalf("ReadResource: %v", err)
+	}
+	text := resourceText(t, result)
+	if !strings.Contains(text, "AVRO") {
+		t.Errorf("expected AVRO in result, got: %s", text)
+	}
+}
+
+func TestReadSchemaSubjectsResource(t *testing.T) {
+	cs, reg := newTestMCPClient(t)
+	rec := registerTestSchema(t, reg, "schema-subj-res-test", `{"type":"string"}`)
+
+	result, err := cs.ReadResource(context.Background(), &gomcp.ReadResourceParams{
+		URI: fmt.Sprintf("schema://schemas/%d/subjects", rec.ID),
+	})
+	if err != nil {
+		t.Fatalf("ReadResource: %v", err)
+	}
+	text := resourceText(t, result)
+	if !strings.Contains(text, "schema-subj-res-test") {
+		t.Errorf("expected subject, got: %s", text)
+	}
+}
+
+func TestReadServerConfigResource(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	result, err := cs.ReadResource(context.Background(), &gomcp.ReadResourceParams{
+		URI: "schema://server/config",
+	})
+	if err != nil {
+		t.Fatalf("ReadResource: %v", err)
+	}
+	text := resourceText(t, result)
+	if !strings.Contains(text, "compatibility") {
+		t.Errorf("expected compatibility field, got: %s", text)
+	}
+	if !strings.Contains(text, "mode") {
+		t.Errorf("expected mode field, got: %s", text)
+	}
+}
+
+func TestReadTypesResource(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	result, err := cs.ReadResource(context.Background(), &gomcp.ReadResourceParams{
+		URI: "schema://types",
+	})
+	if err != nil {
+		t.Fatalf("ReadResource: %v", err)
+	}
+	text := resourceText(t, result)
+	for _, want := range []string{"AVRO", "PROTOBUF", "JSON"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("expected %q in result, got: %s", want, text)
+		}
+	}
+}
+
+func TestReadContextsResource(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	result, err := cs.ReadResource(context.Background(), &gomcp.ReadResourceParams{
+		URI: "schema://contexts",
+	})
+	if err != nil {
+		t.Fatalf("ReadResource: %v", err)
+	}
+	text := resourceText(t, result)
+	// Default context should always be present
+	if !strings.Contains(text, ".") {
+		t.Errorf("expected default context '.', got: %s", text)
+	}
+}
+
+// --- MCP Prompt tests ---
+
+func promptText(t *testing.T, result *gomcp.GetPromptResult) string {
+	t.Helper()
+	var texts []string
+	for _, msg := range result.Messages {
+		data, err := msg.Content.MarshalJSON()
+		if err != nil {
+			continue
+		}
+		var wire struct {
+			Text string `json:"text"`
+		}
+		if err := json.Unmarshal(data, &wire); err == nil {
+			texts = append(texts, wire.Text)
+		}
+	}
+	return strings.Join(texts, "\n")
+}
+
+func TestDesignSchemaPromptAvro(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	result, err := cs.GetPrompt(context.Background(), &gomcp.GetPromptParams{
+		Name:      "design-schema",
+		Arguments: map[string]string{"format": "AVRO", "domain": "user-events"},
+	})
+	if err != nil {
+		t.Fatalf("GetPrompt: %v", err)
+	}
+	text := promptText(t, result)
+	if !strings.Contains(text, "Avro") {
+		t.Errorf("expected Avro guidance, got: %s", text)
+	}
+	if !strings.Contains(text, "user-events") {
+		t.Errorf("expected domain in guidance, got: %s", text)
+	}
+	if !strings.Contains(result.Description, "AVRO") {
+		t.Errorf("expected AVRO in description, got: %s", result.Description)
+	}
+}
+
+func TestDesignSchemaPromptProtobuf(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	result, err := cs.GetPrompt(context.Background(), &gomcp.GetPromptParams{
+		Name:      "design-schema",
+		Arguments: map[string]string{"format": "PROTOBUF"},
+	})
+	if err != nil {
+		t.Fatalf("GetPrompt: %v", err)
+	}
+	text := promptText(t, result)
+	if !strings.Contains(text, "Protobuf") {
+		t.Errorf("expected Protobuf guidance, got: %s", text)
+	}
+}
+
+func TestDesignSchemaPromptJSON(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	result, err := cs.GetPrompt(context.Background(), &gomcp.GetPromptParams{
+		Name:      "design-schema",
+		Arguments: map[string]string{"format": "JSON"},
+	})
+	if err != nil {
+		t.Fatalf("GetPrompt: %v", err)
+	}
+	text := promptText(t, result)
+	if !strings.Contains(text, "JSON Schema") {
+		t.Errorf("expected JSON Schema guidance, got: %s", text)
+	}
+}
+
+func TestEvolveSchemaPromptWithSubject(t *testing.T) {
+	cs, reg := newTestMCPClient(t)
+	registerTestSchema(t, reg, "evolve-prompt-test", `{"type":"string"}`)
+
+	result, err := cs.GetPrompt(context.Background(), &gomcp.GetPromptParams{
+		Name:      "evolve-schema",
+		Arguments: map[string]string{"subject": "evolve-prompt-test"},
+	})
+	if err != nil {
+		t.Fatalf("GetPrompt: %v", err)
+	}
+	text := promptText(t, result)
+	if !strings.Contains(text, "evolve-prompt-test") {
+		t.Errorf("expected subject name in guidance, got: %s", text)
+	}
+	if !strings.Contains(text, "version: 1") {
+		t.Errorf("expected version info, got: %s", text)
+	}
+}
+
+func TestCompareFormatsPrompt(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	result, err := cs.GetPrompt(context.Background(), &gomcp.GetPromptParams{
+		Name:      "compare-formats",
+		Arguments: map[string]string{"use_case": "event streaming"},
+	})
+	if err != nil {
+		t.Fatalf("GetPrompt: %v", err)
+	}
+	text := promptText(t, result)
+	for _, want := range []string{"Avro", "Protobuf", "JSON Schema", "event streaming"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("expected %q in result, got: %s", want, text)
+		}
+	}
+}
+
+func TestDebugRegistrationErrorPrompt(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	result, err := cs.GetPrompt(context.Background(), &gomcp.GetPromptParams{
+		Name:      "debug-registration-error",
+		Arguments: map[string]string{"error_code": "42201"},
+	})
+	if err != nil {
+		t.Fatalf("GetPrompt: %v", err)
+	}
+	text := promptText(t, result)
+	if !strings.Contains(text, "42201") {
+		t.Errorf("expected error code in guidance, got: %s", text)
+	}
+	if !strings.Contains(text, "Invalid schema") {
+		t.Errorf("expected error description, got: %s", text)
+	}
+}
+
+func TestPromptMissingRequiredArg(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	_, err := cs.GetPrompt(context.Background(), &gomcp.GetPromptParams{
+		Name:      "design-schema",
+		Arguments: map[string]string{},
+	})
+	if err == nil {
+		t.Fatal("expected error for missing required argument")
+	}
+}
+
+func TestAuditSubjectHistoryPrompt(t *testing.T) {
+	cs, reg := newTestMCPClient(t)
+	registerTestSchema(t, reg, "audit-prompt-test", `{"type":"string"}`)
+
+	result, err := cs.GetPrompt(context.Background(), &gomcp.GetPromptParams{
+		Name:      "audit-subject-history",
+		Arguments: map[string]string{"subject": "audit-prompt-test"},
+	})
+	if err != nil {
+		t.Fatalf("GetPrompt: %v", err)
+	}
+	text := promptText(t, result)
+	if !strings.Contains(text, "audit-prompt-test") {
+		t.Errorf("expected subject in guidance, got: %s", text)
+	}
+}
+
+func TestSetupEncryptionPrompt(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	result, err := cs.GetPrompt(context.Background(), &gomcp.GetPromptParams{
+		Name:      "setup-encryption",
+		Arguments: map[string]string{"kms_type": "hcvault"},
+	})
+	if err != nil {
+		t.Fatalf("GetPrompt: %v", err)
+	}
+	text := promptText(t, result)
+	if !strings.Contains(text, "hcvault") {
+		t.Errorf("expected KMS type in guidance, got: %s", text)
+	}
+	if !strings.Contains(text, "KEK") {
+		t.Errorf("expected KEK guidance, got: %s", text)
+	}
+}
+
+// --- Security tests ---
+
+// newTestMCPClientWithConfig creates a test MCP server with a custom config.
+func newTestMCPClientWithConfig(t *testing.T, cfg *config.MCPConfig) (*gomcp.ClientSession, *registry.Registry) {
+	t.Helper()
+
+	store := memory.NewStore()
+	t.Cleanup(func() { store.Close() })
+
+	schemaReg := schema.NewRegistry()
+	schemaReg.Register(avro.NewParser())
+	schemaReg.Register(protobuf.NewParser())
+	schemaReg.Register(jsonschema.NewParser())
+
+	compatChecker := compatibility.NewChecker()
+	compatChecker.Register(storage.SchemaTypeAvro, avrocompat.NewChecker())
+	compatChecker.Register(storage.SchemaTypeProtobuf, protocompat.NewChecker())
+	compatChecker.Register(storage.SchemaTypeJSON, jsoncompat.NewChecker())
+
+	reg := registry.New(store, schemaReg, compatChecker, "BACKWARD")
+	srv := New(cfg, reg, testLogger(), "test-version")
+
+	ctx := context.Background()
+	ct, st := gomcp.NewInMemoryTransports()
+
+	ss, err := srv.MCPServer().Connect(ctx, st, nil)
+	if err != nil {
+		t.Fatalf("server connect: %v", err)
+	}
+	t.Cleanup(func() { ss.Close() })
+
+	client := gomcp.NewClient(&gomcp.Implementation{Name: "test-client", Version: "1.0"}, nil)
+	cs, err := client.Connect(ctx, ct, nil)
+	if err != nil {
+		t.Fatalf("client connect: %v", err)
+	}
+	t.Cleanup(func() { cs.Close() })
+
+	return cs, reg
+}
+
+func toolNames(t *testing.T, cs *gomcp.ClientSession) []string {
+	t.Helper()
+	result, err := cs.ListTools(context.Background(), &gomcp.ListToolsParams{})
+	if err != nil {
+		t.Fatalf("ListTools: %v", err)
+	}
+	var names []string
+	for _, tool := range result.Tools {
+		names = append(names, tool.Name)
+	}
+	return names
+}
+
+func containsStr(haystack []string, needle string) bool {
+	for _, s := range haystack {
+		if s == needle {
+			return true
+		}
+	}
+	return false
+}
+
+func TestReadOnlyModeHidesWriteTools(t *testing.T) {
+	cfg := &config.MCPConfig{Host: "localhost", Port: 0, ReadOnly: true}
+	cs, _ := newTestMCPClientWithConfig(t, cfg)
+
+	names := toolNames(t, cs)
+
+	// Read-only tools should be present
+	if !containsStr(names, "health_check") {
+		t.Error("expected health_check to be available in read-only mode")
+	}
+	if !containsStr(names, "list_subjects") {
+		t.Error("expected list_subjects to be available in read-only mode")
+	}
+	if !containsStr(names, "get_schema_by_id") {
+		t.Error("expected get_schema_by_id to be available in read-only mode")
+	}
+
+	// Write tools should be hidden
+	if containsStr(names, "register_schema") {
+		t.Error("expected register_schema to be hidden in read-only mode")
+	}
+	if containsStr(names, "delete_subject") {
+		t.Error("expected delete_subject to be hidden in read-only mode")
+	}
+	if containsStr(names, "set_config") {
+		t.Error("expected set_config to be hidden in read-only mode")
+	}
+}
+
+func TestToolPolicyDenyList(t *testing.T) {
+	cfg := &config.MCPConfig{
+		Host:       "localhost",
+		Port:       0,
+		ToolPolicy: "deny_list",
+		DeniedTools: []string{
+			"delete_subject",
+			"delete_version",
+			"register_schema",
+		},
+	}
+	cs, _ := newTestMCPClientWithConfig(t, cfg)
+
+	names := toolNames(t, cs)
+
+	// Denied tools should not be present
+	if containsStr(names, "delete_subject") {
+		t.Error("expected delete_subject to be denied")
+	}
+	if containsStr(names, "register_schema") {
+		t.Error("expected register_schema to be denied")
+	}
+
+	// Non-denied tools should be present
+	if !containsStr(names, "health_check") {
+		t.Error("expected health_check to be allowed")
+	}
+	if !containsStr(names, "list_subjects") {
+		t.Error("expected list_subjects to be allowed")
+	}
+}
+
+func TestToolPolicyAllowList(t *testing.T) {
+	cfg := &config.MCPConfig{
+		Host:       "localhost",
+		Port:       0,
+		ToolPolicy: "allow_list",
+		AllowedTools: []string{
+			"health_check",
+			"list_subjects",
+			"get_schema_by_id",
+		},
+	}
+	cs, _ := newTestMCPClientWithConfig(t, cfg)
+
+	names := toolNames(t, cs)
+
+	// Only allowed tools should be present
+	if !containsStr(names, "health_check") {
+		t.Error("expected health_check to be allowed")
+	}
+	if !containsStr(names, "list_subjects") {
+		t.Error("expected list_subjects to be allowed")
+	}
+
+	// Non-allowed tools should not be present
+	if containsStr(names, "register_schema") {
+		t.Error("expected register_schema to be hidden by allow_list")
+	}
+	if containsStr(names, "delete_subject") {
+		t.Error("expected delete_subject to be hidden by allow_list")
+	}
+	if containsStr(names, "set_config") {
+		t.Error("expected set_config to be hidden by allow_list")
+	}
+
+	if len(names) != 3 {
+		t.Errorf("expected exactly 3 tools, got %d: %v", len(names), names)
+	}
+}
+
+func TestAuthMiddleware(t *testing.T) {
+	s := &Server{
+		config: &config.MCPConfig{AuthToken: "test-secret-token"},
+	}
+
+	handler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	mw := s.authMiddleware(handler)
+
+	tests := []struct {
+		name       string
+		authHeader string
+		wantCode   int
+	}{
+		{"valid token", "Bearer test-secret-token", http.StatusOK},
+		{"invalid token", "Bearer wrong-token", http.StatusUnauthorized},
+		{"missing auth header", "", http.StatusUnauthorized},
+		{"no bearer prefix", "test-secret-token", http.StatusUnauthorized},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req, _ := http.NewRequest("GET", "/mcp", nil)
+			if tt.authHeader != "" {
+				req.Header.Set("Authorization", tt.authHeader)
+			}
+			w := &testResponseWriter{}
+			mw.ServeHTTP(w, req)
+			if w.code != tt.wantCode {
+				t.Errorf("got status %d, want %d", w.code, tt.wantCode)
+			}
+		})
+	}
+}
+
+func TestAuthMiddlewareNoTokenConfigured(t *testing.T) {
+	s := &Server{
+		config: &config.MCPConfig{AuthToken: ""},
+	}
+
+	handler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	mw := s.authMiddleware(handler)
+
+	req, _ := http.NewRequest("GET", "/mcp", nil)
+	w := &testResponseWriter{}
+	mw.ServeHTTP(w, req)
+	if w.code != http.StatusOK {
+		t.Errorf("expected OK when no token configured, got %d", w.code)
+	}
+}
+
+type testResponseWriter struct {
+	code   int
+	header http.Header
+	body   []byte
+}
+
+func (w *testResponseWriter) Header() http.Header {
+	if w.header == nil {
+		w.header = make(http.Header)
+	}
+	return w.header
+}
+
+func (w *testResponseWriter) Write(b []byte) (int, error) {
+	w.body = append(w.body, b...)
+	return len(b), nil
+}
+
+func (w *testResponseWriter) WriteHeader(code int) {
+	w.code = code
 }

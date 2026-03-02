@@ -38,79 +38,79 @@ func textResult(text string) (*gomcp.CallToolResult, any, error) {
 }
 
 func (s *Server) registerSchemaReadTools() {
-	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
+	addToolIfAllowed(s, &gomcp.Tool{
 		Name:        "get_schema_by_id",
 		Description: "Get a schema by its global ID, returning the full schema record including subject, version, type, and schema content",
 		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
 	}, instrumentedHandler(s, "get_schema_by_id", s.handleGetSchemaByID))
 
-	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
+	addToolIfAllowed(s, &gomcp.Tool{
 		Name:        "get_raw_schema_by_id",
 		Description: "Get the raw schema string by its global ID, without any metadata",
 		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
 	}, instrumentedHandler(s, "get_raw_schema_by_id", s.handleGetRawSchemaByID))
 
-	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
+	addToolIfAllowed(s, &gomcp.Tool{
 		Name:        "get_schema_version",
 		Description: "Get a schema by subject name and version number",
 		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
 	}, instrumentedHandler(s, "get_schema_version", s.handleGetSchemaVersion))
 
-	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
+	addToolIfAllowed(s, &gomcp.Tool{
 		Name:        "get_raw_schema_version",
 		Description: "Get the raw schema string by subject name and version number, without any metadata",
 		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
 	}, instrumentedHandler(s, "get_raw_schema_version", s.handleGetRawSchemaVersion))
 
-	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
+	addToolIfAllowed(s, &gomcp.Tool{
 		Name:        "get_latest_schema",
 		Description: "Get the latest (most recent non-deleted) schema version for a subject",
 		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
 	}, instrumentedHandler(s, "get_latest_schema", s.handleGetLatestSchema))
 
-	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
+	addToolIfAllowed(s, &gomcp.Tool{
 		Name:        "list_versions",
 		Description: "List all version numbers registered for a subject",
 		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
 	}, instrumentedHandler(s, "list_versions", s.handleListVersions))
 
-	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
+	addToolIfAllowed(s, &gomcp.Tool{
 		Name:        "get_subjects_for_schema",
 		Description: "Get all subjects that use a specific schema ID",
 		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
 	}, instrumentedHandler(s, "get_subjects_for_schema", s.handleGetSubjectsForSchema))
 
-	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
+	addToolIfAllowed(s, &gomcp.Tool{
 		Name:        "get_versions_for_schema",
 		Description: "Get all subject-version pairs that use a specific schema ID",
 		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
 	}, instrumentedHandler(s, "get_versions_for_schema", s.handleGetVersionsForSchema))
 
-	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
+	addToolIfAllowed(s, &gomcp.Tool{
 		Name:        "get_referenced_by",
 		Description: "Get schemas that reference a specific subject-version pair",
 		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
 	}, instrumentedHandler(s, "get_referenced_by", s.handleGetReferencedBy))
 
-	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
+	addToolIfAllowed(s, &gomcp.Tool{
 		Name:        "lookup_schema",
 		Description: "Check if a schema is already registered under a subject. Returns the existing schema record if found.",
 		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
 	}, instrumentedHandler(s, "lookup_schema", s.handleLookupSchema))
 
-	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
+	addToolIfAllowed(s, &gomcp.Tool{
 		Name:        "get_schema_types",
 		Description: "Get the list of supported schema types (e.g. AVRO, PROTOBUF, JSON)",
 		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
 	}, instrumentedHandler(s, "get_schema_types", s.handleGetSchemaTypes))
 
-	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
+	addToolIfAllowed(s, &gomcp.Tool{
 		Name:        "list_schemas",
 		Description: "List schemas with optional filtering by subject prefix, deleted status, and pagination",
 		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
 	}, instrumentedHandler(s, "list_schemas", s.handleListSchemas))
 
-	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
+	addToolIfAllowed(s, &gomcp.Tool{
 		Name:        "get_max_schema_id",
 		Description: "Get the highest schema ID currently assigned in the registry",
 		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
