@@ -210,7 +210,7 @@ Feature: MCP AI Data Modeling — Event-Driven Architecture
       | subject | inventory-events-value |
       | version | 1                      |
     Then the MCP result should contain "InventoryChanged"
-    And the MCP result should not contain "warehouse"
+    And the MCP result should not contain "\"name\":\"warehouse\""
     When I call MCP tool "get_schema_version" with input:
       | subject | inventory-events-value |
       | version | 4                      |

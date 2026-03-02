@@ -98,12 +98,12 @@ Feature: MCP AI Data Modeling — Error Handling and Edge Cases
       }
       """
     Then the MCP result should contain "\"version\":1"
-    # AI tries removing a field — fails under BACKWARD
+    # AI tries adding a required field without default — fails under BACKWARD
     When I call MCP tool "check_compatibility" with JSON input:
       """
       {
         "subject": "error-compat-path",
-        "schema": "{\"type\":\"record\",\"name\":\"Profile\",\"fields\":[{\"name\":\"name\",\"type\":\"string\"}]}"
+        "schema": "{\"type\":\"record\",\"name\":\"Profile\",\"fields\":[{\"name\":\"name\",\"type\":\"string\"},{\"name\":\"age\",\"type\":\"int\"},{\"name\":\"address\",\"type\":\"string\"}]}"
       }
       """
     Then the MCP result should contain "false"

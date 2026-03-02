@@ -3,7 +3,9 @@
 package steps
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"strconv"
@@ -201,30 +203,33 @@ func RegisterMCPSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 		return nil
 	})
 
-	ctx.Step(`^the MCP result should contain "([^"]*)"$`, func(expected string) error {
+	ctx.Step(`^the MCP result should contain "(.+)"$`, func(expected string) error {
 		if tc.MCPError != nil {
 			return fmt.Errorf("MCP call failed: %v", tc.MCPError)
 		}
+		expected = strings.ReplaceAll(expected, `\"`, `"`)
 		if !strings.Contains(tc.MCPResultText, expected) {
 			return fmt.Errorf("expected MCP result to contain %q, got: %s", expected, tc.MCPResultText)
 		}
 		return nil
 	})
 
-	ctx.Step(`^the MCP result should not contain "([^"]*)"$`, func(unexpected string) error {
+	ctx.Step(`^the MCP result should not contain "(.+)"$`, func(unexpected string) error {
 		if tc.MCPError != nil {
 			return fmt.Errorf("MCP call failed: %v", tc.MCPError)
 		}
+		unexpected = strings.ReplaceAll(unexpected, `\"`, `"`)
 		if strings.Contains(tc.MCPResultText, unexpected) {
 			return fmt.Errorf("expected MCP result NOT to contain %q, got: %s", unexpected, tc.MCPResultText)
 		}
 		return nil
 	})
 
-	ctx.Step(`^the MCP result should be "([^"]*)"$`, func(expected string) error {
+	ctx.Step(`^the MCP result should be "(.+)"$`, func(expected string) error {
 		if tc.MCPError != nil {
 			return fmt.Errorf("MCP call failed: %v", tc.MCPError)
 		}
+		expected = strings.ReplaceAll(expected, `\"`, `"`)
 		if tc.MCPResultText != expected {
 			return fmt.Errorf("expected MCP result to be %q, got: %q", expected, tc.MCPResultText)
 		}
@@ -243,4 +248,161 @@ func RegisterMCPSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 		}
 		return nil
 	})
+
+	// --- MCP JSON field extraction and KMS verification steps ---
+
+	ctx.Step(`^the MCP result field "([^"]*)" should be non-empty$`, func(field string) error {
+		if tc.MCPError != nil {
+			return fmt.Errorf("MCP call failed: %v", tc.MCPError)
+		}
+		val, err := mcpJSONField(tc.MCPResultText, field)
+		if err != nil {
+			return err
+		}
+		if val == nil {
+			return fmt.Errorf("MCP result field %q is null", field)
+		}
+		if s, ok := val.(string); ok && s == "" {
+			return fmt.Errorf("MCP result field %q is an empty string", field)
+		}
+		return nil
+	})
+
+	ctx.Step(`^the MCP result field "([^"]*)" should be empty or absent$`, func(field string) error {
+		if tc.MCPError != nil {
+			return fmt.Errorf("MCP call failed: %v", tc.MCPError)
+		}
+		var obj map[string]interface{}
+		if err := json.Unmarshal([]byte(tc.MCPResultText), &obj); err != nil {
+			return nil // not even JSON — field is absent
+		}
+		val, ok := obj[field]
+		if !ok || val == nil {
+			return nil // absent or null
+		}
+		if s, ok := val.(string); ok && s == "" {
+			return nil // empty string
+		}
+		return fmt.Errorf("MCP result field %q is present and non-empty: %v", field, val)
+	})
+
+	ctx.Step(`^I store the MCP result field "([^"]*)" as "([^"]*)"$`, func(field, key string) error {
+		if tc.MCPError != nil {
+			return fmt.Errorf("MCP call failed: %v", tc.MCPError)
+		}
+		val, err := mcpJSONField(tc.MCPResultText, field)
+		if err != nil {
+			return err
+		}
+		tc.StoredValues[key] = val
+		return nil
+	})
+
+	ctx.Step(`^the MCP result field "([^"]*)" should not equal stored "([^"]*)"$`, func(field, key string) error {
+		if tc.MCPError != nil {
+			return fmt.Errorf("MCP call failed: %v", tc.MCPError)
+		}
+		val, err := mcpJSONField(tc.MCPResultText, field)
+		if err != nil {
+			return err
+		}
+		stored, ok := tc.StoredValues[key]
+		if !ok {
+			return fmt.Errorf("no stored value for key %q", key)
+		}
+		if fmt.Sprintf("%v", val) == fmt.Sprintf("%v", stored) {
+			return fmt.Errorf("MCP result field %q equals stored %q: both are %v", field, key, val)
+		}
+		return nil
+	})
+
+	ctx.Step(`^the MCP result field "([^"]*)" should equal stored "([^"]*)"$`, func(field, key string) error {
+		if tc.MCPError != nil {
+			return fmt.Errorf("MCP call failed: %v", tc.MCPError)
+		}
+		val, err := mcpJSONField(tc.MCPResultText, field)
+		if err != nil {
+			return err
+		}
+		stored, ok := tc.StoredValues[key]
+		if !ok {
+			return fmt.Errorf("no stored value for key %q", key)
+		}
+		if fmt.Sprintf("%v", val) != fmt.Sprintf("%v", stored) {
+			return fmt.Errorf("MCP result field %q (%v) does not equal stored %q (%v)", field, val, key, stored)
+		}
+		return nil
+	})
+
+	ctx.Step(`^I can unwrap the MCP result encrypted key material using KMS type "([^"]*)" and key ID "([^"]*)"$`, func(kmsType, keyID string) error {
+		if tc.MCPError != nil {
+			return fmt.Errorf("MCP call failed: %v", tc.MCPError)
+		}
+
+		var obj map[string]interface{}
+		if err := json.Unmarshal([]byte(tc.MCPResultText), &obj); err != nil {
+			return fmt.Errorf("parse MCP result as JSON: %w", err)
+		}
+
+		encMaterial, ok := obj["encryptedKeyMaterial"]
+		if !ok || encMaterial == nil {
+			return fmt.Errorf("encryptedKeyMaterial not found in MCP result")
+		}
+		ciphertext, ok := encMaterial.(string)
+		if !ok || ciphertext == "" {
+			return fmt.Errorf("encryptedKeyMaterial is not a non-empty string: %v", encMaterial)
+		}
+
+		keyMaterial, ok := obj["keyMaterial"]
+		if !ok || keyMaterial == nil {
+			return fmt.Errorf("keyMaterial not found in MCP result")
+		}
+		expectedPlaintext, ok := keyMaterial.(string)
+		if !ok || expectedPlaintext == "" {
+			return fmt.Errorf("keyMaterial is not a non-empty string: %v", keyMaterial)
+		}
+
+		// Decode encryptedKeyMaterial (base64-encoded ciphertext like "vault:v1:...")
+		rawCiphertext, err := base64.StdEncoding.DecodeString(ciphertext)
+		if err != nil {
+			return fmt.Errorf("base64 decode of encryptedKeyMaterial: %w", err)
+		}
+
+		// Decrypt via KMS Transit
+		decryptedBase64, err := transitDecrypt(kmsType, keyID, string(rawCiphertext))
+		if err != nil {
+			return fmt.Errorf("transit decrypt: %w", err)
+		}
+
+		// Compare decrypted plaintext with keyMaterial
+		decryptedBytes, err := base64.StdEncoding.DecodeString(decryptedBase64)
+		if err != nil {
+			return fmt.Errorf("base64 decode of decrypted plaintext: %w", err)
+		}
+
+		expectedBytes, err := base64.StdEncoding.DecodeString(expectedPlaintext)
+		if err != nil {
+			return fmt.Errorf("base64 decode of keyMaterial: %w", err)
+		}
+
+		if !bytes.Equal(decryptedBytes, expectedBytes) {
+			return fmt.Errorf("unwrapped key material does not match: decrypted %d bytes, expected %d bytes",
+				len(decryptedBytes), len(expectedBytes))
+		}
+
+		return nil
+	})
+}
+
+// mcpJSONField extracts a field from the MCP result text (JSON string).
+func mcpJSONField(resultText, field string) (interface{}, error) {
+	var obj map[string]interface{}
+	if err := json.Unmarshal([]byte(resultText), &obj); err != nil {
+		return nil, fmt.Errorf("parse MCP result as JSON: %w (text: %s)", err, resultText)
+	}
+	val, ok := obj[field]
+	if !ok {
+		return nil, fmt.Errorf("field %q not found in MCP result: %s", field, resultText)
+	}
+	return val, nil
 }

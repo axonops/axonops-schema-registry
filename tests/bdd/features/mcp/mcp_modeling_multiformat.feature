@@ -124,7 +124,8 @@ Feature: MCP AI Data Modeling — Multi-Format Schema Design
     When I call MCP tool "format_schema" with JSON input:
       """
       {
-        "schema": "{\"type\":\"record\",\"name\":\"Review\",\"namespace\":\"com.reviews\",\"fields\":[{\"name\":\"id\",\"type\":\"long\"},{\"name\":\"rating\",\"type\":\"int\"},{\"name\":\"comment\",\"type\":[\"null\",\"string\"],\"default\":null}]}"
+        "subject": "format-review-value",
+        "version": 1
       }
       """
     Then the MCP result should contain "Review"

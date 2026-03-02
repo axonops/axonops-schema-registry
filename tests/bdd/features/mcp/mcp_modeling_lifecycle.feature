@@ -151,7 +151,7 @@ Feature: MCP AI Data Modeling — Full Lifecycle Management
     When I call MCP tool "set_mode" with input:
       | subject | finalized.config-value |
       | mode    | READWRITE              |
-    When I call MCP tool "check_write_mode" with input:
+    When I call MCP tool "get_mode" with input:
       | subject | finalized.config-value |
     Then the MCP result should contain "READWRITE"
 
@@ -172,20 +172,20 @@ Feature: MCP AI Data Modeling — Full Lifecycle Management
       }
       """
     Then the MCP result should contain "\"version\":1"
-    # AI switches to BACKWARD and checks if removing a field is allowed
+    # AI switches to BACKWARD and checks if adding a required field is allowed
     When I call MCP tool "set_config" with input:
       | subject             | compat-explore-value |
       | compatibility_level | BACKWARD             |
-    # Removing the "data" field — incompatible under BACKWARD
+    # Adding required field without default — incompatible under BACKWARD
     When I call MCP tool "check_compatibility" with JSON input:
       """
       {
         "subject": "compat-explore-value",
-        "schema": "{\"type\":\"record\",\"name\":\"Event\",\"fields\":[{\"name\":\"id\",\"type\":\"string\"}]}"
+        "schema": "{\"type\":\"record\",\"name\":\"Event\",\"fields\":[{\"name\":\"id\",\"type\":\"string\"},{\"name\":\"data\",\"type\":\"string\"},{\"name\":\"source\",\"type\":\"string\"}]}"
       }
       """
     Then the MCP result should contain "false"
-    # AI tests with FORWARD — removing a field IS allowed
+    # AI tests with FORWARD — adding a required field IS allowed
     When I call MCP tool "set_config" with input:
       | subject             | compat-explore-value |
       | compatibility_level | FORWARD              |
@@ -193,7 +193,7 @@ Feature: MCP AI Data Modeling — Full Lifecycle Management
       """
       {
         "subject": "compat-explore-value",
-        "schema": "{\"type\":\"record\",\"name\":\"Event\",\"fields\":[{\"name\":\"id\",\"type\":\"string\"}]}"
+        "schema": "{\"type\":\"record\",\"name\":\"Event\",\"fields\":[{\"name\":\"id\",\"type\":\"string\"},{\"name\":\"data\",\"type\":\"string\"},{\"name\":\"source\",\"type\":\"string\"}]}"
       }
       """
     Then the MCP result should contain "true"
