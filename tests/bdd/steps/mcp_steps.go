@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/cucumber/godog"
@@ -128,14 +129,18 @@ func RegisterMCPSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 			if len(row.Cells) >= 2 {
 				key := row.Cells[0].Value
 				val := row.Cells[1].Value
-				// Try to parse as bool/number, otherwise keep as string
-				switch val {
-				case "true":
-					args[key] = true
-				case "false":
-					args[key] = false
-				default:
-					args[key] = val
+				// Try to parse as integer, bool, otherwise keep as string
+				if n, err := strconv.Atoi(val); err == nil {
+					args[key] = n
+				} else {
+					switch val {
+					case "true":
+						args[key] = true
+					case "false":
+						args[key] = false
+					default:
+						args[key] = val
+					}
 				}
 			}
 		}

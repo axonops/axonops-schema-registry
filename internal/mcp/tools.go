@@ -28,6 +28,8 @@ func (s *Server) registerTools() {
 		},
 	}, s.handleGetServerInfo)
 
+	s.registerSchemaReadTools()
+
 	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
 		Name:        "list_subjects",
 		Description: "List all registered subjects in the schema registry",

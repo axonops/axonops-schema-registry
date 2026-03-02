@@ -183,6 +183,288 @@ func TestListSubjectsWithPrefix(t *testing.T) {
 	}
 }
 
+// --- Phase 2: Schema read tool tests ---
+
+func registerTestSchema(t *testing.T, reg *registry.Registry, subject, schemaStr string) *storage.SchemaRecord {
+	t.Helper()
+	rec, err := reg.RegisterSchema(context.Background(), ".", subject, schemaStr, storage.SchemaTypeAvro, nil)
+	if err != nil {
+		t.Fatalf("RegisterSchema(%s): %v", subject, err)
+	}
+	return rec
+}
+
+func TestGetSchemaByID(t *testing.T) {
+	cs, reg := newTestMCPClient(t)
+	rec := registerTestSchema(t, reg, "schema-by-id", `{"type":"string"}`)
+
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name:      "get_schema_by_id",
+		Arguments: map[string]any{"id": rec.ID},
+	})
+	if err != nil {
+		t.Fatalf("CallTool: %v", err)
+	}
+	if result.IsError {
+		t.Fatalf("expected success, got error: %s", resultText(t, result))
+	}
+	text := resultText(t, result)
+	if !strings.Contains(text, "AVRO") || !strings.Contains(text, "string") {
+		t.Errorf("expected schema content in result, got: %s", text)
+	}
+}
+
+func TestGetSchemaByIDNotFound(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name:      "get_schema_by_id",
+		Arguments: map[string]any{"id": 99999},
+	})
+	if err != nil {
+		t.Fatalf("CallTool: %v", err)
+	}
+	if !result.IsError {
+		t.Fatal("expected error for non-existent ID")
+	}
+}
+
+func TestGetRawSchemaByID(t *testing.T) {
+	cs, reg := newTestMCPClient(t)
+	rec := registerTestSchema(t, reg, "raw-by-id", `{"type":"string"}`)
+
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name:      "get_raw_schema_by_id",
+		Arguments: map[string]any{"id": rec.ID},
+	})
+	if err != nil {
+		t.Fatalf("CallTool: %v", err)
+	}
+	text := resultText(t, result)
+	if !strings.Contains(text, "string") {
+		t.Errorf("expected schema content, got: %s", text)
+	}
+	// Raw result should NOT contain subject metadata
+	if strings.Contains(text, "raw-by-id") {
+		t.Errorf("raw result should not contain subject name, got: %s", text)
+	}
+}
+
+func TestGetSchemaVersion(t *testing.T) {
+	cs, reg := newTestMCPClient(t)
+	registerTestSchema(t, reg, "version-test", `{"type":"string"}`)
+
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name:      "get_schema_version",
+		Arguments: map[string]any{"subject": "version-test", "version": 1},
+	})
+	if err != nil {
+		t.Fatalf("CallTool: %v", err)
+	}
+	text := resultText(t, result)
+	if !strings.Contains(text, "version-test") {
+		t.Errorf("expected subject in result, got: %s", text)
+	}
+}
+
+func TestGetRawSchemaVersion(t *testing.T) {
+	cs, reg := newTestMCPClient(t)
+	registerTestSchema(t, reg, "raw-version", `{"type":"string"}`)
+
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name:      "get_raw_schema_version",
+		Arguments: map[string]any{"subject": "raw-version", "version": 1},
+	})
+	if err != nil {
+		t.Fatalf("CallTool: %v", err)
+	}
+	text := resultText(t, result)
+	if !strings.Contains(text, "string") {
+		t.Errorf("expected schema content, got: %s", text)
+	}
+}
+
+func TestGetLatestSchema(t *testing.T) {
+	cs, reg := newTestMCPClient(t)
+	// Use backward-compatible schema evolution: record with optional field added
+	v1 := `{"type":"record","name":"Test","fields":[{"name":"a","type":"string"}]}`
+	v2 := `{"type":"record","name":"Test","fields":[{"name":"a","type":"string"},{"name":"b","type":["null","string"],"default":null}]}`
+	registerTestSchema(t, reg, "latest-test", v1)
+	registerTestSchema(t, reg, "latest-test", v2)
+
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name:      "get_latest_schema",
+		Arguments: map[string]any{"subject": "latest-test"},
+	})
+	if err != nil {
+		t.Fatalf("CallTool: %v", err)
+	}
+	text := resultText(t, result)
+	// Latest should be version 2
+	if !strings.Contains(text, `"version":2`) {
+		t.Errorf("expected version 2 in result, got: %s", text)
+	}
+}
+
+func TestListVersions(t *testing.T) {
+	cs, reg := newTestMCPClient(t)
+	v1 := `{"type":"record","name":"Test","fields":[{"name":"a","type":"string"}]}`
+	v2 := `{"type":"record","name":"Test","fields":[{"name":"a","type":"string"},{"name":"b","type":["null","string"],"default":null}]}`
+	registerTestSchema(t, reg, "versions-test", v1)
+	registerTestSchema(t, reg, "versions-test", v2)
+
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name:      "list_versions",
+		Arguments: map[string]any{"subject": "versions-test"},
+	})
+	if err != nil {
+		t.Fatalf("CallTool: %v", err)
+	}
+	text := resultText(t, result)
+	var versions []int
+	if err := json.Unmarshal([]byte(text), &versions); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if len(versions) != 2 || versions[0] != 1 || versions[1] != 2 {
+		t.Fatalf("expected [1,2], got: %v", versions)
+	}
+}
+
+func TestGetSubjectsForSchema(t *testing.T) {
+	cs, reg := newTestMCPClient(t)
+	rec := registerTestSchema(t, reg, "subj-a", `{"type":"string"}`)
+	// Same schema content registers under same ID in different subject
+	registerTestSchema(t, reg, "subj-b", `{"type":"string"}`)
+
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name:      "get_subjects_for_schema",
+		Arguments: map[string]any{"id": rec.ID},
+	})
+	if err != nil {
+		t.Fatalf("CallTool: %v", err)
+	}
+	text := resultText(t, result)
+	var subjects []string
+	if err := json.Unmarshal([]byte(text), &subjects); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if len(subjects) != 2 {
+		t.Fatalf("expected 2 subjects, got: %v", subjects)
+	}
+}
+
+func TestGetVersionsForSchema(t *testing.T) {
+	cs, reg := newTestMCPClient(t)
+	rec := registerTestSchema(t, reg, "ver-schema", `{"type":"string"}`)
+
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name:      "get_versions_for_schema",
+		Arguments: map[string]any{"id": rec.ID},
+	})
+	if err != nil {
+		t.Fatalf("CallTool: %v", err)
+	}
+	text := resultText(t, result)
+	if !strings.Contains(text, "ver-schema") {
+		t.Errorf("expected subject in result, got: %s", text)
+	}
+}
+
+func TestLookupSchema(t *testing.T) {
+	cs, reg := newTestMCPClient(t)
+	registerTestSchema(t, reg, "lookup-test", `{"type":"string"}`)
+
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name: "lookup_schema",
+		Arguments: map[string]any{
+			"subject": "lookup-test",
+			"schema":  `{"type":"string"}`,
+		},
+	})
+	if err != nil {
+		t.Fatalf("CallTool: %v", err)
+	}
+	text := resultText(t, result)
+	if !strings.Contains(text, "lookup-test") {
+		t.Errorf("expected subject in result, got: %s", text)
+	}
+}
+
+func TestGetSchemaTypes(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name: "get_schema_types",
+	})
+	if err != nil {
+		t.Fatalf("CallTool: %v", err)
+	}
+	text := resultText(t, result)
+	for _, want := range []string{"AVRO", "PROTOBUF", "JSON"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("expected %q in result, got: %s", want, text)
+		}
+	}
+}
+
+func TestListSchemas(t *testing.T) {
+	cs, reg := newTestMCPClient(t)
+	registerTestSchema(t, reg, "list-schemas-a", `{"type":"string"}`)
+	registerTestSchema(t, reg, "list-schemas-b", `{"type":"int"}`)
+
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name: "list_schemas",
+	})
+	if err != nil {
+		t.Fatalf("CallTool: %v", err)
+	}
+	text := resultText(t, result)
+	if !strings.Contains(text, "list-schemas-a") || !strings.Contains(text, "list-schemas-b") {
+		t.Errorf("expected both subjects in result, got: %s", text)
+	}
+}
+
+func TestListSchemasWithPrefix(t *testing.T) {
+	cs, reg := newTestMCPClient(t)
+	registerTestSchema(t, reg, "prefix-a", `{"type":"string"}`)
+	registerTestSchema(t, reg, "other-b", `{"type":"int"}`)
+
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name:      "list_schemas",
+		Arguments: map[string]any{"subject_prefix": "prefix"},
+	})
+	if err != nil {
+		t.Fatalf("CallTool: %v", err)
+	}
+	text := resultText(t, result)
+	if !strings.Contains(text, "prefix-a") {
+		t.Errorf("expected prefix-a in result, got: %s", text)
+	}
+	if strings.Contains(text, "other-b") {
+		t.Errorf("should not contain other-b, got: %s", text)
+	}
+}
+
+func TestGetMaxSchemaID(t *testing.T) {
+	cs, reg := newTestMCPClient(t)
+	registerTestSchema(t, reg, "max-id-test", `{"type":"string"}`)
+
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name: "get_max_schema_id",
+	})
+	if err != nil {
+		t.Fatalf("CallTool: %v", err)
+	}
+	text := resultText(t, result)
+	var out map[string]int64
+	if err := json.Unmarshal([]byte(text), &out); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if out["max_id"] < 1 {
+		t.Errorf("expected max_id >= 1, got: %d", out["max_id"])
+	}
+}
+
 // resultText extracts the text from the first TextContent in a CallToolResult.
 func resultText(t *testing.T, result *gomcp.CallToolResult) string {
 	t.Helper()
