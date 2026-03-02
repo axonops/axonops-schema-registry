@@ -811,6 +811,390 @@ func TestImportSchemas(t *testing.T) {
 	}
 }
 
+// --- Phase 6: KEK & DEK tool tests ---
+
+func TestCreateAndGetKEK(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	// Create KEK
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name: "create_kek",
+		Arguments: map[string]any{
+			"name":       "test-kek",
+			"kms_type":   "aws-kms",
+			"kms_key_id": "arn:aws:kms:us-east-1:123456789:key/abc-123",
+			"doc":        "Test KEK for unit tests",
+			"shared":     false,
+		},
+	})
+	if err != nil {
+		t.Fatalf("create_kek: %v", err)
+	}
+	if result.IsError {
+		t.Fatalf("expected success, got error: %s", resultText(t, result))
+	}
+	text := resultText(t, result)
+	if !strings.Contains(text, "test-kek") {
+		t.Errorf("expected name in result, got: %s", text)
+	}
+	if !strings.Contains(text, "aws-kms") {
+		t.Errorf("expected kmsType in result, got: %s", text)
+	}
+
+	// Get KEK back
+	result, err = cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name:      "get_kek",
+		Arguments: map[string]any{"name": "test-kek"},
+	})
+	if err != nil {
+		t.Fatalf("get_kek: %v", err)
+	}
+	text = resultText(t, result)
+	if !strings.Contains(text, "test-kek") || !strings.Contains(text, "aws-kms") {
+		t.Errorf("expected KEK fields in result, got: %s", text)
+	}
+	if !strings.Contains(text, "Test KEK for unit tests") {
+		t.Errorf("expected doc in result, got: %s", text)
+	}
+}
+
+func TestListKEKs(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	// Create two KEKs
+	for _, name := range []string{"kek-alpha", "kek-beta"} {
+		result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+			Name: "create_kek",
+			Arguments: map[string]any{
+				"name":       name,
+				"kms_type":   "aws-kms",
+				"kms_key_id": "arn:aws:kms:us-east-1:123456789:key/" + name,
+			},
+		})
+		if err != nil {
+			t.Fatalf("create_kek(%s): %v", name, err)
+		}
+		if result.IsError {
+			t.Fatalf("create_kek(%s) error: %s", name, resultText(t, result))
+		}
+	}
+
+	// List KEKs
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name: "list_keks",
+	})
+	if err != nil {
+		t.Fatalf("list_keks: %v", err)
+	}
+	text := resultText(t, result)
+	if !strings.Contains(text, "kek-alpha") || !strings.Contains(text, "kek-beta") {
+		t.Errorf("expected both KEKs in list, got: %s", text)
+	}
+}
+
+func TestDeleteAndUndeleteKEK(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	// Create KEK
+	_, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name: "create_kek",
+		Arguments: map[string]any{
+			"name":       "del-kek",
+			"kms_type":   "aws-kms",
+			"kms_key_id": "arn:aws:kms:us-east-1:123456789:key/del-kek",
+		},
+	})
+	if err != nil {
+		t.Fatalf("create_kek: %v", err)
+	}
+
+	// Soft-delete KEK
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name:      "delete_kek",
+		Arguments: map[string]any{"name": "del-kek"},
+	})
+	if err != nil {
+		t.Fatalf("delete_kek: %v", err)
+	}
+	text := resultText(t, result)
+	if !strings.Contains(text, "true") {
+		t.Errorf("expected deleted:true, got: %s", text)
+	}
+
+	// Get should fail without deleted flag
+	result, err = cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name:      "get_kek",
+		Arguments: map[string]any{"name": "del-kek"},
+	})
+	if err != nil {
+		t.Fatalf("get_kek: %v", err)
+	}
+	if !result.IsError {
+		t.Fatal("expected error for deleted KEK without deleted flag")
+	}
+
+	// Undelete KEK
+	result, err = cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name:      "undelete_kek",
+		Arguments: map[string]any{"name": "del-kek"},
+	})
+	if err != nil {
+		t.Fatalf("undelete_kek: %v", err)
+	}
+	text = resultText(t, result)
+	if !strings.Contains(text, "true") {
+		t.Errorf("expected undeleted:true, got: %s", text)
+	}
+
+	// Get should now succeed
+	result, err = cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name:      "get_kek",
+		Arguments: map[string]any{"name": "del-kek"},
+	})
+	if err != nil {
+		t.Fatalf("get_kek after undelete: %v", err)
+	}
+	if result.IsError {
+		t.Fatalf("expected success after undelete, got error: %s", resultText(t, result))
+	}
+}
+
+func TestCreateAndGetDEK(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	// Create KEK first (required parent)
+	_, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name: "create_kek",
+		Arguments: map[string]any{
+			"name":       "dek-parent-kek",
+			"kms_type":   "aws-kms",
+			"kms_key_id": "arn:aws:kms:us-east-1:123456789:key/dek-parent",
+		},
+	})
+	if err != nil {
+		t.Fatalf("create_kek: %v", err)
+	}
+
+	// Create DEK
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name: "create_dek",
+		Arguments: map[string]any{
+			"kek_name":  "dek-parent-kek",
+			"subject":   "dek-test-subject",
+			"algorithm": "AES256_GCM",
+		},
+	})
+	if err != nil {
+		t.Fatalf("create_dek: %v", err)
+	}
+	if result.IsError {
+		t.Fatalf("expected success, got error: %s", resultText(t, result))
+	}
+	text := resultText(t, result)
+	if !strings.Contains(text, "dek-parent-kek") {
+		t.Errorf("expected kekName in result, got: %s", text)
+	}
+	if !strings.Contains(text, "dek-test-subject") {
+		t.Errorf("expected subject in result, got: %s", text)
+	}
+
+	// Get DEK back
+	result, err = cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name: "get_dek",
+		Arguments: map[string]any{
+			"kek_name":  "dek-parent-kek",
+			"subject":   "dek-test-subject",
+			"algorithm": "AES256_GCM",
+		},
+	})
+	if err != nil {
+		t.Fatalf("get_dek: %v", err)
+	}
+	if result.IsError {
+		t.Fatalf("expected success, got error: %s", resultText(t, result))
+	}
+	text = resultText(t, result)
+	if !strings.Contains(text, "dek-parent-kek") || !strings.Contains(text, "dek-test-subject") {
+		t.Errorf("expected DEK fields in result, got: %s", text)
+	}
+}
+
+func TestListDEKs(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	// Create KEK
+	_, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name: "create_kek",
+		Arguments: map[string]any{
+			"name":       "list-dek-kek",
+			"kms_type":   "aws-kms",
+			"kms_key_id": "arn:aws:kms:us-east-1:123456789:key/list-dek",
+		},
+	})
+	if err != nil {
+		t.Fatalf("create_kek: %v", err)
+	}
+
+	// Create DEKs for two subjects
+	for _, subj := range []string{"subj-a", "subj-b"} {
+		_, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+			Name: "create_dek",
+			Arguments: map[string]any{
+				"kek_name": "list-dek-kek",
+				"subject":  subj,
+			},
+		})
+		if err != nil {
+			t.Fatalf("create_dek(%s): %v", subj, err)
+		}
+	}
+
+	// List DEK subjects
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name:      "list_deks",
+		Arguments: map[string]any{"kek_name": "list-dek-kek"},
+	})
+	if err != nil {
+		t.Fatalf("list_deks: %v", err)
+	}
+	text := resultText(t, result)
+	var subjects []string
+	if err := json.Unmarshal([]byte(text), &subjects); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if len(subjects) != 2 {
+		t.Fatalf("expected 2 subjects, got: %v", subjects)
+	}
+}
+
+func TestListDEKVersions(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	// Create KEK
+	_, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name: "create_kek",
+		Arguments: map[string]any{
+			"name":       "ver-dek-kek",
+			"kms_type":   "aws-kms",
+			"kms_key_id": "arn:aws:kms:us-east-1:123456789:key/ver-dek",
+		},
+	})
+	if err != nil {
+		t.Fatalf("create_kek: %v", err)
+	}
+
+	// Create two DEK versions for same subject
+	for i := 0; i < 2; i++ {
+		_, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+			Name: "create_dek",
+			Arguments: map[string]any{
+				"kek_name": "ver-dek-kek",
+				"subject":  "ver-subj",
+			},
+		})
+		if err != nil {
+			t.Fatalf("create_dek v%d: %v", i+1, err)
+		}
+	}
+
+	// List versions
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name: "list_dek_versions",
+		Arguments: map[string]any{
+			"kek_name": "ver-dek-kek",
+			"subject":  "ver-subj",
+		},
+	})
+	if err != nil {
+		t.Fatalf("list_dek_versions: %v", err)
+	}
+	text := resultText(t, result)
+	var versions []int
+	if err := json.Unmarshal([]byte(text), &versions); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if len(versions) != 2 || versions[0] != 1 || versions[1] != 2 {
+		t.Fatalf("expected [1,2], got: %v", versions)
+	}
+}
+
+func TestDeleteAndUndeleteDEK(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	// Create KEK + DEK
+	_, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name: "create_kek",
+		Arguments: map[string]any{
+			"name":       "del-dek-kek",
+			"kms_type":   "aws-kms",
+			"kms_key_id": "arn:aws:kms:us-east-1:123456789:key/del-dek",
+		},
+	})
+	if err != nil {
+		t.Fatalf("create_kek: %v", err)
+	}
+
+	_, err = cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name: "create_dek",
+		Arguments: map[string]any{
+			"kek_name": "del-dek-kek",
+			"subject":  "del-dek-subj",
+		},
+	})
+	if err != nil {
+		t.Fatalf("create_dek: %v", err)
+	}
+
+	// Delete DEK (version 1 was auto-assigned)
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name: "delete_dek",
+		Arguments: map[string]any{
+			"kek_name": "del-dek-kek",
+			"subject":  "del-dek-subj",
+			"version":  1,
+		},
+	})
+	if err != nil {
+		t.Fatalf("delete_dek: %v", err)
+	}
+	text := resultText(t, result)
+	if !strings.Contains(text, "true") {
+		t.Errorf("expected deleted:true, got: %s", text)
+	}
+
+	// Undelete DEK
+	result, err = cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name: "undelete_dek",
+		Arguments: map[string]any{
+			"kek_name": "del-dek-kek",
+			"subject":  "del-dek-subj",
+			"version":  1,
+		},
+	})
+	if err != nil {
+		t.Fatalf("undelete_dek: %v", err)
+	}
+	text = resultText(t, result)
+	if !strings.Contains(text, "true") {
+		t.Errorf("expected undeleted:true, got: %s", text)
+	}
+
+	// Get should succeed
+	result, err = cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name: "get_dek",
+		Arguments: map[string]any{
+			"kek_name": "del-dek-kek",
+			"subject":  "del-dek-subj",
+		},
+	})
+	if err != nil {
+		t.Fatalf("get_dek after undelete: %v", err)
+	}
+	if result.IsError {
+		t.Fatalf("expected success after undelete, got error: %s", resultText(t, result))
+	}
+}
+
 // resultText extracts the text from the first TextContent in a CallToolResult.
 func resultText(t *testing.T, result *gomcp.CallToolResult) string {
 	t.Helper()
