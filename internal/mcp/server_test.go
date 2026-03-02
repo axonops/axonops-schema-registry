@@ -465,6 +465,157 @@ func TestGetMaxSchemaID(t *testing.T) {
 	}
 }
 
+// --- Phase 3: Schema write tool tests ---
+
+func TestRegisterSchema(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name: "register_schema",
+		Arguments: map[string]any{
+			"subject": "reg-test",
+			"schema":  `{"type":"string"}`,
+		},
+	})
+	if err != nil {
+		t.Fatalf("CallTool: %v", err)
+	}
+	if result.IsError {
+		t.Fatalf("expected success, got error: %s", resultText(t, result))
+	}
+	text := resultText(t, result)
+	if !strings.Contains(text, "reg-test") {
+		t.Errorf("expected subject in result, got: %s", text)
+	}
+	if !strings.Contains(text, `"version":1`) {
+		t.Errorf("expected version 1, got: %s", text)
+	}
+}
+
+func TestRegisterSchemaJSON(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name: "register_schema",
+		Arguments: map[string]any{
+			"subject":     "json-reg-test",
+			"schema":      `{"type":"object","properties":{}}`,
+			"schema_type": "JSON",
+		},
+	})
+	if err != nil {
+		t.Fatalf("CallTool: %v", err)
+	}
+	text := resultText(t, result)
+	if !strings.Contains(text, "JSON") {
+		t.Errorf("expected JSON schemaType, got: %s", text)
+	}
+}
+
+func TestDeleteSubject(t *testing.T) {
+	cs, reg := newTestMCPClient(t)
+	registerTestSchema(t, reg, "del-subj", `{"type":"string"}`)
+
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name:      "delete_subject",
+		Arguments: map[string]any{"subject": "del-subj"},
+	})
+	if err != nil {
+		t.Fatalf("CallTool: %v", err)
+	}
+	text := resultText(t, result)
+	var versions []int
+	if err := json.Unmarshal([]byte(text), &versions); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if len(versions) != 1 || versions[0] != 1 {
+		t.Fatalf("expected [1], got: %v", versions)
+	}
+}
+
+func TestDeleteSubjectPermanent(t *testing.T) {
+	cs, reg := newTestMCPClient(t)
+	registerTestSchema(t, reg, "del-perm", `{"type":"string"}`)
+
+	// Soft-delete first
+	_, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name:      "delete_subject",
+		Arguments: map[string]any{"subject": "del-perm"},
+	})
+	if err != nil {
+		t.Fatalf("soft delete: %v", err)
+	}
+
+	// Permanent delete
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name:      "delete_subject",
+		Arguments: map[string]any{"subject": "del-perm", "permanent": true},
+	})
+	if err != nil {
+		t.Fatalf("perm delete: %v", err)
+	}
+	if result.IsError {
+		t.Fatalf("expected success, got error: %s", resultText(t, result))
+	}
+}
+
+func TestDeleteVersion(t *testing.T) {
+	cs, reg := newTestMCPClient(t)
+	registerTestSchema(t, reg, "del-ver", `{"type":"string"}`)
+
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name:      "delete_version",
+		Arguments: map[string]any{"subject": "del-ver", "version": 1},
+	})
+	if err != nil {
+		t.Fatalf("CallTool: %v", err)
+	}
+	text := resultText(t, result)
+	if !strings.Contains(text, `"version":1`) {
+		t.Errorf("expected version 1, got: %s", text)
+	}
+}
+
+func TestCheckCompatibilityPass(t *testing.T) {
+	cs, reg := newTestMCPClient(t)
+	registerTestSchema(t, reg, "compat-pass", `{"type":"string"}`)
+
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name: "check_compatibility",
+		Arguments: map[string]any{
+			"subject": "compat-pass",
+			"schema":  `{"type":"string"}`,
+		},
+	})
+	if err != nil {
+		t.Fatalf("CallTool: %v", err)
+	}
+	text := resultText(t, result)
+	if !strings.Contains(text, "true") {
+		t.Errorf("expected is_compatible true, got: %s", text)
+	}
+}
+
+func TestCheckCompatibilityFail(t *testing.T) {
+	cs, reg := newTestMCPClient(t)
+	registerTestSchema(t, reg, "compat-fail", `{"type":"string"}`)
+
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name: "check_compatibility",
+		Arguments: map[string]any{
+			"subject": "compat-fail",
+			"schema":  `{"type":"int"}`,
+		},
+	})
+	if err != nil {
+		t.Fatalf("CallTool: %v", err)
+	}
+	text := resultText(t, result)
+	if !strings.Contains(text, "false") {
+		t.Errorf("expected is_compatible false, got: %s", text)
+	}
+}
+
 // resultText extracts the text from the first TextContent in a CallToolResult.
 func resultText(t *testing.T, result *gomcp.CallToolResult) string {
 	t.Helper()

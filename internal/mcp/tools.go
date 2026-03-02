@@ -29,6 +29,7 @@ func (s *Server) registerTools() {
 	}, s.handleGetServerInfo)
 
 	s.registerSchemaReadTools()
+	s.registerSchemaWriteTools()
 
 	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
 		Name:        "list_subjects",
