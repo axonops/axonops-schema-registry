@@ -1195,6 +1195,239 @@ func TestDeleteAndUndeleteDEK(t *testing.T) {
 	}
 }
 
+// --- Phase 7: Exporter tool tests ---
+
+func createTestExporter(t *testing.T, cs *gomcp.ClientSession, name string) {
+	t.Helper()
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name: "create_exporter",
+		Arguments: map[string]any{
+			"name":         name,
+			"context_type": "AUTO",
+			"subjects":     []any{"subject-a", "subject-b"},
+			"config":       map[string]any{"schema.registry.url": "http://dest:8081"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("create_exporter(%s): %v", name, err)
+	}
+	if result.IsError {
+		t.Fatalf("create_exporter(%s) error: %s", name, resultText(t, result))
+	}
+}
+
+func TestCreateAndGetExporter(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	createTestExporter(t, cs, "test-exporter")
+
+	// Get it back
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name:      "get_exporter",
+		Arguments: map[string]any{"name": "test-exporter"},
+	})
+	if err != nil {
+		t.Fatalf("get_exporter: %v", err)
+	}
+	text := resultText(t, result)
+	if !strings.Contains(text, "test-exporter") {
+		t.Errorf("expected name in result, got: %s", text)
+	}
+	if !strings.Contains(text, "AUTO") {
+		t.Errorf("expected context type AUTO, got: %s", text)
+	}
+	if !strings.Contains(text, "subject-a") {
+		t.Errorf("expected subject in result, got: %s", text)
+	}
+}
+
+func TestListExporters(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	createTestExporter(t, cs, "exp-alpha")
+	createTestExporter(t, cs, "exp-beta")
+
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name: "list_exporters",
+	})
+	if err != nil {
+		t.Fatalf("list_exporters: %v", err)
+	}
+	text := resultText(t, result)
+	if !strings.Contains(text, "exp-alpha") || !strings.Contains(text, "exp-beta") {
+		t.Errorf("expected both exporters, got: %s", text)
+	}
+}
+
+func TestDeleteExporter(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	createTestExporter(t, cs, "del-exporter")
+
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name:      "delete_exporter",
+		Arguments: map[string]any{"name": "del-exporter"},
+	})
+	if err != nil {
+		t.Fatalf("delete_exporter: %v", err)
+	}
+	text := resultText(t, result)
+	if !strings.Contains(text, "true") {
+		t.Errorf("expected deleted:true, got: %s", text)
+	}
+
+	// Verify it's gone
+	result, err = cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name:      "get_exporter",
+		Arguments: map[string]any{"name": "del-exporter"},
+	})
+	if err != nil {
+		t.Fatalf("get_exporter: %v", err)
+	}
+	if !result.IsError {
+		t.Fatal("expected error for deleted exporter")
+	}
+}
+
+func TestExporterPauseResumeReset(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	createTestExporter(t, cs, "status-exporter")
+
+	// Initial status should be PAUSED (set by CreateExporter)
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name:      "get_exporter_status",
+		Arguments: map[string]any{"name": "status-exporter"},
+	})
+	if err != nil {
+		t.Fatalf("get_exporter_status: %v", err)
+	}
+	text := resultText(t, result)
+	if !strings.Contains(text, "PAUSED") {
+		t.Errorf("expected PAUSED, got: %s", text)
+	}
+
+	// Resume
+	result, err = cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name:      "resume_exporter",
+		Arguments: map[string]any{"name": "status-exporter"},
+	})
+	if err != nil {
+		t.Fatalf("resume_exporter: %v", err)
+	}
+	text = resultText(t, result)
+	if !strings.Contains(text, "RUNNING") {
+		t.Errorf("expected RUNNING, got: %s", text)
+	}
+
+	// Pause
+	result, err = cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name:      "pause_exporter",
+		Arguments: map[string]any{"name": "status-exporter"},
+	})
+	if err != nil {
+		t.Fatalf("pause_exporter: %v", err)
+	}
+	text = resultText(t, result)
+	if !strings.Contains(text, "PAUSED") {
+		t.Errorf("expected PAUSED, got: %s", text)
+	}
+
+	// Reset
+	result, err = cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name:      "reset_exporter",
+		Arguments: map[string]any{"name": "status-exporter"},
+	})
+	if err != nil {
+		t.Fatalf("reset_exporter: %v", err)
+	}
+	text = resultText(t, result)
+	if !strings.Contains(text, "reset") {
+		t.Errorf("expected reset, got: %s", text)
+	}
+}
+
+func TestExporterConfig(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	createTestExporter(t, cs, "cfg-exporter")
+
+	// Get config
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name:      "get_exporter_config",
+		Arguments: map[string]any{"name": "cfg-exporter"},
+	})
+	if err != nil {
+		t.Fatalf("get_exporter_config: %v", err)
+	}
+	text := resultText(t, result)
+	if !strings.Contains(text, "schema.registry.url") {
+		t.Errorf("expected config key in result, got: %s", text)
+	}
+
+	// Update config
+	result, err = cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name: "update_exporter_config",
+		Arguments: map[string]any{
+			"name":   "cfg-exporter",
+			"config": map[string]any{"schema.registry.url": "http://new-dest:8081"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("update_exporter_config: %v", err)
+	}
+	if result.IsError {
+		t.Fatalf("expected success, got error: %s", resultText(t, result))
+	}
+
+	// Get config again, verify updated
+	result, err = cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name:      "get_exporter_config",
+		Arguments: map[string]any{"name": "cfg-exporter"},
+	})
+	if err != nil {
+		t.Fatalf("get_exporter_config: %v", err)
+	}
+	text = resultText(t, result)
+	if !strings.Contains(text, "new-dest") {
+		t.Errorf("expected updated config, got: %s", text)
+	}
+}
+
+func TestUpdateExporter(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	createTestExporter(t, cs, "upd-exporter")
+
+	// Update subjects
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name: "update_exporter",
+		Arguments: map[string]any{
+			"name":     "upd-exporter",
+			"subjects": []any{"new-subject"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("update_exporter: %v", err)
+	}
+	if result.IsError {
+		t.Fatalf("expected success, got error: %s", resultText(t, result))
+	}
+
+	// Get and verify
+	result, err = cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name:      "get_exporter",
+		Arguments: map[string]any{"name": "upd-exporter"},
+	})
+	if err != nil {
+		t.Fatalf("get_exporter: %v", err)
+	}
+	text := resultText(t, result)
+	if !strings.Contains(text, "new-subject") {
+		t.Errorf("expected updated subject, got: %s", text)
+	}
+}
+
 // resultText extracts the text from the first TextContent in a CallToolResult.
 func resultText(t *testing.T, result *gomcp.CallToolResult) string {
 	t.Helper()

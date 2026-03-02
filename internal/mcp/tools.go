@@ -33,6 +33,7 @@ func (s *Server) registerTools() {
 	s.registerConfigTools()
 	s.registerContextTools()
 	s.registerDEKTools()
+	s.registerExporterTools()
 
 	gomcp.AddTool(s.mcpServer, &gomcp.Tool{
 		Name:        "list_subjects",
