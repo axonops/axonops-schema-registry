@@ -125,7 +125,7 @@ func (s *Server) registerPrompts() {
 		Name:        "schema-impact-analysis",
 		Description: "Guided workflow for assessing the impact of a proposed schema change across dependents",
 		Arguments: []*gomcp.PromptArgument{
-			{Name: "subject", Description: "Subject name to analyse impact for", Required: true},
+			{Name: "subject", Description: "Subject name to analyze impact for", Required: true},
 		},
 	}, s.handleImpactAnalysisPrompt)
 
@@ -740,7 +740,7 @@ func (s *Server) handleGettingStartedPrompt(_ context.Context, _ *gomcp.GetPromp
 
 ## Schema intelligence
 
-- **score_schema_quality** — analyse naming, docs, type safety, and evolution readiness
+- **score_schema_quality** — analyze naming, docs, type safety, and evolution readiness
 - **diff_schemas** — compare two schema versions structurally
 - **find_similar_schemas** — find schemas with overlapping field sets
 - **suggest_schema_evolution** — generate a compatible schema change
