@@ -41,15 +41,18 @@ type registerSchemaInput struct {
 	SchemaType string             `json:"schema_type,omitempty"`
 	References []storage.Reference `json:"references,omitempty"`
 	Normalize  bool               `json:"normalize,omitempty"`
+	Metadata   *storage.Metadata  `json:"metadata,omitempty"`
+	RuleSet    *storage.RuleSet   `json:"rule_set,omitempty"`
 }
 
 func (s *Server) handleRegisterSchema(ctx context.Context, _ *gomcp.CallToolRequest, input registerSchemaInput) (*gomcp.CallToolResult, any, error) {
 	schemaType := storage.SchemaType(input.SchemaType)
-	var opts []registry.RegisterOpts
-	if input.Normalize {
-		opts = append(opts, registry.RegisterOpts{Normalize: true})
+	opts := registry.RegisterOpts{
+		Normalize: input.Normalize,
+		Metadata:  input.Metadata,
+		RuleSet:   input.RuleSet,
 	}
-	record, err := s.registry.RegisterSchema(ctx, registrycontext.DefaultContext, input.Subject, input.Schema, schemaType, input.References, opts...)
+	record, err := s.registry.RegisterSchema(ctx, registrycontext.DefaultContext, input.Subject, input.Schema, schemaType, input.References, opts)
 	if err != nil {
 		return errorResult(err), nil, nil
 	}
