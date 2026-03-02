@@ -41,6 +41,14 @@ func getMCPSession(tc *TestContext) (*gomcp.ClientSession, error) {
 
 	cfg := &config.MCPConfig{Host: "localhost", Port: 0}
 
+	// Enable two-phase confirmations if requested by scenario
+	if v, ok := tc.StoredValues["_mcp_confirmations_enabled"]; ok {
+		if enabled, ok := v.(bool); ok && enabled {
+			cfg.RequireConfirmations = true
+			cfg.ConfirmationTTLSecs = 300
+		}
+	}
+
 	var mcpOpts []mcpkg.Option
 	if st, ok := tc.StoredValues["_storage"].(storage.Storage); ok {
 		authSvc := auth.NewServiceWithConfig(st, auth.ServiceConfig{})
@@ -508,6 +516,69 @@ func RegisterMCPSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 	ctx.Step(`^the MCP prompt get should fail$`, func() error {
 		if tc.MCPError == nil {
 			return fmt.Errorf("expected MCP prompt get to fail, but it succeeded")
+		}
+		return nil
+	})
+
+	ctx.Step(`^MCP confirmations are enabled$`, func() error {
+		tc.StoredValues["_mcp_confirmations_enabled"] = true
+		return nil
+	})
+
+	ctx.Step(`^I call MCP tool "([^"]*)" with JSON input using stored "([^"]*)":$`, func(toolName, storedKey string, body *godog.DocString) error {
+		cs, err := getMCPSession(tc)
+		if err != nil {
+			return err
+		}
+
+		var args map[string]any
+		if err := json.Unmarshal([]byte(body.Content), &args); err != nil {
+			return fmt.Errorf("invalid JSON input: %w", err)
+		}
+
+		// Inject the stored value as confirm_token
+		stored, ok := tc.StoredValues[storedKey]
+		if !ok {
+			return fmt.Errorf("no stored value for key %q", storedKey)
+		}
+		args["confirm_token"] = fmt.Sprintf("%v", stored)
+
+		result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+			Name:      toolName,
+			Arguments: args,
+		})
+		if err != nil {
+			tc.MCPError = err
+			tc.MCPResultText = ""
+			return nil
+		}
+		tc.MCPError = nil
+		text, err := extractText(result)
+		if err != nil {
+			return err
+		}
+		tc.MCPResultText = text
+		return nil
+	})
+
+	ctx.Step(`^the MCP result should be an error$`, func() error {
+		if tc.MCPError != nil {
+			return nil // transport error counts
+		}
+		// Check if result text contains "error" indicators
+		if strings.Contains(tc.MCPResultText, `"error"`) || strings.Contains(tc.MCPResultText, `"confirmation_required"`) {
+			return nil
+		}
+		return fmt.Errorf("expected MCP result to be an error, got: %s", tc.MCPResultText)
+	})
+
+	ctx.Step(`^the MCP result should not be an error$`, func() error {
+		if tc.MCPError != nil {
+			return fmt.Errorf("MCP call failed with error: %v", tc.MCPError)
+		}
+		// If the result contains confirmation_required as an error, it's an error
+		if strings.Contains(tc.MCPResultText, `"error":"confirmation_required"`) {
+			return fmt.Errorf("MCP result is a confirmation error: %s", tc.MCPResultText)
 		}
 		return nil
 	})

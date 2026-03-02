@@ -22,14 +22,17 @@ type Config struct {
 
 // MCPConfig represents MCP (Model Context Protocol) server configuration.
 type MCPConfig struct {
-	Enabled      bool     `yaml:"enabled"`
-	Host         string   `yaml:"host"`
-	Port         int      `yaml:"port"`
-	AuthToken    string   `yaml:"auth_token"`    // Bearer token for v1 auth
-	ReadOnly     bool     `yaml:"read_only"`     // Restrict to read-only tools
-	ToolPolicy   string   `yaml:"tool_policy"`   // "allow_all" (default), "deny_list", "allow_list"
-	AllowedTools []string `yaml:"allowed_tools"` // Tools to allow (for allow_list mode)
-	DeniedTools  []string `yaml:"denied_tools"`  // Tools to deny (for deny_list mode)
+	Enabled              bool     `yaml:"enabled"`
+	Host                 string   `yaml:"host"`
+	Port                 int      `yaml:"port"`
+	AuthToken            string   `yaml:"auth_token"`            // Bearer token for v1 auth
+	ReadOnly             bool     `yaml:"read_only"`             // Restrict to read-only tools
+	ToolPolicy           string   `yaml:"tool_policy"`           // "allow_all" (default), "deny_list", "allow_list"
+	AllowedTools         []string `yaml:"allowed_tools"`         // Tools to allow (for allow_list mode)
+	DeniedTools          []string `yaml:"denied_tools"`          // Tools to deny (for deny_list mode)
+	AllowedOrigins       []string `yaml:"allowed_origins"`       // Origin header allowlist (empty = allow all)
+	RequireConfirmations bool     `yaml:"require_confirmations"` // Enable two-phase confirmations for destructive ops
+	ConfirmationTTLSecs  int      `yaml:"confirmation_ttl"`      // Confirmation token TTL in seconds (default: 300)
 }
 
 // ServerConfig represents HTTP server configuration.
@@ -483,6 +486,21 @@ func (c *Config) applyEnvOverrides() {
 	}
 	if v := os.Getenv("SCHEMA_REGISTRY_MCP_READ_ONLY"); v != "" {
 		c.MCP.ReadOnly = strings.ToLower(v) == "true" || v == "1"
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_MCP_ALLOWED_ORIGINS"); v != "" {
+		origins := strings.Split(v, ",")
+		for i := range origins {
+			origins[i] = strings.TrimSpace(origins[i])
+		}
+		c.MCP.AllowedOrigins = origins
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_MCP_REQUIRE_CONFIRMATIONS"); v != "" {
+		c.MCP.RequireConfirmations = strings.ToLower(v) == "true" || v == "1"
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_MCP_CONFIRMATION_TTL"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			c.MCP.ConfirmationTTLSecs = n
+		}
 	}
 
 	// Docs enabled override

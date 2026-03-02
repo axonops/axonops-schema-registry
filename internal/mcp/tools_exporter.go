@@ -145,10 +145,18 @@ func (s *Server) handleUpdateExporter(ctx context.Context, _ *gomcp.CallToolRequ
 }
 
 type deleteExporterInput struct {
-	Name string `json:"name"`
+	Name         string `json:"name"`
+	DryRun       bool   `json:"dry_run,omitempty"`
+	ConfirmToken string `json:"confirm_token,omitempty"`
 }
 
 func (s *Server) handleDeleteExporter(ctx context.Context, _ *gomcp.CallToolRequest, input deleteExporterInput) (*gomcp.CallToolResult, any, error) {
+	if result := s.confirmationCheck("delete_exporter", input.DryRun, input.ConfirmToken,
+		map[string]any{"name": input.Name},
+		map[string]any{"action": "delete_exporter", "name": input.Name},
+	); result != nil {
+		return result, nil, nil
+	}
 	if err := s.registry.DeleteExporter(ctx, input.Name); err != nil {
 		return errorResult(err), nil, nil
 	}

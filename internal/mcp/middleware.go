@@ -1,6 +1,7 @@
 package mcp
 
 import (
+	"log/slog"
 	"net/http"
 	"strings"
 )
@@ -21,4 +22,44 @@ func (s *Server) authMiddleware(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+// originMiddleware validates the Origin header against the configured allowlist.
+// This prevents DNS rebinding attacks per the MCP specification.
+// If AllowedOrigins is empty, all origins are allowed (backward-compatible).
+// If the Origin header is absent (non-browser clients), the request is allowed.
+func (s *Server) originMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		origin := r.Header.Get("Origin")
+		if origin == "" || len(s.config.AllowedOrigins) == 0 {
+			next.ServeHTTP(w, r)
+			return
+		}
+		if !s.isOriginAllowed(origin) {
+			s.logger.Warn("MCP origin rejected",
+				slog.String("origin", origin),
+				slog.String("remote_addr", r.RemoteAddr),
+			)
+			if s.metrics != nil {
+				s.metrics.RecordMCPPolicyDenial("origin_rejected")
+			}
+			http.Error(w, "Forbidden: origin not allowed", http.StatusForbidden)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// isOriginAllowed checks whether the given origin is in the allowlist.
+// Supports exact match (case-insensitive) and "*" wildcard.
+func (s *Server) isOriginAllowed(origin string) bool {
+	for _, allowed := range s.config.AllowedOrigins {
+		if allowed == "*" {
+			return true
+		}
+		if strings.EqualFold(allowed, origin) {
+			return true
+		}
+	}
+	return false
 }

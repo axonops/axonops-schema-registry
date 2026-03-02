@@ -3003,6 +3003,487 @@ func TestAuthMiddlewareNoTokenConfigured(t *testing.T) {
 	}
 }
 
+// ===================== Origin Middleware Tests =====================
+
+func TestOriginMiddleware_NoConfigAllowsAll(t *testing.T) {
+	s := &Server{
+		config: &config.MCPConfig{},
+		logger: testLogger(),
+	}
+
+	handler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	mw := s.originMiddleware(handler)
+	req, _ := http.NewRequest("GET", "/mcp", nil)
+	req.Header.Set("Origin", "https://evil.example.com")
+	w := &testResponseWriter{}
+	mw.ServeHTTP(w, req)
+	if w.code != http.StatusOK {
+		t.Errorf("expected OK when no origins configured, got %d", w.code)
+	}
+}
+
+func TestOriginMiddleware_AllowedOriginPasses(t *testing.T) {
+	s := &Server{
+		config: &config.MCPConfig{AllowedOrigins: []string{"https://app.example.com"}},
+		logger: testLogger(),
+	}
+
+	handler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	mw := s.originMiddleware(handler)
+	req, _ := http.NewRequest("GET", "/mcp", nil)
+	req.Header.Set("Origin", "https://app.example.com")
+	w := &testResponseWriter{}
+	mw.ServeHTTP(w, req)
+	if w.code != http.StatusOK {
+		t.Errorf("expected OK for allowed origin, got %d", w.code)
+	}
+}
+
+func TestOriginMiddleware_DisallowedOriginBlocked(t *testing.T) {
+	s := &Server{
+		config: &config.MCPConfig{AllowedOrigins: []string{"https://app.example.com"}},
+		logger: testLogger(),
+	}
+
+	handler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	mw := s.originMiddleware(handler)
+	req, _ := http.NewRequest("GET", "/mcp", nil)
+	req.Header.Set("Origin", "https://evil.example.com")
+	w := &testResponseWriter{}
+	mw.ServeHTTP(w, req)
+	if w.code != http.StatusForbidden {
+		t.Errorf("expected 403 for disallowed origin, got %d", w.code)
+	}
+}
+
+func TestOriginMiddleware_NoOriginHeaderAllowed(t *testing.T) {
+	s := &Server{
+		config: &config.MCPConfig{AllowedOrigins: []string{"https://app.example.com"}},
+		logger: testLogger(),
+	}
+
+	handler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	mw := s.originMiddleware(handler)
+	req, _ := http.NewRequest("GET", "/mcp", nil)
+	// No Origin header (non-browser client)
+	w := &testResponseWriter{}
+	mw.ServeHTTP(w, req)
+	if w.code != http.StatusOK {
+		t.Errorf("expected OK when no Origin header, got %d", w.code)
+	}
+}
+
+func TestOriginMiddleware_WildcardAllowsAll(t *testing.T) {
+	s := &Server{
+		config: &config.MCPConfig{AllowedOrigins: []string{"*"}},
+		logger: testLogger(),
+	}
+
+	handler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	mw := s.originMiddleware(handler)
+	req, _ := http.NewRequest("GET", "/mcp", nil)
+	req.Header.Set("Origin", "https://anything.example.com")
+	w := &testResponseWriter{}
+	mw.ServeHTTP(w, req)
+	if w.code != http.StatusOK {
+		t.Errorf("expected OK for wildcard origin, got %d", w.code)
+	}
+}
+
+func TestOriginMiddleware_CaseInsensitive(t *testing.T) {
+	s := &Server{
+		config: &config.MCPConfig{AllowedOrigins: []string{"https://APP.example.com"}},
+		logger: testLogger(),
+	}
+
+	handler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	mw := s.originMiddleware(handler)
+	req, _ := http.NewRequest("GET", "/mcp", nil)
+	req.Header.Set("Origin", "https://app.EXAMPLE.com")
+	w := &testResponseWriter{}
+	mw.ServeHTTP(w, req)
+	if w.code != http.StatusOK {
+		t.Errorf("expected OK for case-insensitive match, got %d", w.code)
+	}
+}
+
+func TestIsOriginAllowed(t *testing.T) {
+	s := &Server{
+		config: &config.MCPConfig{AllowedOrigins: []string{"https://a.com", "https://b.com"}},
+		logger: testLogger(),
+	}
+
+	tests := []struct {
+		origin string
+		want   bool
+	}{
+		{"https://a.com", true},
+		{"https://b.com", true},
+		{"https://c.com", false},
+		{"https://A.COM", true},
+	}
+	for _, tt := range tests {
+		if got := s.isOriginAllowed(tt.origin); got != tt.want {
+			t.Errorf("isOriginAllowed(%q) = %v, want %v", tt.origin, got, tt.want)
+		}
+	}
+}
+
+// ===================== Confirmation Store Tests =====================
+
+func TestConfirmationStore_GenerateAndValidate(t *testing.T) {
+	cs := NewConfirmationStore(5 * time.Minute)
+	defer cs.Close()
+
+	args := map[string]any{"subject": "test-sub", "permanent": true}
+	token := cs.Generate("delete_subject", args, nil)
+	if token == "" {
+		t.Fatal("expected non-empty token")
+	}
+
+	err := cs.Validate(token, "delete_subject", args)
+	if err != nil {
+		t.Fatalf("expected valid token, got: %v", err)
+	}
+}
+
+func TestConfirmationStore_TokenExpiry(t *testing.T) {
+	cs := NewConfirmationStore(50 * time.Millisecond)
+	defer cs.Close()
+
+	args := map[string]any{"subject": "test-sub", "permanent": true}
+	token := cs.Generate("delete_subject", args, nil)
+
+	time.Sleep(100 * time.Millisecond)
+
+	err := cs.Validate(token, "delete_subject", args)
+	if err == nil {
+		t.Fatal("expected expired token error")
+	}
+	if !strings.Contains(err.Error(), "expired") {
+		t.Fatalf("expected 'expired' in error, got: %v", err)
+	}
+}
+
+func TestConfirmationStore_SingleUse(t *testing.T) {
+	cs := NewConfirmationStore(5 * time.Minute)
+	defer cs.Close()
+
+	args := map[string]any{"subject": "test-sub", "permanent": true}
+	token := cs.Generate("delete_subject", args, nil)
+
+	// First use succeeds
+	if err := cs.Validate(token, "delete_subject", args); err != nil {
+		t.Fatalf("first validation should succeed: %v", err)
+	}
+
+	// Second use fails
+	err := cs.Validate(token, "delete_subject", args)
+	if err == nil {
+		t.Fatal("expected single-use token error on second use")
+	}
+	if !strings.Contains(err.Error(), "already been used") {
+		t.Fatalf("expected 'already been used' in error, got: %v", err)
+	}
+}
+
+func TestConfirmationStore_WrongTool(t *testing.T) {
+	cs := NewConfirmationStore(5 * time.Minute)
+	defer cs.Close()
+
+	args := map[string]any{"subject": "test-sub", "permanent": true}
+	token := cs.Generate("delete_subject", args, nil)
+
+	err := cs.Validate(token, "delete_version", args)
+	if err == nil {
+		t.Fatal("expected wrong tool error")
+	}
+	if !strings.Contains(err.Error(), "delete_subject") {
+		t.Fatalf("expected tool name in error, got: %v", err)
+	}
+}
+
+func TestConfirmationStore_WrongArgs(t *testing.T) {
+	cs := NewConfirmationStore(5 * time.Minute)
+	defer cs.Close()
+
+	args := map[string]any{"subject": "test-sub-a", "permanent": true}
+	token := cs.Generate("delete_subject", args, nil)
+
+	differentArgs := map[string]any{"subject": "test-sub-b", "permanent": true}
+	err := cs.Validate(token, "delete_subject", differentArgs)
+	if err == nil {
+		t.Fatal("expected wrong args error")
+	}
+	if !strings.Contains(err.Error(), "does not match") {
+		t.Fatalf("expected 'does not match' in error, got: %v", err)
+	}
+}
+
+func TestConfirmationStore_InvalidToken(t *testing.T) {
+	cs := NewConfirmationStore(5 * time.Minute)
+	defer cs.Close()
+
+	err := cs.Validate("nonexistent-token-id", "delete_subject", nil)
+	if err == nil {
+		t.Fatal("expected invalid token error")
+	}
+	if !strings.Contains(err.Error(), "invalid or expired") {
+		t.Fatalf("expected 'invalid or expired' in error, got: %v", err)
+	}
+}
+
+func TestConfirmationStore_GarbageCollection(t *testing.T) {
+	cs := NewConfirmationStore(50 * time.Millisecond)
+	defer cs.Close()
+
+	args := map[string]any{"test": true}
+	cs.Generate("delete_subject", args, nil)
+
+	// Wait for token to expire
+	time.Sleep(100 * time.Millisecond)
+
+	// Manually trigger GC to avoid flaky timer-based assertions
+	cs.gc()
+
+	cs.mu.Lock()
+	remaining := len(cs.tokens)
+	cs.mu.Unlock()
+
+	if remaining != 0 {
+		t.Errorf("expected 0 tokens after GC, got %d", remaining)
+	}
+}
+
+func TestComputeArgsHash_Deterministic(t *testing.T) {
+	args1 := map[string]any{"subject": "test", "permanent": true, "dry_run": true}
+	args2 := map[string]any{"subject": "test", "permanent": true, "confirm_token": "some-token"}
+	args3 := map[string]any{"subject": "test", "permanent": true}
+
+	h1 := computeArgsHash("delete_subject", args1)
+	h2 := computeArgsHash("delete_subject", args2)
+	h3 := computeArgsHash("delete_subject", args3)
+
+	if h1 != h2 {
+		t.Error("hashes should match when only dry_run/confirm_token differ")
+	}
+	if h1 != h3 {
+		t.Error("hashes should match with and without dry_run/confirm_token")
+	}
+
+	// Different args should produce different hash
+	h4 := computeArgsHash("delete_subject", map[string]any{"subject": "other", "permanent": true})
+	if h1 == h4 {
+		t.Error("hashes should differ for different args")
+	}
+}
+
+// ===================== Confirmation Flow Integration Tests =====================
+
+func newTestMCPClientWithConfirmations(t *testing.T) (*gomcp.ClientSession, *registry.Registry) {
+	t.Helper()
+	cfg := &config.MCPConfig{
+		Host:                 "localhost",
+		Port:                 0,
+		RequireConfirmations: true,
+		ConfirmationTTLSecs:  300,
+	}
+	return newTestMCPClientWithConfig(t, cfg)
+}
+
+func TestConfirmation_DisabledByDefault(t *testing.T) {
+	cs, reg := newTestMCPClient(t)
+	ctx := context.Background()
+
+	// Register a schema then soft-delete (setup)
+	if _, err := reg.RegisterSchema(ctx, ".", "test-sub", `{"type":"string"}`, storage.SchemaTypeAvro, nil); err != nil {
+		t.Fatalf("register: %v", err)
+	}
+
+	// Permanent delete should work without confirmation when confirmations disabled
+	result, err := cs.CallTool(ctx, &gomcp.CallToolParams{
+		Name:      "delete_subject",
+		Arguments: map[string]any{"subject": "test-sub", "permanent": false},
+	})
+	if err != nil {
+		t.Fatalf("CallTool: %v", err)
+	}
+	if result.IsError {
+		t.Fatalf("expected success, got error: %s", resultText(t, result))
+	}
+}
+
+func TestConfirmation_DeleteSubjectRequiresDryRun(t *testing.T) {
+	cs, reg := newTestMCPClientWithConfirmations(t)
+	ctx := context.Background()
+
+	// Register + soft-delete a schema
+	if _, err := reg.RegisterSchema(ctx, ".", "test-sub", `{"type":"string"}`, storage.SchemaTypeAvro, nil); err != nil {
+		t.Fatalf("register: %v", err)
+	}
+	if _, err := reg.DeleteSubject(ctx, ".", "test-sub", false); err != nil {
+		t.Fatalf("soft delete: %v", err)
+	}
+
+	// Permanent delete without dry_run should return confirmation_required error
+	result, err := cs.CallTool(ctx, &gomcp.CallToolParams{
+		Name:      "delete_subject",
+		Arguments: map[string]any{"subject": "test-sub", "permanent": true},
+	})
+	if err != nil {
+		t.Fatalf("CallTool: %v", err)
+	}
+	if !result.IsError {
+		t.Fatal("expected error result when confirmation required")
+	}
+	text := resultText(t, result)
+	if !strings.Contains(text, "confirmation_required") {
+		t.Fatalf("expected 'confirmation_required' in result, got: %s", text)
+	}
+}
+
+func TestConfirmation_DryRunReturnsToken(t *testing.T) {
+	cs, reg := newTestMCPClientWithConfirmations(t)
+	ctx := context.Background()
+
+	if _, err := reg.RegisterSchema(ctx, ".", "test-sub", `{"type":"string"}`, storage.SchemaTypeAvro, nil); err != nil {
+		t.Fatalf("register: %v", err)
+	}
+
+	// Dry run should return a confirmation token
+	result, err := cs.CallTool(ctx, &gomcp.CallToolParams{
+		Name:      "delete_subject",
+		Arguments: map[string]any{"subject": "test-sub", "permanent": true, "dry_run": true},
+	})
+	if err != nil {
+		t.Fatalf("CallTool: %v", err)
+	}
+	if result.IsError {
+		t.Fatal("expected success for dry_run")
+	}
+
+	text := resultText(t, result)
+	var resp map[string]any
+	if err := json.Unmarshal([]byte(text), &resp); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if resp["confirmation_required"] != true {
+		t.Fatal("expected confirmation_required=true")
+	}
+	token, ok := resp["confirm_token"].(string)
+	if !ok || token == "" {
+		t.Fatal("expected non-empty confirm_token")
+	}
+}
+
+func TestConfirmation_TokenConfirmsOperation(t *testing.T) {
+	cs, reg := newTestMCPClientWithConfirmations(t)
+	ctx := context.Background()
+
+	if _, err := reg.RegisterSchema(ctx, ".", "test-sub", `{"type":"string"}`, storage.SchemaTypeAvro, nil); err != nil {
+		t.Fatalf("register: %v", err)
+	}
+	// Soft-delete first (required for permanent delete)
+	if _, err := reg.DeleteSubject(ctx, ".", "test-sub", false); err != nil {
+		t.Fatalf("soft delete: %v", err)
+	}
+
+	// Step 1: dry_run to get token
+	result, err := cs.CallTool(ctx, &gomcp.CallToolParams{
+		Name:      "delete_subject",
+		Arguments: map[string]any{"subject": "test-sub", "permanent": true, "dry_run": true},
+	})
+	if err != nil {
+		t.Fatalf("dry_run: %v", err)
+	}
+
+	text := resultText(t, result)
+	var resp map[string]any
+	if err := json.Unmarshal([]byte(text), &resp); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	token := resp["confirm_token"].(string)
+
+	// Step 2: confirm with token
+	result, err = cs.CallTool(ctx, &gomcp.CallToolParams{
+		Name:      "delete_subject",
+		Arguments: map[string]any{"subject": "test-sub", "permanent": true, "confirm_token": token},
+	})
+	if err != nil {
+		t.Fatalf("confirm: %v", err)
+	}
+	if result.IsError {
+		t.Fatalf("expected success after confirmation, got error: %s", resultText(t, result))
+	}
+}
+
+func TestConfirmation_SoftDeleteSkipsConfirmation(t *testing.T) {
+	cs, reg := newTestMCPClientWithConfirmations(t)
+	ctx := context.Background()
+
+	if _, err := reg.RegisterSchema(ctx, ".", "test-sub", `{"type":"string"}`, storage.SchemaTypeAvro, nil); err != nil {
+		t.Fatalf("register: %v", err)
+	}
+
+	// Soft delete (permanent=false) should NOT require confirmation
+	result, err := cs.CallTool(ctx, &gomcp.CallToolParams{
+		Name:      "delete_subject",
+		Arguments: map[string]any{"subject": "test-sub", "permanent": false},
+	})
+	if err != nil {
+		t.Fatalf("CallTool: %v", err)
+	}
+	if result.IsError {
+		t.Fatalf("soft delete should not require confirmation, got: %s", resultText(t, result))
+	}
+}
+
+func TestConfirmation_ImportSchemasRequiresConfirmation(t *testing.T) {
+	cs, _ := newTestMCPClientWithConfirmations(t)
+	ctx := context.Background()
+
+	// Import without dry_run should require confirmation
+	result, err := cs.CallTool(ctx, &gomcp.CallToolParams{
+		Name: "import_schemas",
+		Arguments: map[string]any{
+			"schemas": []any{
+				map[string]any{
+					"id": 1, "subject": "test", "version": 1,
+					"schema": `{"type":"string"}`, "schema_type": "AVRO",
+				},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("CallTool: %v", err)
+	}
+	if !result.IsError {
+		t.Fatal("expected error result when confirmation required for import")
+	}
+	text := resultText(t, result)
+	if !strings.Contains(text, "confirmation_required") {
+		t.Fatalf("expected 'confirmation_required' in result, got: %s", text)
+	}
+}
+
 type testResponseWriter struct {
 	code   int
 	header http.Header

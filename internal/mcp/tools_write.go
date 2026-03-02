@@ -60,11 +60,19 @@ func (s *Server) handleRegisterSchema(ctx context.Context, _ *gomcp.CallToolRequ
 }
 
 type deleteSubjectInput struct {
-	Subject   string `json:"subject"`
-	Permanent bool   `json:"permanent,omitempty"`
+	Subject      string `json:"subject"`
+	Permanent    bool   `json:"permanent,omitempty"`
+	DryRun       bool   `json:"dry_run,omitempty"`
+	ConfirmToken string `json:"confirm_token,omitempty"`
 }
 
 func (s *Server) handleDeleteSubject(ctx context.Context, _ *gomcp.CallToolRequest, input deleteSubjectInput) (*gomcp.CallToolResult, any, error) {
+	if result := s.confirmationCheck("delete_subject", input.DryRun, input.ConfirmToken,
+		map[string]any{"subject": input.Subject, "permanent": input.Permanent},
+		map[string]any{"action": "delete_subject", "subject": input.Subject, "permanent": input.Permanent},
+	); result != nil {
+		return result, nil, nil
+	}
 	versions, err := s.registry.DeleteSubject(ctx, registrycontext.DefaultContext, input.Subject, input.Permanent)
 	if err != nil {
 		return errorResult(err), nil, nil
@@ -73,12 +81,20 @@ func (s *Server) handleDeleteSubject(ctx context.Context, _ *gomcp.CallToolReque
 }
 
 type deleteVersionInput struct {
-	Subject   string `json:"subject"`
-	Version   int    `json:"version"`
-	Permanent bool   `json:"permanent,omitempty"`
+	Subject      string `json:"subject"`
+	Version      int    `json:"version"`
+	Permanent    bool   `json:"permanent,omitempty"`
+	DryRun       bool   `json:"dry_run,omitempty"`
+	ConfirmToken string `json:"confirm_token,omitempty"`
 }
 
 func (s *Server) handleDeleteVersion(ctx context.Context, _ *gomcp.CallToolRequest, input deleteVersionInput) (*gomcp.CallToolResult, any, error) {
+	if result := s.confirmationCheck("delete_version", input.DryRun, input.ConfirmToken,
+		map[string]any{"subject": input.Subject, "version": input.Version, "permanent": input.Permanent},
+		map[string]any{"action": "delete_version", "subject": input.Subject, "version": input.Version, "permanent": input.Permanent},
+	); result != nil {
+		return result, nil, nil
+	}
 	ver, err := s.registry.DeleteVersion(ctx, registrycontext.DefaultContext, input.Subject, input.Version, input.Permanent)
 	if err != nil {
 		return errorResult(err), nil, nil

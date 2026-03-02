@@ -71,10 +71,18 @@ func (s *Server) handleSetConfig(ctx context.Context, _ *gomcp.CallToolRequest, 
 }
 
 type deleteConfigInput struct {
-	Subject string `json:"subject,omitempty"`
+	Subject      string `json:"subject,omitempty"`
+	DryRun       bool   `json:"dry_run,omitempty"`
+	ConfirmToken string `json:"confirm_token,omitempty"`
 }
 
 func (s *Server) handleDeleteConfig(ctx context.Context, _ *gomcp.CallToolRequest, input deleteConfigInput) (*gomcp.CallToolResult, any, error) {
+	if result := s.confirmationCheck("delete_config", input.DryRun, input.ConfirmToken,
+		map[string]any{"subject": input.Subject},
+		map[string]any{"action": "delete_config", "subject": input.Subject},
+	); result != nil {
+		return result, nil, nil
+	}
 	prev, err := s.registry.DeleteConfig(ctx, registrycontext.DefaultContext, input.Subject)
 	if err != nil {
 		return errorResult(err), nil, nil
@@ -95,12 +103,20 @@ func (s *Server) handleGetMode(ctx context.Context, _ *gomcp.CallToolRequest, in
 }
 
 type setModeInput struct {
-	Subject string `json:"subject,omitempty"`
-	Mode    string `json:"mode"`
-	Force   bool   `json:"force,omitempty"`
+	Subject      string `json:"subject,omitempty"`
+	Mode         string `json:"mode"`
+	Force        bool   `json:"force,omitempty"`
+	DryRun       bool   `json:"dry_run,omitempty"`
+	ConfirmToken string `json:"confirm_token,omitempty"`
 }
 
 func (s *Server) handleSetMode(ctx context.Context, _ *gomcp.CallToolRequest, input setModeInput) (*gomcp.CallToolResult, any, error) {
+	if result := s.confirmationCheck("set_mode", input.DryRun, input.ConfirmToken,
+		map[string]any{"subject": input.Subject, "mode": input.Mode},
+		map[string]any{"action": "set_mode", "subject": input.Subject, "mode": input.Mode},
+	); result != nil {
+		return result, nil, nil
+	}
 	err := s.registry.SetMode(ctx, registrycontext.DefaultContext, input.Subject, input.Mode, input.Force)
 	if err != nil {
 		return errorResult(err), nil, nil

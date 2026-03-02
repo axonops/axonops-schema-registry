@@ -20,18 +20,19 @@ import (
 
 // Server wraps the MCP protocol server and HTTP transport.
 type Server struct {
-	mcpServer   *gomcp.Server
-	httpServer  *http.Server
-	registry    *registry.Registry
-	authService *auth.Service
-	config      *config.MCPConfig
-	logger      *slog.Logger
-	metrics     *metrics.Metrics
-	auditLogger *auth.AuditLogger
-	version     string
-	commit      string
-	buildTime   string
-	clusterID   string
+	mcpServer    *gomcp.Server
+	httpServer   *http.Server
+	registry     *registry.Registry
+	authService  *auth.Service
+	config       *config.MCPConfig
+	logger       *slog.Logger
+	metrics      *metrics.Metrics
+	auditLogger  *auth.AuditLogger
+	confirmStore *ConfirmationStore
+	version      string
+	commit       string
+	buildTime    string
+	clusterID    string
 }
 
 // Option configures an MCP server.
@@ -89,6 +90,14 @@ func New(cfg *config.MCPConfig, reg *registry.Registry, logger *slog.Logger, ver
 		opt(s)
 	}
 
+	if cfg.RequireConfirmations {
+		ttl := time.Duration(cfg.ConfirmationTTLSecs) * time.Second
+		if ttl <= 0 {
+			ttl = 300 * time.Second
+		}
+		s.confirmStore = NewConfirmationStore(ttl)
+	}
+
 	s.mcpServer = gomcp.NewServer(&gomcp.Implementation{
 		Name:    "axonops-schema-registry",
 		Version: version,
@@ -115,7 +124,7 @@ func (s *Server) Start() error {
 	)
 
 	mux := http.NewServeMux()
-	mux.Handle("/mcp", s.authMiddleware(handler))
+	mux.Handle("/mcp", s.originMiddleware(s.authMiddleware(handler)))
 
 	s.httpServer = &http.Server{
 		Addr:              addr,
@@ -133,6 +142,9 @@ func (s *Server) Start() error {
 
 // Shutdown gracefully shuts down the MCP server.
 func (s *Server) Shutdown(ctx context.Context) error {
+	if s.confirmStore != nil {
+		s.confirmStore.Close()
+	}
 	if s.httpServer != nil {
 		return s.httpServer.Shutdown(ctx)
 	}

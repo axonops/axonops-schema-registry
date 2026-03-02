@@ -46,10 +46,18 @@ type importSchemaItem struct {
 }
 
 type importSchemasInput struct {
-	Schemas []importSchemaItem `json:"schemas"`
+	Schemas      []importSchemaItem `json:"schemas"`
+	DryRun       bool               `json:"dry_run,omitempty"`
+	ConfirmToken string             `json:"confirm_token,omitempty"`
 }
 
 func (s *Server) handleImportSchemas(ctx context.Context, _ *gomcp.CallToolRequest, input importSchemasInput) (*gomcp.CallToolResult, any, error) {
+	if result := s.confirmationCheck("import_schemas", input.DryRun, input.ConfirmToken,
+		map[string]any{"schema_count": len(input.Schemas)},
+		map[string]any{"action": "import_schemas", "schema_count": len(input.Schemas)},
+	); result != nil {
+		return result, nil, nil
+	}
 	reqs := make([]registry.ImportSchemaRequest, len(input.Schemas))
 	for i, item := range input.Schemas {
 		reqs[i] = registry.ImportSchemaRequest{

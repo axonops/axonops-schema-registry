@@ -142,11 +142,19 @@ func (s *Server) handleUpdateKEK(ctx context.Context, _ *gomcp.CallToolRequest, 
 }
 
 type deleteKEKInput struct {
-	Name      string `json:"name"`
-	Permanent bool   `json:"permanent,omitempty"`
+	Name         string `json:"name"`
+	Permanent    bool   `json:"permanent,omitempty"`
+	DryRun       bool   `json:"dry_run,omitempty"`
+	ConfirmToken string `json:"confirm_token,omitempty"`
 }
 
 func (s *Server) handleDeleteKEK(ctx context.Context, _ *gomcp.CallToolRequest, input deleteKEKInput) (*gomcp.CallToolResult, any, error) {
+	if result := s.confirmationCheck("delete_kek", input.DryRun, input.ConfirmToken,
+		map[string]any{"name": input.Name, "permanent": input.Permanent},
+		map[string]any{"action": "delete_kek", "name": input.Name, "permanent": input.Permanent},
+	); result != nil {
+		return result, nil, nil
+	}
 	if err := s.registry.DeleteKEK(ctx, input.Name, input.Permanent); err != nil {
 		return errorResult(err), nil, nil
 	}
@@ -258,14 +266,22 @@ func (s *Server) handleListDEKVersions(ctx context.Context, _ *gomcp.CallToolReq
 }
 
 type deleteDEKInput struct {
-	KEKName   string `json:"kek_name"`
-	Subject   string `json:"subject"`
-	Version   int    `json:"version,omitempty"`
-	Algorithm string `json:"algorithm,omitempty"`
-	Permanent bool   `json:"permanent,omitempty"`
+	KEKName      string `json:"kek_name"`
+	Subject      string `json:"subject"`
+	Version      int    `json:"version,omitempty"`
+	Algorithm    string `json:"algorithm,omitempty"`
+	Permanent    bool   `json:"permanent,omitempty"`
+	DryRun       bool   `json:"dry_run,omitempty"`
+	ConfirmToken string `json:"confirm_token,omitempty"`
 }
 
 func (s *Server) handleDeleteDEK(ctx context.Context, _ *gomcp.CallToolRequest, input deleteDEKInput) (*gomcp.CallToolResult, any, error) {
+	if result := s.confirmationCheck("delete_dek", input.DryRun, input.ConfirmToken,
+		map[string]any{"kek_name": input.KEKName, "subject": input.Subject, "version": input.Version, "algorithm": input.Algorithm, "permanent": input.Permanent},
+		map[string]any{"action": "delete_dek", "kek_name": input.KEKName, "subject": input.Subject, "permanent": input.Permanent},
+	); result != nil {
+		return result, nil, nil
+	}
 	if err := s.registry.DeleteDEK(ctx, input.KEKName, input.Subject, input.Version, input.Algorithm, input.Permanent); err != nil {
 		return errorResult(err), nil, nil
 	}

@@ -46,10 +46,12 @@ type Metrics struct {
 	RateLimitHits *prometheus.CounterVec
 
 	// MCP metrics
-	MCPToolCallsTotal   *prometheus.CounterVec
-	MCPToolCallDuration *prometheus.HistogramVec
-	MCPToolCallErrors   *prometheus.CounterVec
-	MCPToolCallsActive  prometheus.Gauge
+	MCPToolCallsTotal     *prometheus.CounterVec
+	MCPToolCallDuration   *prometheus.HistogramVec
+	MCPToolCallErrors     *prometheus.CounterVec
+	MCPToolCallsActive    prometheus.Gauge
+	MCPConfirmationsTotal *prometheus.CounterVec // labels: outcome (token_issued, confirmed, token_rejected)
+	MCPPolicyDenialsTotal *prometheus.CounterVec // labels: reason (origin_rejected, confirmation_required)
 
 	// Per-principal metrics (optional, may be nil if disabled)
 	PrincipalRequestsTotal *prometheus.CounterVec // labels: principal, method, path, status
@@ -257,6 +259,22 @@ func New() *Metrics {
 		},
 	)
 
+	m.MCPConfirmationsTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "schema_registry_mcp_confirmations_total",
+			Help: "Total number of MCP two-phase confirmation events",
+		},
+		[]string{"outcome"},
+	)
+
+	m.MCPPolicyDenialsTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "schema_registry_mcp_policy_denials_total",
+			Help: "Total number of MCP policy denial events",
+		},
+		[]string{"reason"},
+	)
+
 	// Register all collectors
 	m.registry.MustRegister(
 		m.RequestsTotal,
@@ -282,6 +300,8 @@ func New() *Metrics {
 		m.MCPToolCallDuration,
 		m.MCPToolCallErrors,
 		m.MCPToolCallsActive,
+		m.MCPConfirmationsTotal,
+		m.MCPPolicyDenialsTotal,
 	)
 
 	// Also register the default collectors (go runtime, process info)
@@ -498,6 +518,18 @@ func (m *Metrics) RecordPrincipalMCPCall(principal, tool, status string) {
 	if m.PrincipalMCPCallsTotal != nil {
 		m.PrincipalMCPCallsTotal.WithLabelValues(principal, tool, status).Inc()
 	}
+}
+
+// RecordMCPConfirmation records an MCP two-phase confirmation event.
+// Outcome values: "token_issued", "confirmed", "token_rejected".
+func (m *Metrics) RecordMCPConfirmation(outcome string) {
+	m.MCPConfirmationsTotal.WithLabelValues(outcome).Inc()
+}
+
+// RecordMCPPolicyDenial records an MCP policy denial event.
+// Reason values: "origin_rejected", "confirmation_required".
+func (m *Metrics) RecordMCPPolicyDenial(reason string) {
+	m.MCPPolicyDenialsTotal.WithLabelValues(reason).Inc()
 }
 
 // RecordMCPToolCall records an MCP tool call.

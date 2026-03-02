@@ -321,3 +321,40 @@ func TestRecordPrincipalMetrics_Disabled(t *testing.T) {
 	m.RecordPrincipalRequest("admin", "GET", "/subjects", "OK")
 	m.RecordPrincipalMCPCall("mcp-client", "health_check", "success")
 }
+
+func TestRecordMCPConfirmation(t *testing.T) {
+	m := New()
+
+	m.RecordMCPConfirmation("token_issued")
+	m.RecordMCPConfirmation("confirmed")
+	m.RecordMCPConfirmation("token_rejected")
+
+	handler := m.Handler()
+	req := httptest.NewRequest("GET", "/metrics", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	body, _ := io.ReadAll(rr.Body)
+	content := string(body)
+	if !strings.Contains(content, "schema_registry_mcp_confirmations_total") {
+		t.Error("Expected metrics output to contain schema_registry_mcp_confirmations_total")
+	}
+}
+
+func TestRecordMCPPolicyDenial(t *testing.T) {
+	m := New()
+
+	m.RecordMCPPolicyDenial("origin_rejected")
+	m.RecordMCPPolicyDenial("confirmation_required")
+
+	handler := m.Handler()
+	req := httptest.NewRequest("GET", "/metrics", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	body, _ := io.ReadAll(rr.Body)
+	content := string(body)
+	if !strings.Contains(content, "schema_registry_mcp_policy_denials_total") {
+		t.Error("Expected metrics output to contain schema_registry_mcp_policy_denials_total")
+	}
+}
