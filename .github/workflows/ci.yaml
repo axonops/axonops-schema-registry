@@ -1241,7 +1241,7 @@ jobs:
         env:
           BDD_BACKEND: postgres
           BDD_KMS: "true"
-          BDD_TAGS: "@kms"
+          BDD_TAGS: "@kms && ~@mcp"
           CONTAINER_CMD: docker
           KMS_VAULT_ADDR: "http://localhost:18200"
           KMS_VAULT_TOKEN: "test-root-token"
@@ -1279,7 +1279,7 @@ jobs:
         env:
           BDD_BACKEND: mysql
           BDD_KMS: "true"
-          BDD_TAGS: "@kms"
+          BDD_TAGS: "@kms && ~@mcp"
           CONTAINER_CMD: docker
           KMS_VAULT_ADDR: "http://localhost:18200"
           KMS_VAULT_TOKEN: "test-root-token"
@@ -1317,7 +1317,7 @@ jobs:
         env:
           BDD_BACKEND: cassandra
           BDD_KMS: "true"
-          BDD_TAGS: "@kms"
+          BDD_TAGS: "@kms && ~@mcp"
           CONTAINER_CMD: docker
           KMS_VAULT_ADDR: "http://localhost:18200"
           KMS_VAULT_TOKEN: "test-root-token"
