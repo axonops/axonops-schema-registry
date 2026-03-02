@@ -52,7 +52,10 @@ import (
 	"github.com/axonops/axonops-schema-registry/internal/schema/jsonschema"
 	"github.com/axonops/axonops-schema-registry/internal/schema/protobuf"
 	"github.com/axonops/axonops-schema-registry/internal/storage"
+	cassandrastore "github.com/axonops/axonops-schema-registry/internal/storage/cassandra"
 	"github.com/axonops/axonops-schema-registry/internal/storage/memory"
+	mysqlstore "github.com/axonops/axonops-schema-registry/internal/storage/mysql"
+	pgstore "github.com/axonops/axonops-schema-registry/internal/storage/postgres"
 	"github.com/axonops/axonops-schema-registry/tests/bdd/steps"
 )
 
@@ -61,8 +64,13 @@ var (
 	registryURL  string
 	webhookURL   string
 	backend      string
+	bddStorage   string // BDD_STORAGE: "postgres", "mysql", "cassandra" for in-process DB tests
 	composeFiles []string
 	containerCmd string // "podman" or "docker"
+
+	// sharedDBStore is a long-lived database storage used for in-process KMS tests
+	// against real database backends. Created once in TestMain when BDD_STORAGE is set.
+	sharedDBStore storage.Storage
 
 	// cassandraSession is a long-lived session reused across all BDD scenario cleanups.
 	// gocql sessions are expensive to create (topology discovery, connection pool setup),
@@ -72,6 +80,7 @@ var (
 
 func TestMain(m *testing.M) {
 	backend = os.Getenv("BDD_BACKEND")
+	bddStorage = os.Getenv("BDD_STORAGE")
 	registryURL = os.Getenv("BDD_REGISTRY_URL")
 	webhookURL = os.Getenv("BDD_WEBHOOK_URL")
 
@@ -102,7 +111,26 @@ func TestMain(m *testing.M) {
 		log.Println("Registry is healthy.")
 	}
 
+	// Create shared database store for in-process tests with database backends.
+	// When BDD_STORAGE is set (e.g., "postgres"), @kms scenarios run in-process
+	// using the specified database instead of memory storage. This enables MCP KMS
+	// tests to run against real databases without Docker-mode schema-registry.
+	if bddStorage != "" && bddStorage != "memory" && !dockerMode {
+		var err error
+		sharedDBStore, err = createDBStore(bddStorage)
+		if err != nil {
+			log.Fatalf("Failed to create %s storage for BDD_STORAGE: %v", bddStorage, err)
+		}
+		log.Printf("Using %s storage for in-process KMS tests", bddStorage)
+	}
+
 	code := m.Run()
+
+	// Close shared database store before tearing down containers.
+	if sharedDBStore != nil {
+		sharedDBStore.Close()
+		sharedDBStore = nil
+	}
 
 	// Close the long-lived Cassandra session before tearing down containers.
 	if cassandraSession != nil {
@@ -206,12 +234,17 @@ func newAuthTestServer() (*httptest.Server, storage.Storage, *auth.Service) {
 	return httptest.NewServer(server), store, authService
 }
 
-// newKMSTestServer creates an in-process schema registry with KMS providers configured.
-// It reads KMS_VAULT_ADDR/KMS_VAULT_TOKEN and KMS_BAO_ADDR/KMS_BAO_TOKEN env vars to
-// configure Vault and OpenBao KMS providers respectively.
+// newKMSTestServer creates an in-process schema registry with KMS providers configured
+// using memory storage. It reads KMS_VAULT_ADDR/KMS_VAULT_TOKEN and KMS_BAO_ADDR/KMS_BAO_TOKEN
+// env vars to configure Vault and OpenBao KMS providers respectively.
 func newKMSTestServer() (*httptest.Server, storage.Storage, *registry.Registry) {
-	store := memory.NewStore()
+	return newKMSTestServerWithStore(memory.NewStore())
+}
 
+// newKMSTestServerWithStore creates an in-process schema registry with KMS providers
+// using the provided storage backend. This enables KMS tests (including MCP KMS tests)
+// to run against database backends (PostgreSQL, MySQL, Cassandra) instead of just memory.
+func newKMSTestServerWithStore(store storage.Storage) (*httptest.Server, storage.Storage, *registry.Registry) {
 	schemaRegistry := schema.NewRegistry()
 	schemaRegistry.Register(avro.NewParser())
 	schemaRegistry.Register(protobuf.NewParser())
@@ -256,6 +289,60 @@ func newKMSTestServer() (*httptest.Server, storage.Storage, *registry.Registry) 
 	server := api.NewServer(cfg, reg, logger)
 
 	return httptest.NewServer(server), store, reg
+}
+
+// createDBStore creates a storage backend for in-process testing with an external database.
+// The database must already be running (e.g., via Docker) before calling this function.
+// Migrations are run automatically by the storage constructors.
+func createDBStore(storageType string) (storage.Storage, error) {
+	switch storageType {
+	case "postgres":
+		port, _ := strconv.Atoi(envOrDefault("POSTGRES_PORT", "15432"))
+		return pgstore.NewStore(pgstore.Config{
+			Host:     "localhost",
+			Port:     port,
+			Database: "schemaregistry",
+			Username: "schemaregistry",
+			Password: "schemaregistry",
+			SSLMode:  "disable",
+		})
+	case "mysql":
+		port, _ := strconv.Atoi(envOrDefault("MYSQL_PORT", "13306"))
+		return mysqlstore.NewStore(mysqlstore.Config{
+			Host:     "localhost",
+			Port:     port,
+			Database: "schemaregistry",
+			Username: "schemaregistry",
+			Password: "schemaregistry",
+			TLS:      "false",
+		})
+	case "cassandra":
+		port, _ := strconv.Atoi(envOrDefault("CASSANDRA_PORT", "19042"))
+		return cassandrastore.NewStore(context.Background(), cassandrastore.Config{
+			Hosts:       []string{"localhost"},
+			Port:        port,
+			Keyspace:    "schemaregistry",
+			Consistency: "ONE",
+			Migrate:     true,
+		})
+	default:
+		return nil, fmt.Errorf("unknown BDD_STORAGE type: %s", storageType)
+	}
+}
+
+// cleanDBStore cleans the shared database storage between scenarios.
+// Reuses the existing cleanPostgres/cleanMySQL/cleanCassandra functions.
+func cleanDBStore() error {
+	switch bddStorage {
+	case "postgres":
+		return cleanPostgres()
+	case "mysql":
+		return cleanMySQL()
+	case "cassandra":
+		return cleanCassandra()
+	default:
+		return nil
+	}
 }
 
 func TestFeatures(t *testing.T) {
@@ -326,12 +413,24 @@ func TestFeatures(t *testing.T) {
 				tc = steps.NewTestContext("http://placeholder")
 				var ts *httptest.Server
 				var st storage.Storage
+				var storeOwned bool // false when using sharedDBStore (don't close in After)
 				ctx.Before(func(gctx context.Context, sc *godog.Scenario) (context.Context, error) {
 					var reg *registry.Registry
 					if hasTag(sc, "@kms") {
-						ts, st, reg = newKMSTestServer()
+						if sharedDBStore != nil {
+							// Using database backend: clean between scenarios, reuse store
+							if err := cleanDBStore(); err != nil {
+								return gctx, fmt.Errorf("clean %s storage: %w", bddStorage, err)
+							}
+							ts, st, reg = newKMSTestServerWithStore(sharedDBStore)
+							storeOwned = false
+						} else {
+							ts, st, reg = newKMSTestServer()
+							storeOwned = true
+						}
 					} else {
 						ts, st, reg = newTestServer()
+						storeOwned = true
 					}
 					tc.BaseURL = ts.URL
 					tc.Registry = reg
@@ -342,7 +441,7 @@ func TestFeatures(t *testing.T) {
 					if ts != nil {
 						ts.Close()
 					}
-					if st != nil {
+					if storeOwned && st != nil {
 						st.Close()
 					}
 					return gctx, nil

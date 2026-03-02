@@ -1221,7 +1221,7 @@ jobs:
         working-directory: tests/bdd
         run: docker compose -f docker-compose.kms.yml down -v || true
 
-  # BDD tests — KMS encryption against PostgreSQL backend
+  # BDD tests — KMS encryption against PostgreSQL backend (in-process server + Docker DB)
   bdd-kms-postgres-tests:
     name: BDD Tests (KMS + PostgreSQL)
     runs-on: ubuntu-latest
@@ -1237,12 +1237,35 @@ jobs:
       - name: Download dependencies
         run: go mod download
 
-      - name: Run BDD KMS tests (postgres backend)
+      - name: Start PostgreSQL
+        run: |
+          docker run -d --name bdd-postgres \
+            -e POSTGRES_USER=schemaregistry \
+            -e POSTGRES_PASSWORD=schemaregistry \
+            -e POSTGRES_DB=schemaregistry \
+            -p 15432:5432 \
+            postgres:16
+          for i in $(seq 1 30); do
+            docker exec bdd-postgres pg_isready -U schemaregistry > /dev/null 2>&1 && break
+            sleep 2
+          done
+          echo "PostgreSQL is ready"
+
+      - name: Start KMS services (Vault + OpenBao)
+        working-directory: tests/bdd
+        run: |
+          docker compose -f docker-compose.kms.yml up -d vault openbao
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:18200/v1/sys/health > /dev/null 2>&1 && \
+            curl -sf http://localhost:18201/v1/sys/health > /dev/null 2>&1 && break
+            sleep 2
+          done
+          docker compose -f docker-compose.kms.yml run --rm setup-kms
+
+      - name: Run BDD KMS tests (postgres backend, in-process)
         env:
-          BDD_BACKEND: postgres
-          BDD_KMS: "true"
-          BDD_TAGS: "@kms && ~@mcp"
-          CONTAINER_CMD: docker
+          BDD_STORAGE: postgres
+          BDD_TAGS: "@kms"
           KMS_VAULT_ADDR: "http://localhost:18200"
           KMS_VAULT_TOKEN: "test-root-token"
           KMS_BAO_ADDR: "http://localhost:18201"
@@ -1251,15 +1274,17 @@ jobs:
 
       - name: Show container logs on failure
         if: failure()
-        working-directory: tests/bdd
-        run: docker compose -f docker-compose.base.yml -f docker-compose.postgres.yml -f docker-compose.kms-overlay.yml logs --tail=100 || true
+        run: |
+          docker logs bdd-postgres 2>&1 | tail -100 || true
+          cd tests/bdd && docker compose -f docker-compose.kms.yml logs --tail=100 || true
 
       - name: Cleanup containers
         if: always()
-        working-directory: tests/bdd
-        run: docker compose -f docker-compose.base.yml -f docker-compose.postgres.yml -f docker-compose.kms-overlay.yml down -v || true
+        run: |
+          docker rm -f bdd-postgres || true
+          cd tests/bdd && docker compose -f docker-compose.kms.yml down -v || true
 
-  # BDD tests — KMS encryption against MySQL backend
+  # BDD tests — KMS encryption against MySQL backend (in-process server + Docker DB)
   bdd-kms-mysql-tests:
     name: BDD Tests (KMS + MySQL)
     runs-on: ubuntu-latest
@@ -1275,12 +1300,37 @@ jobs:
       - name: Download dependencies
         run: go mod download
 
-      - name: Run BDD KMS tests (mysql backend)
+      - name: Start MySQL
+        run: |
+          docker run -d --name bdd-mysql \
+            -e MYSQL_DATABASE=schemaregistry \
+            -e MYSQL_USER=schemaregistry \
+            -e MYSQL_PASSWORD=schemaregistry \
+            -e MYSQL_ROOT_PASSWORD=root \
+            -p 13306:3306 \
+            mysql:8.0
+          echo "Waiting for MySQL to be ready..."
+          for i in $(seq 1 60); do
+            docker exec bdd-mysql mysql -h 127.0.0.1 -uschemaregistry -pschemaregistry -e 'SELECT 1' > /dev/null 2>&1 && break
+            sleep 2
+          done
+          echo "MySQL is ready"
+
+      - name: Start KMS services (Vault + OpenBao)
+        working-directory: tests/bdd
+        run: |
+          docker compose -f docker-compose.kms.yml up -d vault openbao
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:18200/v1/sys/health > /dev/null 2>&1 && \
+            curl -sf http://localhost:18201/v1/sys/health > /dev/null 2>&1 && break
+            sleep 2
+          done
+          docker compose -f docker-compose.kms.yml run --rm setup-kms
+
+      - name: Run BDD KMS tests (mysql backend, in-process)
         env:
-          BDD_BACKEND: mysql
-          BDD_KMS: "true"
-          BDD_TAGS: "@kms && ~@mcp"
-          CONTAINER_CMD: docker
+          BDD_STORAGE: mysql
+          BDD_TAGS: "@kms"
           KMS_VAULT_ADDR: "http://localhost:18200"
           KMS_VAULT_TOKEN: "test-root-token"
           KMS_BAO_ADDR: "http://localhost:18201"
@@ -1289,15 +1339,17 @@ jobs:
 
       - name: Show container logs on failure
         if: failure()
-        working-directory: tests/bdd
-        run: docker compose -f docker-compose.base.yml -f docker-compose.mysql.yml -f docker-compose.kms-overlay.yml logs --tail=100 || true
+        run: |
+          docker logs bdd-mysql 2>&1 | tail -100 || true
+          cd tests/bdd && docker compose -f docker-compose.kms.yml logs --tail=100 || true
 
       - name: Cleanup containers
         if: always()
-        working-directory: tests/bdd
-        run: docker compose -f docker-compose.base.yml -f docker-compose.mysql.yml -f docker-compose.kms-overlay.yml down -v || true
+        run: |
+          docker rm -f bdd-mysql || true
+          cd tests/bdd && docker compose -f docker-compose.kms.yml down -v || true
 
-  # BDD tests — KMS encryption against Cassandra backend
+  # BDD tests — KMS encryption against Cassandra backend (in-process server + Docker DB)
   bdd-kms-cassandra-tests:
     name: BDD Tests (KMS + Cassandra)
     runs-on: ubuntu-latest
@@ -1313,12 +1365,36 @@ jobs:
       - name: Download dependencies
         run: go mod download
 
-      - name: Run BDD KMS tests (cassandra backend)
+      - name: Start Cassandra
+        run: |
+          docker run -d --name bdd-cassandra \
+            -e CASSANDRA_CLUSTER_NAME=bdd-cluster \
+            -e MAX_HEAP_SIZE=256M \
+            -e HEAP_NEWSIZE=128M \
+            -p 19042:9042 \
+            cassandra:5.0
+          echo "Waiting for Cassandra to be ready..."
+          for i in $(seq 1 60); do
+            docker exec bdd-cassandra cqlsh -e "CREATE KEYSPACE IF NOT EXISTS schemaregistry WITH replication = {'class':'SimpleStrategy','replication_factor':1}" > /dev/null 2>&1 && break
+            sleep 3
+          done
+          echo "Cassandra is ready"
+
+      - name: Start KMS services (Vault + OpenBao)
+        working-directory: tests/bdd
+        run: |
+          docker compose -f docker-compose.kms.yml up -d vault openbao
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:18200/v1/sys/health > /dev/null 2>&1 && \
+            curl -sf http://localhost:18201/v1/sys/health > /dev/null 2>&1 && break
+            sleep 2
+          done
+          docker compose -f docker-compose.kms.yml run --rm setup-kms
+
+      - name: Run BDD KMS tests (cassandra backend, in-process)
         env:
-          BDD_BACKEND: cassandra
-          BDD_KMS: "true"
-          BDD_TAGS: "@kms && ~@mcp"
-          CONTAINER_CMD: docker
+          BDD_STORAGE: cassandra
+          BDD_TAGS: "@kms"
           KMS_VAULT_ADDR: "http://localhost:18200"
           KMS_VAULT_TOKEN: "test-root-token"
           KMS_BAO_ADDR: "http://localhost:18201"
@@ -1327,13 +1403,15 @@ jobs:
 
       - name: Show container logs on failure
         if: failure()
-        working-directory: tests/bdd
-        run: docker compose -f docker-compose.base.yml -f docker-compose.cassandra.yml -f docker-compose.kms-overlay.yml logs --tail=100 || true
+        run: |
+          docker logs bdd-cassandra 2>&1 | tail -100 || true
+          cd tests/bdd && docker compose -f docker-compose.kms.yml logs --tail=100 || true
 
       - name: Cleanup containers
         if: always()
-        working-directory: tests/bdd
-        run: docker compose -f docker-compose.base.yml -f docker-compose.cassandra.yml -f docker-compose.kms-overlay.yml down -v || true
+        run: |
+          docker rm -f bdd-cassandra || true
+          cd tests/bdd && docker compose -f docker-compose.kms.yml down -v || true
 
   # Java Data Contract & CSFLE tests — Java Confluent SerDe with rule execution + Vault encryption
   java-data-contract-csfle-tests:
