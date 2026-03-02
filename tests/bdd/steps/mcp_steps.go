@@ -163,6 +163,35 @@ func RegisterMCPSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 		return nil
 	})
 
+	ctx.Step(`^I call MCP tool "([^"]*)" with JSON input:$`, func(toolName string, body *godog.DocString) error {
+		cs, err := getMCPSession(tc)
+		if err != nil {
+			return err
+		}
+
+		var args map[string]any
+		if err := json.Unmarshal([]byte(body.Content), &args); err != nil {
+			return fmt.Errorf("invalid JSON input: %w", err)
+		}
+
+		result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+			Name:      toolName,
+			Arguments: args,
+		})
+		if err != nil {
+			tc.MCPError = err
+			tc.MCPResultText = ""
+			return nil
+		}
+		tc.MCPError = nil
+		text, err := extractText(result)
+		if err != nil {
+			return err
+		}
+		tc.MCPResultText = text
+		return nil
+	})
+
 	ctx.Step(`^the MCP result should contain "([^"]*)"$`, func(expected string) error {
 		if tc.MCPError != nil {
 			return fmt.Errorf("MCP call failed: %v", tc.MCPError)

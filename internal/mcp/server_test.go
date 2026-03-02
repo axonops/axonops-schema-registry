@@ -755,6 +755,62 @@ func TestDeleteMode(t *testing.T) {
 	}
 }
 
+// --- Phase 5: Context & import tool tests ---
+
+func TestListContexts(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name: "list_contexts",
+	})
+	if err != nil {
+		t.Fatalf("CallTool: %v", err)
+	}
+	text := resultText(t, result)
+	// Default context "." should be present
+	if !strings.Contains(text, ".") {
+		t.Errorf("expected default context in result, got: %s", text)
+	}
+}
+
+func TestImportSchemas(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	// Set mode to IMPORT first
+	_, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name:      "set_mode",
+		Arguments: map[string]any{"mode": "IMPORT"},
+	})
+	if err != nil {
+		t.Fatalf("set_mode: %v", err)
+	}
+
+	// Import a schema with specific ID
+	result, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name: "import_schemas",
+		Arguments: map[string]any{
+			"schemas": []any{
+				map[string]any{
+					"id":      100,
+					"subject": "import-test",
+					"version": 1,
+					"schema":  `{"type":"string"}`,
+				},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("CallTool: %v", err)
+	}
+	if result.IsError {
+		t.Fatalf("expected success, got error: %s", resultText(t, result))
+	}
+	text := resultText(t, result)
+	if !strings.Contains(text, `"Imported":1`) {
+		t.Errorf("expected 1 imported, got: %s", text)
+	}
+}
+
 // resultText extracts the text from the first TextContent in a CallToolResult.
 func resultText(t *testing.T, result *gomcp.CallToolResult) string {
 	t.Helper()
