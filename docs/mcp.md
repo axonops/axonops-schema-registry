@@ -294,9 +294,9 @@ When `mcp.read_only: true`, only tools annotated with `ReadOnlyHint: true` are r
 
 ## Resources
 
-The MCP server exposes **21 resources** — data endpoints that AI clients can read directly without calling tools.
+The MCP server exposes **31 resources** — data endpoints that AI clients can read directly without calling tools.
 
-### Static Resources (9)
+### Static Resources (19)
 
 | URI | Name | Description |
 |-----|------|-------------|
@@ -309,6 +309,16 @@ The MCP server exposes **21 resources** — data endpoints that AI clients can r
 | `schema://keks` | `keks` | List of all KEKs |
 | `schema://exporters` | `exporters` | List of all exporter names |
 | `schema://status` | `server-status` | Server health and storage connectivity |
+| `schema://glossary/core-concepts` | `glossary-core-concepts` | Schema registry fundamentals: subjects, versions, IDs, modes, naming strategies |
+| `schema://glossary/compatibility` | `glossary-compatibility` | All 7 compatibility modes, per-format rules, transitive semantics |
+| `schema://glossary/data-contracts` | `glossary-data-contracts` | Metadata, tags, rulesets, 3-layer merge, optimistic concurrency |
+| `schema://glossary/encryption` | `glossary-encryption` | CSFLE: envelope encryption, KEK/DEK model, KMS providers, algorithms |
+| `schema://glossary/contexts` | `glossary-contexts` | Multi-tenancy, default context, __GLOBAL, 4-tier inheritance |
+| `schema://glossary/exporters` | `glossary-exporters` | Schema linking, exporter lifecycle, context types |
+| `schema://glossary/schema-types` | `glossary-schema-types` | Avro, Protobuf, JSON Schema deep reference |
+| `schema://glossary/design-patterns` | `glossary-design-patterns` | Event envelope, entity lifecycle, snapshot vs delta, shared types |
+| `schema://glossary/best-practices` | `glossary-best-practices` | Per-format guidance, naming, evolution, common mistakes |
+| `schema://glossary/migration` | `glossary-migration` | Confluent migration, IMPORT mode, ID preservation |
 
 ### Templated Resources (12)
 
@@ -329,7 +339,9 @@ The MCP server exposes **21 resources** — data endpoints that AI clients can r
 
 ## Prompts
 
-The MCP server provides **17 prompts** — guided workflows that AI assistants can use to walk users through complex operations.
+The MCP server provides **25 prompts** — guided workflows that AI assistants can use to walk users through complex operations.
+
+> The MCP server also returns **server instructions** during the `initialize` handshake, providing AI clients with capabilities overview, glossary resource URIs, and critical rules for schema registry operations.
 
 ### Schema Design & Evolution
 
@@ -367,6 +379,19 @@ The MCP server provides **17 prompts** — guided workflows that AI assistants c
 | `debug-registration-error` | `error_code` | — | Debug a specific error code (42201, 409, 40401, etc.) |
 | `schema-naming-conventions` | — | — | Subject naming strategies and best practices |
 | `context-management` | — | — | Multi-tenant contexts and 4-tier config inheritance |
+
+### Domain Knowledge & Guided Workflows
+
+| Prompt | Required Args | Optional Args | Description |
+|--------|---------------|---------------|-------------|
+| `glossary-lookup` | `topic` | — | Maps a keyword to the relevant glossary resource URI |
+| `import-from-confluent` | — | — | Step-by-step Confluent migration with tool names |
+| `setup-rbac` | — | — | Auth/RBAC configuration guide with 4 roles |
+| `schema-references-guide` | — | — | Cross-subject references with per-format name semantics |
+| `full-encryption-lifecycle` | — | — | End-to-end CSFLE: KEK creation, DEK management, rotation, rewrap |
+| `data-rules-deep-dive` | — | — | Comprehensive data contract rules with examples |
+| `registry-health-audit` | — | — | Multi-step registry health check procedure |
+| `schema-evolution-cookbook` | — | — | Practical recipes for common evolution scenarios |
 
 ## Security
 

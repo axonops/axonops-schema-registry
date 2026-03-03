@@ -4,7 +4,7 @@
 >
 > Regenerate with: `go run ./cmd/generate-mcp-docs > docs/mcp-reference.md`
 
-**105 tools** (71 read-only, 34 write) | **21 resources** (9 static, 12 templated) | **17 prompts**
+**105 tools** (71 read-only, 34 write) | **31 resources** (19 static, 12 templated) | **25 prompts**
 
 ## Contents
 
@@ -21,7 +21,7 @@
 | 1 | `change_password` |  | Change a user's password. Requires the user's ID, old password, and new password. |
 | 2 | `check_compatibility` | Yes | Check if a schema is compatible with existing versions of a subject according to the configured compatibility level |
 | 3 | `check_compatibility_multi` | Yes | Check schema compatibility against multiple subjects at once, returning per-subject results. |
-| 4 | `check_field_consistency` | Yes | Check if a field name is used consistently (same type) across all schemas in the registry. |
+| 4 | `check_field_consistency` | Yes | Check if a field name is used with the same type across all schemas. Generates naming variants (snake_case, camelCase... |
 | 5 | `check_write_mode` | Yes | Check if write operations are allowed for a subject. Returns the blocking mode name (READONLY or READONLY_OVERRIDE) o... |
 | 6 | `compare_subjects` | Yes | Compare the latest schemas of two different subjects, showing structural differences. |
 | 7 | `count_subjects` | Yes | Count the total number of registered subjects in the registry. |
@@ -41,13 +41,13 @@
 | 21 | `delete_user` |  | Delete a user by ID. |
 | 22 | `delete_version` |  | Delete a specific schema version. Soft-deletes by default; use permanent=true for hard delete (requires prior soft-de... |
 | 23 | `detect_schema_patterns` | Yes | Scan the registry to detect naming patterns, common field groups, and evolution statistics. |
-| 24 | `diff_schemas` | Yes | Diff two schema versions within a subject, showing added, removed, and modified fields. |
+| 24 | `diff_schemas` | Yes | Diff two schema versions within a subject, showing added, removed, and type-changed fields. Fields are extracted from... |
 | 25 | `explain_compatibility_failure` | Yes | Run a compatibility check and provide detailed, human-readable explanations of any failures. |
 | 26 | `export_schema` | Yes | Export a single schema version with its configuration and metadata in a portable format. |
 | 27 | `export_subject` | Yes | Export all schema versions for a subject with configuration and metadata. |
-| 28 | `find_schemas_by_field` | Yes | Find all schemas containing a field with the given name. Supports exact, fuzzy, and regex matching. |
+| 28 | `find_schemas_by_field` | Yes | Find all schemas containing a field with the given name. Exact mode auto-generates naming variants (snake_case, camel... |
 | 29 | `find_schemas_by_type` | Yes | Find all schemas containing fields of a given type (e.g., 'int', 'string', 'record'). |
-| 30 | `find_similar_schemas` | Yes | Find schemas similar to a given subject by comparing field sets using Jaccard similarity. |
+| 30 | `find_similar_schemas` | Yes | Find schemas structurally similar to a given subject using Jaccard similarity coefficient (|shared fields| / |total u... |
 | 31 | `format_schema` | Yes | Format a schema by subject and version. Supported formats depend on schema type. Returns the formatted schema string. |
 | 32 | `get_apikey` | Yes | Get an API key by ID. |
 | 33 | `get_cluster_id` | Yes | Get the schema registry cluster ID. |
@@ -68,7 +68,7 @@
 | 48 | `get_referenced_by` | Yes | Get schemas that reference a specific subject-version pair |
 | 49 | `get_registry_statistics` | Yes | Get aggregate statistics about the registry: total subjects, schemas, types breakdown, KEKs, DEKs, and exporters. |
 | 50 | `get_schema_by_id` | Yes | Get a schema by its global ID, returning the full schema record including subject, version, type, and schema content |
-| 51 | `get_schema_complexity` | Yes | Compute complexity metrics for a schema: field count, nesting depth, union count, and more. |
+| 51 | `get_schema_complexity` | Yes | Compute complexity metrics and grade (A-D) for a schema. Measures field_count (total fields including nested) and max... |
 | 52 | `get_schema_history` | Yes | Get the full version history for a subject, including schema content and metadata for each version. |
 | 53 | `get_schema_types` | Yes | Get the list of supported schema types (e.g. AVRO, PROTOBUF, JSON) |
 | 54 | `get_schema_version` | Yes | Get a schema by subject name and version number |
@@ -95,7 +95,7 @@
 | 75 | `list_users` | Yes | List all users in the schema registry. |
 | 76 | `list_versions` | Yes | List all version numbers registered for a subject |
 | 77 | `lookup_schema` | Yes | Check if a schema is already registered under a subject. Returns the existing schema record if found. |
-| 78 | `match_subjects` | Yes | Find subjects matching a regex, glob, or substring pattern. |
+| 78 | `match_subjects` | Yes | Find subjects matching a pattern. Regex mode compiles as Go regex. Glob mode uses wildcard matching (case-insensitive... |
 | 79 | `normalize_schema` | Yes | Parse and normalize a schema, returning the canonical form and fingerprint for deduplication. |
 | 80 | `pause_exporter` |  | Pause a running exporter. The exporter retains its current offset and can be resumed later. |
 | 81 | `plan_migration_path` | Yes | Compute a multi-step migration plan from a source schema to a target schema, decomposed into individually compatible ... |
@@ -106,12 +106,12 @@
 | 86 | `revoke_apikey` |  | Revoke (disable) an API key without deleting it. |
 | 87 | `rewrap_dek` |  | Re-encrypt a DEK's key material under the current KEK key version. Used after KEK rotation. |
 | 88 | `rotate_apikey` |  | Rotate an API key: creates a new key with the same settings and revokes the old one. Returns the new raw key (only sh... |
-| 89 | `score_schema_quality` | Yes | Evaluate a schema's quality based on naming, documentation, type safety, and evolution readiness. |
+| 89 | `score_schema_quality` | Yes | Score a schema's quality (0-100, grades A-F) across four categories: Naming (25 pts, checks snake_case convention), D... |
 | 90 | `search_schemas` | Yes | Search schema content across all subjects using a regex or substring pattern. |
 | 91 | `set_config` |  | Set the compatibility level for a subject or globally. Valid levels: NONE, BACKWARD, BACKWARD_TRANSITIVE, FORWARD, FO... |
 | 92 | `set_config_full` |  | Set the full configuration for a subject or globally, including compatibility level plus optional data contract field... |
 | 93 | `set_mode` |  | Set the registry mode for a subject or globally. Valid modes: READWRITE, READONLY, READONLY_OVERRIDE, IMPORT |
-| 94 | `suggest_compatible_change` | Yes | Get rule-based advice on how to make a compatible change to a schema given its compatibility level. |
+| 94 | `suggest_compatible_change` | Yes | Get rule-based advice for compatible schema changes based on the subject's compatibility level. BACKWARD: add fields ... |
 | 95 | `suggest_schema_evolution` | Yes | Generate concrete schema code for a compatible evolution step (add field, deprecate field, add enum symbol). |
 | 96 | `test_kek` |  | Test a KEK's KMS connectivity by performing a round-trip encrypt/decrypt test. Requires a KMS provider to be configured. |
 | 97 | `undelete_dek` |  | Restore a soft-deleted Data Encryption Key (DEK). |
@@ -177,7 +177,7 @@ Check schema compatibility against multiple subjects at once, returning per-subj
 
 #### `check_field_consistency`
 
-Check if a field name is used consistently (same type) across all schemas in the registry.
+Check if a field name is used with the same type across all schemas. Generates naming variants (snake_case, camelCase, PascalCase, kebab-case) to match fields regardless of convention. Reports type_counts map and per-subject usages. Detects type drift (e.g., user_id as long in one schema and string in another).
 
 **Annotations:** read-only
 
@@ -463,7 +463,7 @@ Scan the registry to detect naming patterns, common field groups, and evolution 
 
 #### `diff_schemas`
 
-Diff two schema versions within a subject, showing added, removed, and modified fields.
+Diff two schema versions within a subject, showing added, removed, and type-changed fields. Fields are extracted from both versions and matched using normalized snake_case names. If version2 is omitted, diffs against the latest version.
 
 **Annotations:** read-only
 
@@ -526,7 +526,7 @@ Export all schema versions for a subject with configuration and metadata.
 
 #### `find_schemas_by_field`
 
-Find all schemas containing a field with the given name. Supports exact, fuzzy, and regex matching.
+Find all schemas containing a field with the given name. Exact mode auto-generates naming variants (snake_case, camelCase, PascalCase, kebab-case). Fuzzy mode uses Levenshtein distance with configurable threshold (default 0.7). Regex mode compiles the field name as a regular expression.
 
 **Annotations:** read-only
 
@@ -557,7 +557,7 @@ Find all schemas containing fields of a given type (e.g., 'int', 'string', 'reco
 
 #### `find_similar_schemas`
 
-Find schemas similar to a given subject by comparing field sets using Jaccard similarity.
+Find schemas structurally similar to a given subject using Jaccard similarity coefficient (|shared fields| / |total unique fields|). Field names are normalized to snake_case before comparison. Returns similarity scores (0.0-1.0) and lists of shared fields.
 
 **Annotations:** read-only
 
@@ -839,7 +839,7 @@ Get a schema by its global ID, returning the full schema record including subjec
 
 #### `get_schema_complexity`
 
-Compute complexity metrics for a schema: field count, nesting depth, union count, and more.
+Compute complexity metrics and grade (A-D) for a schema. Measures field_count (total fields including nested) and max_depth (deepest nesting level via dot-notation paths). Grades: A (≤15 fields, ≤3 depth), B (≤30, ≤4), C (≤50, ≤5), D (>50 or >5). Grade D schemas should be decomposed into referenced sub-schemas.
 
 **Annotations:** read-only
 
@@ -1191,7 +1191,7 @@ Check if a schema is already registered under a subject. Returns the existing sc
 
 #### `match_subjects`
 
-Find subjects matching a regex, glob, or substring pattern.
+Find subjects matching a pattern. Regex mode compiles as Go regex. Glob mode uses wildcard matching (case-insensitive). Fuzzy mode uses Levenshtein distance with configurable threshold (default 0.6).
 
 **Annotations:** read-only
 
@@ -1346,7 +1346,7 @@ Rotate an API key: creates a new key with the same settings and revokes the old 
 
 #### `score_schema_quality`
 
-Evaluate a schema's quality based on naming, documentation, type safety, and evolution readiness.
+Score a schema's quality (0-100, grades A-F) across four categories: Naming (25 pts, checks snake_case convention), Documentation (25 pts, checks field doc/description coverage), Type Safety (25 pts, penalizes generic types like string/bytes/any/object), Evolution Readiness (25 pts, checks for defaults, namespace, and schema-level docs). Returns per-category breakdown and actionable quick_wins.
 
 **Annotations:** read-only
 
@@ -1431,7 +1431,7 @@ Set the registry mode for a subject or globally. Valid modes: READWRITE, READONL
 
 #### `suggest_compatible_change`
 
-Get rule-based advice on how to make a compatible change to a schema given its compatibility level.
+Get rule-based advice for compatible schema changes based on the subject's compatibility level. BACKWARD: add fields with defaults, don't remove. FORWARD: remove fields, don't add required. FULL: only add optional fields with defaults. NONE: any change allowed.
 
 **Annotations:** read-only
 
@@ -1619,6 +1619,16 @@ Validate a subject name against a naming strategy (topic_name, record_name, or t
 |-----|------|-------------|
 | `schema://contexts` | `contexts` | List of all registry contexts (tenant namespaces) |
 | `schema://exporters` | `exporters` | List of all schema exporter names |
+| `schema://glossary/best-practices` | `glossary-best-practices` | Actionable best practices for Avro, Protobuf, and JSON Schema: field naming, nullability, evolution readiness, common mistakes, and per-format guidance |
+| `schema://glossary/compatibility` | `glossary-compatibility` | All 7 compatibility modes, Avro type promotions, Protobuf wire types, JSON Schema constraints, transitive semantics, and configuration resolution |
+| `schema://glossary/contexts` | `glossary-contexts` | Multi-tenancy via contexts: default context, __GLOBAL, qualified subjects, URL routing, isolation guarantees, and 4-tier config/mode inheritance |
+| `schema://glossary/core-concepts` | `glossary-core-concepts` | Schema registry fundamentals: what a schema registry is, subjects, versions, IDs, deduplication, modes, naming strategies, and the serialization flow |
+| `schema://glossary/data-contracts` | `glossary-data-contracts` | Data contracts: metadata properties, tags, sensitive fields, rulesets (domain/migration/encoding), rule structure, 3-layer merge, and optimistic concurrency |
+| `schema://glossary/design-patterns` | `glossary-design-patterns` | Common schema design patterns: event envelope, entity lifecycle, snapshot vs delta, fat vs thin events, shared types, three-phase rename, and CI/CD integration |
+| `schema://glossary/encryption` | `glossary-encryption` | Client-side field level encryption (CSFLE): envelope encryption, KEK/DEK model, KMS providers, algorithms, key rotation, and rewrapping |
+| `schema://glossary/exporters` | `glossary-exporters` | Schema linking via exporters: exporter model, lifecycle states (STARTING/RUNNING/PAUSED/ERROR), context types (AUTO/CUSTOM/NONE), and configuration |
+| `schema://glossary/migration` | `glossary-migration` | Confluent migration: step-by-step procedure, IMPORT mode, ID preservation, the import API, verification, and rollback |
+| `schema://glossary/schema-types` | `glossary-schema-types` | Deep reference for Avro (types, logical types, aliases, canonicalization), Protobuf (proto3, well-known types, wire types), and JSON Schema (drafts, keywords, combinators) |
 | `schema://keks` | `keks` | List of all Key Encryption Keys (KEKs) for client-side field encryption |
 | `schema://mode` | `global-mode` | Global registry mode (READWRITE, READONLY, READONLY_OVERRIDE, IMPORT) |
 | `schema://server/config` | `server-config` | Global compatibility level and registry mode configuration |
@@ -1655,17 +1665,25 @@ Validate a subject name against a naming strategy (topic_name, record_name, or t
 | `compare-formats` | Help choose between Avro, Protobuf, and JSON Schema for a use case | `use_case` (required) |
 | `configure-exporter` | Guide for setting up schema linking via an exporter | `exporter_type` |
 | `context-management` | Guide for managing multi-tenant contexts and the 4-tier config/mode inheritance chain | — |
+| `data-rules-deep-dive` | Comprehensive guide to data contract rules: domain, migration, and encoding rules with examples | — |
 | `debug-registration-error` | Debug schema registration failures by error code | `error_code` (required) |
 | `design-schema` | Guide for designing a new schema in the chosen format | `format` (required), `domain` |
 | `evolve-schema` | Guide for safely evolving an existing schema with backward compatibility | `subject` (required) |
+| `full-encryption-lifecycle` | End-to-end CSFLE workflow: KEK creation, DEK management, key rotation, rewrapping, and cleanup | — |
+| `glossary-lookup` | Look up a schema registry concept and get directed to the relevant glossary resource | `topic` (required) |
+| `import-from-confluent` | Step-by-step guide for migrating schemas from Confluent Schema Registry with ID preservation | — |
 | `migrate-schemas` | Guide for migrating schemas between formats (e.g. Avro to Protobuf) | `source_format` (required), `target_format` (required) |
 | `plan-breaking-change` | Plan a safe breaking schema change with migration strategy | `subject` (required) |
+| `registry-health-audit` | Multi-step procedure for auditing registry health, configuration consistency, and schema quality | — |
 | `review-schema-quality` | Analyze a schema for naming conventions, nullability, documentation, and best practices | `subject` (required) |
+| `schema-evolution-cookbook` | Practical recipes for common schema evolution scenarios: add fields, rename, change types, and break compatibility safely | — |
 | `schema-getting-started` | Quick-start guide introducing available tools and common schema registry operations | — |
 | `schema-impact-analysis` | Guided workflow for assessing the impact of a proposed schema change across dependents | `subject` (required) |
 | `schema-naming-conventions` | Guide to subject naming strategies (topic_name, record_name, topic_record_name) | — |
+| `schema-references-guide` | Guide for cross-subject schema references with per-format name semantics (Avro, Protobuf, JSON Schema) | — |
 | `setup-data-contracts` | Guide for adding metadata, tags, and data quality rules to schemas | `subject` (required) |
 | `setup-encryption` | Guide for setting up client-side field encryption with KEK/DEK | `kms_type` (required) |
+| `setup-rbac` | Guide for configuring authentication and role-based access control (RBAC) | — |
 | `troubleshooting` | Diagnostic guide for common schema registry issues and errors | — |
 
 ### Prompt Details
@@ -1724,6 +1742,12 @@ Guide for managing multi-tenant contexts and the 4-tier config/mode inheritance 
 
 ---
 
+#### `data-rules-deep-dive`
+
+Comprehensive guide to data contract rules: domain, migration, and encoding rules with examples
+
+---
+
 #### `debug-registration-error`
 
 Debug schema registration failures by error code
@@ -1761,6 +1785,30 @@ Guide for safely evolving an existing schema with backward compatibility
 
 ---
 
+#### `full-encryption-lifecycle`
+
+End-to-end CSFLE workflow: KEK creation, DEK management, key rotation, rewrapping, and cleanup
+
+---
+
+#### `glossary-lookup`
+
+Look up a schema registry concept and get directed to the relevant glossary resource
+
+**Arguments:**
+
+| Name | Required | Description |
+|------|----------|-------------|
+| `topic` | Yes | Keyword or concept to look up (e.g. compatibility, CSFLE, contexts, avro) |
+
+---
+
+#### `import-from-confluent`
+
+Step-by-step guide for migrating schemas from Confluent Schema Registry with ID preservation
+
+---
+
 #### `migrate-schemas`
 
 Guide for migrating schemas between formats (e.g. Avro to Protobuf)
@@ -1786,6 +1834,12 @@ Plan a safe breaking schema change with migration strategy
 
 ---
 
+#### `registry-health-audit`
+
+Multi-step procedure for auditing registry health, configuration consistency, and schema quality
+
+---
+
 #### `review-schema-quality`
 
 Analyze a schema for naming conventions, nullability, documentation, and best practices
@@ -1795,6 +1849,12 @@ Analyze a schema for naming conventions, nullability, documentation, and best pr
 | Name | Required | Description |
 |------|----------|-------------|
 | `subject` | Yes | Subject name of the schema to review |
+
+---
+
+#### `schema-evolution-cookbook`
+
+Practical recipes for common schema evolution scenarios: add fields, rename, change types, and break compatibility safely
 
 ---
 
@@ -1822,6 +1882,12 @@ Guide to subject naming strategies (topic_name, record_name, topic_record_name)
 
 ---
 
+#### `schema-references-guide`
+
+Guide for cross-subject schema references with per-format name semantics (Avro, Protobuf, JSON Schema)
+
+---
+
 #### `setup-data-contracts`
 
 Guide for adding metadata, tags, and data quality rules to schemas
@@ -1843,6 +1909,12 @@ Guide for setting up client-side field encryption with KEK/DEK
 | Name | Required | Description |
 |------|----------|-------------|
 | `kms_type` | Yes | KMS provider type (e.g. aws-kms, azure-kms, gcp-kms, hcvault) |
+
+---
+
+#### `setup-rbac`
+
+Guide for configuring authentication and role-based access control (RBAC)
 
 ---
 
