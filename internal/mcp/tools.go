@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"regexp"
 	"strings"
 	"time"
 
@@ -80,6 +81,7 @@ func (s *Server) handleGetServerInfo(_ context.Context, _ *gomcp.CallToolRequest
 type listSubjectsInput struct {
 	Deleted bool   `json:"deleted,omitempty"`
 	Prefix  string `json:"prefix,omitempty"`
+	Pattern string `json:"pattern,omitempty"`
 }
 
 func (s *Server) handleListSubjects(ctx context.Context, _ *gomcp.CallToolRequest, input listSubjectsInput) (*gomcp.CallToolResult, any, error) {
@@ -97,6 +99,25 @@ func (s *Server) handleListSubjects(ctx context.Context, _ *gomcp.CallToolReques
 		var filtered []string
 		for _, subj := range subjects {
 			if strings.HasPrefix(subj, input.Prefix) {
+				filtered = append(filtered, subj)
+			}
+		}
+		subjects = filtered
+	}
+
+	if input.Pattern != "" {
+		re, err := regexp.Compile(input.Pattern)
+		if err != nil {
+			return &gomcp.CallToolResult{
+				Content: []gomcp.Content{
+					&gomcp.TextContent{Text: fmt.Sprintf("error: invalid regex pattern: %v", err)},
+				},
+				IsError: true,
+			}, nil, nil
+		}
+		var filtered []string
+		for _, subj := range subjects {
+			if re.MatchString(subj) {
 				filtered = append(filtered, subj)
 			}
 		}

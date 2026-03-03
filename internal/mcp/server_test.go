@@ -190,6 +190,65 @@ func TestListSubjectsWithPrefix(t *testing.T) {
 	}
 }
 
+func TestListSubjectsWithPattern(t *testing.T) {
+	cs, reg := newTestMCPClient(t)
+
+	ctx := context.Background()
+	for _, subj := range []string{"orders-value", "users-value", "orders-key", "payments-value"} {
+		_, err := reg.RegisterSchema(ctx, ".", subj, `{"type":"string"}`, storage.SchemaTypeAvro, nil)
+		if err != nil {
+			t.Fatalf("RegisterSchema(%s): %v", subj, err)
+		}
+	}
+
+	// Pattern matching: only *-value subjects
+	result, err := cs.CallTool(ctx, &gomcp.CallToolParams{
+		Name:      "list_subjects",
+		Arguments: map[string]any{"pattern": ".*-value$"},
+	})
+	if err != nil {
+		t.Fatalf("CallTool: %v", err)
+	}
+
+	text := resultText(t, result)
+	var subjects []string
+	if err := json.Unmarshal([]byte(text), &subjects); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if len(subjects) != 3 {
+		t.Fatalf("expected 3 subjects matching .*-value$, got: %v", subjects)
+	}
+
+	// Combined prefix + pattern
+	result, err = cs.CallTool(ctx, &gomcp.CallToolParams{
+		Name:      "list_subjects",
+		Arguments: map[string]any{"prefix": "orders", "pattern": ".*-value$"},
+	})
+	if err != nil {
+		t.Fatalf("CallTool: %v", err)
+	}
+
+	text = resultText(t, result)
+	if err := json.Unmarshal([]byte(text), &subjects); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if len(subjects) != 1 || subjects[0] != "orders-value" {
+		t.Fatalf("expected [orders-value], got: %v", subjects)
+	}
+
+	// Invalid regex returns error
+	result, err = cs.CallTool(ctx, &gomcp.CallToolParams{
+		Name:      "list_subjects",
+		Arguments: map[string]any{"pattern": "[invalid"},
+	})
+	if err != nil {
+		t.Fatalf("CallTool: %v", err)
+	}
+	if !result.IsError {
+		t.Fatal("expected error for invalid regex pattern")
+	}
+}
+
 // --- Phase 2: Schema read tool tests ---
 
 func registerTestSchema(t *testing.T, reg *registry.Registry, subject, schemaStr string) *storage.SchemaRecord {

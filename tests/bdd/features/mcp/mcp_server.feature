@@ -29,3 +29,27 @@ Feature: MCP Server
       | prefix | orders |
     Then the MCP result should contain "orders-value"
     And the MCP result should not contain "users-value"
+
+  Scenario: List subjects with regex pattern filter
+    Given I register an Avro schema for subject "orders-value"
+    And I register an Avro schema for subject "users-value"
+    And I register an Avro schema for subject "orders-key"
+    When I call MCP tool "list_subjects" with JSON input:
+      """
+      {"pattern": ".*-value$"}
+      """
+    Then the MCP result should contain "orders-value"
+    And the MCP result should contain "users-value"
+    And the MCP result should not contain "orders-key"
+
+  Scenario: List subjects with prefix and pattern combined
+    Given I register an Avro schema for subject "orders-value"
+    And I register an Avro schema for subject "users-value"
+    And I register an Avro schema for subject "orders-key"
+    When I call MCP tool "list_subjects" with JSON input:
+      """
+      {"prefix": "orders", "pattern": ".*-value$"}
+      """
+    Then the MCP result should contain "orders-value"
+    And the MCP result should not contain "users-value"
+    And the MCP result should not contain "orders-key"
