@@ -22,7 +22,7 @@ func (s *Server) registerComparisonTools() {
 
 	addToolIfAllowed(s, &gomcp.Tool{
 		Name:        "diff_schemas",
-		Description: "Diff two schema versions within a subject, showing added, removed, and modified fields.",
+		Description: "Diff two schema versions within a subject, showing added, removed, and type-changed fields. Fields are extracted from both versions and matched using normalized snake_case names. If version2 is omitted, diffs against the latest version.",
 		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
 	}, instrumentedHandler(s, "diff_schemas", s.handleDiffSchemas))
 
@@ -34,13 +34,13 @@ func (s *Server) registerComparisonTools() {
 
 	addToolIfAllowed(s, &gomcp.Tool{
 		Name:        "suggest_compatible_change",
-		Description: "Get rule-based advice on how to make a compatible change to a schema given its compatibility level.",
+		Description: "Get rule-based advice for compatible schema changes based on the subject's compatibility level. BACKWARD: add fields with defaults, don't remove. FORWARD: remove fields, don't add required. FULL: only add optional fields with defaults. NONE: any change allowed.",
 		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
 	}, instrumentedHandler(s, "suggest_compatible_change", s.handleSuggestCompatibleChange))
 
 	addToolIfAllowed(s, &gomcp.Tool{
 		Name:        "match_subjects",
-		Description: "Find subjects matching a regex, glob, or substring pattern.",
+		Description: "Find subjects matching a pattern. Regex mode compiles as Go regex. Glob mode uses wildcard matching (case-insensitive). Fuzzy mode uses Levenshtein distance with configurable threshold (default 0.6).",
 		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
 	}, instrumentedHandler(s, "match_subjects", s.handleMatchSubjects))
 

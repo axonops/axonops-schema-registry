@@ -14,7 +14,7 @@ The MCP server runs alongside the existing REST API as a separate HTTP endpoint,
 - [Resources](#resources)
 - [Prompts](#prompts)
 - [Security](#security)
-- [AI-Powered Schema Intelligence](#ai-powered-schema-intelligence)
+- [Schema Intelligence](#schema-intelligence)
 - [Connecting AI Clients](#connecting-ai-clients)
 - [Troubleshooting](#troubleshooting)
 - [API Reference](#api-reference)
@@ -270,7 +270,7 @@ The MCP server exposes **105 tools** organized by functional area. Each tool is 
 | `match_subjects` | Match subjects by regex, glob, or fuzzy pattern |
 | `explain_compatibility_failure` | Explain why a schema is incompatible with fix suggestions |
 
-### AI-Powered Intelligence (9 tools)
+### Schema Intelligence (9 tools)
 
 | Tool | Description |
 |------|-------------|
@@ -464,9 +464,9 @@ Tokens are single-use, scoped to the exact operation, and expire after the confi
 - API key secrets, DEK key material, and auth tokens are never included in log output
 - The MCP server binds to `127.0.0.1` by default — not exposed to the network
 
-## AI-Powered Schema Intelligence
+## Schema Intelligence
 
-The MCP server includes 9 deterministic, rule-based intelligence tools purpose-built for LLM agents. These tools require no external AI — all analysis is computed locally.
+The MCP server includes 9 deterministic, rule-based intelligence tools designed to support AI-assisted schema management workflows. These tools require no external AI services — all analysis is computed locally using the registry's own schema data.
 
 ### Field Search (`find_schemas_by_field`)
 

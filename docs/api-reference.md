@@ -13153,7 +13153,7 @@ basicAuth, apiKey, bearerAuth
 
 # Analysis
 
-AI-powered schema analysis endpoints for validation, normalization, quality scoring, field search, similarity detection, compatibility suggestions, and registry-wide statistics. These endpoints mirror the capabilities available through the MCP server tools and provide programmatic access to schema intelligence features.
+Schema analysis endpoints for validation, normalization, quality scoring, field search, similarity detection, compatibility suggestions, and registry-wide statistics. These endpoints are designed primarily to support AI-assisted schema management workflows via the MCP server, and are also available as a REST API for programmatic access, CI/CD pipelines, and custom tooling. All analysis operations are read-only and do not modify registry state.
 
 ## Validate a schema
 
@@ -13171,6 +13171,13 @@ curl -X POST http://localhost:8081/schemas/validate \
 `POST /schemas/validate`
 
 Parses and validates a schema string without registering it. Returns whether the schema is syntactically and structurally valid for the given `schemaType`. Use this endpoint to pre-validate schemas before registration.
+
+**Validation rules by schema type:**
+- **Avro**: Parses the JSON string using the [Avro specification](https://avro.apache.org/docs/current/specification/). Validates record structure, field types, enum symbols (MUST be non-empty), fixed sizes (MUST be > 0), default values (MUST match the field type), union syntax, and named type references. Uses the `github.com/hamba/avro/v2` library.
+- **Protobuf**: Compiles the `.proto` source using `github.com/bufbuild/protocompile`. Validates message definitions, field numbering (MUST be unique), import resolution, service definitions, and proto2/proto3 syntax rules.
+- **JSON Schema**: Parses against JSON Schema Draft-07 using `github.com/santhosh-tekuri/jsonschema/v5`. Validates `$ref` resolution, `type` keywords, `properties`, `required` arrays, and boolean root schemas (`true`/`false`).
+
+When the schema is valid, `is_valid` is `true` and `error` is empty. When invalid, `is_valid` is `false` and `error` contains the parse error message from the underlying library. The response always includes the detected `schema_type`.
 
 > Body parameter
 
@@ -13256,7 +13263,14 @@ curl -X POST http://localhost:8081/schemas/normalize \
 
 `POST /schemas/normalize`
 
-Parses a schema and returns its canonical (normalized) form along with a content fingerprint. The canonical form removes formatting differences and produces a deterministic representation suitable for deduplication.
+Parses a schema and returns its canonical (normalized) form along with a SHA-256 content fingerprint. The canonical form removes formatting differences and produces a deterministic representation suitable for deduplication.
+
+**Normalization by schema type:**
+- **Avro**: Applies the [Avro Parsing Canonical Form (PCF)](https://avro.apache.org/docs/current/specification/#parsing-canonical-form-for-schemas), which strips `doc`, `aliases`, `order`, and `default` fields. Named types are replaced with their fully-qualified names on second reference. JSON keys are sorted deterministically.
+- **Protobuf**: Compiles and re-serializes the `.proto` source, normalizing whitespace, comment removal, and import ordering.
+- **JSON Schema**: Parses the JSON and re-serializes with deterministic key ordering (per [RFC 8259](https://www.rfc-editor.org/rfc/rfc8259#section-4), JSON objects are unordered, so `{"type":"object","properties":...}` and `{"properties":...,"type":"object"}` normalize to the same canonical form).
+
+The `fingerprint` is a SHA-256 hash of the canonical form, hex-encoded. Two schemas with the same fingerprint are semantically identical and will share a single global ID in the registry.
 
 > Body parameter
 
@@ -13431,7 +13445,12 @@ curl -X POST http://localhost:8081/schemas/search/field \
 
 `POST /schemas/search/field`
 
-Searches across all subjects for schemas containing a specific field. Supports exact matching (with naming convention variants like `snake_case` and `camelCase`), fuzzy matching (using Levenshtein distance), and regex matching.
+Searches across all subjects for schemas containing a specific field. Fields are extracted by parsing each schema: Avro records are walked recursively (including nested records, arrays, maps, and unions), JSON Schema `properties` are extracted (including nested objects), and Protobuf messages are parsed for field declarations. Nested fields use dot-notation paths (e.g., `address.street`).
+
+**Matching modes:**
+- **`exact`** (default): Generates naming convention variants of the query (`snake_case`, `camelCase`, `PascalCase`, `kebab-case`) and matches any variant case-insensitively. For example, searching for `userName` also matches `user_name`, `UserName`, and `user-name`. Matched fields return a score of `1.0`.
+- **`fuzzy`**: Computes a similarity score using [Levenshtein edit distance](https://en.wikipedia.org/wiki/Levenshtein_distance), normalized to a 0.0–1.0 range (`1.0 - editDistance / maxLength`). Only fields with a score at or above `threshold` (default `0.6`) are returned. Comparison is case-insensitive.
+- **`regex`**: Compiles the query as a Go regular expression and matches against each field name. Returns a `400` error if the regex is invalid.
 
 > Body parameter
 
@@ -13538,7 +13557,11 @@ curl -X POST http://localhost:8081/schemas/search/type \
 
 `POST /schemas/search/type`
 
-Searches across all subjects for schemas containing fields of a given type. Supports exact matching and regex patterns. Useful for finding all schemas that use a specific custom type or logical type.
+Searches across all subjects for schemas containing fields of a given type. Useful for finding all schemas that use a specific custom type, logical type, or primitive type across the registry.
+
+Field types are extracted from parsed schemas: Avro field types include primitives (`string`, `int`, `long`, `boolean`, etc.), named types (e.g., `com.example.Address`), logical types, and union representations. JSON Schema types come from the `type` keyword. Protobuf types include scalar types (`int32`, `string`, etc.) and message type references.
+
+When `regex` is `false` (default), the type name is matched exactly (case-insensitive). When `regex` is `true`, the pattern is compiled as a Go regular expression and matched against each field's type string, allowing patterns like `^int(32|64)$` or `.*Timestamp.*`.
 
 > Body parameter
 
@@ -13627,7 +13650,11 @@ curl -X POST http://localhost:8081/schemas/similar \
 
 `POST /schemas/similar`
 
-Finds schemas that are structurally similar to a given subject's schema using Jaccard similarity of field names. Useful for detecting duplicate or near-duplicate schemas across subjects.
+Finds schemas that are structurally similar to a given subject's latest schema by comparing field name sets. Useful for detecting duplicate or near-duplicate schemas across subjects, identifying candidates for schema consolidation, or finding schemas that model related domain entities.
+
+Similarity is computed using the [Jaccard similarity coefficient](https://en.wikipedia.org/wiki/Jaccard_index): `|intersection| / |union|` of the two schemas' field name sets. Field names are normalized to `snake_case` before comparison so that `userName` and `user_name` are treated as the same field. A score of `1.0` means identical field sets; `0.0` means no fields in common. The response includes the list of `shared_fields` for each match.
+
+The default `threshold` of `0.3` returns schemas sharing at least 30% of their field names. Increase to `0.8`+ to find near-duplicates only.
 
 > Body parameter
 
@@ -13718,7 +13745,21 @@ curl -X POST http://localhost:8081/schemas/quality \
 
 `POST /schemas/quality`
 
-Analyzes a schema and returns a quality score based on documentation coverage, naming conventions, field defaults, and overall structure. Provide either a raw schema string or a subject name to score the latest version.
+Scores a schema's quality across four weighted categories, producing an overall score from 0 to 100 with a letter grade. Provide either a raw schema string or a subject name to score the latest version.
+
+**Scoring categories (25 points each, 100 total):**
+
+1. **Naming (25 pts)** — Checks whether field names follow `snake_case` convention. Fields containing uppercase letters, hyphens, or spaces are flagged. Score is proportional to the fraction of well-named fields: `25 × (good / total)`. This convention aligns with the [Avro specification's recommendation](https://avro.apache.org/docs/current/specification/#names) and is the most common field naming convention across Avro, Protobuf, and JSON Schema.
+
+2. **Documentation (25 pts)** — Counts the fraction of fields that have a `doc` string (Avro), comment (Protobuf), or `description` (JSON Schema). Score is `25 × (documented / total)`. Undocumented schemas are harder to understand and maintain.
+
+3. **Type Safety (25 pts)** — Penalizes fields that use overly generic types: `string`, `bytes`, `any`, or `object`. These types provide no semantic meaning and bypass serialization validation. Score is `25 × (specific / total)`. Fields using domain-specific types (e.g., `com.example.EmailAddress`), enums, or logical types score higher.
+
+4. **Evolution Readiness (25 pts)** — Evaluates whether the schema is prepared for safe evolution: +10 pts if any field has a default value (enables adding fields without breaking consumers), +8 pts if a `namespace` (Avro) or `package` (Protobuf) is declared (prevents naming conflicts), +7 pts if schema-level documentation exists.
+
+**Grades:** A (≥90), B (≥80), C (≥70), D (≥60), F (<60).
+
+The `quick_wins` array contains actionable suggestions (e.g., "Rename field `userName` to `user_name`", "Add documentation to fields").
 
 > Body parameter
 
@@ -13826,7 +13867,17 @@ curl -X POST http://localhost:8081/schemas/complexity \
 
 `POST /schemas/complexity`
 
-Analyzes a schema's structural complexity including field count, nesting depth, and assigns a complexity grade (A through D). Provide either a raw schema string or a subject name to analyze the latest version.
+Computes structural complexity metrics for a schema and assigns a complexity grade from A (simple) to D (very complex). Provide either a raw schema string or a subject name to analyze the latest version.
+
+**Metrics computed:**
+- `field_count` — Total number of fields across all nested records/objects.
+- `max_depth` — Maximum nesting level. A flat record has depth 1; a record with a nested record field has depth 2, etc. Computed from the dot-notation field paths (e.g., `address.street.number` has depth 3).
+
+**Complexity grades:**
+- **A** — ≤15 fields AND ≤3 nesting depth. Simple, easy to understand and maintain.
+- **B** — ≤30 fields AND ≤4 nesting depth. Moderate complexity, typical for most domain objects.
+- **C** — ≤50 fields AND ≤5 nesting depth. Complex schema that may benefit from decomposition into referenced sub-schemas.
+- **D** — >50 fields OR >5 nesting depth. Very complex; strongly consider breaking into smaller, referenced schemas for maintainability and reuse.
 
 > Body parameter
 
@@ -13917,7 +13968,12 @@ curl -X POST http://localhost:8081/subjects/validate \
 
 `POST /subjects/validate`
 
-Checks whether a subject name follows the conventions of a given naming strategy (TopicNameStrategy, RecordNameStrategy, or TopicRecordNameStrategy). Returns validation issues and suggestions for correction.
+Checks whether a subject name follows the conventions of a given naming strategy. Returns validation issues and a suggested corrected name. These strategies correspond to the Confluent Schema Registry [subject name strategies](https://docs.confluent.io/platform/current/schema-registry/fundamentals/serdes-develop/index.html#subject-name-strategy) used by Kafka serializers.
+
+**Naming strategies:**
+- **`topic_name`** (default) — Subject MUST end with `-key` or `-value` (e.g., `orders-value`, `users-key`). This is the default Confluent `TopicNameStrategy` where the subject is `{topic}-{key|value}`.
+- **`record_name`** — Subject MUST be a valid qualified name using dot-separated identifiers (e.g., `com.example.User`). Each identifier MUST start with a letter or underscore, followed by letters, digits, or underscores. This matches the Confluent `RecordNameStrategy` where the subject is the fully-qualified schema name.
+- **`topic_record_name`** — Subject MUST contain a hyphen separating the topic and record portions (e.g., `orders-com.example.Order`). This matches the Confluent `TopicRecordNameStrategy` where the subject is `{topic}-{record_name}`.
 
 > Body parameter
 
@@ -13999,7 +14055,12 @@ curl -X POST http://localhost:8081/subjects/match \
 
 `POST /subjects/match`
 
-Finds subjects matching a pattern using regex, glob, or fuzzy matching modes. Useful for discovering subjects when the exact name is not known.
+Finds subjects matching a pattern. Useful for discovering subjects when the exact name is not known, or for filtering subjects by naming convention.
+
+**Matching modes:**
+- **`regex`** (default) — Compiles the pattern as a Go regular expression and tests each subject name. Returns a `400` error for invalid regex.
+- **`glob`** — Matches using wildcard patterns where `*` matches any sequence of characters. Comparison is case-insensitive. For example, `orders-*` matches `orders-value`, `orders-key`, and `orders-avro-value`.
+- **`fuzzy`** — Computes Levenshtein-based similarity (0.0–1.0) between the pattern and each subject name. Only subjects with a score at or above `threshold` (default `0.6`) are returned. Useful for finding subjects with typos or slight naming variations.
 
 > Body parameter
 
@@ -14465,7 +14526,14 @@ curl -X POST http://localhost:8081/subjects/{subject}/diff \
 
 `POST /subjects/{subject}/diff`
 
-Compares two versions of a subject's schema and returns the fields that were added, removed, or changed between the versions. If `version2` is omitted, compares against the latest version.
+Compares two versions of a subject's schema and returns the structural differences at the field level. If `version2` is omitted, compares against the latest version.
+
+The diff extracts fields from both schema versions and computes:
+- **`added`** — Fields present in version2 but not in version1 (new fields).
+- **`removed`** — Fields present in version1 but not in version2 (deleted fields).
+- **`changed`** — Fields present in both versions but with a different type (e.g., a field changed from `string` to `int`), showing both `old_type` and `new_type`.
+
+Field matching uses normalized `snake_case` names, so `userName` in version1 and `user_name` in version2 are treated as the same field. This endpoint is read-only and does not perform compatibility checking — use `POST /compatibility/subjects/{subject}/versions/{version}` for that.
 
 > Body parameter
 
@@ -14563,7 +14631,9 @@ curl -X POST http://localhost:8081/subjects/{subject}/evolve \
 
 `POST /subjects/{subject}/evolve`
 
-Given a subject and a set of proposed changes, suggests how to evolve the schema while maintaining compatibility with the configured compatibility level.
+Given a subject and a set of proposed changes, provides guidance on how to evolve the schema while maintaining compatibility with the subject's configured compatibility level. Returns the subject's current version, its compatibility level, and a message describing whether the proposed changes are safe.
+
+Each change in the `changes` array describes an `action` (`add`, `remove`, or `modify`), the `field` name, and optionally a `type`. The endpoint evaluates these against the compatibility rules — for example, under `BACKWARD` compatibility, adding a field with a default is safe, but removing a field is not.
 
 > Body parameter
 
@@ -14643,7 +14713,11 @@ curl -X POST http://localhost:8081/subjects/{subject}/migrate \
 
 `POST /subjects/{subject}/migrate`
 
-Given a subject and a target schema, plans the migration steps needed to evolve from the current schema to the target. Considers the compatibility level when generating the step-by-step migration plan.
+Given a subject and a target schema, computes a step-by-step migration plan to evolve from the subject's current latest schema to the target. Each step in the plan is an individually compatible schema change that can be registered as a new version.
+
+The planner diffs the current and target schemas (using the same field extraction as the diff endpoint), then decomposes the changes into the minimum number of safe steps based on the subject's compatibility level. For example, under `BACKWARD` compatibility, a migration that adds two fields and removes one might be decomposed into: (1) add field A with default, (2) add field B with default, (3) deprecate and remove field C in a separate step.
+
+The `steps` array contains human-readable descriptions of each migration step. `step_count` is the total number of steps required.
 
 > Body parameter
 
@@ -14821,7 +14895,13 @@ curl -X POST http://localhost:8081/compatibility/subjects/{subject}/suggest \
 
 `POST /compatibility/subjects/{subject}/suggest`
 
-Returns suggestions for what kinds of schema changes are allowed under the subject's current compatibility level. Helps developers understand the constraints before attempting schema evolution.
+Returns rule-based suggestions for what kinds of schema changes are safe under the subject's current compatibility level. Helps developers understand the constraints before attempting schema evolution.
+
+**Suggestions by compatibility level:**
+- **BACKWARD / BACKWARD_TRANSITIVE** — "Add new fields with default values", "Do NOT remove existing fields", "Do NOT change field types". New consumers can read data written by old producers.
+- **FORWARD / FORWARD_TRANSITIVE** — "Remove fields (new consumers will ignore them)", "Do NOT add required fields without defaults". Old consumers can read data written by new producers.
+- **FULL / FULL_TRANSITIVE** — "Only add optional fields with defaults", "Do NOT remove or rename fields". Both old and new consumers can read each other's data.
+- **NONE** — "Any change is allowed (no compatibility checks)".
 
 ### Parameters
 
@@ -15101,7 +15181,12 @@ curl -X GET http://localhost:8081/statistics/fields/{field} \
 
 `GET /statistics/fields/{field}`
 
-Checks how a specific field is used across all schemas in the registry. Returns the field's usage by subject and whether the field type is consistent (the same type across all usages). Useful for enforcing data governance standards.
+Checks how a specific field name is used across all schemas in the registry and reports whether its type is consistent. This is a data governance tool for detecting type drift — for example, `user_id` being `long` in one schema and `string` in another.
+
+The search generates naming convention variants of the field name (`snake_case`, `camelCase`, `PascalCase`, `kebab-case`) and matches any variant against every schema's extracted fields. The response includes:
+- `consistent` — `true` if all usages of this field have the same type (i.e., `type_counts` has only one entry), `false` otherwise.
+- `type_counts` — A map of type name to usage count (e.g., `{"long": 5, "string": 2}` indicates an inconsistency).
+- `usages` — Each individual occurrence with its subject, matched field name, and field type.
 
 ### Parameters
 

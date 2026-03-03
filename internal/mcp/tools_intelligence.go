@@ -15,7 +15,7 @@ import (
 func (s *Server) registerIntelligenceTools() {
 	addToolIfAllowed(s, &gomcp.Tool{
 		Name:        "find_schemas_by_field",
-		Description: "Find all schemas containing a field with the given name. Supports exact, fuzzy, and regex matching.",
+		Description: "Find all schemas containing a field with the given name. Exact mode auto-generates naming variants (snake_case, camelCase, PascalCase, kebab-case). Fuzzy mode uses Levenshtein distance with configurable threshold (default 0.7). Regex mode compiles the field name as a regular expression.",
 		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
 	}, instrumentedHandler(s, "find_schemas_by_field", s.handleFindSchemasByField))
 
@@ -27,25 +27,25 @@ func (s *Server) registerIntelligenceTools() {
 
 	addToolIfAllowed(s, &gomcp.Tool{
 		Name:        "find_similar_schemas",
-		Description: "Find schemas similar to a given subject by comparing field sets using Jaccard similarity.",
+		Description: "Find schemas structurally similar to a given subject using Jaccard similarity coefficient (|shared fields| / |total unique fields|). Field names are normalized to snake_case before comparison. Returns similarity scores (0.0-1.0) and lists of shared fields.",
 		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
 	}, instrumentedHandler(s, "find_similar_schemas", s.handleFindSimilarSchemas))
 
 	addToolIfAllowed(s, &gomcp.Tool{
 		Name:        "score_schema_quality",
-		Description: "Evaluate a schema's quality based on naming, documentation, type safety, and evolution readiness.",
+		Description: "Score a schema's quality (0-100, grades A-F) across four categories: Naming (25 pts, checks snake_case convention), Documentation (25 pts, checks field doc/description coverage), Type Safety (25 pts, penalizes generic types like string/bytes/any/object), Evolution Readiness (25 pts, checks for defaults, namespace, and schema-level docs). Returns per-category breakdown and actionable quick_wins.",
 		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
 	}, instrumentedHandler(s, "score_schema_quality", s.handleScoreSchemaQuality))
 
 	addToolIfAllowed(s, &gomcp.Tool{
 		Name:        "check_field_consistency",
-		Description: "Check if a field name is used consistently (same type) across all schemas in the registry.",
+		Description: "Check if a field name is used with the same type across all schemas. Generates naming variants (snake_case, camelCase, PascalCase, kebab-case) to match fields regardless of convention. Reports type_counts map and per-subject usages. Detects type drift (e.g., user_id as long in one schema and string in another).",
 		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
 	}, instrumentedHandler(s, "check_field_consistency", s.handleCheckFieldConsistency))
 
 	addToolIfAllowed(s, &gomcp.Tool{
 		Name:        "get_schema_complexity",
-		Description: "Compute complexity metrics for a schema: field count, nesting depth, union count, and more.",
+		Description: "Compute complexity metrics and grade (A-D) for a schema. Measures field_count (total fields including nested) and max_depth (deepest nesting level via dot-notation paths). Grades: A (≤15 fields, ≤3 depth), B (≤30, ≤4), C (≤50, ≤5), D (>50 or >5). Grade D schemas should be decomposed into referenced sub-schemas.",
 		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
 	}, instrumentedHandler(s, "get_schema_complexity", s.handleGetSchemaComplexity))
 

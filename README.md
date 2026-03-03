@@ -3,7 +3,7 @@
 
   # AxonOps Schema Registry
 
-  **High-Performance Kafka Schema Registry with Multi-Backend Storage and Enterprise Security**
+  **The First AI-Native Kafka Schema Registry — Multi-Backend Storage, Enterprise Security, and Built-in MCP Server**
 
   [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
   [![Go Version](https://img.shields.io/badge/Go-1.24+-00ADD8.svg)](https://go.dev/)
@@ -18,9 +18,9 @@
 
 ## Overview
 
-[AxonOps](https://axonops.com) Schema Registry is a **schema registry for Apache Kafka&reg;** that manages and enforces schemas for event-driven architectures. It stores versioned Avro, Protobuf, and JSON Schema definitions, validates compatibility between schema versions, and ensures producers and consumers agree on data formats.
+[AxonOps](https://axonops.com) Schema Registry is a **schema registry for Apache Kafka&reg;** that combines schema management with built-in AI integration. It stores versioned Avro, Protobuf, and JSON Schema definitions, validates compatibility between schema versions, and ensures producers and consumers agree on data formats — while also exposing a full [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server that lets AI assistants like Claude, Cursor, and VS Code Copilot directly query, analyze, and manage your schemas.
 
-Unlike Confluent Schema Registry, which uses Kafka itself (a special `_schemas` topic) as its storage backend, AxonOps Schema Registry **does not require Kafka** for storage -- it uses standard databases (PostgreSQL, MySQL, or Cassandra) while remaining **fully API-compatible** with Confluent's REST API, serializers, and client libraries.
+Unlike Confluent Schema Registry, which uses Kafka itself (a special `_schemas` topic) as its storage backend, AxonOps Schema Registry **does not require Kafka** for storage -- it uses standard databases (PostgreSQL, MySQL, or Cassandra) while remaining **fully API-compatible** with Confluent's REST API, serializers, and client libraries. The built-in MCP server adds 105 tools, 21 resources, and 17 prompts that give AI assistants deep access to your schema registry — enabling AI-assisted schema design, quality scoring, compatibility troubleshooting, migration planning, and registry-wide analysis through natural language conversations.
 
 <div align="center">
 
@@ -113,7 +113,7 @@ Unlike Confluent Schema Registry, which uses Kafka itself (a special `_schemas` 
 
 ⁴ Karapace uses its own ACL-based credential mechanism rather than standard HTTP Basic Authentication.
 
-> **In short:** AxonOps gives you Confluent Enterprise-grade capabilities -- data contracts, client-side encryption, RBAC, audit logging, multi-tenant contexts, and rate limiting -- under the Apache 2.0 license, in a single ~50 MB binary, with no Kafka dependency for storage. If you need enterprise support, [AxonOps](https://axonops.com) offers commercial support plans.
+> **In short:** AxonOps gives you Confluent Enterprise-grade capabilities -- data contracts, client-side encryption, RBAC, audit logging, multi-tenant contexts, and rate limiting -- under the Apache 2.0 license, in a single ~50 MB binary, with no Kafka dependency for storage. It also ships with an MCP server that brings your schema registry into AI-assisted development workflows — something no other schema registry offers. If you need enterprise support, [AxonOps](https://axonops.com) offers commercial support plans.
 
 ## Quick Start
 
@@ -192,12 +192,15 @@ Auth storage can optionally be separated into HashiCorp Vault.
 
 ### MCP Server (AI-Assisted Schema Management)
 
-- **[Model Context Protocol](https://modelcontextprotocol.io/)** -- built-in MCP server for AI assistants (Claude, Cursor, VS Code Copilot, Windsurf, and others)
-- **105 Tools** -- full registry operations, schema analysis, quality scoring, migration planning, and admin tasks
+AxonOps is the **first schema registry with a built-in [Model Context Protocol](https://modelcontextprotocol.io/) server**, enabling AI assistants to work directly with your schema registry through natural language. Instead of manually writing REST calls or navigating documentation, developers can ask their AI assistant to design schemas, check compatibility, score quality, plan migrations, and explore the registry — all through conversation.
+
+- **105 Tools** -- full registry CRUD, schema analysis, quality scoring, migration planning, and admin operations
 - **21 Resources** -- direct data access for AI clients (9 static + 12 templated)
 - **17 Prompts** -- guided workflows for schema design, evolution, compatibility troubleshooting, and encryption setup
 - **Security** -- bearer token auth, origin validation, read-only mode, tool policies, and two-phase confirmations for destructive operations
-- **AI-Powered Intelligence** -- 9 deterministic analysis tools: field search, type search, schema similarity, quality scoring, complexity grading, pattern detection, evolution suggestions, and migration planning
+- **Compatible with** -- Claude Desktop, Claude Code, Cursor, VS Code Copilot, Windsurf, and any MCP-compatible client
+- **Schema Intelligence** -- 9 deterministic analysis tools that give AI assistants deep insight into your registry: field search across all schemas (with fuzzy and regex matching), type search, structural similarity detection (Jaccard index), quality scoring (naming, docs, type safety, evolution readiness), complexity grading, cross-schema pattern detection, compatibility-aware evolution suggestions, and multi-step migration planning
+- **Also available as REST** -- all analysis capabilities are exposed as REST endpoints in addition to MCP, for use in CI/CD pipelines and custom tooling
 
 See the [MCP Server Guide](docs/mcp.md) for configuration, client setup, and the full [MCP API Reference](docs/mcp-reference.md).
 
