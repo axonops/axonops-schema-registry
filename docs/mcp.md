@@ -624,7 +624,7 @@ When `mcp.require_confirmations: true`, destructive operations require a two-pha
 
 ### Schema content not in logs
 
-Set `mcp.log_schemas: true` to include schema bodies in debug output. This is disabled by default to avoid logging sensitive data.
+Set `mcp.log_schemas: true` to include schema bodies in structured log output. Schema bodies are logged at **Debug** level under the `mcp_tool_schema_body` message key, so you MUST also set `logging.level: debug` to see them. When `log_schemas` is enabled, a truncated schema body (max 1000 characters) is also included in the `metadata` field of audit log entries. This setting is disabled by default to avoid logging sensitive data.
 
 ## API Reference
 

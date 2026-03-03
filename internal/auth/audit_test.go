@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"net/http"
@@ -10,6 +11,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/go-chi/chi/v5/middleware"
 
 	"github.com/axonops/axonops-schema-registry/internal/config"
 )
@@ -513,7 +516,7 @@ func TestLogMCPEvent(t *testing.T) {
 	}
 	defer al.Close()
 
-	al.LogMCPEvent(AuditEventMCPToolCall, "register_schema", "success", 15*time.Millisecond, nil, map[string]string{"subject": "test"})
+	al.LogMCPEvent(AuditEventMCPToolCall, "register_schema", "success", 15*time.Millisecond, nil, "test", map[string]string{"subject": "test"})
 
 	al.Close()
 
@@ -543,7 +546,7 @@ func TestLogMCPEvent_Error(t *testing.T) {
 	}
 	defer al.Close()
 
-	al.LogMCPEvent(AuditEventMCPToolError, "get_schema_by_id", "error", 5*time.Millisecond, http.ErrNotSupported, nil)
+	al.LogMCPEvent(AuditEventMCPToolError, "get_schema_by_id", "error", 5*time.Millisecond, http.ErrNotSupported, "", nil)
 
 	al.Close()
 
@@ -562,7 +565,7 @@ func TestLogMCPEvent_Disabled(t *testing.T) {
 	defer al.Close()
 
 	// Should not panic.
-	al.LogMCPEvent(AuditEventMCPToolCall, "health_check", "success", time.Millisecond, nil, nil)
+	al.LogMCPEvent(AuditEventMCPToolCall, "health_check", "success", time.Millisecond, nil, "", nil)
 }
 
 func TestMCPEventTypeFiltering(t *testing.T) {
@@ -581,9 +584,9 @@ func TestMCPEventTypeFiltering(t *testing.T) {
 	defer al.Close()
 
 	// This should be filtered out
-	al.LogMCPEvent(AuditEventMCPToolCall, "health_check", "success", time.Millisecond, nil, nil)
+	al.LogMCPEvent(AuditEventMCPToolCall, "health_check", "success", time.Millisecond, nil, "", nil)
 	// This should be logged
-	al.LogMCPEvent(AuditEventMCPToolError, "get_schema_by_id", "error", time.Millisecond, http.ErrNotSupported, nil)
+	al.LogMCPEvent(AuditEventMCPToolError, "get_schema_by_id", "error", time.Millisecond, http.ErrNotSupported, "", nil)
 
 	al.Close()
 
@@ -594,6 +597,214 @@ func TestMCPEventTypeFiltering(t *testing.T) {
 	}
 	if !strings.Contains(content, "get_schema_by_id") {
 		t.Error("expected mcp_tool_error to be logged")
+	}
+}
+
+func TestAuditLogger_Log_EmitsRequestBody(t *testing.T) {
+	dir := t.TempDir()
+	logFile := filepath.Join(dir, "audit.log")
+
+	al, _ := NewAuditLogger(config.AuditConfig{
+		Enabled: true,
+		LogFile: logFile,
+	})
+	defer al.Close()
+
+	al.Log(&AuditEvent{
+		Timestamp:   time.Now(),
+		EventType:   AuditEventSchemaRegister,
+		Method:      "POST",
+		Path:        "/subjects/test/versions",
+		RequestBody: `{"schema":"{\"type\":\"string\"}"}`,
+	})
+
+	al.Close()
+	data, _ := os.ReadFile(logFile)
+	content := string(data)
+	if !strings.Contains(content, "request_body") {
+		t.Error("expected audit log to contain request_body field")
+	}
+	if !strings.Contains(content, `schema`) {
+		t.Error("expected audit log to contain the request body content")
+	}
+}
+
+func TestAuditLogger_Log_EmitsMetadata(t *testing.T) {
+	dir := t.TempDir()
+	logFile := filepath.Join(dir, "audit.log")
+
+	al, _ := NewAuditLogger(config.AuditConfig{
+		Enabled: true,
+		LogFile: logFile,
+	})
+	defer al.Close()
+
+	al.Log(&AuditEvent{
+		Timestamp: time.Now(),
+		EventType: AuditEventSchemaRegister,
+		Method:    "POST",
+		Path:      "/subjects/test/versions",
+		Metadata:  map[string]string{"tool": "register_schema", "context": "default"},
+	})
+
+	al.Close()
+	data, _ := os.ReadFile(logFile)
+	content := string(data)
+	if !strings.Contains(content, "metadata") {
+		t.Error("expected audit log to contain metadata group")
+	}
+	if !strings.Contains(content, "register_schema") {
+		t.Error("expected audit log to contain metadata value")
+	}
+}
+
+func TestAuditLogger_Log_EmitsRequestID(t *testing.T) {
+	dir := t.TempDir()
+	logFile := filepath.Join(dir, "audit.log")
+
+	al, _ := NewAuditLogger(config.AuditConfig{
+		Enabled: true,
+		LogFile: logFile,
+	})
+	defer al.Close()
+
+	al.Log(&AuditEvent{
+		Timestamp: time.Now(),
+		EventType: AuditEventSchemaRegister,
+		Method:    "POST",
+		Path:      "/subjects/test/versions",
+		RequestID: "req-abc-123",
+	})
+
+	al.Close()
+	data, _ := os.ReadFile(logFile)
+	content := string(data)
+	if !strings.Contains(content, "request_id") {
+		t.Error("expected audit log to contain request_id field")
+	}
+	if !strings.Contains(content, "req-abc-123") {
+		t.Error("expected audit log to contain the request ID value")
+	}
+}
+
+func TestAuditLogger_Middleware_IncludesRequestID(t *testing.T) {
+	dir := t.TempDir()
+	logFile := filepath.Join(dir, "audit.log")
+
+	al, _ := NewAuditLogger(config.AuditConfig{
+		Enabled: true,
+		LogFile: logFile,
+	})
+	defer al.Close()
+
+	// Chain chi's RequestID middleware → audit middleware → handler
+	inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+	chain := middleware.RequestID(al.Middleware(inner))
+
+	r := httptest.NewRequest("POST", "/subjects/test/versions", nil)
+	w := httptest.NewRecorder()
+	chain.ServeHTTP(w, r)
+
+	al.Close()
+	data, _ := os.ReadFile(logFile)
+	content := string(data)
+	if !strings.Contains(content, "request_id") {
+		t.Error("expected audit log to contain request_id from chi RequestID middleware")
+	}
+}
+
+func TestNewAuditLogger_DefaultIncludesConfirmationEvents(t *testing.T) {
+	al, err := NewAuditLogger(config.AuditConfig{Enabled: true})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer al.Close()
+
+	confirmEvents := []AuditEventType{
+		AuditEventMCPConfirmIssued,
+		AuditEventMCPConfirmRejected,
+		AuditEventMCPConfirmed,
+	}
+	for _, evt := range confirmEvents {
+		if !al.enabledEvents[evt] {
+			t.Errorf("expected confirmation event %s to be enabled by default", evt)
+		}
+	}
+}
+
+func TestLogMCPConfirmationEvent(t *testing.T) {
+	dir := t.TempDir()
+	logFile := filepath.Join(dir, "audit.log")
+
+	al, err := NewAuditLogger(config.AuditConfig{
+		Enabled: true,
+		LogFile: logFile,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer al.Close()
+
+	al.LogMCPConfirmationEvent(AuditEventMCPConfirmIssued, "delete_subject", nil)
+
+	al.Close()
+
+	data, _ := os.ReadFile(logFile)
+	content := string(data)
+	if !strings.Contains(content, "mcp_confirm_issued") {
+		t.Error("expected log to contain mcp_confirm_issued event type")
+	}
+	if !strings.Contains(content, "delete_subject") {
+		t.Error("expected log to contain tool name")
+	}
+}
+
+func TestLogMCPEvent_WithSubject(t *testing.T) {
+	dir := t.TempDir()
+	logFile := filepath.Join(dir, "audit.log")
+
+	al, err := NewAuditLogger(config.AuditConfig{
+		Enabled: true,
+		LogFile: logFile,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer al.Close()
+
+	al.LogMCPEvent(AuditEventMCPToolCall, "register_schema", "success", 10*time.Millisecond, nil, "payments-value", nil)
+
+	al.Close()
+
+	data, _ := os.ReadFile(logFile)
+	content := string(data)
+	if !strings.Contains(content, "payments-value") {
+		t.Error("expected log to contain subject name")
+	}
+}
+
+func TestNewAuditLoggerWithWriter(t *testing.T) {
+	var buf bytes.Buffer
+
+	al := NewAuditLoggerWithWriter(config.AuditConfig{Enabled: true}, &buf)
+	defer al.Close()
+
+	al.Log(&AuditEvent{
+		Timestamp: time.Now(),
+		EventType: AuditEventSchemaRegister,
+		Method:    "POST",
+		Path:      "/subjects/test/versions",
+		Subject:   "test",
+	})
+
+	content := buf.String()
+	if !strings.Contains(content, "schema_register") {
+		t.Error("expected buffer to contain schema_register event")
+	}
+	if !strings.Contains(content, "test") {
+		t.Error("expected buffer to contain subject name")
 	}
 }
 

@@ -135,6 +135,26 @@ func (s *Server) handleListSubjects(ctx context.Context, _ *gomcp.CallToolReques
 	}, nil, nil
 }
 
+// extractSubjectFromArgs attempts to extract a "subject" field from raw JSON arguments.
+func extractSubjectFromArgs(raw json.RawMessage) string {
+	if len(raw) == 0 {
+		return ""
+	}
+	var args map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &args); err != nil {
+		return ""
+	}
+	subjectRaw, ok := args["subject"]
+	if !ok {
+		return ""
+	}
+	var subject string
+	if err := json.Unmarshal(subjectRaw, &subject); err != nil {
+		return ""
+	}
+	return subject
+}
+
 // isToolAllowed checks if a tool should be registered based on the tool policy
 // and read-only mode. Returns false if the tool should be hidden from clients.
 func (s *Server) isToolAllowed(name string, readOnly bool) bool {
@@ -214,6 +234,22 @@ func instrumentedHandler[T any](s *Server, name string, handler gomcp.ToolHandle
 			slog.Duration("duration", duration),
 		)
 
+		// Conditionally log schema body at Debug level when log_schemas is enabled.
+		if s.config.LogSchemas && len(req.Params.Arguments) > 0 {
+			var rawArgs map[string]json.RawMessage
+			if json.Unmarshal(req.Params.Arguments, &rawArgs) == nil {
+				if schemaRaw, ok := rawArgs["schema"]; ok {
+					var schemaStr string
+					if json.Unmarshal(schemaRaw, &schemaStr) == nil && schemaStr != "" {
+						s.logger.Debug("mcp_tool_schema_body",
+							slog.String("tool", name),
+							slog.String("schema", schemaStr),
+						)
+					}
+				}
+			}
+		}
+
 		// Audit trail.
 		if s.auditLogger != nil {
 			var auditErr error
@@ -226,7 +262,24 @@ func instrumentedHandler[T any](s *Server, name string, handler gomcp.ToolHandle
 			if auditErr != nil {
 				eventType = auth.AuditEventMCPToolError
 			}
-			s.auditLogger.LogMCPEvent(eventType, name, status, duration, auditErr, nil)
+			// Extract subject from tool arguments for audit context.
+			subject := extractSubjectFromArgs(req.Params.Arguments)
+			var auditMeta map[string]string
+			if s.config.LogSchemas && len(req.Params.Arguments) > 0 {
+				var rawArgs map[string]json.RawMessage
+				if json.Unmarshal(req.Params.Arguments, &rawArgs) == nil {
+					if schemaRaw, ok := rawArgs["schema"]; ok {
+						var schemaStr string
+						if json.Unmarshal(schemaRaw, &schemaStr) == nil && schemaStr != "" {
+							if len(schemaStr) > 1000 {
+								schemaStr = schemaStr[:1000] + "..."
+							}
+							auditMeta = map[string]string{"schema": schemaStr}
+						}
+					}
+				}
+			}
+			s.auditLogger.LogMCPEvent(eventType, name, status, duration, auditErr, subject, auditMeta)
 		}
 
 		return result, output, err

@@ -551,7 +551,7 @@ security:
 |-----|------|---------|-------------|
 | `security.audit.enabled` | bool | `false` | Enable audit logging. |
 | `security.audit.log_file` | string | `""` | Path to the audit log file. |
-| `security.audit.events` | list of strings | `[]` | Event types to log. Values: `schema_register`, `schema_delete`, `config_change`. |
+| `security.audit.events` | list of strings | `[]` | Event types to log. Values: `schema_register`, `schema_delete`, `config_update`, `mode_update`, `auth_failure`, `auth_forbidden`, `subject_delete`, `mcp_tool_call`, `mcp_tool_error`, `mcp_admin_action`, `mcp_confirm_issued`, `mcp_confirm_rejected`, `mcp_confirmed`. |
 | `security.audit.include_body` | bool | `false` | Include request bodies in audit log entries. May increase log volume significantly. |
 
 ```yaml
@@ -562,7 +562,7 @@ security:
     events:
       - schema_register
       - schema_delete
-      - config_change
+      - config_update
     include_body: false
 ```
 
@@ -851,10 +851,10 @@ security:
   audit:
     enabled: false
     log_file: ""
-    events:                           # schema_register | schema_delete | config_change
+    events:                           # schema_register | schema_delete | config_update | mcp_tool_call | ...
       - schema_register
       - schema_delete
-      - config_change
+      - config_update
     include_body: false
 ```
 

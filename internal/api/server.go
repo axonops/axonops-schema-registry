@@ -390,6 +390,7 @@ func (s *Server) loggingMiddleware(next http.Handler) http.Handler {
 				slog.Int("status", ww.Status()),
 				slog.Duration("duration", time.Since(start)),
 				slog.String("remote", r.RemoteAddr),
+				slog.String("request_id", middleware.GetReqID(r.Context())),
 			)
 		}()
 

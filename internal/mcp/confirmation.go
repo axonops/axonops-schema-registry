@@ -10,6 +10,8 @@ import (
 
 	"github.com/google/uuid"
 	gomcp "github.com/modelcontextprotocol/go-sdk/mcp"
+
+	"github.com/axonops/axonops-schema-registry/internal/auth"
 )
 
 // ConfirmationStore manages two-phase confirmation tokens for destructive
@@ -196,6 +198,9 @@ func (s *Server) confirmationCheck(toolName string, dryRun bool, confirmToken st
 		if s.metrics != nil {
 			s.metrics.RecordMCPConfirmation("token_issued")
 		}
+		if s.auditLogger != nil {
+			s.auditLogger.LogMCPConfirmationEvent(auth.AuditEventMCPConfirmIssued, toolName, nil)
+		}
 		data, _ := json.Marshal(map[string]any{
 			"confirmation_required": true,
 			"confirm_token":         token,
@@ -214,6 +219,9 @@ func (s *Server) confirmationCheck(toolName string, dryRun bool, confirmToken st
 			if s.metrics != nil {
 				s.metrics.RecordMCPConfirmation("token_rejected")
 			}
+			if s.auditLogger != nil {
+				s.auditLogger.LogMCPConfirmationEvent(auth.AuditEventMCPConfirmRejected, toolName, nil)
+			}
 			return &gomcp.CallToolResult{
 				Content: []gomcp.Content{
 					&gomcp.TextContent{Text: fmt.Sprintf("error: confirmation failed: %v", err)},
@@ -223,6 +231,9 @@ func (s *Server) confirmationCheck(toolName string, dryRun bool, confirmToken st
 		}
 		if s.metrics != nil {
 			s.metrics.RecordMCPConfirmation("confirmed")
+		}
+		if s.auditLogger != nil {
+			s.auditLogger.LogMCPConfirmationEvent(auth.AuditEventMCPConfirmed, toolName, nil)
 		}
 		return nil // proceed with the operation
 	}

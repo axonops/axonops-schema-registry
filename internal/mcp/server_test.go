@@ -3646,3 +3646,97 @@ func (w *testResponseWriter) Write(b []byte) (int, error) {
 func (w *testResponseWriter) WriteHeader(code int) {
 	w.code = code
 }
+
+// newTestMCPClientWithLogger creates a test MCP server+client using the given config and logger.
+func newTestMCPClientWithLogger(t *testing.T, cfg *config.MCPConfig, logger *slog.Logger) (*gomcp.ClientSession, *registry.Registry) {
+	t.Helper()
+
+	store := memory.NewStore()
+	t.Cleanup(func() { store.Close() })
+
+	schemaReg := schema.NewRegistry()
+	schemaReg.Register(avro.NewParser())
+	schemaReg.Register(protobuf.NewParser())
+	schemaReg.Register(jsonschema.NewParser())
+
+	compatChecker := compatibility.NewChecker()
+	compatChecker.Register(storage.SchemaTypeAvro, avrocompat.NewChecker())
+	compatChecker.Register(storage.SchemaTypeProtobuf, protocompat.NewChecker())
+	compatChecker.Register(storage.SchemaTypeJSON, jsoncompat.NewChecker())
+
+	reg := registry.New(store, schemaReg, compatChecker, "BACKWARD")
+
+	srv := New(cfg, reg, logger, "test-version")
+
+	ctx := context.Background()
+	ct, st := gomcp.NewInMemoryTransports()
+
+	ss, err := srv.MCPServer().Connect(ctx, st, nil)
+	if err != nil {
+		t.Fatalf("server connect: %v", err)
+	}
+	t.Cleanup(func() { ss.Close() })
+
+	client := gomcp.NewClient(&gomcp.Implementation{Name: "test-client", Version: "1.0"}, nil)
+	cs, err := client.Connect(ctx, ct, nil)
+	if err != nil {
+		t.Fatalf("client connect: %v", err)
+	}
+	t.Cleanup(func() { cs.Close() })
+
+	return cs, reg
+}
+
+func TestInstrumentedHandler_LogSchemas_Enabled(t *testing.T) {
+	var buf strings.Builder
+	logger := slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
+	cfg := &config.MCPConfig{Host: "localhost", Port: 0, LogSchemas: true}
+	cs, _ := newTestMCPClientWithLogger(t, cfg, logger)
+
+	// Register a schema — this will trigger the schema body logging
+	_, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name: "register_schema",
+		Arguments: map[string]any{
+			"subject":     "log-schema-test",
+			"schema":      `{"type":"string"}`,
+			"schema_type": "AVRO",
+		},
+	})
+	if err != nil {
+		t.Fatalf("CallTool: %v", err)
+	}
+
+	output := buf.String()
+	if !strings.Contains(output, "mcp_tool_schema_body") {
+		t.Error("expected debug log to contain mcp_tool_schema_body when log_schemas is true")
+	}
+	if !strings.Contains(output, "type") || !strings.Contains(output, "string") {
+		t.Errorf("expected debug log to contain the schema body, got: %s", output)
+	}
+}
+
+func TestInstrumentedHandler_LogSchemas_Disabled(t *testing.T) {
+	var buf strings.Builder
+	logger := slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug}))
+
+	cfg := &config.MCPConfig{Host: "localhost", Port: 0, LogSchemas: false}
+	cs, _ := newTestMCPClientWithLogger(t, cfg, logger)
+
+	_, err := cs.CallTool(context.Background(), &gomcp.CallToolParams{
+		Name: "register_schema",
+		Arguments: map[string]any{
+			"subject":     "log-schema-test-off",
+			"schema":      `{"type":"string"}`,
+			"schema_type": "AVRO",
+		},
+	})
+	if err != nil {
+		t.Fatalf("CallTool: %v", err)
+	}
+
+	output := buf.String()
+	if strings.Contains(output, "mcp_tool_schema_body") {
+		t.Error("expected no mcp_tool_schema_body log when log_schemas is false")
+	}
+}

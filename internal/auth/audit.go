@@ -3,6 +3,7 @@ package auth
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"log/slog"
@@ -10,6 +11,8 @@ import (
 	"os"
 	"sync"
 	"time"
+
+	"github.com/go-chi/chi/v5/middleware"
 
 	"github.com/axonops/axonops-schema-registry/internal/config"
 )
@@ -46,6 +49,11 @@ const (
 	AuditEventMCPToolCall    AuditEventType = "mcp_tool_call"
 	AuditEventMCPToolError   AuditEventType = "mcp_tool_error"
 	AuditEventMCPAdminAction AuditEventType = "mcp_admin_action"
+
+	// MCP confirmation events
+	AuditEventMCPConfirmIssued   AuditEventType = "mcp_confirm_issued"
+	AuditEventMCPConfirmRejected AuditEventType = "mcp_confirm_rejected"
+	AuditEventMCPConfirmed       AuditEventType = "mcp_confirmed"
 )
 
 // AuditEvent represents an audit log entry.
@@ -65,6 +73,7 @@ type AuditEvent struct {
 	RequestBody string            `json:"request_body,omitempty"`
 	Error       string            `json:"error,omitempty"`
 	Metadata    map[string]string `json:"metadata,omitempty"`
+	RequestID   string            `json:"request_id,omitempty"`
 }
 
 // AuditLogger handles audit logging.
@@ -96,6 +105,9 @@ func NewAuditLogger(cfg config.AuditConfig) (*AuditLogger, error) {
 		al.enabledEvents[AuditEventMCPToolCall] = true
 		al.enabledEvents[AuditEventMCPToolError] = true
 		al.enabledEvents[AuditEventMCPAdminAction] = true
+		al.enabledEvents[AuditEventMCPConfirmIssued] = true
+		al.enabledEvents[AuditEventMCPConfirmRejected] = true
+		al.enabledEvents[AuditEventMCPConfirmed] = true
 	} else {
 		for _, event := range cfg.Events {
 			al.enabledEvents[AuditEventType(event)] = true
@@ -115,6 +127,39 @@ func NewAuditLogger(cfg config.AuditConfig) (*AuditLogger, error) {
 	}
 
 	return al, nil
+}
+
+// NewAuditLoggerWithWriter creates a new audit logger that writes to the provided writer.
+// This is useful for testing, where a bytes.Buffer can be used to capture audit output.
+func NewAuditLoggerWithWriter(cfg config.AuditConfig, w io.Writer) *AuditLogger {
+	al := &AuditLogger{
+		config:        cfg,
+		enabledEvents: make(map[AuditEventType]bool),
+	}
+
+	// Build set of enabled events (same logic as NewAuditLogger)
+	if len(cfg.Events) == 0 {
+		al.enabledEvents[AuditEventSchemaRegister] = true
+		al.enabledEvents[AuditEventSchemaDelete] = true
+		al.enabledEvents[AuditEventConfigUpdate] = true
+		al.enabledEvents[AuditEventModeUpdate] = true
+		al.enabledEvents[AuditEventAuthFailure] = true
+		al.enabledEvents[AuditEventAuthForbidden] = true
+		al.enabledEvents[AuditEventSubjectDelete] = true
+		al.enabledEvents[AuditEventMCPToolCall] = true
+		al.enabledEvents[AuditEventMCPToolError] = true
+		al.enabledEvents[AuditEventMCPAdminAction] = true
+		al.enabledEvents[AuditEventMCPConfirmIssued] = true
+		al.enabledEvents[AuditEventMCPConfirmRejected] = true
+		al.enabledEvents[AuditEventMCPConfirmed] = true
+	} else {
+		for _, event := range cfg.Events {
+			al.enabledEvents[AuditEventType(event)] = true
+		}
+	}
+
+	al.logger = slog.New(slog.NewJSONHandler(w, nil))
+	return al
 }
 
 // Close closes the audit logger.
@@ -138,7 +183,7 @@ func (al *AuditLogger) Log(event *AuditEvent) {
 	al.mu.Lock()
 	defer al.mu.Unlock()
 
-	al.logger.Info("audit",
+	attrs := []slog.Attr{
 		slog.Time("timestamp", event.Timestamp),
 		slog.String("event_type", string(event.EventType)),
 		slog.String("user", event.User),
@@ -152,7 +197,21 @@ func (al *AuditLogger) Log(event *AuditEvent) {
 		slog.Int("version", event.Version),
 		slog.Int64("schema_id", event.SchemaID),
 		slog.String("error", event.Error),
-	)
+	}
+	if event.RequestBody != "" {
+		attrs = append(attrs, slog.String("request_body", event.RequestBody))
+	}
+	if event.RequestID != "" {
+		attrs = append(attrs, slog.String("request_id", event.RequestID))
+	}
+	if len(event.Metadata) > 0 {
+		metadataAttrs := make([]any, 0, len(event.Metadata)*2)
+		for k, v := range event.Metadata {
+			metadataAttrs = append(metadataAttrs, slog.String(k, v))
+		}
+		attrs = append(attrs, slog.Group("metadata", metadataAttrs...))
+	}
+	al.logger.LogAttrs(context.Background(), slog.LevelInfo, "audit", attrs...)
 }
 
 // Middleware returns HTTP middleware for audit logging.
@@ -208,6 +267,7 @@ func (al *AuditLogger) Middleware(next http.Handler) http.Handler {
 			StatusCode:  rw.statusCode,
 			Duration:    time.Since(start),
 			RequestBody: requestBody,
+			RequestID:   middleware.GetReqID(r.Context()),
 		}
 
 		// Extract subject from path if applicable
@@ -359,7 +419,7 @@ func (al *AuditLogger) LogEvent(eventType AuditEventType, r *http.Request, statu
 }
 
 // LogMCPEvent logs an MCP tool call audit event.
-func (al *AuditLogger) LogMCPEvent(eventType AuditEventType, toolName, status string, duration time.Duration, err error, metadata map[string]string) {
+func (al *AuditLogger) LogMCPEvent(eventType AuditEventType, toolName, status string, duration time.Duration, err error, subject string, metadata map[string]string) {
 	if !al.config.Enabled {
 		return
 	}
@@ -376,10 +436,28 @@ func (al *AuditLogger) LogMCPEvent(eventType AuditEventType, toolName, status st
 		Path:      toolName,
 		Duration:  duration,
 		Error:     errStr,
+		Subject:   subject,
 		Metadata:  metadata,
 	}
 	if status == "error" {
 		event.StatusCode = 1
+	}
+
+	al.Log(event)
+}
+
+// LogMCPConfirmationEvent logs an MCP confirmation flow audit event.
+func (al *AuditLogger) LogMCPConfirmationEvent(eventType AuditEventType, toolName string, metadata map[string]string) {
+	if !al.config.Enabled {
+		return
+	}
+
+	event := &AuditEvent{
+		Timestamp: time.Now(),
+		EventType: eventType,
+		Method:    "MCP",
+		Path:      toolName,
+		Metadata:  metadata,
 	}
 
 	al.Log(event)

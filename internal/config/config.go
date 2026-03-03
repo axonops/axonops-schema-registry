@@ -283,7 +283,7 @@ type RateLimitConfig struct {
 type AuditConfig struct {
 	Enabled     bool     `yaml:"enabled"`
 	LogFile     string   `yaml:"log_file"`
-	Events      []string `yaml:"events"` // schema_register, schema_delete, config_change
+	Events      []string `yaml:"events"` // schema_register, schema_delete, config_update
 	IncludeBody bool     `yaml:"include_body"`
 }
 

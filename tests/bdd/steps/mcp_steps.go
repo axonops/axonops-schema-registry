@@ -55,6 +55,12 @@ func getMCPSession(tc *TestContext) (*gomcp.ClientSession, error) {
 		mcpOpts = append(mcpOpts, mcpkg.WithAuthService(authSvc))
 	}
 
+	// Wire audit logger for BDD audit assertions
+	auditBuf := &bytes.Buffer{}
+	auditLogger := auth.NewAuditLoggerWithWriter(config.AuditConfig{Enabled: true}, auditBuf)
+	mcpOpts = append(mcpOpts, mcpkg.WithAuditLogger(auditLogger))
+	tc.AuditBuffer = auditBuf
+
 	srv := mcpkg.New(cfg, reg, nil, "bdd-test", mcpOpts...)
 
 	ctx := context.Background()
@@ -579,6 +585,38 @@ func RegisterMCPSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 		// If the result contains confirmation_required as an error, it's an error
 		if strings.Contains(tc.MCPResultText, `"error":"confirmation_required"`) {
 			return fmt.Errorf("MCP result is a confirmation error: %s", tc.MCPResultText)
+		}
+		return nil
+	})
+
+	// --- Audit log assertion steps ---
+
+	ctx.Step(`^the audit log should contain event "([^"]*)"$`, func(eventType string) error {
+		if tc.AuditBuffer == nil {
+			return fmt.Errorf("no audit buffer configured")
+		}
+		if !strings.Contains(tc.AuditBuffer.String(), eventType) {
+			return fmt.Errorf("expected audit log to contain event %q, got: %s", eventType, tc.AuditBuffer.String())
+		}
+		return nil
+	})
+
+	ctx.Step(`^the audit log should contain "([^"]*)"$`, func(text string) error {
+		if tc.AuditBuffer == nil {
+			return fmt.Errorf("no audit buffer configured")
+		}
+		if !strings.Contains(tc.AuditBuffer.String(), text) {
+			return fmt.Errorf("expected audit log to contain %q, got: %s", text, tc.AuditBuffer.String())
+		}
+		return nil
+	})
+
+	ctx.Step(`^the audit log should not contain event "([^"]*)"$`, func(eventType string) error {
+		if tc.AuditBuffer == nil {
+			return fmt.Errorf("no audit buffer configured")
+		}
+		if strings.Contains(tc.AuditBuffer.String(), eventType) {
+			return fmt.Errorf("expected audit log NOT to contain event %q, got: %s", eventType, tc.AuditBuffer.String())
 		}
 		return nil
 	})

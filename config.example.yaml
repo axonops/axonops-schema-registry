@@ -125,5 +125,5 @@ security:
     events:
       - schema_register
       - schema_delete
-      - config_change
+      - config_update
     include_body: false

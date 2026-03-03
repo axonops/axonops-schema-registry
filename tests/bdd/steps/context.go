@@ -34,6 +34,9 @@ type TestContext struct {
 	MCPResourceText string      // text from last MCP resource read
 	MCPPromptText   string      // text from last MCP prompt get (all messages concatenated)
 	MCPPromptDesc   string      // description from last MCP prompt get
+
+	// Audit fields — populated when audit logger is wired for BDD testing.
+	AuditBuffer *bytes.Buffer
 }
 
 // NewTestContext creates a fresh test context.

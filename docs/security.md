@@ -242,7 +242,7 @@ security:
     events:
       - schema_register
       - schema_delete
-      - config_change
+      - config_update
       - auth_failure
       - auth_forbidden
       - subject_delete
@@ -274,8 +274,14 @@ security:
 | `auth_forbidden` | HTTP 403 response (authorization failed) |
 | `subject_delete` | `DELETE /subjects/{subject}` |
 | `subject_list` | `GET /subjects` |
+| `mcp_tool_call` | MCP tool invoked successfully |
+| `mcp_tool_error` | MCP tool invoked with error result |
+| `mcp_admin_action` | MCP admin tool invoked (user/API key management) |
+| `mcp_confirm_issued` | MCP two-phase confirmation token issued |
+| `mcp_confirm_rejected` | MCP confirmation token validation failed |
+| `mcp_confirmed` | MCP destructive operation confirmed and executed |
 
-When the `events` list is empty, the following events are logged by default: `schema_register`, `schema_delete`, `config_update`, `mode_update`, `auth_failure`, `auth_forbidden`, and `subject_delete`.
+When the `events` list is empty, the following events are logged by default: `schema_register`, `schema_delete`, `config_update`, `mode_update`, `auth_failure`, `auth_forbidden`, `subject_delete`, `mcp_tool_call`, `mcp_tool_error`, `mcp_admin_action`, `mcp_confirm_issued`, `mcp_confirm_rejected`, and `mcp_confirmed`.
 
 ### Log Format
 
@@ -292,11 +298,12 @@ Each audit entry is a JSON object written to a single line:
   "path": "/subjects/payments-value/versions",
   "status_code": 200,
   "duration_ms": 42,
-  "subject": "payments-value"
+  "subject": "payments-value",
+  "request_id": "localhost/abc-123-def"
 }
 ```
 
-Fields include: `timestamp`, `event_type`, `user`, `role`, `client_ip`, `method`, `path`, `status_code`, `duration_ms`, `subject`, `version`, `schema_id`, `error`, and optionally `request_body` and `metadata`.
+Fields include: `timestamp`, `event_type`, `user`, `role`, `client_ip`, `method`, `path`, `status_code`, `duration_ms`, `subject`, `version`, `schema_id`, `error`, `request_id`, and optionally `request_body` and `metadata`.
 
 ## Unauthenticated Endpoints
 

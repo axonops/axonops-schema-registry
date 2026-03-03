@@ -13,6 +13,7 @@
 package bdd
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -148,6 +149,11 @@ func TestMain(m *testing.M) {
 
 // newTestServer creates a fresh in-process schema registry backed by memory storage.
 func newTestServer() (*httptest.Server, storage.Storage, *registry.Registry) {
+	return newTestServerWithAudit(nil)
+}
+
+// newTestServerWithAudit creates a fresh in-process schema registry with optional audit logging.
+func newTestServerWithAudit(al *auth.AuditLogger) (*httptest.Server, storage.Storage, *registry.Registry) {
 	store := memory.NewStore()
 
 	schemaRegistry := schema.NewRegistry()
@@ -166,7 +172,11 @@ func newTestServer() (*httptest.Server, storage.Storage, *registry.Registry) {
 		Server: config.ServerConfig{Host: "localhost", Port: 0, DocsEnabled: true},
 	}
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	server := api.NewServer(cfg, reg, logger)
+	var opts []api.ServerOption
+	if al != nil {
+		opts = append(opts, api.WithAuditLogger(al))
+	}
+	server := api.NewServer(cfg, reg, logger, opts...)
 
 	return httptest.NewServer(server), store, reg
 }
@@ -428,6 +438,13 @@ func TestFeatures(t *testing.T) {
 							ts, st, reg = newKMSTestServer()
 							storeOwned = true
 						}
+					} else if hasTag(sc, "@audit") {
+						// Wire audit buffer for REST audit assertions
+						auditBuf := &bytes.Buffer{}
+						al := auth.NewAuditLoggerWithWriter(config.AuditConfig{Enabled: true}, auditBuf)
+						ts, st, reg = newTestServerWithAudit(al)
+						tc.AuditBuffer = auditBuf
+						storeOwned = true
 					} else {
 						ts, st, reg = newTestServer()
 						storeOwned = true
