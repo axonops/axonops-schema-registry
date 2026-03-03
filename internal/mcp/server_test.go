@@ -3740,3 +3740,349 @@ func TestInstrumentedHandler_LogSchemas_Disabled(t *testing.T) {
 		t.Error("expected no mcp_tool_schema_body log when log_schemas is false")
 	}
 }
+
+// --- resourceMarkdown helper test ---
+
+func TestResourceMarkdownHelper(t *testing.T) {
+	result, err := resourceMarkdown("schema://glossary/test", "# Hello\n\nThis is **markdown**.")
+	if err != nil {
+		t.Fatalf("resourceMarkdown: %v", err)
+	}
+	if len(result.Contents) != 1 {
+		t.Fatalf("expected 1 content block, got %d", len(result.Contents))
+	}
+	if result.Contents[0].MIMEType != "text/markdown" {
+		t.Errorf("expected text/markdown, got %s", result.Contents[0].MIMEType)
+	}
+	if result.Contents[0].URI != "schema://glossary/test" {
+		t.Errorf("expected URI schema://glossary/test, got %s", result.Contents[0].URI)
+	}
+	if !strings.Contains(result.Contents[0].Text, "**markdown**") {
+		t.Errorf("expected markdown content, got: %s", result.Contents[0].Text)
+	}
+}
+
+// --- Glossary resource tests ---
+
+func TestReadGlossaryCoreConceptsResource(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	result, err := cs.ReadResource(context.Background(), &gomcp.ReadResourceParams{
+		URI: "schema://glossary/core-concepts",
+	})
+	if err != nil {
+		t.Fatalf("ReadResource: %v", err)
+	}
+	text := resourceText(t, result)
+	for _, want := range []string{"schema registry", "subject", "version", "Schema IDs", "Wire Format", "Deduplication"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("expected %q in glossary, not found", want)
+		}
+	}
+}
+
+func TestReadGlossaryCompatibilityResource(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	result, err := cs.ReadResource(context.Background(), &gomcp.ReadResourceParams{
+		URI: "schema://glossary/compatibility",
+	})
+	if err != nil {
+		t.Fatalf("ReadResource: %v", err)
+	}
+	text := resourceText(t, result)
+	for _, want := range []string{"BACKWARD", "FORWARD", "FULL_TRANSITIVE", "Type Promotions", "Avro"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("expected %q in glossary, not found", want)
+		}
+	}
+}
+
+func TestReadGlossaryDataContractsResource(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	result, err := cs.ReadResource(context.Background(), &gomcp.ReadResourceParams{
+		URI: "schema://glossary/data-contracts",
+	})
+	if err != nil {
+		t.Fatalf("ReadResource: %v", err)
+	}
+	text := resourceText(t, result)
+	for _, want := range []string{"metadata", "ruleSet", "3-Layer Merge", "Optimistic Concurrency"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("expected %q in glossary, not found", want)
+		}
+	}
+}
+
+func TestReadGlossaryEncryptionResource(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	result, err := cs.ReadResource(context.Background(), &gomcp.ReadResourceParams{
+		URI: "schema://glossary/encryption",
+	})
+	if err != nil {
+		t.Fatalf("ReadResource: %v", err)
+	}
+	text := resourceText(t, result)
+	for _, want := range []string{"KEK", "DEK", "Envelope Encryption", "AES256_GCM", "Rewrapping"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("expected %q in glossary, not found", want)
+		}
+	}
+}
+
+func TestReadGlossaryContextsResource(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	result, err := cs.ReadResource(context.Background(), &gomcp.ReadResourceParams{
+		URI: "schema://glossary/contexts",
+	})
+	if err != nil {
+		t.Fatalf("ReadResource: %v", err)
+	}
+	text := resourceText(t, result)
+	for _, want := range []string{"multi-tenant", "__GLOBAL", "4-Tier", "Qualified subject"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("expected %q in glossary, not found", want)
+		}
+	}
+}
+
+func TestReadGlossaryExportersResource(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	result, err := cs.ReadResource(context.Background(), &gomcp.ReadResourceParams{
+		URI: "schema://glossary/exporters",
+	})
+	if err != nil {
+		t.Fatalf("ReadResource: %v", err)
+	}
+	text := resourceText(t, result)
+	for _, want := range []string{"schema linking", "RUNNING", "PAUSED", "AUTO", "CUSTOM"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("expected %q in glossary, not found", want)
+		}
+	}
+}
+
+func TestReadGlossarySchemaTypesResource(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	result, err := cs.ReadResource(context.Background(), &gomcp.ReadResourceParams{
+		URI: "schema://glossary/schema-types",
+	})
+	if err != nil {
+		t.Fatalf("ReadResource: %v", err)
+	}
+	text := resourceText(t, result)
+	for _, want := range []string{"Avro", "Protobuf", "JSON Schema", "Logical Type", "Wire Type"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("expected %q in glossary, not found", want)
+		}
+	}
+}
+
+func TestReadGlossaryDesignPatternsResource(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	result, err := cs.ReadResource(context.Background(), &gomcp.ReadResourceParams{
+		URI: "schema://glossary/design-patterns",
+	})
+	if err != nil {
+		t.Fatalf("ReadResource: %v", err)
+	}
+	text := resourceText(t, result)
+	for _, want := range []string{"Event Envelope", "Snapshot", "Delta", "Three-Phase Rename"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("expected %q in glossary, not found", want)
+		}
+	}
+}
+
+func TestReadGlossaryBestPracticesResource(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	result, err := cs.ReadResource(context.Background(), &gomcp.ReadResourceParams{
+		URI: "schema://glossary/best-practices",
+	})
+	if err != nil {
+		t.Fatalf("ReadResource: %v", err)
+	}
+	text := resourceText(t, result)
+	for _, want := range []string{"Avro Best Practices", "Protobuf Best Practices", "Common Mistakes"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("expected %q in glossary, not found", want)
+		}
+	}
+}
+
+func TestReadGlossaryMigrationResource(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	result, err := cs.ReadResource(context.Background(), &gomcp.ReadResourceParams{
+		URI: "schema://glossary/migration",
+	})
+	if err != nil {
+		t.Fatalf("ReadResource: %v", err)
+	}
+	text := resourceText(t, result)
+	for _, want := range []string{"Confluent", "IMPORT", "ID Preservation", "Rollback"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("expected %q in glossary, not found", want)
+		}
+	}
+}
+
+// --- New prompt tests ---
+
+func TestGlossaryLookupPromptRouting(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	tests := []struct {
+		topic   string
+		wantURI string
+	}{
+		{"compatibility", "schema://glossary/compatibility"},
+		{"CSFLE encryption", "schema://glossary/encryption"},
+		{"context multi-tenant", "schema://glossary/contexts"},
+		{"avro logical types", "schema://glossary/schema-types"},
+		{"confluent migration", "schema://glossary/migration"},
+		{"unknown-topic-xyz", "schema://glossary/core-concepts"}, // fallback
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.topic, func(t *testing.T) {
+			result, err := cs.GetPrompt(context.Background(), &gomcp.GetPromptParams{
+				Name:      "glossary-lookup",
+				Arguments: map[string]string{"topic": tc.topic},
+			})
+			if err != nil {
+				t.Fatalf("GetPrompt: %v", err)
+			}
+			text := promptText(t, result)
+			if !strings.Contains(text, tc.wantURI) {
+				t.Errorf("expected URI %q for topic %q, got: %s", tc.wantURI, tc.topic, text)
+			}
+		})
+	}
+}
+
+func TestImportFromConfluentPrompt(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	result, err := cs.GetPrompt(context.Background(), &gomcp.GetPromptParams{
+		Name: "import-from-confluent",
+	})
+	if err != nil {
+		t.Fatalf("GetPrompt: %v", err)
+	}
+	text := promptText(t, result)
+	for _, want := range []string{"IMPORT", "READWRITE", "wire-compatible", "Confluent"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("expected %q in prompt, not found", want)
+		}
+	}
+}
+
+func TestSetupRBACPrompt(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	result, err := cs.GetPrompt(context.Background(), &gomcp.GetPromptParams{
+		Name: "setup-rbac",
+	})
+	if err != nil {
+		t.Fatalf("GetPrompt: %v", err)
+	}
+	text := promptText(t, result)
+	for _, want := range []string{"admin", "write", "read", "api_key", "create_user"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("expected %q in prompt, not found", want)
+		}
+	}
+}
+
+func TestSchemaReferencesGuidePrompt(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	result, err := cs.GetPrompt(context.Background(), &gomcp.GetPromptParams{
+		Name: "schema-references-guide",
+	})
+	if err != nil {
+		t.Fatalf("GetPrompt: %v", err)
+	}
+	text := promptText(t, result)
+	for _, want := range []string{"Avro", "Protobuf", "JSON Schema", "reference", "subject"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("expected %q in prompt, not found", want)
+		}
+	}
+}
+
+func TestFullEncryptionLifecyclePrompt(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	result, err := cs.GetPrompt(context.Background(), &gomcp.GetPromptParams{
+		Name: "full-encryption-lifecycle",
+	})
+	if err != nil {
+		t.Fatalf("GetPrompt: %v", err)
+	}
+	text := promptText(t, result)
+	for _, want := range []string{"KEK", "DEK", "Key Rotation", "Rewrap", "AES256_GCM"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("expected %q in prompt, not found", want)
+		}
+	}
+}
+
+func TestDataRulesDeepDivePrompt(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	result, err := cs.GetPrompt(context.Background(), &gomcp.GetPromptParams{
+		Name: "data-rules-deep-dive",
+	})
+	if err != nil {
+		t.Fatalf("GetPrompt: %v", err)
+	}
+	text := promptText(t, result)
+	for _, want := range []string{"Domain Rules", "Migration Rules", "Encoding Rules", "3-Layer Merge"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("expected %q in prompt, not found", want)
+		}
+	}
+}
+
+func TestRegistryHealthAuditPrompt(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	result, err := cs.GetPrompt(context.Background(), &gomcp.GetPromptParams{
+		Name: "registry-health-audit",
+	})
+	if err != nil {
+		t.Fatalf("GetPrompt: %v", err)
+	}
+	text := promptText(t, result)
+	for _, want := range []string{"health_check", "get_registry_statistics", "score_schema_quality"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("expected %q in prompt, not found", want)
+		}
+	}
+}
+
+func TestSchemaEvolutionCookbookPrompt(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	result, err := cs.GetPrompt(context.Background(), &gomcp.GetPromptParams{
+		Name: "schema-evolution-cookbook",
+	})
+	if err != nil {
+		t.Fatalf("GetPrompt: %v", err)
+	}
+	text := promptText(t, result)
+	for _, want := range []string{"Recipe", "Add an Optional Field", "Rename a Field", "three-phase"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("expected %q in prompt, not found", want)
+		}
+	}
+}
