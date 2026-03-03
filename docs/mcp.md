@@ -4,6 +4,8 @@ The AxonOps Schema Registry includes a built-in [Model Context Protocol](https:/
 
 The MCP server runs alongside the existing REST API as a separate HTTP endpoint, sharing the same `registry.Registry` service layer, and can be enabled or disabled via configuration.
 
+> For the complete auto-generated reference with all tool parameter schemas, see the [MCP API Reference](mcp-reference.md).
+
 ## Contents
 
 - [Quick Start](#quick-start)
@@ -15,6 +17,7 @@ The MCP server runs alongside the existing REST API as a separate HTTP endpoint,
 - [AI-Powered Schema Intelligence](#ai-powered-schema-intelligence)
 - [Connecting AI Clients](#connecting-ai-clients)
 - [Troubleshooting](#troubleshooting)
+- [API Reference](#api-reference)
 
 ## Quick Start
 
