@@ -357,7 +357,7 @@ func TestFeatures(t *testing.T) {
 		// Confluent: exclude operational, import (our custom API), axonops-only, contexts (our multi-tenant),
 		// pending-impl, data-contracts (ruleSet features require commercial Confluent license),
 		// and all backend tags.
-		tags = "~@operational && ~@import && ~@axonops-only && ~@contexts && ~@pending-impl && ~@data-contracts && ~@auth && ~@kms && ~@mcp && ~@memory && ~@postgres && ~@mysql && ~@cassandra"
+		tags = "~@operational && ~@import && ~@axonops-only && ~@contexts && ~@pending-impl && ~@data-contracts && ~@auth && ~@kms && ~@mcp && ~@analysis && ~@memory && ~@postgres && ~@mysql && ~@cassandra"
 	} else if dockerMode {
 		// Only run operational scenarios tagged for this backend, exclude other backends.
 		// Auth and MCP tests require in-process server, skip in Docker mode.
