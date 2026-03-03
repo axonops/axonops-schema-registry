@@ -101,10 +101,13 @@ func New(cfg *config.MCPConfig, reg *registry.Registry, logger *slog.Logger, ver
 	s.mcpServer = gomcp.NewServer(&gomcp.Implementation{
 		Name:    "axonops-schema-registry",
 		Version: version,
-	}, nil)
+	}, &gomcp.ServerOptions{
+		Instructions: serverInstructions,
+	})
 
 	s.registerTools()
 	s.registerResources()
+	s.registerGlossaryResources()
 	s.registerPrompts()
 	return s
 }
@@ -150,3 +153,26 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	}
 	return nil
 }
+
+// serverInstructions is returned to MCP clients during the initialize handshake.
+const serverInstructions = `You are connected to the AxonOps Schema Registry MCP server -- a Confluent-compatible schema registry for Avro, Protobuf, and JSON Schema.
+
+Capabilities: 105+ tools for schema management, compatibility checking, encryption (CSFLE), exporters (schema linking), data contracts, multi-tenant contexts, and schema intelligence (quality scoring, diff, impact analysis).
+
+Domain knowledge is available as glossary resources. Read these BEFORE answering domain questions:
+  schema://glossary/core-concepts     -- subjects, versions, IDs, modes, naming
+  schema://glossary/compatibility     -- 7 modes, per-format rules, transitive semantics
+  schema://glossary/data-contracts    -- metadata, tags, rulesets, 3-layer merge
+  schema://glossary/encryption        -- CSFLE, KEK/DEK, KMS providers, algorithms
+  schema://glossary/contexts          -- multi-tenancy, 4-tier inheritance
+  schema://glossary/exporters         -- schema linking, lifecycle states
+  schema://glossary/schema-types      -- Avro, Protobuf, JSON Schema deep reference
+  schema://glossary/design-patterns   -- event envelope, lifecycle, shared types, CI/CD
+  schema://glossary/best-practices    -- per-format guidance, common mistakes
+  schema://glossary/migration         -- Confluent migration, IMPORT mode, ID preservation
+
+Critical rules:
+- Schema IDs are embedded in Kafka messages. NEVER suggest changing IDs in production.
+- BACKWARD is the default compatibility. Do not change it without explaining consequences.
+- Deleting a subject or schema is SOFT by default. Permanent delete requires ?permanent=true.
+- IMPORT mode bypasses compatibility checks. Always switch back to READWRITE after migration.`

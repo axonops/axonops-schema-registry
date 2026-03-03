@@ -140,6 +140,56 @@ func (s *Server) registerPrompts() {
 		Description: "Guide for managing multi-tenant contexts and the 4-tier config/mode inheritance chain",
 		Arguments:   []*gomcp.PromptArgument{},
 	}, s.handleContextManagementPrompt)
+
+	s.mcpServer.AddPrompt(&gomcp.Prompt{
+		Name:        "glossary-lookup",
+		Description: "Look up a schema registry concept and get directed to the relevant glossary resource",
+		Arguments: []*gomcp.PromptArgument{
+			{Name: "topic", Description: "Keyword or concept to look up (e.g. compatibility, CSFLE, contexts, avro)", Required: true},
+		},
+	}, s.handleGlossaryLookupPrompt)
+
+	s.mcpServer.AddPrompt(&gomcp.Prompt{
+		Name:        "import-from-confluent",
+		Description: "Step-by-step guide for migrating schemas from Confluent Schema Registry with ID preservation",
+		Arguments:   []*gomcp.PromptArgument{},
+	}, s.handleImportFromConfluentPrompt)
+
+	s.mcpServer.AddPrompt(&gomcp.Prompt{
+		Name:        "setup-rbac",
+		Description: "Guide for configuring authentication and role-based access control (RBAC)",
+		Arguments:   []*gomcp.PromptArgument{},
+	}, s.handleSetupRBACPrompt)
+
+	s.mcpServer.AddPrompt(&gomcp.Prompt{
+		Name:        "schema-references-guide",
+		Description: "Guide for cross-subject schema references with per-format name semantics (Avro, Protobuf, JSON Schema)",
+		Arguments:   []*gomcp.PromptArgument{},
+	}, s.handleSchemaReferencesGuidePrompt)
+
+	s.mcpServer.AddPrompt(&gomcp.Prompt{
+		Name:        "full-encryption-lifecycle",
+		Description: "End-to-end CSFLE workflow: KEK creation, DEK management, key rotation, rewrapping, and cleanup",
+		Arguments:   []*gomcp.PromptArgument{},
+	}, s.handleFullEncryptionLifecyclePrompt)
+
+	s.mcpServer.AddPrompt(&gomcp.Prompt{
+		Name:        "data-rules-deep-dive",
+		Description: "Comprehensive guide to data contract rules: domain, migration, and encoding rules with examples",
+		Arguments:   []*gomcp.PromptArgument{},
+	}, s.handleDataRulesDeepDivePrompt)
+
+	s.mcpServer.AddPrompt(&gomcp.Prompt{
+		Name:        "registry-health-audit",
+		Description: "Multi-step procedure for auditing registry health, configuration consistency, and schema quality",
+		Arguments:   []*gomcp.PromptArgument{},
+	}, s.handleRegistryHealthAuditPrompt)
+
+	s.mcpServer.AddPrompt(&gomcp.Prompt{
+		Name:        "schema-evolution-cookbook",
+		Description: "Practical recipes for common schema evolution scenarios: add fields, rename, change types, and break compatibility safely",
+		Arguments:   []*gomcp.PromptArgument{},
+	}, s.handleSchemaEvolutionCookbookPrompt)
 }
 
 // --- Prompt handlers ---
@@ -994,6 +1044,567 @@ Available tools: register_schema, get_schema_types`, useCase)
 
 	return &gomcp.GetPromptResult{
 		Description: fmt.Sprintf("Format comparison for %q", useCase),
+		Messages:    []*gomcp.PromptMessage{promptMessage("user", guidance)},
+	}, nil
+}
+
+// --- New prompt handlers ---
+
+func (s *Server) handleGlossaryLookupPrompt(_ context.Context, req *gomcp.GetPromptRequest) (*gomcp.GetPromptResult, error) {
+	topic := strings.ToLower(req.Params.Arguments["topic"])
+	if topic == "" {
+		return nil, fmt.Errorf("required argument 'topic' is missing")
+	}
+
+	type glossaryEntry struct {
+		uri      string
+		keywords []string
+	}
+
+	entries := []glossaryEntry{
+		{"schema://glossary/core-concepts", []string{"subject", "version", "schema id", "wire format", "dedup", "fingerprint", "mode", "naming", "strategy", "register", "serializ"}},
+		{"schema://glossary/compatibility", []string{"compatibility", "backward", "forward", "full", "transitive", "compat", "promotion", "alias"}},
+		{"schema://glossary/data-contracts", []string{"data contract", "metadata", "ruleset", "rule", "tag", "merge", "governance", "domain rule", "migration rule", "encoding rule", "concurrency"}},
+		{"schema://glossary/encryption", []string{"encrypt", "csfle", "kek", "dek", "kms", "vault", "envelope", "key rotation", "rewrap", "aes"}},
+		{"schema://glossary/contexts", []string{"context", "multi-tenant", "tenant", "namespace", "isolation", "inheritance", "global", "__global"}},
+		{"schema://glossary/exporters", []string{"exporter", "schema link", "linking", "replicate", "disaster recovery"}},
+		{"schema://glossary/schema-types", []string{"avro", "protobuf", "proto", "json schema", "logical type", "wire type", "canonicali", "draft"}},
+		{"schema://glossary/design-patterns", []string{"pattern", "envelope", "lifecycle", "snapshot", "delta", "fat", "thin", "rename", "ci/cd", "dlq", "dead letter"}},
+		{"schema://glossary/best-practices", []string{"best practice", "naming", "convention", "mistake", "antipattern", "guidance"}},
+		{"schema://glossary/migration", []string{"migrat", "confluent", "import", "import mode", "id preserv"}},
+	}
+
+	var matchedURI string
+	for _, entry := range entries {
+		for _, kw := range entry.keywords {
+			if strings.Contains(topic, kw) {
+				matchedURI = entry.uri
+				break
+			}
+		}
+		if matchedURI != "" {
+			break
+		}
+	}
+
+	if matchedURI == "" {
+		matchedURI = "schema://glossary/core-concepts"
+	}
+
+	guidance := fmt.Sprintf(`The topic %q is covered in the glossary resource: %s
+
+Read that resource to get comprehensive domain knowledge, then answer the user's question.
+
+All glossary resources:
+- schema://glossary/core-concepts     -- subjects, versions, IDs, modes, naming
+- schema://glossary/compatibility     -- 7 modes, per-format rules, transitive semantics
+- schema://glossary/data-contracts    -- metadata, tags, rulesets, 3-layer merge
+- schema://glossary/encryption        -- CSFLE, KEK/DEK, KMS providers, algorithms
+- schema://glossary/contexts          -- multi-tenancy, 4-tier inheritance
+- schema://glossary/exporters         -- schema linking, lifecycle states
+- schema://glossary/schema-types      -- Avro, Protobuf, JSON Schema deep reference
+- schema://glossary/design-patterns   -- event envelope, lifecycle, shared types, CI/CD
+- schema://glossary/best-practices    -- per-format guidance, common mistakes
+- schema://glossary/migration         -- Confluent migration, IMPORT mode, ID preservation`, topic, matchedURI)
+
+	return &gomcp.GetPromptResult{
+		Description: fmt.Sprintf("Glossary lookup for %q", topic),
+		Messages:    []*gomcp.PromptMessage{promptMessage("user", guidance)},
+	}, nil
+}
+
+func (s *Server) handleImportFromConfluentPrompt(_ context.Context, _ *gomcp.GetPromptRequest) (*gomcp.GetPromptResult, error) {
+	guidance := `Step-by-step guide for migrating schemas from Confluent Schema Registry.
+
+## Why This Matters
+The Kafka wire format embeds a 4-byte schema ID in every message. If IDs change, existing consumers cannot deserialize messages. This procedure preserves exact schema IDs.
+
+## Prerequisites
+- Source: running Confluent Schema Registry with network access
+- Target: running AxonOps Schema Registry with configured storage
+- Tools: curl and jq on the migration machine
+
+## Procedure
+
+### Step 1: Verify target health
+Use **health_check** to confirm the target registry is running.
+
+### Step 2: Set IMPORT mode
+Use **set_mode** with mode: IMPORT. This allows registering schemas with specific IDs and bypasses compatibility checks.
+
+### Step 3: Export from Confluent
+Run the migration script:
+    ./scripts/migrate-from-confluent.sh --source http://confluent:8081 --dry-run
+Inspect the output to verify schema count and subjects.
+
+### Step 4: Import
+    ./scripts/migrate-from-confluent.sh --source http://confluent:8081 --target http://axonops:8082 --verify
+Or use the **import_schemas** tool for programmatic import.
+
+### Step 5: Switch to READWRITE
+Use **set_mode** with mode: READWRITE. New registrations will get auto-generated IDs starting after the highest imported ID.
+
+### Step 6: Update clients
+Change schema.registry.url in all Kafka serializer/deserializer configs. No code changes needed -- the API is wire-compatible.
+
+## Verification
+1. Use **list_subjects** -- count should match source.
+2. Use **get_schema_by_id** -- spot-check IDs across both registries.
+3. Produce/consume a test message through the new registry.
+
+## Rollback
+The migration is non-destructive. Point clients back to Confluent if issues arise.
+
+For domain knowledge, read: schema://glossary/migration`
+
+	return &gomcp.GetPromptResult{
+		Description: "Confluent migration workflow",
+		Messages:    []*gomcp.PromptMessage{promptMessage("user", guidance)},
+	}, nil
+}
+
+func (s *Server) handleSetupRBACPrompt(_ context.Context, _ *gomcp.GetPromptRequest) (*gomcp.GetPromptResult, error) {
+	guidance := `Guide for configuring authentication and role-based access control (RBAC).
+
+## Authentication Methods
+
+The registry supports multiple auth methods (configured in security.auth.methods):
+
+| Method | Description |
+|--------|-------------|
+| **basic** | Username/password via HTTP Basic Auth |
+| **api_key** | API keys sent as Bearer tokens |
+| **jwt** | JWT tokens (for external identity providers) |
+| **oidc** | OpenID Connect (delegated to an OIDC provider) |
+| **ldap** | LDAP directory authentication |
+| **mtls** | Mutual TLS client certificates |
+
+## The 4 Built-in Roles
+
+| Role | Permissions |
+|------|-------------|
+| **admin** | Full access: manage users, API keys, schemas, config, modes |
+| **write** | Register/delete schemas, set config/mode, manage encryption keys |
+| **read** | Read schemas, subjects, config, mode. Cannot modify anything. |
+| **readwrite** | Read + write schemas and config. Cannot manage users or API keys. |
+
+## Setup Steps
+
+### Step 1: Enable auth in config
+Set security.auth.enabled: true and choose methods.
+
+### Step 2: Create admin user
+Use **create_user** with role: admin.
+
+### Step 3: Create service accounts
+Use **create_api_key** for each service:
+- Producers: role write or readwrite
+- Consumers: role read
+- CI/CD: role write (for schema registration)
+- Monitoring: role read
+
+### Step 4: Test access
+Use **list_users** and **list_api_keys** to verify.
+
+## MCP Admin Tools
+
+- **create_user / get_user / list_users / update_user / delete_user** -- manage users
+- **create_api_key / get_api_key / list_api_keys / update_api_key / delete_api_key** -- manage API keys
+- **list_roles** -- list available roles and their permissions`
+
+	return &gomcp.GetPromptResult{
+		Description: "Authentication and RBAC configuration guide",
+		Messages:    []*gomcp.PromptMessage{promptMessage("user", guidance)},
+	}, nil
+}
+
+func (s *Server) handleSchemaReferencesGuidePrompt(_ context.Context, _ *gomcp.GetPromptRequest) (*gomcp.GetPromptResult, error) {
+	guidance := `Guide for cross-subject schema references.
+
+## What Are References?
+References allow one schema to depend on another schema registered in a different subject. This enables reusable, independently versioned type definitions.
+
+## Reference Structure
+Each reference has three fields:
+- **name** -- how the referencing schema refers to this dependency
+- **subject** -- subject where the referenced schema is registered
+- **version** -- version number of the referenced schema
+
+## Per-Format Name Semantics
+
+### Avro
+The **name** field is the fully qualified type name (namespace + name):
+    name: "com.example.Address"
+    subject: "com.example.Address"
+    version: 1
+
+In the schema, reference it by its fully qualified name in the type field.
+
+### Protobuf
+The **name** field is the import path:
+    name: "address.proto"
+    subject: "address-value"
+    version: 1
+
+In the .proto file, use: import "address.proto";
+
+### JSON Schema
+The **name** field is the reference URL:
+    name: "address.json"
+    subject: "address-value"
+    version: 1
+
+In the schema, use: "$ref": "address.json"
+
+## Registering with References
+Use **register_schema** with the references array:
+    register_schema(
+      subject: "order-value",
+      schema: "...",
+      schema_type: "AVRO",
+      references: [
+        {"name": "com.example.Address", "subject": "address-value", "version": 1}
+      ]
+    )
+
+## Important Rules
+1. Referenced schemas MUST be registered before the schemas that depend on them.
+2. A schema that is referenced by others cannot be permanently deleted.
+3. Use **get_referenced_by** to find all schemas that reference a given subject.
+4. Use **get_dependency_graph** to visualize the full reference tree.
+5. Use FULL_TRANSITIVE compatibility for shared referenced types.
+
+## Resolving References
+Pass ?referenceFormat=RESOLVED when fetching schemas to get resolved (inline) references.
+
+For domain knowledge, read: schema://glossary/schema-types`
+
+	return &gomcp.GetPromptResult{
+		Description: "Schema references guide with per-format semantics",
+		Messages:    []*gomcp.PromptMessage{promptMessage("user", guidance)},
+	}, nil
+}
+
+func (s *Server) handleFullEncryptionLifecyclePrompt(_ context.Context, _ *gomcp.GetPromptRequest) (*gomcp.GetPromptResult, error) {
+	guidance := `End-to-end CSFLE (Client-Side Field Level Encryption) lifecycle.
+
+## Phase 1: Create a KEK
+A KEK references an external KMS key. It wraps (encrypts) the DEKs.
+
+Use **create_kek**:
+    name: "prod-kek"
+    kms_type: "hcvault" (or aws-kms, azure-kms, gcp-kms, openbao)
+    kms_key_id: transit key name or ARN
+    kms_props: provider-specific connection details
+    shared: false (recommended for client-managed keys)
+
+Verify with **test_kek** to confirm KMS connectivity.
+
+## Phase 2: Create DEKs
+A DEK is the actual encryption key, scoped to a schema subject.
+
+Use **create_dek**:
+    kek_name: "prod-kek"
+    subject: "orders-value"
+    algorithm: "AES256_GCM" (or AES128_GCM, AES256_SIV)
+
+The DEK is automatically wrapped by the KEK. The plaintext key material stays on the client.
+
+## Phase 3: Key Rotation
+Create a new DEK version for the same subject:
+
+Use **create_dek** again with the same kek_name and subject. A new version is auto-assigned.
+- New messages are encrypted with the latest DEK version.
+- Old messages remain decryptable with previous DEK versions.
+
+## Phase 4: KMS Key Rotation (Rewrap)
+When the underlying KMS key is rotated:
+
+Rewrap existing DEKs so they are encrypted with the new KMS key version. The DEK plaintext stays the same -- only the wrapper changes. No re-encryption of data is needed.
+
+## Phase 5: Cleanup
+Soft-delete old DEK versions that are no longer needed:
+Use **delete_dek** -- sets deleted=true. Can be undone with undelete_dek.
+
+Permanent delete (irreversible):
+Use **delete_dek** with permanent: true.
+
+Delete a KEK only after ALL its DEKs are permanently deleted.
+
+## Algorithm Choice
+- **AES256_GCM** (default): strongest confidentiality, non-deterministic
+- **AES128_GCM**: lower key size, still authenticated
+- **AES256_SIV**: deterministic -- enables equality searches but leaks value equality
+
+## MCP Tools
+create_kek, get_kek, list_keks, update_kek, delete_kek, test_kek,
+create_dek, get_dek, list_deks, delete_dek, get_dek_versions
+
+For domain knowledge, read: schema://glossary/encryption`
+
+	return &gomcp.GetPromptResult{
+		Description: "End-to-end CSFLE encryption lifecycle",
+		Messages:    []*gomcp.PromptMessage{promptMessage("user", guidance)},
+	}, nil
+}
+
+func (s *Server) handleDataRulesDeepDivePrompt(_ context.Context, _ *gomcp.GetPromptRequest) (*gomcp.GetPromptResult, error) {
+	guidance := `Comprehensive guide to data contract rules.
+
+## Rule Categories
+
+### Domain Rules (domainRules)
+Validation and transformation rules applied to schema content at registration time.
+
+Example: enforce camelCase field naming
+    {
+      "name": "checkCamelCase",
+      "kind": "CONDITION",
+      "mode": "WRITE",
+      "type": "CEL",
+      "expr": "name.matches('^[a-z][a-zA-Z0-9]*$')",
+      "onFailure": "ERROR"
+    }
+
+### Migration Rules (migrationRules)
+Rules applied during schema version transitions (upgrades and downgrades).
+
+Example: rename a field during upgrade
+    {
+      "name": "renameCustomerToClient",
+      "kind": "TRANSFORM",
+      "mode": "UPGRADE",
+      "type": "JSON_TRANSFORM",
+      "expr": "$.customer -> $.client"
+    }
+
+### Encoding Rules (encodingRules)
+Rules applied during serialization/deserialization, typically for field-level encryption.
+
+Example: encrypt PII-tagged fields
+    {
+      "name": "encryptPII",
+      "kind": "TRANSFORM",
+      "mode": "WRITE",
+      "type": "ENCRYPT",
+      "tags": ["PII"]
+    }
+
+## Rule Fields
+
+| Field | Values | Description |
+|-------|--------|-------------|
+| **name** | any string | Unique identifier for this rule |
+| **kind** | CONDITION, TRANSFORM | Validate (CONDITION) or modify (TRANSFORM) |
+| **mode** | WRITE, READ, UPGRADE, DOWNGRADE, WRITEREAD, UPDOWN | When the rule applies |
+| **type** | CEL, JSON_TRANSFORM, ENCRYPT, etc. | Rule engine/evaluator type |
+| **tags** | string array | Field tags this rule targets (e.g., ["PII", "GDPR"]) |
+| **params** | map[string]string | Rule-specific configuration |
+| **expr** | string | Rule expression (CEL expression, JSONPath, etc.) |
+| **onSuccess** | NONE, ERROR | Action when rule passes |
+| **onFailure** | NONE, ERROR, DLQ | Action when rule fails |
+| **disabled** | boolean | Whether this rule is currently inactive |
+
+## The 3-Layer Merge
+
+When registering a schema:
+1. **defaultRuleSet** from config -- base rules applied when request has none
+2. **request ruleSet** -- rules from the POST body
+3. **overrideRuleSet** from config -- always wins, overrides everything
+
+Rules merge by name: if two layers define a rule with the same name, the higher layer wins.
+
+## Setting Config-Level Rules
+
+Use **set_config_full** to set defaults and overrides:
+- defaultMetadata / defaultRuleSet: baseline governance
+- overrideMetadata / overrideRuleSet: mandatory governance (always applied)
+
+## Inheritance
+Rules from the previous version carry forward unless explicitly replaced. This means governance accumulates across versions.
+
+## MCP Tools
+- **set_config_full / get_config_full** -- manage rules at the config level
+- **register_schema** -- register with ruleSet in the request
+- **get_latest_schema** -- inspect current rules
+
+For domain knowledge, read: schema://glossary/data-contracts`
+
+	return &gomcp.GetPromptResult{
+		Description: "Data contract rules deep dive",
+		Messages:    []*gomcp.PromptMessage{promptMessage("user", guidance)},
+	}, nil
+}
+
+func (s *Server) handleRegistryHealthAuditPrompt(_ context.Context, _ *gomcp.GetPromptRequest) (*gomcp.GetPromptResult, error) {
+	guidance := `Multi-step registry health audit procedure.
+
+## Step 1: Basic Health
+Use **health_check** to verify:
+- Registry is running
+- Storage backend is connected and responsive
+
+Use **get_server_info** to check:
+- Version and build information
+- Supported schema types
+
+## Step 2: Registry Statistics
+Use **get_registry_statistics** to get:
+- Total subjects and schemas
+- Schema type distribution (Avro, Protobuf, JSON)
+- Total versions
+- KEK and exporter counts
+
+## Step 3: Configuration Consistency
+Use **get_config** (with no subject) to check the global compatibility level.
+- Is it BACKWARD (the recommended default)?
+- Are there subjects with NONE that should not be?
+
+Use **get_mode** (with no subject) to check the global mode.
+- Should be READWRITE for normal operation.
+- IMPORT mode should only be active during migrations.
+
+## Step 4: Subject Health
+Use **list_subjects** to get all subjects.
+For suspicious subjects, use **count_versions** to check for:
+- Subjects with excessive versions (>100 may indicate runaway registrations)
+- Subjects with only 1 version (may be unused or abandoned)
+
+## Step 5: Schema Quality
+Use **score_schema_quality** on key subjects to check:
+- Naming conventions (PascalCase records, snake_case fields)
+- Documentation coverage
+- Type safety (logical types, enums vs strings)
+- Evolution readiness (defaults, nullable fields)
+
+## Step 6: Dependency Health
+Use **detect_schema_patterns** to check:
+- Naming convention consistency across the registry
+- Orphaned schemas (no references, no consumers)
+
+Use **get_dependency_graph** on referenced subjects to verify:
+- No circular dependencies
+- Referenced schemas use FULL or FULL_TRANSITIVE compatibility
+
+## Step 7: Encryption Audit (if applicable)
+Use **list_keks** to check KEK inventory.
+Use **test_kek** on each KEK to verify KMS connectivity.
+Use **list_deks** to verify DEK coverage for encrypted subjects.
+
+## Summary
+After completing all steps, you should have a clear picture of:
+- Registry availability and connectivity
+- Configuration policy compliance
+- Schema quality and naming consistency
+- Dependency integrity
+- Encryption key health`
+
+	return &gomcp.GetPromptResult{
+		Description: "Registry health audit procedure",
+		Messages:    []*gomcp.PromptMessage{promptMessage("user", guidance)},
+	}, nil
+}
+
+func (s *Server) handleSchemaEvolutionCookbookPrompt(_ context.Context, _ *gomcp.GetPromptRequest) (*gomcp.GetPromptResult, error) {
+	guidance := `Practical recipes for common schema evolution scenarios.
+
+## Recipe 1: Add an Optional Field (BACKWARD safe)
+
+**Scenario:** Add a new "email" field to a User schema.
+
+1. Use **get_config** to confirm compatibility is BACKWARD or FULL.
+2. Add the field with a default value:
+   - Avro: {"name": "email", "type": ["null", "string"], "default": null}
+   - Protobuf: optional string email = 3;
+   - JSON Schema: add to properties (NOT to required)
+3. Use **check_compatibility** to validate.
+4. Use **register_schema** to register.
+
+## Recipe 2: Add a Required Field (needs care)
+
+**Scenario:** Add a mandatory "created_at" timestamp.
+
+Under BACKWARD compatibility, you CANNOT add a required field without a default.
+1. Add the field with a sensible default (e.g., epoch zero, empty string).
+2. Application logic treats the default as "not set."
+3. Or: change compatibility to NONE temporarily (use **set_config**), register, restore.
+
+## Recipe 3: Rename a Field (three-phase)
+
+**Scenario:** Rename "customer_name" to "client_name".
+
+Phase 1: Add "client_name" alongside "customer_name" (both populated).
+Phase 2: Update all consumers to read "client_name". Deprecate "customer_name".
+Phase 3: Remove "customer_name" (requires NONE compatibility for this step).
+
+Use **diff_schemas** to verify each phase.
+
+## Recipe 4: Change a Field Type
+
+**Scenario:** Change "amount" from int to long (Avro) or int32 to int64 (Protobuf).
+
+**Avro type promotions (safe under BACKWARD):**
+- int -> long, float, double
+- long -> float, double
+- float -> double
+- string <-> bytes
+
+**Protobuf wire-compatible changes (safe):**
+- int32 <-> uint32 <-> int64 <-> uint64 <-> bool (same wire type)
+- fixed32 <-> sfixed32
+- fixed64 <-> sfixed64
+
+**Incompatible type changes:** Use the three-phase pattern (add new field, migrate, remove old).
+
+## Recipe 5: Remove a Field
+
+**Scenario:** Remove the deprecated "legacy_id" field.
+
+Under BACKWARD: removing a field IS safe (old data's field is ignored).
+Under FORWARD: removing a field IS NOT safe (old readers expect it).
+Under FULL: removing a field IS NOT safe.
+
+If removal is blocked, use **set_config** to temporarily set BACKWARD or NONE.
+In Protobuf, use "reserved" to prevent field number reuse.
+
+## Recipe 6: Break Compatibility Intentionally
+
+**Scenario:** Major redesign of the schema.
+
+Option A (recommended): Create a new subject (e.g., orders-v2-value).
+1. Use **register_schema** under the new subject.
+2. Migrate producers to the new subject.
+3. Use **set_mode** READONLY on the old subject.
+
+Option B: Bypass in existing subject.
+1. Use **set_config** with NONE.
+2. Use **register_schema** with the breaking change.
+3. Use **set_config** to restore the original level.
+WARNING: existing consumers may break.
+
+## Recipe 7: Add a Schema Reference
+
+**Scenario:** Extract Address into a shared subject.
+
+1. Use **register_schema** to register Address under "com.example.Address".
+2. Update the main schema to reference it.
+3. Use **register_schema** with references array.
+4. Set FULL_TRANSITIVE compatibility on the shared type.
+
+## General Workflow
+
+For any evolution:
+1. **get_latest_schema** -- understand current state
+2. **get_config** -- know the compatibility level
+3. **check_compatibility** -- validate before registering
+4. **explain_compatibility_failure** -- if it fails, get details
+5. **register_schema** -- apply the change
+6. **diff_schemas** -- verify the change
+
+For domain knowledge, read: schema://glossary/compatibility and schema://glossary/design-patterns`
+
+	return &gomcp.GetPromptResult{
+		Description: "Schema evolution cookbook with practical recipes",
 		Messages:    []*gomcp.PromptMessage{promptMessage("user", guidance)},
 	}, nil
 }

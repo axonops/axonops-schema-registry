@@ -183,6 +183,16 @@ func resourceJSON(uri string, v any) (*gomcp.ReadResourceResult, error) {
 	}, nil
 }
 
+func resourceMarkdown(uri, text string) (*gomcp.ReadResourceResult, error) {
+	return &gomcp.ReadResourceResult{
+		Contents: []*gomcp.ResourceContents{{
+			URI:      uri,
+			MIMEType: "text/markdown",
+			Text:     text,
+		}},
+	}, nil
+}
+
 // extractURIParam extracts a named parameter from a resource URI by comparing
 // it against the expected path pattern.
 func extractURIParam(uri, param string) (string, error) {
