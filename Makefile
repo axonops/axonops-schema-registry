@@ -73,7 +73,7 @@ TIMEOUT_COMPAT         := 10m
         test-migration test-api test-ldap test-vault test-oidc test-auth \
         test-compatibility test-coverage \
         deps lint fmt run dev clean \
-        docker-build docker-run docs-api help
+        docker-build docker-run docs-api docs-mcp help
 
 # =====================================================================
 # Default target
@@ -484,6 +484,12 @@ docker-run:
 docs-api:
 	@./scripts/generate-api-docs.sh
 
+## Generate MCP API reference from live server introspection
+docs-mcp:
+	@echo "Generating MCP API reference..."
+	@$(GOCMD) run ./cmd/generate-mcp-docs > docs/mcp-reference.md
+	@echo "  -> docs/mcp-reference.md ($$(wc -l < docs/mcp-reference.md | tr -d ' ') lines)"
+
 ## Clean build artifacts
 clean:
 	@echo "Cleaning..."
@@ -550,4 +556,5 @@ help:
 	@echo "  run                 Build and run the server"
 	@echo "  dev                 Run with hot reload (requires air)"
 	@echo "  docs-api            Generate API docs from OpenAPI (markdown + HTML)"
+	@echo "  docs-mcp            Generate MCP API reference (tools, resources, prompts)"
 	@echo "  clean               Clean build artifacts"

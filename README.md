@@ -10,7 +10,7 @@
   [![GitHub Stars](https://img.shields.io/github/stars/axonops/axonops-schema-registry)](https://github.com/axonops/axonops-schema-registry)
   [![GitHub Issues](https://img.shields.io/github/issues/axonops/axonops-schema-registry)](https://github.com/axonops/axonops-schema-registry/issues)
 
-  [Getting Started](docs/getting-started.md) | [Documentation](docs/) | [API Reference](docs/api-reference.md) | [Report Issue](https://github.com/axonops/axonops-schema-registry/issues/new/choose)
+  [Getting Started](docs/getting-started.md) | [Documentation](docs/) | [API Reference](docs/api-reference.md) | [MCP Server](docs/mcp.md) | [Report Issue](https://github.com/axonops/axonops-schema-registry/issues/new/choose)
 
 </div>
 
@@ -36,6 +36,7 @@ Unlike Confluent Schema Registry, which uses Kafka itself (a special `_schemas` 
 - [Feature Comparison](#feature-comparison)
 - [Quick Start](#quick-start)
 - [Features](#features)
+- [MCP Server (AI-Assisted Schema Management)](#mcp-server-ai-assisted-schema-management)
 - [Architecture](#architecture)
 - [API Compatibility](#api-compatibility)
 - [Strict Specification Compliance](#strict-specification-compliance)
@@ -58,6 +59,7 @@ Unlike Confluent Schema Registry, which uses Kafka itself (a special `_schemas` 
 - **Enterprise Features, Zero Cost** -- RBAC, data contracts, CSFLE encryption, audit logging, and rate limiting are included free under Apache 2.0. With Confluent, these require a [commercial Enterprise license](https://docs.confluent.io/platform/current/installation/license.html).
 - **Strict Specification Compliance** -- enforces Avro, Protobuf, and JSON Schema specifications more faithfully than Confluent, catching invalid schemas at registration time rather than at runtime ([details](#strict-specification-compliance))
 - **Built-in API Documentation** -- OpenAPI spec with Swagger UI and ReDoc, always in sync with the codebase
+- **AI-Ready** -- built-in [MCP server](docs/mcp.md) with 105 tools, 21 resources, and 17 prompts for AI-assisted schema management via Claude, Cursor, VS Code Copilot, and other MCP-compatible clients
 
 ## Feature Comparison
 
@@ -97,6 +99,7 @@ Unlike Confluent Schema Registry, which uses Kafka itself (a special `_schemas` 
 | [**DEK Registry (CSFLE)**](docs/encryption.md) | ✅ | ❌ | ✅ | ❌ |
 | [**KMS Providers**](docs/encryption.md) | 2 + 3 &sup1; | ❌ | ✅ | ❌ |
 | [**Exporter API**](docs/exporters.md) &sup2; | ✅ | ❌ | ✅ | ❌ |
+| [**MCP Server (AI)**](docs/mcp.md) | ✅ | ❌ | ❌ | ❌ |
 | **Single Binary** | ✅ | ❌ | ❌ | ❌ |
 | **Memory Footprint** | ~50MB | ~500MB+ | ~500MB+ | ~200MB+ |
 
@@ -186,6 +189,17 @@ Auth storage can optionally be separated into HashiCorp Vault.
 - **Swagger UI** -- Built-in interactive API documentation at `GET /docs`
 - **Graceful Shutdown** -- Clean connection draining on SIGTERM/SIGINT
 - **Database Migrations** -- Automatic schema creation and upgrades
+
+### MCP Server (AI-Assisted Schema Management)
+
+- **[Model Context Protocol](https://modelcontextprotocol.io/)** -- built-in MCP server for AI assistants (Claude, Cursor, VS Code Copilot, Windsurf, and others)
+- **105 Tools** -- full registry operations, schema analysis, quality scoring, migration planning, and admin tasks
+- **21 Resources** -- direct data access for AI clients (9 static + 12 templated)
+- **17 Prompts** -- guided workflows for schema design, evolution, compatibility troubleshooting, and encryption setup
+- **Security** -- bearer token auth, origin validation, read-only mode, tool policies, and two-phase confirmations for destructive operations
+- **AI-Powered Intelligence** -- 9 deterministic analysis tools: field search, type search, schema similarity, quality scoring, complexity grading, pattern detection, evolution suggestions, and migration planning
+
+See the [MCP Server Guide](docs/mcp.md) for configuration, client setup, and the full [MCP API Reference](docs/mcp-reference.md).
 
 ---
 
@@ -281,6 +295,8 @@ For the fingerprinting differences, schemas that Confluent stored as separate gl
 | [Development](docs/development.md) | Building from source, running the test suite, and contributing |
 | [Encryption](docs/encryption.md) | DEK Registry, Client-Side Field Level Encryption (CSFLE), and KMS providers |
 | [Exporters](docs/exporters.md) | Schema Linking via exporter management API |
+| [MCP Server](docs/mcp.md) | AI-assisted schema management via Model Context Protocol |
+| [MCP API Reference](docs/mcp-reference.md) | Auto-generated reference for all 105 tools, 21 resources, and 17 prompts |
 | [Troubleshooting](docs/troubleshooting.md) | Common issues, diagnostic commands, and error code reference |
 
 </div>
