@@ -378,7 +378,16 @@ func cleanDBStore() error {
 	case "mysql":
 		return cleanMySQL()
 	case "cassandra":
-		return cleanCassandra()
+		if err := cleanCassandra(); err != nil {
+			return err
+		}
+		// Reset in-memory ID cache to match the re-seeded id_alloc table.
+		// Without this, the block allocator serves stale IDs from a previous
+		// scenario while id_alloc.next_id has been reset to 1.
+		if cs, ok := sharedDBStore.(interface{ ResetIDCache() }); ok {
+			cs.ResetIDCache()
+		}
+		return nil
 	default:
 		return nil
 	}
