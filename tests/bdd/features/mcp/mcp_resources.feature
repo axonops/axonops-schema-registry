@@ -125,7 +125,8 @@ Feature: MCP Resources — Read-Only Registry State
       }
       """
     Then the MCP result should contain "\"version\":1"
-    When I read MCP resource "schema://schemas/1"
+    And I store the MCP result field "id" as "schema_id"
+    When I read MCP resource "schema://schemas/$schema_id"
     Then the MCP resource result should contain "AVRO"
 
   Scenario: Read schema subjects resource
@@ -136,6 +137,7 @@ Feature: MCP Resources — Read-Only Registry State
         "schema": "{\"type\":\"string\"}"
       }
       """
+    And I store the MCP result field "id" as "schema_id"
     When I call MCP tool "register_schema" with JSON input:
       """
       {
@@ -143,7 +145,7 @@ Feature: MCP Resources — Read-Only Registry State
         "schema": "{\"type\":\"string\"}"
       }
       """
-    When I read MCP resource "schema://schemas/1/subjects"
+    When I read MCP resource "schema://schemas/$schema_id/subjects"
     Then the MCP resource result should contain "res-schema-subjects-a"
     And the MCP resource result should contain "res-schema-subjects-b"
 
@@ -155,7 +157,8 @@ Feature: MCP Resources — Read-Only Registry State
         "schema": "{\"type\":\"string\"}"
       }
       """
-    When I read MCP resource "schema://schemas/1/versions"
+    And I store the MCP result field "id" as "schema_id"
+    When I read MCP resource "schema://schemas/$schema_id/versions"
     Then the MCP resource result should contain "res-schema-versions-test"
 
   # ==========================================================================

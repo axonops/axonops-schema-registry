@@ -244,6 +244,7 @@ Feature: MCP AI Data Modeling — Full Lifecycle Management
       }
       """
     Then the MCP result should contain "\"version\":1"
+    And I store the MCP result field "id" as "schema_id"
     When I call MCP tool "register_schema" with JSON input:
       """
       {
@@ -252,8 +253,8 @@ Feature: MCP AI Data Modeling — Full Lifecycle Management
       }
       """
     Then the MCP result should contain "\"version\":1"
-    # AI finds all subjects using schema ID 1
+    # AI finds all subjects using the stored schema ID
     When I call MCP tool "get_subjects_for_schema" with input:
-      | id | 1 |
+      | id | $schema_id |
     Then the MCP result should contain "reuse-topic-a-value"
     And the MCP result should contain "reuse-topic-b-value"

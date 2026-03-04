@@ -25,8 +25,9 @@ Feature: MCP Observability — Logging & Error Tracking
 
   Scenario: Successful read operations are tracked
     Given I register an Avro schema for subject "obs-read-tracked"
+    And I store the response field "id" as "schema_id"
     When I call MCP tool "get_schema_by_id" with input:
-      | id | 1 |
+      | id | $schema_id |
     Then the MCP result should contain "string"
     When I call MCP tool "list_subjects"
     Then the MCP result should contain "obs-read-tracked"

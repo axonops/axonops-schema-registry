@@ -480,6 +480,7 @@ Feature: MCP AI Data Modeling — Data Contracts (Metadata & Rules)
       }
       """
     Then the MCP result should contain "\"version\":1"
+    And I store the MCP result field "id" as "schema_id"
     When I call MCP tool "register_schema" with JSON input:
       """
       {
@@ -493,6 +494,6 @@ Feature: MCP AI Data Modeling — Data Contracts (Metadata & Rules)
     Then the MCP result should contain "\"version\":1"
     # Both subjects should share the same global schema ID
     When I call MCP tool "get_subjects_for_schema" with input:
-      | id | 1 |
+      | id | $schema_id |
     Then the MCP result should contain "dc-identity-test-a"
     And the MCP result should contain "dc-identity-test-b"

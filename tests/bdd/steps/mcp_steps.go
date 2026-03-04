@@ -113,6 +113,25 @@ func extractText(result *gomcp.CallToolResult) (string, error) {
 	return wire.Text, nil
 }
 
+// resolveStoredVars replaces $variable references in a string with values
+// from tc.StoredValues. For example, "$user_id" is replaced with the string
+// representation of tc.StoredValues["user_id"]. This allows feature files to
+// use dynamic IDs instead of hardcoded values.
+func resolveStoredVars(tc *TestContext, s string) string {
+	for key, val := range tc.StoredValues {
+		placeholder := "$" + key
+		if strings.Contains(s, placeholder) {
+			// For float64 values (from JSON), format as integer if whole number
+			if f, ok := val.(float64); ok && f == float64(int64(f)) {
+				s = strings.ReplaceAll(s, placeholder, strconv.FormatInt(int64(f), 10))
+			} else {
+				s = strings.ReplaceAll(s, placeholder, fmt.Sprintf("%v", val))
+			}
+		}
+	}
+	return s
+}
+
 // RegisterMCPSteps registers MCP-related step definitions.
 func RegisterMCPSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 	// Clean up MCP session after each scenario
@@ -154,6 +173,14 @@ func RegisterMCPSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 			if len(row.Cells) >= 2 {
 				key := row.Cells[0].Value
 				val := row.Cells[1].Value
+				// Resolve $variable references from StoredValues
+				if strings.HasPrefix(val, "$") {
+					varName := val[1:]
+					if stored, ok := tc.StoredValues[varName]; ok {
+						args[key] = stored
+						continue
+					}
+				}
 				// Try to parse as integer, bool, otherwise keep as string
 				if n, err := strconv.Atoi(val); err == nil {
 					args[key] = n
@@ -194,8 +221,11 @@ func RegisterMCPSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 			return err
 		}
 
+		// Resolve $variable references before JSON parsing
+		content := resolveStoredVars(tc, body.Content)
+
 		var args map[string]any
-		if err := json.Unmarshal([]byte(body.Content), &args); err != nil {
+		if err := json.Unmarshal([]byte(content), &args); err != nil {
 			return fmt.Errorf("invalid JSON input: %w", err)
 		}
 
@@ -222,6 +252,7 @@ func RegisterMCPSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 			return fmt.Errorf("MCP call failed: %v", tc.MCPError)
 		}
 		expected = strings.ReplaceAll(expected, `\"`, `"`)
+		expected = resolveStoredVars(tc, expected)
 		if !strings.Contains(tc.MCPResultText, expected) {
 			return fmt.Errorf("expected MCP result to contain %q, got: %s", expected, tc.MCPResultText)
 		}
@@ -233,6 +264,7 @@ func RegisterMCPSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 			return fmt.Errorf("MCP call failed: %v", tc.MCPError)
 		}
 		unexpected = strings.ReplaceAll(unexpected, `\"`, `"`)
+		unexpected = resolveStoredVars(tc, unexpected)
 		if strings.Contains(tc.MCPResultText, unexpected) {
 			return fmt.Errorf("expected MCP result NOT to contain %q, got: %s", unexpected, tc.MCPResultText)
 		}
@@ -372,6 +404,8 @@ func RegisterMCPSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 	// --- MCP Resource steps ---
 
 	ctx.Step(`^I read MCP resource "([^"]*)"$`, func(uri string) error {
+		// Resolve $variable references in the URI
+		uri = resolveStoredVars(tc, uri)
 		cs, err := getMCPSession(tc)
 		if err != nil {
 			return err

@@ -26,9 +26,10 @@ Feature: MCP Admin Tools
       {"username": "bob", "password": "secret123", "role": "developer"}
       """
     Then the MCP result should contain "bob"
+    And I store the MCP result field "id" as "user_id"
     When I call MCP tool "update_user" with JSON input:
       """
-      {"id": 1, "role": "admin"}
+      {"id": $user_id, "role": "admin"}
       """
     Then the MCP result should contain "admin"
 
@@ -38,8 +39,9 @@ Feature: MCP Admin Tools
       {"username": "charlie", "password": "secret123", "role": "readonly"}
       """
     Then the MCP result should contain "charlie"
+    And I store the MCP result field "id" as "user_id"
     When I call MCP tool "delete_user" with input:
-      | id | 1 |
+      | id | $user_id |
     Then the MCP result should contain "true"
     When I call MCP tool "list_users"
     Then the MCP result should not contain "charlie"
@@ -50,9 +52,10 @@ Feature: MCP Admin Tools
       {"username": "keyowner", "password": "secret123", "role": "developer"}
       """
     Then the MCP result should contain "keyowner"
+    And I store the MCP result field "id" as "user_id"
     When I call MCP tool "create_apikey" with JSON input:
       """
-      {"user_id": 1, "name": "my-key", "role": "developer", "expires_in": 3600}
+      {"user_id": $user_id, "name": "my-key", "role": "developer", "expires_in": 3600}
       """
     Then the MCP result should contain "my-key"
     When I call MCP tool "list_apikeys"
@@ -63,16 +66,18 @@ Feature: MCP Admin Tools
       """
       {"username": "revokeowner", "password": "secret123", "role": "developer"}
       """
+    And I store the MCP result field "id" as "user_id"
     When I call MCP tool "create_apikey" with JSON input:
       """
-      {"user_id": 1, "name": "revoke-key", "role": "developer", "expires_in": 3600}
+      {"user_id": $user_id, "name": "revoke-key", "role": "developer", "expires_in": 3600}
       """
     Then the MCP result should contain "revoke-key"
+    And I store the MCP result field "id" as "key_id"
     When I call MCP tool "revoke_apikey" with input:
-      | id | 1 |
+      | id | $key_id |
     Then the MCP result should contain "true"
     When I call MCP tool "get_apikey" with input:
-      | id | 1 |
+      | id | $key_id |
     Then the MCP result should not contain "\"enabled\":true"
 
   Scenario: Change user password
@@ -81,9 +86,10 @@ Feature: MCP Admin Tools
       {"username": "pwuser", "password": "oldpass", "role": "developer"}
       """
     Then the MCP result should contain "pwuser"
+    And I store the MCP result field "id" as "user_id"
     When I call MCP tool "change_password" with JSON input:
       """
-      {"id": 1, "old_password": "oldpass", "new_password": "newpass"}
+      {"id": $user_id, "old_password": "oldpass", "new_password": "newpass"}
       """
     Then the MCP result should contain "true"
 
@@ -103,14 +109,16 @@ Feature: MCP Admin Tools
       """
       {"username": "rotateowner", "password": "secret123", "role": "developer"}
       """
+    And I store the MCP result field "id" as "user_id"
     When I call MCP tool "create_apikey" with JSON input:
       """
-      {"user_id": 1, "name": "rotate-key", "role": "developer", "expires_in": 3600}
+      {"user_id": $user_id, "name": "rotate-key", "role": "developer", "expires_in": 3600}
       """
     Then the MCP result should contain "rotate-key"
+    And I store the MCP result field "id" as "key_id"
     When I call MCP tool "rotate_apikey" with JSON input:
       """
-      {"id": 1, "expires_in": 7200}
+      {"id": $key_id, "expires_in": 7200}
       """
     Then the MCP result should contain "key"
     And the MCP result should contain "rotated"
