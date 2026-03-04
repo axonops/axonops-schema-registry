@@ -1413,6 +1413,273 @@ jobs:
           docker rm -f bdd-cassandra || true
           cd tests/bdd && docker compose -f docker-compose.kms.yml down -v || true
 
+  # BDD tests — All in-process scenarios against PostgreSQL (MCP, audit, analysis, functional)
+  bdd-db-postgres-tests:
+    name: BDD Tests (DB PostgreSQL)
+    runs-on: ubuntu-latest
+    needs: [bdd-functional-tests]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Start PostgreSQL
+        run: |
+          docker run -d --name bdd-db-postgres \
+            -e POSTGRES_USER=schemaregistry \
+            -e POSTGRES_PASSWORD=schemaregistry \
+            -e POSTGRES_DB=schemaregistry \
+            -p 15432:5432 \
+            postgres:16
+          for i in $(seq 1 30); do
+            docker exec bdd-db-postgres pg_isready -U schemaregistry > /dev/null 2>&1 && break
+            sleep 2
+          done
+          echo "PostgreSQL is ready"
+
+      - name: Run BDD tests (postgres backend, in-process)
+        env:
+          BDD_STORAGE: postgres
+        run: go test -tags bdd -v -count=1 -timeout 15m ./tests/bdd/...
+
+      - name: Show container logs on failure
+        if: failure()
+        run: docker logs bdd-db-postgres 2>&1 | tail -100 || true
+
+      - name: Cleanup containers
+        if: always()
+        run: docker rm -f bdd-db-postgres || true
+
+  # BDD tests — All in-process scenarios against MySQL (MCP, audit, analysis, functional)
+  bdd-db-mysql-tests:
+    name: BDD Tests (DB MySQL)
+    runs-on: ubuntu-latest
+    needs: [bdd-functional-tests]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Start MySQL
+        run: |
+          docker run -d --name bdd-db-mysql \
+            -e MYSQL_DATABASE=schemaregistry \
+            -e MYSQL_USER=schemaregistry \
+            -e MYSQL_PASSWORD=schemaregistry \
+            -e MYSQL_ROOT_PASSWORD=root \
+            -p 13306:3306 \
+            mysql:8.0
+          echo "Waiting for MySQL to be ready..."
+          for i in $(seq 1 60); do
+            docker exec bdd-db-mysql mysql -h 127.0.0.1 -uschemaregistry -pschemaregistry -e 'SELECT 1' > /dev/null 2>&1 && break
+            sleep 2
+          done
+          echo "MySQL is ready"
+
+      - name: Run BDD tests (mysql backend, in-process)
+        env:
+          BDD_STORAGE: mysql
+        run: go test -tags bdd -v -count=1 -timeout 15m ./tests/bdd/...
+
+      - name: Show container logs on failure
+        if: failure()
+        run: docker logs bdd-db-mysql 2>&1 | tail -100 || true
+
+      - name: Cleanup containers
+        if: always()
+        run: docker rm -f bdd-db-mysql || true
+
+  # BDD tests — All in-process scenarios against Cassandra (MCP, audit, analysis, functional)
+  bdd-db-cassandra-tests:
+    name: BDD Tests (DB Cassandra)
+    runs-on: ubuntu-latest
+    needs: [bdd-functional-tests]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Start Cassandra
+        run: |
+          docker run -d --name bdd-db-cassandra \
+            -e CASSANDRA_CLUSTER_NAME=bdd-cluster \
+            -e MAX_HEAP_SIZE=256M \
+            -e HEAP_NEWSIZE=128M \
+            -p 19042:9042 \
+            cassandra:5.0
+          echo "Waiting for Cassandra to be ready..."
+          for i in $(seq 1 60); do
+            docker exec bdd-db-cassandra cqlsh -e "CREATE KEYSPACE IF NOT EXISTS schemaregistry WITH replication = {'class':'SimpleStrategy','replication_factor':1}" > /dev/null 2>&1 && break
+            sleep 3
+          done
+          echo "Cassandra is ready"
+
+      - name: Run BDD tests (cassandra backend, in-process)
+        env:
+          BDD_STORAGE: cassandra
+        run: go test -tags bdd -v -count=1 -timeout 20m ./tests/bdd/...
+
+      - name: Show container logs on failure
+        if: failure()
+        run: docker logs bdd-db-cassandra 2>&1 | tail -100 || true
+
+      - name: Cleanup containers
+        if: always()
+        run: docker rm -f bdd-db-cassandra || true
+
+  # BDD tests — Auth scenarios against PostgreSQL
+  bdd-auth-postgres-tests:
+    name: BDD Tests (Auth + PostgreSQL)
+    runs-on: ubuntu-latest
+    needs: [bdd-functional-tests]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Start PostgreSQL
+        run: |
+          docker run -d --name bdd-auth-postgres \
+            -e POSTGRES_USER=schemaregistry \
+            -e POSTGRES_PASSWORD=schemaregistry \
+            -e POSTGRES_DB=schemaregistry \
+            -p 15432:5432 \
+            postgres:16
+          for i in $(seq 1 30); do
+            docker exec bdd-auth-postgres pg_isready -U schemaregistry > /dev/null 2>&1 && break
+            sleep 2
+          done
+          echo "PostgreSQL is ready"
+
+      - name: Run BDD auth tests (postgres backend, in-process)
+        env:
+          BDD_STORAGE: postgres
+          BDD_TAGS: "@auth && ~@pending-impl"
+        run: go test -tags bdd -v -count=1 -timeout 15m -run TestAuthFeatures ./tests/bdd/...
+
+      - name: Show container logs on failure
+        if: failure()
+        run: docker logs bdd-auth-postgres 2>&1 | tail -100 || true
+
+      - name: Cleanup containers
+        if: always()
+        run: docker rm -f bdd-auth-postgres || true
+
+  # BDD tests — Auth scenarios against MySQL
+  bdd-auth-mysql-tests:
+    name: BDD Tests (Auth + MySQL)
+    runs-on: ubuntu-latest
+    needs: [bdd-functional-tests]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Start MySQL
+        run: |
+          docker run -d --name bdd-auth-mysql \
+            -e MYSQL_DATABASE=schemaregistry \
+            -e MYSQL_USER=schemaregistry \
+            -e MYSQL_PASSWORD=schemaregistry \
+            -e MYSQL_ROOT_PASSWORD=root \
+            -p 13306:3306 \
+            mysql:8.0
+          echo "Waiting for MySQL to be ready..."
+          for i in $(seq 1 60); do
+            docker exec bdd-auth-mysql mysql -h 127.0.0.1 -uschemaregistry -pschemaregistry -e 'SELECT 1' > /dev/null 2>&1 && break
+            sleep 2
+          done
+          echo "MySQL is ready"
+
+      - name: Run BDD auth tests (mysql backend, in-process)
+        env:
+          BDD_STORAGE: mysql
+          BDD_TAGS: "@auth && ~@pending-impl"
+        run: go test -tags bdd -v -count=1 -timeout 15m -run TestAuthFeatures ./tests/bdd/...
+
+      - name: Show container logs on failure
+        if: failure()
+        run: docker logs bdd-auth-mysql 2>&1 | tail -100 || true
+
+      - name: Cleanup containers
+        if: always()
+        run: docker rm -f bdd-auth-mysql || true
+
+  # BDD tests — Auth scenarios against Cassandra
+  bdd-auth-cassandra-tests:
+    name: BDD Tests (Auth + Cassandra)
+    runs-on: ubuntu-latest
+    needs: [bdd-functional-tests]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Start Cassandra
+        run: |
+          docker run -d --name bdd-auth-cassandra \
+            -e CASSANDRA_CLUSTER_NAME=bdd-cluster \
+            -e MAX_HEAP_SIZE=256M \
+            -e HEAP_NEWSIZE=128M \
+            -p 19042:9042 \
+            cassandra:5.0
+          echo "Waiting for Cassandra to be ready..."
+          for i in $(seq 1 60); do
+            docker exec bdd-auth-cassandra cqlsh -e "CREATE KEYSPACE IF NOT EXISTS schemaregistry WITH replication = {'class':'SimpleStrategy','replication_factor':1}" > /dev/null 2>&1 && break
+            sleep 3
+          done
+          echo "Cassandra is ready"
+
+      - name: Run BDD auth tests (cassandra backend, in-process)
+        env:
+          BDD_STORAGE: cassandra
+          BDD_TAGS: "@auth && ~@pending-impl"
+        run: go test -tags bdd -v -count=1 -timeout 20m -run TestAuthFeatures ./tests/bdd/...
+
+      - name: Show container logs on failure
+        if: failure()
+        run: docker logs bdd-auth-cassandra 2>&1 | tail -100 || true
+
+      - name: Cleanup containers
+        if: always()
+        run: docker rm -f bdd-auth-cassandra || true
+
   # Java Data Contract & CSFLE tests — Java Confluent SerDe with rule execution + Vault encryption
   java-data-contract-csfle-tests:
     name: Java Data Contract & CSFLE Tests
@@ -1535,7 +1802,13 @@ jobs:
           SCHEMA_REGISTRY_URL: http://localhost:8081
           VAULT_URL: http://localhost:18200
           VAULT_TOKEN: test-root-token
-        run: go test -v -timeout 10m ./...
+        run: |
+          go test -v -timeout 10m ./... 2>&1 | tee go_test_output.txt
+          # Fail CI if any tests were skipped (match "--- SKIP:" lines)
+          if grep -q '^\s*--- SKIP:' go_test_output.txt; then
+            echo "::error::Tests were skipped! All Go serde tests must run in CI."
+            exit 1
+          fi
 
       - name: Show KMS container logs on failure
         if: failure()
