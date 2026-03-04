@@ -69,8 +69,9 @@ var (
 	composeFiles []string
 	containerCmd string // "podman" or "docker"
 
-	// sharedDBStore is a long-lived database storage used for in-process KMS tests
+	// sharedDBStore is a long-lived database storage used for in-process BDD tests
 	// against real database backends. Created once in TestMain when BDD_STORAGE is set.
+	// All scenario types (functional, MCP, audit, auth, KMS) use this store when available.
 	sharedDBStore storage.Storage
 
 	// cassandraSession is a long-lived session reused across all BDD scenario cleanups.
@@ -113,16 +114,16 @@ func TestMain(m *testing.M) {
 	}
 
 	// Create shared database store for in-process tests with database backends.
-	// When BDD_STORAGE is set (e.g., "postgres"), @kms scenarios run in-process
-	// using the specified database instead of memory storage. This enables MCP KMS
-	// tests to run against real databases without Docker-mode schema-registry.
+	// When BDD_STORAGE is set (e.g., "postgres"), ALL in-process scenarios run
+	// using the specified database instead of memory storage. This enables MCP,
+	// audit, auth, and functional tests to run against real databases.
 	if bddStorage != "" && bddStorage != "memory" && !dockerMode {
 		var err error
 		sharedDBStore, err = createDBStore(bddStorage)
 		if err != nil {
 			log.Fatalf("Failed to create %s storage for BDD_STORAGE: %v", bddStorage, err)
 		}
-		log.Printf("Using %s storage for in-process KMS tests", bddStorage)
+		log.Printf("Using %s storage for in-process BDD tests", bddStorage)
 	}
 
 	code := m.Run()
@@ -154,8 +155,18 @@ func newTestServer() (*httptest.Server, storage.Storage, *registry.Registry) {
 
 // newTestServerWithAudit creates a fresh in-process schema registry with optional audit logging.
 func newTestServerWithAudit(al *auth.AuditLogger) (*httptest.Server, storage.Storage, *registry.Registry) {
-	store := memory.NewStore()
+	return newTestServerWithStoreAndAudit(memory.NewStore(), al)
+}
 
+// newTestServerWithStore creates an in-process schema registry using the provided storage backend.
+// This enables BDD tests (MCP, audit, analysis, functional) to run against database backends.
+func newTestServerWithStore(store storage.Storage) (*httptest.Server, storage.Storage, *registry.Registry) {
+	return newTestServerWithStoreAndAudit(store, nil)
+}
+
+// newTestServerWithStoreAndAudit creates an in-process schema registry with the provided storage
+// and optional audit logging. This is the core factory used by all non-auth test server constructors.
+func newTestServerWithStoreAndAudit(store storage.Storage, al *auth.AuditLogger) (*httptest.Server, storage.Storage, *registry.Registry) {
 	schemaRegistry := schema.NewRegistry()
 	schemaRegistry.Register(avro.NewParser())
 	schemaRegistry.Register(protobuf.NewParser())
@@ -184,8 +195,12 @@ func newTestServerWithAudit(al *auth.AuditLogger) (*httptest.Server, storage.Sto
 // newAuthTestServer creates an in-process schema registry with authentication enabled.
 // It pre-seeds a super_admin user ("admin" / "admin-password") for testing.
 func newAuthTestServer() (*httptest.Server, storage.Storage, *auth.Service) {
-	store := memory.NewStore()
+	return newAuthTestServerWithStore(memory.NewStore())
+}
 
+// newAuthTestServerWithStore creates an in-process schema registry with authentication enabled
+// using the provided storage backend. This enables auth BDD tests to run against database backends.
+func newAuthTestServerWithStore(store storage.Storage) (*httptest.Server, storage.Storage, *auth.Service) {
 	schemaRegistry := schema.NewRegistry()
 	schemaRegistry.Register(avro.NewParser())
 	schemaRegistry.Register(protobuf.NewParser())
@@ -211,6 +226,15 @@ func newAuthTestServer() (*httptest.Server, storage.Storage, *auth.Service) {
 		},
 	}
 
+	// Configure rate limiting for BDD rate-limiting scenarios
+	rateLimitCfg := config.RateLimitConfig{
+		Enabled:           true,
+		RequestsPerSecond: 10,
+		BurstSize:         10,
+		PerClient:         false,
+		PerEndpoint:       false,
+	}
+
 	authenticator := auth.NewAuthenticator(authCfg)
 	authService := auth.NewServiceWithConfig(store, auth.ServiceConfig{
 		CacheRefreshInterval: 0, // disable background refresh for tests
@@ -228,7 +252,10 @@ func newAuthTestServer() (*httptest.Server, storage.Storage, *auth.Service) {
 	}
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 
-	server := api.NewServer(cfg, reg, logger, api.WithAuth(authenticator, authorizer, authService))
+	server := api.NewServer(cfg, reg, logger,
+		api.WithAuth(authenticator, authorizer, authService),
+		api.WithRateLimiter(auth.NewRateLimiter(rateLimitCfg)),
+	)
 
 	// Pre-seed a super_admin user
 	_, err := authService.CreateUser(context.Background(), auth.CreateUserRequest{
@@ -442,12 +469,28 @@ func TestFeatures(t *testing.T) {
 						// Wire audit buffer for REST audit assertions
 						auditBuf := &bytes.Buffer{}
 						al := auth.NewAuditLoggerWithWriter(config.AuditConfig{Enabled: true}, auditBuf)
-						ts, st, reg = newTestServerWithAudit(al)
+						if sharedDBStore != nil {
+							if err := cleanDBStore(); err != nil {
+								return gctx, fmt.Errorf("clean %s storage: %w", bddStorage, err)
+							}
+							ts, st, reg = newTestServerWithStoreAndAudit(sharedDBStore, al)
+							storeOwned = false
+						} else {
+							ts, st, reg = newTestServerWithAudit(al)
+							storeOwned = true
+						}
 						tc.AuditBuffer = auditBuf
-						storeOwned = true
 					} else {
-						ts, st, reg = newTestServer()
-						storeOwned = true
+						if sharedDBStore != nil {
+							if err := cleanDBStore(); err != nil {
+								return gctx, fmt.Errorf("clean %s storage: %w", bddStorage, err)
+							}
+							ts, st, reg = newTestServerWithStore(sharedDBStore)
+							storeOwned = false
+						} else {
+							ts, st, reg = newTestServer()
+							storeOwned = true
+						}
 					}
 					tc.BaseURL = ts.URL
 					tc.Registry = reg
@@ -474,6 +517,7 @@ func TestFeatures(t *testing.T) {
 			steps.RegisterAuthSteps(ctx, tc)
 			steps.RegisterEncryptionSteps(ctx, tc)
 			steps.RegisterConcurrencySteps(ctx, tc)
+			steps.RegisterRateLimitSteps(ctx, tc)
 			steps.RegisterMCPSteps(ctx, tc)
 		},
 		Options: &opts,
@@ -492,23 +536,45 @@ func TestAuthFeatures(t *testing.T) {
 		t.Skip("Auth BDD tests only run in-process mode")
 	}
 
+	// Use BDD_TAGS if set, otherwise default to @auth && ~@pending-impl
+	authTags := "@auth && ~@pending-impl"
+	if envTags := os.Getenv("BDD_TAGS"); envTags != "" {
+		authTags = envTags
+	}
+
 	opts := godog.Options{
 		Format:   "pretty",
 		Output:   colors.Colored(os.Stdout),
 		Paths:    []string{"features"},
-		Tags:     "@auth && ~@pending-impl",
+		Tags:     authTags,
 		TestingT: t,
 	}
 
 	suite := godog.TestSuite{
 		ScenarioInitializer: func(ctx *godog.ScenarioContext) {
-			ts, store, authSvc := newAuthTestServer()
+			var ts *httptest.Server
+			var store storage.Storage
+			var authSvc *auth.Service
+			var storeOwned bool
+
+			if sharedDBStore != nil {
+				if err := cleanDBStore(); err != nil {
+					panic(fmt.Sprintf("clean %s storage for auth: %v", bddStorage, err))
+				}
+				ts, store, authSvc = newAuthTestServerWithStore(sharedDBStore)
+				storeOwned = false
+			} else {
+				ts, store, authSvc = newAuthTestServer()
+				storeOwned = true
+			}
 			tc := steps.NewTestContext(ts.URL)
 
 			ctx.After(func(gctx context.Context, sc *godog.Scenario, err error) (context.Context, error) {
 				authSvc.Close()
 				ts.Close()
-				store.Close()
+				if storeOwned {
+					store.Close()
+				}
 				return gctx, nil
 			})
 
@@ -521,6 +587,7 @@ func TestAuthFeatures(t *testing.T) {
 			steps.RegisterAuthSteps(ctx, tc)
 			steps.RegisterEncryptionSteps(ctx, tc)
 			steps.RegisterConcurrencySteps(ctx, tc)
+			steps.RegisterRateLimitSteps(ctx, tc)
 		},
 		Options: &opts,
 	}
