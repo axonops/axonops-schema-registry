@@ -632,12 +632,19 @@ func (s *Store) createSchemaAttempt(ctx context.Context, registryCtx string, rec
 		return fmt.Errorf("failed to insert schema: %w", err)
 	}
 
-	// Allocate per-context schema ID in a separate short transaction to minimize
-	// lock contention on ctx_id_alloc (the FOR UPDATE lock is released immediately
-	// instead of being held for the duration of the main transaction).
-	nextCtxID, err := s.allocateSchemaID(ctx, registryCtx)
+	// Allocate per-context schema ID within the main transaction. This ensures
+	// the INSERT IGNORE into schema_fingerprints and the subsequent SELECT are
+	// in the same transaction, preventing a TOCTOU race where a concurrent
+	// transaction's INSERT is not yet visible to our SELECT.
+	_, _ = tx.ExecContext(ctx, "INSERT IGNORE INTO ctx_id_alloc (registry_ctx, next_id) VALUES (?, 1)", registryCtx)
+	var nextCtxID int64
+	err = tx.QueryRowContext(ctx, "SELECT next_id FROM ctx_id_alloc WHERE registry_ctx = ? FOR UPDATE", registryCtx).Scan(&nextCtxID)
 	if err != nil {
-		return fmt.Errorf("failed to allocate schema ID: %w", err)
+		return fmt.Errorf("failed to get next ID: %w", err)
+	}
+	_, err = tx.ExecContext(ctx, "UPDATE ctx_id_alloc SET next_id = next_id + 1 WHERE registry_ctx = ?", registryCtx)
+	if err != nil {
+		return fmt.Errorf("failed to increment next ID: %w", err)
 	}
 
 	// Claim fingerprint in schema_fingerprints (first writer wins, per-context)
@@ -646,7 +653,10 @@ func (s *Store) createSchemaAttempt(ctx context.Context, registryCtx string, rec
 		registryCtx, record.Fingerprint, nextCtxID,
 	)
 
-	// Resolve stable per-context ID from schema_fingerprints
+	// Resolve stable per-context ID from schema_fingerprints.
+	// Because the INSERT IGNORE and this SELECT are in the same transaction,
+	// the SELECT is guaranteed to see either our own insert or a previously
+	// committed row — no visibility gap.
 	globalID, err := s.globalSchemaIDTx(ctx, tx, registryCtx, record.Fingerprint)
 	if err != nil {
 		return fmt.Errorf("failed to get global schema ID: %w", err)
