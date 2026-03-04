@@ -179,6 +179,13 @@ func DefaultEndpointPermissions() []EndpointPermission {
 		{Method: "GET", PathPrefix: "/subjects", Permission: PermissionSchemaRead},
 		{Method: "GET", PathPrefix: "/schemas", Permission: PermissionSchemaRead},
 
+		// Analysis endpoints (read-only POST operations) — must precede
+		// the generic POST /subjects entry so that prefix matching picks
+		// the more specific read-only permission first.
+		{Method: "POST", PathPrefix: "/schemas", Permission: PermissionSchemaRead},
+		{Method: "POST", PathPrefix: "/subjects/validate", Permission: PermissionSchemaRead},
+		{Method: "POST", PathPrefix: "/subjects/match", Permission: PermissionSchemaRead},
+
 		// Schema write operations
 		{Method: "POST", PathPrefix: "/subjects", Permission: PermissionSchemaWrite},
 		{Method: "POST", PathPrefix: "/compatibility", Permission: PermissionSchemaRead},
@@ -226,6 +233,9 @@ func DefaultEndpointPermissions() []EndpointPermission {
 		// Contexts and metadata (read-only, any authenticated user)
 		{Method: "GET", PathPrefix: "/contexts", Permission: PermissionSchemaRead},
 		{Method: "GET", PathPrefix: "/v1/metadata", Permission: PermissionSchemaRead},
+
+		// Statistics (read-only)
+		{Method: "GET", PathPrefix: "/statistics", Permission: PermissionSchemaRead},
 	}
 }
 
