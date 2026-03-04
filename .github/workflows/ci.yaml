@@ -1578,7 +1578,6 @@ jobs:
       - name: Run BDD auth tests (postgres backend, in-process)
         env:
           BDD_STORAGE: postgres
-          BDD_TAGS: "@auth && ~@pending-impl"
         run: go test -tags bdd -v -count=1 -timeout 15m -run TestAuthFeatures ./tests/bdd/...
 
       - name: Show container logs on failure
@@ -1624,7 +1623,6 @@ jobs:
       - name: Run BDD auth tests (mysql backend, in-process)
         env:
           BDD_STORAGE: mysql
-          BDD_TAGS: "@auth && ~@pending-impl"
         run: go test -tags bdd -v -count=1 -timeout 15m -run TestAuthFeatures ./tests/bdd/...
 
       - name: Show container logs on failure
@@ -1669,7 +1667,6 @@ jobs:
       - name: Run BDD auth tests (cassandra backend, in-process)
         env:
           BDD_STORAGE: cassandra
-          BDD_TAGS: "@auth && ~@pending-impl"
         run: go test -tags bdd -v -count=1 -timeout 20m -run TestAuthFeatures ./tests/bdd/...
 
       - name: Show container logs on failure

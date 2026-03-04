@@ -538,17 +538,11 @@ func TestAuthFeatures(t *testing.T) {
 		t.Skip("Auth BDD tests only run in-process mode")
 	}
 
-	// Use BDD_TAGS if set, otherwise default to @auth && ~@pending-impl
-	authTags := "@auth && ~@pending-impl"
-	if envTags := os.Getenv("BDD_TAGS"); envTags != "" {
-		authTags = envTags
-	}
-
 	opts := godog.Options{
 		Format:   "pretty",
 		Output:   colors.Colored(os.Stdout),
 		Paths:    []string{"features"},
-		Tags:     authTags,
+		Tags:     "@auth && ~@pending-impl",
 		TestingT: t,
 	}
 
@@ -640,12 +634,12 @@ func cleanPostgres() error {
 	// Truncate new tables first — ignore errors if tables don't exist yet (older migrations)
 	optionalTables := []string{"exporter_statuses", "exporters", "deks", "keks"}
 	for _, t := range optionalTables {
-		db.Exec("TRUNCATE TABLE " + t + " CASCADE") // ignore error
+		db.Exec("TRUNCATE TABLE " + t + " RESTART IDENTITY CASCADE") // ignore error
 	}
 
 	stmts := []string{
-		"TRUNCATE TABLE api_keys, users, schema_references, schema_fingerprints, schemas, modes, configs, ctx_id_alloc, contexts CASCADE",
-		"ALTER SEQUENCE schemas_id_seq RESTART WITH 1",
+		// RESTART IDENTITY resets all SERIAL/BIGSERIAL sequences (schemas, users, api_keys, etc.)
+		"TRUNCATE TABLE api_keys, users, schema_references, schema_fingerprints, schemas, modes, configs, ctx_id_alloc, contexts RESTART IDENTITY CASCADE",
 		// Re-seed per-context ID allocation and context for default context
 		"INSERT INTO ctx_id_alloc (registry_ctx, next_id) VALUES ('.', 1) ON CONFLICT (registry_ctx) DO NOTHING",
 		"INSERT INTO contexts (registry_ctx) VALUES ('.') ON CONFLICT DO NOTHING",
