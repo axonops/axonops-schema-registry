@@ -226,11 +226,13 @@ func newAuthTestServerWithStore(store storage.Storage) (*httptest.Server, storag
 		},
 	}
 
-	// Configure rate limiting for BDD rate-limiting scenarios
+	// Configure rate limiting for BDD rate-limiting scenarios.
+	// Low burst (3) and rate (2/s) ensure 429s trigger reliably even when
+	// CI runners are slow and serial HTTP round-trips take 50-70ms each.
 	rateLimitCfg := config.RateLimitConfig{
 		Enabled:           true,
-		RequestsPerSecond: 10,
-		BurstSize:         10,
+		RequestsPerSecond: 2,
+		BurstSize:         3,
 		PerClient:         false,
 		PerEndpoint:       false,
 	}

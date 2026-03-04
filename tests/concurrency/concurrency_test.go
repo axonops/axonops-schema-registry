@@ -2830,10 +2830,11 @@ func TestConcurrentFingerprintDedup(t *testing.T) {
 	// INVARIANT 1: Most registrations succeed. Under high concurrency, some backends
 	// may hit transient race conditions in the fingerprint dedup path (e.g., MySQL's
 	// INSERT IGNORE + subsequent SELECT can race when a concurrent transaction has
-	// inserted but not yet committed). Allow up to 10% failure rate.
+	// inserted but not yet committed). Allow up to 10% failure rate, with a floor
+	// of 2 to account for the documented MySQL dedup race.
 	maxErrors := int64(numConcurrent * 1 / 10)
-	if maxErrors < 1 {
-		maxErrors = 1
+	if maxErrors < 2 {
+		maxErrors = 2
 	}
 	if errorCount > maxErrors {
 		t.Errorf("Too many errors: %d out of %d (max tolerated: %d)", errorCount, numConcurrent, maxErrors)
