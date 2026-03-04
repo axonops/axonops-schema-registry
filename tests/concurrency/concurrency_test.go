@@ -46,11 +46,13 @@ var (
 )
 
 func init() {
-	// Reduce load for Cassandra in CI (single-node with limited resources)
+	// Reduce load for Cassandra in CI (single-node with limited resources).
+	// Keep numInstances=1 (real single-node constraint), but use higher concurrency
+	// and operations to ensure contention bugs are caught (1/6 of default load).
 	if os.Getenv("STORAGE_TYPE") == "cassandra" {
 		numInstances = 1
-		numConcurrent = 5
-		numOperations = 20
+		numConcurrent = 10
+		numOperations = 50
 	}
 }
 
@@ -2828,8 +2830,8 @@ func TestConcurrentFingerprintDedup(t *testing.T) {
 	// INVARIANT 1: Most registrations succeed. Under high concurrency, some backends
 	// may hit transient race conditions in the fingerprint dedup path (e.g., MySQL's
 	// INSERT IGNORE + subsequent SELECT can race when a concurrent transaction has
-	// inserted but not yet committed). Allow up to 30% failure rate.
-	maxErrors := int64(numConcurrent * 3 / 10)
+	// inserted but not yet committed). Allow up to 10% failure rate.
+	maxErrors := int64(numConcurrent * 1 / 10)
 	if maxErrors < 1 {
 		maxErrors = 1
 	}
