@@ -459,10 +459,14 @@ func (s *Store) globalSchemaID(ctx context.Context, registryCtx, fingerprint str
 }
 
 // globalSchemaIDTx returns the stable per-context schema ID within a transaction.
+// Uses FOR UPDATE to bypass MySQL REPEATABLE READ snapshot isolation and read
+// the latest committed data. This is critical after INSERT IGNORE: if a concurrent
+// transaction committed the row, a plain SELECT would not see it due to the stale
+// snapshot, but FOR UPDATE forces a current read.
 func (s *Store) globalSchemaIDTx(ctx context.Context, tx *sql.Tx, registryCtx, fingerprint string) (int64, error) {
 	var globalID int64
 	err := tx.QueryRowContext(ctx,
-		"SELECT schema_id FROM schema_fingerprints WHERE registry_ctx = ? AND fingerprint = ?", registryCtx, fingerprint).Scan(&globalID)
+		"SELECT schema_id FROM schema_fingerprints WHERE registry_ctx = ? AND fingerprint = ? FOR UPDATE", registryCtx, fingerprint).Scan(&globalID)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get global schema ID: %w", err)
 	}

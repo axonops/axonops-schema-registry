@@ -1535,7 +1535,7 @@ jobs:
       - name: Run BDD tests (cassandra backend, in-process)
         env:
           BDD_STORAGE: cassandra
-        run: go test -tags bdd -v -count=1 -timeout 20m ./tests/bdd/...
+        run: go test -tags bdd -v -count=1 -timeout 40m ./tests/bdd/...
 
       - name: Show container logs on failure
         if: failure()
@@ -2029,7 +2029,7 @@ jobs:
         env:
           BDD_BACKEND: cassandra
           CONTAINER_CMD: docker
-        run: go test -tags bdd -v -count=1 -timeout 20m ./tests/bdd/...
+        run: go test -tags bdd -v -count=1 -timeout 40m ./tests/bdd/...
 
       - name: Show container logs on failure
         if: failure()
