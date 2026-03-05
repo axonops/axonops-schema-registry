@@ -113,10 +113,10 @@ test: test-unit test-bdd test-integration test-conformance test-concurrency test
 # Unit tests (no Docker, no build tags)
 # =====================================================================
 
-## Run unit tests (internal packages, no Docker needed)
+## Run unit tests (no Docker needed) [COVERPROFILE= for coverage output]
 test-unit:
 	@echo "=== Unit Tests ==="
-	$(GOTEST) -race -v -timeout $(TIMEOUT_UNIT) ./...
+	$(GOTEST) -race -v -timeout $(TIMEOUT_UNIT) $(if $(COVERPROFILE),-coverprofile=$(COVERPROFILE) -covermode=atomic,) ./...
 
 # =====================================================================
 # BDD tests — Docker managed by Go test code (bdd_test.go)

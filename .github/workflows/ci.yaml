@@ -32,7 +32,7 @@ jobs:
         run: go build -v ./...
 
       - name: Run unit tests
-        run: go test -v -race -coverprofile=coverage.out ./...
+        run: make test-unit COVERPROFILE=coverage.out
 
       - name: Build integration test binary
         run: go test -c -tags=integration -o integration.test ./tests/integration/...
@@ -1170,7 +1170,7 @@ jobs:
         run: go mod download
 
       - name: Run BDD functional tests (in-process)
-        run: go test -tags bdd -v -count=1 -timeout 10m ./tests/bdd/...
+        run: make test-bdd-functional
 
   # BDD tests — KMS encryption (Vault Transit + OpenBao Transit, in-process server)
   bdd-kms-tests:
@@ -1203,13 +1203,7 @@ jobs:
           docker compose -f docker-compose.kms.yml run --rm setup-kms
 
       - name: Run BDD KMS encryption tests
-        env:
-          BDD_TAGS: "@kms"
-          KMS_VAULT_ADDR: "http://localhost:18200"
-          KMS_VAULT_TOKEN: "test-root-token"
-          KMS_BAO_ADDR: "http://localhost:18201"
-          KMS_BAO_TOKEN: "test-bao-token"
-        run: go test -tags bdd -v -count=1 -timeout 10m ./tests/bdd/...
+        run: make test-bdd-kms BACKEND=memory
 
       - name: Show KMS container logs on failure
         if: failure()
@@ -1243,7 +1237,7 @@ jobs:
             -e POSTGRES_USER=schemaregistry \
             -e POSTGRES_PASSWORD=schemaregistry \
             -e POSTGRES_DB=schemaregistry \
-            -p 15432:5432 \
+            -p 25432:5432 \
             postgres:16
           for i in $(seq 1 30); do
             docker exec bdd-postgres pg_isready -U schemaregistry > /dev/null 2>&1 && break
@@ -1263,14 +1257,7 @@ jobs:
           docker compose -f docker-compose.kms.yml run --rm setup-kms
 
       - name: Run BDD KMS tests (postgres backend, in-process)
-        env:
-          BDD_STORAGE: postgres
-          BDD_TAGS: "@kms"
-          KMS_VAULT_ADDR: "http://localhost:18200"
-          KMS_VAULT_TOKEN: "test-root-token"
-          KMS_BAO_ADDR: "http://localhost:18201"
-          KMS_BAO_TOKEN: "test-bao-token"
-        run: go test -tags bdd -v -count=1 -timeout 15m ./tests/bdd/...
+        run: make test-bdd-kms BACKEND=postgres
 
       - name: Show container logs on failure
         if: failure()
@@ -1307,7 +1294,7 @@ jobs:
             -e MYSQL_USER=schemaregistry \
             -e MYSQL_PASSWORD=schemaregistry \
             -e MYSQL_ROOT_PASSWORD=root \
-            -p 13306:3306 \
+            -p 23306:3306 \
             mysql:8.0
           echo "Waiting for MySQL to be ready..."
           for i in $(seq 1 60); do
@@ -1328,14 +1315,7 @@ jobs:
           docker compose -f docker-compose.kms.yml run --rm setup-kms
 
       - name: Run BDD KMS tests (mysql backend, in-process)
-        env:
-          BDD_STORAGE: mysql
-          BDD_TAGS: "@kms"
-          KMS_VAULT_ADDR: "http://localhost:18200"
-          KMS_VAULT_TOKEN: "test-root-token"
-          KMS_BAO_ADDR: "http://localhost:18201"
-          KMS_BAO_TOKEN: "test-bao-token"
-        run: go test -tags bdd -v -count=1 -timeout 15m ./tests/bdd/...
+        run: make test-bdd-kms BACKEND=mysql
 
       - name: Show container logs on failure
         if: failure()
@@ -1371,7 +1351,7 @@ jobs:
             -e CASSANDRA_CLUSTER_NAME=bdd-cluster \
             -e MAX_HEAP_SIZE=256M \
             -e HEAP_NEWSIZE=128M \
-            -p 19042:9042 \
+            -p 29042:9042 \
             cassandra:5.0
           echo "Waiting for Cassandra to be ready..."
           for i in $(seq 1 60); do
@@ -1392,14 +1372,7 @@ jobs:
           docker compose -f docker-compose.kms.yml run --rm setup-kms
 
       - name: Run BDD KMS tests (cassandra backend, in-process)
-        env:
-          BDD_STORAGE: cassandra
-          BDD_TAGS: "@kms"
-          KMS_VAULT_ADDR: "http://localhost:18200"
-          KMS_VAULT_TOKEN: "test-root-token"
-          KMS_BAO_ADDR: "http://localhost:18201"
-          KMS_BAO_TOKEN: "test-bao-token"
-        run: go test -tags bdd -v -count=1 -timeout 20m ./tests/bdd/...
+        run: make test-bdd-kms BACKEND=cassandra
 
       - name: Show container logs on failure
         if: failure()
@@ -1435,7 +1408,7 @@ jobs:
             -e POSTGRES_USER=schemaregistry \
             -e POSTGRES_PASSWORD=schemaregistry \
             -e POSTGRES_DB=schemaregistry \
-            -p 15432:5432 \
+            -p 25432:5432 \
             postgres:16
           for i in $(seq 1 30); do
             docker exec bdd-db-postgres pg_isready -U schemaregistry > /dev/null 2>&1 && break
@@ -1444,9 +1417,7 @@ jobs:
           echo "PostgreSQL is ready"
 
       - name: Run BDD tests (postgres backend, in-process)
-        env:
-          BDD_STORAGE: postgres
-        run: go test -tags bdd -v -count=1 -timeout 15m ./tests/bdd/...
+        run: make test-bdd-db BACKEND=postgres
 
       - name: Show container logs on failure
         if: failure()
@@ -1479,7 +1450,7 @@ jobs:
             -e MYSQL_USER=schemaregistry \
             -e MYSQL_PASSWORD=schemaregistry \
             -e MYSQL_ROOT_PASSWORD=root \
-            -p 13306:3306 \
+            -p 23306:3306 \
             mysql:8.0
           echo "Waiting for MySQL to be ready..."
           for i in $(seq 1 60); do
@@ -1489,9 +1460,7 @@ jobs:
           echo "MySQL is ready"
 
       - name: Run BDD tests (mysql backend, in-process)
-        env:
-          BDD_STORAGE: mysql
-        run: go test -tags bdd -v -count=1 -timeout 15m ./tests/bdd/...
+        run: make test-bdd-db BACKEND=mysql
 
       - name: Show container logs on failure
         if: failure()
@@ -1523,7 +1492,7 @@ jobs:
             -e CASSANDRA_CLUSTER_NAME=bdd-cluster \
             -e MAX_HEAP_SIZE=256M \
             -e HEAP_NEWSIZE=128M \
-            -p 19042:9042 \
+            -p 29042:9042 \
             cassandra:5.0
           echo "Waiting for Cassandra to be ready..."
           for i in $(seq 1 60); do
@@ -1533,9 +1502,7 @@ jobs:
           echo "Cassandra is ready"
 
       - name: Run BDD tests (cassandra backend, in-process)
-        env:
-          BDD_STORAGE: cassandra
-        run: go test -tags bdd -v -count=1 -timeout 40m ./tests/bdd/...
+        run: make test-bdd-db BACKEND=cassandra
 
       - name: Show container logs on failure
         if: failure()
@@ -1567,7 +1534,7 @@ jobs:
             -e POSTGRES_USER=schemaregistry \
             -e POSTGRES_PASSWORD=schemaregistry \
             -e POSTGRES_DB=schemaregistry \
-            -p 15432:5432 \
+            -p 25432:5432 \
             postgres:16
           for i in $(seq 1 30); do
             docker exec bdd-auth-postgres pg_isready -U schemaregistry > /dev/null 2>&1 && break
@@ -1576,9 +1543,7 @@ jobs:
           echo "PostgreSQL is ready"
 
       - name: Run BDD auth tests (postgres backend, in-process)
-        env:
-          BDD_STORAGE: postgres
-        run: go test -tags bdd -v -count=1 -timeout 15m -run TestAuthFeatures ./tests/bdd/...
+        run: make test-bdd-auth BACKEND=postgres
 
       - name: Show container logs on failure
         if: failure()
@@ -1611,7 +1576,7 @@ jobs:
             -e MYSQL_USER=schemaregistry \
             -e MYSQL_PASSWORD=schemaregistry \
             -e MYSQL_ROOT_PASSWORD=root \
-            -p 13306:3306 \
+            -p 23306:3306 \
             mysql:8.0
           echo "Waiting for MySQL to be ready..."
           for i in $(seq 1 60); do
@@ -1621,9 +1586,7 @@ jobs:
           echo "MySQL is ready"
 
       - name: Run BDD auth tests (mysql backend, in-process)
-        env:
-          BDD_STORAGE: mysql
-        run: go test -tags bdd -v -count=1 -timeout 15m -run TestAuthFeatures ./tests/bdd/...
+        run: make test-bdd-auth BACKEND=mysql
 
       - name: Show container logs on failure
         if: failure()
@@ -1655,7 +1618,7 @@ jobs:
             -e CASSANDRA_CLUSTER_NAME=bdd-cluster \
             -e MAX_HEAP_SIZE=256M \
             -e HEAP_NEWSIZE=128M \
-            -p 19042:9042 \
+            -p 29042:9042 \
             cassandra:5.0
           echo "Waiting for Cassandra to be ready..."
           for i in $(seq 1 60); do
@@ -1665,9 +1628,7 @@ jobs:
           echo "Cassandra is ready"
 
       - name: Run BDD auth tests (cassandra backend, in-process)
-        env:
-          BDD_STORAGE: cassandra
-        run: go test -tags bdd -v -count=1 -timeout 20m -run TestAuthFeatures ./tests/bdd/...
+        run: make test-bdd-auth BACKEND=cassandra
 
       - name: Show container logs on failure
         if: failure()
@@ -1930,10 +1891,7 @@ jobs:
         run: go mod download
 
       - name: Run BDD tests (memory backend)
-        env:
-          BDD_BACKEND: memory
-          CONTAINER_CMD: docker
-        run: go test -tags bdd -v -count=1 -timeout 15m ./tests/bdd/...
+        run: make test-bdd BACKEND=memory
 
       - name: Show container logs on failure
         if: failure()
@@ -1962,10 +1920,7 @@ jobs:
         run: go mod download
 
       - name: Run BDD tests (postgres backend)
-        env:
-          BDD_BACKEND: postgres
-          CONTAINER_CMD: docker
-        run: go test -tags bdd -v -count=1 -timeout 15m ./tests/bdd/...
+        run: make test-bdd BACKEND=postgres
 
       - name: Show container logs on failure
         if: failure()
@@ -1994,10 +1949,7 @@ jobs:
         run: go mod download
 
       - name: Run BDD tests (mysql backend)
-        env:
-          BDD_BACKEND: mysql
-          CONTAINER_CMD: docker
-        run: go test -tags bdd -v -count=1 -timeout 15m ./tests/bdd/...
+        run: make test-bdd BACKEND=mysql
 
       - name: Show container logs on failure
         if: failure()
@@ -2026,10 +1978,7 @@ jobs:
         run: go mod download
 
       - name: Run BDD tests (cassandra backend)
-        env:
-          BDD_BACKEND: cassandra
-          CONTAINER_CMD: docker
-        run: go test -tags bdd -v -count=1 -timeout 40m ./tests/bdd/...
+        run: make test-bdd BACKEND=cassandra
 
       - name: Show container logs on failure
         if: failure()
@@ -2058,10 +2007,7 @@ jobs:
         run: go mod download
 
       - name: Run BDD tests (confluent backend)
-        env:
-          BDD_BACKEND: confluent
-          CONTAINER_CMD: docker
-        run: go test -tags bdd -v -count=1 -timeout 25m ./tests/bdd/...
+        run: make test-bdd BACKEND=confluent
 
       - name: Show container logs on failure
         if: failure()
