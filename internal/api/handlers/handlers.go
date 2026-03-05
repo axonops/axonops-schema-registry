@@ -651,7 +651,7 @@ func (h *Handler) LookupSchema(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusNotFound, types.ErrorCodeSubjectNotFound, fmt.Sprintf("Subject '%s' not found.", subject))
 			return
 		}
-		if errors.Is(err, storage.ErrSchemaNotFound) {
+		if errors.Is(err, storage.ErrSchemaNotFound) || errors.Is(err, storage.ErrVersionNotFound) {
 			writeError(w, http.StatusNotFound, types.ErrorCodeSchemaNotFound, "Schema not found")
 			return
 		}
