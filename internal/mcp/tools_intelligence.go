@@ -8,7 +8,6 @@ import (
 
 	gomcp "github.com/modelcontextprotocol/go-sdk/mcp"
 
-	registrycontext "github.com/axonops/axonops-schema-registry/internal/context"
 	"github.com/axonops/axonops-schema-registry/internal/storage"
 )
 
@@ -74,6 +73,7 @@ type findSchemasByFieldInput struct {
 	Field     string  `json:"field"`
 	MatchType string  `json:"match_type,omitempty"` // "exact", "fuzzy", "regex"
 	Threshold float64 `json:"threshold,omitempty"`
+	Context   string  `json:"context,omitempty"`
 }
 
 type fieldSchemaMatch struct {
@@ -85,7 +85,8 @@ type fieldSchemaMatch struct {
 }
 
 func (s *Server) handleFindSchemasByField(ctx context.Context, _ *gomcp.CallToolRequest, input findSchemasByFieldInput) (*gomcp.CallToolResult, any, error) {
-	subjects, err := s.registry.ListSubjects(ctx, registrycontext.DefaultContext, false)
+	registryCtx := resolveContext(input.Context)
+	subjects, err := s.registry.ListSubjects(ctx, registryCtx, false)
 	if err != nil {
 		return errorResult(err), nil, nil
 	}
@@ -109,7 +110,7 @@ func (s *Server) handleFindSchemasByField(ctx context.Context, _ *gomcp.CallTool
 
 	var matches []fieldSchemaMatch
 	for _, subj := range subjects {
-		record, err := s.registry.GetLatestSchema(ctx, registrycontext.DefaultContext, subj)
+		record, err := s.registry.GetLatestSchema(ctx, registryCtx, subj)
 		if err != nil {
 			continue
 		}
@@ -163,10 +164,12 @@ func (s *Server) handleFindSchemasByField(ctx context.Context, _ *gomcp.CallTool
 type findSchemasByTypeInput struct {
 	TypePattern string `json:"type_pattern"`
 	Regex       bool   `json:"regex,omitempty"`
+	Context     string `json:"context,omitempty"`
 }
 
 func (s *Server) handleFindSchemasByType(ctx context.Context, _ *gomcp.CallToolRequest, input findSchemasByTypeInput) (*gomcp.CallToolResult, any, error) {
-	subjects, err := s.registry.ListSubjects(ctx, registrycontext.DefaultContext, false)
+	registryCtx := resolveContext(input.Context)
+	subjects, err := s.registry.ListSubjects(ctx, registryCtx, false)
 	if err != nil {
 		return errorResult(err), nil, nil
 	}
@@ -188,7 +191,7 @@ func (s *Server) handleFindSchemasByType(ctx context.Context, _ *gomcp.CallToolR
 
 	var matches []typeMatch
 	for _, subj := range subjects {
-		record, err := s.registry.GetLatestSchema(ctx, registrycontext.DefaultContext, subj)
+		record, err := s.registry.GetLatestSchema(ctx, registryCtx, subj)
 		if err != nil {
 			continue
 		}
@@ -225,6 +228,7 @@ func (s *Server) handleFindSchemasByType(ctx context.Context, _ *gomcp.CallToolR
 type findSimilarSchemasInput struct {
 	Subject   string  `json:"subject"`
 	Threshold float64 `json:"threshold,omitempty"`
+	Context   string  `json:"context,omitempty"`
 }
 
 type similarSchemaMatch struct {
@@ -239,7 +243,8 @@ func (s *Server) handleFindSimilarSchemas(ctx context.Context, _ *gomcp.CallTool
 		threshold = 0.3
 	}
 
-	record, err := s.registry.GetLatestSchema(ctx, registrycontext.DefaultContext, input.Subject)
+	registryCtx := resolveContext(input.Context)
+	record, err := s.registry.GetLatestSchema(ctx, registryCtx, input.Subject)
 	if err != nil {
 		return errorResult(err), nil, nil
 	}
@@ -250,7 +255,7 @@ func (s *Server) handleFindSimilarSchemas(ctx context.Context, _ *gomcp.CallTool
 		sourceSet[NormalizeFieldName(f.Name)] = true
 	}
 
-	subjects, err := s.registry.ListSubjects(ctx, registrycontext.DefaultContext, false)
+	subjects, err := s.registry.ListSubjects(ctx, registryCtx, false)
 	if err != nil {
 		return errorResult(err), nil, nil
 	}
@@ -260,7 +265,7 @@ func (s *Server) handleFindSimilarSchemas(ctx context.Context, _ *gomcp.CallTool
 		if subj == input.Subject {
 			continue
 		}
-		other, err := s.registry.GetLatestSchema(ctx, registrycontext.DefaultContext, subj)
+		other, err := s.registry.GetLatestSchema(ctx, registryCtx, subj)
 		if err != nil {
 			continue
 		}
@@ -312,6 +317,7 @@ type scoreSchemaQualityInput struct {
 	Subject string `json:"subject,omitempty"`
 	Schema  string `json:"schema,omitempty"`
 	Type    string `json:"schema_type,omitempty"`
+	Context string `json:"context,omitempty"`
 }
 
 func (s *Server) handleScoreSchemaQuality(ctx context.Context, _ *gomcp.CallToolRequest, input scoreSchemaQualityInput) (*gomcp.CallToolResult, any, error) {
@@ -319,7 +325,7 @@ func (s *Server) handleScoreSchemaQuality(ctx context.Context, _ *gomcp.CallTool
 	schemaType := storage.SchemaType(input.Type)
 
 	if input.Subject != "" && schemaStr == "" {
-		record, err := s.registry.GetLatestSchema(ctx, registrycontext.DefaultContext, input.Subject)
+		record, err := s.registry.GetLatestSchema(ctx, resolveContext(input.Context), input.Subject)
 		if err != nil {
 			return errorResult(err), nil, nil
 		}
@@ -340,7 +346,8 @@ func (s *Server) handleScoreSchemaQuality(ctx context.Context, _ *gomcp.CallTool
 // --- check_field_consistency ---
 
 type checkFieldConsistencyInput struct {
-	Field string `json:"field"`
+	Field   string `json:"field"`
+	Context string `json:"context,omitempty"`
 }
 
 type fieldUsage struct {
@@ -350,7 +357,8 @@ type fieldUsage struct {
 }
 
 func (s *Server) handleCheckFieldConsistency(ctx context.Context, _ *gomcp.CallToolRequest, input checkFieldConsistencyInput) (*gomcp.CallToolResult, any, error) {
-	subjects, err := s.registry.ListSubjects(ctx, registrycontext.DefaultContext, false)
+	registryCtx := resolveContext(input.Context)
+	subjects, err := s.registry.ListSubjects(ctx, registryCtx, false)
 	if err != nil {
 		return errorResult(err), nil, nil
 	}
@@ -359,7 +367,7 @@ func (s *Server) handleCheckFieldConsistency(ctx context.Context, _ *gomcp.CallT
 	typeCounts := map[string]int{}
 
 	for _, subj := range subjects {
-		record, err := s.registry.GetLatestSchema(ctx, registrycontext.DefaultContext, subj)
+		record, err := s.registry.GetLatestSchema(ctx, registryCtx, subj)
 		if err != nil {
 			continue
 		}
@@ -396,6 +404,7 @@ type getSchemaComplexityInput struct {
 	Subject string `json:"subject,omitempty"`
 	Schema  string `json:"schema,omitempty"`
 	Type    string `json:"schema_type,omitempty"`
+	Context string `json:"context,omitempty"`
 }
 
 func (s *Server) handleGetSchemaComplexity(ctx context.Context, _ *gomcp.CallToolRequest, input getSchemaComplexityInput) (*gomcp.CallToolResult, any, error) {
@@ -403,7 +412,7 @@ func (s *Server) handleGetSchemaComplexity(ctx context.Context, _ *gomcp.CallToo
 	schemaType := storage.SchemaType(input.Type)
 
 	if input.Subject != "" && schemaStr == "" {
-		record, err := s.registry.GetLatestSchema(ctx, registrycontext.DefaultContext, input.Subject)
+		record, err := s.registry.GetLatestSchema(ctx, resolveContext(input.Context), input.Subject)
 		if err != nil {
 			return errorResult(err), nil, nil
 		}
@@ -460,10 +469,13 @@ func (s *Server) handleGetSchemaComplexity(ctx context.Context, _ *gomcp.CallToo
 
 // --- detect_schema_patterns ---
 
-type detectSchemaPatternsInput struct{}
+type detectSchemaPatternsInput struct {
+	Context string `json:"context,omitempty"`
+}
 
-func (s *Server) handleDetectSchemaPatterns(ctx context.Context, _ *gomcp.CallToolRequest, _ detectSchemaPatternsInput) (*gomcp.CallToolResult, any, error) {
-	subjects, err := s.registry.ListSubjects(ctx, registrycontext.DefaultContext, false)
+func (s *Server) handleDetectSchemaPatterns(ctx context.Context, _ *gomcp.CallToolRequest, input detectSchemaPatternsInput) (*gomcp.CallToolResult, any, error) {
+	registryCtx := resolveContext(input.Context)
+	subjects, err := s.registry.ListSubjects(ctx, registryCtx, false)
 	if err != nil {
 		return errorResult(err), nil, nil
 	}
@@ -482,7 +494,7 @@ func (s *Server) handleDetectSchemaPatterns(ctx context.Context, _ *gomcp.CallTo
 			suffixCounts[parts[len(parts)-1]]++
 		}
 
-		versions, err := s.registry.GetVersions(ctx, registrycontext.DefaultContext, subj, false)
+		versions, err := s.registry.GetVersions(ctx, registryCtx, subj, false)
 		if err != nil {
 			continue
 		}
@@ -491,7 +503,7 @@ func (s *Server) handleDetectSchemaPatterns(ctx context.Context, _ *gomcp.CallTo
 			multiVersionSubjects++
 		}
 
-		record, err := s.registry.GetLatestSchema(ctx, registrycontext.DefaultContext, subj)
+		record, err := s.registry.GetLatestSchema(ctx, registryCtx, subj)
 		if err != nil {
 			continue
 		}
@@ -563,15 +575,17 @@ type suggestSchemaEvolutionInput struct {
 	FieldName  string `json:"field_name,omitempty"`
 	FieldType  string `json:"field_type,omitempty"`
 	EnumSymbol string `json:"enum_symbol,omitempty"`
+	Context    string `json:"context,omitempty"`
 }
 
 func (s *Server) handleSuggestSchemaEvolution(ctx context.Context, _ *gomcp.CallToolRequest, input suggestSchemaEvolutionInput) (*gomcp.CallToolResult, any, error) {
-	record, err := s.registry.GetLatestSchema(ctx, registrycontext.DefaultContext, input.Subject)
+	registryCtx := resolveContext(input.Context)
+	record, err := s.registry.GetLatestSchema(ctx, registryCtx, input.Subject)
 	if err != nil {
 		return errorResult(err), nil, nil
 	}
 
-	level, _ := s.registry.GetConfig(ctx, registrycontext.DefaultContext, input.Subject)
+	level, _ := s.registry.GetConfig(ctx, registryCtx, input.Subject)
 
 	var suggestion map[string]any
 
@@ -693,6 +707,7 @@ type planMigrationPathInput struct {
 	Subject      string `json:"subject"`
 	TargetSchema string `json:"target_schema"`
 	SchemaType   string `json:"schema_type,omitempty"`
+	Context      string `json:"context,omitempty"`
 }
 
 type migrationStep struct {
@@ -703,7 +718,8 @@ type migrationStep struct {
 }
 
 func (s *Server) handlePlanMigrationPath(ctx context.Context, _ *gomcp.CallToolRequest, input planMigrationPathInput) (*gomcp.CallToolResult, any, error) {
-	record, err := s.registry.GetLatestSchema(ctx, registrycontext.DefaultContext, input.Subject)
+	registryCtx := resolveContext(input.Context)
+	record, err := s.registry.GetLatestSchema(ctx, registryCtx, input.Subject)
 	if err != nil {
 		return errorResult(err), nil, nil
 	}
@@ -713,7 +729,7 @@ func (s *Server) handlePlanMigrationPath(ctx context.Context, _ *gomcp.CallToolR
 		schemaType = storage.SchemaType(input.SchemaType)
 	}
 
-	level, _ := s.registry.GetConfig(ctx, registrycontext.DefaultContext, input.Subject)
+	level, _ := s.registry.GetConfig(ctx, registryCtx, input.Subject)
 
 	sourceFields := ExtractFields(record.Schema, schemaType)
 	targetFields := ExtractFields(input.TargetSchema, schemaType)

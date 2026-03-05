@@ -9,7 +9,6 @@ import (
 
 	gomcp "github.com/modelcontextprotocol/go-sdk/mcp"
 
-	registrycontext "github.com/axonops/axonops-schema-registry/internal/context"
 	"github.com/axonops/axonops-schema-registry/internal/storage"
 )
 
@@ -58,6 +57,7 @@ type checkCompatibilityMultiInput struct {
 	Schema     string              `json:"schema"`
 	SchemaType string              `json:"schema_type,omitempty"`
 	References []storage.Reference `json:"references,omitempty"`
+	Context    string              `json:"context,omitempty"`
 }
 
 type compatMultiResult struct {
@@ -72,7 +72,7 @@ func (s *Server) handleCheckCompatibilityMulti(ctx context.Context, _ *gomcp.Cal
 	results := make([]compatMultiResult, 0, len(input.Subjects))
 
 	for _, subj := range input.Subjects {
-		result, err := s.registry.CheckCompatibility(ctx, registrycontext.DefaultContext, subj, input.Schema, schemaType, input.References, "latest")
+		result, err := s.registry.CheckCompatibility(ctx, resolveContext(input.Context), subj, input.Schema, schemaType, input.References, "latest")
 		if err != nil {
 			results = append(results, compatMultiResult{
 				Subject:      subj,
@@ -108,6 +108,7 @@ type diffSchemasInput struct {
 	Subject     string `json:"subject"`
 	VersionFrom int    `json:"version_from"`
 	VersionTo   int    `json:"version_to"`
+	Context     string `json:"context,omitempty"`
 }
 
 type fieldDiff struct {
@@ -120,7 +121,8 @@ type fieldDiff struct {
 }
 
 func (s *Server) handleDiffSchemas(ctx context.Context, _ *gomcp.CallToolRequest, input diffSchemasInput) (*gomcp.CallToolResult, any, error) {
-	recordFrom, err := s.registry.GetSchemaBySubjectVersion(ctx, registrycontext.DefaultContext, input.Subject, input.VersionFrom)
+	registryCtx := resolveContext(input.Context)
+	recordFrom, err := s.registry.GetSchemaBySubjectVersion(ctx, registryCtx, input.Subject, input.VersionFrom)
 	if err != nil {
 		return errorResult(fmt.Errorf("version %d: %w", input.VersionFrom, err)), nil, nil
 	}
@@ -128,7 +130,7 @@ func (s *Server) handleDiffSchemas(ctx context.Context, _ *gomcp.CallToolRequest
 	if versionTo == 0 {
 		versionTo = -1 // default to latest
 	}
-	recordTo, err := s.registry.GetSchemaBySubjectVersion(ctx, registrycontext.DefaultContext, input.Subject, versionTo)
+	recordTo, err := s.registry.GetSchemaBySubjectVersion(ctx, registryCtx, input.Subject, versionTo)
 	if err != nil {
 		return errorResult(fmt.Errorf("version %d: %w", versionTo, err)), nil, nil
 	}
@@ -198,14 +200,16 @@ func computeFieldDiffs(from, to []FieldInfo) []fieldDiff {
 type compareSubjectsInput struct {
 	SubjectA string `json:"subject_a"`
 	SubjectB string `json:"subject_b"`
+	Context  string `json:"context,omitempty"`
 }
 
 func (s *Server) handleCompareSubjects(ctx context.Context, _ *gomcp.CallToolRequest, input compareSubjectsInput) (*gomcp.CallToolResult, any, error) {
-	recordA, err := s.registry.GetLatestSchema(ctx, registrycontext.DefaultContext, input.SubjectA)
+	registryCtx := resolveContext(input.Context)
+	recordA, err := s.registry.GetLatestSchema(ctx, registryCtx, input.SubjectA)
 	if err != nil {
 		return errorResult(fmt.Errorf("subject %q: %w", input.SubjectA, err)), nil, nil
 	}
-	recordB, err := s.registry.GetLatestSchema(ctx, registrycontext.DefaultContext, input.SubjectB)
+	recordB, err := s.registry.GetLatestSchema(ctx, registryCtx, input.SubjectB)
 	if err != nil {
 		return errorResult(fmt.Errorf("subject %q: %w", input.SubjectB, err)), nil, nil
 	}
@@ -249,10 +253,11 @@ func (s *Server) handleCompareSubjects(ctx context.Context, _ *gomcp.CallToolReq
 type suggestCompatibleChangeInput struct {
 	Subject    string `json:"subject"`
 	ChangeType string `json:"change_type"` // "add_field", "remove_field", "rename_field", "change_type"
+	Context    string `json:"context,omitempty"`
 }
 
 func (s *Server) handleSuggestCompatibleChange(ctx context.Context, _ *gomcp.CallToolRequest, input suggestCompatibleChangeInput) (*gomcp.CallToolResult, any, error) {
-	level, err := s.registry.GetConfig(ctx, registrycontext.DefaultContext, input.Subject)
+	level, err := s.registry.GetConfig(ctx, resolveContext(input.Context), input.Subject)
 	if err != nil {
 		level = "BACKWARD"
 	}
@@ -323,10 +328,11 @@ func compatibilityAdvice(level, changeType string) []string {
 type matchSubjectsInput struct {
 	Pattern string `json:"pattern"`
 	Regex   bool   `json:"regex,omitempty"`
+	Context string `json:"context,omitempty"`
 }
 
 func (s *Server) handleMatchSubjects(ctx context.Context, _ *gomcp.CallToolRequest, input matchSubjectsInput) (*gomcp.CallToolResult, any, error) {
-	subjects, err := s.registry.ListSubjects(ctx, registrycontext.DefaultContext, false)
+	subjects, err := s.registry.ListSubjects(ctx, resolveContext(input.Context), false)
 	if err != nil {
 		return errorResult(err), nil, nil
 	}
@@ -370,6 +376,7 @@ type explainCompatibilityFailureInput struct {
 	SchemaType string              `json:"schema_type,omitempty"`
 	References []storage.Reference `json:"references,omitempty"`
 	Version    string              `json:"version,omitempty"`
+	Context    string              `json:"context,omitempty"`
 }
 
 type compatExplanation struct {
@@ -384,7 +391,8 @@ func (s *Server) handleExplainCompatibilityFailure(ctx context.Context, _ *gomcp
 		version = "latest"
 	}
 	schemaType := storage.SchemaType(input.SchemaType)
-	result, err := s.registry.CheckCompatibility(ctx, registrycontext.DefaultContext, input.Subject, input.Schema, schemaType, input.References, version)
+	registryCtx := resolveContext(input.Context)
+	result, err := s.registry.CheckCompatibility(ctx, registryCtx, input.Subject, input.Schema, schemaType, input.References, version)
 	if err != nil {
 		return errorResult(err), nil, nil
 	}
@@ -396,7 +404,7 @@ func (s *Server) handleExplainCompatibilityFailure(ctx context.Context, _ *gomcp
 		})
 	}
 
-	level, _ := s.registry.GetConfig(ctx, registrycontext.DefaultContext, input.Subject)
+	level, _ := s.registry.GetConfig(ctx, registryCtx, input.Subject)
 
 	explanations := make([]compatExplanation, 0, len(result.Messages))
 	for _, msg := range result.Messages {

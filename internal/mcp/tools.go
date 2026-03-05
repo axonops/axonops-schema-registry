@@ -12,7 +12,6 @@ import (
 	gomcp "github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/axonops/axonops-schema-registry/internal/auth"
-	registrycontext "github.com/axonops/axonops-schema-registry/internal/context"
 )
 
 func (s *Server) registerTools() {
@@ -76,10 +75,11 @@ type listSubjectsInput struct {
 	Deleted bool   `json:"deleted,omitempty"`
 	Prefix  string `json:"prefix,omitempty"`
 	Pattern string `json:"pattern,omitempty"`
+	Context string `json:"context,omitempty"`
 }
 
 func (s *Server) handleListSubjects(ctx context.Context, _ *gomcp.CallToolRequest, input listSubjectsInput) (*gomcp.CallToolResult, any, error) {
-	subjects, err := s.registry.ListSubjects(ctx, registrycontext.DefaultContext, input.Deleted)
+	subjects, err := s.registry.ListSubjects(ctx, resolveContext(input.Context), input.Deleted)
 	if err != nil {
 		return &gomcp.CallToolResult{
 			Content: []gomcp.Content{

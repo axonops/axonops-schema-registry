@@ -8,7 +8,6 @@ import (
 
 	gomcp "github.com/modelcontextprotocol/go-sdk/mcp"
 
-	registrycontext "github.com/axonops/axonops-schema-registry/internal/context"
 	"github.com/axonops/axonops-schema-registry/internal/registry"
 	"github.com/axonops/axonops-schema-registry/internal/storage"
 )
@@ -52,6 +51,7 @@ type importSchemasInput struct {
 	Schemas      []importSchemaItem `json:"schemas"`
 	DryRun       bool               `json:"dry_run,omitempty"`
 	ConfirmToken string             `json:"confirm_token,omitempty"`
+	Context      string             `json:"context,omitempty"`
 }
 
 func (s *Server) handleImportSchemas(ctx context.Context, _ *gomcp.CallToolRequest, input importSchemasInput) (*gomcp.CallToolResult, any, error) {
@@ -72,7 +72,7 @@ func (s *Server) handleImportSchemas(ctx context.Context, _ *gomcp.CallToolReque
 			References: item.References,
 		}
 	}
-	result, err := s.registry.ImportSchemas(ctx, registrycontext.DefaultContext, reqs)
+	result, err := s.registry.ImportSchemas(ctx, resolveContext(input.Context), reqs)
 	if err != nil {
 		return errorResult(err), nil, nil
 	}

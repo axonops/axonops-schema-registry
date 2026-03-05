@@ -5,7 +5,6 @@ import (
 
 	gomcp "github.com/modelcontextprotocol/go-sdk/mcp"
 
-	registrycontext "github.com/axonops/axonops-schema-registry/internal/context"
 	"github.com/axonops/axonops-schema-registry/internal/registry"
 	"github.com/axonops/axonops-schema-registry/internal/storage"
 )
@@ -43,6 +42,7 @@ type registerSchemaInput struct {
 	Normalize  bool                `json:"normalize,omitempty"`
 	Metadata   *storage.Metadata   `json:"metadata,omitempty"`
 	RuleSet    *storage.RuleSet    `json:"rule_set,omitempty"`
+	Context    string              `json:"context,omitempty"`
 }
 
 func (s *Server) handleRegisterSchema(ctx context.Context, _ *gomcp.CallToolRequest, input registerSchemaInput) (*gomcp.CallToolResult, any, error) {
@@ -52,7 +52,7 @@ func (s *Server) handleRegisterSchema(ctx context.Context, _ *gomcp.CallToolRequ
 		Metadata:  input.Metadata,
 		RuleSet:   input.RuleSet,
 	}
-	record, err := s.registry.RegisterSchema(ctx, registrycontext.DefaultContext, input.Subject, input.Schema, schemaType, input.References, opts)
+	record, err := s.registry.RegisterSchema(ctx, resolveContext(input.Context), input.Subject, input.Schema, schemaType, input.References, opts)
 	if err != nil {
 		return errorResult(err), nil, nil
 	}
@@ -64,6 +64,7 @@ type deleteSubjectInput struct {
 	Permanent    bool   `json:"permanent,omitempty"`
 	DryRun       bool   `json:"dry_run,omitempty"`
 	ConfirmToken string `json:"confirm_token,omitempty"`
+	Context      string `json:"context,omitempty"`
 }
 
 func (s *Server) handleDeleteSubject(ctx context.Context, _ *gomcp.CallToolRequest, input deleteSubjectInput) (*gomcp.CallToolResult, any, error) {
@@ -73,7 +74,7 @@ func (s *Server) handleDeleteSubject(ctx context.Context, _ *gomcp.CallToolReque
 	); result != nil {
 		return result, nil, nil
 	}
-	versions, err := s.registry.DeleteSubject(ctx, registrycontext.DefaultContext, input.Subject, input.Permanent)
+	versions, err := s.registry.DeleteSubject(ctx, resolveContext(input.Context), input.Subject, input.Permanent)
 	if err != nil {
 		return errorResult(err), nil, nil
 	}
@@ -86,6 +87,7 @@ type deleteVersionInput struct {
 	Permanent    bool   `json:"permanent,omitempty"`
 	DryRun       bool   `json:"dry_run,omitempty"`
 	ConfirmToken string `json:"confirm_token,omitempty"`
+	Context      string `json:"context,omitempty"`
 }
 
 func (s *Server) handleDeleteVersion(ctx context.Context, _ *gomcp.CallToolRequest, input deleteVersionInput) (*gomcp.CallToolResult, any, error) {
@@ -95,7 +97,7 @@ func (s *Server) handleDeleteVersion(ctx context.Context, _ *gomcp.CallToolReque
 	); result != nil {
 		return result, nil, nil
 	}
-	ver, err := s.registry.DeleteVersion(ctx, registrycontext.DefaultContext, input.Subject, input.Version, input.Permanent)
+	ver, err := s.registry.DeleteVersion(ctx, resolveContext(input.Context), input.Subject, input.Version, input.Permanent)
 	if err != nil {
 		return errorResult(err), nil, nil
 	}
@@ -108,6 +110,7 @@ type checkCompatibilityInput struct {
 	SchemaType string              `json:"schema_type,omitempty"`
 	References []storage.Reference `json:"references,omitempty"`
 	Version    string              `json:"version,omitempty"`
+	Context    string              `json:"context,omitempty"`
 }
 
 func (s *Server) handleCheckCompatibility(ctx context.Context, _ *gomcp.CallToolRequest, input checkCompatibilityInput) (*gomcp.CallToolResult, any, error) {
@@ -116,7 +119,7 @@ func (s *Server) handleCheckCompatibility(ctx context.Context, _ *gomcp.CallTool
 		version = "latest"
 	}
 	schemaType := storage.SchemaType(input.SchemaType)
-	result, err := s.registry.CheckCompatibility(ctx, registrycontext.DefaultContext, input.Subject, input.Schema, schemaType, input.References, version)
+	result, err := s.registry.CheckCompatibility(ctx, resolveContext(input.Context), input.Subject, input.Schema, schemaType, input.References, version)
 	if err != nil {
 		return errorResult(err), nil, nil
 	}

@@ -8,7 +8,6 @@ import (
 
 	gomcp "github.com/modelcontextprotocol/go-sdk/mcp"
 
-	registrycontext "github.com/axonops/axonops-schema-registry/internal/context"
 	"github.com/axonops/axonops-schema-registry/internal/storage"
 )
 
@@ -86,11 +85,12 @@ type validateSchemaInput struct {
 	Schema     string              `json:"schema"`
 	SchemaType string              `json:"schema_type,omitempty"`
 	References []storage.Reference `json:"references,omitempty"`
+	Context    string              `json:"context,omitempty"`
 }
 
 func (s *Server) handleValidateSchema(ctx context.Context, _ *gomcp.CallToolRequest, input validateSchemaInput) (*gomcp.CallToolResult, any, error) {
 	schemaType := storage.SchemaType(input.SchemaType)
-	result, err := s.registry.ValidateSchema(ctx, registrycontext.DefaultContext, input.Schema, schemaType, input.References)
+	result, err := s.registry.ValidateSchema(ctx, resolveContext(input.Context), input.Schema, schemaType, input.References)
 	if err != nil {
 		return errorResult(err), nil, nil
 	}
@@ -103,11 +103,12 @@ type normalizeSchemaInput struct {
 	Schema     string              `json:"schema"`
 	SchemaType string              `json:"schema_type,omitempty"`
 	References []storage.Reference `json:"references,omitempty"`
+	Context    string              `json:"context,omitempty"`
 }
 
 func (s *Server) handleNormalizeSchema(ctx context.Context, _ *gomcp.CallToolRequest, input normalizeSchemaInput) (*gomcp.CallToolResult, any, error) {
 	schemaType := storage.SchemaType(input.SchemaType)
-	result, err := s.registry.NormalizeSchema(ctx, registrycontext.DefaultContext, input.Schema, schemaType, input.References)
+	result, err := s.registry.NormalizeSchema(ctx, resolveContext(input.Context), input.Schema, schemaType, input.References)
 	if err != nil {
 		return errorResult(err), nil, nil
 	}
@@ -163,6 +164,7 @@ type searchSchemasInput struct {
 	Pattern string `json:"pattern"`
 	Regex   bool   `json:"regex,omitempty"`
 	Limit   int    `json:"limit,omitempty"`
+	Context string `json:"context,omitempty"`
 }
 
 type searchSchemasMatch struct {
@@ -172,7 +174,8 @@ type searchSchemasMatch struct {
 }
 
 func (s *Server) handleSearchSchemas(ctx context.Context, _ *gomcp.CallToolRequest, input searchSchemasInput) (*gomcp.CallToolResult, any, error) {
-	subjects, err := s.registry.ListSubjects(ctx, registrycontext.DefaultContext, false)
+	registryCtx := resolveContext(input.Context)
+	subjects, err := s.registry.ListSubjects(ctx, registryCtx, false)
 	if err != nil {
 		return errorResult(err), nil, nil
 	}
@@ -195,7 +198,7 @@ func (s *Server) handleSearchSchemas(ctx context.Context, _ *gomcp.CallToolReque
 		if len(matches) >= limit {
 			break
 		}
-		record, err := s.registry.GetLatestSchema(ctx, registrycontext.DefaultContext, subj)
+		record, err := s.registry.GetLatestSchema(ctx, registryCtx, subj)
 		if err != nil {
 			continue
 		}
@@ -226,6 +229,7 @@ func (s *Server) handleSearchSchemas(ctx context.Context, _ *gomcp.CallToolReque
 
 type getSchemaHistoryInput struct {
 	Subject string `json:"subject"`
+	Context string `json:"context,omitempty"`
 }
 
 type schemaHistoryEntry struct {
@@ -237,7 +241,7 @@ type schemaHistoryEntry struct {
 }
 
 func (s *Server) handleGetSchemaHistory(ctx context.Context, _ *gomcp.CallToolRequest, input getSchemaHistoryInput) (*gomcp.CallToolResult, any, error) {
-	schemas, err := s.registry.GetSchemasBySubject(ctx, registrycontext.DefaultContext, input.Subject, false)
+	schemas, err := s.registry.GetSchemasBySubject(ctx, resolveContext(input.Context), input.Subject, false)
 	if err != nil {
 		return errorResult(err), nil, nil
 	}
@@ -264,6 +268,7 @@ type getDependencyGraphInput struct {
 	Subject  string `json:"subject"`
 	Version  int    `json:"version"`
 	MaxDepth int    `json:"max_depth,omitempty"`
+	Context  string `json:"context,omitempty"`
 }
 
 type dependencyNode struct {
@@ -281,12 +286,13 @@ func (s *Server) handleGetDependencyGraph(ctx context.Context, _ *gomcp.CallTool
 
 	seen := make(map[string]bool)
 	root := dependencyNode{Subject: input.Subject, Version: input.Version, Depth: 0}
-	s.buildDependencyTree(ctx, &root, seen, maxDepth)
+	registryCtx := resolveContext(input.Context)
+	s.buildDependencyTree(ctx, registryCtx, &root, seen, maxDepth)
 
 	return jsonResult(root)
 }
 
-func (s *Server) buildDependencyTree(ctx context.Context, node *dependencyNode, seen map[string]bool, maxDepth int) {
+func (s *Server) buildDependencyTree(ctx context.Context, registryCtx string, node *dependencyNode, seen map[string]bool, maxDepth int) {
 	if node.Depth >= maxDepth {
 		return
 	}
@@ -296,7 +302,7 @@ func (s *Server) buildDependencyTree(ctx context.Context, node *dependencyNode, 
 	}
 	seen[key] = true
 
-	refs, err := s.registry.GetReferencedBy(ctx, registrycontext.DefaultContext, node.Subject, node.Version)
+	refs, err := s.registry.GetReferencedBy(ctx, registryCtx, node.Subject, node.Version)
 	if err != nil || len(refs) == 0 {
 		return
 	}
@@ -307,7 +313,7 @@ func (s *Server) buildDependencyTree(ctx context.Context, node *dependencyNode, 
 			Version: ref.Version,
 			Depth:   node.Depth + 1,
 		}
-		s.buildDependencyTree(ctx, &child, seen, maxDepth)
+		s.buildDependencyTree(ctx, registryCtx, &child, seen, maxDepth)
 		node.Children = append(node.Children, child)
 	}
 }
@@ -317,6 +323,7 @@ func (s *Server) buildDependencyTree(ctx context.Context, node *dependencyNode, 
 type exportSchemaInput struct {
 	Subject string `json:"subject"`
 	Version int    `json:"version"`
+	Context string `json:"context,omitempty"`
 }
 
 func (s *Server) handleExportSchema(ctx context.Context, _ *gomcp.CallToolRequest, input exportSchemaInput) (*gomcp.CallToolResult, any, error) {
@@ -324,12 +331,13 @@ func (s *Server) handleExportSchema(ctx context.Context, _ *gomcp.CallToolReques
 	if version <= 0 {
 		version = -1 // latest
 	}
-	record, err := s.registry.GetSchemaBySubjectVersion(ctx, registrycontext.DefaultContext, input.Subject, version)
+	registryCtx := resolveContext(input.Context)
+	record, err := s.registry.GetSchemaBySubjectVersion(ctx, registryCtx, input.Subject, version)
 	if err != nil {
 		return errorResult(err), nil, nil
 	}
 
-	config, _ := s.registry.GetConfigFull(ctx, registrycontext.DefaultContext, input.Subject)
+	config, _ := s.registry.GetConfigFull(ctx, registryCtx, input.Subject)
 
 	export := map[string]any{
 		"subject":     record.Subject,
@@ -358,15 +366,17 @@ func (s *Server) handleExportSchema(ctx context.Context, _ *gomcp.CallToolReques
 
 type exportSubjectInput struct {
 	Subject string `json:"subject"`
+	Context string `json:"context,omitempty"`
 }
 
 func (s *Server) handleExportSubject(ctx context.Context, _ *gomcp.CallToolRequest, input exportSubjectInput) (*gomcp.CallToolResult, any, error) {
-	schemas, err := s.registry.GetSchemasBySubject(ctx, registrycontext.DefaultContext, input.Subject, false)
+	registryCtx := resolveContext(input.Context)
+	schemas, err := s.registry.GetSchemasBySubject(ctx, registryCtx, input.Subject, false)
 	if err != nil {
 		return errorResult(err), nil, nil
 	}
 
-	config, _ := s.registry.GetConfigFull(ctx, registrycontext.DefaultContext, input.Subject)
+	config, _ := s.registry.GetConfigFull(ctx, registryCtx, input.Subject)
 
 	versions := make([]map[string]any, 0, len(schemas))
 	for _, r := range schemas {
@@ -402,10 +412,13 @@ func (s *Server) handleExportSubject(ctx context.Context, _ *gomcp.CallToolReque
 
 // --- get_registry_statistics ---
 
-type getRegistryStatisticsInput struct{}
+type getRegistryStatisticsInput struct {
+	Context string `json:"context,omitempty"`
+}
 
-func (s *Server) handleGetRegistryStatistics(ctx context.Context, _ *gomcp.CallToolRequest, _ getRegistryStatisticsInput) (*gomcp.CallToolResult, any, error) {
-	subjects, err := s.registry.ListSubjects(ctx, registrycontext.DefaultContext, false)
+func (s *Server) handleGetRegistryStatistics(ctx context.Context, _ *gomcp.CallToolRequest, input getRegistryStatisticsInput) (*gomcp.CallToolResult, any, error) {
+	registryCtx := resolveContext(input.Context)
+	subjects, err := s.registry.ListSubjects(ctx, registryCtx, false)
 	if err != nil {
 		return errorResult(err), nil, nil
 	}
@@ -418,13 +431,13 @@ func (s *Server) handleGetRegistryStatistics(ctx context.Context, _ *gomcp.CallT
 	typeCounts := map[string]int{}
 	totalVersions := 0
 	for _, subj := range subjects {
-		versions, err := s.registry.GetVersions(ctx, registrycontext.DefaultContext, subj, false)
+		versions, err := s.registry.GetVersions(ctx, registryCtx, subj, false)
 		if err != nil {
 			continue
 		}
 		totalVersions += len(versions)
 		if len(versions) > 0 {
-			record, err := s.registry.GetLatestSchema(ctx, registrycontext.DefaultContext, subj)
+			record, err := s.registry.GetLatestSchema(ctx, registryCtx, subj)
 			if err == nil {
 				typeCounts[string(record.SchemaType)]++
 			}
@@ -452,10 +465,11 @@ func (s *Server) handleGetRegistryStatistics(ctx context.Context, _ *gomcp.CallT
 
 type countVersionsInput struct {
 	Subject string `json:"subject"`
+	Context string `json:"context,omitempty"`
 }
 
 func (s *Server) handleCountVersions(ctx context.Context, _ *gomcp.CallToolRequest, input countVersionsInput) (*gomcp.CallToolResult, any, error) {
-	versions, err := s.registry.GetVersions(ctx, registrycontext.DefaultContext, input.Subject, false)
+	versions, err := s.registry.GetVersions(ctx, resolveContext(input.Context), input.Subject, false)
 	if err != nil {
 		return errorResult(err), nil, nil
 	}
@@ -467,10 +481,12 @@ func (s *Server) handleCountVersions(ctx context.Context, _ *gomcp.CallToolReque
 
 // --- count_subjects ---
 
-type countSubjectsInput struct{}
+type countSubjectsInput struct {
+	Context string `json:"context,omitempty"`
+}
 
-func (s *Server) handleCountSubjects(ctx context.Context, _ *gomcp.CallToolRequest, _ countSubjectsInput) (*gomcp.CallToolResult, any, error) {
-	subjects, err := s.registry.ListSubjects(ctx, registrycontext.DefaultContext, false)
+func (s *Server) handleCountSubjects(ctx context.Context, _ *gomcp.CallToolRequest, input countSubjectsInput) (*gomcp.CallToolResult, any, error) {
+	subjects, err := s.registry.ListSubjects(ctx, resolveContext(input.Context), false)
 	if err != nil {
 		return errorResult(err), nil, nil
 	}

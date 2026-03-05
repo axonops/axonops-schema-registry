@@ -4,8 +4,6 @@ import (
 	"context"
 
 	gomcp "github.com/modelcontextprotocol/go-sdk/mcp"
-
-	registrycontext "github.com/axonops/axonops-schema-registry/internal/context"
 )
 
 func (s *Server) registerConfigTools() {
@@ -46,10 +44,11 @@ func (s *Server) registerConfigTools() {
 
 type getConfigInput struct {
 	Subject string `json:"subject,omitempty"`
+	Context string `json:"context,omitempty"`
 }
 
 func (s *Server) handleGetConfig(ctx context.Context, _ *gomcp.CallToolRequest, input getConfigInput) (*gomcp.CallToolResult, any, error) {
-	record, err := s.registry.GetConfigFull(ctx, registrycontext.DefaultContext, input.Subject)
+	record, err := s.registry.GetConfigFull(ctx, resolveContext(input.Context), input.Subject)
 	if err != nil {
 		return errorResult(err), nil, nil
 	}
@@ -60,10 +59,11 @@ type setConfigInput struct {
 	Subject            string `json:"subject,omitempty"`
 	CompatibilityLevel string `json:"compatibility_level"`
 	Normalize          *bool  `json:"normalize,omitempty"`
+	Context            string `json:"context,omitempty"`
 }
 
 func (s *Server) handleSetConfig(ctx context.Context, _ *gomcp.CallToolRequest, input setConfigInput) (*gomcp.CallToolResult, any, error) {
-	err := s.registry.SetConfig(ctx, registrycontext.DefaultContext, input.Subject, input.CompatibilityLevel, input.Normalize)
+	err := s.registry.SetConfig(ctx, resolveContext(input.Context), input.Subject, input.CompatibilityLevel, input.Normalize)
 	if err != nil {
 		return errorResult(err), nil, nil
 	}
@@ -74,6 +74,7 @@ type deleteConfigInput struct {
 	Subject      string `json:"subject,omitempty"`
 	DryRun       bool   `json:"dry_run,omitempty"`
 	ConfirmToken string `json:"confirm_token,omitempty"`
+	Context      string `json:"context,omitempty"`
 }
 
 func (s *Server) handleDeleteConfig(ctx context.Context, _ *gomcp.CallToolRequest, input deleteConfigInput) (*gomcp.CallToolResult, any, error) {
@@ -83,7 +84,7 @@ func (s *Server) handleDeleteConfig(ctx context.Context, _ *gomcp.CallToolReques
 	); result != nil {
 		return result, nil, nil
 	}
-	prev, err := s.registry.DeleteConfig(ctx, registrycontext.DefaultContext, input.Subject)
+	prev, err := s.registry.DeleteConfig(ctx, resolveContext(input.Context), input.Subject)
 	if err != nil {
 		return errorResult(err), nil, nil
 	}
@@ -92,10 +93,11 @@ func (s *Server) handleDeleteConfig(ctx context.Context, _ *gomcp.CallToolReques
 
 type getModeInput struct {
 	Subject string `json:"subject,omitempty"`
+	Context string `json:"context,omitempty"`
 }
 
 func (s *Server) handleGetMode(ctx context.Context, _ *gomcp.CallToolRequest, input getModeInput) (*gomcp.CallToolResult, any, error) {
-	mode, err := s.registry.GetMode(ctx, registrycontext.DefaultContext, input.Subject)
+	mode, err := s.registry.GetMode(ctx, resolveContext(input.Context), input.Subject)
 	if err != nil {
 		return errorResult(err), nil, nil
 	}
@@ -108,6 +110,7 @@ type setModeInput struct {
 	Force        bool   `json:"force,omitempty"`
 	DryRun       bool   `json:"dry_run,omitempty"`
 	ConfirmToken string `json:"confirm_token,omitempty"`
+	Context      string `json:"context,omitempty"`
 }
 
 func (s *Server) handleSetMode(ctx context.Context, _ *gomcp.CallToolRequest, input setModeInput) (*gomcp.CallToolResult, any, error) {
@@ -117,7 +120,7 @@ func (s *Server) handleSetMode(ctx context.Context, _ *gomcp.CallToolRequest, in
 	); result != nil {
 		return result, nil, nil
 	}
-	err := s.registry.SetMode(ctx, registrycontext.DefaultContext, input.Subject, input.Mode, input.Force)
+	err := s.registry.SetMode(ctx, resolveContext(input.Context), input.Subject, input.Mode, input.Force)
 	if err != nil {
 		return errorResult(err), nil, nil
 	}
@@ -126,10 +129,11 @@ func (s *Server) handleSetMode(ctx context.Context, _ *gomcp.CallToolRequest, in
 
 type deleteModeInput struct {
 	Subject string `json:"subject,omitempty"`
+	Context string `json:"context,omitempty"`
 }
 
 func (s *Server) handleDeleteMode(ctx context.Context, _ *gomcp.CallToolRequest, input deleteModeInput) (*gomcp.CallToolResult, any, error) {
-	prev, err := s.registry.DeleteMode(ctx, registrycontext.DefaultContext, input.Subject)
+	prev, err := s.registry.DeleteMode(ctx, resolveContext(input.Context), input.Subject)
 	if err != nil {
 		return errorResult(err), nil, nil
 	}

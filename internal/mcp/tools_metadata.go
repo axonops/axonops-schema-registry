@@ -6,7 +6,6 @@ import (
 
 	gomcp "github.com/modelcontextprotocol/go-sdk/mcp"
 
-	registrycontext "github.com/axonops/axonops-schema-registry/internal/context"
 	registrypkg "github.com/axonops/axonops-schema-registry/internal/registry"
 	"github.com/axonops/axonops-schema-registry/internal/storage"
 )
@@ -87,10 +86,11 @@ func (s *Server) registerMetadataTools() {
 
 type getConfigFullInput struct {
 	Subject string `json:"subject,omitempty"`
+	Context string `json:"context,omitempty"`
 }
 
 func (s *Server) handleGetConfigFull(ctx context.Context, _ *gomcp.CallToolRequest, input getConfigFullInput) (*gomcp.CallToolResult, any, error) {
-	config, err := s.registry.GetConfigFull(ctx, registrycontext.DefaultContext, input.Subject)
+	config, err := s.registry.GetConfigFull(ctx, resolveContext(input.Context), input.Subject)
 	if err != nil {
 		return errorResult(err), nil, nil
 	}
@@ -110,6 +110,7 @@ type setConfigFullInput struct {
 	OverrideRuleSet     *storage.RuleSet  `json:"override_rule_set,omitempty"`
 	AliasForDeks        string            `json:"alias_for_deks,omitempty"`
 	CompatibilityPolicy string            `json:"compatibility_policy,omitempty"`
+	Context             string            `json:"context,omitempty"`
 }
 
 func (s *Server) handleSetConfigFull(ctx context.Context, _ *gomcp.CallToolRequest, input setConfigFullInput) (*gomcp.CallToolResult, any, error) {
@@ -124,7 +125,7 @@ func (s *Server) handleSetConfigFull(ctx context.Context, _ *gomcp.CallToolReque
 		AliasForDeks:        input.AliasForDeks,
 		CompatibilityPolicy: input.CompatibilityPolicy,
 	}
-	err := s.registry.SetConfig(ctx, registrycontext.DefaultContext, input.Subject, input.CompatibilityLevel, input.Normalize, opts)
+	err := s.registry.SetConfig(ctx, resolveContext(input.Context), input.Subject, input.CompatibilityLevel, input.Normalize, opts)
 	if err != nil {
 		return errorResult(err), nil, nil
 	}
@@ -133,10 +134,11 @@ func (s *Server) handleSetConfigFull(ctx context.Context, _ *gomcp.CallToolReque
 
 type getSubjectConfigFullInput struct {
 	Subject string `json:"subject"`
+	Context string `json:"context,omitempty"`
 }
 
 func (s *Server) handleGetSubjectConfigFull(ctx context.Context, _ *gomcp.CallToolRequest, input getSubjectConfigFullInput) (*gomcp.CallToolResult, any, error) {
-	config, err := s.registry.GetSubjectConfigFull(ctx, registrycontext.DefaultContext, input.Subject)
+	config, err := s.registry.GetSubjectConfigFull(ctx, resolveContext(input.Context), input.Subject)
 	if err != nil {
 		return errorResult(err), nil, nil
 	}
@@ -145,20 +147,22 @@ func (s *Server) handleGetSubjectConfigFull(ctx context.Context, _ *gomcp.CallTo
 
 type resolveAliasInput struct {
 	Subject string `json:"subject"`
+	Context string `json:"context,omitempty"`
 }
 
 func (s *Server) handleResolveAlias(ctx context.Context, _ *gomcp.CallToolRequest, input resolveAliasInput) (*gomcp.CallToolResult, any, error) {
-	resolved := s.registry.ResolveAlias(ctx, registrycontext.DefaultContext, input.Subject)
+	resolved := s.registry.ResolveAlias(ctx, resolveContext(input.Context), input.Subject)
 	return jsonResult(map[string]string{"subject": input.Subject, "resolved": resolved})
 }
 
 type getSchemasBySubjectInput struct {
 	Subject string `json:"subject"`
 	Deleted bool   `json:"deleted,omitempty"`
+	Context string `json:"context,omitempty"`
 }
 
 func (s *Server) handleGetSchemasBySubject(ctx context.Context, _ *gomcp.CallToolRequest, input getSchemasBySubjectInput) (*gomcp.CallToolResult, any, error) {
-	schemas, err := s.registry.GetSchemasBySubject(ctx, registrycontext.DefaultContext, input.Subject, input.Deleted)
+	schemas, err := s.registry.GetSchemasBySubject(ctx, resolveContext(input.Context), input.Subject, input.Deleted)
 	if err != nil {
 		return errorResult(err), nil, nil
 	}
@@ -170,10 +174,11 @@ func (s *Server) handleGetSchemasBySubject(ctx context.Context, _ *gomcp.CallToo
 
 type checkWriteModeInput struct {
 	Subject string `json:"subject,omitempty"`
+	Context string `json:"context,omitempty"`
 }
 
 func (s *Server) handleCheckWriteMode(ctx context.Context, _ *gomcp.CallToolRequest, input checkWriteModeInput) (*gomcp.CallToolResult, any, error) {
-	blockingMode, err := s.registry.CheckModeForWrite(ctx, registrycontext.DefaultContext, input.Subject)
+	blockingMode, err := s.registry.CheckModeForWrite(ctx, resolveContext(input.Context), input.Subject)
 	if err != nil {
 		return errorResult(err), nil, nil
 	}
@@ -210,6 +215,7 @@ type formatSchemaInput struct {
 	Subject string `json:"subject"`
 	Version int    `json:"version"`
 	Format  string `json:"format,omitempty"`
+	Context string `json:"context,omitempty"`
 }
 
 func (s *Server) handleFormatSchema(ctx context.Context, _ *gomcp.CallToolRequest, input formatSchemaInput) (*gomcp.CallToolResult, any, error) {
@@ -218,18 +224,19 @@ func (s *Server) handleFormatSchema(ctx context.Context, _ *gomcp.CallToolReques
 		version = -1 // latest
 	}
 
+	registryCtx := resolveContext(input.Context)
 	var record *storage.SchemaRecord
 	var err error
 	if version == -1 {
-		record, err = s.registry.GetLatestSchema(ctx, registrycontext.DefaultContext, input.Subject)
+		record, err = s.registry.GetLatestSchema(ctx, registryCtx, input.Subject)
 	} else {
-		record, err = s.registry.GetSchemaBySubjectVersion(ctx, registrycontext.DefaultContext, input.Subject, version)
+		record, err = s.registry.GetSchemaBySubjectVersion(ctx, registryCtx, input.Subject, version)
 	}
 	if err != nil {
 		return errorResult(err), nil, nil
 	}
 
-	formatted := s.registry.FormatSchema(ctx, registrycontext.DefaultContext, record, input.Format)
+	formatted := s.registry.FormatSchema(ctx, registryCtx, record, input.Format)
 	return jsonResult(map[string]any{
 		"subject":    input.Subject,
 		"version":    record.Version,
@@ -238,10 +245,12 @@ func (s *Server) handleFormatSchema(ctx context.Context, _ *gomcp.CallToolReques
 	})
 }
 
-type getGlobalConfigDirectInput struct{}
+type getGlobalConfigDirectInput struct {
+	Context string `json:"context,omitempty"`
+}
 
-func (s *Server) handleGetGlobalConfigDirect(ctx context.Context, _ *gomcp.CallToolRequest, _ getGlobalConfigDirectInput) (*gomcp.CallToolResult, any, error) {
-	config, err := s.registry.GetGlobalConfigDirect(ctx, registrycontext.DefaultContext)
+func (s *Server) handleGetGlobalConfigDirect(ctx context.Context, _ *gomcp.CallToolRequest, input getGlobalConfigDirectInput) (*gomcp.CallToolResult, any, error) {
+	config, err := s.registry.GetGlobalConfigDirect(ctx, resolveContext(input.Context))
 	if err != nil {
 		return errorResult(err), nil, nil
 	}
@@ -254,12 +263,14 @@ type getSubjectMetadataInput struct {
 	Subject        string            `json:"subject"`
 	MetadataFilter map[string]string `json:"metadata_filter,omitempty"`
 	Deleted        bool              `json:"deleted,omitempty"`
+	Context        string            `json:"context,omitempty"`
 }
 
 func (s *Server) handleGetSubjectMetadata(ctx context.Context, _ *gomcp.CallToolRequest, input getSubjectMetadataInput) (*gomcp.CallToolResult, any, error) {
+	registryCtx := resolveContext(input.Context)
 	if len(input.MetadataFilter) > 0 {
 		// Search all versions for the latest matching the metadata filter.
-		schemas, err := s.registry.GetSchemasBySubject(ctx, registrycontext.DefaultContext, input.Subject, input.Deleted)
+		schemas, err := s.registry.GetSchemasBySubject(ctx, registryCtx, input.Subject, input.Deleted)
 		if err != nil {
 			return errorResult(err), nil, nil
 		}
@@ -284,7 +295,7 @@ func (s *Server) handleGetSubjectMetadata(ctx context.Context, _ *gomcp.CallTool
 	}
 
 	// No filter: return bare metadata from latest version.
-	schema, err := s.registry.GetLatestSchema(ctx, registrycontext.DefaultContext, input.Subject)
+	schema, err := s.registry.GetLatestSchema(ctx, registryCtx, input.Subject)
 	if err != nil {
 		return errorResult(err), nil, nil
 	}

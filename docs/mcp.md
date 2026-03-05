@@ -286,7 +286,24 @@ The MCP server exposes **105 tools** organized by functional area. Each tool is 
 
 ### Context Support
 
-All schema, subject, config, and mode tools accept an optional `context` parameter. When omitted, the default context (`.`) is used. KEK/DEK and exporter tools are global and do not accept a context parameter.
+All schema, subject, config, mode, validation, comparison, intelligence, and metadata tools accept an optional `context` parameter for multi-tenant isolation. When omitted, the default context (`.`) is used. Schemas registered in one context are invisible to queries in another context.
+
+**Tools that accept `context`:** All tools in the schema read, schema write, config, validation, comparison, intelligence, and metadata categories (78 tools total).
+
+**Tools that do NOT accept `context`:** `health_check`, `get_server_info`, `get_schema_types`, `list_contexts`, `validate_subject_name`, and all KEK/DEK, exporter, and admin tools.
+
+Example usage:
+
+```json
+// Register a schema in the "staging" context
+{"subject": "orders-value", "schema": "...", "context": ".staging"}
+
+// Query only schemas in the "staging" context
+{"subject": "orders-value", "context": ".staging"}
+
+// List subjects in the default context (no context parameter needed)
+{}
+```
 
 ### Read-Only Mode
 

@@ -37,6 +37,15 @@ func textResult(text string) (*gomcp.CallToolResult, any, error) {
 	}, nil, nil
 }
 
+// resolveContext returns the provided registry context if non-empty,
+// otherwise falls back to the default context.
+func resolveContext(provided string) string {
+	if provided != "" {
+		return provided
+	}
+	return registrycontext.DefaultContext
+}
+
 func (s *Server) registerSchemaReadTools() {
 	addToolIfAllowed(s, &gomcp.Tool{
 		Name:        "get_schema_by_id",
@@ -120,11 +129,12 @@ func (s *Server) registerSchemaReadTools() {
 // --- Handler input types and implementations ---
 
 type getSchemaByIDInput struct {
-	ID int64 `json:"id"`
+	ID      int64  `json:"id"`
+	Context string `json:"context,omitempty"`
 }
 
 func (s *Server) handleGetSchemaByID(ctx context.Context, _ *gomcp.CallToolRequest, input getSchemaByIDInput) (*gomcp.CallToolResult, any, error) {
-	record, err := s.registry.GetSchemaByID(ctx, registrycontext.DefaultContext, input.ID)
+	record, err := s.registry.GetSchemaByID(ctx, resolveContext(input.Context), input.ID)
 	if err != nil {
 		return errorResult(err), nil, nil
 	}
@@ -132,11 +142,12 @@ func (s *Server) handleGetSchemaByID(ctx context.Context, _ *gomcp.CallToolReque
 }
 
 type getRawSchemaByIDInput struct {
-	ID int64 `json:"id"`
+	ID      int64  `json:"id"`
+	Context string `json:"context,omitempty"`
 }
 
 func (s *Server) handleGetRawSchemaByID(ctx context.Context, _ *gomcp.CallToolRequest, input getRawSchemaByIDInput) (*gomcp.CallToolResult, any, error) {
-	raw, err := s.registry.GetRawSchemaByID(ctx, registrycontext.DefaultContext, input.ID)
+	raw, err := s.registry.GetRawSchemaByID(ctx, resolveContext(input.Context), input.ID)
 	if err != nil {
 		return errorResult(err), nil, nil
 	}
@@ -146,10 +157,11 @@ func (s *Server) handleGetRawSchemaByID(ctx context.Context, _ *gomcp.CallToolRe
 type getSchemaVersionInput struct {
 	Subject string `json:"subject"`
 	Version int    `json:"version"`
+	Context string `json:"context,omitempty"`
 }
 
 func (s *Server) handleGetSchemaVersion(ctx context.Context, _ *gomcp.CallToolRequest, input getSchemaVersionInput) (*gomcp.CallToolResult, any, error) {
-	record, err := s.registry.GetSchemaBySubjectVersion(ctx, registrycontext.DefaultContext, input.Subject, input.Version)
+	record, err := s.registry.GetSchemaBySubjectVersion(ctx, resolveContext(input.Context), input.Subject, input.Version)
 	if err != nil {
 		return errorResult(err), nil, nil
 	}
@@ -159,10 +171,11 @@ func (s *Server) handleGetSchemaVersion(ctx context.Context, _ *gomcp.CallToolRe
 type getRawSchemaVersionInput struct {
 	Subject string `json:"subject"`
 	Version int    `json:"version"`
+	Context string `json:"context,omitempty"`
 }
 
 func (s *Server) handleGetRawSchemaVersion(ctx context.Context, _ *gomcp.CallToolRequest, input getRawSchemaVersionInput) (*gomcp.CallToolResult, any, error) {
-	raw, err := s.registry.GetRawSchemaBySubjectVersion(ctx, registrycontext.DefaultContext, input.Subject, input.Version)
+	raw, err := s.registry.GetRawSchemaBySubjectVersion(ctx, resolveContext(input.Context), input.Subject, input.Version)
 	if err != nil {
 		return errorResult(err), nil, nil
 	}
@@ -171,10 +184,11 @@ func (s *Server) handleGetRawSchemaVersion(ctx context.Context, _ *gomcp.CallToo
 
 type getLatestSchemaInput struct {
 	Subject string `json:"subject"`
+	Context string `json:"context,omitempty"`
 }
 
 func (s *Server) handleGetLatestSchema(ctx context.Context, _ *gomcp.CallToolRequest, input getLatestSchemaInput) (*gomcp.CallToolResult, any, error) {
-	record, err := s.registry.GetLatestSchema(ctx, registrycontext.DefaultContext, input.Subject)
+	record, err := s.registry.GetLatestSchema(ctx, resolveContext(input.Context), input.Subject)
 	if err != nil {
 		return errorResult(err), nil, nil
 	}
@@ -184,10 +198,11 @@ func (s *Server) handleGetLatestSchema(ctx context.Context, _ *gomcp.CallToolReq
 type listVersionsInput struct {
 	Subject string `json:"subject"`
 	Deleted bool   `json:"deleted,omitempty"`
+	Context string `json:"context,omitempty"`
 }
 
 func (s *Server) handleListVersions(ctx context.Context, _ *gomcp.CallToolRequest, input listVersionsInput) (*gomcp.CallToolResult, any, error) {
-	versions, err := s.registry.GetVersions(ctx, registrycontext.DefaultContext, input.Subject, input.Deleted)
+	versions, err := s.registry.GetVersions(ctx, resolveContext(input.Context), input.Subject, input.Deleted)
 	if err != nil {
 		return errorResult(err), nil, nil
 	}
@@ -195,12 +210,13 @@ func (s *Server) handleListVersions(ctx context.Context, _ *gomcp.CallToolReques
 }
 
 type getSubjectsForSchemaInput struct {
-	ID      int64 `json:"id"`
-	Deleted bool  `json:"deleted,omitempty"`
+	ID      int64  `json:"id"`
+	Deleted bool   `json:"deleted,omitempty"`
+	Context string `json:"context,omitempty"`
 }
 
 func (s *Server) handleGetSubjectsForSchema(ctx context.Context, _ *gomcp.CallToolRequest, input getSubjectsForSchemaInput) (*gomcp.CallToolResult, any, error) {
-	subjects, err := s.registry.GetSubjectsBySchemaID(ctx, registrycontext.DefaultContext, input.ID, input.Deleted)
+	subjects, err := s.registry.GetSubjectsBySchemaID(ctx, resolveContext(input.Context), input.ID, input.Deleted)
 	if err != nil {
 		return errorResult(err), nil, nil
 	}
@@ -211,12 +227,13 @@ func (s *Server) handleGetSubjectsForSchema(ctx context.Context, _ *gomcp.CallTo
 }
 
 type getVersionsForSchemaInput struct {
-	ID      int64 `json:"id"`
-	Deleted bool  `json:"deleted,omitempty"`
+	ID      int64  `json:"id"`
+	Deleted bool   `json:"deleted,omitempty"`
+	Context string `json:"context,omitempty"`
 }
 
 func (s *Server) handleGetVersionsForSchema(ctx context.Context, _ *gomcp.CallToolRequest, input getVersionsForSchemaInput) (*gomcp.CallToolResult, any, error) {
-	versions, err := s.registry.GetVersionsBySchemaID(ctx, registrycontext.DefaultContext, input.ID, input.Deleted)
+	versions, err := s.registry.GetVersionsBySchemaID(ctx, resolveContext(input.Context), input.ID, input.Deleted)
 	if err != nil {
 		return errorResult(err), nil, nil
 	}
@@ -229,10 +246,11 @@ func (s *Server) handleGetVersionsForSchema(ctx context.Context, _ *gomcp.CallTo
 type getReferencedByInput struct {
 	Subject string `json:"subject"`
 	Version int    `json:"version"`
+	Context string `json:"context,omitempty"`
 }
 
 func (s *Server) handleGetReferencedBy(ctx context.Context, _ *gomcp.CallToolRequest, input getReferencedByInput) (*gomcp.CallToolResult, any, error) {
-	refs, err := s.registry.GetReferencedBy(ctx, registrycontext.DefaultContext, input.Subject, input.Version)
+	refs, err := s.registry.GetReferencedBy(ctx, resolveContext(input.Context), input.Subject, input.Version)
 	if err != nil {
 		return errorResult(err), nil, nil
 	}
@@ -247,11 +265,12 @@ type lookupSchemaInput struct {
 	Schema     string `json:"schema"`
 	SchemaType string `json:"schema_type,omitempty"`
 	Deleted    bool   `json:"deleted,omitempty"`
+	Context    string `json:"context,omitempty"`
 }
 
 func (s *Server) handleLookupSchema(ctx context.Context, _ *gomcp.CallToolRequest, input lookupSchemaInput) (*gomcp.CallToolResult, any, error) {
 	schemaType := storage.SchemaType(input.SchemaType)
-	record, err := s.registry.LookupSchema(ctx, registrycontext.DefaultContext, input.Subject, input.Schema, schemaType, nil, input.Deleted)
+	record, err := s.registry.LookupSchema(ctx, resolveContext(input.Context), input.Subject, input.Schema, schemaType, nil, input.Deleted)
 	if err != nil {
 		return errorResult(err), nil, nil
 	}
@@ -271,6 +290,7 @@ type listSchemasInput struct {
 	LatestOnly    bool   `json:"latest_only,omitempty"`
 	Offset        int    `json:"offset,omitempty"`
 	Limit         int    `json:"limit,omitempty"`
+	Context       string `json:"context,omitempty"`
 }
 
 func (s *Server) handleListSchemas(ctx context.Context, _ *gomcp.CallToolRequest, input listSchemasInput) (*gomcp.CallToolResult, any, error) {
@@ -281,7 +301,7 @@ func (s *Server) handleListSchemas(ctx context.Context, _ *gomcp.CallToolRequest
 		Offset:        input.Offset,
 		Limit:         input.Limit,
 	}
-	schemas, err := s.registry.ListSchemas(ctx, registrycontext.DefaultContext, params)
+	schemas, err := s.registry.ListSchemas(ctx, resolveContext(input.Context), params)
 	if err != nil {
 		return errorResult(err), nil, nil
 	}
@@ -291,10 +311,12 @@ func (s *Server) handleListSchemas(ctx context.Context, _ *gomcp.CallToolRequest
 	return jsonResult(schemas)
 }
 
-type getMaxSchemaIDInput struct{}
+type getMaxSchemaIDInput struct {
+	Context string `json:"context,omitempty"`
+}
 
-func (s *Server) handleGetMaxSchemaID(ctx context.Context, _ *gomcp.CallToolRequest, _ getMaxSchemaIDInput) (*gomcp.CallToolResult, any, error) {
-	maxID, err := s.registry.GetMaxSchemaID(ctx, registrycontext.DefaultContext)
+func (s *Server) handleGetMaxSchemaID(ctx context.Context, _ *gomcp.CallToolRequest, input getMaxSchemaIDInput) (*gomcp.CallToolResult, any, error) {
+	maxID, err := s.registry.GetMaxSchemaID(ctx, resolveContext(input.Context))
 	if err != nil {
 		return errorResult(err), nil, nil
 	}
