@@ -395,7 +395,10 @@ func RegisterMCPSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 		for _, tool := range result.Tools {
 			names = append(names, tool.Name)
 		}
-		data, _ := json.Marshal(names)
+		data, err := json.Marshal(names)
+		if err != nil {
+			return fmt.Errorf("failed to marshal tool names: %w", err)
+		}
 		tc.MCPResultText = string(data)
 		tc.MCPError = nil
 		return nil
