@@ -562,17 +562,22 @@ func TestAuthFeatures(t *testing.T) {
 			var authSvc *auth.Service
 			var storeOwned bool
 
-			if sharedDBStore != nil {
-				if err := cleanDBStore(); err != nil {
-					panic(fmt.Sprintf("clean %s storage for auth: %v", bddStorage, err))
+			tc := steps.NewTestContext("http://placeholder")
+
+			ctx.Before(func(gctx context.Context, sc *godog.Scenario) (context.Context, error) {
+				if sharedDBStore != nil {
+					if err := cleanDBStore(); err != nil {
+						return gctx, fmt.Errorf("clean %s storage for auth: %w", bddStorage, err)
+					}
+					ts, store, authSvc = newAuthTestServerWithStore(sharedDBStore)
+					storeOwned = false
+				} else {
+					ts, store, authSvc = newAuthTestServer()
+					storeOwned = true
 				}
-				ts, store, authSvc = newAuthTestServerWithStore(sharedDBStore)
-				storeOwned = false
-			} else {
-				ts, store, authSvc = newAuthTestServer()
-				storeOwned = true
-			}
-			tc := steps.NewTestContext(ts.URL)
+				tc.BaseURL = ts.URL
+				return gctx, nil
+			})
 
 			ctx.After(func(gctx context.Context, sc *godog.Scenario, err error) (context.Context, error) {
 				authSvc.Close()

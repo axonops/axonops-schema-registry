@@ -2,6 +2,9 @@ package mcp
 
 import (
 	"context"
+	"crypto/sha256"
+	"fmt"
+	"sort"
 
 	gomcp "github.com/modelcontextprotocol/go-sdk/mcp"
 
@@ -53,7 +56,7 @@ type importSchemasInput struct {
 
 func (s *Server) handleImportSchemas(ctx context.Context, _ *gomcp.CallToolRequest, input importSchemasInput) (*gomcp.CallToolResult, any, error) {
 	if result := s.confirmationCheck("import_schemas", input.DryRun, input.ConfirmToken,
-		map[string]any{"schema_count": len(input.Schemas)},
+		map[string]any{"schema_count": len(input.Schemas), "schemas_hash": hashImportSchemas(input.Schemas)},
 		map[string]any{"action": "import_schemas", "schema_count": len(input.Schemas)},
 	); result != nil {
 		return result, nil, nil
@@ -74,4 +77,16 @@ func (s *Server) handleImportSchemas(ctx context.Context, _ *gomcp.CallToolReque
 		return errorResult(err), nil, nil
 	}
 	return jsonResult(result)
+}
+
+// hashImportSchemas produces a deterministic hash of the import payload content
+// so the confirmation token is scoped to specific schemas, not just their count.
+func hashImportSchemas(schemas []importSchemaItem) string {
+	parts := make([]string, len(schemas))
+	for i, s := range schemas {
+		parts[i] = fmt.Sprintf("%d:%s:%d", s.ID, s.Subject, s.Version)
+	}
+	sort.Strings(parts)
+	h := sha256.Sum256([]byte(fmt.Sprintf("%v", parts)))
+	return fmt.Sprintf("%x", h[:8]) // short hash for readability
 }

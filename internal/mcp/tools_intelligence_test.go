@@ -215,8 +215,8 @@ func TestGetSchemaComplexity(t *testing.T) {
 	if !strings.Contains(text, "field_count") {
 		t.Fatalf("expected field_count, got: %s", text)
 	}
-	if !strings.Contains(text, "complexity") {
-		t.Fatalf("expected complexity, got: %s", text)
+	if !strings.Contains(text, `"grade"`) {
+		t.Fatalf("expected grade, got: %s", text)
 	}
 }
 

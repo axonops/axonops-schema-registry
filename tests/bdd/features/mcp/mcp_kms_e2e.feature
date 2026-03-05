@@ -1,7 +1,8 @@
 @mcp @kms @ai
 Feature: MCP E2E — Field-Level Encryption with Real KMS
   An AI agent uses MCP tools to manage field-level encryption with real
-  HashiCorp Vault and OpenBao Transit engines. These tests verify that
+  HashiCorp Vault and OpenBao Transit engines.
+  Run via: make test-bdd-kms BACKEND=memory|postgres|mysql|cassandra These tests verify that
   server-side key generation, key wrapping/unwrapping, multi-algorithm
   DEKs, key versioning, rewrap, and KMS connectivity testing all work
   end-to-end through the MCP transport layer.

@@ -417,6 +417,12 @@ func (rw *principalResponseWriter) WriteHeader(code int) {
 	rw.ResponseWriter.WriteHeader(code)
 }
 
+// Unwrap returns the underlying ResponseWriter so http.ResponseController
+// can access optional interfaces like http.Flusher and http.Hijacker.
+func (rw *principalResponseWriter) Unwrap() http.ResponseWriter {
+	return rw.ResponseWriter
+}
+
 // normalizePrincipalPath normalizes URL paths to reduce cardinality for per-principal metrics.
 func normalizePrincipalPath(path string) string {
 	// Strip /contexts/{context} prefix

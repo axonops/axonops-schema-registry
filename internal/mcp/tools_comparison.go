@@ -40,7 +40,7 @@ func (s *Server) registerComparisonTools() {
 
 	addToolIfAllowed(s, &gomcp.Tool{
 		Name:        "match_subjects",
-		Description: "Find subjects matching a pattern. Regex mode compiles as Go regex. Glob mode uses wildcard matching (case-insensitive). Fuzzy mode uses Levenshtein distance with configurable threshold (default 0.6).",
+		Description: "Find subjects matching a pattern. Regex mode (regex=true) compiles as Go regex. Default mode uses case-sensitive substring matching.",
 		Annotations: &gomcp.ToolAnnotations{ReadOnlyHint: true},
 	}, instrumentedHandler(s, "match_subjects", s.handleMatchSubjects))
 
@@ -124,9 +124,13 @@ func (s *Server) handleDiffSchemas(ctx context.Context, _ *gomcp.CallToolRequest
 	if err != nil {
 		return errorResult(fmt.Errorf("version %d: %w", input.VersionFrom, err)), nil, nil
 	}
-	recordTo, err := s.registry.GetSchemaBySubjectVersion(ctx, registrycontext.DefaultContext, input.Subject, input.VersionTo)
+	versionTo := input.VersionTo
+	if versionTo == 0 {
+		versionTo = -1 // default to latest
+	}
+	recordTo, err := s.registry.GetSchemaBySubjectVersion(ctx, registrycontext.DefaultContext, input.Subject, versionTo)
 	if err != nil {
-		return errorResult(fmt.Errorf("version %d: %w", input.VersionTo, err)), nil, nil
+		return errorResult(fmt.Errorf("version %d: %w", versionTo, err)), nil, nil
 	}
 
 	fieldsFrom := ExtractFields(recordFrom.Schema, recordFrom.SchemaType)
@@ -137,7 +141,7 @@ func (s *Server) handleDiffSchemas(ctx context.Context, _ *gomcp.CallToolRequest
 	return jsonResult(map[string]any{
 		"subject":      input.Subject,
 		"version_from": input.VersionFrom,
-		"version_to":   input.VersionTo,
+		"version_to":   recordTo.Version,
 		"diffs":        diffs,
 		"total":        len(diffs),
 	})

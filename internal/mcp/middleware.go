@@ -1,6 +1,7 @@
 package mcp
 
 import (
+	"crypto/subtle"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -16,7 +17,11 @@ func (s *Server) authMiddleware(next http.Handler) http.Handler {
 		}
 		auth := r.Header.Get("Authorization")
 		token := strings.TrimPrefix(auth, "Bearer ")
-		if token == "" || token == auth || token != s.config.AuthToken {
+		if token == "" || token == auth {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+		if subtle.ConstantTimeCompare([]byte(token), []byte(s.config.AuthToken)) != 1 {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}

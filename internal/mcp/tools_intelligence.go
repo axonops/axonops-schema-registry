@@ -430,17 +430,23 @@ func (s *Server) handleGetSchemaComplexity(ctx context.Context, _ *gomcp.CallToo
 		}
 	}
 
-	// Count nested records via schema content
-	nestedRecords := strings.Count(schemaStr, `"type":"record"`) + strings.Count(schemaStr, `"type": "record"`)
-	if nestedRecords > 0 {
-		nestedRecords-- // Subtract the root record
+	// Count nested records by analyzing field paths (unique parent prefixes).
+	parentPaths := make(map[string]bool)
+	for _, f := range fields {
+		if idx := strings.LastIndex(f.Path, "."); idx > 0 {
+			parentPaths[f.Path[:idx]] = true
+		}
 	}
+	nestedRecords := len(parentPaths)
 
-	level := "low"
-	if len(fields) > 20 || maxDepth > 3 {
-		level = "high"
-	} else if len(fields) > 10 || maxDepth > 2 {
-		level = "medium"
+	grade := "A"
+	switch {
+	case len(fields) > 50 || maxDepth > 5:
+		grade = "D"
+	case len(fields) > 30 || maxDepth > 4:
+		grade = "C"
+	case len(fields) > 15 || maxDepth > 3:
+		grade = "B"
 	}
 
 	return jsonResult(map[string]any{
@@ -448,7 +454,7 @@ func (s *Server) handleGetSchemaComplexity(ctx context.Context, _ *gomcp.CallToo
 		"max_depth":      maxDepth,
 		"union_count":    unionCount,
 		"nested_records": nestedRecords,
-		"complexity":     level,
+		"grade":          grade,
 	})
 }
 
@@ -790,22 +796,3 @@ func (e *missingInputError) Error() string {
 	return "missing required input: " + e.field
 }
 
-// allSubjectFields collects field info per subject from the registry.
-func (s *Server) allSubjectFields(ctx context.Context) (map[string][]FieldInfo, error) {
-	subjects, err := s.registry.ListSubjects(ctx, registrycontext.DefaultContext, false)
-	if err != nil {
-		return nil, err
-	}
-	result := make(map[string][]FieldInfo)
-	for _, subj := range subjects {
-		record, err := s.registry.GetLatestSchema(ctx, registrycontext.DefaultContext, subj)
-		if err != nil {
-			continue
-		}
-		fields := ExtractFields(record.Schema, record.SchemaType)
-		if len(fields) > 0 {
-			result[subj] = fields
-		}
-	}
-	return result, nil
-}

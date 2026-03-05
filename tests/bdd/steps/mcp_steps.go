@@ -151,9 +151,11 @@ func RegisterMCPSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 		if err != nil {
 			tc.MCPError = err
 			tc.MCPResultText = ""
+			tc.MCPResultIsError = false
 			return nil
 		}
 		tc.MCPError = nil
+		tc.MCPResultIsError = result.IsError
 		text, err := extractText(result)
 		if err != nil {
 			return err
@@ -204,9 +206,11 @@ func RegisterMCPSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 		if err != nil {
 			tc.MCPError = err
 			tc.MCPResultText = ""
+			tc.MCPResultIsError = false
 			return nil
 		}
 		tc.MCPError = nil
+		tc.MCPResultIsError = result.IsError
 		text, err := extractText(result)
 		if err != nil {
 			return err
@@ -236,9 +240,11 @@ func RegisterMCPSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 		if err != nil {
 			tc.MCPError = err
 			tc.MCPResultText = ""
+			tc.MCPResultIsError = false
 			return nil
 		}
 		tc.MCPError = nil
+		tc.MCPResultIsError = result.IsError
 		text, err := extractText(result)
 		if err != nil {
 			return err
@@ -593,9 +599,11 @@ func RegisterMCPSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 		if err != nil {
 			tc.MCPError = err
 			tc.MCPResultText = ""
+			tc.MCPResultIsError = false
 			return nil
 		}
 		tc.MCPError = nil
+		tc.MCPResultIsError = result.IsError
 		text, err := extractText(result)
 		if err != nil {
 			return err
@@ -604,24 +612,12 @@ func RegisterMCPSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 		return nil
 	})
 
-	ctx.Step(`^the MCP result should be an error$`, func() error {
-		if tc.MCPError != nil {
-			return nil // transport error counts
-		}
-		// Check if result text contains "error" indicators
-		if strings.Contains(tc.MCPResultText, `"error"`) || strings.Contains(tc.MCPResultText, `"confirmation_required"`) {
-			return nil
-		}
-		return fmt.Errorf("expected MCP result to be an error, got: %s", tc.MCPResultText)
-	})
-
 	ctx.Step(`^the MCP result should not be an error$`, func() error {
 		if tc.MCPError != nil {
 			return fmt.Errorf("MCP call failed with error: %v", tc.MCPError)
 		}
-		// If the result contains confirmation_required as an error, it's an error
-		if strings.Contains(tc.MCPResultText, `"error":"confirmation_required"`) {
-			return fmt.Errorf("MCP result is a confirmation error: %s", tc.MCPResultText)
+		if tc.MCPResultIsError {
+			return fmt.Errorf("MCP result has IsError=true: %s", tc.MCPResultText)
 		}
 		return nil
 	})

@@ -66,16 +66,10 @@ func (s *Server) handleHealthCheck(_ context.Context, _ *gomcp.CallToolRequest, 
 type serverInfoInput struct{}
 
 func (s *Server) handleGetServerInfo(_ context.Context, _ *gomcp.CallToolRequest, _ serverInfoInput) (*gomcp.CallToolResult, any, error) {
-	info := map[string]any{
+	return jsonResult(map[string]any{
 		"version":      s.version,
 		"schema_types": []string{"AVRO", "PROTOBUF", "JSON"},
-	}
-	data, _ := json.Marshal(info)
-	return &gomcp.CallToolResult{
-		Content: []gomcp.Content{
-			&gomcp.TextContent{Text: string(data)},
-		},
-	}, nil, nil
+	})
 }
 
 type listSubjectsInput struct {
@@ -127,12 +121,7 @@ func (s *Server) handleListSubjects(ctx context.Context, _ *gomcp.CallToolReques
 	if subjects == nil {
 		subjects = []string{}
 	}
-	data, _ := json.Marshal(subjects)
-	return &gomcp.CallToolResult{
-		Content: []gomcp.Content{
-			&gomcp.TextContent{Text: string(data)},
-		},
-	}, nil, nil
+	return jsonResult(subjects)
 }
 
 // extractSubjectFromArgs attempts to extract a "subject" field from raw JSON arguments.

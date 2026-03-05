@@ -29,9 +29,11 @@ func (h *Handler) ValidateSchema(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, types.ErrorCodeInvalidSchema, "Schema is required")
 		return
 	}
-	st := storage.SchemaType(strings.ToUpper(req.SchemaType))
-	if st == "" {
-		st = storage.SchemaTypeAvro
+	st, ok := storage.ParseSchemaType(strings.ToUpper(req.SchemaType))
+	if !ok {
+		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidSchema,
+			fmt.Sprintf("Invalid schema type '%s'. Accepted types are AVRO, PROTOBUF, and JSON", req.SchemaType))
+		return
 	}
 
 	registryCtx := getRegistryContext(r)
@@ -61,9 +63,11 @@ func (h *Handler) NormalizeSchema(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, types.ErrorCodeInvalidSchema, "Schema is required")
 		return
 	}
-	st := storage.SchemaType(strings.ToUpper(req.SchemaType))
-	if st == "" {
-		st = storage.SchemaTypeAvro
+	st, ok := storage.ParseSchemaType(strings.ToUpper(req.SchemaType))
+	if !ok {
+		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidSchema,
+			fmt.Sprintf("Invalid schema type '%s'. Accepted types are AVRO, PROTOBUF, and JSON", req.SchemaType))
+		return
 	}
 
 	registryCtx := getRegistryContext(r)
@@ -181,6 +185,16 @@ func (h *Handler) FindSchemasByField(w http.ResponseWriter, r *http.Request) {
 
 	variants := analysis.NamingVariants(req.Field)
 
+	var re *regexp.Regexp
+	if req.Mode == "regex" {
+		var err error
+		re, err = regexp.Compile(req.Field)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, types.ErrorCodeInvalidSchema, "Invalid regex: "+err.Error())
+			return
+		}
+	}
+
 	type fieldMatch struct {
 		Subject    string  `json:"subject"`
 		FieldName  string  `json:"field_name"`
@@ -220,12 +234,7 @@ func (h *Handler) FindSchemasByField(w http.ResponseWriter, r *http.Request) {
 					})
 				}
 			case "regex":
-				re, err := regexp.Compile(req.Field)
-				if err != nil {
-					writeError(w, http.StatusBadRequest, types.ErrorCodeInvalidSchema, "Invalid regex: "+err.Error())
-					return
-				}
-				if re.MatchString(f.Name) {
+				if re != nil && re.MatchString(f.Name) {
 					results = append(results, fieldMatch{
 						Subject: subj, FieldName: f.Name, FieldType: f.Type,
 						FieldPath: f.Path, Score: 1.0, SchemaType: string(latest.SchemaType),
@@ -439,12 +448,15 @@ func (h *Handler) ScoreSchemaQuality(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, types.ErrorCodeInvalidSchema, "Schema or subject is required")
 		return
 	}
-	if schemaType == "" {
-		schemaType = "AVRO"
+	st, ok := storage.ParseSchemaType(strings.ToUpper(schemaType))
+	if !ok {
+		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidSchema,
+			fmt.Sprintf("Invalid schema type '%s'. Accepted types are AVRO, PROTOBUF, and JSON", schemaType))
+		return
 	}
 
-	fields := analysis.ExtractFields(schemaStr, storage.SchemaType(strings.ToUpper(schemaType)))
-	result := analysis.ScoreSchemaQuality(fields, schemaStr, schemaType)
+	fields := analysis.ExtractFields(schemaStr, st)
+	result := analysis.ScoreSchemaQuality(fields, schemaStr, string(st))
 	writeJSON(w, http.StatusOK, result)
 }
 
@@ -477,11 +489,14 @@ func (h *Handler) GetSchemaComplexity(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, types.ErrorCodeInvalidSchema, "Schema or subject is required")
 		return
 	}
-	if schemaType == "" {
-		schemaType = "AVRO"
+	st, ok := storage.ParseSchemaType(strings.ToUpper(schemaType))
+	if !ok {
+		writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidSchema,
+			fmt.Sprintf("Invalid schema type '%s'. Accepted types are AVRO, PROTOBUF, and JSON", schemaType))
+		return
 	}
 
-	fields := analysis.ExtractFields(schemaStr, storage.SchemaType(strings.ToUpper(schemaType)))
+	fields := analysis.ExtractFields(schemaStr, st)
 
 	// Compute depth
 	maxDepth := 0
@@ -503,7 +518,7 @@ func (h *Handler) GetSchemaComplexity(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{
-		"schema_type": schemaType,
+		"schema_type": string(st),
 		"field_count": len(fields),
 		"max_depth":   maxDepth,
 		"grade":       grade,

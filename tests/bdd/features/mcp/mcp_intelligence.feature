@@ -91,7 +91,7 @@ Feature: MCP AI Intelligence Tools
     When I call MCP tool "get_schema_complexity" with input:
       | subject | intel-users-value |
     Then the MCP result should contain "field_count"
-    And the MCP result should contain "complexity"
+    And the MCP result should contain "grade"
 
   Scenario: Get schema complexity by inline schema
     When I call MCP tool "get_schema_complexity" with JSON input:

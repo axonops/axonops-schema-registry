@@ -18,10 +18,11 @@ import (
 // MCP operations. Tokens are single-use, scoped to a specific tool+args
 // combination, and expire after a configurable TTL.
 type ConfirmationStore struct {
-	mu     sync.Mutex
-	tokens map[string]*confirmationEntry
-	ttl    time.Duration
-	stopGC chan struct{}
+	mu        sync.Mutex
+	tokens    map[string]*confirmationEntry
+	ttl       time.Duration
+	stopGC    chan struct{}
+	closeOnce sync.Once
 }
 
 type confirmationEntry struct {
@@ -89,9 +90,9 @@ func (cs *ConfirmationStore) Validate(tokenID, toolName string, args map[string]
 	return nil
 }
 
-// Close stops the background GC goroutine.
+// Close stops the background GC goroutine. Safe to call multiple times.
 func (cs *ConfirmationStore) Close() {
-	close(cs.stopGC)
+	cs.closeOnce.Do(func() { close(cs.stopGC) })
 }
 
 func (cs *ConfirmationStore) gcLoop() {
@@ -133,7 +134,11 @@ func computeArgsHash(toolName string, args map[string]any) string {
 		}
 		cleaned[k] = v
 	}
-	data, _ := json.Marshal(cleaned) // Go sorts map keys deterministically
+	data, err := json.Marshal(cleaned) // Go sorts map keys deterministically
+	if err != nil {
+		// Fallback: hash toolName alone if marshal fails (should never happen with simple maps).
+		data = []byte("{}")
+	}
 	h := sha256.Sum256([]byte(toolName + ":" + string(data)))
 	return fmt.Sprintf("%x", h)
 }
@@ -201,12 +206,19 @@ func (s *Server) confirmationCheck(toolName string, dryRun bool, confirmToken st
 		if s.auditLogger != nil {
 			s.auditLogger.LogMCPConfirmationEvent(auth.AuditEventMCPConfirmIssued, toolName, nil)
 		}
-		data, _ := json.Marshal(map[string]any{
+		data, err := json.Marshal(map[string]any{
 			"confirmation_required": true,
 			"confirm_token":         token,
 			"preview":               preview,
 			"message":               fmt.Sprintf("This operation requires confirmation. To proceed, call %s again with confirm_token set to the token above and dry_run omitted or false.", toolName),
 		})
+		if err != nil {
+			return &gomcp.CallToolResult{
+				Content: []gomcp.Content{
+					&gomcp.TextContent{Text: fmt.Sprintf("confirmation_required: token=%s (marshal error: %v)", token, err)},
+				},
+			}
+		}
 		return &gomcp.CallToolResult{
 			Content: []gomcp.Content{
 				&gomcp.TextContent{Text: string(data)},
@@ -242,11 +254,20 @@ func (s *Server) confirmationCheck(toolName string, dryRun bool, confirmToken st
 	if s.metrics != nil {
 		s.metrics.RecordMCPPolicyDenial("confirmation_required")
 	}
-	data, _ := json.Marshal(map[string]any{
+	msg := fmt.Sprintf("This destructive operation requires confirmation. Call %s with dry_run=true first to get a confirmation token.", toolName)
+	data, err := json.Marshal(map[string]any{
 		"error":                 "confirmation_required",
 		"confirmation_required": true,
-		"message":               fmt.Sprintf("This destructive operation requires confirmation. Call %s with dry_run=true first to get a confirmation token.", toolName),
+		"message":               msg,
 	})
+	if err != nil {
+		return &gomcp.CallToolResult{
+			Content: []gomcp.Content{
+				&gomcp.TextContent{Text: msg},
+			},
+			IsError: true,
+		}
+	}
 	return &gomcp.CallToolResult{
 		Content: []gomcp.Content{
 			&gomcp.TextContent{Text: string(data)},
