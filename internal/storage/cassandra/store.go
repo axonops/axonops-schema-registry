@@ -334,24 +334,21 @@ func (s *Store) reserveIDBlock(ctx context.Context, registryCtx string, blockSiz
 }
 
 // GetMaxSchemaID returns the highest per-context schema ID currently assigned.
-// Uses the id_alloc table (next_id - 1) which is the definitive source of truth
-// for per-context ID allocation.
+// Scans actual schema data to find the true maximum, rather than reading the
+// block allocator's next_id which may be much higher due to pre-allocation.
 func (s *Store) GetMaxSchemaID(ctx context.Context, registryCtx string) (int64, error) {
-	var nextID int
+	var maxID int
 	err := s.readQuery(
-		fmt.Sprintf(`SELECT next_id FROM %s.id_alloc WHERE registry_ctx = ? AND name = ?`, qident(s.cfg.Keyspace)),
-		registryCtx, "schema_id",
-	).WithContext(ctx).Scan(&nextID)
+		fmt.Sprintf(`SELECT MAX(schema_id) FROM %s.schemas_by_id WHERE registry_ctx = ? ALLOW FILTERING`, qident(s.cfg.Keyspace)),
+		registryCtx,
+	).WithContext(ctx).Scan(&maxID)
 	if err != nil {
 		if errors.Is(err, gocql.ErrNotFound) {
 			return 0, nil
 		}
 		return 0, fmt.Errorf("failed to get max schema ID: %w", err)
 	}
-	if nextID <= 1 {
-		return 0, nil
-	}
-	return int64(nextID - 1), nil
+	return int64(maxID), nil
 }
 
 // SetNextID sets the per-context ID sequence to start from the given value.
