@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"net/url"
 	"strconv"
 	"strings"
@@ -191,6 +192,17 @@ func resourceMarkdown(uri, text string) (*gomcp.ReadResourceResult, error) {
 			Text:     text,
 		}},
 	}, nil
+}
+
+// resourceMarkdownFromFS reads a markdown file from an embed.FS and returns it
+// as a ReadResourceResult. This enables glossary and other static content to be
+// maintained as standalone .md files rather than Go string literals.
+func resourceMarkdownFromFS(fsys fs.FS, path, uri string) (*gomcp.ReadResourceResult, error) {
+	data, err := fs.ReadFile(fsys, path)
+	if err != nil {
+		return nil, fmt.Errorf("read embedded file %s: %w", path, err)
+	}
+	return resourceMarkdown(uri, string(data))
 }
 
 // extractURIParam extracts a named parameter from a resource URI by comparing

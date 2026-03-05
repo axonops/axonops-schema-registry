@@ -3,9 +3,12 @@ package mcp
 import (
 	"context"
 	"fmt"
+	"io/fs"
 	"strings"
 
 	gomcp "github.com/modelcontextprotocol/go-sdk/mcp"
+
+	"github.com/axonops/axonops-schema-registry/internal/mcp/content"
 
 	registrycontext "github.com/axonops/axonops-schema-registry/internal/context"
 )
@@ -192,7 +195,7 @@ func (s *Server) registerPrompts() {
 	}, s.handleSchemaEvolutionCookbookPrompt)
 }
 
-// --- Prompt handlers ---
+// --- Helpers ---
 
 func promptMessage(role, text string) *gomcp.PromptMessage {
 	return &gomcp.PromptMessage{
@@ -201,6 +204,35 @@ func promptMessage(role, text string) *gomcp.PromptMessage {
 	}
 }
 
+// promptFromFS reads a prompt from an embedded file and returns it as a GetPromptResult.
+func promptFromFS(fsys fs.FS, path, description string) (*gomcp.GetPromptResult, error) {
+	data, err := fs.ReadFile(fsys, path)
+	if err != nil {
+		return nil, fmt.Errorf("read prompt file %s: %w", path, err)
+	}
+	return &gomcp.GetPromptResult{
+		Description: description,
+		Messages:    []*gomcp.PromptMessage{promptMessage("user", string(data))},
+	}, nil
+}
+
+// promptTemplateFromFS reads a prompt template from an embedded file and replaces
+// all placeholders with their corresponding values.
+func promptTemplateFromFS(fsys fs.FS, path string, replacements map[string]string) (string, error) {
+	data, err := fs.ReadFile(fsys, path)
+	if err != nil {
+		return "", fmt.Errorf("read prompt template %s: %w", path, err)
+	}
+	result := string(data)
+	for placeholder, value := range replacements {
+		result = strings.ReplaceAll(result, placeholder, value)
+	}
+	return result, nil
+}
+
+// --- Prompt handlers ---
+
+// handleDesignSchemaPrompt selects format-specific guidance from embedded files.
 func (s *Server) handleDesignSchemaPrompt(_ context.Context, req *gomcp.GetPromptRequest) (*gomcp.GetPromptResult, error) {
 	format := strings.ToUpper(req.Params.Arguments["format"])
 	domain := req.Params.Arguments["domain"]
@@ -209,51 +241,27 @@ func (s *Server) handleDesignSchemaPrompt(_ context.Context, req *gomcp.GetPromp
 		return nil, fmt.Errorf("required argument 'format' is missing")
 	}
 
-	var guidance string
+	var file string
 	switch format {
 	case "AVRO":
-		guidance = `Design an Avro schema following these best practices:
-- Use a descriptive record name in PascalCase with a namespace (e.g. com.company.events)
-- Use snake_case for field names
-- Always include a namespace to avoid naming conflicts
-- Use union types ["null", "type"] with default null for optional fields
-- Use logical types for dates (timestamp-millis), decimals (bytes + decimal), and UUIDs (string + uuid)
-- Consider schema evolution: add new fields with defaults, avoid removing or renaming fields
-- Use enums for fixed sets of values
-
-Available tools: register_schema, check_compatibility, get_latest_schema, lookup_schema`
-
+		file = "prompts/design-schema-avro.md"
 	case "PROTOBUF":
-		guidance = `Design a Protobuf schema following these best practices:
-- Use syntax = "proto3" (required)
-- Use a package declaration matching your domain (e.g. package company.events.v1)
-- Use PascalCase for message and enum names, snake_case for field names
-- Use explicit field numbers and never reuse deleted field numbers
-- Use oneof for variant/union types
-- Use repeated for arrays, map<K,V> for key-value pairs
-- Use well-known types (google.protobuf.Timestamp, Duration, etc.) when appropriate
-- Use enums with UNSPECIFIED = 0 as the first value
-- Consider backward compatibility: only add new fields, never change field numbers
-
-Available tools: register_schema (with schema_type: PROTOBUF), check_compatibility`
-
+		file = "prompts/design-schema-protobuf.md"
 	case "JSON":
-		guidance = `Design a JSON Schema following these best practices:
-- Use "type": "object" as the root type
-- Define a "required" array listing mandatory fields
-- Use "additionalProperties": false to prevent unexpected fields
-- Use format validators: "email", "uri", "date-time", "uuid"
-- Use pattern for custom string validation (regex)
-- Use minimum/maximum for number ranges, minLength/maxLength for strings
-- Use enum for fixed value sets
-- Use $ref for reusable type definitions
-- Consider using oneOf/anyOf for variant types
-
-Available tools: register_schema (with schema_type: JSON), check_compatibility`
-
+		file = "prompts/design-schema-json.md"
 	default:
-		guidance = fmt.Sprintf("Unknown format %q. Supported formats: AVRO, PROTOBUF, JSON. Use the get_schema_types tool to verify.", format)
+		guidance := fmt.Sprintf("Unknown format %q. Supported formats: AVRO, PROTOBUF, JSON. Use the get_schema_types tool to verify.", format)
+		return &gomcp.GetPromptResult{
+			Description: fmt.Sprintf("Schema design guide for %s format", format),
+			Messages:    []*gomcp.PromptMessage{promptMessage("user", guidance)},
+		}, nil
 	}
+
+	data, err := fs.ReadFile(content.PromptsFS, file)
+	if err != nil {
+		return nil, fmt.Errorf("read prompt file: %w", err)
+	}
+	guidance := string(data)
 
 	if domain != "" {
 		guidance = fmt.Sprintf("Design a %s schema for the %q domain.\n\n%s", format, domain, guidance)
@@ -271,29 +279,11 @@ func (s *Server) handleEvolveSchemaPrompt(ctx context.Context, req *gomcp.GetPro
 		return nil, fmt.Errorf("required argument 'subject' is missing")
 	}
 
-	guidance := fmt.Sprintf(`Evolve the schema for subject %q safely.
+	guidance, err := promptTemplateFromFS(content.PromptsFS, "prompts/evolve-schema.md", map[string]string{"{subject}": subject})
+	if err != nil {
+		return nil, err
+	}
 
-Steps:
-1. Use get_latest_schema to inspect the current schema for %q
-2. Use get_config to check the compatibility level
-3. Plan your changes following the compatibility rules:
-   - BACKWARD: new schema can read old data (add optional fields with defaults)
-   - FORWARD: old schema can read new data (only remove optional fields)
-   - FULL: both backward and forward compatible
-4. Use check_compatibility to validate your changes before registering
-5. Use register_schema to register the evolved schema
-
-Common safe changes:
-- Add a new optional field with a default value
-- Add a new field with a union type ["null", "type"] and default null
-- Widen a type (e.g. int → long in Avro)
-
-Breaking changes to avoid:
-- Removing a required field
-- Changing a field type incompatibly
-- Renaming a field (treated as remove + add)`, subject, subject)
-
-	// Try to include current schema context
 	latest, err := s.registry.GetLatestSchema(ctx, registrycontext.DefaultContext, subject)
 	if err == nil && latest != nil {
 		guidance += fmt.Sprintf("\n\nCurrent latest version: %d, schema type: %s", latest.Version, latest.SchemaType)
@@ -311,24 +301,10 @@ func (s *Server) handleCheckCompatibilityPrompt(ctx context.Context, req *gomcp.
 		return nil, fmt.Errorf("required argument 'subject' is missing")
 	}
 
-	guidance := fmt.Sprintf(`Troubleshoot compatibility issues for subject %q.
-
-Steps:
-1. Use get_config to check the current compatibility level for %q
-2. Use list_versions to see all registered versions
-3. Use get_latest_schema to inspect the current schema
-4. Use check_compatibility to test your new schema against existing versions
-5. If incompatible, review the error details and adjust your schema
-
-Common compatibility fixes:
-- BACKWARD violations: Add a default value to new required fields, or make them optional
-- FORWARD violations: Don't remove fields that consumers might depend on
-- FULL violations: Only add optional fields with defaults
-
-If you need to make a breaking change:
-- Consider using set_config to temporarily change the compatibility level
-- Or create a new subject (e.g. subject-v2) for the breaking change
-- Use set_mode READONLY to protect finalized subjects`, subject, subject)
+	guidance, err := promptTemplateFromFS(content.PromptsFS, "prompts/check-compatibility.md", map[string]string{"{subject}": subject})
+	if err != nil {
+		return nil, err
+	}
 
 	config, err := s.registry.GetConfigFull(ctx, registrycontext.DefaultContext, subject)
 	if err == nil && config != nil {
@@ -349,16 +325,13 @@ func (s *Server) handleMigrateSchemasPrompt(_ context.Context, req *gomcp.GetPro
 		return nil, fmt.Errorf("required arguments 'source_format' and 'target_format' are missing")
 	}
 
-	guidance := fmt.Sprintf(`Migrate schemas from %s to %s format.
-
-Steps:
-1. Use list_subjects to find schemas to migrate
-2. Use get_latest_schema to inspect each schema
-3. Convert the schema to %s format following these guidelines:
-4. Use register_schema with schema_type: %q to register the converted schema
-5. Use check_compatibility to validate if needed
-
-Migration considerations from %s to %s:`, source, target, target, target, source, target)
+	guidance, err := promptTemplateFromFS(content.PromptsFS, "prompts/migrate-schemas.md", map[string]string{
+		"{source}": source,
+		"{target}": target,
+	})
+	if err != nil {
+		return nil, err
+	}
 
 	switch {
 	case source == "AVRO" && target == "PROTOBUF":
@@ -409,25 +382,10 @@ func (s *Server) handleSetupEncryptionPrompt(_ context.Context, req *gomcp.GetPr
 		return nil, fmt.Errorf("required argument 'kms_type' is missing")
 	}
 
-	guidance := fmt.Sprintf(`Set up client-side field encryption (CSFLE) with %s.
-
-Steps:
-1. Create a KEK (Key Encryption Key) using the create_kek tool:
-   - name: descriptive name (e.g. "production-kek")
-   - kms_type: %q
-   - kms_key_id: your KMS key identifier
-   - kms_props: provider-specific properties
-
-2. Create a DEK (Data Encryption Key) using the create_dek tool:
-   - kek_name: name of the KEK created above
-   - subject: schema subject to encrypt
-   - algorithm: AES256_GCM (recommended) or AES256_SIV
-
-3. The DEK is automatically wrapped (encrypted) by the KEK via your KMS
-
-Available tools: create_kek, get_kek, list_keks, create_dek, get_dek, list_deks
-
-KMS provider %q considerations:`, kmsType, kmsType, kmsType)
+	guidance, err := promptTemplateFromFS(content.PromptsFS, "prompts/setup-encryption.md", map[string]string{"{kms_type}": kmsType})
+	if err != nil {
+		return nil, err
+	}
 
 	switch strings.ToLower(kmsType) {
 	case "hcvault":
@@ -463,29 +421,10 @@ func (s *Server) handleConfigureExporterPrompt(_ context.Context, req *gomcp.Get
 		exporterType = "AUTO"
 	}
 
-	guidance := fmt.Sprintf(`Set up schema linking with a %s context exporter.
-
-Steps:
-1. Create an exporter using the create_exporter tool:
-   - name: descriptive name (e.g. "prod-to-dr")
-   - context_type: %q
-   - subjects: list of subjects to export (empty = all)
-   - config: destination registry connection details
-
-2. Monitor the exporter using get_exporter_status
-3. Control the exporter: pause_exporter, resume_exporter, reset_exporter
-
-Context types:
-- AUTO: exports all subjects automatically
-- CUSTOM: exports only specified subjects with optional rename format
-- NONE: no context prefix on exported subjects
-
-Config properties:
-- schema.registry.url: destination registry URL
-- basic.auth.credentials.source: auth method
-- basic.auth.user.info: username:password
-
-Available tools: create_exporter, get_exporter, list_exporters, get_exporter_status, pause_exporter, resume_exporter`, exporterType, exporterType)
+	guidance, err := promptTemplateFromFS(content.PromptsFS, "prompts/configure-exporter.md", map[string]string{"{exporter_type}": exporterType})
+	if err != nil {
+		return nil, err
+	}
 
 	return &gomcp.GetPromptResult{
 		Description: fmt.Sprintf("Exporter configuration guide (%s context)", exporterType),
@@ -499,36 +438,10 @@ func (s *Server) handleReviewSchemaQualityPrompt(ctx context.Context, req *gomcp
 		return nil, fmt.Errorf("required argument 'subject' is missing")
 	}
 
-	guidance := fmt.Sprintf(`Review the schema quality for subject %q.
-
-Use get_latest_schema to fetch the current schema, then evaluate:
-
-1. **Naming conventions**:
-   - Record/message names: PascalCase
-   - Field names: snake_case
-   - Enum values: UPPER_SNAKE_CASE
-   - Namespace/package: reverse domain notation
-
-2. **Nullability**:
-   - Optional fields should be nullable (Avro: union with null, Protobuf: optional)
-   - Required fields should NOT be nullable
-   - Default values should be meaningful
-
-3. **Type usage**:
-   - Use logical/semantic types (timestamps, UUIDs, decimals) instead of raw primitives
-   - Use enums for fixed value sets instead of plain strings
-   - Use appropriate numeric precision (int vs long, float vs double)
-
-4. **Evolution readiness**:
-   - All fields should have sensible defaults for backward compatibility
-   - Avoid required fields that might become optional later
-   - Consider using a version field or schema fingerprint
-
-5. **Documentation**:
-   - Fields should have descriptive names that are self-documenting
-   - Complex fields should have doc comments (Avro: "doc" field, Protobuf: // comments)
-
-Available tools: get_latest_schema, list_versions, get_config`, subject)
+	guidance, err := promptTemplateFromFS(content.PromptsFS, "prompts/review-schema-quality.md", map[string]string{"{subject}": subject})
+	if err != nil {
+		return nil, err
+	}
 
 	latest, err := s.registry.GetLatestSchema(ctx, registrycontext.DefaultContext, subject)
 	if err == nil && latest != nil {
@@ -547,34 +460,10 @@ func (s *Server) handlePlanBreakingChangePrompt(ctx context.Context, req *gomcp.
 		return nil, fmt.Errorf("required argument 'subject' is missing")
 	}
 
-	guidance := fmt.Sprintf(`Plan a safe breaking change for subject %q.
-
-Steps:
-1. Use get_latest_schema to understand the current schema
-2. Use get_config to check the compatibility level
-3. Use list_versions to see the version history
-
-Strategy options:
-
-**Option A: New subject (recommended for major changes)**
-- Create a new subject (e.g. %s-v2) with the new schema
-- Migrate producers to the new subject
-- Keep the old subject in READONLY mode for consumers
-- Tools: register_schema, set_mode READONLY
-
-**Option B: Compatibility bypass (for minor breaking changes)**
-- Set compatibility to NONE temporarily: set_config with compatibility_level: NONE
-- Register the breaking schema
-- Restore compatibility: set_config with original level
-- WARNING: existing consumers may fail to deserialize
-
-**Option C: Multi-step evolution**
-- Add new fields alongside old fields (backward compatible)
-- Migrate all consumers to use new fields
-- Remove old fields in a later version
-- Requires NONE compatibility for the final removal step
-
-Always test with check_compatibility before registering.`, subject, subject)
+	guidance, err := promptTemplateFromFS(content.PromptsFS, "prompts/plan-breaking-change.md", map[string]string{"{subject}": subject})
+	if err != nil {
+		return nil, err
+	}
 
 	latest, err := s.registry.GetLatestSchema(ctx, registrycontext.DefaultContext, subject)
 	if err == nil && latest != nil {
@@ -659,23 +548,11 @@ Debug steps:
 3. Verify you're using the correct ID (global, not version number)`
 
 	default:
-		guidance = fmt.Sprintf(`Error code: %s
-
-General debug steps:
-1. Check the error message for specific details
-2. Use health_check to verify the registry is running
-3. Use get_server_info to check server version and capabilities
-4. Review the schema content for syntax errors
-5. Check compatibility settings with get_config
-
-Common error codes:
-- 42201: Invalid schema
-- 42203: Invalid compatibility level
-- 409: Schema incompatible
-- 40401: Subject not found
-- 40402: Version not found
-- 40403: Schema not found
-- 50001: Internal server error`, errorCode)
+		data, err := fs.ReadFile(content.PromptsFS, "prompts/debug-registration-error.md")
+		if err != nil {
+			return nil, fmt.Errorf("read prompt file: %w", err)
+		}
+		guidance = fmt.Sprintf("Error code: %s\n\n%s", errorCode, string(data))
 	}
 
 	return &gomcp.GetPromptResult{
@@ -690,38 +567,10 @@ func (s *Server) handleSetupDataContractsPrompt(ctx context.Context, req *gomcp.
 		return nil, fmt.Errorf("required argument 'subject' is missing")
 	}
 
-	guidance := fmt.Sprintf(`Set up data contracts for subject %q.
-
-Data contracts add metadata, tags, and data quality rules to schemas.
-
-Steps:
-1. Use get_latest_schema to inspect the current schema for %q
-2. Use set_config_full to add metadata and rules:
-
-   Metadata properties:
-   - owner: team or person responsible
-   - description: what this schema represents
-   - tags: classification tags (e.g. pii, financial, internal)
-
-   Data quality rules (ruleSet):
-   - DOMAIN rules: field-level validation (e.g. email format, range checks)
-   - MIGRATION rules: transform data between versions
-   - All rules have: name, kind, type, mode, expr, tags
-
-3. Use get_config_full to verify the configuration
-4. Use get_subject_metadata to inspect applied metadata
-
-Available tools: set_config_full, get_config_full, get_subject_config_full, get_subject_metadata
-
-Example metadata structure:
-{
-  "properties": {"owner": "data-team", "description": "User events"},
-  "ruleSet": {
-    "domainRules": [
-      {"name": "email_check", "kind": "CONDITION", "type": "DOMAIN", "mode": "WRITE", "expr": "email matches '^.+@.+$'"}
-    ]
-  }
-}`, subject, subject)
+	guidance, err := promptTemplateFromFS(content.PromptsFS, "prompts/setup-data-contracts.md", map[string]string{"{subject}": subject})
+	if err != nil {
+		return nil, err
+	}
 
 	latest, err := s.registry.GetLatestSchema(ctx, registrycontext.DefaultContext, subject)
 	if err == nil && latest != nil {
@@ -740,26 +589,10 @@ func (s *Server) handleAuditSubjectHistoryPrompt(ctx context.Context, req *gomcp
 		return nil, fmt.Errorf("required argument 'subject' is missing")
 	}
 
-	guidance := fmt.Sprintf(`Audit the version history of subject %q.
-
-Steps:
-1. Use list_versions to get all version numbers for %q
-2. Use get_schema_version for each version to see the full schema
-3. Compare consecutive versions to identify changes:
-   - Added fields
-   - Removed fields
-   - Type changes
-   - Default value changes
-4. Use get_config to check the compatibility policy
-5. Use get_referenced_by to find schemas that reference this subject
-
-This helps you understand:
-- How the schema has evolved over time
-- Whether evolution has followed best practices
-- If any versions introduced breaking changes
-- Which other schemas depend on this one
-
-Available tools: list_versions, get_schema_version, get_latest_schema, get_config, get_referenced_by`, subject, subject)
+	guidance, err := promptTemplateFromFS(content.PromptsFS, "prompts/audit-subject-history.md", map[string]string{"{subject}": subject})
+	if err != nil {
+		return nil, err
+	}
 
 	versions, err := s.registry.GetVersions(ctx, registrycontext.DefaultContext, subject, false)
 	if err == nil {
@@ -773,100 +606,11 @@ Available tools: list_versions, get_schema_version, get_latest_schema, get_confi
 }
 
 func (s *Server) handleGettingStartedPrompt(_ context.Context, _ *gomcp.GetPromptRequest) (*gomcp.GetPromptResult, error) {
-	guidance := `Welcome to the Schema Registry MCP server. Here's a quick-start guide.
-
-## Core operations
-
-- **list_subjects** — see all registered subjects
-- **get_latest_schema** — fetch the current schema for a subject
-- **register_schema** — register a new schema version
-- **check_compatibility** — test a schema before registering
-
-## Discovery
-
-- **search_schemas** — search schema content by keyword or regex
-- **match_subjects** — find subjects by name pattern (regex, glob, or fuzzy)
-- **get_registry_statistics** — overview of subjects, versions, types, KEKs, and exporters
-
-## Schema intelligence
-
-- **score_schema_quality** — analyze naming, docs, type safety, and evolution readiness
-- **diff_schemas** — compare two schema versions structurally
-- **find_similar_schemas** — find schemas with overlapping field sets
-- **suggest_schema_evolution** — generate a compatible schema change
-- **explain_compatibility_failure** — human-readable explanations for compat errors
-
-## Configuration
-
-- **get_config / set_config** — manage compatibility levels (BACKWARD, FORWARD, FULL, NONE)
-- **get_mode / set_mode** — manage modes (READWRITE, READONLY, IMPORT)
-
-## Encryption (CSFLE)
-
-- **create_kek / create_dek** — set up client-side field encryption
-- **list_keks / list_deks** — inspect encryption keys
-
-## Resources (read-only data)
-
-Resources are available via URI patterns like ` + "`schema://subjects`" + `, ` + "`schema://subjects/{name}`" + `, etc.
-
-## Getting help
-
-Use the other prompts for detailed guidance: design-schema, evolve-schema, check-compatibility, troubleshooting, setup-encryption, and more.`
-
-	return &gomcp.GetPromptResult{
-		Description: "Quick-start guide for the Schema Registry MCP server",
-		Messages:    []*gomcp.PromptMessage{promptMessage("user", guidance)},
-	}, nil
+	return promptFromFS(content.PromptsFS, "prompts/getting-started.md", "Quick-start guide for the Schema Registry MCP server")
 }
 
 func (s *Server) handleTroubleshootingPrompt(_ context.Context, _ *gomcp.GetPromptRequest) (*gomcp.GetPromptResult, error) {
-	guidance := `Diagnostic guide for common schema registry issues.
-
-## Step 1: Check health
-Use **health_check** to verify the registry is running and storage is connected.
-
-## Step 2: Identify the error
-
-| Error Code | Meaning | Likely cause |
-|------------|---------|--------------|
-| 42201 | Invalid schema | Malformed JSON, missing required Avro/Protobuf/JSON Schema fields |
-| 42203 | Invalid compatibility level | Typo in compatibility level string |
-| 409 | Incompatible schema | Schema violates the configured compatibility level |
-| 40401 | Subject not found | Typo in subject name, or subject was soft-deleted |
-| 40402 | Version not found | Version number does not exist for this subject |
-| 40403 | Schema not found | Global schema ID does not exist |
-| 50001 | Internal error | Storage backend issue, check server logs |
-
-## Step 3: Debug by category
-
-**Registration failures:**
-1. Use **validate_schema** to check syntax without registering
-2. Use **get_config** to check the compatibility level
-3. Use **check_compatibility** to test against existing versions
-4. Use **explain_compatibility_failure** for detailed fix suggestions
-
-**Subject/version not found:**
-1. Use **list_subjects** to see all subjects (add include_deleted for soft-deleted)
-2. Use **match_subjects** with fuzzy mode to find similar names
-3. Use **list_versions** to check available versions
-
-**Performance issues:**
-1. Use **get_registry_statistics** to check registry size
-2. Use **count_versions** to check version count per subject
-3. Large registries (>10k subjects) may need pagination on search operations
-
-**Encryption issues:**
-1. Use **list_keks** to verify KEK exists
-2. Use **test_kek** to verify KMS connectivity
-3. Use **list_deks** to check DEK status
-
-Available tools: health_check, get_server_info, validate_schema, check_compatibility, explain_compatibility_failure, list_subjects, match_subjects`
-
-	return &gomcp.GetPromptResult{
-		Description: "Troubleshooting guide for schema registry issues",
-		Messages:    []*gomcp.PromptMessage{promptMessage("user", guidance)},
-	}, nil
+	return promptFromFS(content.PromptsFS, "prompts/troubleshooting.md", "Troubleshooting guide for schema registry issues")
 }
 
 func (s *Server) handleImpactAnalysisPrompt(ctx context.Context, req *gomcp.GetPromptRequest) (*gomcp.GetPromptResult, error) {
@@ -875,32 +619,10 @@ func (s *Server) handleImpactAnalysisPrompt(ctx context.Context, req *gomcp.GetP
 		return nil, fmt.Errorf("required argument 'subject' is missing")
 	}
 
-	guidance := fmt.Sprintf(`Assess the impact of a proposed schema change on subject %q.
-
-## Step 1: Understand the current state
-1. Use **get_latest_schema** to fetch the current schema for %q
-2. Use **get_config** to check the compatibility level
-3. Use **list_versions** to see the version history
-
-## Step 2: Find dependents
-1. Use **get_referenced_by** to find schemas that reference this subject
-2. Use **get_dependency_graph** to see the full transitive dependency tree
-3. Use **find_similar_schemas** to identify structurally related schemas
-
-## Step 3: Check field usage
-1. Use **check_field_consistency** for fields you plan to change
-2. Use **find_schemas_by_field** to find other schemas using the same field names
-
-## Step 4: Validate the change
-1. Use **check_compatibility** to test your proposed schema
-2. Use **check_compatibility_multi** if the schema is used across multiple subjects
-3. Use **explain_compatibility_failure** if compatibility fails
-4. Use **diff_schemas** to see a structural comparison
-
-## Step 5: Plan the rollout
-1. Use **suggest_schema_evolution** to generate a compatible schema
-2. Use **plan_migration_path** if the change requires multiple steps
-3. Consider using **set_mode** READONLY on the subject during migration`, subject, subject)
+	guidance, err := promptTemplateFromFS(content.PromptsFS, "prompts/impact-analysis.md", map[string]string{"{subject}": subject})
+	if err != nil {
+		return nil, err
+	}
 
 	latest, err := s.registry.GetLatestSchema(ctx, registrycontext.DefaultContext, subject)
 	if err == nil && latest != nil {
@@ -914,87 +636,11 @@ func (s *Server) handleImpactAnalysisPrompt(ctx context.Context, req *gomcp.GetP
 }
 
 func (s *Server) handleNamingConventionsPrompt(_ context.Context, _ *gomcp.GetPromptRequest) (*gomcp.GetPromptResult, error) {
-	guidance := `Guide to subject naming strategies in the schema registry.
-
-## Naming strategies
-
-### topic_name (default)
-Pattern: ` + "`{topic}-key`" + ` or ` + "`{topic}-value`" + `
-Examples: ` + "`orders-key`" + `, ` + "`orders-value`" + `, ` + "`user-events-value`" + `
-Use when: one schema per Kafka topic, simple key/value distinction.
-
-### record_name
-Pattern: ` + "`{fully.qualified.RecordName}`" + `
-Examples: ` + "`com.example.Order`" + `, ` + "`com.example.UserEvent`" + `
-Use when: multiple event types share a topic, schemas identified by record name.
-
-### topic_record_name
-Pattern: ` + "`{topic}-{fully.qualified.RecordName}`" + `
-Examples: ` + "`orders-com.example.OrderCreated`" + `, ` + "`orders-com.example.OrderShipped`" + `
-Use when: multiple event types per topic and you want topic context in the subject name.
-
-## Validation
-Use **validate_subject_name** to check if a name conforms to a strategy:
-- validate_subject_name(subject: "orders-value", strategy: "topic_name")
-- validate_subject_name(subject: "com.example.Order", strategy: "record_name")
-
-## Best practices
-- Pick one strategy per environment and use it consistently
-- Use **detect_schema_patterns** to check current naming convention coverage
-- Use **match_subjects** to find subjects that deviate from the dominant pattern
-- Avoid mixing strategies in the same registry context
-- Use lowercase with hyphens for topic names: ` + "`user-events`" + ` not ` + "`UserEvents`" + `
-- Use reverse-domain namespace for record names: ` + "`com.company.domain.Type`" + ``
-
-	return &gomcp.GetPromptResult{
-		Description: "Subject naming conventions guide",
-		Messages:    []*gomcp.PromptMessage{promptMessage("user", guidance)},
-	}, nil
+	return promptFromFS(content.PromptsFS, "prompts/naming-conventions.md", "Subject naming conventions guide")
 }
 
 func (s *Server) handleContextManagementPrompt(_ context.Context, _ *gomcp.GetPromptRequest) (*gomcp.GetPromptResult, error) {
-	guidance := `Guide for managing multi-tenant contexts in the schema registry.
-
-## What are contexts?
-Contexts are tenant namespaces that isolate schemas, subjects, and configuration. The default context is "." (dot). Contexts enable multi-tenancy — different teams, environments, or applications can have independent schema registries within the same server.
-
-## Listing and navigating contexts
-- **list_contexts** — list all available contexts
-- **list_subjects** — lists subjects in the default context
-- Subjects can be qualified with context: ` + "`:.staging:my-subject`" + `
-
-## The 4-tier config/mode inheritance chain
-Configuration and mode settings cascade through 4 levels:
-
-1. **Server default** — hardcoded BACKWARD compatibility, READWRITE mode
-2. **Global (__GLOBAL)** — set via set_config/set_mode with no subject
-3. **Context global** — per-context default (overrides __GLOBAL)
-4. **Per-subject** — most specific (overrides everything above)
-
-To check effective config: **get_config** with a subject name returns the resolved value.
-To check effective mode: **get_mode** with a subject name returns the resolved value.
-
-## Managing configuration per context
-- **set_config** — set compatibility level (per-subject or global)
-- **delete_config** — remove per-subject config (falls back to context global)
-- **set_mode** — set mode (READWRITE, READONLY, READONLY_OVERRIDE, IMPORT)
-- **delete_mode** — remove per-subject mode (falls back to context global)
-
-## Import and migration
-- Use **set_mode** with mode IMPORT to enable ID-preserving schema import
-- Use **import_schemas** to bulk import schemas with preserved IDs
-- Reset mode after import: **set_mode** with mode READWRITE
-
-## Resources
-- ` + "`schema://contexts`" + ` — list all contexts
-- ` + "`schema://contexts/{context}/subjects`" + ` — subjects in a specific context
-
-Available tools: list_contexts, get_config, set_config, delete_config, get_mode, set_mode, delete_mode, import_schemas`
-
-	return &gomcp.GetPromptResult{
-		Description: "Multi-tenant context management guide",
-		Messages:    []*gomcp.PromptMessage{promptMessage("user", guidance)},
-	}, nil
+	return promptFromFS(content.PromptsFS, "prompts/context-management.md", "Multi-tenant context management guide")
 }
 
 func (s *Server) handleCompareFormatsPrompt(_ context.Context, req *gomcp.GetPromptRequest) (*gomcp.GetPromptResult, error) {
@@ -1003,52 +649,16 @@ func (s *Server) handleCompareFormatsPrompt(_ context.Context, req *gomcp.GetPro
 		return nil, fmt.Errorf("required argument 'use_case' is missing")
 	}
 
-	guidance := fmt.Sprintf(`Compare Avro, Protobuf, and JSON Schema for the use case: %q
-
-## Format Comparison
-
-| Feature | Avro | Protobuf | JSON Schema |
-|---------|------|----------|-------------|
-| Serialization | Binary (compact) | Binary (compact) | Text (JSON) |
-| Schema evolution | Excellent | Good | Limited |
-| Type system | Rich (unions, logical types) | Strong (oneof, well-known types) | Flexible (oneOf, anyOf) |
-| Code generation | Moderate | Excellent | Minimal |
-| Human readability | Schema: JSON, Data: binary | Schema: .proto, Data: binary | Both: JSON |
-| Kafka integration | Native | Supported | Supported |
-| gRPC support | Limited | Native | Not applicable |
-| Validation | Schema-level | Schema-level | Rich constraints |
-
-## Recommendations by use case
-
-**Event streaming (Kafka):** Avro
-- Best schema evolution support with BACKWARD/FORWARD compatibility
-- Compact binary serialization reduces Kafka storage/bandwidth
-- Native Kafka ecosystem integration
-
-**RPC/Microservices:** Protobuf
-- Native gRPC support with code generation
-- Strong typing across languages
-- Efficient binary serialization
-
-**REST APIs:** JSON Schema
-- Human-readable request/response validation
-- Rich constraint validation (patterns, ranges, formats)
-- Direct JSON compatibility
-
-**Mixed/CQRS systems:** Use multiple formats
-- Avro for events (Kafka topics)
-- Protobuf for commands (gRPC)
-- JSON Schema for queries (REST responses)
-
-Available tools: register_schema, get_schema_types`, useCase)
+	guidance, err := promptTemplateFromFS(content.PromptsFS, "prompts/compare-formats.md", map[string]string{"{use_case}": useCase})
+	if err != nil {
+		return nil, err
+	}
 
 	return &gomcp.GetPromptResult{
 		Description: fmt.Sprintf("Format comparison for %q", useCase),
 		Messages:    []*gomcp.PromptMessage{promptMessage("user", guidance)},
 	}, nil
 }
-
-// --- New prompt handlers ---
 
 func (s *Server) handleGlossaryLookupPrompt(_ context.Context, req *gomcp.GetPromptRequest) (*gomcp.GetPromptResult, error) {
 	topic := strings.ToLower(req.Params.Arguments["topic"])
@@ -1091,21 +701,13 @@ func (s *Server) handleGlossaryLookupPrompt(_ context.Context, req *gomcp.GetPro
 		matchedURI = "schema://glossary/core-concepts"
 	}
 
-	guidance := fmt.Sprintf(`The topic %q is covered in the glossary resource: %s
-
-Read that resource to get comprehensive domain knowledge, then answer the user's question.
-
-All glossary resources:
-- schema://glossary/core-concepts     -- subjects, versions, IDs, modes, naming
-- schema://glossary/compatibility     -- 7 modes, per-format rules, transitive semantics
-- schema://glossary/data-contracts    -- metadata, tags, rulesets, 3-layer merge
-- schema://glossary/encryption        -- CSFLE, KEK/DEK, KMS providers, algorithms
-- schema://glossary/contexts          -- multi-tenancy, 4-tier inheritance
-- schema://glossary/exporters         -- schema linking, lifecycle states
-- schema://glossary/schema-types      -- Avro, Protobuf, JSON Schema deep reference
-- schema://glossary/design-patterns   -- event envelope, lifecycle, shared types, CI/CD
-- schema://glossary/best-practices    -- per-format guidance, common mistakes
-- schema://glossary/migration         -- Confluent migration, IMPORT mode, ID preservation`, topic, matchedURI)
+	guidance, err := promptTemplateFromFS(content.PromptsFS, "prompts/glossary-lookup.md", map[string]string{
+		"{topic}":       topic,
+		"{matched_uri}": matchedURI,
+	})
+	if err != nil {
+		return nil, err
+	}
 
 	return &gomcp.GetPromptResult{
 		Description: fmt.Sprintf("Glossary lookup for %q", topic),
@@ -1114,497 +716,29 @@ All glossary resources:
 }
 
 func (s *Server) handleImportFromConfluentPrompt(_ context.Context, _ *gomcp.GetPromptRequest) (*gomcp.GetPromptResult, error) {
-	guidance := `Step-by-step guide for migrating schemas from Confluent Schema Registry.
-
-## Why This Matters
-The Kafka wire format embeds a 4-byte schema ID in every message. If IDs change, existing consumers cannot deserialize messages. This procedure preserves exact schema IDs.
-
-## Prerequisites
-- Source: running Confluent Schema Registry with network access
-- Target: running AxonOps Schema Registry with configured storage
-- Tools: curl and jq on the migration machine
-
-## Procedure
-
-### Step 1: Verify target health
-Use **health_check** to confirm the target registry is running.
-
-### Step 2: Set IMPORT mode
-Use **set_mode** with mode: IMPORT. This allows registering schemas with specific IDs and bypasses compatibility checks.
-
-### Step 3: Export from Confluent
-Run the migration script:
-    ./scripts/migrate-from-confluent.sh --source http://confluent:8081 --dry-run
-Inspect the output to verify schema count and subjects.
-
-### Step 4: Import
-    ./scripts/migrate-from-confluent.sh --source http://confluent:8081 --target http://axonops:8082 --verify
-Or use the **import_schemas** tool for programmatic import.
-
-### Step 5: Switch to READWRITE
-Use **set_mode** with mode: READWRITE. New registrations will get auto-generated IDs starting after the highest imported ID.
-
-### Step 6: Update clients
-Change schema.registry.url in all Kafka serializer/deserializer configs. No code changes needed -- the API is wire-compatible.
-
-## Verification
-1. Use **list_subjects** -- count should match source.
-2. Use **get_schema_by_id** -- spot-check IDs across both registries.
-3. Produce/consume a test message through the new registry.
-
-## Rollback
-The migration is non-destructive. Point clients back to Confluent if issues arise.
-
-For domain knowledge, read: schema://glossary/migration`
-
-	return &gomcp.GetPromptResult{
-		Description: "Confluent migration workflow",
-		Messages:    []*gomcp.PromptMessage{promptMessage("user", guidance)},
-	}, nil
+	return promptFromFS(content.PromptsFS, "prompts/import-from-confluent.md", "Confluent migration workflow")
 }
 
 func (s *Server) handleSetupRBACPrompt(_ context.Context, _ *gomcp.GetPromptRequest) (*gomcp.GetPromptResult, error) {
-	guidance := `Guide for configuring authentication and role-based access control (RBAC).
-
-## Authentication Methods
-
-The registry supports multiple auth methods (configured in security.auth.methods):
-
-| Method | Description |
-|--------|-------------|
-| **basic** | Username/password via HTTP Basic Auth |
-| **api_key** | API keys sent as Bearer tokens |
-| **jwt** | JWT tokens (for external identity providers) |
-| **oidc** | OpenID Connect (delegated to an OIDC provider) |
-| **ldap** | LDAP directory authentication |
-| **mtls** | Mutual TLS client certificates |
-
-## The 4 Built-in Roles
-
-| Role | Permissions |
-|------|-------------|
-| **admin** | Full access: manage users, API keys, schemas, config, modes |
-| **write** | Register/delete schemas, set config/mode, manage encryption keys |
-| **read** | Read schemas, subjects, config, mode. Cannot modify anything. |
-| **readwrite** | Read + write schemas and config. Cannot manage users or API keys. |
-
-## Setup Steps
-
-### Step 1: Enable auth in config
-Set security.auth.enabled: true and choose methods.
-
-### Step 2: Create admin user
-Use **create_user** with role: admin.
-
-### Step 3: Create service accounts
-Use **create_api_key** for each service:
-- Producers: role write or readwrite
-- Consumers: role read
-- CI/CD: role write (for schema registration)
-- Monitoring: role read
-
-### Step 4: Test access
-Use **list_users** and **list_api_keys** to verify.
-
-## MCP Admin Tools
-
-- **create_user / get_user / list_users / update_user / delete_user** -- manage users
-- **create_api_key / get_api_key / list_api_keys / update_api_key / delete_api_key** -- manage API keys
-- **list_roles** -- list available roles and their permissions`
-
-	return &gomcp.GetPromptResult{
-		Description: "Authentication and RBAC configuration guide",
-		Messages:    []*gomcp.PromptMessage{promptMessage("user", guidance)},
-	}, nil
+	return promptFromFS(content.PromptsFS, "prompts/setup-rbac.md", "Authentication and RBAC configuration guide")
 }
 
 func (s *Server) handleSchemaReferencesGuidePrompt(_ context.Context, _ *gomcp.GetPromptRequest) (*gomcp.GetPromptResult, error) {
-	guidance := `Guide for cross-subject schema references.
-
-## What Are References?
-References allow one schema to depend on another schema registered in a different subject. This enables reusable, independently versioned type definitions.
-
-## Reference Structure
-Each reference has three fields:
-- **name** -- how the referencing schema refers to this dependency
-- **subject** -- subject where the referenced schema is registered
-- **version** -- version number of the referenced schema
-
-## Per-Format Name Semantics
-
-### Avro
-The **name** field is the fully qualified type name (namespace + name):
-    name: "com.example.Address"
-    subject: "com.example.Address"
-    version: 1
-
-In the schema, reference it by its fully qualified name in the type field.
-
-### Protobuf
-The **name** field is the import path:
-    name: "address.proto"
-    subject: "address-value"
-    version: 1
-
-In the .proto file, use: import "address.proto";
-
-### JSON Schema
-The **name** field is the reference URL:
-    name: "address.json"
-    subject: "address-value"
-    version: 1
-
-In the schema, use: "$ref": "address.json"
-
-## Registering with References
-Use **register_schema** with the references array:
-    register_schema(
-      subject: "order-value",
-      schema: "...",
-      schema_type: "AVRO",
-      references: [
-        {"name": "com.example.Address", "subject": "address-value", "version": 1}
-      ]
-    )
-
-## Important Rules
-1. Referenced schemas MUST be registered before the schemas that depend on them.
-2. A schema that is referenced by others cannot be permanently deleted.
-3. Use **get_referenced_by** to find all schemas that reference a given subject.
-4. Use **get_dependency_graph** to visualize the full reference tree.
-5. Use FULL_TRANSITIVE compatibility for shared referenced types.
-
-## Resolving References
-Pass ?referenceFormat=RESOLVED when fetching schemas to get resolved (inline) references.
-
-For domain knowledge, read: schema://glossary/schema-types`
-
-	return &gomcp.GetPromptResult{
-		Description: "Schema references guide with per-format semantics",
-		Messages:    []*gomcp.PromptMessage{promptMessage("user", guidance)},
-	}, nil
+	return promptFromFS(content.PromptsFS, "prompts/schema-references-guide.md", "Schema references guide with per-format semantics")
 }
 
 func (s *Server) handleFullEncryptionLifecyclePrompt(_ context.Context, _ *gomcp.GetPromptRequest) (*gomcp.GetPromptResult, error) {
-	guidance := `End-to-end CSFLE (Client-Side Field Level Encryption) lifecycle.
-
-## Phase 1: Create a KEK
-A KEK references an external KMS key. It wraps (encrypts) the DEKs.
-
-Use **create_kek**:
-    name: "prod-kek"
-    kms_type: "hcvault" (or aws-kms, azure-kms, gcp-kms, openbao)
-    kms_key_id: transit key name or ARN
-    kms_props: provider-specific connection details
-    shared: false (recommended for client-managed keys)
-
-Verify with **test_kek** to confirm KMS connectivity.
-
-## Phase 2: Create DEKs
-A DEK is the actual encryption key, scoped to a schema subject.
-
-Use **create_dek**:
-    kek_name: "prod-kek"
-    subject: "orders-value"
-    algorithm: "AES256_GCM" (or AES128_GCM, AES256_SIV)
-
-The DEK is automatically wrapped by the KEK. The plaintext key material stays on the client.
-
-## Phase 3: Key Rotation
-Create a new DEK version for the same subject:
-
-Use **create_dek** again with the same kek_name and subject. A new version is auto-assigned.
-- New messages are encrypted with the latest DEK version.
-- Old messages remain decryptable with previous DEK versions.
-
-## Phase 4: KMS Key Rotation (Rewrap)
-When the underlying KMS key is rotated:
-
-Rewrap existing DEKs so they are encrypted with the new KMS key version. The DEK plaintext stays the same -- only the wrapper changes. No re-encryption of data is needed.
-
-## Phase 5: Cleanup
-Soft-delete old DEK versions that are no longer needed:
-Use **delete_dek** -- sets deleted=true. Can be undone with undelete_dek.
-
-Permanent delete (irreversible):
-Use **delete_dek** with permanent: true.
-
-Delete a KEK only after ALL its DEKs are permanently deleted.
-
-## Algorithm Choice
-- **AES256_GCM** (default): strongest confidentiality, non-deterministic
-- **AES128_GCM**: lower key size, still authenticated
-- **AES256_SIV**: deterministic -- enables equality searches but leaks value equality
-
-## MCP Tools
-create_kek, get_kek, list_keks, update_kek, delete_kek, test_kek,
-create_dek, get_dek, list_deks, delete_dek, get_dek_versions
-
-For domain knowledge, read: schema://glossary/encryption`
-
-	return &gomcp.GetPromptResult{
-		Description: "End-to-end CSFLE encryption lifecycle",
-		Messages:    []*gomcp.PromptMessage{promptMessage("user", guidance)},
-	}, nil
+	return promptFromFS(content.PromptsFS, "prompts/full-encryption-lifecycle.md", "End-to-end CSFLE encryption lifecycle")
 }
 
 func (s *Server) handleDataRulesDeepDivePrompt(_ context.Context, _ *gomcp.GetPromptRequest) (*gomcp.GetPromptResult, error) {
-	guidance := `Comprehensive guide to data contract rules.
-
-## Rule Categories
-
-### Domain Rules (domainRules)
-Validation and transformation rules applied to schema content at registration time.
-
-Example: enforce camelCase field naming
-    {
-      "name": "checkCamelCase",
-      "kind": "CONDITION",
-      "mode": "WRITE",
-      "type": "CEL",
-      "expr": "name.matches('^[a-z][a-zA-Z0-9]*$')",
-      "onFailure": "ERROR"
-    }
-
-### Migration Rules (migrationRules)
-Rules applied during schema version transitions (upgrades and downgrades).
-
-Example: rename a field during upgrade
-    {
-      "name": "renameCustomerToClient",
-      "kind": "TRANSFORM",
-      "mode": "UPGRADE",
-      "type": "JSON_TRANSFORM",
-      "expr": "$.customer -> $.client"
-    }
-
-### Encoding Rules (encodingRules)
-Rules applied during serialization/deserialization, typically for field-level encryption.
-
-Example: encrypt PII-tagged fields
-    {
-      "name": "encryptPII",
-      "kind": "TRANSFORM",
-      "mode": "WRITE",
-      "type": "ENCRYPT",
-      "tags": ["PII"]
-    }
-
-## Rule Fields
-
-| Field | Values | Description |
-|-------|--------|-------------|
-| **name** | any string | Unique identifier for this rule |
-| **kind** | CONDITION, TRANSFORM | Validate (CONDITION) or modify (TRANSFORM) |
-| **mode** | WRITE, READ, UPGRADE, DOWNGRADE, WRITEREAD, UPDOWN | When the rule applies |
-| **type** | CEL, JSON_TRANSFORM, ENCRYPT, etc. | Rule engine/evaluator type |
-| **tags** | string array | Field tags this rule targets (e.g., ["PII", "GDPR"]) |
-| **params** | map[string]string | Rule-specific configuration |
-| **expr** | string | Rule expression (CEL expression, JSONPath, etc.) |
-| **onSuccess** | NONE, ERROR | Action when rule passes |
-| **onFailure** | NONE, ERROR, DLQ | Action when rule fails |
-| **disabled** | boolean | Whether this rule is currently inactive |
-
-## The 3-Layer Merge
-
-When registering a schema:
-1. **defaultRuleSet** from config -- base rules applied when request has none
-2. **request ruleSet** -- rules from the POST body
-3. **overrideRuleSet** from config -- always wins, overrides everything
-
-Rules merge by name: if two layers define a rule with the same name, the higher layer wins.
-
-## Setting Config-Level Rules
-
-Use **set_config_full** to set defaults and overrides:
-- defaultMetadata / defaultRuleSet: baseline governance
-- overrideMetadata / overrideRuleSet: mandatory governance (always applied)
-
-## Inheritance
-Rules from the previous version carry forward unless explicitly replaced. This means governance accumulates across versions.
-
-## MCP Tools
-- **set_config_full / get_config_full** -- manage rules at the config level
-- **register_schema** -- register with ruleSet in the request
-- **get_latest_schema** -- inspect current rules
-
-For domain knowledge, read: schema://glossary/data-contracts`
-
-	return &gomcp.GetPromptResult{
-		Description: "Data contract rules deep dive",
-		Messages:    []*gomcp.PromptMessage{promptMessage("user", guidance)},
-	}, nil
+	return promptFromFS(content.PromptsFS, "prompts/data-rules-deep-dive.md", "Data contract rules deep dive")
 }
 
 func (s *Server) handleRegistryHealthAuditPrompt(_ context.Context, _ *gomcp.GetPromptRequest) (*gomcp.GetPromptResult, error) {
-	guidance := `Multi-step registry health audit procedure.
-
-## Step 1: Basic Health
-Use **health_check** to verify:
-- Registry is running
-- Storage backend is connected and responsive
-
-Use **get_server_info** to check:
-- Version and build information
-- Supported schema types
-
-## Step 2: Registry Statistics
-Use **get_registry_statistics** to get:
-- Total subjects and schemas
-- Schema type distribution (Avro, Protobuf, JSON)
-- Total versions
-- KEK and exporter counts
-
-## Step 3: Configuration Consistency
-Use **get_config** (with no subject) to check the global compatibility level.
-- Is it BACKWARD (the recommended default)?
-- Are there subjects with NONE that should not be?
-
-Use **get_mode** (with no subject) to check the global mode.
-- Should be READWRITE for normal operation.
-- IMPORT mode should only be active during migrations.
-
-## Step 4: Subject Health
-Use **list_subjects** to get all subjects.
-For suspicious subjects, use **count_versions** to check for:
-- Subjects with excessive versions (>100 may indicate runaway registrations)
-- Subjects with only 1 version (may be unused or abandoned)
-
-## Step 5: Schema Quality
-Use **score_schema_quality** on key subjects to check:
-- Naming conventions (PascalCase records, snake_case fields)
-- Documentation coverage
-- Type safety (logical types, enums vs strings)
-- Evolution readiness (defaults, nullable fields)
-
-## Step 6: Dependency Health
-Use **detect_schema_patterns** to check:
-- Naming convention consistency across the registry
-- Orphaned schemas (no references, no consumers)
-
-Use **get_dependency_graph** on referenced subjects to verify:
-- No circular dependencies
-- Referenced schemas use FULL or FULL_TRANSITIVE compatibility
-
-## Step 7: Encryption Audit (if applicable)
-Use **list_keks** to check KEK inventory.
-Use **test_kek** on each KEK to verify KMS connectivity.
-Use **list_deks** to verify DEK coverage for encrypted subjects.
-
-## Summary
-After completing all steps, you should have a clear picture of:
-- Registry availability and connectivity
-- Configuration policy compliance
-- Schema quality and naming consistency
-- Dependency integrity
-- Encryption key health`
-
-	return &gomcp.GetPromptResult{
-		Description: "Registry health audit procedure",
-		Messages:    []*gomcp.PromptMessage{promptMessage("user", guidance)},
-	}, nil
+	return promptFromFS(content.PromptsFS, "prompts/registry-health-audit.md", "Registry health audit procedure")
 }
 
 func (s *Server) handleSchemaEvolutionCookbookPrompt(_ context.Context, _ *gomcp.GetPromptRequest) (*gomcp.GetPromptResult, error) {
-	guidance := `Practical recipes for common schema evolution scenarios.
-
-## Recipe 1: Add an Optional Field (BACKWARD safe)
-
-**Scenario:** Add a new "email" field to a User schema.
-
-1. Use **get_config** to confirm compatibility is BACKWARD or FULL.
-2. Add the field with a default value:
-   - Avro: {"name": "email", "type": ["null", "string"], "default": null}
-   - Protobuf: optional string email = 3;
-   - JSON Schema: add to properties (NOT to required)
-3. Use **check_compatibility** to validate.
-4. Use **register_schema** to register.
-
-## Recipe 2: Add a Required Field (needs care)
-
-**Scenario:** Add a mandatory "created_at" timestamp.
-
-Under BACKWARD compatibility, you CANNOT add a required field without a default.
-1. Add the field with a sensible default (e.g., epoch zero, empty string).
-2. Application logic treats the default as "not set."
-3. Or: change compatibility to NONE temporarily (use **set_config**), register, restore.
-
-## Recipe 3: Rename a Field (three-phase)
-
-**Scenario:** Rename "customer_name" to "client_name".
-
-Phase 1: Add "client_name" alongside "customer_name" (both populated).
-Phase 2: Update all consumers to read "client_name". Deprecate "customer_name".
-Phase 3: Remove "customer_name" (requires NONE compatibility for this step).
-
-Use **diff_schemas** to verify each phase.
-
-## Recipe 4: Change a Field Type
-
-**Scenario:** Change "amount" from int to long (Avro) or int32 to int64 (Protobuf).
-
-**Avro type promotions (safe under BACKWARD):**
-- int -> long, float, double
-- long -> float, double
-- float -> double
-- string <-> bytes
-
-**Protobuf wire-compatible changes (safe):**
-- int32 <-> uint32 <-> int64 <-> uint64 <-> bool (same wire type)
-- fixed32 <-> sfixed32
-- fixed64 <-> sfixed64
-
-**Incompatible type changes:** Use the three-phase pattern (add new field, migrate, remove old).
-
-## Recipe 5: Remove a Field
-
-**Scenario:** Remove the deprecated "legacy_id" field.
-
-Under BACKWARD: removing a field IS safe (old data's field is ignored).
-Under FORWARD: removing a field IS NOT safe (old readers expect it).
-Under FULL: removing a field IS NOT safe.
-
-If removal is blocked, use **set_config** to temporarily set BACKWARD or NONE.
-In Protobuf, use "reserved" to prevent field number reuse.
-
-## Recipe 6: Break Compatibility Intentionally
-
-**Scenario:** Major redesign of the schema.
-
-Option A (recommended): Create a new subject (e.g., orders-v2-value).
-1. Use **register_schema** under the new subject.
-2. Migrate producers to the new subject.
-3. Use **set_mode** READONLY on the old subject.
-
-Option B: Bypass in existing subject.
-1. Use **set_config** with NONE.
-2. Use **register_schema** with the breaking change.
-3. Use **set_config** to restore the original level.
-WARNING: existing consumers may break.
-
-## Recipe 7: Add a Schema Reference
-
-**Scenario:** Extract Address into a shared subject.
-
-1. Use **register_schema** to register Address under "com.example.Address".
-2. Update the main schema to reference it.
-3. Use **register_schema** with references array.
-4. Set FULL_TRANSITIVE compatibility on the shared type.
-
-## General Workflow
-
-For any evolution:
-1. **get_latest_schema** -- understand current state
-2. **get_config** -- know the compatibility level
-3. **check_compatibility** -- validate before registering
-4. **explain_compatibility_failure** -- if it fails, get details
-5. **register_schema** -- apply the change
-6. **diff_schemas** -- verify the change
-
-For domain knowledge, read: schema://glossary/compatibility and schema://glossary/design-patterns`
-
-	return &gomcp.GetPromptResult{
-		Description: "Schema evolution cookbook with practical recipes",
-		Messages:    []*gomcp.PromptMessage{promptMessage("user", guidance)},
-	}, nil
+	return promptFromFS(content.PromptsFS, "prompts/schema-evolution-cookbook.md", "Schema evolution cookbook with practical recipes")
 }
