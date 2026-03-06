@@ -34,6 +34,7 @@ type Server struct {
 	authService   *auth.Service
 	rateLimiter   *auth.RateLimiter
 	auditLogger   *auth.AuditLogger
+	tlsManager    *auth.TLSManager
 	version       string
 	commit        string
 }
@@ -410,11 +411,12 @@ func (s *Server) Start() error {
 
 	// Configure TLS if enabled
 	if s.config.Security.TLS.Enabled {
-		tlsConfig, err := auth.CreateServerTLSConfig(s.config.Security.TLS)
+		tlsConfig, tm, err := auth.CreateServerTLSConfig(s.config.Security.TLS)
 		if err != nil {
 			return fmt.Errorf("failed to configure TLS: %w", err)
 		}
 		s.server.TLSConfig = tlsConfig
+		s.tlsManager = tm
 		s.logger.Info("starting server with TLS", slog.String("address", addr))
 		return s.server.ListenAndServeTLS("", "") // Certs loaded via GetCertificate
 	}
@@ -429,6 +431,15 @@ func (s *Server) Shutdown(ctx context.Context) error {
 		return nil
 	}
 	return s.server.Shutdown(ctx)
+}
+
+// ReloadTLS reloads TLS certificates from disk.
+// Returns nil if TLS is not enabled or no TLSManager is configured.
+func (s *Server) ReloadTLS() error {
+	if s.tlsManager == nil {
+		return nil
+	}
+	return s.tlsManager.Reload()
 }
 
 // Router returns the HTTP router for testing.

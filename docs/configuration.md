@@ -310,7 +310,7 @@ The `security` section contains TLS, authentication, rate limiting, and audit co
 | `security.tls.ca_file` | string | `""` | Path to a CA certificate for verifying client certificates (mTLS). |
 | `security.tls.min_version` | string | `""` | Minimum TLS version. Values: `TLS1.2`, `TLS1.3`. |
 | `security.tls.client_auth` | string | `"none"` | Client certificate policy. Values: `none`, `request`, `require`, `verify`. |
-| `security.tls.auto_reload` | bool | `false` | **Not yet implemented.** Intended to automatically reload certificates when they change on disk. |
+| `security.tls.auto_reload` | bool | `false` | When `true`, sending `SIGHUP` to the process reloads TLS certificates from disk without restarting. New connections use the updated certificates; existing connections are unaffected. |
 
 ```yaml
 security:
@@ -846,7 +846,7 @@ security:
     ca_file: ""                       # For mTLS client verification
     min_version: "TLS1.2"            # TLS1.2 | TLS1.3
     client_auth: none                 # none | request | require | verify
-    auto_reload: false                # NOT YET IMPLEMENTED — reload certs on file change
+    auto_reload: false                # SIGHUP reloads certs without restart
 
   # Authentication
   auth:

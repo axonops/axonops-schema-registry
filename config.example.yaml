@@ -69,7 +69,7 @@ security:
     ca_file: ""
     min_version: "TLS1.2"
     client_auth: none  # none, request, require, verify
-    auto_reload: false            # NOT YET IMPLEMENTED
+    auto_reload: false            # SIGHUP reloads certs without restart
 
   # Authentication configuration
   auth:

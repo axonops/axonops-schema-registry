@@ -115,17 +115,19 @@ func (tm *TLSManager) getMinVersion() uint16 {
 }
 
 // CreateServerTLSConfig creates a TLS config for an HTTPS server.
-func CreateServerTLSConfig(cfg config.TLSConfig) (*tls.Config, error) {
+// It returns both the tls.Config and the TLSManager so the caller can
+// trigger certificate reloads (e.g., on SIGHUP).
+func CreateServerTLSConfig(cfg config.TLSConfig) (*tls.Config, *TLSManager, error) {
 	if !cfg.Enabled {
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	tm, err := NewTLSManager(cfg)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return tm.TLSConfig(), nil
+	return tm.TLSConfig(), tm, nil
 }
 
 // CreateClientTLSConfig creates a TLS config for client connections.

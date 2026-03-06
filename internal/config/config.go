@@ -161,7 +161,7 @@ type TLSConfig struct {
 	CAFile     string `yaml:"ca_file"`     // For client cert verification
 	MinVersion string `yaml:"min_version"` // TLS1.2, TLS1.3
 	ClientAuth string `yaml:"client_auth"` // none, request, require, verify
-	AutoReload bool   `yaml:"auto_reload"` // NOT YET IMPLEMENTED — reload certs without restart
+	AutoReload bool   `yaml:"auto_reload"` // Reload certs via SIGHUP without restart
 }
 
 // AuthConfig represents authentication configuration.

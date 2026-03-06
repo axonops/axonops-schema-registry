@@ -257,12 +257,15 @@ func TestTLSManager_TLSConfig_VerifyHasClientCAs(t *testing.T) {
 }
 
 func TestCreateServerTLSConfig_Disabled(t *testing.T) {
-	cfg, err := CreateServerTLSConfig(config.TLSConfig{Enabled: false})
+	cfg, tm, err := CreateServerTLSConfig(config.TLSConfig{Enabled: false})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if cfg != nil {
 		t.Error("expected nil config when TLS disabled")
+	}
+	if tm != nil {
+		t.Error("expected nil TLSManager when TLS disabled")
 	}
 }
 
@@ -270,7 +273,7 @@ func TestCreateServerTLSConfig_Enabled(t *testing.T) {
 	dir := t.TempDir()
 	certFile, keyFile := generateTestCert(t, dir)
 
-	cfg, err := CreateServerTLSConfig(config.TLSConfig{
+	cfg, tm, err := CreateServerTLSConfig(config.TLSConfig{
 		Enabled:  true,
 		CertFile: certFile,
 		KeyFile:  keyFile,
@@ -281,16 +284,47 @@ func TestCreateServerTLSConfig_Enabled(t *testing.T) {
 	if cfg == nil {
 		t.Error("expected non-nil TLS config")
 	}
+	if tm == nil {
+		t.Error("expected non-nil TLSManager")
+	}
 }
 
 func TestCreateServerTLSConfig_InvalidCert(t *testing.T) {
-	_, err := CreateServerTLSConfig(config.TLSConfig{
+	_, _, err := CreateServerTLSConfig(config.TLSConfig{
 		Enabled:  true,
 		CertFile: "/bad/cert.pem",
 		KeyFile:  "/bad/key.pem",
 	})
 	if err == nil {
 		t.Error("expected error for invalid certs")
+	}
+}
+
+func TestCreateServerTLSConfig_ReloadViaTLSManager(t *testing.T) {
+	dir := t.TempDir()
+	certFile, keyFile := generateTestCert(t, dir)
+
+	_, tm, err := CreateServerTLSConfig(config.TLSConfig{
+		Enabled:  true,
+		CertFile: certFile,
+		KeyFile:  keyFile,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Reload should succeed with the same cert files
+	if err := tm.Reload(); err != nil {
+		t.Fatalf("reload failed: %v", err)
+	}
+
+	// Verify GetCertificate still works after reload
+	cert, err := tm.GetCertificate(nil)
+	if err != nil {
+		t.Fatalf("GetCertificate failed after reload: %v", err)
+	}
+	if cert == nil {
+		t.Error("expected non-nil certificate after reload")
 	}
 }
 

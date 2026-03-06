@@ -315,9 +315,24 @@ func main() {
 		}()
 	}
 
-	// Handle shutdown signals
+	// Handle shutdown and reload signals
 	shutdown := make(chan os.Signal, 1)
 	signal.Notify(shutdown, syscall.SIGINT, syscall.SIGTERM)
+
+	reload := make(chan os.Signal, 1)
+	signal.Notify(reload, syscall.SIGHUP)
+
+	// Handle SIGHUP for TLS certificate reload
+	go func() {
+		for range reload {
+			logger.Info("received SIGHUP, reloading TLS certificates")
+			if err := server.ReloadTLS(); err != nil {
+				logger.Error("TLS certificate reload failed", slog.String("error", err.Error()))
+			} else {
+				logger.Info("TLS certificates reloaded successfully")
+			}
+		}
+	}()
 
 	// Start server in goroutine
 	serverErr := make(chan error, 1)
