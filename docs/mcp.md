@@ -2,9 +2,9 @@
 
 The AxonOps Schema Registry includes a built-in [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) server that enables AI assistants — Claude, Cursor, Windsurf, VS Code Copilot, and others — to interact directly with the registry for schema management, compatibility checking, encryption key management, and operational tasks.
 
-The MCP server runs alongside the existing REST API as a separate HTTP endpoint, sharing the same `registry.Registry` service layer, and can be enabled or disabled via configuration.
+The MCP server runs alongside the [REST API](api-reference.md) as a separate HTTP endpoint, sharing the same `registry.Registry` service layer, and can be enabled or disabled via configuration. All schema analysis and intelligence capabilities exposed via MCP are also available as [REST endpoints](api-reference.md#axonops-extensions) for CI/CD pipelines and custom tooling.
 
-> For the complete auto-generated reference with all tool parameter schemas, see the [MCP API Reference](mcp-reference.md).
+> For the complete auto-generated reference with all tool parameter schemas, see the [MCP API Reference](mcp-reference.md). For the full REST API (including AxonOps-exclusive endpoints), see the [API Reference](api-reference.md).
 
 ## Contents
 
@@ -119,11 +119,11 @@ Every config field has a corresponding environment variable:
 
 ## Tools
 
-The MCP server exposes **105 tools** organized by functional area. Each tool is instrumented with Prometheus metrics and structured logging.
+The MCP server exposes a comprehensive set of tools organized by functional area. Each tool is instrumented with Prometheus metrics and structured logging.
 
-### Core Schema Operations (20 tools)
+### Core Schema Operations
 
-#### Read Operations (13 tools)
+#### Read Operations
 
 | Tool | Description |
 |------|-------------|
@@ -141,7 +141,7 @@ The MCP server exposes **105 tools** organized by functional area. Each tool is 
 | `get_schema_types` | List supported schema types (AVRO, PROTOBUF, JSON) |
 | `list_schemas` | List all schemas with optional filters |
 
-#### Write Operations (4 tools)
+#### Write Operations
 
 | Tool | Description |
 |------|-------------|
@@ -150,7 +150,7 @@ The MCP server exposes **105 tools** organized by functional area. Each tool is 
 | `delete_version` | Delete a specific schema version |
 | `check_compatibility` | Check compatibility of a schema against a subject |
 
-#### Server (3 tools)
+#### Server
 
 | Tool | Description |
 |------|-------------|
@@ -158,7 +158,7 @@ The MCP server exposes **105 tools** organized by functional area. Each tool is 
 | `get_server_info` | Get server version, features, supported types, build info |
 | `get_max_schema_id` | Get the highest schema ID in the registry |
 
-### Configuration & Mode (6 tools)
+### Configuration & Mode
 
 | Tool | Description |
 |------|-------------|
@@ -169,14 +169,14 @@ The MCP server exposes **105 tools** organized by functional area. Each tool is 
 | `set_mode` | Set registry mode (READWRITE, READONLY, IMPORT) |
 | `delete_mode` | Delete per-subject or global mode override |
 
-### Context & Import (2 tools)
+### Context & Import
 
 | Tool | Description |
 |------|-------------|
 | `list_contexts` | List all registry contexts (tenant namespaces) |
 | `import_schemas` | Bulk import schemas preserving original IDs |
 
-### Encryption — KEK/DEK (13 tools)
+### Encryption — KEK/DEK
 
 | Tool | Description |
 |------|-------------|
@@ -194,7 +194,7 @@ The MCP server exposes **105 tools** organized by functional area. Each tool is 
 | `delete_dek` | Delete a DEK |
 | `undelete_dek` | Restore a soft-deleted DEK |
 
-### Exporters — Schema Linking (11 tools)
+### Exporters — Schema Linking
 
 | Tool | Description |
 |------|-------------|
@@ -210,7 +210,7 @@ The MCP server exposes **105 tools** organized by functional area. Each tool is 
 | `resume_exporter` | Resume a paused exporter |
 | `reset_exporter` | Reset exporter state |
 
-### Metadata & Data Contracts (12 tools)
+### Metadata & Data Contracts
 
 | Tool | Description |
 |------|-------------|
@@ -227,7 +227,7 @@ The MCP server exposes **105 tools** organized by functional area. Each tool is 
 | `get_server_version` | Get the server version string |
 | `rewrap_dek` | Re-encrypt a DEK with the latest KEK version |
 
-### Admin — Users & API Keys (15 tools)
+### Admin — Users & API Keys
 
 | Tool | Description |
 |------|-------------|
@@ -247,7 +247,7 @@ The MCP server exposes **105 tools** organized by functional area. Each tool is 
 | `list_roles` | List available RBAC roles |
 | `change_password` | Change a user's password |
 
-### Validation & Export (11 tools)
+### Validation & Export
 
 | Tool | Description |
 |------|-------------|
@@ -263,7 +263,7 @@ The MCP server exposes **105 tools** organized by functional area. Each tool is 
 | `count_versions` | Count versions for a subject |
 | `count_subjects` | Count total subjects |
 
-### Comparison & Search (6 tools)
+### Comparison & Search
 
 | Tool | Description |
 |------|-------------|
@@ -274,7 +274,7 @@ The MCP server exposes **105 tools** organized by functional area. Each tool is 
 | `match_subjects` | Match subjects by regex, glob, or fuzzy pattern |
 | `explain_compatibility_failure` | Explain why a schema is incompatible with fix suggestions |
 
-### Schema Intelligence (9 tools)
+### Schema Intelligence
 
 | Tool | Description |
 |------|-------------|
@@ -311,13 +311,13 @@ Example usage:
 
 ### Read-Only Mode
 
-When `mcp.read_only: true`, only tools annotated with `ReadOnlyHint: true` are registered (71 of 105 tools). The remaining 34 write/delete tools are hidden from discovery and blocked from execution.
+When `mcp.read_only: true`, only tools annotated with `ReadOnlyHint: true` are registered. All write/delete tools are hidden from discovery and blocked from execution.
 
 ## Resources
 
-The MCP server exposes **47 resources** — data endpoints that AI clients can read directly without calling tools.
+The MCP server exposes a rich set of resources — data endpoints that AI clients can read directly without calling tools.
 
-### Static Resources (25)
+### Static Resources
 
 | URI | Name | Description |
 |-----|------|-------------|
@@ -347,7 +347,7 @@ The MCP server exposes **47 resources** — data endpoints that AI clients can r
 | `schema://glossary/normalization-and-fingerprinting` | `glossary-normalization` | Canonical forms, deduplication, metadata identity |
 | `schema://glossary/tool-selection-guide` | `glossary-tool-selection` | Decision tree for choosing the right tool |
 
-### Templated Resources (22)
+### Templated Resources
 
 | URI Template | Name | Description |
 |-------------|------|-------------|
@@ -376,7 +376,7 @@ The MCP server exposes **47 resources** — data endpoints that AI clients can r
 
 ## Prompts
 
-The MCP server provides **33 prompts** — guided workflows that AI assistants can use to walk users through complex operations.
+The MCP server provides a library of prompts — guided workflows that AI assistants can use to walk users through complex operations.
 
 > The MCP server also returns **server instructions** during the `initialize` handshake, providing AI clients with capabilities overview, glossary resource URIs, and critical rules for schema registry operations.
 
@@ -575,7 +575,9 @@ Tokens are single-use, scoped to the exact operation, and expire after the confi
 
 ## Schema Intelligence
 
-The MCP server includes 9 deterministic, rule-based intelligence tools designed to support AI-assisted schema management workflows. These tools require no external AI services — all analysis is computed locally using the registry's own schema data.
+The MCP server includes deterministic, rule-based intelligence tools designed to support AI-assisted schema management workflows. These tools require no external AI services — all analysis is computed locally using the registry's own schema data.
+
+> All schema intelligence capabilities are also available as [REST API endpoints](api-reference.md#axonops-extensions) for use in CI/CD pipelines, custom tooling, and programmatic access.
 
 ### Field Search (`find_schemas_by_field`)
 

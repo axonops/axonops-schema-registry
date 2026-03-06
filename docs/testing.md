@@ -1,6 +1,6 @@
 # Testing Strategy
 
-Testing is a foundational pillar of AxonOps Schema Registry. The project maintains a multi-layered test suite with 1,436 Go test functions, 178 BDD feature files containing 2,670 scenarios, and ~97,000 lines of test code across Go and Gherkin. Every code change is validated across unit tests, integration tests, storage conformance tests, concurrency tests, BDD functional tests, API endpoint tests, authentication tests, KMS encryption tests, migration tests, MCP protocol tests, and multi-language Confluent wire-compatibility tests. The CI pipeline runs all of these against every supported storage backend on every push.
+Testing is a foundational pillar of AxonOps Schema Registry. The project maintains a comprehensive multi-layered test suite with extensive Go test functions, BDD feature files containing thousands of scenarios, and tens of thousands of lines of test code across Go and Gherkin. Every code change is validated across unit tests, integration tests, storage conformance tests, concurrency tests, BDD functional tests, API endpoint tests, authentication tests, KMS encryption tests, migration tests, MCP protocol tests, and multi-language Confluent wire-compatibility tests. The CI pipeline runs all of these against every supported storage backend on every push.
 
 This document explains the testing philosophy, describes every test layer in detail, and provides the exact commands and patterns needed to run, write, and extend tests.
 
@@ -99,8 +99,8 @@ The test suite is designed around three principles:
                    +--------------------+--------------------+
                                         |
               +-------------------------+-------------------------+
-              |            BDD Functional Tests                   |  178 feature files
-              |            (2,670 scenarios)                      |  2,670 scenarios
+              |            BDD Functional Tests                   |  Feature files
+              |            (thousands of scenarios)               |  All backends
               +---------+--------+--------+--------+-------------+
                         |        |        |        |
              +----------+  +-----+-----+  |  +----+-----+
@@ -166,7 +166,7 @@ Unit tests verify the internal logic of every package in `internal/` without any
 
 ### Where Unit Tests Live
 
-Every `_test.go` file inside `internal/` without a build tag is a unit test. Key files (54 test files, 1,224 test functions):
+Every `_test.go` file inside `internal/` without a build tag is a unit test. Key files:
 
 | File | Tests | What It Covers |
 |------|-------|----------------|
@@ -360,7 +360,7 @@ Build tag: `//go:build concurrency`
 
 ### What BDD Tests Test
 
-BDD (Behavior-Driven Development) tests use Gherkin feature files with [godog](https://github.com/cucumber/godog) to describe the system's behavior in plain English. With 178 feature files and 2,670 scenarios, they provide the most comprehensive functional coverage. They test every API endpoint, every compatibility rule for all three schema types, every error code, schema references, import operations, mode management, multi-tenant contexts, MCP tools/resources/prompts, MCP permissions, DEK/KEK encryption, exporter operations, data contracts, analysis endpoints, audit logging, rate limiting, and operational resilience (service restart, crash recovery).
+BDD (Behavior-Driven Development) tests use Gherkin feature files with [godog](https://github.com/cucumber/godog) to describe the system's behavior in plain English. They provide the most comprehensive functional coverage, testing every API endpoint, every compatibility rule for all three schema types, every error code, schema references, import operations, mode management, multi-tenant contexts, MCP tools/resources/prompts, MCP permissions, DEK/KEK encryption, exporter operations, data contracts, analysis endpoints, audit logging, rate limiting, and operational resilience (service restart, crash recovery).
 
 The BDD tests also serve as the primary mechanism for **Confluent conformance testing** -- the same feature files can be run against a real Confluent Schema Registry to verify behavioral parity.
 
@@ -383,7 +383,7 @@ tests/bdd/
 │   ├── contexts_*.feature        # Multi-tenant context features
 │   ├── ...
 │   ├── operational_resilience.feature
-│   └── mcp/                      # 43 MCP-specific .feature files (379 scenarios)
+│   └── mcp/                      # MCP-specific .feature files
 │       ├── mcp_tools.feature
 │       ├── mcp_resources.feature
 │       ├── mcp_prompts.feature
@@ -421,7 +421,7 @@ tests/bdd/
 
 ### Feature Files
 
-The 178 feature files are organized by functional area. The largest files by scenario count:
+The feature files are organized by functional area. The largest files by scenario count:
 
 | Feature File | Scenarios | Area |
 |-------------|-----------|------|
@@ -435,7 +435,7 @@ The 178 feature files are organized by functional area. The largest files by sce
 | `schema_avro_advanced.feature` | 40 | Advanced Avro schema features |
 | `compatibility_transitive.feature` | 40 | Transitive compatibility (3+ version chains) |
 
-MCP feature files (43 files, 379 scenarios):
+MCP feature files:
 
 | Feature File | Scenarios | Area |
 |-------------|-----------|------|
@@ -597,7 +597,7 @@ go test -tags bdd -v ./tests/bdd/... -godog.tags="@smoke"
 
 ### MCP Unit Tests
 
-MCP unit tests live in `internal/mcp/` (208 test functions across 8 files). They cover:
+MCP unit tests live in `internal/mcp/`. They cover:
 
 - Server initialization and options pattern
 - Tool registration and permission filtering
@@ -610,11 +610,11 @@ MCP unit tests live in `internal/mcp/` (208 test functions across 8 files). They
 
 ### MCP BDD Tests
 
-MCP BDD tests live in `tests/bdd/features/mcp/` (379 scenarios across 43 files). They use `InMemoryTransport` for protocol-level testing (no HTTP network I/O). They cover:
+MCP BDD tests live in `tests/bdd/features/mcp/`. They use `InMemoryTransport` for protocol-level testing (no HTTP network I/O). They cover:
 
-- All 107 tools: invocation, parameter validation, error handling
-- All 47 resources: static content and templated resolution
-- All 33 prompts: content validation and context parameter handling
+- All tools: invocation, parameter validation, error handling
+- All resources: static content and templated resolution
+- All prompts: content validation and context parameter handling
 - Permission scopes: readonly/developer/operator/admin/full presets
 - Workflow scenarios: 9 end-to-end prompt-guided workflows (45 scenarios)
 - Security: auth token validation, read-only mode enforcement

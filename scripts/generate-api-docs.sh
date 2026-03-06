@@ -89,6 +89,102 @@ perl -0777 -pe '
     s/\n{4,}/\n\n\n/g;
 ' "$TMPFILE" > "$TMPFILE2"
 
+# ── Append API Compatibility Reference section ────────────────────────
+#
+# Extract the x-compatibility marker from each tag in the OpenAPI spec
+# and generate grouped endpoint tables. Uses Node.js (already required
+# by this script for widdershins/redocly).
+
+{
+    node -e '
+        const fs = require("fs");
+        const yaml = require(require.resolve("yaml", {paths: [process.cwd(), __dirname]}));
+
+        const spec = yaml.parse(fs.readFileSync(process.argv[1], "utf8"));
+        const tags = spec.tags || [];
+
+        // Group tags by compatibility tier
+        const tiers = {
+            "confluent-community": { label: "Confluent Compatible (Community)", tags: {} },
+            "confluent-enterprise": { label: "Confluent Compatible (Enterprise)", tags: {} },
+            "axonops": { label: "AxonOps Extensions", tags: {} },
+        };
+
+        for (const t of tags) {
+            const compat = t["x-compatibility"] || "unknown";
+            if (tiers[compat]) {
+                let desc = t.description || "";
+                desc = desc.replace(/^\*\*Confluent compatible \(Community\)\.\*\*\s*/, "");
+                desc = desc.replace(/^\*\*Confluent compatible \(Enterprise\)\.\*\*\s*/, "");
+                desc = desc.replace(/^\*\*AxonOps extension\.\*\*\s*/, "");
+                tiers[compat].tags[t.name] = desc;
+            }
+        }
+
+        // Collect endpoints per tag
+        const tagEps = {};
+        for (const [path, methods] of Object.entries(spec.paths || {}).sort()) {
+            for (const [method, op] of Object.entries(methods).sort()) {
+                if (method.startsWith("x-") || method === "parameters") continue;
+                for (const tag of (op.tags || [])) {
+                    if (!tagEps[tag]) tagEps[tag] = [];
+                    tagEps[tag].push({
+                        method: method.toUpperCase(),
+                        path,
+                        summary: (op.summary || "").replace(/\|/g, "\\|"),
+                    });
+                }
+            }
+        }
+
+        let out = "\n---\n\n";
+        out += "## API Compatibility Reference\n\n";
+        out += "AxonOps Schema Registry implements the full Confluent Schema Registry API and\n";
+        out += "extends it with additional capabilities. Each endpoint group below indicates\n";
+        out += "its compatibility tier.\n\n";
+        out += "| Tier | Description |\n";
+        out += "|------|-------------|\n";
+        out += "| **Confluent Compatible (Community)** | Available in the free/open-source Confluent Schema Registry |\n";
+        out += "| **Confluent Compatible (Enterprise)** | Requires a Confluent Enterprise license — included free in AxonOps |\n";
+        out += "| **AxonOps Extension** | Unique to AxonOps Schema Registry |\n\n";
+
+        for (const [compat, tier] of Object.entries(tiers)) {
+            const tagNames = Object.keys(tier.tags).sort();
+            if (tagNames.length === 0) continue;
+
+            out += "### " + tier.label + "\n\n";
+            for (const tag of tagNames) {
+                const eps = tagEps[tag] || [];
+                out += "#### " + tag + "\n\n";
+                out += tier.tags[tag] + "\n\n";
+                if (eps.length > 0) {
+                    out += "| Method | Endpoint | Description |\n";
+                    out += "|--------|----------|-------------|\n";
+                    for (const ep of eps) {
+                        out += "| `" + ep.method + "` | `" + ep.path + "` | " + ep.summary + " |\n";
+                    }
+                    out += "\n";
+                }
+            }
+        }
+        process.stdout.write(out);
+    ' "$OPENAPI_SPEC" 2>/dev/null || {
+        # Fallback: if Node yaml module unavailable, generate a static section.
+        echo ""
+        echo "---"
+        echo ""
+        echo "## API Compatibility Reference"
+        echo ""
+        echo "AxonOps Schema Registry implements the full Confluent Schema Registry API and"
+        echo "extends it with additional capabilities. See the tag sections above for full"
+        echo "endpoint details. Each tag description indicates its compatibility tier:"
+        echo ""
+        echo "- **Confluent Compatible (Community):** Schemas, Subjects, Config, Mode, Compatibility, Metadata, Health"
+        echo "- **Confluent Compatible (Enterprise):** Import, Contexts, Exporters, DEK Registry"
+        echo "- **AxonOps Extension:** Analysis, Admin, Account, Documentation"
+    }
+} >> "$TMPFILE2"
+
 # ── Generate table of contents ────────────────────────────────────────
 #
 # Extract # and ## headings (outside code fences) and build a TOC.

@@ -7,6 +7,18 @@ info:
     multi-backend storage. It supports **Avro**, **Protobuf**, and **JSON Schema**
     formats for schema management.
 
+    ## API Compatibility
+
+    Each endpoint group is marked with its compatibility tier:
+
+    - **Confluent compatible (Community)** — available in the free/open-source
+      Confluent Schema Registry: Schemas, Subjects, Config, Mode, Compatibility,
+      Metadata, Health.
+    - **Confluent compatible (Enterprise)** — requires a Confluent Enterprise
+      license, included free in AxonOps: Import, Contexts, Exporters, DEK Registry.
+    - **AxonOps extension** — unique to AxonOps Schema Registry: Analysis, Admin,
+      Account, Documentation.
+
     ## Key Concepts
 
     - **Schema**: A versioned definition of a data structure (Avro record, Protobuf message,
@@ -55,84 +67,139 @@ servers:
     description: Local development server
 
 tags:
+  # ── Confluent Schema Registry (Community) Compatible ───────────────
   - name: Schemas
+    x-compatibility: confluent-community
     description: >-
-      Operations for retrieving schemas by their globally unique ID, listing all schemas,
-      and querying supported schema types. Every schema registered in the registry receives
-      a unique integer ID that persists across subjects.
+      **Confluent compatible (Community).** Operations for retrieving schemas by their
+      globally unique ID, listing all schemas, and querying supported schema types. Every
+      schema registered in the registry receives a unique integer ID that persists across
+      subjects.
   - name: Subjects
+    x-compatibility: confluent-community
     description: >-
-      Operations for managing subjects and their schema versions. A subject is a named scope
-      (typically corresponding to a Kafka topic) under which one or more schema versions are
-      registered. Subjects support soft-delete and permanent-delete semantics.
+      **Confluent compatible (Community).** Operations for managing subjects and their
+      schema versions. A subject is a named scope (typically corresponding to a Kafka topic)
+      under which one or more schema versions are registered. Subjects support soft-delete
+      and permanent-delete semantics.
   - name: Config
+    x-compatibility: confluent-community
     description: >-
-      Operations for managing compatibility configuration at the global and per-subject level.
-      The compatibility level determines what changes are permitted when registering a new
-      schema version. Supported levels are NONE, BACKWARD, BACKWARD_TRANSITIVE, FORWARD,
-      FORWARD_TRANSITIVE, FULL, and FULL_TRANSITIVE.
+      **Confluent compatible (Community).** Operations for managing compatibility
+      configuration at the global and per-subject level. The compatibility level determines
+      what changes are permitted when registering a new schema version. Supported levels are
+      NONE, BACKWARD, BACKWARD_TRANSITIVE, FORWARD, FORWARD_TRANSITIVE, FULL, and
+      FULL_TRANSITIVE.
   - name: Mode
+    x-compatibility: confluent-community
     description: >-
-      Operations for managing the registry mode at the global and per-subject level.
-      The mode controls whether schema registration (writes) is permitted. Supported modes
-      are READWRITE, READONLY, READONLY_OVERRIDE, and IMPORT.
+      **Confluent compatible (Community).** Operations for managing the registry mode at
+      the global and per-subject level. The mode controls whether schema registration (writes)
+      is permitted. Supported modes are READWRITE, READONLY, READONLY_OVERRIDE, and IMPORT.
   - name: Compatibility
+    x-compatibility: confluent-community
     description: >-
-      Operations for testing whether a candidate schema is compatible with existing schema
-      versions under a subject, without actually registering it.
-  - name: Import
-    description: >-
-      Operations for bulk-importing schemas from another schema registry, preserving original
-      schema IDs. This is used for migration scenarios.
-  - name: Exporters
-    description: >-
-      Operations for managing schema exporters. Exporters enable Schema Linking by replicating
-      schemas from one registry to another. Each exporter has a name, a context, an optional
-      subject filter, and configuration for connecting to the destination registry. Exporters
-      can be paused, resumed, and reset. This API follows the Confluent Schema Linking format.
-  - name: Contexts
-    description: >-
-      Operations for managing schema registry contexts. Contexts provide multi-tenant schema
-      isolation — each context has its own independent schema IDs, subjects, versions,
-      compatibility config, and modes. Subjects are qualified with a context prefix using the
-      Confluent-compatible format `:.contextname:subject`. All standard registry routes are
-      also available under `/contexts/{context}/...` for context-scoped access.
+      **Confluent compatible (Community).** Operations for testing whether a candidate
+      schema is compatible with existing schema versions under a subject, without actually
+      registering it.
   - name: Metadata
+    x-compatibility: confluent-community
     description: >-
-      Operations for retrieving registry metadata such as the cluster ID and server version.
-  - name: Account
-    description: >-
-      Self-service account endpoints for authenticated users to view their own profile and
-      change their password.
-  - name: Admin
-    description: >-
-      Administrative endpoints for managing users, API keys, and roles. These endpoints
-      require admin-level permissions.
+      **Confluent compatible (Community).** Operations for retrieving registry metadata
+      such as the cluster ID and server version.
   - name: Health
+    x-compatibility: confluent-community
     description: >-
-      Kubernetes-style health check endpoints for liveness, readiness, and startup probes.
-      These endpoints are unauthenticated and SHOULD be used for Kubernetes pod lifecycle
-      management. The liveness probe confirms the process is alive, the readiness probe
-      confirms the service can handle traffic (storage backend is reachable), and the
-      startup probe confirms initialization is complete.
+      **Confluent compatible (Community).** Kubernetes-style health check endpoints for
+      liveness, readiness, and startup probes. These endpoints are unauthenticated and SHOULD
+      be used for Kubernetes pod lifecycle management. The liveness probe confirms the process
+      is alive, the readiness probe confirms the service can handle traffic (storage backend
+      is reachable), and the startup probe confirms initialization is complete.
+  # ── Confluent Schema Registry (Enterprise) Compatible ──────────────
+  - name: Import
+    x-compatibility: confluent-enterprise
+    description: >-
+      **Confluent compatible (Enterprise).** Operations for bulk-importing schemas from
+      another schema registry, preserving original schema IDs. This is used for migration
+      scenarios. In Confluent, this feature requires an Enterprise license.
+  - name: Contexts
+    x-compatibility: confluent-enterprise
+    description: >-
+      **Confluent compatible (Enterprise).** Operations for managing schema registry
+      contexts. Contexts provide multi-tenant schema isolation — each context has its own
+      independent schema IDs, subjects, versions, compatibility config, and modes. Subjects
+      are qualified with a context prefix using the Confluent-compatible format
+      `:.contextname:subject`. All standard registry routes are also available under
+      `/contexts/{context}/...` for context-scoped access. In Confluent, this feature
+      requires an Enterprise license.
+  - name: Exporters
+    x-compatibility: confluent-enterprise
+    description: >-
+      **Confluent compatible (Enterprise).** Operations for managing schema exporters.
+      Exporters enable Schema Linking by replicating schemas from one registry to another.
+      Each exporter has a name, a context, an optional subject filter, and configuration for
+      connecting to the destination registry. Exporters can be paused, resumed, and reset.
+      This API follows the Confluent Schema Linking format. In Confluent, this feature
+      requires an Enterprise license.
   - name: DEK Registry
+    x-compatibility: confluent-enterprise
     description: >-
-      Operations for managing Data Encryption Keys (DEKs) and Key Encryption Keys (KEKs).
-      KEKs are top-level encryption keys identified by name, associated with a KMS provider.
-      DEKs are per-subject encryption keys managed under a KEK. The DEK Registry API follows
-      the Confluent Schema Registry DEK Registry format and uses the `/dek-registry/v1` prefix.
+      **Confluent compatible (Enterprise).** Operations for managing Data Encryption Keys
+      (DEKs) and Key Encryption Keys (KEKs). KEKs are top-level encryption keys identified by
+      name, associated with a KMS provider. DEKs are per-subject encryption keys managed
+      under a KEK. The DEK Registry API follows the Confluent Schema Registry DEK Registry
+      format and uses the `/dek-registry/v1` prefix. In Confluent, this feature requires an
+      Enterprise license.
+  # ── AxonOps Schema Registry Extensions ─────────────────────────────
   - name: Analysis
+    x-compatibility: axonops
     description: >-
-      Schema analysis endpoints for validation, normalization, quality scoring,
-      field search, similarity detection, compatibility suggestions, and registry-wide
+      **AxonOps extension.** Schema analysis endpoints for validation, normalization, quality
+      scoring, field search, similarity detection, compatibility suggestions, and registry-wide
       statistics. These endpoints are designed primarily to support AI-assisted schema
       management workflows via the MCP server, and are also available as a REST API for
       programmatic access, CI/CD pipelines, and custom tooling. All analysis operations
       are read-only and do not modify registry state.
-  - name: Documentation
+  - name: Admin
+    x-compatibility: axonops
     description: >-
-      Endpoints for serving the interactive API documentation (Swagger UI) and the raw
-      OpenAPI specification. Available only when the server is configured with docs_enabled.
+      **AxonOps extension.** Administrative endpoints for managing users, API keys, and roles.
+      These endpoints require admin-level permissions and are part of the AxonOps built-in
+      RBAC system.
+  - name: Account
+    x-compatibility: axonops
+    description: >-
+      **AxonOps extension.** Self-service account endpoints for authenticated users to view
+      their own profile and change their password.
+  - name: Documentation
+    x-compatibility: axonops
+    description: >-
+      **AxonOps extension.** Endpoints for serving the interactive API documentation (Swagger
+      UI) and the raw OpenAPI specification. Available only when the server is configured with
+      docs_enabled.
+
+x-tagGroups:
+  - name: Confluent Schema Registry Compatible (Community)
+    tags:
+      - Schemas
+      - Subjects
+      - Config
+      - Mode
+      - Compatibility
+      - Metadata
+      - Health
+  - name: Confluent Schema Registry Compatible (Enterprise)
+    tags:
+      - Import
+      - Contexts
+      - Exporters
+      - DEK Registry
+  - name: AxonOps Extensions
+    tags:
+      - Analysis
+      - Admin
+      - Account
+      - Documentation
 
 security:
   - basicAuth: []
