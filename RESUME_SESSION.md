@@ -2,13 +2,13 @@
 
 **Branch:** `feature/mcp`
 **Issue:** #267 — MCP Server for AI-Assisted Schema Management
-**Last Updated:** 2026-03-06 (NEWWORK.md Parts 1-11 complete)
+**Last Updated:** 2026-03-06 (Issue #287 complete, CI 37/37 green)
 
 ## Current Status
 
 **All phases COMPLETE — committed and pushed, CI fully green (37/37 jobs)**
-**NEWWORK.md completed:** All 11 parts implemented, tested, and committed.
-**Latest commit:** Part 10/11 — documentation audit and final verification
+**Latest commit:** `5d8ec48` — encryption workflow CI fix
+**Issue #287:** Complete — comprehensive format migration guidance with all 6 format-pair type mappings
 
 All code builds, all unit tests pass (`go build ./...`, `go vet ./...`, `go test ./internal/...`).
 
@@ -25,27 +25,22 @@ All code builds, all unit tests pass (`go build ./...`, `go vet ./...`, `go test
 | REST Analysis Endpoints | 26 | `internal/api/handlers/analysis.go` |
 | MCP Unit tests | 208 | 8 test files |
 | MCP BDD feature files | 43 | `tests/bdd/features/mcp/` |
-| MCP BDD scenarios | 379 | across 43 files |
+| MCP BDD scenarios | 384 | across 43 files |
 | REST Analysis BDD files | 9 | `tests/bdd/features/rest_*.feature` |
 | REST Analysis BDD scenarios | 113 | across 9 files |
-| **Total BDD scenarios** | **2670** | **across 177+ feature files** |
+| **Total BDD scenarios** | **2608** | **across 178 feature files** |
 | CI jobs | 37 | `.github/workflows/ci.yaml` |
 | Makefile test targets | 22 | `Makefile` |
 
-## NEWWORK.md Work (2026-03-06)
+## Recent Work (2026-03-06)
 
-| Part | Description | Commit |
-|------|-------------|--------|
-| 1 | Fix broken prompts (migrate-schemas, setup-encryption, debug-registration-error, context-management) | `8290205` |
-| 2 | Enhance content + add mcp-configuration glossary | `7ca0f16` |
-| 3 | Add 5 new glossary resources | `a65d6f6` |
-| 4 | Add 8 new prompts | `93b8980` |
-| 5 | Update server instructions (6 new URIs + 5 critical rules) | `0767709` |
-| 6 | Context feature integration (core-concepts note, contexts glossary MCP section) | `a847ca1` |
-| 7 | Permission scopes (14 scopes, 5 presets, tool mapping, Prometheus counter) | `32ae0cf` |
-| 8 | BDD workflow tests (45 scenarios, 9 feature files) | `0bf91ba` |
-| 9 | Documentation updates (mcp.md, configuration.md, security.md, deployment.md) | `3380d3e` |
-| 10 | Documentation audit (README counts, complete config example) | `40aba79` |
+| Phase | Description | Commit |
+|-------|-------------|--------|
+| 37 | Developer docs overhaul (CLAUDE.md, development.md, testing.md) | `6cdd230` |
+| 38 | Issue #287: migration prompt expansion + BDD fixes (8 workflow files) | `7ece464` |
+| 39 | gofmt CI fixes (permissions.go, metrics.go) | `ff62a67`+`01816d1` |
+| 40 | MCP reference with rendered prompt content in `<details>` blocks | `c512268` |
+| 41 | Encryption workflow CI fix (remove @kms, replace test_kek, explicit versions) | `5d8ec48` |
 
 ## Key Files
 

@@ -2,13 +2,14 @@
 
 **Branch:** `feature/mcp`
 **Issue:** https://github.com/axonops/axonops-schema-registry/issues/267
-**Last Updated:** 2026-03-06 (NEWWORK.md Parts 1-11 complete)
+**Last Updated:** 2026-03-06 (Issue #287 complete, CI 37/37 green)
 
-## Overall Status: IMPLEMENTATION COMPLETE — ALL COMMITTED
+## Overall Status: IMPLEMENTATION COMPLETE — ALL COMMITTED, CI GREEN
 
 All MCP server features are implemented, tested, and committed.
 Test suite hardening complete: all BDD tests run against database backends, CI has 37 jobs.
-NEWWORK.md completed: content fixes, 6 new glossary resources, 8 new prompts, permission scopes, 45 workflow BDD tests, documentation updates.
+Issue #287 complete: comprehensive format migration guidance with all 6 format-pair type mappings.
+MCP reference docs include rendered prompt content. All 37 CI jobs green on `5d8ec48`.
 
 ## Phase Tracker
 
@@ -66,6 +67,11 @@ NEWWORK.md completed: content fixes, 6 new glossary resources, 8 new prompts, pe
 | 34 | NEWWORK Part 8: BDD workflow tests | DONE | `0bf91ba` | 45 scenarios across 9 feature files |
 | 35 | NEWWORK Part 9: Documentation updates | DONE | `3380d3e` | mcp.md, configuration.md, security.md, deployment.md, mcp-reference.md |
 | 36 | NEWWORK Part 10: Documentation audit | DONE | `40aba79` | Verified all counts, updated README, added MCP to complete config example |
+| 37 | Developer docs overhaul | DONE | `6cdd230` | Rewrote CLAUDE.md, development.md, testing.md with accurate project state |
+| 38 | Issue #287: Migration prompt + BDD fixes | DONE | `7ece464` | Expanded migrate-schemas.md, fixed 8 workflow feature files, added `should be an error` step |
+| 39 | gofmt CI fixes | DONE | `ff62a67` | Fix pre-existing gofmt in permissions.go and metrics.go |
+| 40 | MCP reference with prompt content | DONE | `c512268` | Doc generator calls prompts/get, renders content in collapsible `<details>` blocks |
+| 41 | Encryption workflow CI fix | DONE | `5d8ec48` | Remove @kms tag, replace test_kek with list_keks, add explicit version to DEK ops |
 
 ## Verified Implementation Counts (from source audit)
 
@@ -236,9 +242,9 @@ type MCPConfig struct {
 | `quality_test.go` | 3 | Schema quality scoring |
 | `permissions_test.go` | 11 | Permission scopes, presets, precedence |
 
-### BDD Tests: 2670 scenarios across 177+ feature files
+### BDD Tests: 2608 scenarios across 178 feature files (make test-bdd-functional)
 
-#### MCP BDD Tests: 379 scenarios across 43 feature files
+#### MCP BDD Tests: 384 scenarios across 43 feature files
 
 | Feature File | Tag | Scenarios |
 |-------------|-----|-----------|
@@ -262,7 +268,7 @@ type MCPConfig struct {
 | `mcp_modeling_multiformat.feature` | `@mcp-modeling` | 6 |
 | `mcp_observability.feature` | `@mcp-observability` | 9 |
 | `mcp_resources.feature` | `@mcp-resources` | 19 |
-| `mcp_prompts.feature` | `@mcp-prompts` | 20 |
+| `mcp_prompts.feature` | `@mcp-prompts` | 26 |
 | `mcp_prompts_extended.feature` | `@mcp-prompts` | 8 |
 | `mcp_glossary.feature` | `@mcp-glossary` | 10 |
 | `mcp_security.feature` | `@mcp-security` | 4 |
@@ -290,7 +296,7 @@ type MCPConfig struct {
 | `rest_statistics.feature` | `@functional @analysis` | 11 |
 | `rest_analysis_edge_cases.feature` | `@functional @analysis` | 6 |
 
-### BDD Step Definitions: `tests/bdd/steps/mcp_steps.go` (695 lines)
+### BDD Step Definitions: `tests/bdd/steps/mcp_steps.go` (702 lines)
 
 Supports: tool calls (table + JSON input), tool listing, resource reads, prompt gets, error assertions.
 
@@ -322,6 +328,17 @@ make test
 ## Commit History (feature/mcp branch, newest first)
 
 ```
+5d8ec48 fix(bdd): fix encryption workflow tests for CI compatibility
+c512268 docs: include rendered prompt content in MCP reference
+ff62a67 style: fix gofmt formatting in metrics.go
+01816d1 style: fix gofmt formatting in permissions.go
+7ece464 feat(mcp): comprehensive format migration guidance and BDD fixes (#287)
+6cdd230 docs: overhaul CLAUDE.md, development.md, and testing.md with accurate project state
+a4b71ce docs: update PROGRESS.md and RESUME_SESSION.md with NEWWORK.md results
+40aba79 docs: add MCP section to complete config example, update README counts
+3380d3e docs: update MCP, configuration, security, and deployment documentation
+0bf91ba test(mcp): add 45 BDD workflow scenarios covering prompt-guided workflows
+...
 a1f9341 feat(mcp): add context support to resources and prompts
 1ec7ed6 docs: regenerate MCP API reference with context parameter
 c5b2370 refactor(mcp): extract glossary and prompt content to embedded markdown files
@@ -438,7 +455,7 @@ While the project had 2570 BDD scenarios, several critical gaps existed:
    - Handle `ErrVersionNotFound` as 404 (not 500) during concurrent soft-delete races on Cassandra
 
 ### CI Status
-All 37 CI jobs pass on commit `a978dbd`.
+All 37 CI jobs pass on commit `5d8ec48`.
 
 ## Key Technical Decisions
 
