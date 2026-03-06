@@ -20,7 +20,7 @@
 
 [AxonOps](https://axonops.com) Schema Registry is a **schema registry for Apache Kafka&reg;** that combines schema management with built-in AI integration. It stores versioned Avro, Protobuf, and JSON Schema definitions, validates compatibility between schema versions, and ensures producers and consumers agree on data formats — while also exposing a full [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server that lets AI assistants like Claude, Cursor, and VS Code Copilot directly query, analyze, and manage your schemas.
 
-Unlike Confluent Schema Registry, which uses Kafka itself (a special `_schemas` topic) as its storage backend, AxonOps Schema Registry **does not require Kafka** for storage -- it uses standard databases (PostgreSQL, MySQL, or Cassandra) while remaining **fully API-compatible** with Confluent's REST API, serializers, and client libraries. The built-in MCP server adds 105 tools, 21 resources, and 17 prompts that give AI assistants deep access to your schema registry — enabling AI-assisted schema design, quality scoring, compatibility troubleshooting, migration planning, and registry-wide analysis through natural language conversations.
+Unlike Confluent Schema Registry, which uses Kafka itself (a special `_schemas` topic) as its storage backend, AxonOps Schema Registry **does not require Kafka** for storage -- it uses standard databases (PostgreSQL, MySQL, or Cassandra) while remaining **fully API-compatible** with Confluent's REST API, serializers, and client libraries. The built-in MCP server adds 105 tools, 47 resources, and 33 prompts that give AI assistants deep access to your schema registry — enabling AI-assisted schema design, quality scoring, compatibility troubleshooting, migration planning, and registry-wide analysis through natural language conversations.
 
 <div align="center">
 
@@ -59,7 +59,7 @@ Unlike Confluent Schema Registry, which uses Kafka itself (a special `_schemas` 
 - **Enterprise Features, Zero Cost** -- RBAC, data contracts, CSFLE encryption, audit logging, and rate limiting are included free under Apache 2.0. With Confluent, these require a [commercial Enterprise license](https://docs.confluent.io/platform/current/installation/license.html).
 - **Strict Specification Compliance** -- enforces Avro, Protobuf, and JSON Schema specifications more faithfully than Confluent, catching invalid schemas at registration time rather than at runtime ([details](#strict-specification-compliance))
 - **Built-in API Documentation** -- OpenAPI spec with Swagger UI and ReDoc, always in sync with the codebase
-- **AI-Ready** -- built-in [MCP server](docs/mcp.md) with 105 tools, 21 resources, and 17 prompts for AI-assisted schema management via Claude, Cursor, VS Code Copilot, and other MCP-compatible clients
+- **AI-Ready** -- built-in [MCP server](docs/mcp.md) with 105 tools, 47 resources, and 33 prompts for AI-assisted schema management via Claude, Cursor, VS Code Copilot, and other MCP-compatible clients
 
 ## Feature Comparison
 
@@ -299,7 +299,7 @@ For the fingerprinting differences, schemas that Confluent stored as separate gl
 | [Encryption](docs/encryption.md) | DEK Registry, Client-Side Field Level Encryption (CSFLE), and KMS providers |
 | [Exporters](docs/exporters.md) | Schema Linking via exporter management API |
 | [MCP Server](docs/mcp.md) | AI-assisted schema management via Model Context Protocol |
-| [MCP API Reference](docs/mcp-reference.md) | Auto-generated reference for all 105 tools, 21 resources, and 17 prompts |
+| [MCP API Reference](docs/mcp-reference.md) | Auto-generated reference for all 105 tools, 47 resources, and 33 prompts |
 | [Troubleshooting](docs/troubleshooting.md) | Common issues, diagnostic commands, and error code reference |
 
 </div>

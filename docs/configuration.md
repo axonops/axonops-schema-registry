@@ -912,6 +912,26 @@ security:
       - schema_delete
       - config_update
     include_body: false
+
+# --- MCP Server (AI Assistant Access) -------------------------------------
+mcp:
+  enabled: false                      # Enable the MCP server
+  host: 127.0.0.1                    # Bind address (localhost for security)
+  port: 9081                          # MCP port (separate from REST)
+  auth_token: ""                      # Bearer token (empty = no auth)
+  read_only: false                    # Restrict to read-only tools
+  permission_preset: ""               # readonly | developer | operator | admin | full
+  permission_scopes: []               # Individual scopes (when no preset is set)
+  tool_policy: allow_all              # allow_all | deny_list | allow_list
+  allowed_tools: []                   # For allow_list policy
+  denied_tools: []                    # For deny_list policy
+  allowed_origins:                    # Origin header allowlist
+    - "http://localhost:*"
+    - "https://localhost:*"
+    - "vscode-webview://*"
+  require_confirmations: false        # Two-phase confirmations for destructive ops
+  confirmation_ttl: 300               # Confirmation token TTL (seconds)
+  log_schemas: false                  # Log full schema bodies (debug only)
 ```
 
 ---
