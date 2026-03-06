@@ -505,6 +505,9 @@ func (s *Server) handleSchemaByIDResource(ctx context.Context, req *gomcp.ReadRe
 	if err != nil {
 		return nil, fmt.Errorf("invalid schema ID %q: %w", idStr, err)
 	}
+	if id <= 0 {
+		return nil, fmt.Errorf("schema ID must be positive, got %d", id)
+	}
 	registryCtx := resolveResourceContext(req.Params.URI)
 	record, err := s.registry.GetSchemaByID(ctx, registryCtx, id)
 	if err != nil {
@@ -521,6 +524,9 @@ func (s *Server) handleSchemaSubjectsResource(ctx context.Context, req *gomcp.Re
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
 		return nil, fmt.Errorf("invalid schema ID %q: %w", idStr, err)
+	}
+	if id <= 0 {
+		return nil, fmt.Errorf("schema ID must be positive, got %d", id)
 	}
 	registryCtx := resolveResourceContext(req.Params.URI)
 	subjects, err := s.registry.GetSubjectsBySchemaID(ctx, registryCtx, id, false)

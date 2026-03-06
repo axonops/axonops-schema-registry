@@ -73,8 +73,16 @@ func (s *Server) isOriginAllowed(origin string) bool {
 }
 
 // originMatchesPattern checks if an origin matches a pattern.
-// The pattern may contain "*" wildcards that match any sequence of
-// characters. Matching is case-insensitive.
+// Supports "*" wildcards that match any sequence of characters within
+// URL components. Matching is case-insensitive.
+//
+// The pattern is split into scheme, host, and port parts for precise matching:
+//   - Scheme must match exactly (no wildcards in scheme)
+//   - Host wildcard "*" only matches within domain boundaries (segments split by ".")
+//   - Port wildcard "*" matches any port number
+//
+// This prevents subdomain spoofing: "*.example.com" will NOT match
+// "evil.example.com.attacker.com".
 func originMatchesPattern(pattern, origin string) bool {
 	p := strings.ToLower(pattern)
 	o := strings.ToLower(origin)
@@ -84,26 +92,72 @@ func originMatchesPattern(pattern, origin string) bool {
 		return p == o
 	}
 
-	// Split on "*" and ensure each part appears in order.
-	parts := strings.Split(p, "*")
-	idx := 0
-	for i, part := range parts {
-		if part == "" {
+	// Bare wildcard matches everything.
+	if p == "*" {
+		return true
+	}
+
+	// Split into scheme and authority (host:port).
+	pScheme, pAuthority := splitOrigin(p)
+	oScheme, oAuthority := splitOrigin(o)
+
+	// Scheme must match exactly.
+	if pScheme != oScheme {
+		return false
+	}
+
+	// Split authority into host and port.
+	pHost, pPort := splitHostPort(pAuthority)
+	oHost, oPort := splitHostPort(oAuthority)
+
+	// Match port: "*" matches any non-empty port, otherwise must match exactly.
+	if pPort == "*" {
+		if oPort == "" {
+			return false
+		}
+	} else if pPort != oPort {
+		return false
+	}
+
+	// Match host segments by domain boundary.
+	return matchHostPattern(pHost, oHost)
+}
+
+// splitOrigin splits "scheme://authority" into scheme and authority.
+func splitOrigin(origin string) (scheme, authority string) {
+	if idx := strings.Index(origin, "://"); idx >= 0 {
+		return origin[:idx], origin[idx+3:]
+	}
+	return "", origin
+}
+
+// splitHostPort splits "host:port" into host and port.
+func splitHostPort(authority string) (host, port string) {
+	if idx := strings.LastIndex(authority, ":"); idx >= 0 {
+		return authority[:idx], authority[idx+1:]
+	}
+	return authority, ""
+}
+
+// matchHostPattern matches a host pattern against an origin host using
+// domain-boundary-aware wildcard matching. The pattern is split on "."
+// and each segment is matched individually. A "*" segment matches exactly
+// one domain segment, preventing cross-boundary matching.
+func matchHostPattern(pattern, host string) bool {
+	pParts := strings.Split(pattern, ".")
+	oParts := strings.Split(host, ".")
+
+	if len(pParts) != len(oParts) {
+		return false
+	}
+
+	for i, pp := range pParts {
+		if pp == "*" {
 			continue
 		}
-		pos := strings.Index(o[idx:], part)
-		if pos < 0 {
+		if pp != oParts[i] {
 			return false
 		}
-		// First segment must be a prefix.
-		if i == 0 && pos != 0 {
-			return false
-		}
-		idx += pos + len(part)
-	}
-	// Last segment must be a suffix (unless pattern ends with *).
-	if last := parts[len(parts)-1]; last != "" {
-		return strings.HasSuffix(o, last)
 	}
 	return true
 }

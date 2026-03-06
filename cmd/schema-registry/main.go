@@ -297,8 +297,9 @@ func main() {
 	}
 
 	// Create rate limiter if enabled
+	var rateLimiter *auth.RateLimiter
 	if cfg.Security.RateLimiting.Enabled {
-		rateLimiter := auth.NewRateLimiter(cfg.Security.RateLimiting)
+		rateLimiter = auth.NewRateLimiter(cfg.Security.RateLimiting)
 		serverOpts = append(serverOpts, api.WithRateLimiter(rateLimiter))
 		logger.Info("rate limiting enabled",
 			slog.Int("requests_per_second", cfg.Security.RateLimiting.RequestsPerSecond),
@@ -396,6 +397,11 @@ func main() {
 			if err := auditLogger.Close(); err != nil {
 				logger.Error("audit logger close error", slog.String("error", err.Error()))
 			}
+		}
+
+		// Stop rate limiter cleanup goroutine
+		if rateLimiter != nil {
+			rateLimiter.Close()
 		}
 
 		// Stop auth service background goroutines

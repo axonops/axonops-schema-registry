@@ -248,9 +248,9 @@ func (p *LDAPProvider) mapGroupsToRole(groups []string) string {
 		// Try matching just the CN (common name)
 		cn := extractCN(group)
 		if cn != "" {
-			// Case-insensitive matching for CN
+			// Constant-time case-insensitive matching for CN
 			for pattern, role := range p.config.RoleMapping {
-				if strings.EqualFold(pattern, cn) || strings.EqualFold(pattern, group) {
+				if constantTimeEqualFold(pattern, cn) || constantTimeEqualFold(pattern, group) {
 					return role
 				}
 			}

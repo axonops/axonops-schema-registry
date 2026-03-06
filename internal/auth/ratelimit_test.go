@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/axonops/axonops-schema-registry/internal/config"
 )
@@ -53,6 +54,7 @@ func TestRateLimiter_PerClientLimit(t *testing.T) {
 		PerClient:         true,
 		PerEndpoint:       false,
 	})
+	defer rl.Close()
 
 	handler := rl.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -248,6 +250,88 @@ func TestTokenBucket_RefillsOverTime(t *testing.T) {
 	if bucket.remaining() > 1 {
 		t.Errorf("expected remaining ~0, got %d", bucket.remaining())
 	}
+}
+
+func TestRateLimiter_CleanupStaleClients(t *testing.T) {
+	rl := NewRateLimiter(config.RateLimitConfig{
+		Enabled:           true,
+		RequestsPerSecond: 10,
+		BurstSize:         10,
+		PerClient:         true,
+	})
+	defer rl.Close()
+
+	// Create some client buckets
+	handler := rl.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	for _, ip := range []string{"1.1.1.1:1", "2.2.2.2:2", "3.3.3.3:3"} {
+		req := httptest.NewRequest(http.MethodGet, "/test", nil)
+		req.RemoteAddr = ip
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, req)
+	}
+
+	rl.mu.Lock()
+	before := len(rl.clients)
+	rl.mu.Unlock()
+	if before != 3 {
+		t.Fatalf("expected 3 client buckets, got %d", before)
+	}
+
+	// Cleanup with 0 duration should remove all (all are "stale" relative to 0)
+	rl.CleanupStaleClients(0)
+
+	rl.mu.Lock()
+	after := len(rl.clients)
+	rl.mu.Unlock()
+	if after != 0 {
+		t.Errorf("expected 0 client buckets after cleanup, got %d", after)
+	}
+}
+
+func TestRateLimiter_CleanupPreservesRecentClients(t *testing.T) {
+	rl := NewRateLimiter(config.RateLimitConfig{
+		Enabled:           true,
+		RequestsPerSecond: 10,
+		BurstSize:         10,
+		PerClient:         true,
+	})
+	defer rl.Close()
+
+	handler := rl.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req.RemoteAddr = "1.1.1.1:1"
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	// Cleanup with large maxAge should preserve recent entries
+	rl.CleanupStaleClients(1 * time.Hour)
+
+	rl.mu.Lock()
+	after := len(rl.clients)
+	rl.mu.Unlock()
+	if after != 1 {
+		t.Errorf("expected 1 client bucket preserved, got %d", after)
+	}
+}
+
+func TestRateLimiter_Close(t *testing.T) {
+	rl := NewRateLimiter(config.RateLimitConfig{
+		Enabled:           true,
+		RequestsPerSecond: 10,
+		BurstSize:         10,
+		PerClient:         true,
+	})
+
+	// Close should not panic
+	rl.Close()
+	// Double close should not panic
+	rl.Close()
 }
 
 func TestSplitAndTrim(t *testing.T) {

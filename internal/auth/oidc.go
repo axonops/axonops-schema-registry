@@ -202,9 +202,9 @@ func (p *OIDCProvider) determineRole(claims map[string]interface{}) string {
 		if mappedRole, ok := p.config.RoleMapping[role]; ok {
 			return mappedRole
 		}
-		// Try case-insensitive match
+		// Try constant-time case-insensitive match
 		for pattern, mappedRole := range p.config.RoleMapping {
-			if strings.EqualFold(pattern, role) {
+			if constantTimeEqualFold(pattern, role) {
 				return mappedRole
 			}
 		}

@@ -99,6 +99,9 @@ func (s *Server) handleFindSchemasByField(ctx context.Context, _ *gomcp.CallTool
 	if threshold <= 0 {
 		threshold = 0.7
 	}
+	if threshold > 1.0 {
+		threshold = 1.0
+	}
 
 	var re *regexp.Regexp
 	if matchType == "regex" {
@@ -241,6 +244,9 @@ func (s *Server) handleFindSimilarSchemas(ctx context.Context, _ *gomcp.CallTool
 	threshold := input.Threshold
 	if threshold <= 0 {
 		threshold = 0.3
+	}
+	if threshold > 1.0 {
+		threshold = 1.0
 	}
 
 	registryCtx := resolveContext(input.Context)

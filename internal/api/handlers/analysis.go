@@ -101,6 +101,9 @@ func (h *Handler) SearchSchemas(w http.ResponseWriter, r *http.Request) {
 	if req.Limit <= 0 {
 		req.Limit = 50
 	}
+	if req.Limit > 1000 {
+		req.Limit = 1000
+	}
 
 	registryCtx := getRegistryContext(r)
 	subjects, err := h.registry.ListSubjects(r.Context(), registryCtx, false)
@@ -172,8 +175,14 @@ func (h *Handler) FindSchemasByField(w http.ResponseWriter, r *http.Request) {
 	if req.Threshold <= 0 {
 		req.Threshold = 0.6
 	}
+	if req.Threshold > 1.0 {
+		req.Threshold = 1.0
+	}
 	if req.Limit <= 0 {
 		req.Limit = 50
+	}
+	if req.Limit > 1000 {
+		req.Limit = 1000
 	}
 
 	registryCtx := getRegistryContext(r)
@@ -272,6 +281,9 @@ func (h *Handler) FindSchemasByType(w http.ResponseWriter, r *http.Request) {
 	if req.Limit <= 0 {
 		req.Limit = 50
 	}
+	if req.Limit > 1000 {
+		req.Limit = 1000
+	}
 
 	registryCtx := getRegistryContext(r)
 	subjects, err := h.registry.ListSubjects(r.Context(), registryCtx, false)
@@ -344,8 +356,14 @@ func (h *Handler) FindSimilarSchemas(w http.ResponseWriter, r *http.Request) {
 	if req.Threshold <= 0 {
 		req.Threshold = 0.3
 	}
+	if req.Threshold > 1.0 {
+		req.Threshold = 1.0
+	}
 	if req.Limit <= 0 {
 		req.Limit = 10
+	}
+	if req.Limit > 1000 {
+		req.Limit = 1000
 	}
 
 	registryCtx := getRegistryContext(r)
@@ -614,6 +632,9 @@ func (h *Handler) MatchSubjects(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.Threshold <= 0 {
 		req.Threshold = 0.6
+	}
+	if req.Threshold > 1.0 {
+		req.Threshold = 1.0
 	}
 
 	registryCtx := getRegistryContext(r)

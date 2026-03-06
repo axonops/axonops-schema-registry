@@ -294,12 +294,23 @@ type listSchemasInput struct {
 }
 
 func (s *Server) handleListSchemas(ctx context.Context, _ *gomcp.CallToolRequest, input listSchemasInput) (*gomcp.CallToolResult, any, error) {
+	offset := input.Offset
+	if offset < 0 {
+		offset = 0
+	}
+	limit := input.Limit
+	if limit <= 0 {
+		limit = 100
+	}
+	if limit > 1000 {
+		limit = 1000
+	}
 	params := &storage.ListSchemasParams{
 		SubjectPrefix: input.SubjectPrefix,
 		Deleted:       input.Deleted,
 		LatestOnly:    input.LatestOnly,
-		Offset:        input.Offset,
-		Limit:         input.Limit,
+		Offset:        offset,
+		Limit:         limit,
 	}
 	schemas, err := s.registry.ListSchemas(ctx, resolveContext(input.Context), params)
 	if err != nil {

@@ -3246,6 +3246,16 @@ func TestOriginMatchesPattern(t *testing.T) {
 		{"http://*.example.com", "http://evil.example.com", true},
 		{"http://*.example.com", "http://app.other.com", false},
 
+		// Subdomain spoofing prevention (security fix #297)
+		{"http://*.example.com", "http://evil.example.com.attacker.com", false},
+		{"http://*.example.com", "http://example.com", false}, // wildcard requires a segment
+		{"https://*.example.com:*", "https://app.example.com:443", true},
+		{"https://*.example.com:*", "https://app.example.com", false}, // port wildcard requires port
+
+		// Multi-level subdomain
+		{"http://*.*.example.com", "http://a.b.example.com", true},
+		{"http://*.*.example.com", "http://a.example.com", false},
+
 		// No match
 		{"http://localhost:*", "https://evil.com", false},
 	}
