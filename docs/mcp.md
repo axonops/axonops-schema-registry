@@ -292,7 +292,7 @@ The MCP server exposes a comprehensive set of tools organized by functional area
 
 All schema, subject, config, mode, validation, comparison, intelligence, and metadata tools accept an optional `context` parameter for multi-tenant isolation. When omitted, the default context (`.`) is used. Schemas registered in one context are invisible to queries in another context.
 
-**Tools that accept `context`:** All tools in the schema read, schema write, config, validation, comparison, intelligence, and metadata categories (78 tools total).
+**Tools that accept `context`:** All tools in the schema read, schema write, config, validation, comparison, intelligence, and metadata categories.
 
 **Tools that do NOT accept `context`:** `health_check`, `get_server_info`, `get_schema_types`, `list_contexts`, `validate_subject_name`, and all KEK/DEK, exporter, and admin tools.
 
@@ -479,11 +479,11 @@ mcp:
   read_only: true
 ```
 
-This hides all 34 write/delete tools from discovery and blocks their execution. Only the 71 read-only tools remain available.
+This hides all write/delete tools from discovery and blocks their execution. Only read-only tools remain available.
 
 ### Permission Scopes
 
-Permission scopes provide RBAC-style access control for MCP tools. 14 scopes mirror the REST RBAC taxonomy:
+Permission scopes provide RBAC-style access control for MCP tools. Scopes mirror the REST RBAC taxonomy:
 
 `schema_read`, `schema_write`, `schema_delete`, `config_read`, `config_write`, `mode_read`, `mode_write`, `import`, `encryption_read`, `encryption_write`, `exporter_read`, `exporter_write`, `admin_read`, `admin_write`
 
@@ -725,7 +725,7 @@ The `Origin` header does not match `mcp.allowed_origins`. Add your client's orig
 
 ### Tools not appearing
 
-- **Read-only mode**: 34 write tools are hidden when `mcp.read_only: true`
+- **Read-only mode**: Write tools are hidden when `mcp.read_only: true`
 - **Permission scopes**: Check `permission_preset` or `permission_scopes` — tools outside the allowed scopes are hidden
 - **Tool policy**: Check `tool_policy`, `allowed_tools`, and `denied_tools` configuration
 - **Auth**: Admin tools (user/API key management) only appear when auth is configured
