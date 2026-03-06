@@ -123,20 +123,20 @@ internal/
     cassandra/                    Cassandra backend
     vault/                        HashiCorp Vault auth storage
 tests/
-  api/                            External black-box API tests (38 tests)
-  bdd/                            BDD/Cucumber tests (178 feature files, 2,670 scenarios)
-    features/                     135 top-level feature files
-    features/mcp/                 43 MCP-specific feature files (379 scenarios)
-    steps/                        11 step definition files
+  api/                            External black-box API tests
+  bdd/                            BDD/Cucumber tests (feature files + scenarios)
+    features/                     Top-level feature files
+    features/mcp/                 MCP-specific feature files
+    steps/                        Step definition files
     configs/                      Per-backend config (memory, postgres, mysql, cassandra)
-    docker-compose*.yml           9 Docker Compose files
-  integration/                    Integration tests (66 tests across 6 files)
-  concurrency/                    Concurrency tests (29 tests)
+    docker-compose*.yml           Docker Compose files for test backends
+  integration/                    Integration tests
+  concurrency/                    Concurrency tests
   storage/conformance/            Storage conformance suite (shared across all backends)
-  migration/                      Migration tests (5 tests + shell scripts)
+  migration/                      Migration tests
   compatibility/
-    go/                           Go serializer tests (31 tests)
-    go-serde/                     Go SerDe data contract + CSFLE tests (30 tests, 7 files)
+    go/                           Go serializer tests
+    go-serde/                     Go SerDe data contract + CSFLE tests
     java/                         Java Confluent SerDe tests (wire compat + data contracts + CSFLE)
     python/                       Python serializer tests
 api/
@@ -161,7 +161,7 @@ Runs `go test -race -v -timeout 5m ./...`. No Docker or external services requir
 
 ### BDD Tests
 
-BDD tests use Gherkin feature files with [godog](https://github.com/cucumber/godog) and cover all API endpoints, compatibility rules, error codes, MCP tools/resources/prompts, permissions, encryption, exporters, data contracts, and operational resilience across 178 feature files and 2,670 scenarios.
+BDD tests use Gherkin feature files with [godog](https://github.com/cucumber/godog) and cover all API endpoints, compatibility rules, error codes, MCP tools/resources/prompts, permissions, encryption, exporters, data contracts, and operational resilience.
 
 ```bash
 make test-bdd                        # In-process, memory backend (no Docker)
