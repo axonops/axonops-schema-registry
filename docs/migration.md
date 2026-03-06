@@ -38,8 +38,8 @@ Before starting the migration, ensure the following are in place:
 |-------------|---------|
 | Source registry | A running Confluent Schema Registry with network access from the machine running the migration script. |
 | Target registry | A running AxonOps Schema Registry instance with a configured storage backend. |
-| Tools | `curl` and `jq` must be installed on the machine running the migration script. |
-| Target mode | The target registry must be set to `IMPORT` mode before importing schemas. IMPORT mode allows schemas to be registered with specific IDs and bypasses compatibility checking. |
+| Tools | `curl` and `jq` MUST be installed on the machine running the migration script. |
+| Target mode | The target registry MUST be set to `IMPORT` mode before importing schemas. IMPORT mode allows schemas to be registered with specific IDs and bypasses compatibility checking. |
 
 ## Migration Script
 
@@ -87,7 +87,7 @@ The import endpoint accepts a batch of schemas with explicit IDs and versions.
 
 **Endpoint:** `POST /import/schemas`
 
-The target registry must be in `IMPORT` mode. Set the mode before importing:
+The target registry MUST be in `IMPORT` mode. Set the mode before importing:
 
 ```bash
 curl -X PUT http://localhost:8082/mode \
@@ -158,7 +158,7 @@ Each result object contains:
 - **Schema IDs are preserved exactly.** The ID specified in the request is the ID stored in the target registry.
 - **Same content with the same ID across different subjects is allowed.** This is normal when multiple subjects reference the same underlying schema.
 - **Different content with the same ID is rejected.** The import returns an error for that schema (`ErrSchemaIDConflict`).
-- **References are resolved during import.** Referenced schemas must be imported before the schemas that depend on them. The migration script handles this by sorting schemas by ID.
+- **References are resolved during import.** Referenced schemas MUST be imported before the schemas that depend on them. The migration script handles this by sorting schemas by ID.
 - **Compatibility checking is bypassed.** IMPORT mode disables compatibility checks, allowing the exact historical schema sequence to be reproduced.
 - **The ID sequence is adjusted after import.** The registry updates its internal ID counter to start after the highest imported ID, preventing conflicts with future registrations.
 
@@ -178,7 +178,7 @@ An empty JSON object `{}` confirms the registry is healthy.
 
 ### 2. Set the Target to IMPORT Mode
 
-IMPORT mode must be enabled before importing schemas with specific IDs:
+IMPORT mode MUST be enabled before importing schemas with specific IDs:
 
 ```bash
 curl -X PUT http://localhost:8082/mode \

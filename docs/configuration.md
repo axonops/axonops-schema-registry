@@ -337,7 +337,7 @@ security:
 
 ### Bootstrap Admin User
 
-Creates an initial admin user on startup when the users table is empty. Designed for first-run provisioning. The password should always be set via the `SCHEMA_REGISTRY_BOOTSTRAP_PASSWORD` environment variable rather than in the configuration file.
+Creates an initial admin user on startup when the users table is empty. Designed for first-run provisioning. The password SHOULD always be set via the `SCHEMA_REGISTRY_BOOTSTRAP_PASSWORD` environment variable rather than in the configuration file.
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
@@ -378,7 +378,7 @@ security:
 | `security.auth.api_key.header` | string | `"X-API-Key"` | HTTP header used to transmit the API key. |
 | `security.auth.api_key.query_param` | string | `"api_key"` | Query parameter name accepted as an alternative to the header. |
 | `security.auth.api_key.storage_type` | string | `""` | Where API keys are stored. Values: `memory`, `database`. |
-| `security.auth.api_key.secret` | string | `""` | HMAC-SHA256 pepper for hashing API keys before storage. Provides defense-in-depth: even if the database is compromised, keys cannot be verified without this secret. Use at least 32 bytes of random data. If empty, falls back to plain SHA-256 hashing. |
+| `security.auth.api_key.secret` | string | `""` | HMAC-SHA256 pepper for hashing API keys before storage. Provides defense-in-depth: even if the database is compromised, keys cannot be verified without this secret. SHOULD be at least 32 bytes of random data. If empty, falls back to plain SHA-256 hashing. |
 | `security.auth.api_key.key_prefix` | string | `"sr_"` | Prefix prepended to generated API keys for identification (e.g., `sr_live_abc123`). |
 | `security.auth.api_key.cache_refresh_seconds` | int | `60` | How often (seconds) the in-memory API key cache is refreshed from the database. Ensures cluster-wide consistency. Set to `0` to disable caching. |
 
