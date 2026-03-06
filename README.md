@@ -100,7 +100,7 @@ Unlike Confluent Schema Registry, which uses Kafka itself (a special `_schemas` 
 | [**DEK Registry (CSFLE)**](docs/encryption.md) | ✅ | ❌ | ✅ | ❌ |
 | [**KMS Providers**](docs/encryption.md) | 2 + 3 &sup1; | ❌ | ✅ | ❌ |
 | [**Exporter API**](docs/exporters.md) &sup2; | ✅ | ❌ | ✅ | ❌ |
-| [**Extra REST APIs**](docs/api-reference.md#axonops-extensions) &sup5; | ✅ | ❌ | ❌ | ❌ |
+| [**Extra REST APIs**](docs/api-reference.md#axonops-extensions) ⁵ | ✅ | ❌ | ❌ | ❌ |
 | [**MCP Server (AI)**](docs/mcp.md) | ✅ | ❌ | ❌ | ❌ |
 | **Single Binary** | ✅ | ❌ | ❌ | ❌ |
 | **Memory Footprint** | ~50MB | ~500MB+ | ~500MB+ | ~200MB+ |
@@ -115,7 +115,7 @@ Unlike Confluent Schema Registry, which uses Kafka itself (a special `_schemas` 
 
 ⁴ Karapace uses its own ACL-based credential mechanism rather than standard HTTP Basic Authentication.
 
-⁵ AxonOps-exclusive REST APIs beyond the Confluent-compatible surface: schema analysis & quality scoring, field/type search, similarity detection, compatibility suggestions, migration planning, registry statistics, user & API key admin, self-service account management, and built-in API documentation. See [AxonOps Extensions](#axonops-extensions).
+⁵ AxonOps-exclusive REST APIs beyond the Confluent-compatible surface: schema analysis and quality scoring, field/type search, similarity detection, compatibility suggestions, migration planning, registry statistics, user and API key admin, self-service account management, and built-in API documentation. See [AxonOps Extensions](#axonops-extensions).
 
 > **In short:** AxonOps gives you **every Confluent REST API** (Community + Enterprise) plus **many extra AxonOps-exclusive REST endpoints** and a **built-in MCP server** — all under the Apache 2.0 license, in a single ~50 MB binary, with no Kafka dependency for storage. You get Confluent Enterprise-grade capabilities (data contracts, client-side encryption, RBAC, audit logging, multi-tenant contexts, rate limiting) **and** advanced schema analysis, quality scoring, field search, similarity detection, and AI-assisted schema management that no other registry offers. If you need enterprise support, [AxonOps](https://axonops.com) offers commercial support plans.
 
