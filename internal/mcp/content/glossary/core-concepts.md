@@ -28,6 +28,8 @@ A **subject** is a named scope under which schema versions are registered. Subje
 
 Example: topic "orders" has subjects "orders-key" and "orders-value".
 
+Subjects exist within a **context** (default "."). All MCP tools accept an optional `context` parameter for multi-tenant isolation. See `schema://glossary/contexts` for details.
+
 ## Subject Naming Strategies
 
 The naming strategy controls how subject names are derived from Kafka topics and schemas:

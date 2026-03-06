@@ -30,8 +30,38 @@ To check effective mode: **get_mode** with a subject name returns the resolved v
 - Use **import_schemas** to bulk import schemas with preserved IDs
 - Reset mode after import: **set_mode** with mode READWRITE
 
-## Resources
-- `schema://contexts` — list all contexts
-- `schema://contexts/{context}/subjects` — subjects in a specific context
+## Context-Scoped Resources (11 URI templates)
 
-Available tools: list_contexts, get_config, set_config, delete_config, get_mode, set_mode, delete_mode, import_schemas
+| URI Template | Description |
+|-------------|-------------|
+| `schema://contexts/{context}/subjects` | Subjects in a specific context |
+| `schema://contexts/{context}/config` | Global config for a context |
+| `schema://contexts/{context}/mode` | Global mode for a context |
+| `schema://contexts/{context}/subjects/{subject}` | Subject details within a context |
+| `schema://contexts/{context}/subjects/{subject}/versions` | Subject versions |
+| `schema://contexts/{context}/subjects/{subject}/versions/{version}` | Version detail |
+| `schema://contexts/{context}/subjects/{subject}/config` | Subject config |
+| `schema://contexts/{context}/subjects/{subject}/mode` | Subject mode |
+| `schema://contexts/{context}/schemas/{id}` | Schema by ID |
+| `schema://contexts/{context}/schemas/{id}/subjects` | Schema subjects |
+| `schema://contexts/{context}/schemas/{id}/versions` | Schema versions |
+
+Non-context-prefixed URIs (e.g., `schema://subjects`) use the default context.
+
+## Working with Contexts via MCP
+
+78+ tools accept the optional `context` parameter for multi-tenant isolation:
+```json
+{"subject": "orders-value", "context": ".staging"}
+```
+
+7 prompts accept a `context` argument: evolve-schema, check-compatibility, review-schema-quality, plan-breaking-change, setup-data-contracts, audit-subject-history, schema-impact-analysis.
+
+**Typical workflow:**
+1. **list_contexts** -- see available contexts
+2. **list_subjects** with `context` -- browse context subjects
+3. **register_schema** with `context` -- register in context
+4. **get_config** with `context` -- check context config
+5. Browse via `schema://contexts/{context}/subjects` resource
+
+Available tools: list_contexts, get_config, set_config, delete_config, get_mode, set_mode, delete_mode, import_schemas, list_subjects, register_schema

@@ -279,3 +279,7 @@ Feature: MCP Prompts — Pre-Built Conversation Templates
     And the MCP prompt result should contain "READWRITE"
     And the MCP prompt result should contain "highest precedence"
     And the MCP prompt result should contain "lowest precedence"
+    And the MCP prompt result should contain "schema://contexts/{context}/subjects"
+    And the MCP prompt result should contain "schema://contexts/{context}/schemas/{id}"
+    And the MCP prompt result should contain "78+ tools"
+    And the MCP prompt result should contain "register_schema"

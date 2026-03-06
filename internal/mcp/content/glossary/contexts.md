@@ -63,14 +63,44 @@ To check the effective (resolved) config: **get_config** with a subject returns 
 | **Schema Linking** | Confluent Schema Linking uses contexts for cross-cluster replication |
 | **Multi-tenant SaaS** | Each tenant gets a dedicated namespace |
 
+## Context Support in MCP
+
+### Tools (78+ accept `context`)
+
+All schema, config, and mode tools accept an optional `context` parameter. Tools that do NOT accept context are system tools: `health_check`, `get_server_info`, `get_server_version`, `get_cluster_id`, `get_schema_types`, `get_registry_statistics`.
+
+**Example:**
+```json
+{"subject": "orders-value", "schema": "{\"type\":\"string\"}", "context": ".staging"}
+```
+
+### Context-Scoped Resources (11 URI templates)
+
+| URI Template | Description |
+|-------------|-------------|
+| `schema://contexts/{context}/subjects` | Subjects in a specific context |
+| `schema://contexts/{context}/config` | Global config for a context |
+| `schema://contexts/{context}/mode` | Global mode for a context |
+| `schema://contexts/{context}/subjects/{subject}` | Subject details within a context |
+| `schema://contexts/{context}/subjects/{subject}/versions` | Subject versions within a context |
+| `schema://contexts/{context}/subjects/{subject}/versions/{version}` | Version detail within a context |
+| `schema://contexts/{context}/subjects/{subject}/config` | Subject config within a context |
+| `schema://contexts/{context}/subjects/{subject}/mode` | Subject mode within a context |
+| `schema://contexts/{context}/schemas/{id}` | Schema by ID within a context |
+| `schema://contexts/{context}/schemas/{id}/subjects` | Schema subjects within a context |
+| `schema://contexts/{context}/schemas/{id}/versions` | Schema versions within a context |
+
+Non-context-prefixed URIs (e.g., `schema://subjects`) default to the default context.
+
+### Prompts (7 accept `context` argument)
+
+`evolve-schema`, `check-compatibility`, `review-schema-quality`, `plan-breaking-change`, `setup-data-contracts`, `audit-subject-history`, `schema-impact-analysis`
+
+When a `context` argument is provided, these prompts enrich their responses with data from the specified context.
+
 ## MCP Tools
 
 - **list_contexts** -- list all contexts
 - **get_config / set_config / delete_config** -- manage compatibility per context/subject
 - **get_mode / set_mode / delete_mode** -- manage modes per context/subject
 - **list_subjects** -- list subjects in a context
-
-## MCP Resources
-
-- schema://contexts -- list all contexts
-- schema://contexts/{context}/subjects -- subjects in a specific context

@@ -15,6 +15,8 @@ Feature: MCP Glossary Resources — Domain Knowledge for AI Assistants
     And the MCP resource result should contain "Schema IDs"
     And the MCP resource result should contain "Wire Format"
     And the MCP resource result should contain "Deduplication"
+    And the MCP resource result should contain "context"
+    And the MCP resource result should contain "schema://glossary/contexts"
 
   Scenario: Read compatibility glossary
     When I read MCP resource "schema://glossary/compatibility"
@@ -42,6 +44,15 @@ Feature: MCP Glossary Resources — Domain Knowledge for AI Assistants
     Then the MCP resource result should contain "multi-tenant"
     And the MCP resource result should contain "__GLOBAL"
     And the MCP resource result should contain "4-Tier"
+
+  Scenario: Read contexts glossary has MCP support section
+    When I read MCP resource "schema://glossary/contexts"
+    Then the MCP resource result should contain "Context Support in MCP"
+    And the MCP resource result should contain "78+"
+    And the MCP resource result should contain "schema://contexts/{context}/subjects"
+    And the MCP resource result should contain "schema://contexts/{context}/schemas/{id}"
+    And the MCP resource result should contain "evolve-schema"
+    And the MCP resource result should contain "check-compatibility"
 
   Scenario: Read exporters glossary
     When I read MCP resource "schema://glossary/exporters"
