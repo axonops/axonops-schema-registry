@@ -95,7 +95,7 @@
 | 75 | `list_users` | Yes | List all users in the schema registry. |
 | 76 | `list_versions` | Yes | List all version numbers registered for a subject |
 | 77 | `lookup_schema` | Yes | Check if a schema is already registered under a subject. Returns the existing schema record if found. |
-| 78 | `match_subjects` | Yes | Find subjects matching a pattern. Regex mode compiles as Go regex. Glob mode uses wildcard matching (case-insensitive... |
+| 78 | `match_subjects` | Yes | Find subjects matching a pattern. Regex mode (regex=true) compiles as Go regex. Default mode uses case-sensitive subs... |
 | 79 | `normalize_schema` | Yes | Parse and normalize a schema, returning the canonical form and fingerprint for deduplication. |
 | 80 | `pause_exporter` |  | Pause a running exporter. The exporter retains its current offset and can be resumed later. |
 | 81 | `plan_migration_path` | Yes | Compute a multi-step migration plan from a source schema to a target schema, decomposed into individually compatible ... |
@@ -150,6 +150,7 @@ Check if a schema is compatible with existing versions of a subject according to
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
+| `context` | string |  |  |
 | `references` | [null array] |  |  |
 | `schema` | string | Yes |  |
 | `schema_type` | string |  |  |
@@ -168,6 +169,7 @@ Check schema compatibility against multiple subjects at once, returning per-subj
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
+| `context` | string |  |  |
 | `references` | [null array] |  |  |
 | `schema` | string | Yes |  |
 | `schema_type` | string |  |  |
@@ -185,6 +187,7 @@ Check if a field name is used with the same type across all schemas. Generates n
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
+| `context` | string |  |  |
 | `field` | string | Yes |  |
 
 ---
@@ -199,6 +202,7 @@ Check if write operations are allowed for a subject. Returns the blocking mode n
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
+| `context` | string |  |  |
 | `subject` | string |  |  |
 
 ---
@@ -213,6 +217,7 @@ Compare the latest schemas of two different subjects, showing structural differe
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
+| `context` | string |  |  |
 | `subject_a` | string | Yes |  |
 | `subject_b` | string | Yes |  |
 
@@ -223,6 +228,12 @@ Compare the latest schemas of two different subjects, showing structural differe
 Count the total number of registered subjects in the registry.
 
 **Annotations:** read-only
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `context` | string |  |  |
 
 ---
 
@@ -236,6 +247,7 @@ Count the number of schema versions registered for a subject.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
+| `context` | string |  |  |
 | `subject` | string | Yes |  |
 
 ---
@@ -344,6 +356,7 @@ Delete the compatibility configuration for a subject (reverts to global default)
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `confirm_token` | string |  |  |
+| `context` | string |  |  |
 | `dry_run` | boolean |  |  |
 | `subject` | string |  |  |
 
@@ -404,6 +417,7 @@ Delete the mode for a subject (reverts to global default) or delete the global m
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
+| `context` | string |  |  |
 | `subject` | string |  |  |
 
 ---
@@ -417,6 +431,7 @@ Delete a subject and all its schema versions. Soft-deletes by default; use perma
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `confirm_token` | string |  |  |
+| `context` | string |  |  |
 | `dry_run` | boolean |  |  |
 | `permanent` | boolean |  |  |
 | `subject` | string | Yes |  |
@@ -446,6 +461,7 @@ Delete a specific schema version. Soft-deletes by default; use permanent=true fo
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `confirm_token` | string |  |  |
+| `context` | string |  |  |
 | `dry_run` | boolean |  |  |
 | `permanent` | boolean |  |  |
 | `subject` | string | Yes |  |
@@ -459,6 +475,12 @@ Scan the registry to detect naming patterns, common field groups, and evolution 
 
 **Annotations:** read-only
 
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `context` | string |  |  |
+
 ---
 
 #### `diff_schemas`
@@ -471,6 +493,7 @@ Diff two schema versions within a subject, showing added, removed, and type-chan
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
+| `context` | string |  |  |
 | `subject` | string | Yes |  |
 | `version_from` | integer | Yes |  |
 | `version_to` | integer | Yes |  |
@@ -487,6 +510,7 @@ Run a compatibility check and provide detailed, human-readable explanations of a
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
+| `context` | string |  |  |
 | `references` | [null array] |  |  |
 | `schema` | string | Yes |  |
 | `schema_type` | string |  |  |
@@ -505,6 +529,7 @@ Export a single schema version with its configuration and metadata in a portable
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
+| `context` | string |  |  |
 | `subject` | string | Yes |  |
 | `version` | integer | Yes |  |
 
@@ -520,6 +545,7 @@ Export all schema versions for a subject with configuration and metadata.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
+| `context` | string |  |  |
 | `subject` | string | Yes |  |
 
 ---
@@ -534,6 +560,7 @@ Find all schemas containing a field with the given name. Exact mode auto-generat
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
+| `context` | string |  |  |
 | `field` | string | Yes |  |
 | `match_type` | string |  |  |
 | `threshold` | number |  |  |
@@ -550,6 +577,7 @@ Find all schemas containing fields of a given type (e.g., 'int', 'string', 'reco
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
+| `context` | string |  |  |
 | `regex` | boolean |  |  |
 | `type_pattern` | string | Yes |  |
 
@@ -565,6 +593,7 @@ Find schemas structurally similar to a given subject using Jaccard similarity co
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
+| `context` | string |  |  |
 | `subject` | string | Yes |  |
 | `threshold` | number |  |  |
 
@@ -580,6 +609,7 @@ Format a schema by subject and version. Supported formats depend on schema type.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
+| `context` | string |  |  |
 | `format` | string |  |  |
 | `subject` | string | Yes |  |
 | `version` | integer | Yes |  |
@@ -618,6 +648,7 @@ Get the compatibility configuration for a subject or the global default. Omit su
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
+| `context` | string |  |  |
 | `subject` | string |  |  |
 
 ---
@@ -632,6 +663,7 @@ Get the full configuration record for a subject or global default, including met
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
+| `context` | string |  |  |
 | `subject` | string |  |  |
 
 ---
@@ -664,6 +696,7 @@ Build a dependency graph for a subject-version, showing all schemas that referen
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
+| `context` | string |  |  |
 | `max_depth` | integer |  |  |
 | `subject` | string | Yes |  |
 | `version` | integer | Yes |  |
@@ -718,6 +751,12 @@ Get the global configuration for the current context directly, without falling b
 
 **Annotations:** read-only
 
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `context` | string |  |  |
+
 ---
 
 #### `get_kek`
@@ -745,6 +784,7 @@ Get the latest (most recent non-deleted) schema version for a subject
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
+| `context` | string |  |  |
 | `subject` | string | Yes |  |
 
 ---
@@ -754,6 +794,12 @@ Get the latest (most recent non-deleted) schema version for a subject
 Get the highest schema ID currently assigned in the registry
 
 **Annotations:** read-only
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `context` | string |  |  |
 
 ---
 
@@ -767,6 +813,7 @@ Get the registry mode for a subject or the global default. Modes: READWRITE, REA
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
+| `context` | string |  |  |
 | `subject` | string |  |  |
 
 ---
@@ -781,6 +828,7 @@ Get the raw schema string by its global ID, without any metadata
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
+| `context` | string |  |  |
 | `id` | integer | Yes |  |
 
 ---
@@ -795,6 +843,7 @@ Get the raw schema string by subject name and version number, without any metada
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
+| `context` | string |  |  |
 | `subject` | string | Yes |  |
 | `version` | integer | Yes |  |
 
@@ -810,6 +859,7 @@ Get schemas that reference a specific subject-version pair
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
+| `context` | string |  |  |
 | `subject` | string | Yes |  |
 | `version` | integer | Yes |  |
 
@@ -820,6 +870,12 @@ Get schemas that reference a specific subject-version pair
 Get aggregate statistics about the registry: total subjects, schemas, types breakdown, KEKs, DEKs, and exporters.
 
 **Annotations:** read-only
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `context` | string |  |  |
 
 ---
 
@@ -833,6 +889,7 @@ Get a schema by its global ID, returning the full schema record including subjec
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
+| `context` | string |  |  |
 | `id` | integer | Yes |  |
 
 ---
@@ -847,6 +904,7 @@ Compute complexity metrics and grade (A-D) for a schema. Measures field_count (t
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
+| `context` | string |  |  |
 | `schema` | string |  |  |
 | `schema_type` | string |  |  |
 | `subject` | string |  |  |
@@ -863,6 +921,7 @@ Get the full version history for a subject, including schema content and metadat
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
+| `context` | string |  |  |
 | `subject` | string | Yes |  |
 
 ---
@@ -885,6 +944,7 @@ Get a schema by subject name and version number
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
+| `context` | string |  |  |
 | `subject` | string | Yes |  |
 | `version` | integer | Yes |  |
 
@@ -900,6 +960,7 @@ Get all schema versions for a subject. Returns full schema records for every ver
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
+| `context` | string |  |  |
 | `deleted` | boolean |  |  |
 | `subject` | string | Yes |  |
 
@@ -931,6 +992,7 @@ Get the full configuration record for a specific subject only, without falling b
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
+| `context` | string |  |  |
 | `subject` | string | Yes |  |
 
 ---
@@ -945,6 +1007,7 @@ Get metadata for a subject. Without filters, returns the metadata from the lates
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
+| `context` | string |  |  |
 | `deleted` | boolean |  |  |
 | `metadata_filter` | object |  |  |
 | `subject` | string | Yes |  |
@@ -961,6 +1024,7 @@ Get all subjects that use a specific schema ID
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
+| `context` | string |  |  |
 | `deleted` | boolean |  |  |
 | `id` | integer | Yes |  |
 
@@ -1004,6 +1068,7 @@ Get all subject-version pairs that use a specific schema ID
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
+| `context` | string |  |  |
 | `deleted` | boolean |  |  |
 | `id` | integer | Yes |  |
 
@@ -1026,6 +1091,7 @@ Bulk import schemas with preserved IDs (for Confluent migration). Registry mode 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `confirm_token` | string |  |  |
+| `context` | string |  |  |
 | `dry_run` | boolean |  |  |
 | `schemas` | [null array] | Yes |  |
 
@@ -1125,6 +1191,7 @@ List schemas with optional filtering by subject prefix, deleted status, and pagi
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
+| `context` | string |  |  |
 | `deleted` | boolean |  |  |
 | `latest_only` | boolean |  |  |
 | `limit` | integer |  |  |
@@ -1143,6 +1210,7 @@ List all registered subjects in the schema registry
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
+| `context` | string |  |  |
 | `deleted` | boolean |  |  |
 | `pattern` | string |  |  |
 | `prefix` | string |  |  |
@@ -1167,6 +1235,7 @@ List all version numbers registered for a subject
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
+| `context` | string |  |  |
 | `deleted` | boolean |  |  |
 | `subject` | string | Yes |  |
 
@@ -1182,6 +1251,7 @@ Check if a schema is already registered under a subject. Returns the existing sc
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
+| `context` | string |  |  |
 | `deleted` | boolean |  |  |
 | `schema` | string | Yes |  |
 | `schema_type` | string |  |  |
@@ -1191,7 +1261,7 @@ Check if a schema is already registered under a subject. Returns the existing sc
 
 #### `match_subjects`
 
-Find subjects matching a pattern. Regex mode compiles as Go regex. Glob mode uses wildcard matching (case-insensitive). Fuzzy mode uses Levenshtein distance with configurable threshold (default 0.6).
+Find subjects matching a pattern. Regex mode (regex=true) compiles as Go regex. Default mode uses case-sensitive substring matching.
 
 **Annotations:** read-only
 
@@ -1199,6 +1269,7 @@ Find subjects matching a pattern. Regex mode compiles as Go regex. Glob mode use
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
+| `context` | string |  |  |
 | `pattern` | string | Yes |  |
 | `regex` | boolean |  |  |
 
@@ -1214,6 +1285,7 @@ Parse and normalize a schema, returning the canonical form and fingerprint for d
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
+| `context` | string |  |  |
 | `references` | [null array] |  |  |
 | `schema` | string | Yes |  |
 | `schema_type` | string |  |  |
@@ -1242,6 +1314,7 @@ Compute a multi-step migration plan from a source schema to a target schema, dec
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
+| `context` | string |  |  |
 | `schema_type` | string |  |  |
 | `subject` | string | Yes |  |
 | `target_schema` | string | Yes |  |
@@ -1256,6 +1329,7 @@ Register a new schema version for a subject. If the same schema already exists, 
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
+| `context` | string |  |  |
 | `metadata` | [null object] |  |  |
 | `normalize` | boolean |  |  |
 | `references` | [null array] |  |  |
@@ -1288,6 +1362,7 @@ Resolve a subject alias. If the subject has an alias configured, returns the ali
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
+| `context` | string |  |  |
 | `subject` | string | Yes |  |
 
 ---
@@ -1354,6 +1429,7 @@ Score a schema's quality (0-100, grades A-F) across four categories: Naming (25 
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
+| `context` | string |  |  |
 | `schema` | string |  |  |
 | `schema_type` | string |  |  |
 | `subject` | string |  |  |
@@ -1370,6 +1446,7 @@ Search schema content across all subjects using a regex or substring pattern.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
+| `context` | string |  |  |
 | `limit` | integer |  |  |
 | `pattern` | string | Yes |  |
 | `regex` | boolean |  |  |
@@ -1385,6 +1462,7 @@ Set the compatibility level for a subject or globally. Valid levels: NONE, BACKW
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `compatibility_level` | string | Yes |  |
+| `context` | string |  |  |
 | `normalize` | [null boolean] |  |  |
 | `subject` | string |  |  |
 
@@ -1403,6 +1481,7 @@ Set the full configuration for a subject or globally, including compatibility le
 | `compatibility_group` | string |  |  |
 | `compatibility_level` | string | Yes |  |
 | `compatibility_policy` | string |  |  |
+| `context` | string |  |  |
 | `default_metadata` | [null object] |  |  |
 | `default_rule_set` | [null object] |  |  |
 | `normalize` | [null boolean] |  |  |
@@ -1422,6 +1501,7 @@ Set the registry mode for a subject or globally. Valid modes: READWRITE, READONL
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `confirm_token` | string |  |  |
+| `context` | string |  |  |
 | `dry_run` | boolean |  |  |
 | `force` | boolean |  |  |
 | `mode` | string | Yes |  |
@@ -1440,6 +1520,7 @@ Get rule-based advice for compatible schema changes based on the subject's compa
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `change_type` | string | Yes |  |
+| `context` | string |  |  |
 | `subject` | string | Yes |  |
 
 ---
@@ -1455,6 +1536,7 @@ Generate concrete schema code for a compatible evolution step (add field, deprec
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `change_type` | string | Yes |  |
+| `context` | string |  |  |
 | `enum_symbol` | string |  |  |
 | `field_name` | string |  |  |
 | `field_type` | string |  |  |
@@ -1590,6 +1672,7 @@ Validate a schema without registering it. Returns whether the schema is valid, i
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
+| `context` | string |  |  |
 | `references` | [null array] |  |  |
 | `schema` | string | Yes |  |
 | `schema_type` | string |  |  |
