@@ -62,13 +62,13 @@ var permissionPresets = map[string][]string{
 // Tools with an empty string scope are system tools that are always allowed.
 var toolPermissionScope = map[string]string{
 	// System tools (always allowed)
-	"health_check":           "",
-	"get_server_info":        "",
-	"get_server_version":     "",
-	"get_cluster_id":         "",
-	"get_schema_types":       "",
-	"list_contexts":          "",
-	"count_subjects":         "",
+	"health_check":            "",
+	"get_server_info":         "",
+	"get_server_version":      "",
+	"get_cluster_id":          "",
+	"get_schema_types":        "",
+	"list_contexts":           "",
+	"count_subjects":          "",
 	"get_registry_statistics": "",
 
 	// schema_read
@@ -129,12 +129,12 @@ var toolPermissionScope = map[string]string{
 	"get_global_config_direct": ScopeConfigRead,
 
 	// config_write
-	"set_config":     ScopeConfigWrite,
+	"set_config":      ScopeConfigWrite,
 	"set_config_full": ScopeConfigWrite,
-	"delete_config":  ScopeConfigWrite,
+	"delete_config":   ScopeConfigWrite,
 
 	// mode_read
-	"get_mode":        ScopeModeRead,
+	"get_mode":         ScopeModeRead,
 	"check_write_mode": ScopeModeRead,
 
 	// mode_write
@@ -178,23 +178,23 @@ var toolPermissionScope = map[string]string{
 	"update_exporter_config": ScopeExporterWrite,
 
 	// admin_read
-	"list_users":          ScopeAdminRead,
-	"get_user":            ScopeAdminRead,
+	"list_users":           ScopeAdminRead,
+	"get_user":             ScopeAdminRead,
 	"get_user_by_username": ScopeAdminRead,
-	"list_apikeys":        ScopeAdminRead,
-	"get_apikey":          ScopeAdminRead,
-	"list_roles":          ScopeAdminRead,
+	"list_apikeys":         ScopeAdminRead,
+	"get_apikey":           ScopeAdminRead,
+	"list_roles":           ScopeAdminRead,
 
 	// admin_write
-	"create_user":    ScopeAdminWrite,
-	"update_user":    ScopeAdminWrite,
-	"delete_user":    ScopeAdminWrite,
+	"create_user":     ScopeAdminWrite,
+	"update_user":     ScopeAdminWrite,
+	"delete_user":     ScopeAdminWrite,
 	"change_password": ScopeAdminWrite,
-	"create_apikey":  ScopeAdminWrite,
-	"update_apikey":  ScopeAdminWrite,
-	"delete_apikey":  ScopeAdminWrite,
-	"revoke_apikey":  ScopeAdminWrite,
-	"rotate_apikey":  ScopeAdminWrite,
+	"create_apikey":   ScopeAdminWrite,
+	"update_apikey":   ScopeAdminWrite,
+	"delete_apikey":   ScopeAdminWrite,
+	"revoke_apikey":   ScopeAdminWrite,
+	"rotate_apikey":   ScopeAdminWrite,
 }
 
 // resolvePermissionScopes computes the effective set of allowed scopes based
