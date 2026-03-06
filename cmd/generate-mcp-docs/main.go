@@ -292,9 +292,37 @@ func main() {
 	}
 	fmt.Fprintln(w)
 
-	// Detailed prompt docs.
+	// Detailed prompt docs with rendered content.
 	fmt.Fprintln(w, "### Prompt Details")
 	fmt.Fprintln(w)
+
+	// Sample arguments for prompts that require them.
+	sampleArgs := map[string]map[string]string{
+		"design-schema":            {"format": "AVRO", "domain": "example-events"},
+		"evolve-schema":            {"subject": "example-subject"},
+		"check-compatibility":      {"subject": "example-subject"},
+		"migrate-schemas":          {"source_format": "AVRO", "target_format": "PROTOBUF"},
+		"setup-encryption":         {"kms_type": "hcvault"},
+		"configure-exporter":       {"exporter_type": "AUTO"},
+		"review-schema-quality":    {"subject": "example-subject"},
+		"plan-breaking-change":     {"subject": "example-subject"},
+		"debug-registration-error": {"error_code": "42201"},
+		"setup-data-contracts":     {"subject": "example-subject"},
+		"audit-subject-history":    {"subject": "example-subject"},
+		"schema-impact-analysis":   {"subject": "example-subject"},
+		"compare-formats":          {"use_case": "event streaming"},
+		"glossary-lookup":          {"topic": "compatibility"},
+		"new-kafka-topic":          {"topic_name": "orders", "format": "AVRO"},
+		"deprecate-subject":        {"subject": "example-subject"},
+		"team-onboarding":          {"team_name": "example-team"},
+		"cross-cutting-change":     {"field_name": "customer_id"},
+		"schema-review-checklist":  {"subject": "example-subject"},
+		"context-management":       {},
+	}
+
+	// Register a sample subject so prompts that look up state can succeed.
+	_, _ = reg.RegisterSchema(ctx, "", "example-subject", `{"type":"string"}`, "", nil)
+
 	for _, p := range prompts {
 		fmt.Fprintf(w, "#### `%s`\n\n", p.Name)
 		fmt.Fprintln(w, p.Description)
@@ -313,6 +341,26 @@ func main() {
 			}
 			fmt.Fprintln(w)
 		}
+
+		// Render the prompt content via prompts/get.
+		args := sampleArgs[p.Name]
+		if args == nil {
+			args = map[string]string{}
+		}
+		result, err := cs.GetPrompt(ctx, &gomcp.GetPromptParams{Name: p.Name, Arguments: args})
+		if err == nil && result != nil && len(result.Messages) > 0 {
+			fmt.Fprintln(w, "<details>")
+			fmt.Fprintf(w, "<summary>Prompt content (click to expand)</summary>\n\n")
+			for _, msg := range result.Messages {
+				if tc, ok := msg.Content.(*gomcp.TextContent); ok {
+					fmt.Fprintln(w, tc.Text)
+				}
+			}
+			fmt.Fprintln(w)
+			fmt.Fprintln(w, "</details>")
+			fmt.Fprintln(w)
+		}
+
 		fmt.Fprintln(w, "---")
 		fmt.Fprintln(w)
 	}
