@@ -28,10 +28,10 @@ info:
     - **Version**: An incrementing integer assigned each time a new schema is registered under
       a subject.
     - **Compatibility**: A policy that controls whether a new schema version is allowed based on
-      its relationship to previous versions. Levels include BACKWARD, FORWARD, FULL, and
-      their TRANSITIVE variants.
+      its relationship to previous versions. Levels include `BACKWARD`, `FORWARD`, `FULL`, and
+      their `TRANSITIVE` variants.
     - **Mode**: Controls whether a subject (or the entire registry) accepts writes. Modes
-      include READWRITE, READONLY, READONLY_OVERRIDE, and IMPORT.
+      include `READWRITE`, `READONLY`, `READONLY_OVERRIDE`, and `IMPORT`.
     - **Reference**: A pointer from one schema to another, enabling cross-subject schema
       composition (e.g. Avro named types, Protobuf imports, JSON Schema $ref).
     - **Metadata**: Key-value tags and properties attached to a schema for data contract
@@ -88,14 +88,14 @@ tags:
       **Confluent compatible (Community).** Operations for managing compatibility
       configuration at the global and per-subject level. The compatibility level determines
       what changes are permitted when registering a new schema version. Supported levels are
-      NONE, BACKWARD, BACKWARD_TRANSITIVE, FORWARD, FORWARD_TRANSITIVE, FULL, and
-      FULL_TRANSITIVE.
+      `NONE`, `BACKWARD`, `BACKWARD_TRANSITIVE`, `FORWARD`, `FORWARD_TRANSITIVE`, `FULL`, and
+      `FULL_TRANSITIVE`.
   - name: Mode
     x-compatibility: confluent-community
     description: >-
       **Confluent compatible (Community).** Operations for managing the registry mode at
       the global and per-subject level. The mode controls whether schema registration (writes)
-      is permitted. Supported modes are READWRITE, READONLY, READONLY_OVERRIDE, and IMPORT.
+      is permitted. Supported modes are `READWRITE`, `READONLY`, `READONLY_OVERRIDE`, and `IMPORT`.
   - name: Compatibility
     x-compatibility: confluent-community
     description: >-
@@ -176,7 +176,7 @@ tags:
     description: >-
       **AxonOps extension.** Endpoints for serving the interactive API documentation (Swagger
       UI) and the raw OpenAPI specification. Available only when the server is configured with
-      docs_enabled.
+      `docs_enabled: true`.
 
 x-tagGroups:
   - name: Confluent Schema Registry Compatible (Community)
@@ -378,7 +378,7 @@ paths:
       summary: Get supported schema types
       description: >-
         Returns the list of schema types supported by this registry. The response is an
-        array of strings. Currently supported types are AVRO, PROTOBUF, and JSON.
+        array of strings. Currently supported types are `AVRO`, `PROTOBUF`, and `JSON`.
       operationId: getSchemaTypes
       tags:
         - Schemas
@@ -1515,8 +1515,8 @@ paths:
       summary: Get global mode
       description: >-
         Returns the global registry mode. The mode controls whether the registry accepts
-        schema registration (write) operations. Possible modes are READWRITE (default),
-        READONLY, READONLY_OVERRIDE, and IMPORT.
+        schema registration (write) operations. Possible modes are `READWRITE` (default),
+        `READONLY`, `READONLY_OVERRIDE`, and `IMPORT`.
       operationId: getGlobalMode
       tags:
         - Mode
@@ -1533,7 +1533,7 @@ paths:
       summary: Set global mode
       description: >-
         Updates the global registry mode. The `mode` field MUST be set to a valid mode
-        string (READWRITE, READONLY, READONLY_OVERRIDE, or IMPORT). The `force` query
+        string (`READWRITE`, `READONLY`, `READONLY_OVERRIDE`, or `IMPORT`). The `force` query
         parameter MAY be set to `true` to bypass validation checks when changing mode.
       operationId: setGlobalMode
       tags:
@@ -2005,7 +2005,7 @@ paths:
       summary: Update an exporter
       description: >-
         Updates the configuration of the specified exporter. All fields in the request body
-        are applied as the new configuration. The exporter name cannot be changed.
+        are applied as the new configuration. The exporter name CANNOT be changed.
       operationId: updateExporter
       tags:
         - Exporters
@@ -4292,7 +4292,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/UserResponse'
         '401':
-          description: Authentication required.
+          description: Authentication REQUIRED.
           content:
             application/json:
               schema:
@@ -4332,13 +4332,13 @@ paths:
         '204':
           description: Password changed successfully.
         '400':
-          description: Missing required fields.
+          description: Missing REQUIRED fields.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '401':
-          description: Authentication required.
+          description: Authentication REQUIRED.
           content:
             application/json:
               schema:
@@ -4390,7 +4390,7 @@ paths:
       summary: Create a new user
       description: >-
         Creates a new user in the registry. The `username`, `password`, and `role` fields
-        are required. The `role` MUST be one of `super_admin`, `admin`, `developer`, or
+        are REQUIRED. The `role` MUST be one of `super_admin`, `admin`, `developer`, or
         `readonly`. The caller MUST have admin write permissions.
       operationId: createUser
       tags:
@@ -4409,7 +4409,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/UserResponse'
         '400':
-          description: Missing required fields or invalid role.
+          description: Missing REQUIRED fields or invalid role.
           content:
             application/json:
               schema:
@@ -4596,7 +4596,7 @@ paths:
         seconds from the current time (e.g. 2592000 for 30 days). The `role` MUST be one
         of `super_admin`, `admin`, `developer`, or `readonly`.
 
-        The raw API key secret is returned ONLY in the creation response and cannot be
+        The raw API key secret is returned ONLY in the creation response and CANNOT be
         retrieved afterward. Clients SHOULD store the key securely immediately after
         creation.
 
@@ -4621,7 +4621,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/CreateAPIKeyResponse'
         '400':
-          description: Missing required fields, invalid role, or invalid expires_in.
+          description: Missing REQUIRED fields, invalid role, or invalid `expires_in`.
           content:
             application/json:
               schema:
@@ -5091,7 +5091,7 @@ paths:
                 error_code: 40470
                 message: "KEK 'my-kek' not found"
         '422':
-          description: KEK must be soft-deleted before permanent delete.
+          description: KEK MUST be soft-deleted before permanent delete.
           content:
             application/vnd.schemaregistry.v1+json:
               schema:
@@ -5409,7 +5409,7 @@ paths:
                     error_code: 40471
                     message: "DEK for subject 'my-topic-value' not found"
         '422':
-          description: DEK must be soft-deleted before permanent delete.
+          description: DEK MUST be soft-deleted before permanent delete.
           content:
             application/vnd.schemaregistry.v1+json:
               schema:
@@ -6609,7 +6609,7 @@ paths:
                   suggestion:
                     type: string
         '400':
-          description: Subject name is required.
+          description: The `subject` field is REQUIRED.
           content:
             application/vnd.schemaregistry.v1+json:
               schema:
@@ -7184,7 +7184,7 @@ paths:
                   step_count:
                     type: integer
         '400':
-          description: Target schema is required.
+          description: The `target_schema` field is REQUIRED.
           content:
             application/vnd.schemaregistry.v1+json:
               schema:
@@ -7248,7 +7248,7 @@ paths:
                         error:
                           type: string
         '400':
-          description: Schema is required.
+          description: The `schema` field is REQUIRED.
           content:
             application/vnd.schemaregistry.v1+json:
               schema:
@@ -7358,7 +7358,7 @@ paths:
                   explanation:
                     type: string
         '400':
-          description: Schema is required.
+          description: The `schema` field is REQUIRED.
           content:
             application/vnd.schemaregistry.v1+json:
               schema:
@@ -7416,7 +7416,7 @@ paths:
                     items:
                       type: string
         '400':
-          description: Both subjects are required.
+          description: Both `subject1` and `subject2` fields are REQUIRED.
           content:
             application/vnd.schemaregistry.v1+json:
               schema:
@@ -7517,7 +7517,7 @@ paths:
                         field_type:
                           type: string
         '400':
-          description: Field name is required.
+          description: The `field` parameter is REQUIRED.
           content:
             application/vnd.schemaregistry.v1+json:
               schema:
@@ -8327,7 +8327,7 @@ paths:
               schema:
                 type: object
         '400':
-          description: Target schema required.
+          description: The `target_schema` field is REQUIRED.
           content:
             application/vnd.schemaregistry.v1+json:
               schema:
@@ -8490,7 +8490,7 @@ paths:
               schema:
                 type: object
         '400':
-          description: Both subjects required.
+          description: Both `subject1` and `subject2` fields are REQUIRED.
           content:
             application/vnd.schemaregistry.v1+json:
               schema:
@@ -8550,7 +8550,7 @@ paths:
               schema:
                 type: object
         '400':
-          description: Field name required.
+          description: The `field` parameter is REQUIRED.
           content:
             application/vnd.schemaregistry.v1+json:
               schema:
@@ -9978,7 +9978,7 @@ components:
           type: string
           description: >-
             The raw API key secret. This value is shown ONLY once at creation time
-            and cannot be retrieved later.
+            and CANNOT be retrieved later.
           example: "axon_abcdefghijklmnopqrstuvwxyz1234567890"
         key_prefix:
           type: string
@@ -10362,7 +10362,7 @@ components:
             message: "Internal server error"
 
     Unauthorized:
-      description: Authentication is required.
+      description: Authentication is REQUIRED.
       content:
         application/json:
           schema:

@@ -289,10 +289,10 @@ Each endpoint group is marked with its compatibility tier:
 - **Version**: An incrementing integer assigned each time a new schema is registered under
   a subject.
 - **Compatibility**: A policy that controls whether a new schema version is allowed based on
-  its relationship to previous versions. Levels include BACKWARD, FORWARD, FULL, and
-  their TRANSITIVE variants.
+  its relationship to previous versions. Levels include `BACKWARD`, `FORWARD`, `FULL`, and
+  their `TRANSITIVE` variants.
 - **Mode**: Controls whether a subject (or the entire registry) accepts writes. Modes
-  include READWRITE, READONLY, READONLY_OVERRIDE, and IMPORT.
+  include `READWRITE`, `READONLY`, `READONLY_OVERRIDE`, and `IMPORT`.
 - **Reference**: A pointer from one schema to another, enabling cross-subject schema
   composition (e.g. Avro named types, Protobuf imports, JSON Schema $ref).
 - **Metadata**: Key-value tags and properties attached to a schema for data contract
@@ -386,7 +386,7 @@ curl -X GET http://localhost:8081/schemas/types \
 
 `GET /schemas/types`
 
-Returns the list of schema types supported by this registry. The response is an array of strings. Currently supported types are AVRO, PROTOBUF, and JSON.
+Returns the list of schema types supported by this registry. The response is an array of strings. Currently supported types are `AVRO`, `PROTOBUF`, and `JSON`.
 
 > Example responses
 
@@ -3670,7 +3670,7 @@ basicAuth, apiKey, bearerAuth
 
 # Config
 
-**Confluent compatible (Community).** Operations for managing compatibility configuration at the global and per-subject level. The compatibility level determines what changes are permitted when registering a new schema version. Supported levels are NONE, BACKWARD, BACKWARD_TRANSITIVE, FORWARD, FORWARD_TRANSITIVE, FULL, and FULL_TRANSITIVE.
+**Confluent compatible (Community).** Operations for managing compatibility configuration at the global and per-subject level. The compatibility level determines what changes are permitted when registering a new schema version. Supported levels are `NONE`, `BACKWARD`, `BACKWARD_TRANSITIVE`, `FORWARD`, `FORWARD_TRANSITIVE`, `FULL`, and `FULL_TRANSITIVE`.
 
 ## Get global compatibility configuration
 
@@ -7117,7 +7117,7 @@ basicAuth, apiKey, bearerAuth
 
 # Mode
 
-**Confluent compatible (Community).** Operations for managing the registry mode at the global and per-subject level. The mode controls whether schema registration (writes) is permitted. Supported modes are READWRITE, READONLY, READONLY_OVERRIDE, and IMPORT.
+**Confluent compatible (Community).** Operations for managing the registry mode at the global and per-subject level. The mode controls whether schema registration (writes) is permitted. Supported modes are `READWRITE`, `READONLY`, `READONLY_OVERRIDE`, and `IMPORT`.
 
 ## Get global mode
 
@@ -7133,7 +7133,7 @@ curl -X GET http://localhost:8081/mode \
 
 `GET /mode`
 
-Returns the global registry mode. The mode controls whether the registry accepts schema registration (write) operations. Possible modes are READWRITE (default), READONLY, READONLY_OVERRIDE, and IMPORT.
+Returns the global registry mode. The mode controls whether the registry accepts schema registration (write) operations. Possible modes are `READWRITE` (default), `READONLY`, `READONLY_OVERRIDE`, and `IMPORT`.
 
 > Example responses
 
@@ -7181,7 +7181,7 @@ curl -X PUT http://localhost:8081/mode \
 
 `PUT /mode`
 
-Updates the global registry mode. The `mode` field MUST be set to a valid mode string (READWRITE, READONLY, READONLY_OVERRIDE, or IMPORT). The `force` query parameter MAY be set to `true` to bypass validation checks when changing mode.
+Updates the global registry mode. The `mode` field MUST be set to a valid mode string (`READWRITE`, `READONLY`, `READONLY_OVERRIDE`, or `IMPORT`). The `force` query parameter MAY be set to `true` to bypass validation checks when changing mode.
 
 > Body parameter
 
@@ -9065,7 +9065,7 @@ curl -X PUT http://localhost:8081/exporters/{name} \
 
 `PUT /exporters/{name}`
 
-Updates the configuration of the specified exporter. All fields in the request body are applied as the new configuration. The exporter name cannot be changed.
+Updates the configuration of the specified exporter. All fields in the request body are applied as the new configuration. The exporter name CANNOT be changed.
 
 > Body parameter
 
@@ -10811,7 +10811,7 @@ Deletes the specified Key Encryption Key (KEK). By default this performs a soft-
 |---|---|---|---|
 |204|[No Content](https://tools.ietf.org/html/rfc7231#section-6.3.5)|The KEK was deleted successfully.|None|
 |404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|The specified KEK was not found.|[ErrorResponse](#schemaerrorresponse)|
-|422|[Unprocessable Entity](https://tools.ietf.org/html/rfc2518#section-10.3)|KEK must be soft-deleted before permanent delete.|[ErrorResponse](#schemaerrorresponse)|
+|422|[Unprocessable Entity](https://tools.ietf.org/html/rfc2518#section-10.3)|KEK MUST be soft-deleted before permanent delete.|[ErrorResponse](#schemaerrorresponse)|
 |500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
 
 > **Warning:** 
@@ -11273,7 +11273,7 @@ Deletes the Data Encryption Key (DEK) for the specified subject under the given 
 |---|---|---|---|
 |204|[No Content](https://tools.ietf.org/html/rfc7231#section-6.3.5)|The DEK was deleted successfully.|None|
 |404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|The specified KEK or DEK was not found.|[ErrorResponse](#schemaerrorresponse)|
-|422|[Unprocessable Entity](https://tools.ietf.org/html/rfc2518#section-10.3)|DEK must be soft-deleted before permanent delete.|[ErrorResponse](#schemaerrorresponse)|
+|422|[Unprocessable Entity](https://tools.ietf.org/html/rfc2518#section-10.3)|DEK MUST be soft-deleted before permanent delete.|[ErrorResponse](#schemaerrorresponse)|
 |500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
 
 > **Warning:** 
@@ -12656,7 +12656,7 @@ Checks whether a subject name follows the conventions of a given naming strategy
 |Status|Meaning|Description|Schema|
 |---|---|---|---|
 |200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Validation result.|Inline|
-|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Subject name is required.|[ErrorResponse](#schemaerrorresponse)|
+|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|The `subject` field is REQUIRED.|[ErrorResponse](#schemaerrorresponse)|
 
 ### Response Schema
 
@@ -13401,7 +13401,7 @@ The `steps` array contains human-readable descriptions of each migration step. `
 |Status|Meaning|Description|Schema|
 |---|---|---|---|
 |200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Migration plan.|Inline|
-|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Target schema is required.|[ErrorResponse](#schemaerrorresponse)|
+|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|The `target_schema` field is REQUIRED.|[ErrorResponse](#schemaerrorresponse)|
 |404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|Subject not found.|[ErrorResponse](#schemaerrorresponse)|
 
 ### Response Schema
@@ -13497,7 +13497,7 @@ Tests whether a schema is compatible with the latest version of multiple subject
 |Status|Meaning|Description|Schema|
 |---|---|---|---|
 |200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Per-subject compatibility results.|Inline|
-|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Schema is required.|[ErrorResponse](#schemaerrorresponse)|
+|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|The `schema` field is REQUIRED.|[ErrorResponse](#schemaerrorresponse)|
 |500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
 
 ### Response Schema
@@ -13641,7 +13641,7 @@ Tests a schema against a subject's latest version and explains why the schema is
 |Status|Meaning|Description|Schema|
 |---|---|---|---|
 |200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Compatibility explanation.|Inline|
-|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Schema is required.|[ErrorResponse](#schemaerrorresponse)|
+|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|The `schema` field is REQUIRED.|[ErrorResponse](#schemaerrorresponse)|
 
 ### Response Schema
 
@@ -13719,7 +13719,7 @@ Compares the field structures of two subjects' latest schemas. Returns fields th
 |Status|Meaning|Description|Schema|
 |---|---|---|---|
 |200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Comparison result.|Inline|
-|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Both subjects are required.|[ErrorResponse](#schemaerrorresponse)|
+|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Both `subject1` and `subject2` fields are REQUIRED.|[ErrorResponse](#schemaerrorresponse)|
 |404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|One or both subjects not found.|[ErrorResponse](#schemaerrorresponse)|
 
 ### Response Schema
@@ -13865,7 +13865,7 @@ The search generates naming convention variants of the field name (`snake_case`,
 |Status|Meaning|Description|Schema|
 |---|---|---|---|
 |200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Field consistency report.|Inline|
-|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Field name is required.|[ErrorResponse](#schemaerrorresponse)|
+|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|The `field` parameter is REQUIRED.|[ErrorResponse](#schemaerrorresponse)|
 |500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
 
 ### Response Schema
@@ -15079,7 +15079,7 @@ Context-scoped version of `/subjects/{subject}/migrate`. See the root-level oper
 |Status|Meaning|Description|Schema|
 |---|---|---|---|
 |200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Migration plan.|Inline|
-|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Target schema required.|[ErrorResponse](#schemaerrorresponse)|
+|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|The `target_schema` field is REQUIRED.|[ErrorResponse](#schemaerrorresponse)|
 |404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|Subject not found.|[ErrorResponse](#schemaerrorresponse)|
 
 ### Response Schema
@@ -15310,7 +15310,7 @@ Context-scoped version of `/compatibility/compare`. See the root-level operation
 |Status|Meaning|Description|Schema|
 |---|---|---|---|
 |200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Comparison result.|Inline|
-|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Both subjects required.|[ErrorResponse](#schemaerrorresponse)|
+|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Both `subject1` and `subject2` fields are REQUIRED.|[ErrorResponse](#schemaerrorresponse)|
 |404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|Subject not found.|[ErrorResponse](#schemaerrorresponse)|
 
 ### Response Schema
@@ -15418,7 +15418,7 @@ Context-scoped version of `/statistics/fields/{field}`. See the root-level opera
 |Status|Meaning|Description|Schema|
 |---|---|---|---|
 |200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|Field consistency report.|Inline|
-|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Field name required.|[ErrorResponse](#schemaerrorresponse)|
+|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|The `field` parameter is REQUIRED.|[ErrorResponse](#schemaerrorresponse)|
 |500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
 
 ### Response Schema
@@ -15553,7 +15553,7 @@ Returns a list of all users in the registry. The caller MUST have admin read per
 |Status|Meaning|Description|Schema|
 |---|---|---|---|
 |200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|A list of all users.|[UsersListResponse](#schemauserslistresponse)|
-|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Authentication is required.|[ErrorResponse](#schemaerrorresponse)|
+|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Authentication is REQUIRED.|[ErrorResponse](#schemaerrorresponse)|
 |403|[Forbidden](https://tools.ietf.org/html/rfc7231#section-6.5.3)|The authenticated user does not have sufficient permissions.|[ErrorResponse](#schemaerrorresponse)|
 |500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
 
@@ -15577,7 +15577,7 @@ curl -X POST http://localhost:8081/admin/users \
 
 `POST /admin/users`
 
-Creates a new user in the registry. The `username`, `password`, and `role` fields are required. The `role` MUST be one of `super_admin`, `admin`, `developer`, or `readonly`. The caller MUST have admin write permissions.
+Creates a new user in the registry. The `username`, `password`, and `role` fields are REQUIRED. The `role` MUST be one of `super_admin`, `admin`, `developer`, or `readonly`. The caller MUST have admin write permissions.
 
 > Body parameter
 
@@ -15654,8 +15654,8 @@ Creates a new user in the registry. The `username`, `password`, and `role` field
 |Status|Meaning|Description|Schema|
 |---|---|---|---|
 |201|[Created](https://tools.ietf.org/html/rfc7231#section-6.3.2)|The newly created user.|[UserResponse](#schemauserresponse)|
-|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Missing required fields or invalid role.|[ErrorResponse](#schemaerrorresponse)|
-|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Authentication is required.|[ErrorResponse](#schemaerrorresponse)|
+|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Missing REQUIRED fields or invalid role.|[ErrorResponse](#schemaerrorresponse)|
+|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Authentication is REQUIRED.|[ErrorResponse](#schemaerrorresponse)|
 |403|[Forbidden](https://tools.ietf.org/html/rfc7231#section-6.5.3)|The authenticated user does not have sufficient permissions.|[ErrorResponse](#schemaerrorresponse)|
 |409|[Conflict](https://tools.ietf.org/html/rfc7231#section-6.5.8)|A user with this username already exists.|[ErrorResponse](#schemaerrorresponse)|
 |500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
@@ -15745,7 +15745,7 @@ Retrieves the user with the specified ID. The caller MUST have admin read permis
 |---|---|---|---|
 |200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The user record.|[UserResponse](#schemauserresponse)|
 |400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Invalid user ID.|[ErrorResponse](#schemaerrorresponse)|
-|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Authentication is required.|[ErrorResponse](#schemaerrorresponse)|
+|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Authentication is REQUIRED.|[ErrorResponse](#schemaerrorresponse)|
 |403|[Forbidden](https://tools.ietf.org/html/rfc7231#section-6.5.3)|The authenticated user does not have sufficient permissions.|[ErrorResponse](#schemaerrorresponse)|
 |404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|User not found.|[ErrorResponse](#schemaerrorresponse)|
 |500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
@@ -15848,7 +15848,7 @@ Updates one or more fields of the user with the specified ID. Only the fields pr
 |---|---|---|---|
 |200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The updated user record.|[UserResponse](#schemauserresponse)|
 |400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Invalid user ID or invalid role.|[ErrorResponse](#schemaerrorresponse)|
-|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Authentication is required.|[ErrorResponse](#schemaerrorresponse)|
+|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Authentication is REQUIRED.|[ErrorResponse](#schemaerrorresponse)|
 |403|[Forbidden](https://tools.ietf.org/html/rfc7231#section-6.5.3)|The authenticated user does not have sufficient permissions.|[ErrorResponse](#schemaerrorresponse)|
 |404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|User not found.|[ErrorResponse](#schemaerrorresponse)|
 |500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
@@ -15933,7 +15933,7 @@ Permanently deletes the user with the specified ID. Returns 204 No Content on su
 |---|---|---|---|
 |204|[No Content](https://tools.ietf.org/html/rfc7231#section-6.3.5)|User deleted successfully.|None|
 |400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Invalid user ID.|[ErrorResponse](#schemaerrorresponse)|
-|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Authentication is required.|[ErrorResponse](#schemaerrorresponse)|
+|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Authentication is REQUIRED.|[ErrorResponse](#schemaerrorresponse)|
 |403|[Forbidden](https://tools.ietf.org/html/rfc7231#section-6.5.3)|The authenticated user does not have sufficient permissions.|[ErrorResponse](#schemaerrorresponse)|
 |404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|User not found.|[ErrorResponse](#schemaerrorresponse)|
 |500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
@@ -16021,7 +16021,7 @@ Returns a list of all API keys in the registry. The optional `user_id` query par
 |---|---|---|---|
 |200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|A list of API keys.|[APIKeysListResponse](#schemaapikeyslistresponse)|
 |400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Invalid user ID.|[ErrorResponse](#schemaerrorresponse)|
-|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Authentication is required.|[ErrorResponse](#schemaerrorresponse)|
+|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Authentication is REQUIRED.|[ErrorResponse](#schemaerrorresponse)|
 |403|[Forbidden](https://tools.ietf.org/html/rfc7231#section-6.5.3)|The authenticated user does not have sufficient permissions.|[ErrorResponse](#schemaerrorresponse)|
 |500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
 
@@ -16046,7 +16046,7 @@ curl -X POST http://localhost:8081/admin/apikeys \
 `POST /admin/apikeys`
 
 Creates a new API key. The `name`, `role`, and `expires_in` fields are required. The `name` MUST be unique per user. The `expires_in` value is a duration in seconds from the current time (e.g. 2592000 for 30 days). The `role` MUST be one of `super_admin`, `admin`, `developer`, or `readonly`.
-The raw API key secret is returned ONLY in the creation response and cannot be retrieved afterward. Clients SHOULD store the key securely immediately after creation.
+The raw API key secret is returned ONLY in the creation response and CANNOT be retrieved afterward. Clients SHOULD store the key securely immediately after creation.
 Super admins MAY create API keys for other users by specifying the `for_user_id` field.
 
 > Body parameter
@@ -16126,8 +16126,8 @@ Super admins MAY create API keys for other users by specifying the `for_user_id`
 |Status|Meaning|Description|Schema|
 |---|---|---|---|
 |201|[Created](https://tools.ietf.org/html/rfc7231#section-6.3.2)|The newly created API key, including the raw key secret. This is the ONLY time the raw key is returned.|[CreateAPIKeyResponse](#schemacreateapikeyresponse)|
-|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Missing required fields, invalid role, or invalid expires_in.|[ErrorResponse](#schemaerrorresponse)|
-|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Authentication is required.|[ErrorResponse](#schemaerrorresponse)|
+|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Missing REQUIRED fields, invalid role, or invalid `expires_in`.|[ErrorResponse](#schemaerrorresponse)|
+|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Authentication is REQUIRED.|[ErrorResponse](#schemaerrorresponse)|
 |403|[Forbidden](https://tools.ietf.org/html/rfc7231#section-6.5.3)|The authenticated user does not have sufficient permissions.|[ErrorResponse](#schemaerrorresponse)|
 |409|[Conflict](https://tools.ietf.org/html/rfc7231#section-6.5.8)|An API key with this name already exists for the user.|[ErrorResponse](#schemaerrorresponse)|
 |500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
@@ -16220,7 +16220,7 @@ Retrieves the API key with the specified ID. The raw key secret is NOT included 
 |---|---|---|---|
 |200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The API key record.|[APIKeyResponse](#schemaapikeyresponse)|
 |400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Invalid API key ID.|[ErrorResponse](#schemaerrorresponse)|
-|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Authentication is required.|[ErrorResponse](#schemaerrorresponse)|
+|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Authentication is REQUIRED.|[ErrorResponse](#schemaerrorresponse)|
 |403|[Forbidden](https://tools.ietf.org/html/rfc7231#section-6.5.3)|The authenticated user does not have sufficient permissions.|[ErrorResponse](#schemaerrorresponse)|
 |404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|API key not found.|[ErrorResponse](#schemaerrorresponse)|
 |500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
@@ -16325,7 +16325,7 @@ Updates one or more fields of the API key with the specified ID. Only the fields
 |---|---|---|---|
 |200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The updated API key record.|[APIKeyResponse](#schemaapikeyresponse)|
 |400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Invalid API key ID or invalid role.|[ErrorResponse](#schemaerrorresponse)|
-|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Authentication is required.|[ErrorResponse](#schemaerrorresponse)|
+|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Authentication is REQUIRED.|[ErrorResponse](#schemaerrorresponse)|
 |403|[Forbidden](https://tools.ietf.org/html/rfc7231#section-6.5.3)|The authenticated user does not have sufficient permissions.|[ErrorResponse](#schemaerrorresponse)|
 |404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|API key not found.|[ErrorResponse](#schemaerrorresponse)|
 |500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
@@ -16410,7 +16410,7 @@ Permanently deletes the API key with the specified ID. Returns 204 No Content on
 |---|---|---|---|
 |204|[No Content](https://tools.ietf.org/html/rfc7231#section-6.3.5)|API key deleted successfully.|None|
 |400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Invalid API key ID.|[ErrorResponse](#schemaerrorresponse)|
-|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Authentication is required.|[ErrorResponse](#schemaerrorresponse)|
+|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Authentication is REQUIRED.|[ErrorResponse](#schemaerrorresponse)|
 |403|[Forbidden](https://tools.ietf.org/html/rfc7231#section-6.5.3)|The authenticated user does not have sufficient permissions.|[ErrorResponse](#schemaerrorresponse)|
 |404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|API key not found.|[ErrorResponse](#schemaerrorresponse)|
 |500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
@@ -16503,7 +16503,7 @@ Revokes the API key with the specified ID by disabling it. The API key remains i
 |---|---|---|---|
 |200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The revoked API key record (with enabled set to false).|[APIKeyResponse](#schemaapikeyresponse)|
 |400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Invalid API key ID.|[ErrorResponse](#schemaerrorresponse)|
-|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Authentication is required.|[ErrorResponse](#schemaerrorresponse)|
+|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Authentication is REQUIRED.|[ErrorResponse](#schemaerrorresponse)|
 |403|[Forbidden](https://tools.ietf.org/html/rfc7231#section-6.5.3)|The authenticated user does not have sufficient permissions.|[ErrorResponse](#schemaerrorresponse)|
 |404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|API key not found.|[ErrorResponse](#schemaerrorresponse)|
 |500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
@@ -16610,7 +16610,7 @@ The caller MUST have admin write permissions.
 |---|---|---|---|
 |200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The rotation result containing the new API key (with its raw secret) and the ID of the revoked key.|[RotateAPIKeyResponse](#schemarotateapikeyresponse)|
 |400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Invalid API key ID or invalid expires_in.|[ErrorResponse](#schemaerrorresponse)|
-|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Authentication is required.|[ErrorResponse](#schemaerrorresponse)|
+|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Authentication is REQUIRED.|[ErrorResponse](#schemaerrorresponse)|
 |403|[Forbidden](https://tools.ietf.org/html/rfc7231#section-6.5.3)|The authenticated user does not have sufficient permissions.|[ErrorResponse](#schemaerrorresponse)|
 |404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|API key not found.|[ErrorResponse](#schemaerrorresponse)|
 |500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
@@ -16688,7 +16688,7 @@ Returns the list of roles available in the registry along with their description
 |Status|Meaning|Description|Schema|
 |---|---|---|---|
 |200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|A list of available roles with their permissions.|[RolesListResponse](#schemaroleslistresponse)|
-|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Authentication is required.|[ErrorResponse](#schemaerrorresponse)|
+|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Authentication is REQUIRED.|[ErrorResponse](#schemaerrorresponse)|
 |403|[Forbidden](https://tools.ietf.org/html/rfc7231#section-6.5.3)|The authenticated user does not have sufficient permissions.|[ErrorResponse](#schemaerrorresponse)|
 |500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
 
@@ -16765,7 +16765,7 @@ Returns the profile of the currently authenticated user. The caller MUST be auth
 |Status|Meaning|Description|Schema|
 |---|---|---|---|
 |200|[OK](https://tools.ietf.org/html/rfc7231#section-6.3.1)|The current user's profile.|[UserResponse](#schemauserresponse)|
-|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Authentication required.|[ErrorResponse](#schemaerrorresponse)|
+|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Authentication REQUIRED.|[ErrorResponse](#schemaerrorresponse)|
 |404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|User not found.|[ErrorResponse](#schemaerrorresponse)|
 |500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
 
@@ -16849,8 +16849,8 @@ Changes the password of the currently authenticated user. The request MUST inclu
 |Status|Meaning|Description|Schema|
 |---|---|---|---|
 |204|[No Content](https://tools.ietf.org/html/rfc7231#section-6.3.5)|Password changed successfully.|None|
-|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Missing required fields.|[ErrorResponse](#schemaerrorresponse)|
-|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Authentication required.|[ErrorResponse](#schemaerrorresponse)|
+|400|[Bad Request](https://tools.ietf.org/html/rfc7231#section-6.5.1)|Missing REQUIRED fields.|[ErrorResponse](#schemaerrorresponse)|
+|401|[Unauthorized](https://tools.ietf.org/html/rfc7235#section-3.1)|Authentication REQUIRED.|[ErrorResponse](#schemaerrorresponse)|
 |403|[Forbidden](https://tools.ietf.org/html/rfc7231#section-6.5.3)|Current password is incorrect.|[ErrorResponse](#schemaerrorresponse)|
 |404|[Not Found](https://tools.ietf.org/html/rfc7231#section-6.5.4)|User not found.|[ErrorResponse](#schemaerrorresponse)|
 |500|[Internal Server Error](https://tools.ietf.org/html/rfc7231#section-6.6.1)|An internal server error occurred.|[ErrorResponse](#schemaerrorresponse)|
@@ -16862,7 +16862,7 @@ basicAuth, apiKey, bearerAuth
 
 # Documentation
 
-**AxonOps extension.** Endpoints for serving the interactive API documentation (Swagger UI) and the raw OpenAPI specification. Available only when the server is configured with docs_enabled.
+**AxonOps extension.** Endpoints for serving the interactive API documentation (Swagger UI) and the raw OpenAPI specification. Available only when the server is configured with `docs_enabled: true`.
 
 ## Swagger UI
 
@@ -18987,7 +18987,7 @@ The response returned when creating a new API key. This is the ONLY time the raw
 |Name|Type|Required|Restrictions|Description|
 |---|---|---|---|---|
 |id|integer(int64)|true|none|The unique API key ID.|
-|key|string|true|none|The raw API key secret. This value is shown ONLY once at creation time and cannot be retrieved later.|
+|key|string|true|none|The raw API key secret. This value is shown ONLY once at creation time and CANNOT be retrieved later.|
 |key_prefix|string|true|none|The first 8 characters of the API key for identification.|
 |name|string|true|none|The name of the API key.|
 |role|string|true|none|The role assigned to this API key.|
@@ -19350,7 +19350,7 @@ Operations for testing whether a candidate schema is compatible with existing sc
 
 #### Config
 
-Operations for managing compatibility configuration at the global and per-subject level. The compatibility level determines what changes are permitted when registering a new schema version. Supported levels are NONE, BACKWARD, BACKWARD_TRANSITIVE, FORWARD, FORWARD_TRANSITIVE, FULL, and FULL_TRANSITIVE.
+Operations for managing compatibility configuration at the global and per-subject level. The compatibility level determines what changes are permitted when registering a new schema version. Supported levels are `NONE`, `BACKWARD`, `BACKWARD_TRANSITIVE`, `FORWARD`, `FORWARD_TRANSITIVE`, `FULL`, and `FULL_TRANSITIVE`.
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -19391,7 +19391,7 @@ Operations for retrieving registry metadata such as the cluster ID and server ve
 
 #### Mode
 
-Operations for managing the registry mode at the global and per-subject level. The mode controls whether schema registration (writes) is permitted. Supported modes are READWRITE, READONLY, READONLY_OVERRIDE, and IMPORT.
+Operations for managing the registry mode at the global and per-subject level. The mode controls whether schema registration (writes) is permitted. Supported modes are `READWRITE`, `READONLY`, `READONLY_OVERRIDE`, and `IMPORT`.
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -19688,7 +19688,7 @@ Schema analysis endpoints for validation, normalization, quality scoring, field 
 
 #### Documentation
 
-Endpoints for serving the interactive API documentation (Swagger UI) and the raw OpenAPI specification. Available only when the server is configured with docs_enabled.
+Endpoints for serving the interactive API documentation (Swagger UI) and the raw OpenAPI specification. Available only when the server is configured with `docs_enabled: true`.
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
