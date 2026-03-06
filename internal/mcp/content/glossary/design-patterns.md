@@ -17,6 +17,23 @@ Wrap every event in a standard envelope that carries metadata separate from the 
 
 **Implementation:** Register the envelope as a shared schema via references. The payload type can be a union (Avro), oneof (Protobuf), or oneOf (JSON Schema).
 
+**Avro example:**
+```json
+{
+  "type": "record",
+  "name": "EventEnvelope",
+  "namespace": "com.company.events",
+  "fields": [
+    {"name": "event_id", "type": {"type": "string", "logicalType": "uuid"}},
+    {"name": "event_type", "type": "string"},
+    {"name": "timestamp", "type": {"type": "long", "logicalType": "timestamp-millis"}},
+    {"name": "source", "type": "string"},
+    {"name": "correlation_id", "type": ["null", {"type": "string", "logicalType": "uuid"}], "default": null},
+    {"name": "payload", "type": "bytes", "doc": "Serialized domain event"}
+  ]
+}
+```
+
 ## Entity Lifecycle Events
 
 Model entity state changes as a sequence of typed events:
@@ -24,6 +41,29 @@ Model entity state changes as a sequence of typed events:
     UserCreated -> UserUpdated -> UserEmailVerified -> UserDeactivated
 
 Each event type gets its own schema but shares common fields (entity_id, timestamp, actor). Use **TopicRecordNameStrategy** so multiple event types can share a single Kafka topic while having independent schema evolution.
+
+**Avro example -- two related lifecycle schemas:**
+```json
+{
+  "type": "record", "name": "UserCreated", "namespace": "com.company.users",
+  "fields": [
+    {"name": "user_id", "type": "string"},
+    {"name": "timestamp", "type": {"type": "long", "logicalType": "timestamp-millis"}},
+    {"name": "email", "type": "string"},
+    {"name": "display_name", "type": "string"}
+  ]
+}
+```
+```json
+{
+  "type": "record", "name": "UserDeactivated", "namespace": "com.company.users",
+  "fields": [
+    {"name": "user_id", "type": "string"},
+    {"name": "timestamp", "type": {"type": "long", "logicalType": "timestamp-millis"}},
+    {"name": "reason", "type": ["null", "string"], "default": null}
+  ]
+}
+```
 
 ## Snapshot vs Delta Events
 
@@ -57,6 +97,26 @@ Extract reusable types (Address, Money, ContactInfo) into their own subjects:
 2. Reference it from "OrderCreated" using a schema reference.
 3. "Address" evolves independently with its own compatibility policy.
 
+**Avro example -- shared Address type:**
+```json
+{"type": "record", "name": "Address", "namespace": "com.company.common",
+ "fields": [
+   {"name": "street", "type": "string"},
+   {"name": "city", "type": "string"},
+   {"name": "postal_code", "type": "string"},
+   {"name": "country", "type": "string"}
+ ]}
+```
+**Order referencing Address:**
+```json
+{"type": "record", "name": "Order", "namespace": "com.company.orders",
+ "fields": [
+   {"name": "order_id", "type": "string"},
+   {"name": "shipping", "type": "com.company.common.Address"}
+ ]}
+```
+Register with: `register_schema` using `references: [{"name": "com.company.common.Address", "subject": "com.company.Address", "version": 1}]`
+
 **Versioning shared types:**
 - Use FULL or FULL_TRANSITIVE compatibility for shared types (both producers and consumers must handle changes).
 - Test referenced schemas across all dependents before publishing a new version.
@@ -74,6 +134,13 @@ All consumers have been updated to read new_name. Mark old_name as deprecated (v
 
 **Phase 3: Remove old field.**
 After all consumers have migrated, remove old_name. This step requires NONE compatibility or a new subject.
+
+**Avro example -- three versions side by side:**
+```
+v1: {"type":"record","name":"User","fields":[{"name":"full_name","type":"string"}]}
+v2: {"type":"record","name":"User","fields":[{"name":"full_name","type":"string"},{"name":"display_name","type":["null","string"],"default":null}]}
+v3: {"type":"record","name":"User","fields":[{"name":"display_name","type":"string"}]}
+```
 
 ## Three-Phase Type Change Pattern
 

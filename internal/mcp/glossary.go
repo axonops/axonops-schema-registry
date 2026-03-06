@@ -78,6 +78,13 @@ func (s *Server) registerGlossaryResources() {
 		Description: "Confluent migration: step-by-step procedure, IMPORT mode, ID preservation, the import API, verification, and rollback",
 		MIMEType:    "text/markdown",
 	}, s.handleGlossaryMigrationResource)
+
+	s.mcpServer.AddResource(&gomcp.Resource{
+		URI:         "schema://glossary/mcp-configuration",
+		Name:        "glossary-mcp-configuration",
+		Description: "MCP server configuration: all config fields, env var overrides, read-only mode, tool policy, permission scopes, presets, two-phase confirmations, and origin validation",
+		MIMEType:    "text/markdown",
+	}, s.handleGlossaryMCPConfigurationResource)
 }
 
 // --- Glossary resource handlers ---
@@ -121,4 +128,8 @@ func (s *Server) handleGlossaryBestPracticesResource(_ context.Context, req *gom
 
 func (s *Server) handleGlossaryMigrationResource(_ context.Context, req *gomcp.ReadResourceRequest) (*gomcp.ReadResourceResult, error) {
 	return resourceMarkdownFromFS(content.GlossaryFS, "glossary/migration.md", req.Params.URI)
+}
+
+func (s *Server) handleGlossaryMCPConfigurationResource(_ context.Context, req *gomcp.ReadResourceRequest) (*gomcp.ReadResourceResult, error) {
+	return resourceMarkdownFromFS(content.GlossaryFS, "glossary/mcp-configuration.md", req.Params.URI)
 }

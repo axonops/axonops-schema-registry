@@ -3919,7 +3919,7 @@ func TestReadGlossaryBestPracticesResource(t *testing.T) {
 		t.Fatalf("ReadResource: %v", err)
 	}
 	text := resourceText(t, result)
-	for _, want := range []string{"Avro Best Practices", "Protobuf Best Practices", "Common Mistakes"} {
+	for _, want := range []string{"Avro Best Practices", "Protobuf Best Practices", "Anti-Patterns"} {
 		if !strings.Contains(text, want) {
 			t.Errorf("expected %q in glossary, not found", want)
 		}

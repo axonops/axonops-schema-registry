@@ -66,7 +66,25 @@ Feature: MCP Glossary Resources — Domain Knowledge for AI Assistants
     When I read MCP resource "schema://glossary/best-practices"
     Then the MCP resource result should contain "Avro Best Practices"
     And the MCP resource result should contain "Protobuf Best Practices"
-    And the MCP resource result should contain "Common Mistakes"
+    And the MCP resource result should contain "Anti-Patterns"
+    And the MCP resource result should contain "String Everything"
+    And the MCP resource result should contain "Context Best Practices"
+
+  Scenario: Read design-patterns glossary with schema examples
+    When I read MCP resource "schema://glossary/design-patterns"
+    Then the MCP resource result should contain "Event Envelope"
+    And the MCP resource result should contain "Three-Phase Rename"
+    And the MCP resource result should contain "EventEnvelope"
+    And the MCP resource result should contain "UserCreated"
+    And the MCP resource result should contain "com.company.common.Address"
+
+  Scenario: Read mcp-configuration glossary
+    When I read MCP resource "schema://glossary/mcp-configuration"
+    Then the MCP resource result should contain "read_only"
+    And the MCP resource result should contain "tool_policy"
+    And the MCP resource result should contain "Permission Scopes"
+    And the MCP resource result should contain "Two-Phase Confirmations"
+    And the MCP resource result should contain "SCHEMA_REGISTRY_MCP_"
 
   Scenario: Read migration glossary
     When I read MCP resource "schema://glossary/migration"

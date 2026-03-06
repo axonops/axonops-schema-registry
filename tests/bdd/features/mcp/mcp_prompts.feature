@@ -15,6 +15,10 @@ Feature: MCP Prompts — Pre-Built Conversation Templates
     Then the MCP prompt result should contain "Avro"
     And the MCP prompt result should contain "user-events"
     And the MCP prompt result should contain "register_schema"
+    And the MCP prompt result should contain "Design Workflow"
+    And the MCP prompt result should contain "OrderCreated"
+    And the MCP prompt result should contain "Common Mistakes"
+    And the MCP prompt result should contain "Starter Template"
     And the MCP prompt description should contain "AVRO"
 
   Scenario: Get Protobuf schema design prompt
@@ -22,6 +26,10 @@ Feature: MCP Prompts — Pre-Built Conversation Templates
       | format | PROTOBUF |
     Then the MCP prompt result should contain "Protobuf"
     And the MCP prompt result should contain "proto3"
+    And the MCP prompt result should contain "Design Workflow"
+    And the MCP prompt result should contain "OrderCreated"
+    And the MCP prompt result should contain "Common Mistakes"
+    And the MCP prompt result should contain "UNSPECIFIED"
     And the MCP prompt description should contain "PROTOBUF"
 
   Scenario: Get JSON Schema design prompt
@@ -29,6 +37,10 @@ Feature: MCP Prompts — Pre-Built Conversation Templates
       | format | JSON |
     Then the MCP prompt result should contain "JSON Schema"
     And the MCP prompt result should contain "additionalProperties"
+    And the MCP prompt result should contain "Design Workflow"
+    And the MCP prompt result should contain "OrderCreated"
+    And the MCP prompt result should contain "Common Mistakes"
+    And the MCP prompt result should contain "Starter Template"
 
   # ==========================================================================
   # 2. SCHEMA EVOLUTION PROMPT
