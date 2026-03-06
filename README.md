@@ -426,8 +426,6 @@ We also want to thank the maintainers of the core Go libraries that power this p
 
 - [chi](https://github.com/go-chi/chi) (HTTP router), [hamba/avro](https://github.com/hamba/avro) (Avro parsing), [protocompile](https://github.com/bufbuild/protocompile) (Protobuf parsing), [jsonschema](https://github.com/santhosh-tekuri/jsonschema) (JSON Schema validation), [cobra](https://github.com/spf13/cobra) (CLI), [prometheus/client_golang](https://github.com/prometheus/client_golang) (metrics), and the official [MCP Go SDK](https://github.com/modelcontextprotocol/go-sdk).
 
-Finally, thank you to **[Karapace](https://github.com/Aiven-Open/karapace)** and **[Apicurio](https://www.apicur.io/registry/)** — fellow open-source schema registries that push the ecosystem forward. A healthy ecosystem benefits everyone. See our [Ecosystem Guide](docs/ecosystem.md) for a respectful comparison.
-
 ---
 
 ## Legal Notices
@@ -436,7 +434,7 @@ Finally, thank you to **[Karapace](https://github.com/Aiven-Open/karapace)** and
 
 - **AxonOps** is a registered trademark of AxonOps Limited.
 - **Apache**, **Apache Cassandra**, **Cassandra**, **Apache Kafka**, and **Kafka** are either registered trademarks or trademarks of the Apache Software Foundation or its subsidiaries in Canada, the United States, and/or other countries.
-- **Confluent** is a registered trademark of Confluent, Inc.
+- **Confluent** is a registered trademark of Confluent, Inc., an IBM company.
 
 ---
 
