@@ -21,7 +21,8 @@ Feature: MCP Workflow — CI/CD Integration
         "schema_type": "AVRO"
       }
       """
-    Then the MCP result should be an error
+    Then the MCP result should not be an error
+    And the MCP result should contain "\"valid\":false"
 
   # Validates: prompts/cicd-integration.md — Pre-commit checks (compatibility)
   Scenario: Check compatibility as PR gate with pass and fail

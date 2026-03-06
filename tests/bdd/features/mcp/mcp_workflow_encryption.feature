@@ -1,4 +1,4 @@
-@mcp @mcp-workflow
+@mcp @mcp-workflow @kms
 Feature: MCP Workflow — Encryption Lifecycle
   Tests the encryption workflow from prompts/full-encryption-lifecycle.md
   by executing each step as MCP tool calls.
@@ -18,7 +18,7 @@ Feature: MCP Workflow — Encryption Lifecycle
     And the MCP result should contain "wf-enc-kek"
     When I call MCP tool "test_kek" with JSON input:
       """
-      {"name": "wf-enc-kek"}
+      {"name": "wf-enc-kek", "kms_type": "test-kms", "kms_key_id": "test-key-1"}
       """
     Then the MCP result should not be an error
 
@@ -108,7 +108,8 @@ Feature: MCP Workflow — Encryption Lifecycle
       """
       {
         "kek_name": "wf-enc-kek4",
-        "subject": "wf-enc-del-test"
+        "subject": "wf-enc-del-test",
+        "algorithm": "AES256_GCM"
       }
       """
     Then the MCP result should not be an error
@@ -116,7 +117,8 @@ Feature: MCP Workflow — Encryption Lifecycle
       """
       {
         "kek_name": "wf-enc-kek4",
-        "subject": "wf-enc-del-test"
+        "subject": "wf-enc-del-test",
+        "algorithm": "AES256_GCM"
       }
       """
     Then the MCP result should not be an error
@@ -135,7 +137,7 @@ Feature: MCP Workflow — Encryption Lifecycle
     Then the MCP result should not be an error
     When I call MCP tool "test_kek" with JSON input:
       """
-      {"name": "wf-enc-full-kek"}
+      {"name": "wf-enc-full-kek", "kms_type": "test-kms", "kms_key_id": "test-key-full"}
       """
     Then the MCP result should not be an error
     When I call MCP tool "create_dek" with JSON input:

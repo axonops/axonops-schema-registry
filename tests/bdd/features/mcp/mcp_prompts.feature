@@ -202,10 +202,34 @@ Feature: MCP Prompts — Pre-Built Conversation Templates
       | target_format | PROTOBUF |
     Then the MCP prompt result should contain "AVRO"
     And the MCP prompt result should contain "PROTOBUF"
-    And the MCP prompt result should contain "message"
-    And the MCP prompt result should contain "Type Mapping"
+    # Workflow tools
+    And the MCP prompt result should contain "list_subjects"
+    And the MCP prompt result should contain "get_latest_schema"
     And the MCP prompt result should contain "validate_schema"
+    And the MCP prompt result should contain "register_schema"
+    And the MCP prompt result should contain "check_compatibility"
+    # Type mapping table
+    And the MCP prompt result should contain "Type Mapping: Avro to Protobuf"
+    And the MCP prompt result should contain "message"
     And the MCP prompt result should contain "UNSPECIFIED"
+    And the MCP prompt result should contain "repeated"
+    And the MCP prompt result should contain "map<string, V>"
+    And the MCP prompt result should contain "optional"
+    And the MCP prompt result should contain "oneof"
+    # Fixed type mapping
+    And the MCP prompt result should contain "fixed"
+    # Logical types
+    And the MCP prompt result should contain "google.protobuf.Timestamp"
+    And the MCP prompt result should contain "timestamp-millis"
+    # Lossy conversion warnings
+    And the MCP prompt result should contain "What is lost"
+    And the MCP prompt result should contain "Default values"
+    And the MCP prompt result should contain "aliases"
+    # Known lossy conversions summary
+    And the MCP prompt result should contain "Known Lossy Conversions"
+    # General guidance
+    And the MCP prompt result should contain "NEW subject"
+    And the MCP prompt result should contain "context"
 
   Scenario: Get schema migration prompt Protobuf to Avro
     When I get MCP prompt "migrate-schemas" with arguments:
@@ -213,8 +237,21 @@ Feature: MCP Prompts — Pre-Built Conversation Templates
       | target_format | AVRO     |
     Then the MCP prompt result should contain "PROTOBUF"
     And the MCP prompt result should contain "AVRO"
+    # Type mapping table
+    And the MCP prompt result should contain "Type Mapping: Protobuf to Avro"
     And the MCP prompt result should contain "record"
+    And the MCP prompt result should contain "boolean"
+    # Unsigned integer warnings
+    And the MCP prompt result should contain "uint32"
+    And the MCP prompt result should contain "unsigned-to-signed"
+    # Non-string map key warning
+    And the MCP prompt result should contain "string-keyed"
+    # Lossy conversion warnings
     And the MCP prompt result should contain "Field numbers"
+    And the MCP prompt result should contain "reserved"
+    And the MCP prompt result should contain "What is lost"
+    # Known lossy conversions summary
+    And the MCP prompt result should contain "Known Lossy Conversions"
 
   Scenario: Get schema migration prompt Avro to JSON Schema
     When I get MCP prompt "migrate-schemas" with arguments:
@@ -222,7 +259,74 @@ Feature: MCP Prompts — Pre-Built Conversation Templates
       | target_format | JSON |
     Then the MCP prompt result should contain "AVRO"
     And the MCP prompt result should contain "JSON"
+    # Type mapping table
+    And the MCP prompt result should contain "Type Mapping: Avro to JSON Schema"
     And the MCP prompt result should contain "additionalProperties"
+    And the MCP prompt result should contain "contentEncoding"
+    And the MCP prompt result should contain "required"
+    # Logical type mapping
+    And the MCP prompt result should contain "format"
+    And the MCP prompt result should contain "date-time"
+    And the MCP prompt result should contain "uuid"
+    # Lossy conversion warnings
+    And the MCP prompt result should contain "What is lost"
+    And the MCP prompt result should contain "aliases"
+
+  Scenario: Get schema migration prompt JSON Schema to Avro
+    When I get MCP prompt "migrate-schemas" with arguments:
+      | source_format | JSON |
+      | target_format | AVRO |
+    Then the MCP prompt result should contain "JSON"
+    And the MCP prompt result should contain "AVRO"
+    # Type mapping table
+    And the MCP prompt result should contain "Type Mapping: JSON Schema to Avro"
+    And the MCP prompt result should contain "union"
+    And the MCP prompt result should contain "long"
+    And the MCP prompt result should contain "double"
+    # Lossy conversion warnings
+    And the MCP prompt result should contain "What is lost"
+    And the MCP prompt result should contain "pattern"
+    And the MCP prompt result should contain "minLength"
+    And the MCP prompt result should contain "allOf"
+    # Known lossy conversions summary
+    And the MCP prompt result should contain "Known Lossy Conversions"
+
+  Scenario: Get schema migration prompt Protobuf to JSON Schema
+    When I get MCP prompt "migrate-schemas" with arguments:
+      | source_format | PROTOBUF |
+      | target_format | JSON     |
+    Then the MCP prompt result should contain "PROTOBUF"
+    And the MCP prompt result should contain "JSON"
+    # Type mapping table
+    And the MCP prompt result should contain "Type Mapping: Protobuf to JSON Schema"
+    And the MCP prompt result should contain "additionalProperties"
+    And the MCP prompt result should contain "oneOf"
+    And the MCP prompt result should contain "integer"
+    And the MCP prompt result should contain "contentEncoding"
+    # Lossy conversion warnings
+    And the MCP prompt result should contain "What is lost"
+    And the MCP prompt result should contain "Field numbers"
+    # Known lossy conversions summary
+    And the MCP prompt result should contain "Known Lossy Conversions"
+
+  Scenario: Get schema migration prompt JSON Schema to Protobuf
+    When I get MCP prompt "migrate-schemas" with arguments:
+      | source_format | JSON     |
+      | target_format | PROTOBUF |
+    Then the MCP prompt result should contain "JSON"
+    And the MCP prompt result should contain "PROTOBUF"
+    # Type mapping table
+    And the MCP prompt result should contain "Type Mapping: JSON Schema to Protobuf"
+    And the MCP prompt result should contain "UNSPECIFIED"
+    And the MCP prompt result should contain "int64"
+    And the MCP prompt result should contain "bytes"
+    # Lossy conversion warnings
+    And the MCP prompt result should contain "What is lost"
+    And the MCP prompt result should contain "pattern"
+    And the MCP prompt result should contain "required"
+    And the MCP prompt result should contain "default"
+    # Known lossy conversions summary
+    And the MCP prompt result should contain "Known Lossy Conversions"
 
   Scenario: Get schema quality review prompt
     When I call MCP tool "register_schema" with JSON input:

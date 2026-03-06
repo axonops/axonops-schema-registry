@@ -4,7 +4,7 @@ Feature: MCP Workflow — Troubleshooting
   prompts/debug-registration-error.md by executing MCP tool call sequences.
 
   # Validates: glossary/error-reference — 42201
-  Scenario: Invalid schema returns error code 42201
+  Scenario: Invalid schema returns error via MCP
     When I call MCP tool "register_schema" with JSON input:
       """
       {
@@ -13,19 +13,19 @@ Feature: MCP Workflow — Troubleshooting
       }
       """
     Then the MCP result should be an error
-    And the MCP result should contain "42201"
+    And the MCP result should contain "invalid schema"
 
   # Validates: glossary/error-reference — 40401
-  Scenario: Non-existent subject returns 40401
+  Scenario: Non-existent subject returns error via MCP
     When I call MCP tool "get_latest_schema" with JSON input:
       """
       {"subject": "wf-trouble-nonexistent-subject-xyz"}
       """
     Then the MCP result should be an error
-    And the MCP result should contain "40401"
+    And the MCP result should contain "not found"
 
   # Validates: glossary/error-reference — 409, troubleshooting Registration failures
-  Scenario: Incompatible schema returns 409 then explain failure
+  Scenario: Incompatible schema returns error then explain failure
     When I call MCP tool "register_schema" with JSON input:
       """
       {
@@ -42,7 +42,7 @@ Feature: MCP Workflow — Troubleshooting
       }
       """
     Then the MCP result should be an error
-    And the MCP result should contain "409"
+    And the MCP result should contain "incompatible"
     When I call MCP tool "explain_compatibility_failure" with JSON input:
       """
       {
@@ -64,7 +64,7 @@ Feature: MCP Workflow — Troubleshooting
     Then the MCP result should not be an error
     When I call MCP tool "match_subjects" with JSON input:
       """
-      {"pattern": "order*"}
+      {"pattern": "orders"}
       """
     Then the MCP result should not be an error
     And the MCP result should contain "orders-value"

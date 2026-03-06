@@ -505,11 +505,12 @@ The schema failed validation. Common causes:
 - Invalid JSON Schema (unsupported keywords or types)
 
 Debug steps:
-1. Validate the schema syntax independently
+1. Use validate_schema to get a detailed error message
 2. For Avro: ensure "type", "name", and "fields" are present for records
 3. For Protobuf: ensure 'syntax = "proto3";' is the first line
 4. For JSON Schema: ensure "type" is a valid JSON Schema type
-5. Check for escape character issues in the schema string`
+5. Check for escape character issues in the schema string
+6. Check for malformed JSON (missing brackets, quotes, commas)`
 
 	case "409":
 		guidance = `Error 409: Incompatible schema
@@ -519,13 +520,14 @@ The new schema is not compatible with existing versions under the current compat
 Debug steps:
 1. Use get_config to check the compatibility level
 2. Use check_compatibility to get detailed incompatibility reasons
-3. Use get_latest_schema to compare with the current schema
-4. Common fixes:
+3. Use explain_compatibility_failure to understand what changed and why it breaks
+4. Use get_latest_schema to compare with the current schema
+5. Common fixes:
    - Add default values to new fields
    - Make new fields optional (nullable)
    - Don't remove or rename existing fields
    - Don't change field types
-5. If the change is intentional, consider set_config to NONE temporarily`
+6. If the change is intentional, consider set_config to NONE temporarily`
 
 	case "40401":
 		guidance = `Error 40401: Subject not found
@@ -534,9 +536,10 @@ The specified subject does not exist in the registry.
 
 Debug steps:
 1. Use list_subjects to see all available subjects
-2. Check for typos in the subject name
-3. The subject might have been soft-deleted — use list_subjects with deleted: true
-4. If deleted, re-register the schema to create a new version`
+2. Use match_subjects to find similarly named subjects (catches typos)
+3. Check for typos in the subject name
+4. The subject might have been soft-deleted — use list_subjects with deleted: true
+5. If deleted, re-register the schema to create a new version`
 
 	case "40402":
 		guidance = `Error 40402: Version not found

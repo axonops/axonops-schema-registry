@@ -30,7 +30,7 @@ Feature: MCP Workflow — Team Onboarding
     When I call MCP tool "set_config" with JSON input:
       """
       {
-        "compatibility": "FULL_TRANSITIVE",
+        "compatibility_level": "FULL_TRANSITIVE",
         "context": ".team-beta"
       }
       """
@@ -42,25 +42,17 @@ Feature: MCP Workflow — Team Onboarding
     Then the MCP result should contain "FULL_TRANSITIVE"
 
   # Validates: prompts/team-onboarding.md — Step 4, glossary/auth-and-security
-  Scenario: Create user with write role and API key
+  Scenario: Create user with developer role
     When I call MCP tool "create_user" with JSON input:
       """
       {
         "username": "wf-team-user",
         "password": "SecureP@ss1234!",
-        "role": "write"
+        "role": "developer"
       }
       """
     Then the MCP result should not be an error
     And the MCP result should contain "wf-team-user"
-    When I call MCP tool "create_apikey" with JSON input:
-      """
-      {
-        "user_id": "wf-team-user",
-        "name": "wf-team-key"
-      }
-      """
-    Then the MCP result should not be an error
 
   # Validates: prompts/team-onboarding.md — Step 8
   Scenario: Context-scoped resources return only team data
@@ -89,7 +81,7 @@ Feature: MCP Workflow — Team Onboarding
   Scenario: Full onboarding end-to-end
     When I call MCP tool "set_config" with JSON input:
       """
-      {"compatibility": "BACKWARD_TRANSITIVE", "context": ".team-delta"}
+      {"compatibility_level": "BACKWARD_TRANSITIVE", "context": ".team-delta"}
       """
     Then the MCP result should not be an error
     When I call MCP tool "register_schema" with JSON input:

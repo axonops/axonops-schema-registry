@@ -41,8 +41,8 @@ Feature: MCP Workflow — Subject Deprecation
       """
       {
         "subject": "wf-dep-meta",
-        "compatibility": "BACKWARD",
-        "metadata": {"properties": {"deprecated": "true", "deprecation_date": "2026-03-06"}}
+        "compatibility_level": "BACKWARD",
+        "default_metadata": {"properties": {"deprecated": "true", "deprecation_date": "2026-03-06"}}
       }
       """
     Then the MCP result should not be an error
@@ -94,8 +94,8 @@ Feature: MCP Workflow — Subject Deprecation
       """
       {
         "subject": "wf-dep-full",
-        "compatibility": "BACKWARD",
-        "metadata": {"properties": {"deprecated": "true"}}
+        "compatibility_level": "BACKWARD",
+        "default_metadata": {"properties": {"deprecated": "true"}}
       }
       """
     Then the MCP result should not be an error

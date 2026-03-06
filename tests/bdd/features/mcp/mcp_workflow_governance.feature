@@ -7,7 +7,7 @@ Feature: MCP Workflow — Governance Setup
   Scenario: Set global compatibility and verify resolution
     When I call MCP tool "set_config" with JSON input:
       """
-      {"compatibility": "FULL"}
+      {"compatibility_level": "FULL"}
       """
     Then the MCP result should not be an error
     When I call MCP tool "get_config" with JSON input:
@@ -54,8 +54,7 @@ Feature: MCP Workflow — Governance Setup
     When I call MCP tool "check_field_consistency" with JSON input:
       """
       {
-        "field_name": "customer_id",
-        "subjects": ["wf-gov-cons-a", "wf-gov-cons-b"]
+        "field": "customer_id"
       }
       """
     Then the MCP result should not be an error
@@ -75,8 +74,8 @@ Feature: MCP Workflow — Governance Setup
       """
       {
         "subject": "wf-gov-contract",
-        "compatibility": "BACKWARD",
-        "metadata": {
+        "compatibility_level": "BACKWARD",
+        "default_metadata": {
           "properties": {"pii": "true", "owner": "data-team"}
         }
       }

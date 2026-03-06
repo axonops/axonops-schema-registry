@@ -23,7 +23,7 @@ Feature: MCP Workflow — Cross-Cutting Change
     Then the MCP result should not be an error
     When I call MCP tool "find_schemas_by_field" with JSON input:
       """
-      {"field_name": "customer_id"}
+      {"field": "customer_id"}
       """
     Then the MCP result should not be an error
     And the MCP result should contain "wf-xcut-orders"
@@ -50,8 +50,7 @@ Feature: MCP Workflow — Cross-Cutting Change
     When I call MCP tool "check_field_consistency" with JSON input:
       """
       {
-        "field_name": "tenant_id",
-        "subjects": ["wf-xcut-cons-a", "wf-xcut-cons-b"]
+        "field": "tenant_id"
       }
       """
     Then the MCP result should not be an error
@@ -78,16 +77,8 @@ Feature: MCP Workflow — Cross-Cutting Change
     When I call MCP tool "check_compatibility_multi" with JSON input:
       """
       {
-        "checks": [
-          {
-            "subject": "wf-xcut-multi-a",
-            "schema": "{\"type\":\"record\",\"name\":\"EventA\",\"fields\":[{\"name\":\"id\",\"type\":\"string\"},{\"name\":\"ts\",\"type\":[\"null\",\"long\"],\"default\":null}]}"
-          },
-          {
-            "subject": "wf-xcut-multi-b",
-            "schema": "{\"type\":\"record\",\"name\":\"EventB\",\"fields\":[{\"name\":\"id\",\"type\":\"string\"},{\"name\":\"ts\",\"type\":[\"null\",\"long\"],\"default\":null}]}"
-          }
-        ]
+        "subjects": ["wf-xcut-multi-a", "wf-xcut-multi-b"],
+        "schema": "{\"type\":\"record\",\"name\":\"Event\",\"fields\":[{\"name\":\"id\",\"type\":\"string\"},{\"name\":\"ts\",\"type\":[\"null\",\"long\"],\"default\":null}]}"
       }
       """
     Then the MCP result should not be an error

@@ -650,6 +650,13 @@ func RegisterMCPSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 		return nil
 	})
 
+	ctx.Step(`^the MCP result should be an error$`, func() error {
+		if tc.MCPError == nil && !tc.MCPResultIsError {
+			return fmt.Errorf("expected MCP result to be an error, but it succeeded: %s", tc.MCPResultText)
+		}
+		return nil
+	})
+
 	// --- Audit log assertion steps ---
 
 	ctx.Step(`^the audit log should contain event "([^"]*)"$`, func(eventType string) error {

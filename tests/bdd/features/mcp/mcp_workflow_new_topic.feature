@@ -49,7 +49,8 @@ Feature: MCP Workflow — New Kafka Topic Setup
         "schema_type": "AVRO"
       }
       """
-    Then the MCP result should be an error
+    Then the MCP result should not be an error
+    And the MCP result should contain "\"valid\":false"
 
   # Validates: prompts/new-kafka-topic.md — Step 7, glossary/compatibility
   Scenario: Check compatibility before registration
@@ -85,7 +86,7 @@ Feature: MCP Workflow — New Kafka Topic Setup
       """
       {
         "subject": "wf-config-test",
-        "compatibility": "FULL"
+        "compatibility_level": "FULL"
       }
       """
     Then the MCP result should not be an error
