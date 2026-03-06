@@ -198,6 +198,67 @@ func (s *Server) registerPrompts() {
 		Description: "Practical recipes for common schema evolution scenarios: add fields, rename, change types, and break compatibility safely",
 		Arguments:   []*gomcp.PromptArgument{},
 	}, s.handleSchemaEvolutionCookbookPrompt)
+
+	s.mcpServer.AddPrompt(&gomcp.Prompt{
+		Name:        "new-kafka-topic",
+		Description: "End-to-end workflow for setting up key and value schemas for a new Kafka topic",
+		Arguments: []*gomcp.PromptArgument{
+			{Name: "topic_name", Description: "Kafka topic name (e.g., orders, user-events)", Required: true},
+			{Name: "format", Description: "Schema format: AVRO (default), PROTOBUF, or JSON", Required: false},
+		},
+	}, s.handleNewKafkaTopicPrompt)
+
+	s.mcpServer.AddPrompt(&gomcp.Prompt{
+		Name:        "debug-deserialization",
+		Description: "Troubleshooting guide for consumer deserialization failures including wire format, schema ID extraction, and common causes",
+		Arguments:   []*gomcp.PromptArgument{},
+	}, s.handleDebugDeserializationPrompt)
+
+	s.mcpServer.AddPrompt(&gomcp.Prompt{
+		Name:        "deprecate-subject",
+		Description: "Workflow for safely deprecating and removing a schema subject with dependency checks, locking, and cleanup",
+		Arguments: []*gomcp.PromptArgument{
+			{Name: "subject", Description: "Subject name to deprecate", Required: true},
+			{Name: "context", Description: "Registry context for multi-tenant isolation (defaults to default context)", Required: false},
+		},
+	}, s.handleDeprecateSubjectPrompt)
+
+	s.mcpServer.AddPrompt(&gomcp.Prompt{
+		Name:        "cicd-integration",
+		Description: "Guide for integrating schema validation, compatibility checking, and registration into CI/CD pipelines",
+		Arguments:   []*gomcp.PromptArgument{},
+	}, s.handleCICDIntegrationPrompt)
+
+	s.mcpServer.AddPrompt(&gomcp.Prompt{
+		Name:        "team-onboarding",
+		Description: "Workflow for onboarding a new team with context creation, schema registration, RBAC setup, and naming conventions",
+		Arguments: []*gomcp.PromptArgument{
+			{Name: "team_name", Description: "Team name for the new context namespace", Required: true},
+		},
+	}, s.handleTeamOnboardingPrompt)
+
+	s.mcpServer.AddPrompt(&gomcp.Prompt{
+		Name:        "governance-setup",
+		Description: "Guide for setting up schema governance: naming conventions, quality gates, data contracts, RBAC, and audit",
+		Arguments:   []*gomcp.PromptArgument{},
+	}, s.handleGovernanceSetupPrompt)
+
+	s.mcpServer.AddPrompt(&gomcp.Prompt{
+		Name:        "cross-cutting-change",
+		Description: "Workflow for making a field change across multiple schemas: find affected schemas, test, and execute safely",
+		Arguments: []*gomcp.PromptArgument{
+			{Name: "field_name", Description: "Field name to change across schemas", Required: true},
+		},
+	}, s.handleCrossCuttingChangePrompt)
+
+	s.mcpServer.AddPrompt(&gomcp.Prompt{
+		Name:        "schema-review-checklist",
+		Description: "Pre-registration checklist: syntax, compatibility, quality, naming, uniqueness, dependencies, and impact",
+		Arguments: []*gomcp.PromptArgument{
+			{Name: "subject", Description: "Subject name for the schema being reviewed", Required: true},
+			{Name: "context", Description: "Registry context for multi-tenant isolation (defaults to default context)", Required: false},
+		},
+	}, s.handleSchemaReviewChecklistPrompt)
 }
 
 // --- Helpers ---
@@ -635,6 +696,12 @@ func (s *Server) handleGlossaryLookupPrompt(_ context.Context, req *gomcp.GetPro
 		{"schema://glossary/design-patterns", []string{"pattern", "envelope", "lifecycle", "snapshot", "delta", "fat", "thin", "rename", "ci/cd", "dlq", "dead letter"}},
 		{"schema://glossary/best-practices", []string{"best practice", "naming", "convention", "mistake", "antipattern", "guidance"}},
 		{"schema://glossary/migration", []string{"migrat", "confluent", "import", "import mode", "id preserv"}},
+		{"schema://glossary/mcp-configuration", []string{"mcp config", "tool policy", "permission", "preset", "read-only", "confirmation", "origin"}},
+		{"schema://glossary/error-reference", []string{"error code", "error ref", "40401", "42201", "diagnostic"}},
+		{"schema://glossary/auth-and-security", []string{"auth", "rbac", "role", "api key", "rate limit", "audit"}},
+		{"schema://glossary/storage-backends", []string{"storage", "backend", "postgres", "mysql", "cassandra", "stateless"}},
+		{"schema://glossary/normalization-and-fingerprinting", []string{"fingerprint", "normal", "canonical", "sha-256", "dedup"}},
+		{"schema://glossary/tool-selection-guide", []string{"tool", "which tool", "how to", "decision tree", "find schema"}},
 	}
 
 	var matchedURI string
@@ -694,4 +761,121 @@ func (s *Server) handleRegistryHealthAuditPrompt(_ context.Context, _ *gomcp.Get
 
 func (s *Server) handleSchemaEvolutionCookbookPrompt(_ context.Context, _ *gomcp.GetPromptRequest) (*gomcp.GetPromptResult, error) {
 	return promptFromFS(content.PromptsFS, "prompts/schema-evolution-cookbook.md", "Schema evolution cookbook with practical recipes")
+}
+
+func (s *Server) handleNewKafkaTopicPrompt(_ context.Context, req *gomcp.GetPromptRequest) (*gomcp.GetPromptResult, error) {
+	topicName := req.Params.Arguments["topic_name"]
+	if topicName == "" {
+		return nil, fmt.Errorf("required argument 'topic_name' is missing")
+	}
+
+	format := req.Params.Arguments["format"]
+	if format == "" {
+		format = "AVRO"
+	}
+
+	guidance, err := promptTemplateFromFS(content.PromptsFS, "prompts/new-kafka-topic.md", map[string]string{
+		"{topic_name}": topicName,
+		"{format}":     strings.ToUpper(format),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &gomcp.GetPromptResult{
+		Description: fmt.Sprintf("Kafka topic setup for %q (%s)", topicName, strings.ToUpper(format)),
+		Messages:    []*gomcp.PromptMessage{promptMessage("user", guidance)},
+	}, nil
+}
+
+func (s *Server) handleDebugDeserializationPrompt(_ context.Context, _ *gomcp.GetPromptRequest) (*gomcp.GetPromptResult, error) {
+	return promptFromFS(content.PromptsFS, "prompts/debug-deserialization.md", "Consumer deserialization troubleshooting guide")
+}
+
+func (s *Server) handleDeprecateSubjectPrompt(ctx context.Context, req *gomcp.GetPromptRequest) (*gomcp.GetPromptResult, error) {
+	subject := req.Params.Arguments["subject"]
+	if subject == "" {
+		return nil, fmt.Errorf("required argument 'subject' is missing")
+	}
+
+	guidance, err := promptTemplateFromFS(content.PromptsFS, "prompts/deprecate-subject.md", map[string]string{"{subject}": subject})
+	if err != nil {
+		return nil, err
+	}
+
+	registryCtx := resolveContext(req.Params.Arguments["context"])
+	latest, err := s.registry.GetLatestSchema(ctx, registryCtx, subject)
+	if err == nil && latest != nil {
+		guidance += fmt.Sprintf("\n\nCurrent version: %d, type: %s", latest.Version, latest.SchemaType)
+	}
+
+	return &gomcp.GetPromptResult{
+		Description: fmt.Sprintf("Deprecation workflow for %q", subject),
+		Messages:    []*gomcp.PromptMessage{promptMessage("user", guidance)},
+	}, nil
+}
+
+func (s *Server) handleCICDIntegrationPrompt(_ context.Context, _ *gomcp.GetPromptRequest) (*gomcp.GetPromptResult, error) {
+	return promptFromFS(content.PromptsFS, "prompts/cicd-integration.md", "CI/CD pipeline integration guide")
+}
+
+func (s *Server) handleTeamOnboardingPrompt(_ context.Context, req *gomcp.GetPromptRequest) (*gomcp.GetPromptResult, error) {
+	teamName := req.Params.Arguments["team_name"]
+	if teamName == "" {
+		return nil, fmt.Errorf("required argument 'team_name' is missing")
+	}
+
+	guidance, err := promptTemplateFromFS(content.PromptsFS, "prompts/team-onboarding.md", map[string]string{"{team_name}": teamName})
+	if err != nil {
+		return nil, err
+	}
+
+	return &gomcp.GetPromptResult{
+		Description: fmt.Sprintf("Team onboarding workflow for %q", teamName),
+		Messages:    []*gomcp.PromptMessage{promptMessage("user", guidance)},
+	}, nil
+}
+
+func (s *Server) handleGovernanceSetupPrompt(_ context.Context, _ *gomcp.GetPromptRequest) (*gomcp.GetPromptResult, error) {
+	return promptFromFS(content.PromptsFS, "prompts/governance-setup.md", "Schema governance setup guide")
+}
+
+func (s *Server) handleCrossCuttingChangePrompt(_ context.Context, req *gomcp.GetPromptRequest) (*gomcp.GetPromptResult, error) {
+	fieldName := req.Params.Arguments["field_name"]
+	if fieldName == "" {
+		return nil, fmt.Errorf("required argument 'field_name' is missing")
+	}
+
+	guidance, err := promptTemplateFromFS(content.PromptsFS, "prompts/cross-cutting-change.md", map[string]string{"{field_name}": fieldName})
+	if err != nil {
+		return nil, err
+	}
+
+	return &gomcp.GetPromptResult{
+		Description: fmt.Sprintf("Cross-cutting change workflow for field %q", fieldName),
+		Messages:    []*gomcp.PromptMessage{promptMessage("user", guidance)},
+	}, nil
+}
+
+func (s *Server) handleSchemaReviewChecklistPrompt(ctx context.Context, req *gomcp.GetPromptRequest) (*gomcp.GetPromptResult, error) {
+	subject := req.Params.Arguments["subject"]
+	if subject == "" {
+		return nil, fmt.Errorf("required argument 'subject' is missing")
+	}
+
+	guidance, err := promptTemplateFromFS(content.PromptsFS, "prompts/schema-review-checklist.md", map[string]string{"{subject}": subject})
+	if err != nil {
+		return nil, err
+	}
+
+	registryCtx := resolveContext(req.Params.Arguments["context"])
+	latest, err := s.registry.GetLatestSchema(ctx, registryCtx, subject)
+	if err == nil && latest != nil {
+		guidance += fmt.Sprintf("\n\nCurrent latest version: %d, type: %s", latest.Version, latest.SchemaType)
+	}
+
+	return &gomcp.GetPromptResult{
+		Description: fmt.Sprintf("Schema review checklist for %q", subject),
+		Messages:    []*gomcp.PromptMessage{promptMessage("user", guidance)},
+	}, nil
 }
