@@ -46,13 +46,13 @@ type Metrics struct {
 	RateLimitHits *prometheus.CounterVec
 
 	// MCP metrics
-	MCPToolCallsTotal     *prometheus.CounterVec
-	MCPToolCallDuration   *prometheus.HistogramVec
-	MCPToolCallErrors     *prometheus.CounterVec
-	MCPToolCallsActive    prometheus.Gauge
-	MCPConfirmationsTotal      *prometheus.CounterVec // labels: outcome (token_issued, confirmed, token_rejected)
-	MCPPolicyDenialsTotal      *prometheus.CounterVec // labels: reason (origin_rejected, confirmation_required)
-	MCPPermissionDeniedTotal   *prometheus.CounterVec // labels: tool, scope
+	MCPToolCallsTotal        *prometheus.CounterVec
+	MCPToolCallDuration      *prometheus.HistogramVec
+	MCPToolCallErrors        *prometheus.CounterVec
+	MCPToolCallsActive       prometheus.Gauge
+	MCPConfirmationsTotal    *prometheus.CounterVec // labels: outcome (token_issued, confirmed, token_rejected)
+	MCPPolicyDenialsTotal    *prometheus.CounterVec // labels: reason (origin_rejected, confirmation_required)
+	MCPPermissionDeniedTotal *prometheus.CounterVec // labels: tool, scope
 
 	// Per-principal metrics (optional, may be nil if disabled)
 	PrincipalRequestsTotal *prometheus.CounterVec // labels: principal, method, path, status
