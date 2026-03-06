@@ -134,10 +134,15 @@ func (s *Server) Start() error {
 	mux := http.NewServeMux()
 	mux.Handle("/mcp", s.originMiddleware(s.authMiddleware(handler)))
 
+	readHeaderTimeout := time.Duration(s.config.ReadHeaderTimeout) * time.Second
+	if readHeaderTimeout <= 0 {
+		readHeaderTimeout = 10 * time.Second
+	}
+
 	s.httpServer = &http.Server{
 		Addr:              addr,
 		Handler:           mux,
-		ReadHeaderTimeout: 10 * time.Second,
+		ReadHeaderTimeout: readHeaderTimeout,
 	}
 
 	ln, err := net.Listen("tcp", addr)

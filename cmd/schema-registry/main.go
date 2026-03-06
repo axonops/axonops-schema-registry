@@ -401,15 +401,18 @@ func createStorage(cfg *config.Config, logger *slog.Logger) (storage.Storage, er
 			slog.String("database", cfg.Storage.PostgreSQL.Database),
 		)
 		pgCfg := postgres.Config{
-			Host:            cfg.Storage.PostgreSQL.Host,
-			Port:            cfg.Storage.PostgreSQL.Port,
-			Database:        cfg.Storage.PostgreSQL.Database,
-			Username:        cfg.Storage.PostgreSQL.User,
-			Password:        cfg.Storage.PostgreSQL.Password,
-			SSLMode:         cfg.Storage.PostgreSQL.SSLMode,
-			MaxOpenConns:    cfg.Storage.PostgreSQL.MaxOpenConns,
-			MaxIdleConns:    cfg.Storage.PostgreSQL.MaxIdleConns,
-			ConnMaxLifetime: time.Duration(cfg.Storage.PostgreSQL.ConnMaxLifetime) * time.Second,
+			Host:               cfg.Storage.PostgreSQL.Host,
+			Port:               cfg.Storage.PostgreSQL.Port,
+			Database:           cfg.Storage.PostgreSQL.Database,
+			Username:           cfg.Storage.PostgreSQL.User,
+			Password:           cfg.Storage.PostgreSQL.Password,
+			SSLMode:            cfg.Storage.PostgreSQL.SSLMode,
+			MaxOpenConns:       cfg.Storage.PostgreSQL.MaxOpenConns,
+			MaxIdleConns:       cfg.Storage.PostgreSQL.MaxIdleConns,
+			ConnMaxLifetime:    time.Duration(cfg.Storage.PostgreSQL.ConnMaxLifetime) * time.Second,
+			ConnectTimeout:     time.Duration(cfg.Storage.PostgreSQL.ConnectTimeout) * time.Second,
+			HealthCheckTimeout: time.Duration(cfg.Storage.PostgreSQL.HealthCheckTimeout) * time.Second,
+			SchemaMaxRetries:   cfg.Storage.PostgreSQL.SchemaMaxRetries,
 		}
 		if pgCfg.Host == "" {
 			pgCfg.Host = "localhost"
@@ -441,15 +444,18 @@ func createStorage(cfg *config.Config, logger *slog.Logger) (storage.Storage, er
 			slog.String("database", cfg.Storage.MySQL.Database),
 		)
 		mysqlCfg := mysql.Config{
-			Host:            cfg.Storage.MySQL.Host,
-			Port:            cfg.Storage.MySQL.Port,
-			Database:        cfg.Storage.MySQL.Database,
-			Username:        cfg.Storage.MySQL.User,
-			Password:        cfg.Storage.MySQL.Password,
-			TLS:             cfg.Storage.MySQL.TLS,
-			MaxOpenConns:    cfg.Storage.MySQL.MaxOpenConns,
-			MaxIdleConns:    cfg.Storage.MySQL.MaxIdleConns,
-			ConnMaxLifetime: time.Duration(cfg.Storage.MySQL.ConnMaxLifetime) * time.Second,
+			Host:               cfg.Storage.MySQL.Host,
+			Port:               cfg.Storage.MySQL.Port,
+			Database:           cfg.Storage.MySQL.Database,
+			Username:           cfg.Storage.MySQL.User,
+			Password:           cfg.Storage.MySQL.Password,
+			TLS:                cfg.Storage.MySQL.TLS,
+			MaxOpenConns:       cfg.Storage.MySQL.MaxOpenConns,
+			MaxIdleConns:       cfg.Storage.MySQL.MaxIdleConns,
+			ConnMaxLifetime:    time.Duration(cfg.Storage.MySQL.ConnMaxLifetime) * time.Second,
+			ConnectTimeout:     time.Duration(cfg.Storage.MySQL.ConnectTimeout) * time.Second,
+			HealthCheckTimeout: time.Duration(cfg.Storage.MySQL.HealthCheckTimeout) * time.Second,
+			SchemaMaxRetries:   cfg.Storage.MySQL.SchemaMaxRetries,
 		}
 		if mysqlCfg.Host == "" {
 			mysqlCfg.Host = "localhost"

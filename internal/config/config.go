@@ -36,6 +36,7 @@ type MCPConfig struct {
 	LogSchemas           bool     `yaml:"log_schemas"`           // Log full schema bodies in debug output (default: false)
 	PermissionPreset     string   `yaml:"permission_preset"`     // "readonly", "developer", "operator", "admin", "full"
 	PermissionScopes     []string `yaml:"permission_scopes"`     // Individual scopes when preset is empty
+	ReadHeaderTimeout    int      `yaml:"read_header_timeout"`   // HTTP ReadHeaderTimeout in seconds (default: 10)
 }
 
 // ServerConfig represents HTTP server configuration.
@@ -62,28 +63,34 @@ type StorageConfig struct {
 
 // PostgreSQLConfig represents PostgreSQL connection configuration.
 type PostgreSQLConfig struct {
-	Host            string `yaml:"host"`
-	Port            int    `yaml:"port"`
-	Database        string `yaml:"database"`
-	User            string `yaml:"user"`
-	Password        string `yaml:"password"`
-	SSLMode         string `yaml:"ssl_mode"`
-	MaxOpenConns    int    `yaml:"max_open_conns"`
-	MaxIdleConns    int    `yaml:"max_idle_conns"`
-	ConnMaxLifetime int    `yaml:"conn_max_lifetime"` // seconds
+	Host               string `yaml:"host"`
+	Port               int    `yaml:"port"`
+	Database           string `yaml:"database"`
+	User               string `yaml:"user"`
+	Password           string `yaml:"password"`
+	SSLMode            string `yaml:"ssl_mode"`
+	MaxOpenConns       int    `yaml:"max_open_conns"`
+	MaxIdleConns       int    `yaml:"max_idle_conns"`
+	ConnMaxLifetime    int    `yaml:"conn_max_lifetime"`    // seconds
+	ConnectTimeout     int    `yaml:"connect_timeout"`      // Initial connection ping timeout in seconds (default: 5)
+	HealthCheckTimeout int    `yaml:"health_check_timeout"` // Health check timeout in seconds (default: 2)
+	SchemaMaxRetries   int    `yaml:"schema_max_retries"`   // Max retries for schema creation (default: 15)
 }
 
 // MySQLConfig represents MySQL connection configuration.
 type MySQLConfig struct {
-	Host            string `yaml:"host"`
-	Port            int    `yaml:"port"`
-	Database        string `yaml:"database"`
-	User            string `yaml:"user"`
-	Password        string `yaml:"password"`
-	TLS             string `yaml:"tls"` // true, false, skip-verify, preferred
-	MaxOpenConns    int    `yaml:"max_open_conns"`
-	MaxIdleConns    int    `yaml:"max_idle_conns"`
-	ConnMaxLifetime int    `yaml:"conn_max_lifetime"` // seconds
+	Host               string `yaml:"host"`
+	Port               int    `yaml:"port"`
+	Database           string `yaml:"database"`
+	User               string `yaml:"user"`
+	Password           string `yaml:"password"`
+	TLS                string `yaml:"tls"` // true, false, skip-verify, preferred
+	MaxOpenConns       int    `yaml:"max_open_conns"`
+	MaxIdleConns       int    `yaml:"max_idle_conns"`
+	ConnMaxLifetime    int    `yaml:"conn_max_lifetime"`    // seconds
+	ConnectTimeout     int    `yaml:"connect_timeout"`      // Initial connection ping timeout in seconds (default: 5)
+	HealthCheckTimeout int    `yaml:"health_check_timeout"` // Health check timeout in seconds (default: 2)
+	SchemaMaxRetries   int    `yaml:"schema_max_retries"`   // Max retries for schema creation (default: 15)
 }
 
 // CassandraConfig represents Cassandra connection configuration.
@@ -225,8 +232,6 @@ type OIDCConfig struct {
 	IssuerURL         string            `yaml:"issuer_url"`         // https://auth.example.com
 	ClientID          string            `yaml:"client_id"`          // For token validation
 	ClientSecret      string            `yaml:"client_secret"`      // #nosec G117 -- OIDC config field, not a hardcoded secret
-	RedirectURL       string            `yaml:"redirect_url"`       // NOT YET IMPLEMENTED — OAuth2 code flow not supported
-	Scopes            []string          `yaml:"scopes"`             // NOT YET IMPLEMENTED — OAuth2 code flow not supported
 	UsernameClaim     string            `yaml:"username_claim"`     // sub, preferred_username, email
 	RolesClaim        string            `yaml:"roles_claim"`        // roles, groups
 	RoleMapping       map[string]string `yaml:"role_mapping"`       // OIDC role -> registry role
@@ -410,6 +415,21 @@ func (c *Config) applyEnvOverrides() {
 	if v := os.Getenv("SCHEMA_REGISTRY_PG_SSLMODE"); v != "" {
 		c.Storage.PostgreSQL.SSLMode = v
 	}
+	if v := os.Getenv("SCHEMA_REGISTRY_PG_CONNECT_TIMEOUT"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			c.Storage.PostgreSQL.ConnectTimeout = n
+		}
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_PG_HEALTH_CHECK_TIMEOUT"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			c.Storage.PostgreSQL.HealthCheckTimeout = n
+		}
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_PG_SCHEMA_MAX_RETRIES"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			c.Storage.PostgreSQL.SchemaMaxRetries = n
+		}
+	}
 
 	// MySQL overrides
 	if v := os.Getenv("SCHEMA_REGISTRY_MYSQL_HOST"); v != "" {
@@ -431,6 +451,21 @@ func (c *Config) applyEnvOverrides() {
 	}
 	if v := os.Getenv("SCHEMA_REGISTRY_MYSQL_TLS"); v != "" {
 		c.Storage.MySQL.TLS = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_MYSQL_CONNECT_TIMEOUT"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			c.Storage.MySQL.ConnectTimeout = n
+		}
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_MYSQL_HEALTH_CHECK_TIMEOUT"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			c.Storage.MySQL.HealthCheckTimeout = n
+		}
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_MYSQL_SCHEMA_MAX_RETRIES"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			c.Storage.MySQL.SchemaMaxRetries = n
+		}
 	}
 
 	// Cassandra overrides
@@ -549,6 +584,11 @@ func (c *Config) applyEnvOverrides() {
 			tools[i] = strings.TrimSpace(tools[i])
 		}
 		c.MCP.DeniedTools = tools
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_MCP_READ_HEADER_TIMEOUT"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			c.MCP.ReadHeaderTimeout = n
+		}
 	}
 
 	// Docs enabled override

@@ -488,8 +488,6 @@ security:
 | `security.auth.oidc.issuer_url` | string | `""` | OIDC issuer URL (e.g., `https://auth.example.com`). Used for discovery. |
 | `security.auth.oidc.client_id` | string | `""` | Client ID for token validation. |
 | `security.auth.oidc.client_secret` | string | `""` | Client secret. |
-| `security.auth.oidc.redirect_url` | string | `""` | **Not yet implemented.** OAuth2 authorization code flow is not supported; the registry validates bearer tokens only. |
-| `security.auth.oidc.scopes` | list of strings | `[]` | **Not yet implemented.** OAuth2 authorization code flow is not supported; the registry validates bearer tokens only. |
 | `security.auth.oidc.username_claim` | string | `""` | JWT claim used as the username (`sub`, `preferred_username`, `email`). |
 | `security.auth.oidc.roles_claim` | string | `""` | JWT claim containing role information (`roles`, `groups`). |
 | `security.auth.oidc.role_mapping` | map (string to string) | `{}` | Maps OIDC roles/groups to registry roles. |
@@ -921,8 +919,6 @@ security:
       issuer_url: ""
       client_id: ""
       client_secret: ""
-      redirect_url: ""                # NOT YET IMPLEMENTED
-      scopes: []                      # NOT YET IMPLEMENTED
       username_claim: ""              # sub | preferred_username | email
       roles_claim: ""                 # roles | groups
       role_mapping: {}                # OIDC role -> registry role

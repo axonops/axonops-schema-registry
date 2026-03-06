@@ -37,31 +37,37 @@ func isInvalidConnErr(err error) bool {
 
 // Config holds MySQL connection configuration.
 type Config struct {
-	Host            string        `json:"host" yaml:"host"`
-	Port            int           `json:"port" yaml:"port"`
-	Database        string        `json:"database" yaml:"database"`
-	Username        string        `json:"username" yaml:"username"`
-	Password        string        `json:"password" yaml:"password"`
-	TLS             string        `json:"tls" yaml:"tls"` // true, false, skip-verify, preferred, or custom config name
-	MaxOpenConns    int           `json:"max_open_conns" yaml:"max_open_conns"`
-	MaxIdleConns    int           `json:"max_idle_conns" yaml:"max_idle_conns"`
-	ConnMaxLifetime time.Duration `json:"conn_max_lifetime" yaml:"conn_max_lifetime"`
-	ConnMaxIdleTime time.Duration `json:"conn_max_idle_time" yaml:"conn_max_idle_time"`
+	Host               string        `json:"host" yaml:"host"`
+	Port               int           `json:"port" yaml:"port"`
+	Database           string        `json:"database" yaml:"database"`
+	Username           string        `json:"username" yaml:"username"`
+	Password           string        `json:"password" yaml:"password"`
+	TLS                string        `json:"tls" yaml:"tls"` // true, false, skip-verify, preferred, or custom config name
+	MaxOpenConns       int           `json:"max_open_conns" yaml:"max_open_conns"`
+	MaxIdleConns       int           `json:"max_idle_conns" yaml:"max_idle_conns"`
+	ConnMaxLifetime    time.Duration `json:"conn_max_lifetime" yaml:"conn_max_lifetime"`
+	ConnMaxIdleTime    time.Duration `json:"conn_max_idle_time" yaml:"conn_max_idle_time"`
+	ConnectTimeout     time.Duration `json:"connect_timeout" yaml:"connect_timeout"`           // Initial connection ping timeout (default: 5s)
+	HealthCheckTimeout time.Duration `json:"health_check_timeout" yaml:"health_check_timeout"` // Health check timeout (default: 2s)
+	SchemaMaxRetries   int           `json:"schema_max_retries" yaml:"schema_max_retries"`     // Max retries for schema creation (default: 15)
 }
 
 // DefaultConfig returns a default configuration.
 func DefaultConfig() Config {
 	return Config{
-		Host:            "localhost",
-		Port:            3306,
-		Database:        "schema_registry",
-		Username:        "root",
-		Password:        "",
-		TLS:             "false",
-		MaxOpenConns:    25,
-		MaxIdleConns:    5,
-		ConnMaxLifetime: 5 * time.Minute,
-		ConnMaxIdleTime: 5 * time.Minute,
+		Host:               "localhost",
+		Port:               3306,
+		Database:           "schema_registry",
+		Username:           "root",
+		Password:           "",
+		TLS:                "false",
+		MaxOpenConns:       25,
+		MaxIdleConns:       5,
+		ConnMaxLifetime:    5 * time.Minute,
+		ConnMaxIdleTime:    5 * time.Minute,
+		ConnectTimeout:     5 * time.Second,
+		HealthCheckTimeout: 2 * time.Second,
+		SchemaMaxRetries:   15,
 	}
 }
 
@@ -138,6 +144,15 @@ func NewStore(config Config) (*Store, error) {
 	if config.ConnMaxIdleTime == 0 {
 		config.ConnMaxIdleTime = defaults.ConnMaxIdleTime
 	}
+	if config.ConnectTimeout == 0 {
+		config.ConnectTimeout = defaults.ConnectTimeout
+	}
+	if config.HealthCheckTimeout == 0 {
+		config.HealthCheckTimeout = defaults.HealthCheckTimeout
+	}
+	if config.SchemaMaxRetries == 0 {
+		config.SchemaMaxRetries = defaults.SchemaMaxRetries
+	}
 
 	db, err := sql.Open("mysql", config.DSN())
 	if err != nil {
@@ -151,7 +166,7 @@ func NewStore(config Config) (*Store, error) {
 	db.SetConnMaxIdleTime(config.ConnMaxIdleTime)
 
 	// Verify connection
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), config.ConnectTimeout)
 	defer cancel()
 
 	if err := db.PingContext(ctx); err != nil {
@@ -484,10 +499,9 @@ func (s *Store) ensureContext(ctx context.Context, registryCtx string) {
 // MySQL deadlocks are handled as retriable errors.
 func (s *Store) CreateSchema(ctx context.Context, registryCtx string, record *storage.SchemaRecord) error {
 	s.ensureContext(ctx, registryCtx)
-	const maxRetries = 15
 	var lastErr error
 
-	for attempt := 0; attempt < maxRetries; attempt++ {
+	for attempt := 0; attempt < s.config.SchemaMaxRetries; attempt++ {
 		err := s.createSchemaAttempt(ctx, registryCtx, record)
 		if err == nil {
 			return nil
@@ -512,7 +526,7 @@ func (s *Store) CreateSchema(ctx context.Context, registryCtx string, record *st
 		return err
 	}
 
-	return fmt.Errorf("failed to create schema after %d retries: %w", maxRetries, lastErr)
+	return fmt.Errorf("failed to create schema after %d retries: %w", s.config.SchemaMaxRetries, lastErr)
 }
 
 // allocateSchemaID atomically allocates the next per-context schema ID using a
@@ -2331,7 +2345,7 @@ func (s *Store) Close() error {
 
 // IsHealthy returns true if the database connection is healthy.
 func (s *Store) IsHealthy(ctx context.Context) bool {
-	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, s.config.HealthCheckTimeout)
 	defer cancel()
 	return s.db.PingContext(ctx) == nil
 }
