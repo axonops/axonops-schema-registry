@@ -27,6 +27,7 @@ This document provides a complete reference for all configuration options availa
   - [Role-Based Access Control (RBAC)](#role-based-access-control-rbac)
   - [Rate Limiting](#rate-limiting)
   - [Audit Logging](#audit-logging)
+- [MCP Server](#mcp-server)
 - [Environment Variables](#environment-variables)
 - [Complete Configuration Example](#complete-configuration-example)
 
@@ -565,6 +566,61 @@ security:
       - config_update
     include_body: false
 ```
+
+---
+
+## MCP Server
+
+The MCP (Model Context Protocol) server enables AI assistants to interact with the schema registry. It runs as a separate HTTP endpoint alongside the REST API. For full documentation, see the [MCP Guide](mcp.md).
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `mcp.enabled` | bool | `false` | Enable the MCP server |
+| `mcp.host` | string | `127.0.0.1` | Bind address |
+| `mcp.port` | int | `9081` | Port (separate from REST API) |
+| `mcp.auth_token` | string | `""` | Bearer token for authentication (empty = no auth) |
+| `mcp.read_only` | bool | `false` | Restrict to read-only tools |
+| `mcp.tool_policy` | string | `allow_all` | Tool access: `allow_all`, `deny_list`, `allow_list` |
+| `mcp.allowed_tools` | []string | `[]` | Tools to expose (for `allow_list` policy) |
+| `mcp.denied_tools` | []string | `[]` | Tools to hide (for `deny_list` policy) |
+| `mcp.allowed_origins` | []string | `["http://localhost:*", ...]` | Origin header allowlist |
+| `mcp.require_confirmations` | bool | `false` | Two-phase confirmations for destructive operations |
+| `mcp.confirmation_ttl` | int | `300` | Confirmation token TTL in seconds |
+| `mcp.log_schemas` | bool | `false` | Log full schema bodies in debug output |
+| `mcp.permission_preset` | string | `""` | Named preset: `readonly`, `developer`, `operator`, `admin`, `full` |
+| `mcp.permission_scopes` | []string | `[]` | Individual permission scopes (when no preset is set) |
+
+```yaml
+mcp:
+  enabled: true
+  host: 127.0.0.1
+  port: 9081
+  auth_token: "my-secret-token"
+  read_only: false
+  permission_preset: developer
+  allowed_origins:
+    - "http://localhost:*"
+    - "https://localhost:*"
+    - "vscode-webview://*"
+  require_confirmations: false
+  log_schemas: false
+```
+
+### MCP Environment Variables
+
+| Field | Environment Variable |
+|-------|---------------------|
+| `enabled` | `SCHEMA_REGISTRY_MCP_ENABLED` |
+| `host` | `SCHEMA_REGISTRY_MCP_HOST` |
+| `port` | `SCHEMA_REGISTRY_MCP_PORT` |
+| `auth_token` | `SCHEMA_REGISTRY_MCP_AUTH_TOKEN` |
+| `read_only` | `SCHEMA_REGISTRY_MCP_READ_ONLY` |
+| `allowed_origins` | `SCHEMA_REGISTRY_MCP_ALLOWED_ORIGINS` (comma-separated) |
+| `require_confirmations` | `SCHEMA_REGISTRY_MCP_REQUIRE_CONFIRMATIONS` |
+| `confirmation_ttl` | `SCHEMA_REGISTRY_MCP_CONFIRMATION_TTL` |
+| `log_schemas` | `SCHEMA_REGISTRY_MCP_LOG_SCHEMAS` |
+| `permission_preset` | `SCHEMA_REGISTRY_MCP_PERMISSION_PRESET` |
+| `permission_scopes` | `SCHEMA_REGISTRY_MCP_PERMISSION_SCOPES` (comma-separated) |
 
 ---
 

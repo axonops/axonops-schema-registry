@@ -4,7 +4,7 @@
 >
 > Regenerate with: `go run ./cmd/generate-mcp-docs > docs/mcp-reference.md`
 
-**105 tools** (71 read-only, 34 write) | **41 resources** (19 static, 22 templated) | **25 prompts**
+**105 tools** (71 read-only, 34 write) | **47 resources** (25 static, 22 templated) | **33 prompts**
 
 ## Contents
 
@@ -1702,6 +1702,7 @@ Validate a subject name against a naming strategy (topic_name, record_name, or t
 |-----|------|-------------|
 | `schema://contexts` | `contexts` | List of all registry contexts (tenant namespaces) |
 | `schema://exporters` | `exporters` | List of all schema exporter names |
+| `schema://glossary/auth-and-security` | `glossary-auth-and-security` | Security model: 6 auth methods, 4 RBAC roles with permission sets, API key lifecycle, rate limiting, audit logging, and MCP permission scopes |
 | `schema://glossary/best-practices` | `glossary-best-practices` | Actionable best practices for Avro, Protobuf, and JSON Schema: field naming, nullability, evolution readiness, common mistakes, and per-format guidance |
 | `schema://glossary/compatibility` | `glossary-compatibility` | All 7 compatibility modes, Avro type promotions, Protobuf wire types, JSON Schema constraints, transitive semantics, and configuration resolution |
 | `schema://glossary/contexts` | `glossary-contexts` | Multi-tenancy via contexts: default context, __GLOBAL, qualified subjects, URL routing, isolation guarantees, and 4-tier config/mode inheritance |
@@ -1709,9 +1710,14 @@ Validate a subject name against a naming strategy (topic_name, record_name, or t
 | `schema://glossary/data-contracts` | `glossary-data-contracts` | Data contracts: metadata properties, tags, sensitive fields, rulesets (domain/migration/encoding), rule structure, 3-layer merge, and optimistic concurrency |
 | `schema://glossary/design-patterns` | `glossary-design-patterns` | Common schema design patterns: event envelope, entity lifecycle, snapshot vs delta, fat vs thin events, shared types, three-phase rename, and CI/CD integration |
 | `schema://glossary/encryption` | `glossary-encryption` | Client-side field level encryption (CSFLE): envelope encryption, KEK/DEK model, KMS providers, algorithms, key rotation, and rewrapping |
+| `schema://glossary/error-reference` | `glossary-error-reference` | Complete error code reference: all ~30 error codes, response format, diagnostic decision tree, and per-error tool recommendations |
 | `schema://glossary/exporters` | `glossary-exporters` | Schema linking via exporters: exporter model, lifecycle states (STARTING/RUNNING/PAUSED/ERROR), context types (AUTO/CUSTOM/NONE), and configuration |
+| `schema://glossary/mcp-configuration` | `glossary-mcp-configuration` | MCP server configuration: all config fields, env var overrides, read-only mode, tool policy, permission scopes, presets, two-phase confirmations, and origin validation |
 | `schema://glossary/migration` | `glossary-migration` | Confluent migration: step-by-step procedure, IMPORT mode, ID preservation, the import API, verification, and rollback |
+| `schema://glossary/normalization-and-fingerprinting` | `glossary-normalization-and-fingerprinting` | Schema identity: fingerprinting process, per-format canonicalization rules, normalize flag, metadata identity, and deduplication scenarios |
 | `schema://glossary/schema-types` | `glossary-schema-types` | Deep reference for Avro (types, logical types, aliases, canonicalization), Protobuf (proto3, well-known types, wire types), and JSON Schema (drafts, keywords, combinators) |
+| `schema://glossary/storage-backends` | `glossary-storage-backends` | Storage backends: memory, PostgreSQL, MySQL, Cassandra characteristics, concurrency mechanisms, ID allocation, and choosing a backend |
+| `schema://glossary/tool-selection-guide` | `glossary-tool-selection-guide` | Decision tree for choosing the right MCP tool: indexed by task category with 2-4 tools per task |
 | `schema://keks` | `keks` | List of all Key Encryption Keys (KEKs) for client-side field encryption |
 | `schema://mode` | `global-mode` | Global registry mode (READWRITE, READONLY, READONLY_OVERRIDE, IMPORT) |
 | `schema://server/config` | `server-config` | Global compatibility level and registry mode configuration |
@@ -1755,17 +1761,23 @@ Validate a subject name against a naming strategy (topic_name, record_name, or t
 |--------|-------------|-----------|
 | `audit-subject-history` | Review the version history and evolution of a schema subject | `subject` (required), `context` |
 | `check-compatibility` | Troubleshoot schema compatibility issues and suggest fixes | `subject` (required), `context` |
+| `cicd-integration` | Guide for integrating schema validation, compatibility checking, and registration into CI/CD pipelines | — |
 | `compare-formats` | Help choose between Avro, Protobuf, and JSON Schema for a use case | `use_case` (required) |
 | `configure-exporter` | Guide for setting up schema linking via an exporter | `exporter_type` |
 | `context-management` | Guide for managing multi-tenant contexts and the 4-tier config/mode inheritance chain | — |
+| `cross-cutting-change` | Workflow for making a field change across multiple schemas: find affected schemas, test, and execute safely | `field_name` (required) |
 | `data-rules-deep-dive` | Comprehensive guide to data contract rules: domain, migration, and encoding rules with examples | — |
+| `debug-deserialization` | Troubleshooting guide for consumer deserialization failures including wire format, schema ID extraction, and common causes | — |
 | `debug-registration-error` | Debug schema registration failures by error code | `error_code` (required) |
+| `deprecate-subject` | Workflow for safely deprecating and removing a schema subject with dependency checks, locking, and cleanup | `subject` (required), `context` |
 | `design-schema` | Guide for designing a new schema in the chosen format | `format` (required), `domain` |
 | `evolve-schema` | Guide for safely evolving an existing schema with backward compatibility | `subject` (required), `context` |
 | `full-encryption-lifecycle` | End-to-end CSFLE workflow: KEK creation, DEK management, key rotation, rewrapping, and cleanup | — |
 | `glossary-lookup` | Look up a schema registry concept and get directed to the relevant glossary resource | `topic` (required) |
+| `governance-setup` | Guide for setting up schema governance: naming conventions, quality gates, data contracts, RBAC, and audit | — |
 | `import-from-confluent` | Step-by-step guide for migrating schemas from Confluent Schema Registry with ID preservation | — |
 | `migrate-schemas` | Guide for migrating schemas between formats (e.g. Avro to Protobuf) | `source_format` (required), `target_format` (required) |
+| `new-kafka-topic` | End-to-end workflow for setting up key and value schemas for a new Kafka topic | `topic_name` (required), `format` |
 | `plan-breaking-change` | Plan a safe breaking schema change with migration strategy | `subject` (required), `context` |
 | `registry-health-audit` | Multi-step procedure for auditing registry health, configuration consistency, and schema quality | — |
 | `review-schema-quality` | Analyze a schema for naming conventions, nullability, documentation, and best practices | `subject` (required), `context` |
@@ -1774,9 +1786,11 @@ Validate a subject name against a naming strategy (topic_name, record_name, or t
 | `schema-impact-analysis` | Guided workflow for assessing the impact of a proposed schema change across dependents | `subject` (required), `context` |
 | `schema-naming-conventions` | Guide to subject naming strategies (topic_name, record_name, topic_record_name) | — |
 | `schema-references-guide` | Guide for cross-subject schema references with per-format name semantics (Avro, Protobuf, JSON Schema) | — |
+| `schema-review-checklist` | Pre-registration checklist: syntax, compatibility, quality, naming, uniqueness, dependencies, and impact | `subject` (required), `context` |
 | `setup-data-contracts` | Guide for adding metadata, tags, and data quality rules to schemas | `subject` (required), `context` |
 | `setup-encryption` | Guide for setting up client-side field encryption with KEK/DEK | `kms_type` (required) |
 | `setup-rbac` | Guide for configuring authentication and role-based access control (RBAC) | — |
+| `team-onboarding` | Workflow for onboarding a new team with context creation, schema registration, RBAC setup, and naming conventions | `team_name` (required) |
 | `troubleshooting` | Diagnostic guide for common schema registry issues and errors | — |
 
 ### Prompt Details
@@ -1804,6 +1818,12 @@ Troubleshoot schema compatibility issues and suggest fixes
 |------|----------|-------------|
 | `subject` | Yes | Subject name to check compatibility for |
 | `context` |  | Registry context for multi-tenant isolation (defaults to default context) |
+
+---
+
+#### `cicd-integration`
+
+Guide for integrating schema validation, compatibility checking, and registration into CI/CD pipelines
 
 ---
 
@@ -1837,9 +1857,27 @@ Guide for managing multi-tenant contexts and the 4-tier config/mode inheritance 
 
 ---
 
+#### `cross-cutting-change`
+
+Workflow for making a field change across multiple schemas: find affected schemas, test, and execute safely
+
+**Arguments:**
+
+| Name | Required | Description |
+|------|----------|-------------|
+| `field_name` | Yes | Field name to change across schemas |
+
+---
+
 #### `data-rules-deep-dive`
 
 Comprehensive guide to data contract rules: domain, migration, and encoding rules with examples
+
+---
+
+#### `debug-deserialization`
+
+Troubleshooting guide for consumer deserialization failures including wire format, schema ID extraction, and common causes
 
 ---
 
@@ -1852,6 +1890,19 @@ Debug schema registration failures by error code
 | Name | Required | Description |
 |------|----------|-------------|
 | `error_code` | Yes | Error code from failed registration (e.g. 42201, 409, 40401) |
+
+---
+
+#### `deprecate-subject`
+
+Workflow for safely deprecating and removing a schema subject with dependency checks, locking, and cleanup
+
+**Arguments:**
+
+| Name | Required | Description |
+|------|----------|-------------|
+| `subject` | Yes | Subject name to deprecate |
+| `context` |  | Registry context for multi-tenant isolation (defaults to default context) |
 
 ---
 
@@ -1899,6 +1950,12 @@ Look up a schema registry concept and get directed to the relevant glossary reso
 
 ---
 
+#### `governance-setup`
+
+Guide for setting up schema governance: naming conventions, quality gates, data contracts, RBAC, and audit
+
+---
+
 #### `import-from-confluent`
 
 Step-by-step guide for migrating schemas from Confluent Schema Registry with ID preservation
@@ -1915,6 +1972,19 @@ Guide for migrating schemas between formats (e.g. Avro to Protobuf)
 |------|----------|-------------|
 | `source_format` | Yes | Source schema format (AVRO, PROTOBUF, JSON) |
 | `target_format` | Yes | Target schema format (AVRO, PROTOBUF, JSON) |
+
+---
+
+#### `new-kafka-topic`
+
+End-to-end workflow for setting up key and value schemas for a new Kafka topic
+
+**Arguments:**
+
+| Name | Required | Description |
+|------|----------|-------------|
+| `topic_name` | Yes | Kafka topic name (e.g., orders, user-events) |
+| `format` |  | Schema format: AVRO (default), PROTOBUF, or JSON |
 
 ---
 
@@ -1987,6 +2057,19 @@ Guide for cross-subject schema references with per-format name semantics (Avro, 
 
 ---
 
+#### `schema-review-checklist`
+
+Pre-registration checklist: syntax, compatibility, quality, naming, uniqueness, dependencies, and impact
+
+**Arguments:**
+
+| Name | Required | Description |
+|------|----------|-------------|
+| `subject` | Yes | Subject name for the schema being reviewed |
+| `context` |  | Registry context for multi-tenant isolation (defaults to default context) |
+
+---
+
 #### `setup-data-contracts`
 
 Guide for adding metadata, tags, and data quality rules to schemas
@@ -2015,6 +2098,18 @@ Guide for setting up client-side field encryption with KEK/DEK
 #### `setup-rbac`
 
 Guide for configuring authentication and role-based access control (RBAC)
+
+---
+
+#### `team-onboarding`
+
+Workflow for onboarding a new team with context creation, schema registration, RBAC setup, and naming conventions
+
+**Arguments:**
+
+| Name | Required | Description |
+|------|----------|-------------|
+| `team_name` | Yes | Team name for the new context namespace |
 
 ---
 

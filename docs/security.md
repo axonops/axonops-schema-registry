@@ -323,6 +323,18 @@ When `docs_enabled: true` in the server configuration:
 
 These endpoints are registered outside the authentication middleware chain and are also exempt from rate limiting.
 
+## MCP Security
+
+The MCP server has its own security controls, independent from the REST API. For full details, see the [MCP Guide](mcp.md).
+
+- **Bearer token authentication**: Set `mcp.auth_token` to require `Authorization: Bearer <token>` on all MCP requests
+- **Permission scopes**: 14 scopes with 5 named presets (`readonly`, `developer`, `operator`, `admin`, `full`) control which tools are visible
+- **Read-only mode**: `mcp.read_only: true` hides all write/delete tools
+- **Two-phase confirmations**: `mcp.require_confirmations: true` requires dry-run preview before destructive operations
+- **Origin validation**: `mcp.allowed_origins` validates the `Origin` header per the MCP specification
+- **Tool policy**: Fine-grained allow_list/deny_list for individual tools
+- **Localhost binding**: The MCP server binds to `127.0.0.1` by default, not exposed to the network
+
 ## Security Hardening Checklist
 
 1. **Enable TLS** with a minimum version of TLS 1.2 (`min_version: "TLS1.2"`), or terminate TLS at a load balancer and restrict the registry to private network traffic.
@@ -344,3 +356,4 @@ These endpoints are registered outside the authentication middleware chain and a
 - [Authentication](authentication.md) -- authentication methods, user management, API key lifecycle, admin CLI
 - [Configuration](configuration.md) -- full configuration reference including all security options
 - [Deployment](deployment.md) -- production deployment guidance
+- [MCP Server](mcp.md) -- MCP server security, permission scopes, tool policies

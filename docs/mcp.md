@@ -95,6 +95,8 @@ mcp:
   require_confirmations: false     # Two-phase confirmations for destructive operations
   confirmation_ttl_secs: 300       # Confirmation token TTL (5 minutes)
   log_schemas: false               # Log full schema bodies (disabled by default)
+  permission_preset: ""            # Named preset: readonly, developer, operator, admin, full
+  permission_scopes: []            # Individual scopes (when no preset is set)
 ```
 
 ### Environment Variable Overrides
@@ -112,6 +114,8 @@ Every config field has a corresponding environment variable:
 | `require_confirmations` | `SCHEMA_REGISTRY_MCP_REQUIRE_CONFIRMATIONS` |
 | `confirmation_ttl_secs` | `SCHEMA_REGISTRY_MCP_CONFIRMATION_TTL` |
 | `log_schemas` | `SCHEMA_REGISTRY_MCP_LOG_SCHEMAS` |
+| `permission_preset` | `SCHEMA_REGISTRY_MCP_PERMISSION_PRESET` |
+| `permission_scopes` | `SCHEMA_REGISTRY_MCP_PERMISSION_SCOPES` (comma-separated) |
 
 ## Tools
 
@@ -311,9 +315,9 @@ When `mcp.read_only: true`, only tools annotated with `ReadOnlyHint: true` are r
 
 ## Resources
 
-The MCP server exposes **41 resources** — data endpoints that AI clients can read directly without calling tools.
+The MCP server exposes **47 resources** — data endpoints that AI clients can read directly without calling tools.
 
-### Static Resources (19)
+### Static Resources (25)
 
 | URI | Name | Description |
 |-----|------|-------------|
@@ -334,8 +338,14 @@ The MCP server exposes **41 resources** — data endpoints that AI clients can r
 | `schema://glossary/exporters` | `glossary-exporters` | Schema linking, exporter lifecycle, context types |
 | `schema://glossary/schema-types` | `glossary-schema-types` | Avro, Protobuf, JSON Schema deep reference |
 | `schema://glossary/design-patterns` | `glossary-design-patterns` | Event envelope, entity lifecycle, snapshot vs delta, shared types |
-| `schema://glossary/best-practices` | `glossary-best-practices` | Per-format guidance, naming, evolution, common mistakes |
+| `schema://glossary/best-practices` | `glossary-best-practices` | Per-format guidance, naming, evolution, anti-patterns |
 | `schema://glossary/migration` | `glossary-migration` | Confluent migration, IMPORT mode, ID preservation |
+| `schema://glossary/mcp-configuration` | `glossary-mcp-configuration` | MCP server config, permissions, security |
+| `schema://glossary/error-reference` | `glossary-error-reference` | All error codes, response formats, diagnostic guidance |
+| `schema://glossary/auth-and-security` | `glossary-auth-and-security` | RBAC roles, auth methods, rate limiting, audit logging |
+| `schema://glossary/storage-backends` | `glossary-storage-backends` | PostgreSQL, MySQL, Cassandra characteristics and trade-offs |
+| `schema://glossary/normalization-and-fingerprinting` | `glossary-normalization` | Canonical forms, deduplication, metadata identity |
+| `schema://glossary/tool-selection-guide` | `glossary-tool-selection` | Decision tree for choosing the right tool |
 
 ### Templated Resources (22)
 
@@ -366,7 +376,7 @@ The MCP server exposes **41 resources** — data endpoints that AI clients can r
 
 ## Prompts
 
-The MCP server provides **25 prompts** — guided workflows that AI assistants can use to walk users through complex operations.
+The MCP server provides **33 prompts** — guided workflows that AI assistants can use to walk users through complex operations.
 
 > The MCP server also returns **server instructions** during the `initialize` handshake, providing AI clients with capabilities overview, glossary resource URIs, and critical rules for schema registry operations.
 
@@ -420,6 +430,19 @@ The MCP server provides **25 prompts** — guided workflows that AI assistants c
 | `registry-health-audit` | — | — | Multi-step registry health check procedure |
 | `schema-evolution-cookbook` | — | — | Practical recipes for common evolution scenarios |
 
+### Onboarding & Governance
+
+| Prompt | Required Args | Optional Args | Description |
+|--------|---------------|---------------|-------------|
+| `new-kafka-topic` | `topic_name` | `format` | End-to-end Kafka topic schema setup |
+| `debug-deserialization` | — | — | Consumer deserialization troubleshooting |
+| `deprecate-subject` | `subject` | `context` | Subject deprecation workflow |
+| `cicd-integration` | — | — | CI/CD pipeline integration guide |
+| `team-onboarding` | `team_name` | — | Team onboarding workflow with contexts |
+| `governance-setup` | — | — | Schema governance and quality gates |
+| `cross-cutting-change` | `field_name` | — | Cross-cutting field change workflow |
+| `schema-review-checklist` | `subject` | `context` | Pre-registration review checklist |
+
 ## Security
 
 ### Bearer Token Authentication
@@ -457,6 +480,40 @@ mcp:
 ```
 
 This hides all 34 write/delete tools from discovery and blocks their execution. Only the 71 read-only tools remain available.
+
+### Permission Scopes
+
+Permission scopes provide RBAC-style access control for MCP tools. 14 scopes mirror the REST RBAC taxonomy:
+
+`schema_read`, `schema_write`, `schema_delete`, `config_read`, `config_write`, `mode_read`, `mode_write`, `import`, `encryption_read`, `encryption_write`, `exporter_read`, `exporter_write`, `admin_read`, `admin_write`
+
+5 named presets combine scopes for common use cases:
+
+| Preset | Included Scopes |
+|--------|----------------|
+| `readonly` | schema_read, config_read, mode_read, encryption_read, exporter_read |
+| `developer` | readonly + schema_write, config_write |
+| `operator` | developer + schema_delete, mode_write, encryption_write, exporter_write, import |
+| `admin` | operator + admin_read, admin_write |
+| `full` | All 14 scopes (default) |
+
+System tools (`health_check`, `get_server_info`, `get_server_version`, `get_cluster_id`, `get_schema_types`, `list_contexts`, `count_subjects`, `get_registry_statistics`) are always available regardless of preset.
+
+```yaml
+# Use a preset
+mcp:
+  permission_preset: developer
+
+# Or specify individual scopes
+mcp:
+  permission_scopes:
+    - schema_read
+    - encryption_write
+```
+
+Environment variables: `SCHEMA_REGISTRY_MCP_PERMISSION_PRESET`, `SCHEMA_REGISTRY_MCP_PERMISSION_SCOPES` (comma-separated).
+
+Resolution order: `permission_preset` > `permission_scopes` > `read_only` > `tool_policy` > default (`full`).
 
 ### Tool Policies
 
@@ -667,6 +724,7 @@ The `Origin` header does not match `mcp.allowed_origins`. Add your client's orig
 ### Tools not appearing
 
 - **Read-only mode**: 34 write tools are hidden when `mcp.read_only: true`
+- **Permission scopes**: Check `permission_preset` or `permission_scopes` — tools outside the allowed scopes are hidden
 - **Tool policy**: Check `tool_policy`, `allowed_tools`, and `denied_tools` configuration
 - **Auth**: Admin tools (user/API key management) only appear when auth is configured
 
