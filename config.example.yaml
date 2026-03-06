@@ -92,7 +92,11 @@ security:
     api_key:
       header: "X-API-Key"
       query_param: "api_key"
-      storage_type: database  # NOT YET IMPLEMENTED — always uses database
+      storage_type: database  # "database" (default) or "memory" (config-defined keys)
+      # keys:                 # Used when storage_type is "memory"
+      #   - name: ci-pipeline
+      #     key_hash: "$2a$10$..."  # bcrypt hash of the API key
+      #     role: developer
 
     # JWT authentication settings (for external IdP)
     jwt:

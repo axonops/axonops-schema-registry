@@ -88,8 +88,21 @@ func (p *LDAPProvider) Authenticate(ctx context.Context, username, password stri
 		return nil, fmt.Errorf("invalid credentials")
 	}
 
-	// Get user's groups and determine role
+	// Get user's groups from memberOf attribute
 	groups := p.getUserGroups(userEntry)
+
+	// If group search is configured, re-bind as service account and search for groups
+	if p.config.GroupSearchBase != "" && p.config.GroupSearchFilter != "" {
+		if err := conn.Bind(p.config.BindDN, p.config.BindPassword); err != nil {
+			return nil, fmt.Errorf("failed to re-bind for group search: %w", err)
+		}
+		searchedGroups, err := p.searchGroups(conn, userDN)
+		if err != nil {
+			return nil, fmt.Errorf("group search failed: %w", err)
+		}
+		groups = mergeGroups(groups, searchedGroups)
+	}
+
 	role := p.mapGroupsToRole(groups)
 
 	// Extract username and email from entry
@@ -245,6 +258,58 @@ func (p *LDAPProvider) mapGroupsToRole(groups []string) string {
 	}
 
 	return p.config.DefaultRole
+}
+
+// searchGroups searches for groups that a user belongs to using an LDAP query.
+// This is used when memberOf attribute is not available or when groups are stored
+// in a separate subtree that requires an explicit search.
+func (p *LDAPProvider) searchGroups(conn *ldap.Conn, userDN string) ([]string, error) {
+	// Build search filter: replace %s with the user's DN
+	filter := strings.ReplaceAll(p.config.GroupSearchFilter, "%s", ldap.EscapeFilter(userDN))
+
+	searchRequest := ldap.NewSearchRequest(
+		p.config.GroupSearchBase,
+		ldap.ScopeWholeSubtree,
+		ldap.NeverDerefAliases,
+		0, // No size limit
+		p.config.RequestTimeout,
+		false, // TypesOnly
+		filter,
+		[]string{"dn"},
+		nil, // Controls
+	)
+
+	result, err := conn.Search(searchRequest)
+	if err != nil {
+		return nil, err
+	}
+
+	groups := make([]string, 0, len(result.Entries))
+	for _, entry := range result.Entries {
+		groups = append(groups, entry.DN)
+	}
+	return groups, nil
+}
+
+// mergeGroups merges two group lists, removing duplicates (case-insensitive).
+func mergeGroups(a, b []string) []string {
+	seen := make(map[string]struct{}, len(a)+len(b))
+	result := make([]string, 0, len(a)+len(b))
+	for _, g := range a {
+		key := strings.ToLower(g)
+		if _, ok := seen[key]; !ok {
+			seen[key] = struct{}{}
+			result = append(result, g)
+		}
+	}
+	for _, g := range b {
+		key := strings.ToLower(g)
+		if _, ok := seen[key]; !ok {
+			seen[key] = struct{}{}
+			result = append(result, g)
+		}
+	}
+	return result
 }
 
 // extractCN extracts the Common Name (CN) from a Distinguished Name (DN).

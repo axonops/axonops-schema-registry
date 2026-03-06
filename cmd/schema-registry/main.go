@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -267,6 +268,17 @@ func main() {
 				os.Exit(1)
 			}
 			authenticator.SetJWTProvider(jwtProvider)
+		}
+
+		// Load config-defined API keys if storage_type is "memory"
+		if strings.EqualFold(cfg.Security.Auth.APIKey.StorageType, "memory") {
+			memAPIKeys, err := auth.NewMemoryAPIKeyStore(cfg.Security.Auth.APIKey.Keys)
+			if err != nil {
+				logger.Error("failed to load config-defined API keys", slog.String("error", err.Error()))
+				os.Exit(1)
+			}
+			authenticator.SetMemoryAPIKeyStore(memAPIKeys)
+			logger.Info("config-defined API keys loaded", slog.Int("keys", memAPIKeys.Count()))
 		}
 
 		// Load htpasswd file if configured

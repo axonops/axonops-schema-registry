@@ -382,10 +382,11 @@ security:
 |-----|------|---------|-------------|
 | `security.auth.api_key.header` | string | `"X-API-Key"` | HTTP header used to transmit the API key. |
 | `security.auth.api_key.query_param` | string | `"api_key"` | Query parameter name accepted as an alternative to the header. |
-| `security.auth.api_key.storage_type` | string | `""` | **Not yet implemented.** Intended to select API key storage backend (`memory` or `database`). Currently always uses the database. |
+| `security.auth.api_key.storage_type` | string | `"database"` | API key storage backend. `"database"` (default) stores keys in the database with full CRUD via admin API. `"memory"` loads keys from the `keys` list in config — useful for simple single-server deployments. |
 | `security.auth.api_key.secret` | string | `""` | HMAC-SHA256 pepper for hashing API keys before storage. Provides defense-in-depth: even if the database is compromised, keys cannot be verified without this secret. SHOULD be at least 32 bytes of random data. If empty, falls back to plain SHA-256 hashing. |
 | `security.auth.api_key.key_prefix` | string | `"sr_"` | Prefix prepended to generated API keys for identification (e.g., `sr_live_abc123`). |
 | `security.auth.api_key.cache_refresh_seconds` | int | `60` | How often (seconds) the in-memory API key cache is refreshed from the database. Ensures cluster-wide consistency. Set to `0` to disable caching. |
+| `security.auth.api_key.keys` | list | `[]` | Config-defined API keys (used when `storage_type` is `"memory"`). Each entry has `name`, `key_hash` (bcrypt), and `role`. |
 
 ```yaml
 security:
@@ -397,6 +398,10 @@ security:
       secret: ${API_KEY_SECRET}
       key_prefix: "sr_"
       cache_refresh_seconds: 60
+      # keys:                   # Used when storage_type is "memory"
+      #   - name: ci-pipeline
+      #     key_hash: "$2a$10$..."
+      #     role: developer
 ```
 
 ### JWT Authentication
@@ -442,8 +447,8 @@ security:
 | `security.auth.ldap.base_dn` | string | `""` | Base DN for all LDAP searches. |
 | `security.auth.ldap.user_search_filter` | string | `""` | LDAP filter for finding users (e.g., `(sAMAccountName=%s)`). `%s` is replaced with the login username. |
 | `security.auth.ldap.user_search_base` | string | `""` | Base DN for user searches (e.g., `OU=Users,DC=example,DC=com`). |
-| `security.auth.ldap.group_search_filter` | string | `""` | **Not yet implemented.** LDAP filter for finding group memberships. Groups are currently extracted from the `memberOf` attribute on the user entry. |
-| `security.auth.ldap.group_search_base` | string | `""` | **Not yet implemented.** Base DN for group searches. Groups are currently extracted from the `memberOf` attribute on the user entry. |
+| `security.auth.ldap.group_search_filter` | string | `""` | LDAP filter for finding group memberships (e.g., `(member=%s)`). `%s` is replaced with the user's DN. When set along with `group_search_base`, groups are discovered via an explicit LDAP search in addition to the `memberOf` attribute. |
+| `security.auth.ldap.group_search_base` | string | `""` | Base DN for group searches (e.g., `OU=Groups,DC=example,DC=com`). Used together with `group_search_filter` to discover groups via LDAP search. |
 | `security.auth.ldap.username_attribute` | string | `""` | LDAP attribute containing the username (`sAMAccountName`, `uid`, `userPrincipalName`). |
 | `security.auth.ldap.email_attribute` | string | `""` | LDAP attribute containing the email address (`mail`). |
 | `security.auth.ldap.group_attribute` | string | `""` | LDAP attribute containing group membership (`memberOf`). |
@@ -872,10 +877,14 @@ security:
     api_key:
       header: "X-API-Key"
       query_param: "api_key"
-      storage_type: database          # NOT YET IMPLEMENTED — always uses database
+      storage_type: database          # "database" (default) or "memory" (config-defined)
       secret: ${API_KEY_SECRET}       # HMAC pepper (>=32 bytes recommended)
       key_prefix: "sr_"
       cache_refresh_seconds: 60       # 0 to disable caching
+      # keys:                         # Used when storage_type is "memory"
+      #   - name: ci-pipeline
+      #     key_hash: "$2a$10$..."    # bcrypt hash of the API key
+      #     role: developer
 
     # JWT Auth (external IdP)
     jwt:
@@ -900,8 +909,8 @@ security:
       base_dn: ""
       user_search_filter: ""          # e.g., (sAMAccountName=%s)
       user_search_base: ""
-      group_search_filter: ""         # NOT YET IMPLEMENTED
-      group_search_base: ""           # NOT YET IMPLEMENTED
+      group_search_filter: ""         # e.g., (member=%s) — %s is user DN
+      group_search_base: ""           # e.g., OU=Groups,DC=example,DC=com
       username_attribute: ""          # sAMAccountName | uid | userPrincipalName
       email_attribute: ""             # mail
       group_attribute: ""             # memberOf

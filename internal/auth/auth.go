@@ -37,12 +37,13 @@ type User struct {
 
 // Authenticator handles authentication.
 type Authenticator struct {
-	config       config.AuthConfig
-	service      *Service           // Database-backed auth service
-	ldapProvider *LDAPProvider      // LDAP authentication provider
-	oidcProvider *OIDCProvider      // OIDC authentication provider
-	jwtProvider  *JWTProvider       // JWT authentication provider
+	config        config.AuthConfig
+	service       *Service           // Database-backed auth service
+	ldapProvider  *LDAPProvider      // LDAP authentication provider
+	oidcProvider  *OIDCProvider      // OIDC authentication provider
+	jwtProvider   *JWTProvider       // JWT authentication provider
 	apiKeys       map[string]*APIKey // key -> APIKey (for legacy/config-based auth)
+	memoryAPIKeys *MemoryAPIKeyStore // config-defined API keys (memory storage_type)
 	htpasswdStore *HTPasswdStore     // htpasswd file entries (optional)
 	metrics       *metrics.Metrics   // Prometheus metrics (optional)
 }
@@ -92,6 +93,11 @@ func (a *Authenticator) SetMetrics(m *metrics.Metrics) {
 // SetHTPasswdStore sets the htpasswd file store for Basic authentication.
 func (a *Authenticator) SetHTPasswdStore(store *HTPasswdStore) {
 	a.htpasswdStore = store
+}
+
+// SetMemoryAPIKeyStore sets the config-defined API key store.
+func (a *Authenticator) SetMemoryAPIKeyStore(store *MemoryAPIKeyStore) {
+	a.memoryAPIKeys = store
 }
 
 // AddAPIKey adds an API key (for legacy/config-based auth).
@@ -287,6 +293,17 @@ func (a *Authenticator) authenticateAPIKeyValue(r *http.Request, key string) (*U
 				ID:       apiKey.ID,
 				Username: username,
 				Role:     apiKey.Role,
+				Method:   "api_key",
+			}, true
+		}
+	}
+
+	// Try config-defined API keys (memory storage_type)
+	if a.memoryAPIKeys != nil {
+		if name, role, ok := a.memoryAPIKeys.Validate(key); ok {
+			return &User{
+				Username: name,
+				Role:     role,
 				Method:   "api_key",
 			}, true
 		}

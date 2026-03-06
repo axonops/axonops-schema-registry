@@ -208,6 +208,52 @@ func TestMapGroupsToRole_FirstMatchWins(t *testing.T) {
 	}
 }
 
+func TestMergeGroups_NoDuplicates(t *testing.T) {
+	a := []string{"CN=Group1,DC=example,DC=com", "CN=Group2,DC=example,DC=com"}
+	b := []string{"CN=Group3,DC=example,DC=com"}
+	result := mergeGroups(a, b)
+	if len(result) != 3 {
+		t.Errorf("expected 3 groups, got %d", len(result))
+	}
+}
+
+func TestMergeGroups_DeduplicatesCaseInsensitive(t *testing.T) {
+	a := []string{"CN=Admins,DC=example,DC=com"}
+	b := []string{"cn=admins,dc=example,dc=com"}
+	result := mergeGroups(a, b)
+	if len(result) != 1 {
+		t.Errorf("expected 1 group after dedup, got %d", len(result))
+	}
+	// Should keep the first occurrence
+	if result[0] != "CN=Admins,DC=example,DC=com" {
+		t.Errorf("expected first occurrence preserved, got %s", result[0])
+	}
+}
+
+func TestMergeGroups_BothEmpty(t *testing.T) {
+	result := mergeGroups(nil, nil)
+	if len(result) != 0 {
+		t.Errorf("expected 0 groups, got %d", len(result))
+	}
+}
+
+func TestMergeGroups_OneEmpty(t *testing.T) {
+	a := []string{"CN=Group1,DC=example,DC=com"}
+	result := mergeGroups(a, nil)
+	if len(result) != 1 {
+		t.Errorf("expected 1 group, got %d", len(result))
+	}
+}
+
+func TestMergeGroups_ExactDuplicates(t *testing.T) {
+	a := []string{"CN=Admins,DC=example,DC=com"}
+	b := []string{"CN=Admins,DC=example,DC=com"}
+	result := mergeGroups(a, b)
+	if len(result) != 1 {
+		t.Errorf("expected 1 group after exact dedup, got %d", len(result))
+	}
+}
+
 func TestMapGroupsToRole_EmptyGroups(t *testing.T) {
 	p, _ := NewLDAPProvider(config.LDAPConfig{
 		URL:    "ldap://localhost",

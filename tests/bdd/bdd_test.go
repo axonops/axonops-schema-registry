@@ -255,6 +255,12 @@ func newAuthTestServerWithStore(store storage.Storage) (*httptest.Server, storag
 		authenticator.SetHTPasswdStore(htpasswdStore)
 	}
 
+	// Create memory API key store for auth_apikey_memory.feature
+	memAPIKeys := createTestMemoryAPIKeys()
+	if memAPIKeys != nil {
+		authenticator.SetMemoryAPIKeyStore(memAPIKeys)
+	}
+
 	authorizer := auth.NewAuthorizer(authCfg.RBAC)
 
 	cfg := &config.Config{
@@ -1090,6 +1096,27 @@ func createTestHTPasswdFile() string {
 		return ""
 	}
 	return path
+}
+
+// createTestMemoryAPIKeys creates a MemoryAPIKeyStore with test keys for BDD.
+// Keys: "test-apikey-readonly" (readonly), "test-apikey-admin" (admin)
+func createTestMemoryAPIKeys() *auth.MemoryAPIKeyStore {
+	hash1, err := bcrypt.GenerateFromPassword([]byte("test-apikey-readonly"), bcrypt.MinCost)
+	if err != nil {
+		return nil
+	}
+	hash2, err := bcrypt.GenerateFromPassword([]byte("test-apikey-admin"), bcrypt.MinCost)
+	if err != nil {
+		return nil
+	}
+	store, err := auth.NewMemoryAPIKeyStore([]config.ConfigAPIKey{
+		{Name: "readonly-key", KeyHash: string(hash1), Role: "readonly"},
+		{Name: "admin-key", KeyHash: string(hash2), Role: "admin"},
+	})
+	if err != nil {
+		return nil
+	}
+	return store
 }
 
 func init() {

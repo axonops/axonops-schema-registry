@@ -212,8 +212,8 @@ type LDAPConfig struct {
 	BaseDN             string            `yaml:"base_dn"`              // Base DN for searches
 	UserSearchFilter   string            `yaml:"user_search_filter"`   // e.g., (sAMAccountName=%s)
 	UserSearchBase     string            `yaml:"user_search_base"`     // e.g., OU=Users,DC=example,DC=com
-	GroupSearchFilter  string            `yaml:"group_search_filter"`  // NOT YET IMPLEMENTED — groups are read from memberOf attribute instead
-	GroupSearchBase    string            `yaml:"group_search_base"`    // NOT YET IMPLEMENTED — groups are read from memberOf attribute instead
+	GroupSearchFilter  string            `yaml:"group_search_filter"`  // e.g., (member=%s) — searches for groups containing user DN
+	GroupSearchBase    string            `yaml:"group_search_base"`    // e.g., OU=Groups,DC=example,DC=com
 	UsernameAttribute  string            `yaml:"username_attribute"`   // sAMAccountName, uid, userPrincipalName
 	EmailAttribute     string            `yaml:"email_attribute"`      // mail
 	GroupAttribute     string            `yaml:"group_attribute"`      // memberOf
@@ -246,7 +246,7 @@ type OIDCConfig struct {
 type APIKeyConfig struct {
 	Header      string `yaml:"header"`       // X-API-Key
 	QueryParam  string `yaml:"query_param"`  // api_key
-	StorageType string `yaml:"storage_type"` // NOT YET IMPLEMENTED — always uses database
+	StorageType string `yaml:"storage_type"` // "database" (default) or "memory" (config-defined keys)
 	// Secret is used as a pepper for HMAC-SHA256 hashing of API keys.
 	// This provides defense-in-depth: even if the database is compromised,
 	// the attacker cannot verify API keys without this secret.
@@ -259,6 +259,15 @@ type APIKeyConfig struct {
 	// CacheRefreshSeconds is how often (in seconds) the API key cache is refreshed
 	// from the database. This ensures cluster consistency. Default is 60 seconds.
 	CacheRefreshSeconds int `yaml:"cache_refresh_seconds"`
+	// Keys defines API keys in config (used when storage_type is "memory").
+	Keys []ConfigAPIKey `yaml:"keys"`
+}
+
+// ConfigAPIKey represents an API key defined in the config file.
+type ConfigAPIKey struct {
+	Name    string `yaml:"name"`     // Identifier for the key
+	KeyHash string `yaml:"key_hash"` // bcrypt hash of the API key
+	Role    string `yaml:"role"`     // Role assigned to this key
 }
 
 // JWTConfig represents JWT authentication configuration.
