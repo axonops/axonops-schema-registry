@@ -18,9 +18,9 @@
 
 ## Overview
 
-[AxonOps](https://axonops.com) Schema Registry is a **schema registry for Apache Kafka&reg;** that goes beyond Confluent compatibility — it gives you every Confluent REST API (including [Enterprise-only](https://docs.confluent.io/platform/current/schema-registry/develop/api.html) endpoints like contexts, data contracts, CSFLE encryption, and exporters) **plus** a large set of [AxonOps-exclusive REST APIs](#axonops-extensions) for schema analysis, quality scoring, field search, and admin management — all under the Apache 2.0 license. It also ships with a built-in [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server that lets AI assistants like Claude, Cursor, and VS Code Copilot work directly with your schemas through natural language.
+[AxonOps](https://axonops.com) Schema Registry is a **schema registry for Apache Kafka&reg;** that goes beyond Schema Registry compatibility — it gives you every Confluent Schema Registry REST API (including [Enterprise-only](https://docs.confluent.io/platform/current/schema-registry/develop/api.html) endpoints like contexts, data contracts, CSFLE encryption, and exporters) **plus** a large set of [additional REST APIs](#axonops-extensions) for schema analysis, quality scoring, field search, and admin management — all under the Apache 2.0 license. It also ships with a built-in [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server that lets AI assistants like Claude, Cursor, and VS Code Copilot work directly with your schemas through natural language.
 
-Unlike Confluent Schema Registry, which uses Kafka itself (a special `_schemas` topic) as its storage backend, AxonOps Schema Registry **does not require Kafka** for storage -- it uses standard databases (PostgreSQL, MySQL, or Cassandra) while remaining **fully API-compatible** with Confluent's REST API, serializers, and client libraries. On top of the Confluent-compatible endpoints, AxonOps adds a substantial set of [extra REST API endpoints](#axonops-extensions) for schema analysis, quality scoring, field/type search, similarity detection, migration planning, and administrative operations — plus an MCP server with extensive tools, resources, and prompts for AI-assisted workflows.
+Unlike Confluent Schema Registry, which uses Kafka itself (a special `_schemas` topic) as its storage backend, AxonOps Schema Registry **does not require Kafka** for storage -- it uses standard databases (PostgreSQL, MySQL, or Cassandra) while remaining **fully API-compatible** with the Confluent Schema Registry REST API, serializers, and client libraries. On top of the Schema Registry compatible endpoints, AxonOps adds a substantial set of [extra REST API endpoints](#axonops-extensions) for schema analysis, quality scoring, field/type search, similarity detection, migration planning, and administrative operations — plus an MCP server with extensive tools, resources, and prompts for AI-assisted workflows.
 
 <div align="center">
 
@@ -40,6 +40,7 @@ Unlike Confluent Schema Registry, which uses Kafka itself (a special `_schemas` 
 - [Architecture](#architecture)
 - [API Compatibility](#api-compatibility)
 - [Strict Specification Compliance](#strict-specification-compliance)
+- [Schema Registry Ecosystem](#schema-registry-ecosystem)
 - [Documentation](#documentation)
 - [Development](#development)
 - [Community & Support](#community--support)
@@ -57,7 +58,7 @@ Unlike Confluent Schema Registry, which uses Kafka itself (a special `_schemas` 
 - **Cloud Native** -- designed for Kubernetes with health checks, Prometheus metrics, and graceful shutdown
 - **Multi-Datacenter** -- active-active deployments with Cassandra's native cross-DC replication
 - **Enterprise Features, Zero Cost** -- RBAC, data contracts, CSFLE encryption, audit logging, and rate limiting are included free under Apache 2.0. With Confluent, these require a [commercial Enterprise license](https://docs.confluent.io/platform/current/installation/license.html).
-- **More REST APIs** -- beyond full Confluent compatibility (Community + Enterprise), AxonOps adds [many exclusive REST endpoints](#axonops-extensions) for schema analysis, quality scoring, field/type search, similarity detection, migration planning, and admin management
+- **More REST APIs** -- beyond full Schema Registry compatibility (Community + Enterprise), AxonOps adds [many additional REST endpoints](#axonops-extensions) for schema analysis, quality scoring, field/type search, similarity detection, migration planning, and admin management
 - **Strict Specification Compliance** -- enforces Avro, Protobuf, and JSON Schema specifications more faithfully than Confluent, catching invalid schemas at registration time rather than at runtime ([details](#strict-specification-compliance))
 - **Built-in API Documentation** -- OpenAPI spec with Swagger UI and ReDoc, always in sync with the codebase
 - **AI-Ready** -- built-in [MCP server](docs/mcp.md) with extensive tools, resources, and prompts for AI-assisted schema management via Claude, Cursor, VS Code Copilot, and other MCP-compatible clients
@@ -115,9 +116,9 @@ Unlike Confluent Schema Registry, which uses Kafka itself (a special `_schemas` 
 
 ⁴ Karapace uses its own ACL-based credential mechanism rather than standard HTTP Basic Authentication.
 
-⁵ AxonOps-exclusive REST APIs beyond the Confluent-compatible surface: schema analysis and quality scoring, field/type search, similarity detection, compatibility suggestions, migration planning, registry statistics, user and API key admin, self-service account management, and built-in API documentation. See [AxonOps Extensions](#axonops-extensions).
+⁵ Additional AxonOps REST APIs beyond the Schema Registry compatible surface: schema analysis and quality scoring, field/type search, similarity detection, compatibility suggestions, migration planning, registry statistics, user and API key admin, self-service account management, and built-in API documentation. See [AxonOps Extensions](#axonops-extensions).
 
-> **In short:** AxonOps gives you **every Confluent REST API** (Community + Enterprise) plus **many extra AxonOps-exclusive REST endpoints** and a **built-in MCP server** — all under the Apache 2.0 license, in a single ~50 MB binary, with no Kafka dependency for storage. You get Confluent Enterprise-grade capabilities (data contracts, client-side encryption, RBAC, audit logging, multi-tenant contexts, rate limiting) **and** advanced schema analysis, quality scoring, field search, similarity detection, and AI-assisted schema management that no other registry offers. If you need enterprise support, [AxonOps](https://axonops.com) offers commercial support plans.
+> **In short:** AxonOps gives you **every Confluent Schema Registry REST API** (Community + Enterprise) plus **many additional REST endpoints** and a **built-in MCP server** — all under the Apache 2.0 license, in a single ~50 MB binary, with no Kafka dependency for storage. You get Enterprise-grade capabilities (data contracts, client-side encryption, RBAC, audit logging, multi-tenant contexts, rate limiting) **and** advanced schema analysis, quality scoring, field search, similarity detection, and AI-assisted schema management that no other registry offers. If you need enterprise support, [AxonOps](https://axonops.com) offers commercial support plans.
 
 ## Quick Start
 
@@ -224,7 +225,7 @@ See [Deployment](docs/deployment.md) for detailed architecture diagrams, topolog
 
 ## API Compatibility
 
-AxonOps Schema Registry implements the full Confluent Schema Registry REST API v1 -- including Enterprise-only features that Confluent charges for -- plus AxonOps-exclusive extensions:
+AxonOps Schema Registry implements the full Confluent Schema Registry REST API v1 -- including Enterprise-only features that Confluent charges for -- plus additional AxonOps extensions:
 
 ### Confluent Compatible (Community)
 
@@ -308,6 +309,18 @@ For the fingerprinting differences, schemas that Confluent stored as separate gl
 
 ---
 
+## Schema Registry Ecosystem
+
+AxonOps Schema Registry exists within a healthy ecosystem of Kafka schema registry implementations. Confluent created the original Schema Registry and defined the REST API that has become the industry standard — every Kafka serializer and client library speaks this API. We are grateful for that foundational contribution.
+
+AxonOps Schema Registry builds on this standard by implementing the full Confluent Schema Registry REST API (Community and Enterprise editions), adding extra REST APIs for schema analysis and administration, and including a built-in MCP server for AI-assisted workflows — all under the Apache 2.0 license.
+
+We built this project to make schema registry an integral part of any Kafka deployment, without limitations from licensing or costs. Whether you use [AxonOps](https://axonops.com) or not, this project is freely available as part of our commitment to the open-source Kafka community.
+
+See the [Ecosystem Guide](docs/ecosystem.md) for a detailed comparison of Confluent, Karapace, Apicurio, and AxonOps, and guidance on choosing the right registry for your needs.
+
+---
+
 ## Documentation
 
 <div align="center">
@@ -336,6 +349,7 @@ For the fingerprinting differences, schemas that Confluent stored as separate gl
 | [Exporters](docs/exporters.md) | Schema Linking via exporter management API |
 | [MCP Server](docs/mcp.md) | AI-assisted schema management via Model Context Protocol |
 | [MCP API Reference](docs/mcp-reference.md) | Auto-generated reference for all MCP tools, resources, and prompts |
+| [Ecosystem](docs/ecosystem.md) | Schema registry ecosystem overview, comparisons, and choosing the right registry |
 | [Troubleshooting](docs/troubleshooting.md) | Common issues, diagnostic commands, and error code reference |
 
 </div>
