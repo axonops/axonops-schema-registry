@@ -85,6 +85,41 @@ func (s *Server) registerGlossaryResources() {
 		Description: "MCP server configuration: all config fields, env var overrides, read-only mode, tool policy, permission scopes, presets, two-phase confirmations, and origin validation",
 		MIMEType:    "text/markdown",
 	}, s.handleGlossaryMCPConfigurationResource)
+
+	s.mcpServer.AddResource(&gomcp.Resource{
+		URI:         "schema://glossary/error-reference",
+		Name:        "glossary-error-reference",
+		Description: "Complete error code reference: all ~30 error codes, response format, diagnostic decision tree, and per-error tool recommendations",
+		MIMEType:    "text/markdown",
+	}, s.handleGlossaryErrorReferenceResource)
+
+	s.mcpServer.AddResource(&gomcp.Resource{
+		URI:         "schema://glossary/auth-and-security",
+		Name:        "glossary-auth-and-security",
+		Description: "Security model: 6 auth methods, 4 RBAC roles with permission sets, API key lifecycle, rate limiting, audit logging, and MCP permission scopes",
+		MIMEType:    "text/markdown",
+	}, s.handleGlossaryAuthAndSecurityResource)
+
+	s.mcpServer.AddResource(&gomcp.Resource{
+		URI:         "schema://glossary/storage-backends",
+		Name:        "glossary-storage-backends",
+		Description: "Storage backends: memory, PostgreSQL, MySQL, Cassandra characteristics, concurrency mechanisms, ID allocation, and choosing a backend",
+		MIMEType:    "text/markdown",
+	}, s.handleGlossaryStorageBackendsResource)
+
+	s.mcpServer.AddResource(&gomcp.Resource{
+		URI:         "schema://glossary/normalization-and-fingerprinting",
+		Name:        "glossary-normalization-and-fingerprinting",
+		Description: "Schema identity: fingerprinting process, per-format canonicalization rules, normalize flag, metadata identity, and deduplication scenarios",
+		MIMEType:    "text/markdown",
+	}, s.handleGlossaryNormalizationResource)
+
+	s.mcpServer.AddResource(&gomcp.Resource{
+		URI:         "schema://glossary/tool-selection-guide",
+		Name:        "glossary-tool-selection-guide",
+		Description: "Decision tree for choosing the right MCP tool: indexed by task category with 2-4 tools per task",
+		MIMEType:    "text/markdown",
+	}, s.handleGlossaryToolSelectionGuideResource)
 }
 
 // --- Glossary resource handlers ---
@@ -132,4 +167,24 @@ func (s *Server) handleGlossaryMigrationResource(_ context.Context, req *gomcp.R
 
 func (s *Server) handleGlossaryMCPConfigurationResource(_ context.Context, req *gomcp.ReadResourceRequest) (*gomcp.ReadResourceResult, error) {
 	return resourceMarkdownFromFS(content.GlossaryFS, "glossary/mcp-configuration.md", req.Params.URI)
+}
+
+func (s *Server) handleGlossaryErrorReferenceResource(_ context.Context, req *gomcp.ReadResourceRequest) (*gomcp.ReadResourceResult, error) {
+	return resourceMarkdownFromFS(content.GlossaryFS, "glossary/error-reference.md", req.Params.URI)
+}
+
+func (s *Server) handleGlossaryAuthAndSecurityResource(_ context.Context, req *gomcp.ReadResourceRequest) (*gomcp.ReadResourceResult, error) {
+	return resourceMarkdownFromFS(content.GlossaryFS, "glossary/auth-and-security.md", req.Params.URI)
+}
+
+func (s *Server) handleGlossaryStorageBackendsResource(_ context.Context, req *gomcp.ReadResourceRequest) (*gomcp.ReadResourceResult, error) {
+	return resourceMarkdownFromFS(content.GlossaryFS, "glossary/storage-backends.md", req.Params.URI)
+}
+
+func (s *Server) handleGlossaryNormalizationResource(_ context.Context, req *gomcp.ReadResourceRequest) (*gomcp.ReadResourceResult, error) {
+	return resourceMarkdownFromFS(content.GlossaryFS, "glossary/normalization-and-fingerprinting.md", req.Params.URI)
+}
+
+func (s *Server) handleGlossaryToolSelectionGuideResource(_ context.Context, req *gomcp.ReadResourceRequest) (*gomcp.ReadResourceResult, error) {
+	return resourceMarkdownFromFS(content.GlossaryFS, "glossary/tool-selection-guide.md", req.Params.URI)
 }

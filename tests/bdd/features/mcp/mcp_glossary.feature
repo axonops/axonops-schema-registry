@@ -92,3 +92,47 @@ Feature: MCP Glossary Resources — Domain Knowledge for AI Assistants
     And the MCP resource result should contain "IMPORT"
     And the MCP resource result should contain "ID Preservation"
     And the MCP resource result should contain "Rollback"
+
+  # ==========================================================================
+  # NEW GLOSSARY RESOURCES
+  # ==========================================================================
+
+  Scenario: Read error-reference glossary
+    When I read MCP resource "schema://glossary/error-reference"
+    Then the MCP resource result should contain "42201"
+    And the MCP resource result should contain "40401"
+    And the MCP resource result should contain "409"
+    And the MCP resource result should contain "Decision Tree"
+    And the MCP resource result should contain "explain_compatibility_failure"
+
+  Scenario: Read auth-and-security glossary
+    When I read MCP resource "schema://glossary/auth-and-security"
+    Then the MCP resource result should contain "super_admin"
+    And the MCP resource result should contain "readonly"
+    And the MCP resource result should contain "deny-by-default"
+    And the MCP resource result should contain "Rate Limiting"
+    And the MCP resource result should contain "Audit Logging"
+
+  Scenario: Read storage-backends glossary
+    When I read MCP resource "schema://glossary/storage-backends"
+    Then the MCP resource result should contain "PostgreSQL"
+    And the MCP resource result should contain "MySQL"
+    And the MCP resource result should contain "Cassandra"
+    And the MCP resource result should contain "Stateless"
+    And the MCP resource result should contain "FOR UPDATE"
+
+  Scenario: Read normalization-and-fingerprinting glossary
+    When I read MCP resource "schema://glossary/normalization-and-fingerprinting"
+    Then the MCP resource result should contain "SHA-256"
+    And the MCP resource result should contain "Canonical"
+    And the MCP resource result should contain "Deduplication"
+    And the MCP resource result should contain "normalize"
+    And the MCP resource result should contain "metadata"
+
+  Scenario: Read tool-selection-guide glossary
+    When I read MCP resource "schema://glossary/tool-selection-guide"
+    Then the MCP resource result should contain "Finding Schemas"
+    And the MCP resource result should contain "list_subjects"
+    And the MCP resource result should contain "register_schema"
+    And the MCP resource result should contain "Working with Contexts"
+    And the MCP resource result should contain "Encryption"
