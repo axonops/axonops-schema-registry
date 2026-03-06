@@ -86,7 +86,7 @@ security:
       # Users with bcrypt-hashed passwords (legacy config-based auth)
       # Use the CLI tool to manage users in the database instead
       users: {}
-      htpasswd_file: ""             # NOT YET IMPLEMENTED
+      htpasswd_file: ""             # Apache htpasswd file (bcrypt only)
 
     # API Key authentication settings
     api_key:

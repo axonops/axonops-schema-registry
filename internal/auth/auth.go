@@ -42,8 +42,9 @@ type Authenticator struct {
 	ldapProvider *LDAPProvider      // LDAP authentication provider
 	oidcProvider *OIDCProvider      // OIDC authentication provider
 	jwtProvider  *JWTProvider       // JWT authentication provider
-	apiKeys      map[string]*APIKey // key -> APIKey (for legacy/config-based auth)
-	metrics      *metrics.Metrics   // Prometheus metrics (optional)
+	apiKeys       map[string]*APIKey // key -> APIKey (for legacy/config-based auth)
+	htpasswdStore *HTPasswdStore     // htpasswd file entries (optional)
+	metrics       *metrics.Metrics   // Prometheus metrics (optional)
 }
 
 // APIKey represents an API key.
@@ -86,6 +87,11 @@ func (a *Authenticator) SetJWTProvider(p *JWTProvider) {
 // SetMetrics sets the Prometheus metrics instance for recording auth metrics.
 func (a *Authenticator) SetMetrics(m *metrics.Metrics) {
 	a.metrics = m
+}
+
+// SetHTPasswdStore sets the htpasswd file store for Basic authentication.
+func (a *Authenticator) SetHTPasswdStore(store *HTPasswdStore) {
+	a.htpasswdStore = store
 }
 
 // AddAPIKey adds an API key (for legacy/config-based auth).
@@ -227,6 +233,15 @@ func (a *Authenticator) authenticateBasic(r *http.Request) (*User, bool) {
 				Method:   "basic",
 			}, true
 		}
+	}
+
+	// Fallback to htpasswd file if configured
+	if a.htpasswdStore != nil && a.htpasswdStore.Verify(username, password) {
+		return &User{
+			Username: username,
+			Role:     a.config.RBAC.DefaultRole,
+			Method:   "basic",
+		}, true
 	}
 
 	return nil, false

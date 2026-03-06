@@ -200,7 +200,7 @@ type BootstrapConfig struct {
 type BasicAuthConfig struct {
 	Realm    string            `yaml:"realm"`
 	Users    map[string]string `yaml:"users"`         // username -> bcrypt hash
-	HTPasswd string            `yaml:"htpasswd_file"` // NOT YET IMPLEMENTED
+	HTPasswd string            `yaml:"htpasswd_file"` // Path to Apache-style htpasswd file (bcrypt only)
 }
 
 // LDAPConfig represents LDAP authentication configuration.

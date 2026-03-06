@@ -36,6 +36,7 @@ import (
 	"github.com/cucumber/godog/colors"
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/axonops/axonops-schema-registry/internal/api"
 	"github.com/axonops/axonops-schema-registry/internal/auth"
@@ -243,6 +244,16 @@ func newAuthTestServerWithStore(store storage.Storage) (*httptest.Server, storag
 		UserCacheTTL:         0, // disable credential caching for tests
 	})
 	authenticator.SetService(authService)
+
+	// Create htpasswd file with test users for auth_htpasswd.feature
+	htpasswdFile := createTestHTPasswdFile()
+	if htpasswdFile != "" {
+		htpasswdStore, err := auth.LoadHTPasswdFile(htpasswdFile)
+		if err != nil {
+			panic(fmt.Sprintf("failed to load test htpasswd file: %v", err))
+		}
+		authenticator.SetHTPasswdStore(htpasswdStore)
+	}
 
 	authorizer := auth.NewAuthorizer(authCfg.RBAC)
 
@@ -1054,6 +1065,31 @@ func envOrDefault(key, def string) string {
 		return v
 	}
 	return def
+}
+
+// createTestHTPasswdFile creates a temporary htpasswd file with test users.
+// Returns the file path, or empty string on failure.
+func createTestHTPasswdFile() string {
+	dir, err := os.MkdirTemp("", "bdd-htpasswd-*")
+	if err != nil {
+		return ""
+	}
+	// bcrypt hashes generated for test passwords
+	// htuser1:htpassword1 and htuser2:htpassword2
+	hash1, err := bcrypt.GenerateFromPassword([]byte("htpassword1"), bcrypt.MinCost)
+	if err != nil {
+		return ""
+	}
+	hash2, err := bcrypt.GenerateFromPassword([]byte("htpassword2"), bcrypt.MinCost)
+	if err != nil {
+		return ""
+	}
+	content := fmt.Sprintf("# Test htpasswd file for BDD\nhtuser1:%s\nhtuser2:%s\n", hash1, hash2)
+	path := dir + "/htpasswd"
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+		return ""
+	}
+	return path
 }
 
 func init() {

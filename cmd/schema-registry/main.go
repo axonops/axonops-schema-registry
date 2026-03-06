@@ -269,6 +269,17 @@ func main() {
 			authenticator.SetJWTProvider(jwtProvider)
 		}
 
+		// Load htpasswd file if configured
+		if cfg.Security.Auth.Basic.HTPasswd != "" {
+			htpasswdStore, err := auth.LoadHTPasswdFile(cfg.Security.Auth.Basic.HTPasswd)
+			if err != nil {
+				logger.Error("failed to load htpasswd file", slog.String("error", err.Error()))
+				os.Exit(1)
+			}
+			authenticator.SetHTPasswdStore(htpasswdStore)
+			logger.Info("htpasswd file loaded", slog.Int("entries", htpasswdStore.Count()))
+		}
+
 		// Add auth option
 		serverOpts = append(serverOpts, api.WithAuth(authenticator, authorizer, authService))
 	}

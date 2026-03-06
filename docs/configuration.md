@@ -367,7 +367,7 @@ security:
 |-----|------|---------|-------------|
 | `security.auth.basic.realm` | string | `""` | HTTP Basic Auth realm displayed to clients. |
 | `security.auth.basic.users` | map (string to string) | `{}` | Static username-to-bcrypt-hash map. For config-based auth only; prefer database-managed users. |
-| `security.auth.basic.htpasswd_file` | string | `""` | **Not yet implemented.** Path to an Apache-style htpasswd file. |
+| `security.auth.basic.htpasswd_file` | string | `""` | Path to an Apache-style htpasswd file. Only bcrypt hashes (`$2y$`, `$2a$`, `$2b$`) are supported. Loaded once at startup. Users from this file receive the `rbac.default_role`. |
 
 ```yaml
 security:
@@ -866,7 +866,7 @@ security:
     basic:
       realm: "Schema Registry"
       users: {}                       # username: bcrypt-hash (legacy; prefer DB users)
-      htpasswd_file: ""               # NOT YET IMPLEMENTED
+      htpasswd_file: ""               # Apache htpasswd file (bcrypt only)
 
     # API Key Auth
     api_key:
