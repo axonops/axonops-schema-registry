@@ -87,23 +87,48 @@ Feature: MCP Prompts — Pre-Built Conversation Templates
       | error_code | 42201 |
     Then the MCP prompt result should contain "Invalid schema"
     And the MCP prompt result should contain "42201"
+    And the MCP prompt result should contain "validate_schema"
 
   Scenario: Get debug prompt for incompatible schema error
     When I get MCP prompt "debug-registration-error" with arguments:
       | error_code | 409 |
     Then the MCP prompt result should contain "Incompatible schema"
     And the MCP prompt result should contain "check_compatibility"
+    And the MCP prompt result should contain "explain_compatibility_failure"
+
+  Scenario: Get debug prompt for subject not found error
+    When I get MCP prompt "debug-registration-error" with arguments:
+      | error_code | 40401 |
+    Then the MCP prompt result should contain "Subject"
+    And the MCP prompt result should contain "list_subjects"
+    And the MCP prompt result should contain "match_subjects"
+
+  Scenario: Get debug prompt for unknown error code falls back to general guide
+    When I get MCP prompt "debug-registration-error" with arguments:
+      | error_code | 99999 |
+    Then the MCP prompt result should contain "Decision Tree"
+    And the MCP prompt result should contain "health_check"
 
   # ==========================================================================
   # 6. ENCRYPTION AND EXPORT PROMPTS
   # ==========================================================================
 
-  Scenario: Get encryption setup prompt
+  Scenario: Get encryption setup prompt for Vault
     When I get MCP prompt "setup-encryption" with arguments:
       | kms_type | hcvault |
     Then the MCP prompt result should contain "KEK"
     And the MCP prompt result should contain "DEK"
     And the MCP prompt result should contain "hcvault"
+    And the MCP prompt result should contain "test_kek"
+    And the MCP prompt result should contain "vault.address"
+    And the MCP prompt result should contain "Transit"
+
+  Scenario: Get encryption setup prompt for AWS KMS
+    When I get MCP prompt "setup-encryption" with arguments:
+      | kms_type | aws-kms |
+    Then the MCP prompt result should contain "aws-kms"
+    And the MCP prompt result should contain "aws.region"
+    And the MCP prompt result should contain "ARN"
 
   Scenario: Get exporter configuration prompt
     When I get MCP prompt "configure-exporter" with arguments:
@@ -159,13 +184,33 @@ Feature: MCP Prompts — Pre-Built Conversation Templates
     Then the MCP prompt result should contain "prompt-breaking-test"
     And the MCP prompt result should contain "READONLY"
 
-  Scenario: Get schema migration prompt
+  Scenario: Get schema migration prompt Avro to Protobuf
     When I get MCP prompt "migrate-schemas" with arguments:
       | source_format | AVRO     |
       | target_format | PROTOBUF |
     Then the MCP prompt result should contain "AVRO"
     And the MCP prompt result should contain "PROTOBUF"
-    And the MCP prompt result should contain "messages"
+    And the MCP prompt result should contain "message"
+    And the MCP prompt result should contain "Type Mapping"
+    And the MCP prompt result should contain "validate_schema"
+    And the MCP prompt result should contain "UNSPECIFIED"
+
+  Scenario: Get schema migration prompt Protobuf to Avro
+    When I get MCP prompt "migrate-schemas" with arguments:
+      | source_format | PROTOBUF |
+      | target_format | AVRO     |
+    Then the MCP prompt result should contain "PROTOBUF"
+    And the MCP prompt result should contain "AVRO"
+    And the MCP prompt result should contain "record"
+    And the MCP prompt result should contain "Field numbers"
+
+  Scenario: Get schema migration prompt Avro to JSON Schema
+    When I get MCP prompt "migrate-schemas" with arguments:
+      | source_format | AVRO |
+      | target_format | JSON |
+    Then the MCP prompt result should contain "AVRO"
+    And the MCP prompt result should contain "JSON"
+    And the MCP prompt result should contain "additionalProperties"
 
   Scenario: Get schema quality review prompt
     When I call MCP tool "register_schema" with JSON input:
@@ -220,4 +265,5 @@ Feature: MCP Prompts — Pre-Built Conversation Templates
     When I get MCP prompt "context-management"
     Then the MCP prompt result should contain "list_contexts"
     And the MCP prompt result should contain "READWRITE"
-    And the MCP prompt result should contain "inheritance"
+    And the MCP prompt result should contain "highest precedence"
+    And the MCP prompt result should contain "lowest precedence"

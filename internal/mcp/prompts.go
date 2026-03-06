@@ -340,43 +340,6 @@ func (s *Server) handleMigrateSchemasPrompt(_ context.Context, req *gomcp.GetPro
 		return nil, err
 	}
 
-	switch {
-	case source == "AVRO" && target == "PROTOBUF":
-		guidance += `
-- Avro records → Protobuf messages
-- Avro unions ["null", "type"] → Protobuf optional fields
-- Avro enums → Protobuf enums (add UNSPECIFIED = 0)
-- Avro maps → Protobuf map<string, V>
-- Avro arrays → Protobuf repeated fields
-- Avro logical types → Protobuf well-known types
-- Avro namespace → Protobuf package`
-
-	case source == "AVRO" && target == "JSON":
-		guidance += `
-- Avro records → JSON objects with properties
-- Avro string/int/long/float/double → JSON string/integer/number
-- Avro unions → JSON oneOf
-- Avro enums → JSON enum arrays
-- Avro arrays → JSON arrays with items
-- Avro maps → JSON objects with additionalProperties`
-
-	case source == "PROTOBUF" && target == "AVRO":
-		guidance += `
-- Protobuf messages → Avro records
-- Protobuf optional → Avro union ["null", "type"]
-- Protobuf enums → Avro enums (remove UNSPECIFIED value)
-- Protobuf map → Avro map type
-- Protobuf repeated → Avro array type
-- Protobuf package → Avro namespace`
-
-	default:
-		guidance += fmt.Sprintf(`
-- Map types from %s to their %s equivalents
-- Preserve field names and semantics
-- Handle nullable/optional fields appropriately
-- Test the converted schema with check_compatibility`, source, target)
-	}
-
 	return &gomcp.GetPromptResult{
 		Description: fmt.Sprintf("Migration guide from %s to %s", source, target),
 		Messages:    []*gomcp.PromptMessage{promptMessage("user", guidance)},
@@ -392,28 +355,6 @@ func (s *Server) handleSetupEncryptionPrompt(_ context.Context, req *gomcp.GetPr
 	guidance, err := promptTemplateFromFS(content.PromptsFS, "prompts/setup-encryption.md", map[string]string{"{kms_type}": kmsType})
 	if err != nil {
 		return nil, err
-	}
-
-	switch strings.ToLower(kmsType) {
-	case "hcvault":
-		guidance += `
-- kms_key_id: transit key name in Vault
-- kms_props: {"vault.url": "https://vault:8200", "vault.token": "..."}`
-	case "aws-kms":
-		guidance += `
-- kms_key_id: AWS KMS key ARN
-- kms_props: {"aws.region": "us-east-1"}`
-	case "gcp-kms":
-		guidance += `
-- kms_key_id: GCP KMS key resource name
-- kms_props: {"gcp.project": "my-project"}`
-	case "azure-kms":
-		guidance += `
-- kms_key_id: Azure Key Vault key identifier
-- kms_props: {"azure.tenant.id": "...", "azure.client.id": "..."}`
-	default:
-		guidance += fmt.Sprintf(`
-- Refer to your %s provider documentation for kms_key_id and kms_props`, kmsType)
 	}
 
 	return &gomcp.GetPromptResult{

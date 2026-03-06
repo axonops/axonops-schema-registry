@@ -9,12 +9,12 @@ Contexts are tenant namespaces that isolate schemas, subjects, and configuration
 - Subjects can be qualified with context: `:.staging:my-subject`
 
 ## The 4-tier config/mode inheritance chain
-Configuration and mode settings cascade through 4 levels:
+Configuration and mode settings cascade through 4 levels (highest to lowest precedence):
 
-1. **Server default** — hardcoded BACKWARD compatibility, READWRITE mode
-2. **Global (__GLOBAL)** — set via set_config/set_mode with no subject
-3. **Context global** — per-context default (overrides __GLOBAL)
-4. **Per-subject** — most specific (overrides everything above)
+1. **Per-subject** (highest precedence) -- most specific, overrides everything below
+2. **Context global** -- per-context default, overrides __GLOBAL and server default
+3. **Global (__GLOBAL)** -- cross-context default, set via set_config/set_mode with no subject
+4. **Server default** (lowest precedence) -- hardcoded BACKWARD compatibility, READWRITE mode
 
 To check effective config: **get_config** with a subject name returns the resolved value.
 To check effective mode: **get_mode** with a subject name returns the resolved value.
