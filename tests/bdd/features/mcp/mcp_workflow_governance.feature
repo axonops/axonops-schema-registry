@@ -1,0 +1,90 @@
+@mcp @mcp-workflow
+Feature: MCP Workflow — Governance Setup
+  Tests the governance workflow from prompts/governance-setup.md
+  by executing each step as MCP tool calls.
+
+  # Validates: prompts/governance-setup.md — Step 2, glossary/compatibility Configuration Resolution
+  Scenario: Set global compatibility and verify resolution
+    When I call MCP tool "set_config" with JSON input:
+      """
+      {"compatibility": "FULL"}
+      """
+    Then the MCP result should not be an error
+    When I call MCP tool "get_config" with JSON input:
+      """
+      {}
+      """
+    Then the MCP result should contain "FULL"
+
+  # Validates: prompts/governance-setup.md — Step 3
+  Scenario: Score quality across subjects
+    When I call MCP tool "register_schema" with JSON input:
+      """
+      {
+        "subject": "wf-gov-quality",
+        "schema": "{\"type\":\"record\",\"name\":\"GovTest\",\"namespace\":\"com.example\",\"doc\":\"Test schema\",\"fields\":[{\"name\":\"id\",\"type\":\"string\",\"doc\":\"ID\"}]}"
+      }
+      """
+    Then the MCP result should not be an error
+    When I call MCP tool "score_schema_quality" with JSON input:
+      """
+      {"subject": "wf-gov-quality"}
+      """
+    Then the MCP result should not be an error
+    And the MCP result should contain "score"
+
+  # Validates: prompts/governance-setup.md — Step 3
+  Scenario: Check field consistency for type drift
+    When I call MCP tool "register_schema" with JSON input:
+      """
+      {
+        "subject": "wf-gov-cons-a",
+        "schema": "{\"type\":\"record\",\"name\":\"A\",\"fields\":[{\"name\":\"customer_id\",\"type\":\"string\"}]}"
+      }
+      """
+    Then the MCP result should not be an error
+    When I call MCP tool "register_schema" with JSON input:
+      """
+      {
+        "subject": "wf-gov-cons-b",
+        "schema": "{\"type\":\"record\",\"name\":\"B\",\"fields\":[{\"name\":\"customer_id\",\"type\":\"string\"}]}"
+      }
+      """
+    Then the MCP result should not be an error
+    When I call MCP tool "check_field_consistency" with JSON input:
+      """
+      {
+        "field_name": "customer_id",
+        "subjects": ["wf-gov-cons-a", "wf-gov-cons-b"]
+      }
+      """
+    Then the MCP result should not be an error
+    And the MCP result should contain "customer_id"
+
+  # Validates: prompts/governance-setup.md — Step 4, glossary/data-contracts 3-Layer Merge
+  Scenario: Data contract with override metadata for PII
+    When I call MCP tool "register_schema" with JSON input:
+      """
+      {
+        "subject": "wf-gov-contract",
+        "schema": "{\"type\":\"record\",\"name\":\"Customer\",\"fields\":[{\"name\":\"email\",\"type\":\"string\"}]}"
+      }
+      """
+    Then the MCP result should not be an error
+    When I call MCP tool "set_config_full" with JSON input:
+      """
+      {
+        "subject": "wf-gov-contract",
+        "compatibility": "BACKWARD",
+        "metadata": {
+          "properties": {"pii": "true", "owner": "data-team"}
+        }
+      }
+      """
+    Then the MCP result should not be an error
+    When I call MCP tool "get_subject_config_full" with JSON input:
+      """
+      {"subject": "wf-gov-contract"}
+      """
+    Then the MCP result should contain "pii"
+    And the MCP result should contain "data-team"
