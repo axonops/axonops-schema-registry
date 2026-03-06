@@ -74,9 +74,9 @@ An existing consumer using the old schema can deserialize messages that were wri
 
 ### Transitive vs Non-Transitive
 
-Non-transitive modes (BACKWARD, FORWARD, FULL) check compatibility only against the **latest** previous version. This is sufficient when schemas evolve incrementally and every consumer upgrades through each version in order.
+Non-transitive modes (`BACKWARD`, `FORWARD`, `FULL`) check compatibility only against the **latest** previous version. This is sufficient when schemas evolve incrementally and every consumer upgrades through each version in order.
 
-Transitive modes (BACKWARD_TRANSITIVE, FORWARD_TRANSITIVE, FULL_TRANSITIVE) check compatibility against **all** previous versions. This is necessary when consumers may skip versions -- for example, when a consumer running schema version 1 needs to read data written with schema version 5 without having processed versions 2 through 4.
+Transitive modes (`BACKWARD_TRANSITIVE`, `FORWARD_TRANSITIVE`, `FULL_TRANSITIVE`) check compatibility against **all** previous versions. This is necessary when consumers MAY skip versions -- for example, when a consumer running schema version 1 needs to read data written with schema version 5 without having processed versions 2 through 4.
 
 ## Configuration Resolution
 

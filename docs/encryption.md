@@ -9,7 +9,7 @@ The schema registry acts as the **key metadata store** for CSFLE. It does not pe
 | **Key Encryption Key (KEK)** | References an external KMS key used to wrap (encrypt) DEKs | External KMS (HashiCorp Vault, OpenBao; AWS KMS, Azure Key Vault, GCP KMS coming soon) |
 | **Data Encryption Key (DEK)** | The actual encryption key used to encrypt field values | Stored in the registry as encrypted bytes (wrapped by the KEK) |
 
-This two-tier design follows the **envelope encryption** pattern: DEKs encrypt data, KEKs encrypt DEKs. The plaintext DEK never leaves the client -- the registry only stores the KMS-wrapped (encrypted) form.
+This two-tier design follows the **envelope encryption** pattern: DEKs encrypt data, KEKs encrypt DEKs. The plaintext DEK MUST NOT leave the client -- the registry only stores the KMS-wrapped (encrypted) form.
 
 This feature is **Confluent-compatible**: the DEK Registry API follows the same endpoints, request/response formats, and semantics as Confluent Schema Registry's Enterprise CSFLE feature. In AxonOps Schema Registry, it is available at no additional cost.
 
@@ -49,7 +49,7 @@ A KEK has the following fields:
 
 ## Data Encryption Keys (DEKs)
 
-A DEK is the actual encryption key used to encrypt and decrypt field values. DEKs are always associated with a parent KEK and are scoped to a specific schema subject. The registry stores the DEK in its encrypted (wrapped) form -- the plaintext key material is never persisted.
+A DEK is the actual encryption key used to encrypt and decrypt field values. DEKs are always associated with a parent KEK and are scoped to a specific schema subject. The registry stores the DEK in its encrypted (wrapped) form -- the plaintext key material is NEVER persisted.
 
 A DEK has the following fields:
 
@@ -361,7 +361,7 @@ curl -X DELETE "http://localhost:8081/dek-registry/v1/keks/my-aws-kek/deks/order
 
 The `kmsType` field on a KEK identifies which external Key Management Service holds the actual key encryption key.
 
-In **client-side mode** (the default, when `shared=false`), the registry stores the KMS reference so that clients know which KMS to call for wrap/unwrap operations. The registry itself does not contact the KMS.
+In **client-side mode** (the default, when `shared=false`), the registry stores the KMS reference so that clients know which KMS to call for wrap/unwrap operations. The registry itself MUST NOT contact the KMS.
 
 In **server-side mode** (when `shared=true`), the registry uses its built-in KMS provider integrations to generate and wrap DEKs on behalf of the client. The registry calls the KMS directly using the `kmsProps` configured on the KEK. This mode is useful when clients cannot access the KMS directly or when centralized key management is preferred.
 

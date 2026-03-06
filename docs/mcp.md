@@ -713,30 +713,68 @@ result, _ := session.CallTool(ctx, "list_subjects", map[string]any{})
 
 ### MCP server not starting
 
-Verify `mcp.enabled: true` in your config and check logs for bind errors. The default port is 9081 — ensure it is not in use.
+**Symptoms:** The MCP server does not start or is unreachable on the expected port.
+
+**Diagnostics:**
+
+```bash
+# Check server logs for bind errors
+docker logs schema-registry 2>&1 | grep -i "mcp\|bind\|listen"
+
+# Check if the port is already in use
+ss -tlnp | grep 9081
+```
+
+**Resolution:** Verify `mcp.enabled: true` in your config. The default port is `9081` — ensure it is not already in use by another process.
+
+**Root Cause:** The MCP server is disabled in configuration, or the configured port is already bound by another process.
 
 ### 401 Unauthorized
 
-If `mcp.auth_token` is set, all requests MUST include the `Authorization: Bearer <token>` header.
+**Symptoms:** MCP requests return HTTP `401`.
+
+**Resolution:** If `mcp.auth_token` is set, all requests MUST include the `Authorization: Bearer <token>` header. Verify the token value matches the configured `mcp.auth_token`.
+
+**Root Cause:** Bearer token authentication is enabled but the request is missing or has an incorrect `Authorization` header.
 
 ### 403 Forbidden (origin rejected)
 
-The `Origin` header does not match `mcp.allowed_origins`. Add your client's origin to the allowlist. Non-browser clients that omit the `Origin` header are not affected.
+**Symptoms:** MCP requests return HTTP `403` with an origin validation error.
+
+**Resolution:** Add your client's origin to `mcp.allowed_origins`. Non-browser clients that omit the `Origin` header are not affected.
+
+**Root Cause:** The `Origin` header does not match any entry in `mcp.allowed_origins`.
 
 ### Tools not appearing
+
+**Symptoms:** Expected tools are not listed in the MCP `tools/list` response.
+
+**Diagnostics:** Check the MCP configuration section of your YAML config for `read_only`, `permission_preset`, `permission_scopes`, `tool_policy`, `allowed_tools`, and `denied_tools`.
+
+**Resolution:**
 
 - **Read-only mode**: Write tools are hidden when `mcp.read_only: true`
 - **Permission scopes**: Check `permission_preset` or `permission_scopes` — tools outside the allowed scopes are hidden
 - **Tool policy**: Check `tool_policy`, `allowed_tools`, and `denied_tools` configuration
 - **Auth**: Admin tools (user/API key management) only appear when auth is configured
 
+**Root Cause:** Tool visibility is controlled by multiple configuration layers. Tools are filtered at registration time based on the combined effect of read-only mode, permission scopes, and tool policy.
+
 ### Confirmation required
 
-When `mcp.require_confirmations: true`, destructive operations require a two-phase flow. Call with `dry_run: true` first, then use the returned `confirm_token`.
+**Symptoms:** Destructive operations return a `confirm_token` instead of executing.
+
+**Resolution:** When `mcp.require_confirmations: true`, destructive operations require a two-phase flow. Call with `dry_run: true` first, then re-call with the returned `confirm_token`.
+
+**Root Cause:** Two-phase confirmations are enabled to prevent accidental data loss from AI-initiated destructive operations.
 
 ### Schema content not in logs
 
-Set `mcp.log_schemas: true` to include schema bodies in structured log output. Schema bodies are logged at **Debug** level under the `mcp_tool_schema_body` message key, so you MUST also set `logging.level: debug` to see them. When `log_schemas` is enabled, a truncated schema body (max 1000 characters) is also included in the `metadata` field of audit log entries. This setting is disabled by default to avoid logging sensitive data.
+**Symptoms:** MCP tool call logs do not include schema bodies.
+
+**Resolution:** Set `mcp.log_schemas: true` to include schema bodies in structured log output. You MUST also set `logging.level: debug` because schema bodies are logged at **Debug** level under the `mcp_tool_schema_body` message key. When `log_schemas` is enabled, a truncated schema body (max 1000 characters) is also included in the `metadata` field of audit log entries.
+
+**Root Cause:** Schema body logging is disabled by default to avoid logging potentially sensitive data.
 
 ## API Reference
 

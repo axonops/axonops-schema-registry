@@ -186,7 +186,7 @@ Response:
 {"name": "dc-west-replica"}
 ```
 
-> Deleting an exporter is irreversible. The exporter and all its associated state (status, offset) are removed.
+> **Warning:** Deleting an exporter is irreversible. The exporter and all its associated state (status, offset) are permanently removed.
 
 ---
 
@@ -246,7 +246,7 @@ Response:
 {"name": "dc-west-replica"}
 ```
 
-> Resetting an exporter does NOT delete it or change its configuration. It only resets the replication offset.
+> Resetting an exporter MUST NOT delete it or change its configuration. It only resets the replication offset.
 
 ---
 

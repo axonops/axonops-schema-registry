@@ -135,7 +135,7 @@ When RBAC is disabled, all authenticated users have unrestricted access. When en
 
 ### Passwords
 
-User passwords are stored as bcrypt hashes with the default cost factor (10). Plaintext passwords are never written to disk or database. The `golang.org/x/crypto/bcrypt` package is used for hashing, and the cost factor is the `bcrypt.DefaultCost` constant (currently 10). Bcrypt is intentionally slow, which limits brute-force attack throughput.
+User passwords are stored as bcrypt hashes with the default cost factor (10). Plaintext passwords are NEVER written to disk or database. The `golang.org/x/crypto/bcrypt` package is used for hashing, and the cost factor is the `bcrypt.DefaultCost` constant (currently 10). Bcrypt is intentionally slow, which limits brute-force attack throughput.
 
 ### API Keys
 
@@ -151,13 +151,13 @@ security:
 Key security properties:
 
 - **Hashed at rest** -- keys are never stored in plaintext
-- **Shown once** -- the raw key is returned only at creation time and cannot be retrieved afterward
+- **Shown once** -- the raw key is returned only at creation time and CANNOT be retrieved afterward
 - **Pepper protection** -- when `secret` is configured, HMAC-SHA256 is used instead of plain SHA-256
 - **Cluster consistency** -- if `secret` is configured, all registry instances must use the same value
 - **Expiration enforced** -- key expiration is checked on every request
 - **Key prefixes** -- configurable prefix (e.g., `sr_live_`) helps identify keys in logs and configuration
 
-The `secret` value should be at least 32 bytes of cryptographically random data. Load it from an environment variable or secrets manager rather than hardcoding it in the configuration file.
+The `secret` value SHOULD be at least 32 bytes of cryptographically random data. Load it from an environment variable or secrets manager rather than hardcoding it in the configuration file.
 
 ### External Credential Storage with HashiCorp Vault
 

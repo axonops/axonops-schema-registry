@@ -136,7 +136,7 @@ GET  /contexts/.team-a/subjects/orders-value/versions/latest
 GET  /contexts/.team-a/config/orders-value
 ```
 
-All standard registry endpoints are available under the `/contexts/{context}` prefix. The context name in the URL MUST include the leading dot (e.g., `.team-a`, not `team-a`). If the name is provided without the leading dot, the registry normalizes it by prepending one.
+All standard registry endpoints are available under the `/contexts/{context}` prefix. The context name in the URL MUST include the leading dot (e.g., `.team-a`, not `team-a`). If the name is provided without the leading dot, the registry MUST normalize it by prepending one.
 
 The full set of context-prefixed endpoints mirrors the root-level routes:
 
