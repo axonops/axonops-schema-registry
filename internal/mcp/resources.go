@@ -165,7 +165,83 @@ func (s *Server) registerResources() {
 		Name:        "context-subjects",
 		Description: "List of subjects in a specific registry context",
 		MIMEType:    "application/json",
-	}, s.handleContextSubjectsResource)
+	}, s.handleSubjectsResource)
+
+	// --- Context-scoped resource templates ---
+	// These provide access to registry data within a specific multi-tenant context.
+	// The context is extracted from the URI prefix: schema://contexts/{context}/...
+	// Handlers are shared with the non-context versions above; they use
+	// resolveResourceContext() to determine the context from the URI.
+
+	s.mcpServer.AddResourceTemplate(&gomcp.ResourceTemplate{
+		URITemplate: "schema://contexts/{context}/config",
+		Name:        "context-config",
+		Description: "Global compatibility level and mode for a specific registry context",
+		MIMEType:    "application/json",
+	}, s.handleServerConfigResource)
+
+	s.mcpServer.AddResourceTemplate(&gomcp.ResourceTemplate{
+		URITemplate: "schema://contexts/{context}/mode",
+		Name:        "context-mode",
+		Description: "Global registry mode for a specific registry context",
+		MIMEType:    "application/json",
+	}, s.handleGlobalModeResource)
+
+	s.mcpServer.AddResourceTemplate(&gomcp.ResourceTemplate{
+		URITemplate: "schema://contexts/{context}/subjects/{subject}",
+		Name:        "context-subject-detail",
+		Description: "Subject details within a specific registry context",
+		MIMEType:    "application/json",
+	}, s.handleSubjectDetailResource)
+
+	s.mcpServer.AddResourceTemplate(&gomcp.ResourceTemplate{
+		URITemplate: "schema://contexts/{context}/subjects/{subject}/versions",
+		Name:        "context-subject-versions",
+		Description: "All version numbers for a subject within a specific registry context",
+		MIMEType:    "application/json",
+	}, s.handleSubjectVersionsResource)
+
+	s.mcpServer.AddResourceTemplate(&gomcp.ResourceTemplate{
+		URITemplate: "schema://contexts/{context}/subjects/{subject}/versions/{version}",
+		Name:        "context-subject-version-detail",
+		Description: "Schema at a specific subject version within a specific registry context",
+		MIMEType:    "application/json",
+	}, s.handleSubjectVersionDetailResource)
+
+	s.mcpServer.AddResourceTemplate(&gomcp.ResourceTemplate{
+		URITemplate: "schema://contexts/{context}/subjects/{subject}/config",
+		Name:        "context-subject-config",
+		Description: "Per-subject compatibility configuration within a specific registry context",
+		MIMEType:    "application/json",
+	}, s.handleSubjectConfigResource)
+
+	s.mcpServer.AddResourceTemplate(&gomcp.ResourceTemplate{
+		URITemplate: "schema://contexts/{context}/subjects/{subject}/mode",
+		Name:        "context-subject-mode",
+		Description: "Per-subject registry mode within a specific registry context",
+		MIMEType:    "application/json",
+	}, s.handleSubjectModeResource)
+
+	s.mcpServer.AddResourceTemplate(&gomcp.ResourceTemplate{
+		URITemplate: "schema://contexts/{context}/schemas/{id}",
+		Name:        "context-schema-by-id",
+		Description: "Schema record by global ID within a specific registry context",
+		MIMEType:    "application/json",
+	}, s.handleSchemaByIDResource)
+
+	s.mcpServer.AddResourceTemplate(&gomcp.ResourceTemplate{
+		URITemplate: "schema://contexts/{context}/schemas/{id}/subjects",
+		Name:        "context-schema-subjects",
+		Description: "All subjects that use a specific schema ID within a specific registry context",
+		MIMEType:    "application/json",
+	}, s.handleSchemaSubjectsResource)
+
+	s.mcpServer.AddResourceTemplate(&gomcp.ResourceTemplate{
+		URITemplate: "schema://contexts/{context}/schemas/{id}/versions",
+		Name:        "context-schema-versions",
+		Description: "All subject-version pairs for a schema ID within a specific registry context",
+		MIMEType:    "application/json",
+	}, s.handleSchemaVersionsResource)
 }
 
 // --- Resource result helpers ---
@@ -206,7 +282,9 @@ func resourceMarkdownFromFS(fsys fs.FS, path, uri string) (*gomcp.ReadResourceRe
 }
 
 // extractURIParam extracts a named parameter from a resource URI by comparing
-// it against the expected path pattern.
+// it against the expected path pattern. It handles both direct URIs
+// (schema://subjects/{subject}) and context-prefixed URIs
+// (schema://contexts/{context}/subjects/{subject}).
 func extractURIParam(uri, param string) (string, error) {
 	parsed, err := url.Parse(uri)
 	if err != nil {
@@ -216,23 +294,32 @@ func extractURIParam(uri, param string) (string, error) {
 	// Examples:
 	//   schema://subjects/my-subject -> host="subjects", path="/my-subject"
 	//   schema://schemas/42/subjects -> host="schemas", path="/42/subjects"
+	//   schema://contexts/staging/subjects/my-subject -> host="contexts", path="/staging/subjects/my-subject"
 	host := parsed.Host
 	path := parsed.Path
+
+	// Handle context-prefixed URIs: schema://contexts/{context}/{type}/{rest...}
+	// For any param other than "context", strip the context prefix and re-route.
+	if host == "contexts" && param != "context" && len(path) > 1 {
+		segments := strings.SplitN(path[1:], "/", 3)
+		if len(segments) >= 2 {
+			host = segments[1]
+			if len(segments) == 3 {
+				path = "/" + segments[2]
+			} else {
+				path = ""
+			}
+		}
+	}
 
 	switch param {
 	case "subject":
 		if host == "subjects" && len(path) > 1 {
-			// schema://subjects/{subject}
-			// schema://subjects/{subject}/versions
-			// schema://subjects/{subject}/config
-			// schema://subjects/{subject}/mode
-			// schema://subjects/{subject}/versions/{version}
 			parts := strings.SplitN(path[1:], "/", 2) // strip leading /
 			return parts[0], nil
 		}
 	case "version":
 		if host == "subjects" && len(path) > 1 {
-			// schema://subjects/{subject}/versions/{version}
 			parts := strings.Split(path[1:], "/")
 			if len(parts) >= 3 && parts[1] == "versions" {
 				return parts[2], nil
@@ -250,12 +337,22 @@ func extractURIParam(uri, param string) (string, error) {
 		}
 	case "context":
 		if host == "contexts" && len(path) > 1 {
-			// schema://contexts/{context}/subjects
 			parts := strings.SplitN(path[1:], "/", 2)
 			return parts[0], nil
 		}
 	}
 	return "", fmt.Errorf("parameter %q not found in URI %q", param, uri)
+}
+
+// resolveResourceContext extracts the registry context from a resource URI.
+// URIs prefixed with schema://contexts/{context}/... use the specified context.
+// All other URIs default to the default context.
+func resolveResourceContext(uri string) string {
+	registryCtx, err := extractURIParam(uri, "context")
+	if err != nil {
+		return registrycontext.DefaultContext
+	}
+	return registryCtx
 }
 
 // --- Static resource handlers ---
@@ -271,11 +368,12 @@ func (s *Server) handleServerInfoResource(_ context.Context, req *gomcp.ReadReso
 }
 
 func (s *Server) handleServerConfigResource(ctx context.Context, req *gomcp.ReadResourceRequest) (*gomcp.ReadResourceResult, error) {
-	config, err := s.registry.GetConfigFull(ctx, registrycontext.DefaultContext, "")
+	registryCtx := resolveResourceContext(req.Params.URI)
+	config, err := s.registry.GetConfigFull(ctx, registryCtx, "")
 	if err != nil {
 		return nil, fmt.Errorf("get global config: %w", err)
 	}
-	mode, err := s.registry.GetMode(ctx, registrycontext.DefaultContext, "")
+	mode, err := s.registry.GetMode(ctx, registryCtx, "")
 	if err != nil {
 		return nil, fmt.Errorf("get global mode: %w", err)
 	}
@@ -287,7 +385,8 @@ func (s *Server) handleServerConfigResource(ctx context.Context, req *gomcp.Read
 }
 
 func (s *Server) handleSubjectsResource(ctx context.Context, req *gomcp.ReadResourceRequest) (*gomcp.ReadResourceResult, error) {
-	subjects, err := s.registry.ListSubjects(ctx, registrycontext.DefaultContext, false)
+	registryCtx := resolveResourceContext(req.Params.URI)
+	subjects, err := s.registry.ListSubjects(ctx, registryCtx, false)
 	if err != nil {
 		return nil, fmt.Errorf("list subjects: %w", err)
 	}
@@ -320,11 +419,12 @@ func (s *Server) handleSubjectDetailResource(ctx context.Context, req *gomcp.Rea
 	if err != nil {
 		return nil, err
 	}
-	latest, err := s.registry.GetLatestSchema(ctx, registrycontext.DefaultContext, subject)
+	registryCtx := resolveResourceContext(req.Params.URI)
+	latest, err := s.registry.GetLatestSchema(ctx, registryCtx, subject)
 	if err != nil {
 		return nil, fmt.Errorf("get latest schema for %q: %w", subject, err)
 	}
-	config, err := s.registry.GetConfigFull(ctx, registrycontext.DefaultContext, subject)
+	config, err := s.registry.GetConfigFull(ctx, registryCtx, subject)
 	if err != nil {
 		return nil, fmt.Errorf("get config for %q: %w", subject, err)
 	}
@@ -341,7 +441,8 @@ func (s *Server) handleSubjectVersionsResource(ctx context.Context, req *gomcp.R
 	if err != nil {
 		return nil, err
 	}
-	versions, err := s.registry.GetVersions(ctx, registrycontext.DefaultContext, subject, false)
+	registryCtx := resolveResourceContext(req.Params.URI)
+	versions, err := s.registry.GetVersions(ctx, registryCtx, subject, false)
 	if err != nil {
 		return nil, fmt.Errorf("get versions for %q: %w", subject, err)
 	}
@@ -361,7 +462,8 @@ func (s *Server) handleSubjectVersionDetailResource(ctx context.Context, req *go
 	if err != nil {
 		return nil, fmt.Errorf("invalid version %q: %w", versionStr, err)
 	}
-	record, err := s.registry.GetSchemaBySubjectVersion(ctx, registrycontext.DefaultContext, subject, version)
+	registryCtx := resolveResourceContext(req.Params.URI)
+	record, err := s.registry.GetSchemaBySubjectVersion(ctx, registryCtx, subject, version)
 	if err != nil {
 		return nil, fmt.Errorf("get schema %s version %d: %w", subject, version, err)
 	}
@@ -373,7 +475,8 @@ func (s *Server) handleSubjectConfigResource(ctx context.Context, req *gomcp.Rea
 	if err != nil {
 		return nil, err
 	}
-	config, err := s.registry.GetConfigFull(ctx, registrycontext.DefaultContext, subject)
+	registryCtx := resolveResourceContext(req.Params.URI)
+	config, err := s.registry.GetConfigFull(ctx, registryCtx, subject)
 	if err != nil {
 		return nil, fmt.Errorf("get config for %q: %w", subject, err)
 	}
@@ -385,7 +488,8 @@ func (s *Server) handleSubjectModeResource(ctx context.Context, req *gomcp.ReadR
 	if err != nil {
 		return nil, err
 	}
-	mode, err := s.registry.GetMode(ctx, registrycontext.DefaultContext, subject)
+	registryCtx := resolveResourceContext(req.Params.URI)
+	mode, err := s.registry.GetMode(ctx, registryCtx, subject)
 	if err != nil {
 		return nil, fmt.Errorf("get mode for %q: %w", subject, err)
 	}
@@ -401,7 +505,8 @@ func (s *Server) handleSchemaByIDResource(ctx context.Context, req *gomcp.ReadRe
 	if err != nil {
 		return nil, fmt.Errorf("invalid schema ID %q: %w", idStr, err)
 	}
-	record, err := s.registry.GetSchemaByID(ctx, registrycontext.DefaultContext, id)
+	registryCtx := resolveResourceContext(req.Params.URI)
+	record, err := s.registry.GetSchemaByID(ctx, registryCtx, id)
 	if err != nil {
 		return nil, fmt.Errorf("get schema %d: %w", id, err)
 	}
@@ -417,7 +522,8 @@ func (s *Server) handleSchemaSubjectsResource(ctx context.Context, req *gomcp.Re
 	if err != nil {
 		return nil, fmt.Errorf("invalid schema ID %q: %w", idStr, err)
 	}
-	subjects, err := s.registry.GetSubjectsBySchemaID(ctx, registrycontext.DefaultContext, id, false)
+	registryCtx := resolveResourceContext(req.Params.URI)
+	subjects, err := s.registry.GetSubjectsBySchemaID(ctx, registryCtx, id, false)
 	if err != nil {
 		return nil, fmt.Errorf("get subjects for schema %d: %w", id, err)
 	}
@@ -436,7 +542,8 @@ func (s *Server) handleSchemaVersionsResource(ctx context.Context, req *gomcp.Re
 	if err != nil {
 		return nil, fmt.Errorf("invalid schema ID %q: %w", idStr, err)
 	}
-	versions, err := s.registry.GetVersionsBySchemaID(ctx, registrycontext.DefaultContext, id, false)
+	registryCtx := resolveResourceContext(req.Params.URI)
+	versions, err := s.registry.GetVersionsBySchemaID(ctx, registryCtx, id, false)
 	if err != nil {
 		return nil, fmt.Errorf("get versions for schema %d: %w", id, err)
 	}
@@ -471,7 +578,8 @@ func (s *Server) handleKEKDetailResource(ctx context.Context, req *gomcp.ReadRes
 }
 
 func (s *Server) handleGlobalModeResource(ctx context.Context, req *gomcp.ReadResourceRequest) (*gomcp.ReadResourceResult, error) {
-	mode, err := s.registry.GetMode(ctx, registrycontext.DefaultContext, "")
+	registryCtx := resolveResourceContext(req.Params.URI)
+	mode, err := s.registry.GetMode(ctx, registryCtx, "")
 	if err != nil {
 		return nil, fmt.Errorf("get global mode: %w", err)
 	}
@@ -523,19 +631,4 @@ func (s *Server) handleKEKDEKsResource(ctx context.Context, req *gomcp.ReadResou
 		deks = []string{}
 	}
 	return resourceJSON(req.Params.URI, deks)
-}
-
-func (s *Server) handleContextSubjectsResource(ctx context.Context, req *gomcp.ReadResourceRequest) (*gomcp.ReadResourceResult, error) {
-	registryCtx, err := extractURIParam(req.Params.URI, "context")
-	if err != nil {
-		return nil, err
-	}
-	subjects, err := s.registry.ListSubjects(ctx, registryCtx, false)
-	if err != nil {
-		return nil, fmt.Errorf("list subjects in context %q: %w", registryCtx, err)
-	}
-	if subjects == nil {
-		subjects = []string{}
-	}
-	return resourceJSON(req.Params.URI, subjects)
 }

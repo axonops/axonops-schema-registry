@@ -9,8 +9,6 @@ import (
 	gomcp "github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/axonops/axonops-schema-registry/internal/mcp/content"
-
-	registrycontext "github.com/axonops/axonops-schema-registry/internal/context"
 )
 
 func (s *Server) registerPrompts() {
@@ -28,6 +26,7 @@ func (s *Server) registerPrompts() {
 		Description: "Guide for safely evolving an existing schema with backward compatibility",
 		Arguments: []*gomcp.PromptArgument{
 			{Name: "subject", Description: "Subject name of the schema to evolve", Required: true},
+			{Name: "context", Description: "Registry context for multi-tenant isolation (defaults to default context)", Required: false},
 		},
 	}, s.handleEvolveSchemaPrompt)
 
@@ -36,6 +35,7 @@ func (s *Server) registerPrompts() {
 		Description: "Troubleshoot schema compatibility issues and suggest fixes",
 		Arguments: []*gomcp.PromptArgument{
 			{Name: "subject", Description: "Subject name to check compatibility for", Required: true},
+			{Name: "context", Description: "Registry context for multi-tenant isolation (defaults to default context)", Required: false},
 		},
 	}, s.handleCheckCompatibilityPrompt)
 
@@ -69,6 +69,7 @@ func (s *Server) registerPrompts() {
 		Description: "Analyze a schema for naming conventions, nullability, documentation, and best practices",
 		Arguments: []*gomcp.PromptArgument{
 			{Name: "subject", Description: "Subject name of the schema to review", Required: true},
+			{Name: "context", Description: "Registry context for multi-tenant isolation (defaults to default context)", Required: false},
 		},
 	}, s.handleReviewSchemaQualityPrompt)
 
@@ -77,6 +78,7 @@ func (s *Server) registerPrompts() {
 		Description: "Plan a safe breaking schema change with migration strategy",
 		Arguments: []*gomcp.PromptArgument{
 			{Name: "subject", Description: "Subject name where the breaking change is planned", Required: true},
+			{Name: "context", Description: "Registry context for multi-tenant isolation (defaults to default context)", Required: false},
 		},
 	}, s.handlePlanBreakingChangePrompt)
 
@@ -93,6 +95,7 @@ func (s *Server) registerPrompts() {
 		Description: "Guide for adding metadata, tags, and data quality rules to schemas",
 		Arguments: []*gomcp.PromptArgument{
 			{Name: "subject", Description: "Subject name to add data contracts to", Required: true},
+			{Name: "context", Description: "Registry context for multi-tenant isolation (defaults to default context)", Required: false},
 		},
 	}, s.handleSetupDataContractsPrompt)
 
@@ -101,6 +104,7 @@ func (s *Server) registerPrompts() {
 		Description: "Review the version history and evolution of a schema subject",
 		Arguments: []*gomcp.PromptArgument{
 			{Name: "subject", Description: "Subject name to audit", Required: true},
+			{Name: "context", Description: "Registry context for multi-tenant isolation (defaults to default context)", Required: false},
 		},
 	}, s.handleAuditSubjectHistoryPrompt)
 
@@ -129,6 +133,7 @@ func (s *Server) registerPrompts() {
 		Description: "Guided workflow for assessing the impact of a proposed schema change across dependents",
 		Arguments: []*gomcp.PromptArgument{
 			{Name: "subject", Description: "Subject name to analyze impact for", Required: true},
+			{Name: "context", Description: "Registry context for multi-tenant isolation (defaults to default context)", Required: false},
 		},
 	}, s.handleImpactAnalysisPrompt)
 
@@ -284,7 +289,8 @@ func (s *Server) handleEvolveSchemaPrompt(ctx context.Context, req *gomcp.GetPro
 		return nil, err
 	}
 
-	latest, err := s.registry.GetLatestSchema(ctx, registrycontext.DefaultContext, subject)
+	registryCtx := resolveContext(req.Params.Arguments["context"])
+	latest, err := s.registry.GetLatestSchema(ctx, registryCtx, subject)
 	if err == nil && latest != nil {
 		guidance += fmt.Sprintf("\n\nCurrent latest version: %d, schema type: %s", latest.Version, latest.SchemaType)
 	}
@@ -306,7 +312,8 @@ func (s *Server) handleCheckCompatibilityPrompt(ctx context.Context, req *gomcp.
 		return nil, err
 	}
 
-	config, err := s.registry.GetConfigFull(ctx, registrycontext.DefaultContext, subject)
+	registryCtx := resolveContext(req.Params.Arguments["context"])
+	config, err := s.registry.GetConfigFull(ctx, registryCtx, subject)
 	if err == nil && config != nil {
 		guidance += fmt.Sprintf("\n\nCurrent compatibility level: %v", config)
 	}
@@ -443,7 +450,8 @@ func (s *Server) handleReviewSchemaQualityPrompt(ctx context.Context, req *gomcp
 		return nil, err
 	}
 
-	latest, err := s.registry.GetLatestSchema(ctx, registrycontext.DefaultContext, subject)
+	registryCtx := resolveContext(req.Params.Arguments["context"])
+	latest, err := s.registry.GetLatestSchema(ctx, registryCtx, subject)
 	if err == nil && latest != nil {
 		guidance += fmt.Sprintf("\n\nCurrent version: %d, type: %s", latest.Version, latest.SchemaType)
 	}
@@ -465,7 +473,8 @@ func (s *Server) handlePlanBreakingChangePrompt(ctx context.Context, req *gomcp.
 		return nil, err
 	}
 
-	latest, err := s.registry.GetLatestSchema(ctx, registrycontext.DefaultContext, subject)
+	registryCtx := resolveContext(req.Params.Arguments["context"])
+	latest, err := s.registry.GetLatestSchema(ctx, registryCtx, subject)
 	if err == nil && latest != nil {
 		guidance += fmt.Sprintf("\n\nCurrent version: %d, type: %s", latest.Version, latest.SchemaType)
 	}
@@ -572,7 +581,8 @@ func (s *Server) handleSetupDataContractsPrompt(ctx context.Context, req *gomcp.
 		return nil, err
 	}
 
-	latest, err := s.registry.GetLatestSchema(ctx, registrycontext.DefaultContext, subject)
+	registryCtx := resolveContext(req.Params.Arguments["context"])
+	latest, err := s.registry.GetLatestSchema(ctx, registryCtx, subject)
 	if err == nil && latest != nil {
 		guidance += fmt.Sprintf("\n\nCurrent version: %d, type: %s", latest.Version, latest.SchemaType)
 	}
@@ -594,7 +604,8 @@ func (s *Server) handleAuditSubjectHistoryPrompt(ctx context.Context, req *gomcp
 		return nil, err
 	}
 
-	versions, err := s.registry.GetVersions(ctx, registrycontext.DefaultContext, subject, false)
+	registryCtx := resolveContext(req.Params.Arguments["context"])
+	versions, err := s.registry.GetVersions(ctx, registryCtx, subject, false)
 	if err == nil {
 		guidance += fmt.Sprintf("\n\nRegistered versions: %v", versions)
 	}
@@ -624,7 +635,8 @@ func (s *Server) handleImpactAnalysisPrompt(ctx context.Context, req *gomcp.GetP
 		return nil, err
 	}
 
-	latest, err := s.registry.GetLatestSchema(ctx, registrycontext.DefaultContext, subject)
+	registryCtx := resolveContext(req.Params.Arguments["context"])
+	latest, err := s.registry.GetLatestSchema(ctx, registryCtx, subject)
 	if err == nil && latest != nil {
 		guidance += fmt.Sprintf("\n\nCurrent version: %d, type: %s", latest.Version, latest.SchemaType)
 	}

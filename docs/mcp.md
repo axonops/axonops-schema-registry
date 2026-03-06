@@ -311,7 +311,7 @@ When `mcp.read_only: true`, only tools annotated with `ReadOnlyHint: true` are r
 
 ## Resources
 
-The MCP server exposes **31 resources** — data endpoints that AI clients can read directly without calling tools.
+The MCP server exposes **41 resources** — data endpoints that AI clients can read directly without calling tools.
 
 ### Static Resources (19)
 
@@ -337,7 +337,7 @@ The MCP server exposes **31 resources** — data endpoints that AI clients can r
 | `schema://glossary/best-practices` | `glossary-best-practices` | Per-format guidance, naming, evolution, common mistakes |
 | `schema://glossary/migration` | `glossary-migration` | Confluent migration, IMPORT mode, ID preservation |
 
-### Templated Resources (12)
+### Templated Resources (22)
 
 | URI Template | Name | Description |
 |-------------|------|-------------|
@@ -353,6 +353,16 @@ The MCP server exposes **31 resources** — data endpoints that AI clients can r
 | `schema://keks/{name}` | `kek-detail` | KEK details by name |
 | `schema://keks/{name}/deks` | `kek-deks` | DEK subjects under a KEK |
 | `schema://contexts/{context}/subjects` | `context-subjects` | Subjects in a specific context |
+| `schema://contexts/{context}/config` | `context-config` | Global config/mode for a specific context |
+| `schema://contexts/{context}/mode` | `context-mode` | Global mode for a specific context |
+| `schema://contexts/{context}/subjects/{subject}` | `context-subject-detail` | Subject details within a context |
+| `schema://contexts/{context}/subjects/{subject}/versions` | `context-subject-versions` | Subject versions within a context |
+| `schema://contexts/{context}/subjects/{subject}/versions/{version}` | `context-subject-version-detail` | Schema at version within a context |
+| `schema://contexts/{context}/subjects/{subject}/config` | `context-subject-config` | Subject config within a context |
+| `schema://contexts/{context}/subjects/{subject}/mode` | `context-subject-mode` | Subject mode within a context |
+| `schema://contexts/{context}/schemas/{id}` | `context-schema-by-id` | Schema by ID within a context |
+| `schema://contexts/{context}/schemas/{id}/subjects` | `context-schema-subjects` | Schema subjects within a context |
+| `schema://contexts/{context}/schemas/{id}/versions` | `context-schema-versions` | Schema versions within a context |
 
 ## Prompts
 
@@ -365,17 +375,17 @@ The MCP server provides **25 prompts** — guided workflows that AI assistants c
 | Prompt | Required Args | Optional Args | Description |
 |--------|---------------|---------------|-------------|
 | `design-schema` | `format` (AVRO, PROTOBUF, JSON) | `domain` | Guide for designing a new schema with format-specific best practices |
-| `evolve-schema` | `subject` | — | Step-by-step workflow for safely evolving an existing schema |
-| `plan-breaking-change` | `subject` | — | Plan a breaking schema change with 3 migration strategies |
+| `evolve-schema` | `subject` | `context` | Step-by-step workflow for safely evolving an existing schema |
+| `plan-breaking-change` | `subject` | `context` | Plan a breaking schema change with 3 migration strategies |
 | `compare-formats` | `use_case` | — | Compare Avro, Protobuf, and JSON Schema for a specific use case |
 
 ### Compatibility & Quality
 
 | Prompt | Required Args | Optional Args | Description |
 |--------|---------------|---------------|-------------|
-| `check-compatibility` | `subject` | — | Troubleshoot compatibility issues with debugging workflow |
-| `review-schema-quality` | `subject` | — | Analyze naming, nullability, documentation, and best practices |
-| `schema-impact-analysis` | `subject` | — | 5-step workflow: dependents, field usage, validation, rollout plan |
+| `check-compatibility` | `subject` | `context` | Troubleshoot compatibility issues with debugging workflow |
+| `review-schema-quality` | `subject` | `context` | Analyze naming, nullability, documentation, and best practices |
+| `schema-impact-analysis` | `subject` | `context` | 5-step workflow: dependents, field usage, validation, rollout plan |
 
 ### Operations & Configuration
 
@@ -384,8 +394,8 @@ The MCP server provides **25 prompts** — guided workflows that AI assistants c
 | `migrate-schemas` | `source_format`, `target_format` | — | Guide for migrating between schema formats |
 | `setup-encryption` | `kms_type` (aws-kms, azure-kms, gcp-kms, hcvault) | — | Set up CSFLE with KEK/DEK for a specific KMS provider |
 | `configure-exporter` | `exporter_type` | — | Configure schema linking via exporters |
-| `setup-data-contracts` | `subject` | — | Add metadata, tags, and data quality rules |
-| `audit-subject-history` | `subject` | — | Review version history and evolution of a subject |
+| `setup-data-contracts` | `subject` | `context` | Add metadata, tags, and data quality rules |
+| `audit-subject-history` | `subject` | `context` | Review version history and evolution of a subject |
 
 ### Getting Started & Troubleshooting
 

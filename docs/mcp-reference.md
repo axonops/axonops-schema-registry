@@ -4,7 +4,7 @@
 >
 > Regenerate with: `go run ./cmd/generate-mcp-docs > docs/mcp-reference.md`
 
-**105 tools** (71 read-only, 34 write) | **31 resources** (19 static, 12 templated) | **25 prompts**
+**105 tools** (71 read-only, 34 write) | **41 resources** (19 static, 22 templated) | **25 prompts**
 
 ## Contents
 
@@ -1724,7 +1724,17 @@ Validate a subject name against a naming strategy (topic_name, record_name, or t
 
 | URI Template | Name | Description |
 |-------------|------|-------------|
+| `schema://contexts/{context}/config` | `context-config` | Global compatibility level and mode for a specific registry context |
+| `schema://contexts/{context}/mode` | `context-mode` | Global registry mode for a specific registry context |
+| `schema://contexts/{context}/schemas/{id}` | `context-schema-by-id` | Schema record by global ID within a specific registry context |
+| `schema://contexts/{context}/schemas/{id}/subjects` | `context-schema-subjects` | All subjects that use a specific schema ID within a specific registry context |
+| `schema://contexts/{context}/schemas/{id}/versions` | `context-schema-versions` | All subject-version pairs for a schema ID within a specific registry context |
 | `schema://contexts/{context}/subjects` | `context-subjects` | List of subjects in a specific registry context |
+| `schema://contexts/{context}/subjects/{subject}` | `context-subject-detail` | Subject details within a specific registry context |
+| `schema://contexts/{context}/subjects/{subject}/config` | `context-subject-config` | Per-subject compatibility configuration within a specific registry context |
+| `schema://contexts/{context}/subjects/{subject}/mode` | `context-subject-mode` | Per-subject registry mode within a specific registry context |
+| `schema://contexts/{context}/subjects/{subject}/versions` | `context-subject-versions` | All version numbers for a subject within a specific registry context |
+| `schema://contexts/{context}/subjects/{subject}/versions/{version}` | `context-subject-version-detail` | Schema at a specific subject version within a specific registry context |
 | `schema://exporters/{name}` | `exporter-detail` | Exporter configuration and status by name |
 | `schema://keks/{name}` | `kek-detail` | Key Encryption Key (KEK) details by name |
 | `schema://keks/{name}/deks` | `kek-deks` | DEK subjects under a specific KEK |
@@ -1743,28 +1753,28 @@ Validate a subject name against a naming strategy (topic_name, record_name, or t
 
 | Prompt | Description | Arguments |
 |--------|-------------|-----------|
-| `audit-subject-history` | Review the version history and evolution of a schema subject | `subject` (required) |
-| `check-compatibility` | Troubleshoot schema compatibility issues and suggest fixes | `subject` (required) |
+| `audit-subject-history` | Review the version history and evolution of a schema subject | `subject` (required), `context` |
+| `check-compatibility` | Troubleshoot schema compatibility issues and suggest fixes | `subject` (required), `context` |
 | `compare-formats` | Help choose between Avro, Protobuf, and JSON Schema for a use case | `use_case` (required) |
 | `configure-exporter` | Guide for setting up schema linking via an exporter | `exporter_type` |
 | `context-management` | Guide for managing multi-tenant contexts and the 4-tier config/mode inheritance chain | — |
 | `data-rules-deep-dive` | Comprehensive guide to data contract rules: domain, migration, and encoding rules with examples | — |
 | `debug-registration-error` | Debug schema registration failures by error code | `error_code` (required) |
 | `design-schema` | Guide for designing a new schema in the chosen format | `format` (required), `domain` |
-| `evolve-schema` | Guide for safely evolving an existing schema with backward compatibility | `subject` (required) |
+| `evolve-schema` | Guide for safely evolving an existing schema with backward compatibility | `subject` (required), `context` |
 | `full-encryption-lifecycle` | End-to-end CSFLE workflow: KEK creation, DEK management, key rotation, rewrapping, and cleanup | — |
 | `glossary-lookup` | Look up a schema registry concept and get directed to the relevant glossary resource | `topic` (required) |
 | `import-from-confluent` | Step-by-step guide for migrating schemas from Confluent Schema Registry with ID preservation | — |
 | `migrate-schemas` | Guide for migrating schemas between formats (e.g. Avro to Protobuf) | `source_format` (required), `target_format` (required) |
-| `plan-breaking-change` | Plan a safe breaking schema change with migration strategy | `subject` (required) |
+| `plan-breaking-change` | Plan a safe breaking schema change with migration strategy | `subject` (required), `context` |
 | `registry-health-audit` | Multi-step procedure for auditing registry health, configuration consistency, and schema quality | — |
-| `review-schema-quality` | Analyze a schema for naming conventions, nullability, documentation, and best practices | `subject` (required) |
+| `review-schema-quality` | Analyze a schema for naming conventions, nullability, documentation, and best practices | `subject` (required), `context` |
 | `schema-evolution-cookbook` | Practical recipes for common schema evolution scenarios: add fields, rename, change types, and break compatibility safely | — |
 | `schema-getting-started` | Quick-start guide introducing available tools and common schema registry operations | — |
-| `schema-impact-analysis` | Guided workflow for assessing the impact of a proposed schema change across dependents | `subject` (required) |
+| `schema-impact-analysis` | Guided workflow for assessing the impact of a proposed schema change across dependents | `subject` (required), `context` |
 | `schema-naming-conventions` | Guide to subject naming strategies (topic_name, record_name, topic_record_name) | — |
 | `schema-references-guide` | Guide for cross-subject schema references with per-format name semantics (Avro, Protobuf, JSON Schema) | — |
-| `setup-data-contracts` | Guide for adding metadata, tags, and data quality rules to schemas | `subject` (required) |
+| `setup-data-contracts` | Guide for adding metadata, tags, and data quality rules to schemas | `subject` (required), `context` |
 | `setup-encryption` | Guide for setting up client-side field encryption with KEK/DEK | `kms_type` (required) |
 | `setup-rbac` | Guide for configuring authentication and role-based access control (RBAC) | — |
 | `troubleshooting` | Diagnostic guide for common schema registry issues and errors | — |
@@ -1780,6 +1790,7 @@ Review the version history and evolution of a schema subject
 | Name | Required | Description |
 |------|----------|-------------|
 | `subject` | Yes | Subject name to audit |
+| `context` |  | Registry context for multi-tenant isolation (defaults to default context) |
 
 ---
 
@@ -1792,6 +1803,7 @@ Troubleshoot schema compatibility issues and suggest fixes
 | Name | Required | Description |
 |------|----------|-------------|
 | `subject` | Yes | Subject name to check compatibility for |
+| `context` |  | Registry context for multi-tenant isolation (defaults to default context) |
 
 ---
 
@@ -1865,6 +1877,7 @@ Guide for safely evolving an existing schema with backward compatibility
 | Name | Required | Description |
 |------|----------|-------------|
 | `subject` | Yes | Subject name of the schema to evolve |
+| `context` |  | Registry context for multi-tenant isolation (defaults to default context) |
 
 ---
 
@@ -1914,6 +1927,7 @@ Plan a safe breaking schema change with migration strategy
 | Name | Required | Description |
 |------|----------|-------------|
 | `subject` | Yes | Subject name where the breaking change is planned |
+| `context` |  | Registry context for multi-tenant isolation (defaults to default context) |
 
 ---
 
@@ -1932,6 +1946,7 @@ Analyze a schema for naming conventions, nullability, documentation, and best pr
 | Name | Required | Description |
 |------|----------|-------------|
 | `subject` | Yes | Subject name of the schema to review |
+| `context` |  | Registry context for multi-tenant isolation (defaults to default context) |
 
 ---
 
@@ -1956,6 +1971,7 @@ Guided workflow for assessing the impact of a proposed schema change across depe
 | Name | Required | Description |
 |------|----------|-------------|
 | `subject` | Yes | Subject name to analyze impact for |
+| `context` |  | Registry context for multi-tenant isolation (defaults to default context) |
 
 ---
 
@@ -1980,6 +1996,7 @@ Guide for adding metadata, tags, and data quality rules to schemas
 | Name | Required | Description |
 |------|----------|-------------|
 | `subject` | Yes | Subject name to add data contracts to |
+| `context` |  | Registry context for multi-tenant isolation (defaults to default context) |
 
 ---
 

@@ -260,6 +260,15 @@ func registerTestSchema(t *testing.T, reg *registry.Registry, subject, schemaStr
 	return rec
 }
 
+func registerTestSchemaInContext(t *testing.T, reg *registry.Registry, registryCtx, subject, schemaStr string) *storage.SchemaRecord {
+	t.Helper()
+	rec, err := reg.RegisterSchema(context.Background(), registryCtx, subject, schemaStr, storage.SchemaTypeAvro, nil)
+	if err != nil {
+		t.Fatalf("RegisterSchema(%s in %s): %v", subject, registryCtx, err)
+	}
+	return rec
+}
+
 func TestGetSchemaByID(t *testing.T) {
 	cs, reg := newTestMCPClient(t)
 	rec := registerTestSchema(t, reg, "schema-by-id", `{"type":"string"}`)
@@ -4084,5 +4093,185 @@ func TestSchemaEvolutionCookbookPrompt(t *testing.T) {
 		if !strings.Contains(text, want) {
 			t.Errorf("expected %q in prompt, not found", want)
 		}
+	}
+}
+
+// --- Context-scoped resource tests ---
+
+func TestContextScopedSubjectsResource(t *testing.T) {
+	cs, reg := newTestMCPClient(t)
+	registerTestSchema(t, reg, "default-subj", `{"type":"string"}`)
+	registerTestSchemaInContext(t, reg, ".staging", "staging-subj", `{"type":"string"}`)
+
+	// Default resource should only show default context subject
+	result, err := cs.ReadResource(context.Background(), &gomcp.ReadResourceParams{
+		URI: "schema://subjects",
+	})
+	if err != nil {
+		t.Fatalf("ReadResource: %v", err)
+	}
+	text := resourceText(t, result)
+	if !strings.Contains(text, "default-subj") {
+		t.Errorf("expected default-subj in default context, got: %s", text)
+	}
+	if strings.Contains(text, "staging-subj") {
+		t.Errorf("expected staging-subj NOT in default context, got: %s", text)
+	}
+
+	// Context-scoped resource should only show staging context subject
+	result, err = cs.ReadResource(context.Background(), &gomcp.ReadResourceParams{
+		URI: "schema://contexts/.staging/subjects",
+	})
+	if err != nil {
+		t.Fatalf("ReadResource (context): %v", err)
+	}
+	text = resourceText(t, result)
+	if !strings.Contains(text, "staging-subj") {
+		t.Errorf("expected staging-subj in .staging context, got: %s", text)
+	}
+	if strings.Contains(text, "default-subj") {
+		t.Errorf("expected default-subj NOT in .staging context, got: %s", text)
+	}
+}
+
+func TestContextScopedSubjectDetailResource(t *testing.T) {
+	cs, reg := newTestMCPClient(t)
+	registerTestSchemaInContext(t, reg, ".team1", "team1-detail", `{"type":"string"}`)
+
+	result, err := cs.ReadResource(context.Background(), &gomcp.ReadResourceParams{
+		URI: "schema://contexts/.team1/subjects/team1-detail",
+	})
+	if err != nil {
+		t.Fatalf("ReadResource: %v", err)
+	}
+	text := resourceText(t, result)
+	if !strings.Contains(text, "team1-detail") {
+		t.Errorf("expected subject name, got: %s", text)
+	}
+	if !strings.Contains(text, "latest") {
+		t.Errorf("expected latest field, got: %s", text)
+	}
+}
+
+func TestContextScopedSubjectVersionsResource(t *testing.T) {
+	cs, reg := newTestMCPClient(t)
+	registerTestSchemaInContext(t, reg, ".team2", "team2-versions", `{"type":"string"}`)
+
+	result, err := cs.ReadResource(context.Background(), &gomcp.ReadResourceParams{
+		URI: "schema://contexts/.team2/subjects/team2-versions/versions",
+	})
+	if err != nil {
+		t.Fatalf("ReadResource: %v", err)
+	}
+	text := resourceText(t, result)
+	if !strings.Contains(text, "1") {
+		t.Errorf("expected version 1, got: %s", text)
+	}
+}
+
+func TestContextScopedSubjectVersionDetailResource(t *testing.T) {
+	cs, reg := newTestMCPClient(t)
+	registerTestSchemaInContext(t, reg, ".team3", "team3-vdetail", `{"type":"string"}`)
+
+	result, err := cs.ReadResource(context.Background(), &gomcp.ReadResourceParams{
+		URI: "schema://contexts/.team3/subjects/team3-vdetail/versions/1",
+	})
+	if err != nil {
+		t.Fatalf("ReadResource: %v", err)
+	}
+	text := resourceText(t, result)
+	if !strings.Contains(text, "team3-vdetail") {
+		t.Errorf("expected subject, got: %s", text)
+	}
+	if !strings.Contains(text, "AVRO") {
+		t.Errorf("expected AVRO type, got: %s", text)
+	}
+}
+
+func TestContextScopedSchemaByIDResource(t *testing.T) {
+	cs, reg := newTestMCPClient(t)
+	rec := registerTestSchemaInContext(t, reg, ".team4", "team4-schema", `{"type":"string"}`)
+
+	result, err := cs.ReadResource(context.Background(), &gomcp.ReadResourceParams{
+		URI: fmt.Sprintf("schema://contexts/.team4/schemas/%d", rec.ID),
+	})
+	if err != nil {
+		t.Fatalf("ReadResource: %v", err)
+	}
+	text := resourceText(t, result)
+	if !strings.Contains(text, "AVRO") {
+		t.Errorf("expected AVRO, got: %s", text)
+	}
+}
+
+func TestContextScopedConfigResource(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	result, err := cs.ReadResource(context.Background(), &gomcp.ReadResourceParams{
+		URI: "schema://contexts/./config",
+	})
+	if err != nil {
+		t.Fatalf("ReadResource: %v", err)
+	}
+	text := resourceText(t, result)
+	if !strings.Contains(text, "compatibility") {
+		t.Errorf("expected compatibility in config, got: %s", text)
+	}
+}
+
+func TestContextScopedModeResource(t *testing.T) {
+	cs, _ := newTestMCPClient(t)
+
+	result, err := cs.ReadResource(context.Background(), &gomcp.ReadResourceParams{
+		URI: "schema://contexts/./mode",
+	})
+	if err != nil {
+		t.Fatalf("ReadResource: %v", err)
+	}
+	text := resourceText(t, result)
+	if !strings.Contains(text, "mode") {
+		t.Errorf("expected mode in result, got: %s", text)
+	}
+}
+
+// --- Context-scoped prompt tests ---
+
+func TestEvolveSchemaPromptWithContext(t *testing.T) {
+	cs, reg := newTestMCPClient(t)
+	registerTestSchemaInContext(t, reg, ".staging", "evolve-ctx-test", `{"type":"string"}`)
+
+	result, err := cs.GetPrompt(context.Background(), &gomcp.GetPromptParams{
+		Name:      "evolve-schema",
+		Arguments: map[string]string{"subject": "evolve-ctx-test", "context": ".staging"},
+	})
+	if err != nil {
+		t.Fatalf("GetPrompt: %v", err)
+	}
+	text := promptText(t, result)
+	if !strings.Contains(text, "evolve-ctx-test") {
+		t.Errorf("expected subject in prompt, got: %s", text)
+	}
+	if !strings.Contains(text, "version: 1") {
+		t.Errorf("expected live schema data from .staging context, got: %s", text)
+	}
+}
+
+func TestAuditSubjectHistoryPromptWithContext(t *testing.T) {
+	cs, reg := newTestMCPClient(t)
+	registerTestSchemaInContext(t, reg, ".audit", "audit-ctx-test", `{"type":"string"}`)
+
+	result, err := cs.GetPrompt(context.Background(), &gomcp.GetPromptParams{
+		Name:      "audit-subject-history",
+		Arguments: map[string]string{"subject": "audit-ctx-test", "context": ".audit"},
+	})
+	if err != nil {
+		t.Fatalf("GetPrompt: %v", err)
+	}
+	text := promptText(t, result)
+	if !strings.Contains(text, "audit-ctx-test") {
+		t.Errorf("expected subject in prompt, got: %s", text)
+	}
+	if !strings.Contains(text, "[1]") {
+		t.Errorf("expected version list from .audit context, got: %s", text)
 	}
 }
