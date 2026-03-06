@@ -4,9 +4,11 @@ package vault
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -65,8 +67,33 @@ func NewStore(config Config) (*Store, error) {
 
 	// Configure TLS if needed
 	if config.TLSCertFile != "" || config.TLSCAFile != "" || config.TLSSkipVerify {
+		// #nosec G402 -- InsecureSkipVerify is intentionally configurable for dev/test
 		tlsConfig := &tls.Config{
-			InsecureSkipVerify: config.TLSSkipVerify, // #nosec G402 -- user-configurable option for dev/test environments
+			InsecureSkipVerify: config.TLSSkipVerify,
+			MinVersion:         tls.VersionTLS12,
+		}
+
+		// Load client certificate for mTLS
+		if config.TLSCertFile != "" && config.TLSKeyFile != "" {
+			cert, err := tls.LoadX509KeyPair(config.TLSCertFile, config.TLSKeyFile)
+			if err != nil {
+				return nil, fmt.Errorf("failed to load Vault client certificate: %w", err)
+			}
+			tlsConfig.Certificates = []tls.Certificate{cert}
+		}
+
+		// Load CA certificate for server verification
+		if config.TLSCAFile != "" {
+			// #nosec G304 -- TLSCAFile is from trusted configuration
+			caCert, err := os.ReadFile(config.TLSCAFile)
+			if err != nil {
+				return nil, fmt.Errorf("failed to load Vault CA certificate: %w", err)
+			}
+			caCertPool := x509.NewCertPool()
+			if !caCertPool.AppendCertsFromPEM(caCert) {
+				return nil, fmt.Errorf("failed to parse Vault CA certificate")
+			}
+			tlsConfig.RootCAs = caCertPool
 		}
 
 		transport := &http.Transport{

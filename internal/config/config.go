@@ -44,6 +44,7 @@ type ServerConfig struct {
 	Port               int    `yaml:"port"`
 	ReadTimeout        int    `yaml:"read_timeout"`
 	WriteTimeout       int    `yaml:"write_timeout"`
+	ShutdownTimeout    int    `yaml:"shutdown_timeout"` // Graceful shutdown timeout in seconds (default: 30)
 	DocsEnabled        bool   `yaml:"docs_enabled"`
 	ClusterID          string `yaml:"cluster_id"`
 	MaxRequestBodySize int64  `yaml:"max_request_body_size"`
@@ -153,7 +154,7 @@ type TLSConfig struct {
 	CAFile     string `yaml:"ca_file"`     // For client cert verification
 	MinVersion string `yaml:"min_version"` // TLS1.2, TLS1.3
 	ClientAuth string `yaml:"client_auth"` // none, request, require, verify
-	AutoReload bool   `yaml:"auto_reload"` // Reload certs without restart
+	AutoReload bool   `yaml:"auto_reload"` // NOT YET IMPLEMENTED — reload certs without restart
 }
 
 // AuthConfig represents authentication configuration.
@@ -191,8 +192,8 @@ type BootstrapConfig struct {
 // BasicAuthConfig represents basic authentication configuration.
 type BasicAuthConfig struct {
 	Realm    string            `yaml:"realm"`
-	Users    map[string]string `yaml:"users"` // username -> bcrypt hash
-	HTPasswd string            `yaml:"htpasswd_file"`
+	Users    map[string]string `yaml:"users"`         // username -> bcrypt hash
+	HTPasswd string            `yaml:"htpasswd_file"` // NOT YET IMPLEMENTED
 }
 
 // LDAPConfig represents LDAP authentication configuration.
@@ -204,8 +205,8 @@ type LDAPConfig struct {
 	BaseDN             string            `yaml:"base_dn"`              // Base DN for searches
 	UserSearchFilter   string            `yaml:"user_search_filter"`   // e.g., (sAMAccountName=%s)
 	UserSearchBase     string            `yaml:"user_search_base"`     // e.g., OU=Users,DC=example,DC=com
-	GroupSearchFilter  string            `yaml:"group_search_filter"`  // e.g., (member=%s)
-	GroupSearchBase    string            `yaml:"group_search_base"`    // e.g., OU=Groups,DC=example,DC=com
+	GroupSearchFilter  string            `yaml:"group_search_filter"`  // NOT YET IMPLEMENTED — groups are read from memberOf attribute instead
+	GroupSearchBase    string            `yaml:"group_search_base"`    // NOT YET IMPLEMENTED — groups are read from memberOf attribute instead
 	UsernameAttribute  string            `yaml:"username_attribute"`   // sAMAccountName, uid, userPrincipalName
 	EmailAttribute     string            `yaml:"email_attribute"`      // mail
 	GroupAttribute     string            `yaml:"group_attribute"`      // memberOf
@@ -224,8 +225,8 @@ type OIDCConfig struct {
 	IssuerURL         string            `yaml:"issuer_url"`         // https://auth.example.com
 	ClientID          string            `yaml:"client_id"`          // For token validation
 	ClientSecret      string            `yaml:"client_secret"`      // #nosec G117 -- OIDC config field, not a hardcoded secret
-	RedirectURL       string            `yaml:"redirect_url"`       // Callback URL
-	Scopes            []string          `yaml:"scopes"`             // openid, profile, email
+	RedirectURL       string            `yaml:"redirect_url"`       // NOT YET IMPLEMENTED — OAuth2 code flow not supported
+	Scopes            []string          `yaml:"scopes"`             // NOT YET IMPLEMENTED — OAuth2 code flow not supported
 	UsernameClaim     string            `yaml:"username_claim"`     // sub, preferred_username, email
 	RolesClaim        string            `yaml:"roles_claim"`        // roles, groups
 	RoleMapping       map[string]string `yaml:"role_mapping"`       // OIDC role -> registry role
@@ -240,7 +241,7 @@ type OIDCConfig struct {
 type APIKeyConfig struct {
 	Header      string `yaml:"header"`       // X-API-Key
 	QueryParam  string `yaml:"query_param"`  // api_key
-	StorageType string `yaml:"storage_type"` // memory, database
+	StorageType string `yaml:"storage_type"` // NOT YET IMPLEMENTED — always uses database
 	// Secret is used as a pepper for HMAC-SHA256 hashing of API keys.
 	// This provides defense-in-depth: even if the database is compromised,
 	// the attacker cannot verify API keys without this secret.
@@ -263,6 +264,9 @@ type JWTConfig struct {
 	PublicKeyFile string            `yaml:"public_key_file"`
 	Algorithm     string            `yaml:"algorithm"` // RS256, ES256
 	ClaimsMapping map[string]string `yaml:"claims_mapping"`
+	DefaultRole   string            `yaml:"default_role"`   // Fallback role when no claim matches (default: "readonly")
+	JWKSCacheTTL  int               `yaml:"jwks_cache_ttl"` // JWKS cache TTL in seconds (default: 300)
+	HTTPTimeout   int               `yaml:"http_timeout"`   // JWKS HTTP client timeout in seconds (default: 10)
 }
 
 // RBACConfig represents RBAC configuration.
@@ -293,10 +297,11 @@ type AuditConfig struct {
 func DefaultConfig() *Config {
 	return &Config{
 		Server: ServerConfig{
-			Host:         "0.0.0.0",
-			Port:         8081,
-			ReadTimeout:  30,
-			WriteTimeout: 30,
+			Host:            "0.0.0.0",
+			Port:            8081,
+			ReadTimeout:     30,
+			WriteTimeout:    30,
+			ShutdownTimeout: 30,
 		},
 		Storage: StorageConfig{
 			Type: "memory",
@@ -367,6 +372,11 @@ func (c *Config) applyEnvOverrides() {
 	if v := os.Getenv("SCHEMA_REGISTRY_PORT"); v != "" {
 		if port, err := strconv.Atoi(v); err == nil {
 			c.Server.Port = port
+		}
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_SHUTDOWN_TIMEOUT"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			c.Server.ShutdownTimeout = n
 		}
 	}
 	if v := os.Getenv("SCHEMA_REGISTRY_STORAGE_TYPE"); v != "" {
@@ -523,6 +533,23 @@ func (c *Config) applyEnvOverrides() {
 		}
 		c.MCP.PermissionScopes = scopes
 	}
+	if v := os.Getenv("SCHEMA_REGISTRY_MCP_TOOL_POLICY"); v != "" {
+		c.MCP.ToolPolicy = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_MCP_ALLOWED_TOOLS"); v != "" {
+		tools := strings.Split(v, ",")
+		for i := range tools {
+			tools[i] = strings.TrimSpace(tools[i])
+		}
+		c.MCP.AllowedTools = tools
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_MCP_DENIED_TOOLS"); v != "" {
+		tools := strings.Split(v, ",")
+		for i := range tools {
+			tools[i] = strings.TrimSpace(tools[i])
+		}
+		c.MCP.DeniedTools = tools
+	}
 
 	// Docs enabled override
 	if v := os.Getenv("SCHEMA_REGISTRY_DOCS_ENABLED"); v != "" {
@@ -571,6 +598,33 @@ func (c *Config) applyEnvOverrides() {
 	}
 	if v := os.Getenv("SCHEMA_REGISTRY_VAULT_BASE_PATH"); v != "" {
 		c.Storage.Vault.BasePath = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_VAULT_TLS_CERT_FILE"); v != "" {
+		c.Storage.Vault.TLSCertFile = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_VAULT_TLS_KEY_FILE"); v != "" {
+		c.Storage.Vault.TLSKeyFile = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_VAULT_TLS_CA_FILE"); v != "" {
+		c.Storage.Vault.TLSCAFile = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_VAULT_TLS_SKIP_VERIFY"); v != "" {
+		c.Storage.Vault.TLSSkipVerify = strings.ToLower(v) == "true" || v == "1"
+	}
+
+	// JWT overrides
+	if v := os.Getenv("SCHEMA_REGISTRY_JWT_DEFAULT_ROLE"); v != "" {
+		c.Security.Auth.JWT.DefaultRole = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_JWT_JWKS_CACHE_TTL"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			c.Security.Auth.JWT.JWKSCacheTTL = n
+		}
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_JWT_HTTP_TIMEOUT"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			c.Security.Auth.JWT.HTTPTimeout = n
+		}
 	}
 }
 

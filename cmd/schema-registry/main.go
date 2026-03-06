@@ -335,7 +335,11 @@ func main() {
 	case sig := <-shutdown:
 		logger.Info("shutting down", slog.String("signal", sig.String()))
 
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		shutdownTimeout := time.Duration(cfg.Server.ShutdownTimeout) * time.Second
+		if shutdownTimeout <= 0 {
+			shutdownTimeout = 30 * time.Second
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 		defer cancel()
 
 		if err := server.Shutdown(ctx); err != nil {

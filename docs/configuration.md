@@ -27,6 +27,7 @@ This document provides a complete reference for all configuration options availa
   - [Role-Based Access Control (RBAC)](#role-based-access-control-rbac)
   - [Rate Limiting](#rate-limiting)
   - [Audit Logging](#audit-logging)
+  - [Per-Principal Metrics](#per-principal-metrics)
 - [MCP Server](#mcp-server)
 - [Environment Variables](#environment-variables)
 - [Complete Configuration Example](#complete-configuration-example)
@@ -81,6 +82,9 @@ HTTP server settings.
 | `server.read_timeout` | int | `30` | Maximum duration (seconds) for reading the entire request, including the body. |
 | `server.write_timeout` | int | `30` | Maximum duration (seconds) before timing out writes of the response. |
 | `server.docs_enabled` | bool | `false` | When `true`, serves Swagger UI at `/docs` and the OpenAPI specification at `/openapi.yaml`. |
+| `server.shutdown_timeout` | int | `30` | Maximum duration (seconds) to wait for in-flight requests during graceful shutdown. |
+| `server.cluster_id` | string | `""` | Optional cluster identifier, exposed via MCP server info. |
+| `server.max_request_body_size` | int64 | `0` | Maximum request body size in bytes. `0` uses the default of 10 MB. |
 
 ```yaml
 server:
@@ -88,6 +92,7 @@ server:
   port: 8081
   read_timeout: 30
   write_timeout: 30
+  shutdown_timeout: 30
   docs_enabled: false
 ```
 
@@ -305,7 +310,7 @@ The `security` section contains TLS, authentication, rate limiting, and audit co
 | `security.tls.ca_file` | string | `""` | Path to a CA certificate for verifying client certificates (mTLS). |
 | `security.tls.min_version` | string | `""` | Minimum TLS version. Values: `TLS1.2`, `TLS1.3`. |
 | `security.tls.client_auth` | string | `"none"` | Client certificate policy. Values: `none`, `request`, `require`, `verify`. |
-| `security.tls.auto_reload` | bool | `false` | Automatically reload certificates when they change on disk, without requiring a restart. |
+| `security.tls.auto_reload` | bool | `false` | **Not yet implemented.** Intended to automatically reload certificates when they change on disk. |
 
 ```yaml
 security:
@@ -362,7 +367,7 @@ security:
 |-----|------|---------|-------------|
 | `security.auth.basic.realm` | string | `""` | HTTP Basic Auth realm displayed to clients. |
 | `security.auth.basic.users` | map (string to string) | `{}` | Static username-to-bcrypt-hash map. For config-based auth only; prefer database-managed users. |
-| `security.auth.basic.htpasswd_file` | string | `""` | Path to an Apache-style htpasswd file. |
+| `security.auth.basic.htpasswd_file` | string | `""` | **Not yet implemented.** Path to an Apache-style htpasswd file. |
 
 ```yaml
 security:
@@ -377,7 +382,7 @@ security:
 |-----|------|---------|-------------|
 | `security.auth.api_key.header` | string | `"X-API-Key"` | HTTP header used to transmit the API key. |
 | `security.auth.api_key.query_param` | string | `"api_key"` | Query parameter name accepted as an alternative to the header. |
-| `security.auth.api_key.storage_type` | string | `""` | Where API keys are stored. Values: `memory`, `database`. |
+| `security.auth.api_key.storage_type` | string | `""` | **Not yet implemented.** Intended to select API key storage backend (`memory` or `database`). Currently always uses the database. |
 | `security.auth.api_key.secret` | string | `""` | HMAC-SHA256 pepper for hashing API keys before storage. Provides defense-in-depth: even if the database is compromised, keys cannot be verified without this secret. SHOULD be at least 32 bytes of random data. If empty, falls back to plain SHA-256 hashing. |
 | `security.auth.api_key.key_prefix` | string | `"sr_"` | Prefix prepended to generated API keys for identification (e.g., `sr_live_abc123`). |
 | `security.auth.api_key.cache_refresh_seconds` | int | `60` | How often (seconds) the in-memory API key cache is refreshed from the database. Ensures cluster-wide consistency. Set to `0` to disable caching. |
@@ -406,6 +411,9 @@ For integrating with external identity providers that issue JWTs.
 | `security.auth.jwt.public_key_file` | string | `""` | Path to a PEM-encoded public key file (alternative to JWKS). |
 | `security.auth.jwt.algorithm` | string | `""` | Signing algorithm. Values: `RS256`, `ES256`. |
 | `security.auth.jwt.claims_mapping` | map (string to string) | `{}` | Maps JWT claims to internal fields (e.g., `username: sub`, `role: role`). |
+| `security.auth.jwt.default_role` | string | `"readonly"` | Fallback role assigned when no JWT claim matches a role mapping. |
+| `security.auth.jwt.jwks_cache_ttl` | int | `300` | Time in seconds to cache JWKS keys before re-fetching. |
+| `security.auth.jwt.http_timeout` | int | `10` | HTTP client timeout in seconds for JWKS endpoint requests. |
 
 ```yaml
 security:
@@ -418,6 +426,9 @@ security:
       claims_mapping:
         username: sub
         role: role
+      default_role: readonly
+      jwks_cache_ttl: 300
+      http_timeout: 10
 ```
 
 ### LDAP Authentication
@@ -431,8 +442,8 @@ security:
 | `security.auth.ldap.base_dn` | string | `""` | Base DN for all LDAP searches. |
 | `security.auth.ldap.user_search_filter` | string | `""` | LDAP filter for finding users (e.g., `(sAMAccountName=%s)`). `%s` is replaced with the login username. |
 | `security.auth.ldap.user_search_base` | string | `""` | Base DN for user searches (e.g., `OU=Users,DC=example,DC=com`). |
-| `security.auth.ldap.group_search_filter` | string | `""` | LDAP filter for finding group memberships (e.g., `(member=%s)`). `%s` is replaced with the user DN. |
-| `security.auth.ldap.group_search_base` | string | `""` | Base DN for group searches (e.g., `OU=Groups,DC=example,DC=com`). |
+| `security.auth.ldap.group_search_filter` | string | `""` | **Not yet implemented.** LDAP filter for finding group memberships. Groups are currently extracted from the `memberOf` attribute on the user entry. |
+| `security.auth.ldap.group_search_base` | string | `""` | **Not yet implemented.** Base DN for group searches. Groups are currently extracted from the `memberOf` attribute on the user entry. |
 | `security.auth.ldap.username_attribute` | string | `""` | LDAP attribute containing the username (`sAMAccountName`, `uid`, `userPrincipalName`). |
 | `security.auth.ldap.email_attribute` | string | `""` | LDAP attribute containing the email address (`mail`). |
 | `security.auth.ldap.group_attribute` | string | `""` | LDAP attribute containing group membership (`memberOf`). |
@@ -477,8 +488,8 @@ security:
 | `security.auth.oidc.issuer_url` | string | `""` | OIDC issuer URL (e.g., `https://auth.example.com`). Used for discovery. |
 | `security.auth.oidc.client_id` | string | `""` | Client ID for token validation. |
 | `security.auth.oidc.client_secret` | string | `""` | Client secret. |
-| `security.auth.oidc.redirect_url` | string | `""` | OAuth2 callback URL. |
-| `security.auth.oidc.scopes` | list of strings | `[]` | OAuth2 scopes to request (e.g., `openid`, `profile`, `email`). |
+| `security.auth.oidc.redirect_url` | string | `""` | **Not yet implemented.** OAuth2 authorization code flow is not supported; the registry validates bearer tokens only. |
+| `security.auth.oidc.scopes` | list of strings | `[]` | **Not yet implemented.** OAuth2 authorization code flow is not supported; the registry validates bearer tokens only. |
 | `security.auth.oidc.username_claim` | string | `""` | JWT claim used as the username (`sub`, `preferred_username`, `email`). |
 | `security.auth.oidc.roles_claim` | string | `""` | JWT claim containing role information (`roles`, `groups`). |
 | `security.auth.oidc.role_mapping` | map (string to string) | `{}` | Maps OIDC roles/groups to registry roles. |
@@ -567,6 +578,18 @@ security:
     include_body: false
 ```
 
+### Per-Principal Metrics
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `security.metrics.per_principal_metrics` | *bool | `true` | Enable per-principal (user identity) Prometheus metrics. Adds a `principal` label to request count, error, and endpoint metrics. MAY increase cardinality in deployments with many distinct users. |
+
+```yaml
+security:
+  metrics:
+    per_principal_metrics: true
+```
+
 ---
 
 ## MCP Server
@@ -621,6 +644,9 @@ mcp:
 | `log_schemas` | `SCHEMA_REGISTRY_MCP_LOG_SCHEMAS` |
 | `permission_preset` | `SCHEMA_REGISTRY_MCP_PERMISSION_PRESET` |
 | `permission_scopes` | `SCHEMA_REGISTRY_MCP_PERMISSION_SCOPES` (comma-separated) |
+| `tool_policy` | `SCHEMA_REGISTRY_MCP_TOOL_POLICY` |
+| `allowed_tools` | `SCHEMA_REGISTRY_MCP_ALLOWED_TOOLS` (comma-separated) |
+| `denied_tools` | `SCHEMA_REGISTRY_MCP_DENIED_TOOLS` (comma-separated) |
 
 ---
 
@@ -635,6 +661,7 @@ The following environment variables override the corresponding configuration fil
 | `SCHEMA_REGISTRY_HOST` | `server.host` | string |
 | `SCHEMA_REGISTRY_PORT` | `server.port` | int |
 | `SCHEMA_REGISTRY_DOCS_ENABLED` | `server.docs_enabled` | bool (`true`/`1`) |
+| `SCHEMA_REGISTRY_SHUTDOWN_TIMEOUT` | `server.shutdown_timeout` | int |
 
 ### Storage
 
@@ -711,6 +738,18 @@ The following environment variables override the corresponding configuration fil
 | `VAULT_NAMESPACE` | `storage.vault.namespace` | string | Standard Vault variable. Used only if `SCHEMA_REGISTRY_VAULT_NAMESPACE` is not set. |
 | `SCHEMA_REGISTRY_VAULT_MOUNT_PATH` | `storage.vault.mount_path` | string | |
 | `SCHEMA_REGISTRY_VAULT_BASE_PATH` | `storage.vault.base_path` | string | |
+| `SCHEMA_REGISTRY_VAULT_TLS_CERT_FILE` | `storage.vault.tls_cert_file` | string | Client certificate for mTLS |
+| `SCHEMA_REGISTRY_VAULT_TLS_KEY_FILE` | `storage.vault.tls_key_file` | string | Client key for mTLS |
+| `SCHEMA_REGISTRY_VAULT_TLS_CA_FILE` | `storage.vault.tls_ca_file` | string | CA certificate for server verification |
+| `SCHEMA_REGISTRY_VAULT_TLS_SKIP_VERIFY` | `storage.vault.tls_skip_verify` | bool (`true`/`1`) | Skip TLS verification |
+
+### JWT
+
+| Variable | Overrides | Type |
+|----------|-----------|------|
+| `SCHEMA_REGISTRY_JWT_DEFAULT_ROLE` | `security.auth.jwt.default_role` | string |
+| `SCHEMA_REGISTRY_JWT_JWKS_CACHE_TTL` | `security.auth.jwt.jwks_cache_ttl` | int |
+| `SCHEMA_REGISTRY_JWT_HTTP_TIMEOUT` | `security.auth.jwt.http_timeout` | int |
 
 ---
 
@@ -729,6 +768,7 @@ server:
   port: 8081                          # Listen port
   read_timeout: 30                    # Read timeout (seconds)
   write_timeout: 30                   # Write timeout (seconds)
+  shutdown_timeout: 30                # Graceful shutdown wait (seconds)
   docs_enabled: false                 # Swagger UI at /docs, OpenAPI at /openapi.yaml
 
 # --- Storage Backend -------------------------------------------------------
@@ -808,7 +848,7 @@ security:
     ca_file: ""                       # For mTLS client verification
     min_version: "TLS1.2"            # TLS1.2 | TLS1.3
     client_auth: none                 # none | request | require | verify
-    auto_reload: false                # Reload certs on file change
+    auto_reload: false                # NOT YET IMPLEMENTED — reload certs on file change
 
   # Authentication
   auth:
@@ -828,13 +868,13 @@ security:
     basic:
       realm: "Schema Registry"
       users: {}                       # username: bcrypt-hash (legacy; prefer DB users)
-      htpasswd_file: ""
+      htpasswd_file: ""               # NOT YET IMPLEMENTED
 
     # API Key Auth
     api_key:
       header: "X-API-Key"
       query_param: "api_key"
-      storage_type: database          # memory | database
+      storage_type: database          # NOT YET IMPLEMENTED — always uses database
       secret: ${API_KEY_SECRET}       # HMAC pepper (>=32 bytes recommended)
       key_prefix: "sr_"
       cache_refresh_seconds: 60       # 0 to disable caching
@@ -849,6 +889,9 @@ security:
       claims_mapping:
         username: sub
         role: role
+      default_role: readonly            # Fallback when no JWT claim matches
+      jwks_cache_ttl: 300               # JWKS cache TTL (seconds)
+      http_timeout: 10                  # JWKS HTTP client timeout (seconds)
 
     # LDAP Auth
     ldap:
@@ -859,8 +902,8 @@ security:
       base_dn: ""
       user_search_filter: ""          # e.g., (sAMAccountName=%s)
       user_search_base: ""
-      group_search_filter: ""         # e.g., (member=%s)
-      group_search_base: ""
+      group_search_filter: ""         # NOT YET IMPLEMENTED
+      group_search_base: ""           # NOT YET IMPLEMENTED
       username_attribute: ""          # sAMAccountName | uid | userPrincipalName
       email_attribute: ""             # mail
       group_attribute: ""             # memberOf
@@ -878,8 +921,8 @@ security:
       issuer_url: ""
       client_id: ""
       client_secret: ""
-      redirect_url: ""
-      scopes: []                      # e.g., [openid, profile, email]
+      redirect_url: ""                # NOT YET IMPLEMENTED
+      scopes: []                      # NOT YET IMPLEMENTED
       username_claim: ""              # sub | preferred_username | email
       roles_claim: ""                 # roles | groups
       role_mapping: {}                # OIDC role -> registry role
@@ -912,6 +955,10 @@ security:
       - schema_delete
       - config_update
     include_body: false
+
+  # Per-principal Prometheus metrics
+  metrics:
+    per_principal_metrics: true        # Adds "principal" label to metrics
 
 # --- MCP Server (AI Assistant Access) -------------------------------------
 mcp:
