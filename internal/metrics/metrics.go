@@ -50,8 +50,9 @@ type Metrics struct {
 	MCPToolCallDuration   *prometheus.HistogramVec
 	MCPToolCallErrors     *prometheus.CounterVec
 	MCPToolCallsActive    prometheus.Gauge
-	MCPConfirmationsTotal *prometheus.CounterVec // labels: outcome (token_issued, confirmed, token_rejected)
-	MCPPolicyDenialsTotal *prometheus.CounterVec // labels: reason (origin_rejected, confirmation_required)
+	MCPConfirmationsTotal      *prometheus.CounterVec // labels: outcome (token_issued, confirmed, token_rejected)
+	MCPPolicyDenialsTotal      *prometheus.CounterVec // labels: reason (origin_rejected, confirmation_required)
+	MCPPermissionDeniedTotal   *prometheus.CounterVec // labels: tool, scope
 
 	// Per-principal metrics (optional, may be nil if disabled)
 	PrincipalRequestsTotal *prometheus.CounterVec // labels: principal, method, path, status
@@ -275,6 +276,14 @@ func New() *Metrics {
 		[]string{"reason"},
 	)
 
+	m.MCPPermissionDeniedTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "schema_registry_mcp_permission_denied_total",
+			Help: "Total number of MCP tool calls blocked by permission scopes",
+		},
+		[]string{"tool", "scope"},
+	)
+
 	// Register all collectors
 	m.registry.MustRegister(
 		m.RequestsTotal,
@@ -302,6 +311,7 @@ func New() *Metrics {
 		m.MCPToolCallsActive,
 		m.MCPConfirmationsTotal,
 		m.MCPPolicyDenialsTotal,
+		m.MCPPermissionDeniedTotal,
 	)
 
 	// Also register the default collectors (go runtime, process info)
@@ -530,6 +540,11 @@ func (m *Metrics) RecordMCPConfirmation(outcome string) {
 // Reason values: "origin_rejected", "confirmation_required".
 func (m *Metrics) RecordMCPPolicyDenial(reason string) {
 	m.MCPPolicyDenialsTotal.WithLabelValues(reason).Inc()
+}
+
+// RecordMCPPermissionDenied records a tool blocked by permission scopes.
+func (m *Metrics) RecordMCPPermissionDenied(tool, scope string) {
+	m.MCPPermissionDeniedTotal.WithLabelValues(tool, scope).Inc()
 }
 
 // RecordMCPToolCall records an MCP tool call.

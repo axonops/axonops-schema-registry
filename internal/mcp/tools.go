@@ -147,6 +147,18 @@ func extractSubjectFromArgs(raw json.RawMessage) string {
 // isToolAllowed checks if a tool should be registered based on the tool policy
 // and read-only mode. Returns false if the tool should be hidden from clients.
 func (s *Server) isToolAllowed(name string, readOnly bool) bool {
+	// Permission scopes take precedence when configured.
+	if s.resolvedScopes != nil {
+		if !isScopeAllowed(name, s.resolvedScopes) {
+			if s.metrics != nil {
+				scope := toolPermissionScope[name]
+				s.metrics.RecordMCPPermissionDenied(name, scope)
+			}
+			return false
+		}
+		return true
+	}
+
 	// Read-only mode: skip non-read-only tools
 	if s.config.ReadOnly && !readOnly {
 		return false

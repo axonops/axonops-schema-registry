@@ -34,6 +34,8 @@ type MCPConfig struct {
 	RequireConfirmations bool     `yaml:"require_confirmations"` // Enable two-phase confirmations for destructive ops
 	ConfirmationTTLSecs  int      `yaml:"confirmation_ttl"`      // Confirmation token TTL in seconds (default: 300)
 	LogSchemas           bool     `yaml:"log_schemas"`           // Log full schema bodies in debug output (default: false)
+	PermissionPreset     string   `yaml:"permission_preset"`     // "readonly", "developer", "operator", "admin", "full"
+	PermissionScopes     []string `yaml:"permission_scopes"`     // Individual scopes when preset is empty
 }
 
 // ServerConfig represents HTTP server configuration.
@@ -510,6 +512,16 @@ func (c *Config) applyEnvOverrides() {
 	}
 	if v := os.Getenv("SCHEMA_REGISTRY_MCP_LOG_SCHEMAS"); v != "" {
 		c.MCP.LogSchemas = strings.ToLower(v) == "true" || v == "1"
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_MCP_PERMISSION_PRESET"); v != "" {
+		c.MCP.PermissionPreset = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_MCP_PERMISSION_SCOPES"); v != "" {
+		scopes := strings.Split(v, ",")
+		for i := range scopes {
+			scopes[i] = strings.TrimSpace(scopes[i])
+		}
+		c.MCP.PermissionScopes = scopes
 	}
 
 	// Docs enabled override

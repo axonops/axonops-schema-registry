@@ -20,19 +20,20 @@ import (
 
 // Server wraps the MCP protocol server and HTTP transport.
 type Server struct {
-	mcpServer    *gomcp.Server
-	httpServer   *http.Server
-	registry     *registry.Registry
-	authService  *auth.Service
-	config       *config.MCPConfig
-	logger       *slog.Logger
-	metrics      *metrics.Metrics
-	auditLogger  *auth.AuditLogger
-	confirmStore *ConfirmationStore
-	version      string
-	commit       string
-	buildTime    string
-	clusterID    string
+	mcpServer      *gomcp.Server
+	httpServer     *http.Server
+	registry       *registry.Registry
+	authService    *auth.Service
+	config         *config.MCPConfig
+	logger         *slog.Logger
+	metrics        *metrics.Metrics
+	auditLogger    *auth.AuditLogger
+	confirmStore   *ConfirmationStore
+	resolvedScopes map[string]bool // nil = scopes not configured (allow all)
+	version        string
+	commit         string
+	buildTime      string
+	clusterID      string
 }
 
 // Option configures an MCP server.
@@ -89,6 +90,10 @@ func New(cfg *config.MCPConfig, reg *registry.Registry, logger *slog.Logger, ver
 	for _, opt := range opts {
 		opt(s)
 	}
+
+	s.resolvedScopes = resolvePermissionScopes(
+		cfg.PermissionPreset, cfg.PermissionScopes, cfg.ReadOnly,
+	)
 
 	if cfg.RequireConfirmations {
 		ttl := time.Duration(cfg.ConfirmationTTLSecs) * time.Second

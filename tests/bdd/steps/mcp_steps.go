@@ -49,6 +49,20 @@ func getMCPSession(tc *TestContext) (*gomcp.ClientSession, error) {
 		}
 	}
 
+	// Apply permission preset if requested by scenario
+	if v, ok := tc.StoredValues["_mcp_permission_preset"]; ok {
+		if preset, ok := v.(string); ok && preset != "" {
+			cfg.PermissionPreset = preset
+		}
+	}
+
+	// Apply custom permission scopes if requested by scenario
+	if v, ok := tc.StoredValues["_mcp_permission_scopes"]; ok {
+		if scopes, ok := v.([]string); ok && len(scopes) > 0 {
+			cfg.PermissionScopes = scopes
+		}
+	}
+
 	var mcpOpts []mcpkg.Option
 	if st, ok := tc.StoredValues["_storage"].(storage.Storage); ok {
 		authSvc := auth.NewServiceWithConfig(st, auth.ServiceConfig{})
@@ -571,6 +585,20 @@ func RegisterMCPSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 
 	ctx.Step(`^MCP confirmations are enabled$`, func() error {
 		tc.StoredValues["_mcp_confirmations_enabled"] = true
+		return nil
+	})
+
+	ctx.Step(`^MCP permission preset is "([^"]*)"$`, func(preset string) error {
+		tc.StoredValues["_mcp_permission_preset"] = preset
+		return nil
+	})
+
+	ctx.Step(`^MCP permission scopes are "([^"]*)"$`, func(scopeList string) error {
+		scopes := strings.Split(scopeList, ",")
+		for i := range scopes {
+			scopes[i] = strings.TrimSpace(scopes[i])
+		}
+		tc.StoredValues["_mcp_permission_scopes"] = scopes
 		return nil
 	})
 
