@@ -160,19 +160,30 @@ const serverInstructions = `You are connected to the AxonOps Schema Registry MCP
 Capabilities: 105+ tools for schema management, compatibility checking, encryption (CSFLE), exporters (schema linking), data contracts, multi-tenant contexts, and schema intelligence (quality scoring, diff, impact analysis).
 
 Domain knowledge is available as glossary resources. Read these BEFORE answering domain questions:
-  schema://glossary/core-concepts     -- subjects, versions, IDs, modes, naming
-  schema://glossary/compatibility     -- 7 modes, per-format rules, transitive semantics
-  schema://glossary/data-contracts    -- metadata, tags, rulesets, 3-layer merge
-  schema://glossary/encryption        -- CSFLE, KEK/DEK, KMS providers, algorithms
-  schema://glossary/contexts          -- multi-tenancy, 4-tier inheritance
-  schema://glossary/exporters         -- schema linking, lifecycle states
-  schema://glossary/schema-types      -- Avro, Protobuf, JSON Schema deep reference
-  schema://glossary/design-patterns   -- event envelope, lifecycle, shared types, CI/CD
-  schema://glossary/best-practices    -- per-format guidance, common mistakes
-  schema://glossary/migration         -- Confluent migration, IMPORT mode, ID preservation
+  schema://glossary/core-concepts                    -- subjects, versions, IDs, modes, naming
+  schema://glossary/compatibility                    -- 7 modes, per-format rules, transitive semantics
+  schema://glossary/data-contracts                   -- metadata, tags, rulesets, 3-layer merge
+  schema://glossary/encryption                       -- CSFLE, KEK/DEK, KMS providers, algorithms
+  schema://glossary/contexts                         -- multi-tenancy, 4-tier inheritance
+  schema://glossary/exporters                        -- schema linking, lifecycle states
+  schema://glossary/schema-types                     -- Avro, Protobuf, JSON Schema deep reference
+  schema://glossary/design-patterns                  -- event envelope, lifecycle, shared types, CI/CD
+  schema://glossary/best-practices                   -- per-format guidance, common mistakes
+  schema://glossary/migration                        -- Confluent migration, IMPORT mode, ID preservation
+  schema://glossary/mcp-configuration                -- MCP server config, permissions, security
+  schema://glossary/error-reference                  -- all error codes, response formats, diagnostic guidance
+  schema://glossary/auth-and-security                -- RBAC roles, auth methods, rate limiting, audit logging
+  schema://glossary/storage-backends                 -- PostgreSQL, MySQL, Cassandra characteristics and trade-offs
+  schema://glossary/normalization-and-fingerprinting -- canonical forms, deduplication, metadata identity
+  schema://glossary/tool-selection-guide             -- decision tree for choosing the right tool
 
 Critical rules:
+- Always use validate_schema before register_schema to catch syntax errors early.
+- Always use check_compatibility before register_schema to avoid compatibility rejection.
+- When debugging errors, read schema://glossary/error-reference for diagnostic guidance.
 - Schema IDs are embedded in Kafka messages. NEVER suggest changing IDs in production.
 - BACKWARD is the default compatibility. Do not change it without explaining consequences.
 - Deleting a subject or schema is SOFT by default. Permanent delete requires ?permanent=true.
-- IMPORT mode bypasses compatibility checks. Always switch back to READWRITE after migration.`
+- IMPORT mode bypasses compatibility checks. Always switch back to READWRITE after migration.
+- All schema/config/mode tools accept an optional context parameter for multi-tenant isolation.
+- Context-scoped resources are available at schema://contexts/{context}/... for browsing data within a specific context.`
