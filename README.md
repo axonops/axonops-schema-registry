@@ -45,6 +45,7 @@ Unlike Confluent Schema Registry, which uses Kafka itself (a special `_schemas` 
 - [Development](#development)
 - [Community & Support](#community--support)
 - [License](#license)
+- [Acknowledgements](#acknowledgements)
 - [Legal Notices](#legal-notices)
 
 **New to schema registries?** Read the [Fundamentals](docs/fundamentals.md) guide to understand what a schema registry is, why it matters, and how it fits into an event-driven architecture. **Ready to design your schemas?** See [Best Practices](docs/best-practices.md) for patterns, naming conventions, and evolution strategies.
@@ -409,6 +410,23 @@ If you find AxonOps Schema Registry useful, please consider giving us a star!
 ## License
 
 Apache License 2.0 -- see [LICENSE](LICENSE) for details.
+
+---
+
+## Acknowledgements
+
+This project stands on the shoulders of exceptional open-source work. We are grateful to:
+
+- **[Confluent](https://www.confluent.io/)** — for creating the original Schema Registry, defining the REST API that became the industry standard, and advancing the Kafka ecosystem. Every Kafka serializer and client library speaks the API that Confluent designed, and this project would not exist without that foundational contribution.
+- **[Apache Kafka](https://kafka.apache.org/)** — for the event streaming platform at the heart of it all. The Kafka community's commitment to open standards and interoperability is what makes projects like this possible.
+- **[Model Context Protocol](https://modelcontextprotocol.io/)** — for the open protocol that enables AI assistants to interact with developer tools. MCP is transforming how developers work with infrastructure, and we are proud to be among the first schema registries to adopt it.
+- **[Apache Avro](https://avro.apache.org/)**, **[Protocol Buffers](https://protobuf.dev/)**, and **[JSON Schema](https://json-schema.org/)** — for the serialization formats and schema languages that make schema-driven development possible.
+
+We also want to thank the maintainers of the core Go libraries that power this project:
+
+- [chi](https://github.com/go-chi/chi) (HTTP router), [hamba/avro](https://github.com/hamba/avro) (Avro parsing), [protocompile](https://github.com/bufbuild/protocompile) (Protobuf parsing), [jsonschema](https://github.com/santhosh-tekuri/jsonschema) (JSON Schema validation), [cobra](https://github.com/spf13/cobra) (CLI), [prometheus/client_golang](https://github.com/prometheus/client_golang) (metrics), and the official [MCP Go SDK](https://github.com/modelcontextprotocol/go-sdk).
+
+Finally, thank you to **[Karapace](https://github.com/Aiven-Open/karapace)** and **[Apicurio](https://www.apicur.io/registry/)** — fellow open-source schema registries that push the ecosystem forward. A healthy ecosystem benefits everyone. See our [Ecosystem Guide](docs/ecosystem.md) for a respectful comparison.
 
 ---
 
