@@ -4,6 +4,7 @@ package metrics
 import (
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -57,6 +58,16 @@ type Metrics struct {
 	// Per-principal metrics (optional, may be nil if disabled)
 	PrincipalRequestsTotal *prometheus.CounterVec // labels: principal, method, path, status
 	PrincipalMCPCallsTotal *prometheus.CounterVec // labels: principal, tool, status
+
+	// Confluent-compatible metrics (kafka_schema_registry_* prefix for dashboard compatibility)
+	ConfluentRegisteredCount prometheus.Counter     // kafka_schema_registry_registered_count
+	ConfluentDeletedCount    prometheus.Counter     // kafka_schema_registry_deleted_count
+	ConfluentAPISuccessCount prometheus.Counter     // kafka_schema_registry_api_success_count
+	ConfluentAPIFailureCount prometheus.Counter     // kafka_schema_registry_api_failure_count
+	ConfluentSchemasCreated  *prometheus.CounterVec // kafka_schema_registry_schemas_created{schema_type}
+	ConfluentSchemasDeleted  *prometheus.CounterVec // kafka_schema_registry_schemas_deleted{schema_type}
+	ConfluentMasterSlaveRole prometheus.Gauge       // kafka_schema_registry_master_slave_role (always 1.0 for standalone)
+	ConfluentNodeCount       prometheus.Gauge       // kafka_schema_registry_node_count (always 1 for standalone)
 
 	registry *prometheus.Registry
 }
@@ -284,6 +295,69 @@ func New() *Metrics {
 		[]string{"tool", "scope"},
 	)
 
+	// Confluent-compatible metrics (kafka_schema_registry_* prefix)
+	// These mirror Confluent Schema Registry JMX metrics so that existing
+	// Grafana dashboards and Prometheus alerts continue to work.
+	m.ConfluentRegisteredCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "kafka_schema_registry_registered_count",
+			Help: "Total number of schemas registered (Confluent-compatible)",
+		},
+	)
+
+	m.ConfluentDeletedCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "kafka_schema_registry_deleted_count",
+			Help: "Total number of schemas deleted (Confluent-compatible)",
+		},
+	)
+
+	m.ConfluentAPISuccessCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "kafka_schema_registry_api_success_count",
+			Help: "Total number of successful API calls (Confluent-compatible)",
+		},
+	)
+
+	m.ConfluentAPIFailureCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "kafka_schema_registry_api_failure_count",
+			Help: "Total number of failed API calls (Confluent-compatible)",
+		},
+	)
+
+	m.ConfluentSchemasCreated = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "kafka_schema_registry_schemas_created",
+			Help: "Total number of schemas created by type (Confluent-compatible)",
+		},
+		[]string{"schema_type"},
+	)
+
+	m.ConfluentSchemasDeleted = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "kafka_schema_registry_schemas_deleted",
+			Help: "Total number of schemas deleted by type (Confluent-compatible)",
+		},
+		[]string{"schema_type"},
+	)
+
+	m.ConfluentMasterSlaveRole = prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "kafka_schema_registry_master_slave_role",
+			Help: "1.0 if this node is the active leader, 0.0 if follower (Confluent-compatible). Always 1.0 for standalone deployments.",
+		},
+	)
+	m.ConfluentMasterSlaveRole.Set(1.0)
+
+	m.ConfluentNodeCount = prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "kafka_schema_registry_node_count",
+			Help: "Number of schema registry nodes in the cluster (Confluent-compatible). Always 1 for standalone deployments.",
+		},
+	)
+	m.ConfluentNodeCount.Set(1)
+
 	// Register all collectors
 	m.registry.MustRegister(
 		m.RequestsTotal,
@@ -312,6 +386,14 @@ func New() *Metrics {
 		m.MCPConfirmationsTotal,
 		m.MCPPolicyDenialsTotal,
 		m.MCPPermissionDeniedTotal,
+		m.ConfluentRegisteredCount,
+		m.ConfluentDeletedCount,
+		m.ConfluentAPISuccessCount,
+		m.ConfluentAPIFailureCount,
+		m.ConfluentSchemasCreated,
+		m.ConfluentSchemasDeleted,
+		m.ConfluentMasterSlaveRole,
+		m.ConfluentNodeCount,
 	)
 
 	// Also register the default collectors (go runtime, process info)
@@ -351,8 +433,16 @@ func (m *Metrics) Middleware(next http.Handler) http.Handler {
 		// Normalize path for metrics (avoid high cardinality)
 		path := normalizePath(r.URL.Path)
 
-		m.RequestsTotal.WithLabelValues(r.Method, path, strconv.Itoa(wrapped.statusCode)).Inc()
+		statusStr := strconv.Itoa(wrapped.statusCode)
+		m.RequestsTotal.WithLabelValues(r.Method, path, statusStr).Inc()
 		m.RequestDuration.WithLabelValues(r.Method, path).Observe(duration)
+
+		// Confluent-compatible API call counters
+		if wrapped.statusCode >= 200 && wrapped.statusCode < 400 {
+			m.ConfluentAPISuccessCount.Inc()
+		} else {
+			m.ConfluentAPIFailureCount.Inc()
+		}
 	})
 }
 
@@ -436,6 +526,32 @@ func (m *Metrics) RecordSchemaRegistration(schemaType string, success bool) {
 		status = "failure"
 	}
 	m.RegistrationsTotal.WithLabelValues(schemaType, status).Inc()
+
+	// Confluent-compatible counters
+	if success {
+		m.ConfluentRegisteredCount.Inc()
+		m.ConfluentSchemasCreated.WithLabelValues(confluentSchemaType(schemaType)).Inc()
+	}
+}
+
+// RecordSchemaDeletion records a schema or subject deletion.
+func (m *Metrics) RecordSchemaDeletion(schemaType string) {
+	m.ConfluentDeletedCount.Inc()
+	m.ConfluentSchemasDeleted.WithLabelValues(confluentSchemaType(schemaType)).Inc()
+}
+
+// confluentSchemaType converts our schema type strings to Confluent's lowercase format.
+func confluentSchemaType(schemaType string) string {
+	switch schemaType {
+	case "AVRO":
+		return "avro"
+	case "JSON":
+		return "json"
+	case "PROTOBUF":
+		return "protobuf"
+	default:
+		return strings.ToLower(schemaType)
+	}
 }
 
 // RecordCompatibilityCheck records a compatibility check result.

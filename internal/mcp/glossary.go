@@ -120,6 +120,13 @@ func (s *Server) registerGlossaryResources() {
 		Description: "Decision tree for choosing the right MCP tool: indexed by task category with 2-4 tools per task",
 		MIMEType:    "text/markdown",
 	}, s.handleGlossaryToolSelectionGuideResource)
+
+	s.mcpServer.AddResource(&gomcp.Resource{
+		URI:         "schema://glossary/prometheus-metrics",
+		Name:        "glossary-prometheus-metrics",
+		Description: "Prometheus metrics reference: Confluent-compatible metrics (kafka_schema_registry_*), AxonOps-native metrics (schema_registry_*), metric types, labels, and cardinality",
+		MIMEType:    "text/markdown",
+	}, s.handleGlossaryPrometheusMetricsResource)
 }
 
 // --- Glossary resource handlers ---
@@ -187,4 +194,8 @@ func (s *Server) handleGlossaryNormalizationResource(_ context.Context, req *gom
 
 func (s *Server) handleGlossaryToolSelectionGuideResource(_ context.Context, req *gomcp.ReadResourceRequest) (*gomcp.ReadResourceResult, error) {
 	return resourceMarkdownFromFS(content.GlossaryFS, "glossary/tool-selection-guide.md", req.Params.URI)
+}
+
+func (s *Server) handleGlossaryPrometheusMetricsResource(_ context.Context, req *gomcp.ReadResourceRequest) (*gomcp.ReadResourceResult, error) {
+	return resourceMarkdownFromFS(content.GlossaryFS, "glossary/prometheus-metrics.md", req.Params.URI)
 }

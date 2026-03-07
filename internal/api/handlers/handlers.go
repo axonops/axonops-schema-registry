@@ -14,6 +14,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/axonops/axonops-schema-registry/internal/api/types"
+	"github.com/axonops/axonops-schema-registry/internal/metrics"
 	"github.com/axonops/axonops-schema-registry/internal/registry"
 	"github.com/axonops/axonops-schema-registry/internal/storage"
 )
@@ -30,6 +31,7 @@ func schemaTypeForResponse(st storage.SchemaType) string {
 // Handler provides HTTP handlers for the schema registry.
 type Handler struct {
 	registry  *registry.Registry
+	metrics   *metrics.Metrics
 	clusterID string
 	version   string
 	commit    string
@@ -62,6 +64,11 @@ func NewWithConfig(reg *registry.Registry, cfg Config) *Handler {
 		commit:    cfg.Commit,
 		buildTime: cfg.BuildTime,
 	}
+}
+
+// SetMetrics sets the metrics instance for recording schema operation metrics.
+func (h *Handler) SetMetrics(m *metrics.Metrics) {
+	h.metrics = m
 }
 
 // HealthCheck handles GET /
@@ -612,6 +619,10 @@ func (h *Handler) RegisterSchema(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if h.metrics != nil {
+		h.metrics.RecordSchemaRegistration(string(schema.SchemaType), true)
+	}
+
 	writeJSON(w, http.StatusOK, types.RegisterSchemaResponse{
 		ID: schema.ID,
 	})
@@ -722,6 +733,12 @@ func (h *Handler) DeleteSubject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if h.metrics != nil {
+		for range versions {
+			h.metrics.RecordSchemaDeletion("")
+		}
+	}
+
 	writeJSON(w, http.StatusOK, versions)
 }
 
@@ -773,6 +790,10 @@ func (h *Handler) DeleteVersion(w http.ResponseWriter, r *http.Request) {
 		}
 		writeInternalError(w, err)
 		return
+	}
+
+	if h.metrics != nil {
+		h.metrics.RecordSchemaDeletion("")
 	}
 
 	writeJSON(w, http.StatusOK, deletedVersion)

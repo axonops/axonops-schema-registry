@@ -358,3 +358,211 @@ func TestRecordMCPPolicyDenial(t *testing.T) {
 		t.Error("Expected metrics output to contain schema_registry_mcp_policy_denials_total")
 	}
 }
+
+func TestConfluentMetricsRegistered(t *testing.T) {
+	m := New()
+
+	if m.ConfluentRegisteredCount == nil {
+		t.Error("Expected ConfluentRegisteredCount to be initialized")
+	}
+	if m.ConfluentDeletedCount == nil {
+		t.Error("Expected ConfluentDeletedCount to be initialized")
+	}
+	if m.ConfluentAPISuccessCount == nil {
+		t.Error("Expected ConfluentAPISuccessCount to be initialized")
+	}
+	if m.ConfluentAPIFailureCount == nil {
+		t.Error("Expected ConfluentAPIFailureCount to be initialized")
+	}
+	if m.ConfluentSchemasCreated == nil {
+		t.Error("Expected ConfluentSchemasCreated to be initialized")
+	}
+	if m.ConfluentSchemasDeleted == nil {
+		t.Error("Expected ConfluentSchemasDeleted to be initialized")
+	}
+	if m.ConfluentMasterSlaveRole == nil {
+		t.Error("Expected ConfluentMasterSlaveRole to be initialized")
+	}
+	if m.ConfluentNodeCount == nil {
+		t.Error("Expected ConfluentNodeCount to be initialized")
+	}
+
+	// Verify they appear in /metrics output
+	m.RecordSchemaRegistration("AVRO", true)
+	m.RecordSchemaDeletion("AVRO")
+
+	handler := m.Handler()
+	req := httptest.NewRequest("GET", "/metrics", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	body, _ := io.ReadAll(rr.Body)
+	content := string(body)
+
+	for _, metric := range []string{
+		"kafka_schema_registry_registered_count",
+		"kafka_schema_registry_deleted_count",
+		"kafka_schema_registry_api_success_count",
+		"kafka_schema_registry_api_failure_count",
+		"kafka_schema_registry_schemas_created",
+		"kafka_schema_registry_schemas_deleted",
+		"kafka_schema_registry_master_slave_role",
+		"kafka_schema_registry_node_count",
+	} {
+		if !strings.Contains(content, metric) {
+			t.Errorf("Expected metrics output to contain %s", metric)
+		}
+	}
+}
+
+func TestConfluentMasterSlaveRole_Default(t *testing.T) {
+	m := New()
+
+	handler := m.Handler()
+	req := httptest.NewRequest("GET", "/metrics", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	body, _ := io.ReadAll(rr.Body)
+	content := string(body)
+
+	// Should default to 1.0 (leader) for standalone
+	if !strings.Contains(content, "kafka_schema_registry_master_slave_role 1") {
+		t.Error("Expected master_slave_role to be 1.0 by default")
+	}
+	// Should default to 1 node for standalone
+	if !strings.Contains(content, "kafka_schema_registry_node_count 1") {
+		t.Error("Expected node_count to be 1 by default")
+	}
+}
+
+func TestConfluentSchemaRegistrationCounters(t *testing.T) {
+	m := New()
+
+	// Record 3 AVRO and 2 JSON registrations
+	m.RecordSchemaRegistration("AVRO", true)
+	m.RecordSchemaRegistration("AVRO", true)
+	m.RecordSchemaRegistration("AVRO", true)
+	m.RecordSchemaRegistration("JSON", true)
+	m.RecordSchemaRegistration("JSON", true)
+	// Failed registration should NOT increment Confluent counters
+	m.RecordSchemaRegistration("AVRO", false)
+
+	handler := m.Handler()
+	req := httptest.NewRequest("GET", "/metrics", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	body, _ := io.ReadAll(rr.Body)
+	content := string(body)
+
+	// registered_count should be 5 (3+2, not counting the failure)
+	if !strings.Contains(content, "kafka_schema_registry_registered_count 5") {
+		t.Errorf("Expected registered_count=5, got output:\n%s", extractMetric(content, "kafka_schema_registry_registered_count"))
+	}
+
+	// schemas_created with schema_type labels
+	if !strings.Contains(content, `kafka_schema_registry_schemas_created{schema_type="avro"} 3`) {
+		t.Errorf("Expected schemas_created avro=3, got output:\n%s", extractMetric(content, "kafka_schema_registry_schemas_created"))
+	}
+	if !strings.Contains(content, `kafka_schema_registry_schemas_created{schema_type="json"} 2`) {
+		t.Errorf("Expected schemas_created json=2, got output:\n%s", extractMetric(content, "kafka_schema_registry_schemas_created"))
+	}
+}
+
+func TestConfluentSchemaDeletionCounters(t *testing.T) {
+	m := New()
+
+	m.RecordSchemaDeletion("AVRO")
+	m.RecordSchemaDeletion("AVRO")
+	m.RecordSchemaDeletion("PROTOBUF")
+
+	handler := m.Handler()
+	req := httptest.NewRequest("GET", "/metrics", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	body, _ := io.ReadAll(rr.Body)
+	content := string(body)
+
+	if !strings.Contains(content, "kafka_schema_registry_deleted_count 3") {
+		t.Errorf("Expected deleted_count=3, got output:\n%s", extractMetric(content, "kafka_schema_registry_deleted_count"))
+	}
+	if !strings.Contains(content, `kafka_schema_registry_schemas_deleted{schema_type="avro"} 2`) {
+		t.Errorf("Expected schemas_deleted avro=2, got output:\n%s", extractMetric(content, "kafka_schema_registry_schemas_deleted"))
+	}
+	if !strings.Contains(content, `kafka_schema_registry_schemas_deleted{schema_type="protobuf"} 1`) {
+		t.Errorf("Expected schemas_deleted protobuf=1, got output:\n%s", extractMetric(content, "kafka_schema_registry_schemas_deleted"))
+	}
+}
+
+func TestConfluentAPICallCounters(t *testing.T) {
+	m := New()
+
+	// Simulate middleware recording: 2xx/3xx = success, 4xx/5xx = failure
+	handler := m.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/ok":
+			w.WriteHeader(http.StatusOK)
+		case "/created":
+			w.WriteHeader(http.StatusCreated)
+		case "/notfound":
+			w.WriteHeader(http.StatusNotFound)
+		case "/error":
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+	}))
+
+	for _, path := range []string{"/ok", "/ok", "/created", "/notfound", "/error"} {
+		req := httptest.NewRequest("GET", path, nil)
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, req)
+	}
+
+	metricsHandler := m.Handler()
+	req := httptest.NewRequest("GET", "/metrics", nil)
+	rr := httptest.NewRecorder()
+	metricsHandler.ServeHTTP(rr, req)
+
+	body, _ := io.ReadAll(rr.Body)
+	content := string(body)
+
+	// 3 success (2x 200 + 1x 201), 2 failures (404 + 500)
+	if !strings.Contains(content, "kafka_schema_registry_api_success_count 3") {
+		t.Errorf("Expected api_success_count=3, got:\n%s", extractMetric(content, "kafka_schema_registry_api_success_count"))
+	}
+	if !strings.Contains(content, "kafka_schema_registry_api_failure_count 2") {
+		t.Errorf("Expected api_failure_count=2, got:\n%s", extractMetric(content, "kafka_schema_registry_api_failure_count"))
+	}
+}
+
+func TestConfluentSchemaTypeConversion(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"AVRO", "avro"},
+		{"JSON", "json"},
+		{"PROTOBUF", "protobuf"},
+		{"", ""},
+		{"avro", "avro"},
+	}
+
+	for _, tt := range tests {
+		result := confluentSchemaType(tt.input)
+		if result != tt.expected {
+			t.Errorf("confluentSchemaType(%q) = %q, want %q", tt.input, result, tt.expected)
+		}
+	}
+}
+
+// extractMetric extracts all lines from metrics output containing the given metric name.
+func extractMetric(content, name string) string {
+	var lines []string
+	for _, line := range strings.Split(content, "\n") {
+		if strings.Contains(line, name) {
+			lines = append(lines, line)
+		}
+	}
+	return strings.Join(lines, "\n")
+}

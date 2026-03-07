@@ -259,6 +259,11 @@ func (s *Server) registerPrompts() {
 			{Name: "context", Description: "Registry context for multi-tenant isolation (defaults to default context)", Required: false},
 		},
 	}, s.handleSchemaReviewChecklistPrompt)
+
+	s.mcpServer.AddPrompt(&gomcp.Prompt{
+		Name:        "metrics-health-check",
+		Description: "Analyze schema registry health using Prometheus metrics: check error rates, storage health, auth failures, and Confluent-compatible counters",
+	}, s.handleMetricsHealthCheckPrompt)
 }
 
 // --- Helpers ---
@@ -881,4 +886,8 @@ func (s *Server) handleSchemaReviewChecklistPrompt(ctx context.Context, req *gom
 		Description: fmt.Sprintf("Schema review checklist for %q", subject),
 		Messages:    []*gomcp.PromptMessage{promptMessage("user", guidance)},
 	}, nil
+}
+
+func (s *Server) handleMetricsHealthCheckPrompt(_ context.Context, _ *gomcp.GetPromptRequest) (*gomcp.GetPromptResult, error) {
+	return promptFromFS(content.PromptsFS, "prompts/metrics-health-check.md", "Analyze schema registry health using Prometheus metrics")
 }

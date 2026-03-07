@@ -156,6 +156,7 @@ func (s *Server) setupRouter() {
 		Version:   s.version,
 		Commit:    s.commit,
 	})
+	h.SetMetrics(s.metrics)
 
 	// Public endpoints (no auth required) - health checks, metrics, and documentation
 	r.Get("/", h.HealthCheck)

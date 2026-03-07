@@ -546,6 +546,7 @@ func TestFeatures(t *testing.T) {
 			steps.RegisterEncryptionSteps(ctx, tc)
 			steps.RegisterConcurrencySteps(ctx, tc)
 			steps.RegisterRateLimitSteps(ctx, tc)
+			steps.RegisterMetricsSteps(ctx, tc)
 			steps.RegisterMCPSteps(ctx, tc)
 		},
 		Options: &opts,
@@ -615,6 +616,7 @@ func TestAuthFeatures(t *testing.T) {
 			steps.RegisterEncryptionSteps(ctx, tc)
 			steps.RegisterConcurrencySteps(ctx, tc)
 			steps.RegisterRateLimitSteps(ctx, tc)
+			steps.RegisterMetricsSteps(ctx, tc)
 		},
 		Options: &opts,
 	}

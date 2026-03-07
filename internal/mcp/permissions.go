@@ -70,6 +70,10 @@ var toolPermissionScope = map[string]string{
 	"list_contexts":           "",
 	"count_subjects":          "",
 	"get_registry_statistics": "",
+	"get_metrics_summary":     "",
+	"get_confluent_metrics":   "",
+	"query_metric":            "",
+	"list_metrics":            "",
 
 	// schema_read
 	"get_schema_by_id":              ScopeSchemaRead,
