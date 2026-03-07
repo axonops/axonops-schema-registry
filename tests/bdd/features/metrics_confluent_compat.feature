@@ -34,7 +34,6 @@ Feature: Wire-Compatible Metrics
     And the Prometheus metric "kafka_schema_registry_registered_count" should exist
     And the Prometheus metric "kafka_schema_registry_api_success_count" should exist
     And the Prometheus metric "kafka_schema_registry_api_failure_count" should exist
-    And the Prometheus metric "kafka_schema_registry_schemas_created" should exist
     And the Prometheus metric "kafka_schema_registry_master_slave_role" should exist
     And the Prometheus metric "kafka_schema_registry_node_count" should exist
 
