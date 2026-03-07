@@ -2369,10 +2369,10 @@ func TestInstrumentedHandlerRecordsPrincipalMetrics(t *testing.T) {
 		t.Fatal("expected success")
 	}
 
-	// Verify per-principal MCP metric was recorded with "mcp-client" principal.
-	val := getCounterValue(t, m.PrincipalMCPCallsTotal, "mcp-client", "health_check", "success")
+	// Verify per-principal MCP metric was recorded with "mcp-anonymous" principal.
+	val := getCounterValue(t, m.PrincipalMCPCallsTotal, "mcp-anonymous", "health_check", "success")
 	if val != 1 {
-		t.Errorf("expected PrincipalMCPCallsTotal(mcp-client, health_check, success)=1, got=%v", val)
+		t.Errorf("expected PrincipalMCPCallsTotal(mcp-anonymous, health_check, success)=1, got=%v", val)
 	}
 
 	// Call a tool that returns an error.
@@ -2381,18 +2381,18 @@ func TestInstrumentedHandlerRecordsPrincipalMetrics(t *testing.T) {
 		Arguments: json.RawMessage(`{"id": 999999}`),
 	})
 
-	errVal := getCounterValue(t, m.PrincipalMCPCallsTotal, "mcp-client", "get_schema_by_id", "error")
+	errVal := getCounterValue(t, m.PrincipalMCPCallsTotal, "mcp-anonymous", "get_schema_by_id", "error")
 	if errVal != 1 {
-		t.Errorf("expected PrincipalMCPCallsTotal(mcp-client, get_schema_by_id, error)=1, got=%v", errVal)
+		t.Errorf("expected PrincipalMCPCallsTotal(mcp-anonymous, get_schema_by_id, error)=1, got=%v", errVal)
 	}
 
 	// Call health_check again and verify increment.
 	_, _ = cs.CallTool(context.Background(), &gomcp.CallToolParams{
 		Name: "health_check",
 	})
-	val = getCounterValue(t, m.PrincipalMCPCallsTotal, "mcp-client", "health_check", "success")
+	val = getCounterValue(t, m.PrincipalMCPCallsTotal, "mcp-anonymous", "health_check", "success")
 	if val != 2 {
-		t.Errorf("expected PrincipalMCPCallsTotal(mcp-client, health_check, success)=2, got=%v", val)
+		t.Errorf("expected PrincipalMCPCallsTotal(mcp-anonymous, health_check, success)=2, got=%v", val)
 	}
 }
 

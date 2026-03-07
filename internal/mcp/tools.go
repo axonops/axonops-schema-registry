@@ -144,6 +144,26 @@ func extractSubjectFromArgs(raw json.RawMessage) string {
 	return subject
 }
 
+// extractSchemaFromArgs extracts the "schema" field from tool arguments.
+func extractSchemaFromArgs(raw json.RawMessage) string {
+	if len(raw) == 0 {
+		return ""
+	}
+	var args map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &args); err != nil {
+		return ""
+	}
+	schemaRaw, ok := args["schema"]
+	if !ok {
+		return ""
+	}
+	var schema string
+	if err := json.Unmarshal(schemaRaw, &schema); err != nil {
+		return ""
+	}
+	return schema
+}
+
 // isToolAllowed checks if a tool should be registered based on the tool policy
 // and read-only mode. Returns false if the tool should be hidden from clients.
 func (s *Server) isToolAllowed(name string, readOnly bool) bool {
@@ -222,10 +242,8 @@ func instrumentedHandler[T any](s *Server, name string, handler gomcp.ToolHandle
 		// Record Prometheus metrics.
 		if s.metrics != nil {
 			s.metrics.RecordMCPToolCall(name, status, duration)
-			// Per-principal MCP metrics. Currently hardcoded to "mcp-client"
-			// until per-session auth identity extraction is implemented
-			// during integrated MCP testing via docker-compose and BDD.
-			s.metrics.RecordPrincipalMCPCall("mcp-client", name, status)
+			principal := s.mcpPrincipal()
+			s.metrics.RecordPrincipalMCPCall(principal, name, status)
 		}
 
 		// Structured log output.
@@ -235,20 +253,18 @@ func instrumentedHandler[T any](s *Server, name string, handler gomcp.ToolHandle
 			slog.Duration("duration", duration),
 		)
 
-		// Conditionally log schema body at Debug level when log_schemas is enabled.
+		// Extract schema body once for both logging and audit.
+		var schemaBody string
 		if s.config.LogSchemas && len(req.Params.Arguments) > 0 {
-			var rawArgs map[string]json.RawMessage
-			if json.Unmarshal(req.Params.Arguments, &rawArgs) == nil {
-				if schemaRaw, ok := rawArgs["schema"]; ok {
-					var schemaStr string
-					if json.Unmarshal(schemaRaw, &schemaStr) == nil && schemaStr != "" {
-						s.logger.Debug("mcp_tool_schema_body",
-							slog.String("tool", name),
-							slog.String("schema", schemaStr),
-						)
-					}
-				}
-			}
+			schemaBody = extractSchemaFromArgs(req.Params.Arguments)
+		}
+
+		// Conditionally log schema body at Debug level.
+		if schemaBody != "" {
+			s.logger.Debug("mcp_tool_schema_body",
+				slog.String("tool", name),
+				slog.String("schema", schemaBody),
+			)
 		}
 
 		// Audit trail.
@@ -263,22 +279,14 @@ func instrumentedHandler[T any](s *Server, name string, handler gomcp.ToolHandle
 			if auditErr != nil {
 				eventType = auth.AuditEventMCPToolError
 			}
-			// Extract subject from tool arguments for audit context.
 			subject := extractSubjectFromArgs(req.Params.Arguments)
 			var auditMeta map[string]string
-			if s.config.LogSchemas && len(req.Params.Arguments) > 0 {
-				var rawArgs map[string]json.RawMessage
-				if json.Unmarshal(req.Params.Arguments, &rawArgs) == nil {
-					if schemaRaw, ok := rawArgs["schema"]; ok {
-						var schemaStr string
-						if json.Unmarshal(schemaRaw, &schemaStr) == nil && schemaStr != "" {
-							if len(schemaStr) > 1000 {
-								schemaStr = schemaStr[:1000] + "..."
-							}
-							auditMeta = map[string]string{"schema": schemaStr}
-						}
-					}
+			if schemaBody != "" {
+				truncated := schemaBody
+				if len(truncated) > 1000 {
+					truncated = truncated[:1000] + "..."
 				}
+				auditMeta = map[string]string{"schema": truncated}
 			}
 			s.auditLogger.LogMCPEvent(eventType, name, status, duration, auditErr, subject, auditMeta)
 		}

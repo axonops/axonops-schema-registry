@@ -3,6 +3,7 @@ package config
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"strconv"
 	"strings"
@@ -378,18 +379,32 @@ func Load(path string) (*Config, error) {
 	return cfg, nil
 }
 
+// envInt parses an integer from an env var value, logging a warning on failure.
+func envInt(envVar, value string) (int, bool) {
+	n, err := strconv.Atoi(value)
+	if err != nil {
+		slog.Warn("ignoring invalid env var value",
+			slog.String("var", envVar),
+			slog.String("value", value),
+			slog.String("error", err.Error()),
+		)
+		return 0, false
+	}
+	return n, true
+}
+
 // applyEnvOverrides applies environment variable overrides.
 func (c *Config) applyEnvOverrides() {
 	if v := os.Getenv("SCHEMA_REGISTRY_HOST"); v != "" {
 		c.Server.Host = v
 	}
 	if v := os.Getenv("SCHEMA_REGISTRY_PORT"); v != "" {
-		if port, err := strconv.Atoi(v); err == nil {
-			c.Server.Port = port
+		if n, ok := envInt("SCHEMA_REGISTRY_PORT", v); ok {
+			c.Server.Port = n
 		}
 	}
 	if v := os.Getenv("SCHEMA_REGISTRY_SHUTDOWN_TIMEOUT"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil {
+		if n, ok := envInt("SCHEMA_REGISTRY_SHUTDOWN_TIMEOUT", v); ok {
 			c.Server.ShutdownTimeout = n
 		}
 	}
@@ -408,8 +423,8 @@ func (c *Config) applyEnvOverrides() {
 		c.Storage.PostgreSQL.Host = v
 	}
 	if v := os.Getenv("SCHEMA_REGISTRY_PG_PORT"); v != "" {
-		if port, err := strconv.Atoi(v); err == nil {
-			c.Storage.PostgreSQL.Port = port
+		if n, ok := envInt("SCHEMA_REGISTRY_PG_PORT", v); ok {
+			c.Storage.PostgreSQL.Port = n
 		}
 	}
 	if v := os.Getenv("SCHEMA_REGISTRY_PG_DATABASE"); v != "" {
@@ -425,17 +440,17 @@ func (c *Config) applyEnvOverrides() {
 		c.Storage.PostgreSQL.SSLMode = v
 	}
 	if v := os.Getenv("SCHEMA_REGISTRY_PG_CONNECT_TIMEOUT"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil {
+		if n, ok := envInt("SCHEMA_REGISTRY_PG_CONNECT_TIMEOUT", v); ok {
 			c.Storage.PostgreSQL.ConnectTimeout = n
 		}
 	}
 	if v := os.Getenv("SCHEMA_REGISTRY_PG_HEALTH_CHECK_TIMEOUT"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil {
+		if n, ok := envInt("SCHEMA_REGISTRY_PG_HEALTH_CHECK_TIMEOUT", v); ok {
 			c.Storage.PostgreSQL.HealthCheckTimeout = n
 		}
 	}
 	if v := os.Getenv("SCHEMA_REGISTRY_PG_SCHEMA_MAX_RETRIES"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil {
+		if n, ok := envInt("SCHEMA_REGISTRY_PG_SCHEMA_MAX_RETRIES", v); ok {
 			c.Storage.PostgreSQL.SchemaMaxRetries = n
 		}
 	}
@@ -445,8 +460,8 @@ func (c *Config) applyEnvOverrides() {
 		c.Storage.MySQL.Host = v
 	}
 	if v := os.Getenv("SCHEMA_REGISTRY_MYSQL_PORT"); v != "" {
-		if port, err := strconv.Atoi(v); err == nil {
-			c.Storage.MySQL.Port = port
+		if n, ok := envInt("SCHEMA_REGISTRY_MYSQL_PORT", v); ok {
+			c.Storage.MySQL.Port = n
 		}
 	}
 	if v := os.Getenv("SCHEMA_REGISTRY_MYSQL_DATABASE"); v != "" {
@@ -462,17 +477,17 @@ func (c *Config) applyEnvOverrides() {
 		c.Storage.MySQL.TLS = v
 	}
 	if v := os.Getenv("SCHEMA_REGISTRY_MYSQL_CONNECT_TIMEOUT"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil {
+		if n, ok := envInt("SCHEMA_REGISTRY_MYSQL_CONNECT_TIMEOUT", v); ok {
 			c.Storage.MySQL.ConnectTimeout = n
 		}
 	}
 	if v := os.Getenv("SCHEMA_REGISTRY_MYSQL_HEALTH_CHECK_TIMEOUT"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil {
+		if n, ok := envInt("SCHEMA_REGISTRY_MYSQL_HEALTH_CHECK_TIMEOUT", v); ok {
 			c.Storage.MySQL.HealthCheckTimeout = n
 		}
 	}
 	if v := os.Getenv("SCHEMA_REGISTRY_MYSQL_SCHEMA_MAX_RETRIES"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil {
+		if n, ok := envInt("SCHEMA_REGISTRY_MYSQL_SCHEMA_MAX_RETRIES", v); ok {
 			c.Storage.MySQL.SchemaMaxRetries = n
 		}
 	}
@@ -486,8 +501,8 @@ func (c *Config) applyEnvOverrides() {
 		c.Storage.Cassandra.Hosts = hosts
 	}
 	if v := os.Getenv("SCHEMA_REGISTRY_CASSANDRA_PORT"); v != "" {
-		if port, err := strconv.Atoi(v); err == nil {
-			c.Storage.Cassandra.Port = port
+		if n, ok := envInt("SCHEMA_REGISTRY_CASSANDRA_PORT", v); ok {
+			c.Storage.Cassandra.Port = n
 		}
 	}
 	if v := os.Getenv("SCHEMA_REGISTRY_CASSANDRA_KEYSPACE"); v != "" {
@@ -521,12 +536,12 @@ func (c *Config) applyEnvOverrides() {
 		c.Storage.Cassandra.ConnectTimeout = v
 	}
 	if v := os.Getenv("SCHEMA_REGISTRY_CASSANDRA_MAX_RETRIES"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil {
+		if n, ok := envInt("SCHEMA_REGISTRY_CASSANDRA_MAX_RETRIES", v); ok {
 			c.Storage.Cassandra.MaxRetries = n
 		}
 	}
 	if v := os.Getenv("SCHEMA_REGISTRY_CASSANDRA_ID_BLOCK_SIZE"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil {
+		if n, ok := envInt("SCHEMA_REGISTRY_CASSANDRA_ID_BLOCK_SIZE", v); ok {
 			c.Storage.Cassandra.IDBlockSize = n
 		}
 	}
@@ -539,8 +554,8 @@ func (c *Config) applyEnvOverrides() {
 		c.MCP.Host = v
 	}
 	if v := os.Getenv("SCHEMA_REGISTRY_MCP_PORT"); v != "" {
-		if port, err := strconv.Atoi(v); err == nil {
-			c.MCP.Port = port
+		if n, ok := envInt("SCHEMA_REGISTRY_MCP_PORT", v); ok {
+			c.MCP.Port = n
 		}
 	}
 	if v := os.Getenv("SCHEMA_REGISTRY_MCP_AUTH_TOKEN"); v != "" {
@@ -560,7 +575,7 @@ func (c *Config) applyEnvOverrides() {
 		c.MCP.RequireConfirmations = strings.ToLower(v) == "true" || v == "1"
 	}
 	if v := os.Getenv("SCHEMA_REGISTRY_MCP_CONFIRMATION_TTL"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil {
+		if n, ok := envInt("SCHEMA_REGISTRY_MCP_CONFIRMATION_TTL", v); ok {
 			c.MCP.ConfirmationTTLSecs = n
 		}
 	}
@@ -595,7 +610,7 @@ func (c *Config) applyEnvOverrides() {
 		c.MCP.DeniedTools = tools
 	}
 	if v := os.Getenv("SCHEMA_REGISTRY_MCP_READ_HEADER_TIMEOUT"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil {
+		if n, ok := envInt("SCHEMA_REGISTRY_MCP_READ_HEADER_TIMEOUT", v); ok {
 			c.MCP.ReadHeaderTimeout = n
 		}
 	}
@@ -666,12 +681,12 @@ func (c *Config) applyEnvOverrides() {
 		c.Security.Auth.JWT.DefaultRole = v
 	}
 	if v := os.Getenv("SCHEMA_REGISTRY_JWT_JWKS_CACHE_TTL"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil {
+		if n, ok := envInt("SCHEMA_REGISTRY_JWT_JWKS_CACHE_TTL", v); ok {
 			c.Security.Auth.JWT.JWKSCacheTTL = n
 		}
 	}
 	if v := os.Getenv("SCHEMA_REGISTRY_JWT_HTTP_TIMEOUT"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil {
+		if n, ok := envInt("SCHEMA_REGISTRY_JWT_HTTP_TIMEOUT", v); ok {
 			c.Security.Auth.JWT.HTTPTimeout = n
 		}
 	}

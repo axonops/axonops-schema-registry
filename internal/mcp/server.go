@@ -153,6 +153,16 @@ func (s *Server) Start() error {
 	return s.httpServer.Serve(ln)
 }
 
+// mcpPrincipal returns the principal label for per-principal metrics.
+// When bearer token auth is configured, returns "mcp-authenticated".
+// Otherwise returns "mcp-anonymous".
+func (s *Server) mcpPrincipal() string {
+	if s.config.AuthToken != "" {
+		return "mcp-authenticated"
+	}
+	return "mcp-anonymous"
+}
+
 // Shutdown gracefully shuts down the MCP server.
 func (s *Server) Shutdown(ctx context.Context) error {
 	if s.confirmStore != nil {
