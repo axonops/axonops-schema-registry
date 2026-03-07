@@ -4,7 +4,7 @@
 >
 > Regenerate with: `go run ./cmd/generate-mcp-docs > docs/mcp-reference.md`
 
-**105 tools** (71 read-only, 34 write) | **47 resources** (25 static, 22 templated) | **33 prompts**
+**109 tools** (75 read-only, 34 write) | **48 resources** (26 static, 22 templated) | **34 prompts**
 
 ## Contents
 
@@ -53,76 +53,80 @@
 | 33 | `get_cluster_id` | Yes | Get the schema registry cluster ID. |
 | 34 | `get_config` | Yes | Get the compatibility configuration for a subject or the global default. Omit subject for global config. |
 | 35 | `get_config_full` | Yes | Get the full configuration record for a subject or global default, including metadata, ruleSets, alias, compatibility... |
-| 36 | `get_dek` | Yes | Get a Data Encryption Key (DEK) by KEK name, subject, version, and algorithm. |
-| 37 | `get_dependency_graph` | Yes | Build a dependency graph for a subject-version, showing all schemas that reference it (recursively, up to depth 10). |
-| 38 | `get_exporter` | Yes | Get an exporter's configuration by name. |
-| 39 | `get_exporter_config` | Yes | Get the destination configuration of an exporter. |
-| 40 | `get_exporter_status` | Yes | Get the current status of an exporter (state, offset, error trace). |
-| 41 | `get_global_config_direct` | Yes | Get the global configuration for the current context directly, without falling back to the __GLOBAL context. Returns ... |
-| 42 | `get_kek` | Yes | Get a Key Encryption Key (KEK) by name. Use deleted=true to include soft-deleted KEKs. |
-| 43 | `get_latest_schema` | Yes | Get the latest (most recent non-deleted) schema version for a subject |
-| 44 | `get_max_schema_id` | Yes | Get the highest schema ID currently assigned in the registry |
-| 45 | `get_mode` | Yes | Get the registry mode for a subject or the global default. Modes: READWRITE, READONLY, READONLY_OVERRIDE, IMPORT |
-| 46 | `get_raw_schema_by_id` | Yes | Get the raw schema string by its global ID, without any metadata |
-| 47 | `get_raw_schema_version` | Yes | Get the raw schema string by subject name and version number, without any metadata |
-| 48 | `get_referenced_by` | Yes | Get schemas that reference a specific subject-version pair |
-| 49 | `get_registry_statistics` | Yes | Get aggregate statistics about the registry: total subjects, schemas, types breakdown, KEKs, DEKs, and exporters. |
-| 50 | `get_schema_by_id` | Yes | Get a schema by its global ID, returning the full schema record including subject, version, type, and schema content |
-| 51 | `get_schema_complexity` | Yes | Compute complexity metrics and grade (A-D) for a schema. Measures field_count (total fields including nested) and max... |
-| 52 | `get_schema_history` | Yes | Get the full version history for a subject, including schema content and metadata for each version. |
-| 53 | `get_schema_types` | Yes | Get the list of supported schema types (e.g. AVRO, PROTOBUF, JSON) |
-| 54 | `get_schema_version` | Yes | Get a schema by subject name and version number |
-| 55 | `get_schemas_by_subject` | Yes | Get all schema versions for a subject. Returns full schema records for every version, optionally including soft-delet... |
-| 56 | `get_server_info` | Yes | Get schema registry server information including version and supported schema types |
-| 57 | `get_server_version` | Yes | Get detailed server version information including version, commit hash, and build time. |
-| 58 | `get_subject_config_full` | Yes | Get the full configuration record for a specific subject only, without falling back to global config. Returns error i... |
-| 59 | `get_subject_metadata` | Yes | Get metadata for a subject. Without filters, returns the metadata from the latest schema version. With key/value filt... |
-| 60 | `get_subjects_for_schema` | Yes | Get all subjects that use a specific schema ID |
-| 61 | `get_user` | Yes | Get a user by ID. |
-| 62 | `get_user_by_username` | Yes | Get a user by username. |
-| 63 | `get_versions_for_schema` | Yes | Get all subject-version pairs that use a specific schema ID |
-| 64 | `health_check` | Yes | Check if the schema registry is healthy and responding |
-| 65 | `import_schemas` |  | Bulk import schemas with preserved IDs (for Confluent migration). Registry mode MUST be set to IMPORT first. |
-| 66 | `list_apikeys` | Yes | List all API keys, optionally filtered by user_id. |
-| 67 | `list_contexts` | Yes | List all tenant contexts in the schema registry. Each context is an isolated namespace for subjects and schemas. |
-| 68 | `list_dek_versions` | Yes | List all version numbers for a DEK subject under a given KEK. |
-| 69 | `list_deks` | Yes | List all subject names that have DEKs under a given KEK. |
-| 70 | `list_exporters` | Yes | List all exporter names. Exporters replicate schemas to a destination schema registry (Schema Linking). |
-| 71 | `list_keks` | Yes | List all Key Encryption Keys (KEKs). Use deleted=true to include soft-deleted KEKs. |
-| 72 | `list_roles` | Yes | List all available RBAC roles with their permissions. |
-| 73 | `list_schemas` | Yes | List schemas with optional filtering by subject prefix, deleted status, and pagination |
-| 74 | `list_subjects` | Yes | List all registered subjects in the schema registry |
-| 75 | `list_users` | Yes | List all users in the schema registry. |
-| 76 | `list_versions` | Yes | List all version numbers registered for a subject |
-| 77 | `lookup_schema` | Yes | Check if a schema is already registered under a subject. Returns the existing schema record if found. |
-| 78 | `match_subjects` | Yes | Find subjects matching a pattern. Regex mode (regex=true) compiles as Go regex. Default mode uses case-sensitive subs... |
-| 79 | `normalize_schema` | Yes | Parse and normalize a schema, returning the canonical form and fingerprint for deduplication. |
-| 80 | `pause_exporter` |  | Pause a running exporter. The exporter retains its current offset and can be resumed later. |
-| 81 | `plan_migration_path` | Yes | Compute a multi-step migration plan from a source schema to a target schema, decomposed into individually compatible ... |
-| 82 | `register_schema` |  | Register a new schema version for a subject. If the same schema already exists, returns the existing record. |
-| 83 | `reset_exporter` |  | Reset an exporter's offset back to zero, causing it to re-export all schemas. |
-| 84 | `resolve_alias` | Yes | Resolve a subject alias. If the subject has an alias configured, returns the alias target. Otherwise returns the orig... |
-| 85 | `resume_exporter` |  | Resume a paused exporter. The exporter continues from its last offset. |
-| 86 | `revoke_apikey` |  | Revoke (disable) an API key without deleting it. |
-| 87 | `rewrap_dek` |  | Re-encrypt a DEK's key material under the current KEK key version. Used after KEK rotation. |
-| 88 | `rotate_apikey` |  | Rotate an API key: creates a new key with the same settings and revokes the old one. Returns the new raw key (only sh... |
-| 89 | `score_schema_quality` | Yes | Score a schema's quality (0-100, grades A-F) across four categories: Naming (25 pts, checks snake_case convention), D... |
-| 90 | `search_schemas` | Yes | Search schema content across all subjects using a regex or substring pattern. |
-| 91 | `set_config` |  | Set the compatibility level for a subject or globally. Valid levels: NONE, BACKWARD, BACKWARD_TRANSITIVE, FORWARD, FO... |
-| 92 | `set_config_full` |  | Set the full configuration for a subject or globally, including compatibility level plus optional data contract field... |
-| 93 | `set_mode` |  | Set the registry mode for a subject or globally. Valid modes: READWRITE, READONLY, READONLY_OVERRIDE, IMPORT |
-| 94 | `suggest_compatible_change` | Yes | Get rule-based advice for compatible schema changes based on the subject's compatibility level. BACKWARD: add fields ... |
-| 95 | `suggest_schema_evolution` | Yes | Generate concrete schema code for a compatible evolution step (add field, deprecate field, add enum symbol). |
-| 96 | `test_kek` |  | Test a KEK's KMS connectivity by performing a round-trip encrypt/decrypt test. Requires a KMS provider to be configured. |
-| 97 | `undelete_dek` |  | Restore a soft-deleted Data Encryption Key (DEK). |
-| 98 | `undelete_kek` |  | Restore a soft-deleted Key Encryption Key (KEK). |
-| 99 | `update_apikey` |  | Update an API key's name, role, or enabled status. |
-| 100 | `update_exporter` |  | Update an existing exporter's settings (context type, subjects, rename format, config). |
-| 101 | `update_exporter_config` |  | Update the destination configuration of an exporter. |
-| 102 | `update_kek` |  | Update an existing Key Encryption Key (KEK). Only kms_props, doc, and shared can be changed. |
-| 103 | `update_user` |  | Update a user's email, password, role, or enabled status. |
-| 104 | `validate_schema` | Yes | Validate a schema without registering it. Returns whether the schema is valid, its fingerprint, and any parse errors. |
-| 105 | `validate_subject_name` | Yes | Validate a subject name against a naming strategy (topic_name, record_name, or topic_record_name). |
+| 36 | `get_confluent_metrics` | Yes | Get Confluent Schema Registry-compatible metrics (kafka_schema_registry_* prefix). These metrics match what the Confl... |
+| 37 | `get_dek` | Yes | Get a Data Encryption Key (DEK) by KEK name, subject, version, and algorithm. |
+| 38 | `get_dependency_graph` | Yes | Build a dependency graph for a subject-version, showing all schemas that reference it (recursively, up to depth 10). |
+| 39 | `get_exporter` | Yes | Get an exporter's configuration by name. |
+| 40 | `get_exporter_config` | Yes | Get the destination configuration of an exporter. |
+| 41 | `get_exporter_status` | Yes | Get the current status of an exporter (state, offset, error trace). |
+| 42 | `get_global_config_direct` | Yes | Get the global configuration for the current context directly, without falling back to the __GLOBAL context. Returns ... |
+| 43 | `get_kek` | Yes | Get a Key Encryption Key (KEK) by name. Use deleted=true to include soft-deleted KEKs. |
+| 44 | `get_latest_schema` | Yes | Get the latest (most recent non-deleted) schema version for a subject |
+| 45 | `get_max_schema_id` | Yes | Get the highest schema ID currently assigned in the registry |
+| 46 | `get_metrics_summary` | Yes | Get a high-level summary of key Prometheus metrics including request rates, schema counts, error rates, and Confluent... |
+| 47 | `get_mode` | Yes | Get the registry mode for a subject or the global default. Modes: READWRITE, READONLY, READONLY_OVERRIDE, IMPORT |
+| 48 | `get_raw_schema_by_id` | Yes | Get the raw schema string by its global ID, without any metadata |
+| 49 | `get_raw_schema_version` | Yes | Get the raw schema string by subject name and version number, without any metadata |
+| 50 | `get_referenced_by` | Yes | Get schemas that reference a specific subject-version pair |
+| 51 | `get_registry_statistics` | Yes | Get aggregate statistics about the registry: total subjects, schemas, types breakdown, KEKs, DEKs, and exporters. |
+| 52 | `get_schema_by_id` | Yes | Get a schema by its global ID, returning the full schema record including subject, version, type, and schema content |
+| 53 | `get_schema_complexity` | Yes | Compute complexity metrics and grade (A-D) for a schema. Measures field_count (total fields including nested) and max... |
+| 54 | `get_schema_history` | Yes | Get the full version history for a subject, including schema content and metadata for each version. |
+| 55 | `get_schema_types` | Yes | Get the list of supported schema types (e.g. AVRO, PROTOBUF, JSON) |
+| 56 | `get_schema_version` | Yes | Get a schema by subject name and version number |
+| 57 | `get_schemas_by_subject` | Yes | Get all schema versions for a subject. Returns full schema records for every version, optionally including soft-delet... |
+| 58 | `get_server_info` | Yes | Get schema registry server information including version and supported schema types |
+| 59 | `get_server_version` | Yes | Get detailed server version information including version, commit hash, and build time. |
+| 60 | `get_subject_config_full` | Yes | Get the full configuration record for a specific subject only, without falling back to global config. Returns error i... |
+| 61 | `get_subject_metadata` | Yes | Get metadata for a subject. Without filters, returns the metadata from the latest schema version. With key/value filt... |
+| 62 | `get_subjects_for_schema` | Yes | Get all subjects that use a specific schema ID |
+| 63 | `get_user` | Yes | Get a user by ID. |
+| 64 | `get_user_by_username` | Yes | Get a user by username. |
+| 65 | `get_versions_for_schema` | Yes | Get all subject-version pairs that use a specific schema ID |
+| 66 | `health_check` | Yes | Check if the schema registry is healthy and responding |
+| 67 | `import_schemas` |  | Bulk import schemas with preserved IDs (for Confluent migration). Registry mode MUST be set to IMPORT first. |
+| 68 | `list_apikeys` | Yes | List all API keys, optionally filtered by user_id. |
+| 69 | `list_contexts` | Yes | List all tenant contexts in the schema registry. Each context is an isolated namespace for subjects and schemas. |
+| 70 | `list_dek_versions` | Yes | List all version numbers for a DEK subject under a given KEK. |
+| 71 | `list_deks` | Yes | List all subject names that have DEKs under a given KEK. |
+| 72 | `list_exporters` | Yes | List all exporter names. Exporters replicate schemas to a destination schema registry (Schema Linking). |
+| 73 | `list_keks` | Yes | List all Key Encryption Keys (KEKs). Use deleted=true to include soft-deleted KEKs. |
+| 74 | `list_metrics` | Yes | List all available Prometheus metric names grouped by category (request, schema, compatibility, storage, cache, auth,... |
+| 75 | `list_roles` | Yes | List all available RBAC roles with their permissions. |
+| 76 | `list_schemas` | Yes | List schemas with optional filtering by subject prefix, deleted status, and pagination |
+| 77 | `list_subjects` | Yes | List all registered subjects in the schema registry |
+| 78 | `list_users` | Yes | List all users in the schema registry. |
+| 79 | `list_versions` | Yes | List all version numbers registered for a subject |
+| 80 | `lookup_schema` | Yes | Check if a schema is already registered under a subject. Returns the existing schema record if found. |
+| 81 | `match_subjects` | Yes | Find subjects matching a pattern. Regex mode (regex=true) compiles as Go regex. Default mode uses case-sensitive subs... |
+| 82 | `normalize_schema` | Yes | Parse and normalize a schema, returning the canonical form and fingerprint for deduplication. |
+| 83 | `pause_exporter` |  | Pause a running exporter. The exporter retains its current offset and can be resumed later. |
+| 84 | `plan_migration_path` | Yes | Compute a multi-step migration plan from a source schema to a target schema, decomposed into individually compatible ... |
+| 85 | `query_metric` | Yes | Query a specific Prometheus metric by name. Returns the current value(s) including all label combinations. Supports p... |
+| 86 | `register_schema` |  | Register a new schema version for a subject. If the same schema already exists, returns the existing record. |
+| 87 | `reset_exporter` |  | Reset an exporter's offset back to zero, causing it to re-export all schemas. |
+| 88 | `resolve_alias` | Yes | Resolve a subject alias. If the subject has an alias configured, returns the alias target. Otherwise returns the orig... |
+| 89 | `resume_exporter` |  | Resume a paused exporter. The exporter continues from its last offset. |
+| 90 | `revoke_apikey` |  | Revoke (disable) an API key without deleting it. |
+| 91 | `rewrap_dek` |  | Re-encrypt a DEK's key material under the current KEK key version. Used after KEK rotation. |
+| 92 | `rotate_apikey` |  | Rotate an API key: creates a new key with the same settings and revokes the old one. Returns the new raw key (only sh... |
+| 93 | `score_schema_quality` | Yes | Score a schema's quality (0-100, grades A-F) across four categories: Naming (25 pts, checks snake_case convention), D... |
+| 94 | `search_schemas` | Yes | Search schema content across all subjects using a regex or substring pattern. |
+| 95 | `set_config` |  | Set the compatibility level for a subject or globally. Valid levels: NONE, BACKWARD, BACKWARD_TRANSITIVE, FORWARD, FO... |
+| 96 | `set_config_full` |  | Set the full configuration for a subject or globally, including compatibility level plus optional data contract field... |
+| 97 | `set_mode` |  | Set the registry mode for a subject or globally. Valid modes: READWRITE, READONLY, READONLY_OVERRIDE, IMPORT |
+| 98 | `suggest_compatible_change` | Yes | Get rule-based advice for compatible schema changes based on the subject's compatibility level. BACKWARD: add fields ... |
+| 99 | `suggest_schema_evolution` | Yes | Generate concrete schema code for a compatible evolution step (add field, deprecate field, add enum symbol). |
+| 100 | `test_kek` |  | Test a KEK's KMS connectivity by performing a round-trip encrypt/decrypt test. Requires a KMS provider to be configured. |
+| 101 | `undelete_dek` |  | Restore a soft-deleted Data Encryption Key (DEK). |
+| 102 | `undelete_kek` |  | Restore a soft-deleted Key Encryption Key (KEK). |
+| 103 | `update_apikey` |  | Update an API key's name, role, or enabled status. |
+| 104 | `update_exporter` |  | Update an existing exporter's settings (context type, subjects, rename format, config). |
+| 105 | `update_exporter_config` |  | Update the destination configuration of an exporter. |
+| 106 | `update_kek` |  | Update an existing Key Encryption Key (KEK). Only kms_props, doc, and shared can be changed. |
+| 107 | `update_user` |  | Update a user's email, password, role, or enabled status. |
+| 108 | `validate_schema` | Yes | Validate a schema without registering it. Returns whether the schema is valid, its fingerprint, and any parse errors. |
+| 109 | `validate_subject_name` | Yes | Validate a subject name against a naming strategy (topic_name, record_name, or topic_record_name). |
 
 ### Tool Details
 
@@ -668,6 +672,14 @@ Get the full configuration record for a subject or global default, including met
 
 ---
 
+#### `get_confluent_metrics`
+
+Get Confluent Schema Registry-compatible metrics (kafka_schema_registry_* prefix). These metrics match what the Confluent JMX exporter produces, enabling existing Grafana dashboards to work without changes.
+
+**Annotations:** read-only
+
+---
+
 #### `get_dek`
 
 Get a Data Encryption Key (DEK) by KEK name, subject, version, and algorithm.
@@ -800,6 +812,14 @@ Get the highest schema ID currently assigned in the registry
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `context` | string |  |  |
+
+---
+
+#### `get_metrics_summary`
+
+Get a high-level summary of key Prometheus metrics including request rates, schema counts, error rates, and Confluent-compatible counters. Returns structured data suitable for health dashboards.
+
+**Annotations:** read-only
 
 ---
 
@@ -1173,6 +1193,14 @@ List all Key Encryption Keys (KEKs). Use deleted=true to include soft-deleted KE
 
 ---
 
+#### `list_metrics`
+
+List all available Prometheus metric names grouped by category (request, schema, compatibility, storage, cache, auth, mcp, confluent, runtime).
+
+**Annotations:** read-only
+
+---
+
 #### `list_roles`
 
 List all available RBAC roles with their permissions.
@@ -1318,6 +1346,20 @@ Compute a multi-step migration plan from a source schema to a target schema, dec
 | `schema_type` | string |  |  |
 | `subject` | string | Yes |  |
 | `target_schema` | string | Yes |  |
+
+---
+
+#### `query_metric`
+
+Query a specific Prometheus metric by name. Returns the current value(s) including all label combinations. Supports partial name matching.
+
+**Annotations:** read-only
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `name` | string | Yes |  |
 
 ---
 
@@ -1715,6 +1757,7 @@ Validate a subject name against a naming strategy (topic_name, record_name, or t
 | `schema://glossary/mcp-configuration` | `glossary-mcp-configuration` | MCP server configuration: all config fields, env var overrides, read-only mode, tool policy, permission scopes, presets, two-phase confirmations, and origin validation |
 | `schema://glossary/migration` | `glossary-migration` | Confluent migration: step-by-step procedure, IMPORT mode, ID preservation, the import API, verification, and rollback |
 | `schema://glossary/normalization-and-fingerprinting` | `glossary-normalization-and-fingerprinting` | Schema identity: fingerprinting process, per-format canonicalization rules, normalize flag, metadata identity, and deduplication scenarios |
+| `schema://glossary/prometheus-metrics` | `glossary-prometheus-metrics` | Prometheus metrics reference: Confluent-compatible metrics (kafka_schema_registry_*), AxonOps-native metrics (schema_registry_*), metric types, labels, and cardinality |
 | `schema://glossary/schema-types` | `glossary-schema-types` | Deep reference for Avro (types, logical types, aliases, canonicalization), Protobuf (proto3, well-known types, wire types), and JSON Schema (drafts, keywords, combinators) |
 | `schema://glossary/storage-backends` | `glossary-storage-backends` | Storage backends: memory, PostgreSQL, MySQL, Cassandra characteristics, concurrency mechanisms, ID allocation, and choosing a backend |
 | `schema://glossary/tool-selection-guide` | `glossary-tool-selection-guide` | Decision tree for choosing the right MCP tool: indexed by task category with 2-4 tools per task |
@@ -1776,6 +1819,7 @@ Validate a subject name against a naming strategy (topic_name, record_name, or t
 | `glossary-lookup` | Look up a schema registry concept and get directed to the relevant glossary resource | `topic` (required) |
 | `governance-setup` | Guide for setting up schema governance: naming conventions, quality gates, data contracts, RBAC, and audit | — |
 | `import-from-confluent` | Step-by-step guide for migrating schemas from Confluent Schema Registry with ID preservation | — |
+| `metrics-health-check` | Analyze schema registry health using Prometheus metrics: check error rates, storage health, auth failures, and Confluent-compatible counters | — |
 | `migrate-schemas` | Guide for migrating schemas between formats (e.g. Avro to Protobuf) | `source_format` (required), `target_format` (required) |
 | `new-kafka-topic` | End-to-end workflow for setting up key and value schemas for a new Kafka topic | `topic_name` (required), `format` |
 | `plan-breaking-change` | Plan a safe breaking schema change with migration strategy | `subject` (required), `context` |
@@ -2993,6 +3037,33 @@ Change schema.registry.url in all Kafka serializer/deserializer configs. No code
 The migration is non-destructive. Point clients back to Confluent if issues arise.
 
 For domain knowledge, read: schema://glossary/migration
+
+
+</details>
+
+---
+
+#### `metrics-health-check`
+
+Analyze schema registry health using Prometheus metrics: check error rates, storage health, auth failures, and Confluent-compatible counters
+
+<details>
+<summary>Prompt content (click to expand)</summary>
+
+# Metrics Health Check
+
+Analyze the schema registry's health using Prometheus metrics. Follow these steps:
+
+1. Use `get_metrics_summary` to get an overview of all key metrics.
+2. Check the Confluent-compatible counters:
+   - `kafka_schema_registry_api_failure_count` vs `api_success_count` -- a high failure ratio indicates problems.
+   - `kafka_schema_registry_master_slave_role` should be 1 (leader). 0 means the node is not serving requests.
+3. Check AxonOps-native metrics:
+   - `schema_registry_requests_in_flight` -- sustained high values indicate backpressure.
+   - `schema_registry_storage_errors_total` -- any non-zero rate indicates storage backend issues.
+   - `schema_registry_auth_failures_total` -- high rates may indicate brute-force attempts.
+4. Use `query_metric` with name `error` to find all error-related metrics at once.
+5. Summarize findings as: healthy, degraded, or unhealthy with specific reasons.
 
 
 </details>
