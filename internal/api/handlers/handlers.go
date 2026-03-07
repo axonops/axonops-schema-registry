@@ -655,7 +655,7 @@ func (h *Handler) RegisterSchema(w http.ResponseWriter, r *http.Request) {
 		h.metrics.RecordSchemaRegistration(string(schema.SchemaType), true)
 		h.metrics.SchemaVersions.WithLabelValues(subject).Set(float64(schema.Version))
 	}
-	go h.updateSchemaGauges(registryCtx)
+	go h.updateSchemaGauges(registryCtx) // #nosec G118 -- intentionally uses context.Background; goroutine outlives the HTTP request
 
 	writeJSON(w, http.StatusOK, types.RegisterSchemaResponse{
 		ID: schema.ID,
@@ -772,7 +772,7 @@ func (h *Handler) DeleteSubject(w http.ResponseWriter, r *http.Request) {
 			h.metrics.RecordSchemaDeletion("")
 		}
 	}
-	go h.updateSchemaGauges(registryCtx)
+	go h.updateSchemaGauges(registryCtx) // #nosec G118 -- intentionally uses context.Background; goroutine outlives the HTTP request
 
 	writeJSON(w, http.StatusOK, versions)
 }
@@ -830,7 +830,7 @@ func (h *Handler) DeleteVersion(w http.ResponseWriter, r *http.Request) {
 	if h.metrics != nil {
 		h.metrics.RecordSchemaDeletion("")
 	}
-	go h.updateSchemaGauges(registryCtx)
+	go h.updateSchemaGauges(registryCtx) // #nosec G118 -- intentionally uses context.Background; goroutine outlives the HTTP request
 
 	writeJSON(w, http.StatusOK, deletedVersion)
 }
@@ -1522,7 +1522,7 @@ func (h *Handler) ImportSchemas(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	go h.updateSchemaGauges(registryCtx)
+	go h.updateSchemaGauges(registryCtx) // #nosec G118 -- intentionally uses context.Background; goroutine outlives the HTTP request
 
 	writeJSON(w, http.StatusOK, resp)
 }
