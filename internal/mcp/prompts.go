@@ -262,7 +262,7 @@ func (s *Server) registerPrompts() {
 
 	s.mcpServer.AddPrompt(&gomcp.Prompt{
 		Name:        "metrics-health-check",
-		Description: "Analyze schema registry health using Prometheus metrics: check error rates, storage health, auth failures, and Confluent-compatible counters",
+		Description: "Analyze schema registry health using metrics: check error rates, storage health, auth failures, cache performance, compatibility checks, and wire-compatible counters",
 	}, s.handleMetricsHealthCheckPrompt)
 }
 
@@ -889,5 +889,5 @@ func (s *Server) handleSchemaReviewChecklistPrompt(ctx context.Context, req *gom
 }
 
 func (s *Server) handleMetricsHealthCheckPrompt(_ context.Context, _ *gomcp.GetPromptRequest) (*gomcp.GetPromptResult, error) {
-	return promptFromFS(content.PromptsFS, "prompts/metrics-health-check.md", "Analyze schema registry health using Prometheus metrics")
+	return promptFromFS(content.PromptsFS, "prompts/metrics-health-check.md", "Analyze schema registry health using metrics")
 }

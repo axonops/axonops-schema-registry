@@ -9,6 +9,100 @@ AxonOps Schema Registry is a Go-based, API-compatible drop-in replacement for Co
 - **Language:** Go 1.26+
 - **Go Module:** `github.com/axonops/axonops-schema-registry`
 
+## Documentation standards
+
+## Writing Style Guidelines
+
+### RFC 2119 Compliance
+
+All documentation **MUST** adhere to RFC 2119 for requirement level terminology.
+
+The key words **"MUST"**, **"MUST NOT"**, **"REQUIRED"**, **"SHALL"**, **"SHALL NOT"**, **"SHOULD"**, **"SHOULD NOT"**, **"RECOMMENDED"**, **"MAY"**, and **"OPTIONAL"** in this documentation **ARE TO BE INTERPRETED AS DESCRIBED IN RFC 2119**.
+
+Use these terms precisely:
+
+- **MUST / REQUIRED / SHALL**: Absolute requirements for safety or correctness.
+- **MUST NOT / SHALL NOT**: Absolute prohibitions that prevent harm or corruption.
+- **SHOULD / RECOMMENDED**: Strong recommendations; exceptions MAY exist but the implications MUST be understood and carefully weighed.
+- **SHOULD NOT / NOT RECOMMENDED**: Discouraged practices; MAY be acceptable in rare, well-understood cases.
+- **MAY / OPTIONAL**: Truly optional choices that do not break interoperability or correctness when omitted.
+
+When documenting procedures with safety, data integrity, or availability implications, you **MUST** use RFC 2119 terms to indicate requirement levels clearly.
+
+### Technical Content Standards
+
+- Use clear, concise language suitable for DevOps engineers and database administrators.
+- Include specific error messages, stack traces, and log excerpts when relevant.
+- Provide context about versions and configurations affected.
+- Structure content with clear headings (H2, H3, H4) for scannability.
+- Use code blocks for configuration examples, commands, and log output.
+
+### Formatting Requirements
+
+- **Commands**: Use `backticks` for inline commands and triple backticks for code blocks.
+- **File paths & config options**: Use `backticks` for file paths and configuration parameters.
+- **Error messages**: Use blockquotes (`>`) for error messages and critical warnings.
+- **Version numbers**: Always specify exact versions (for example, `Cassandra 5.0.5`).
+- **RFC 2119 terms**: Capitalize RFC 2119 keywords exactly as specified (MUST, SHOULD, MAY, etc.).
+
+### SDRR Framework
+
+When creating troubleshooting playbooks, follow the SDRR framework:
+
+- **Symptoms**: Observable behaviors and error messages.
+- **Diagnostics**: Steps to identify root cause.
+- **Resolution**: Specific actions to fix the issue.
+- **Root Cause Analysis**: Explanation of why the issue occurred and how to prevent recurrence.
+
+## Adding New Content
+
+### Creating Troubleshooting Playbooks
+
+1. Create new markdown files in `docs/troubleshooting/`.
+2. Name files descriptively, for example: `paxos-repair-bootstrap-failure.md`.
+3. Add frontmatter with title and description.
+4. Include metadata about affected versions and configurations.
+5. Cross-reference related documentation (architecture, operations, performance, etc.).
+
+### Updating Existing Pages
+
+- Check for existing content that SHOULD be updated or expanded instead of duplicating.
+- Maintain consistency with established patterns and terminology.
+- Update navigation in `mkdocs.yml` if adding new sections or pages.
+
+### Code Examples and Commands
+
+- Commands and configuration snippets **SHOULD** be tested whenever feasible.
+- Provide both JMX and `cassandra.yaml` configuration examples when applicable.
+- Include warnings about potential risks or side effects using RFC 2119 language.
+- Specify where commands MUST be run (for example, "on the joining node", "on all nodes in the DC", "on all nodes in the cluster").
+
+## Common Patterns
+
+### Configuration Options
+
+When documenting configuration parameters, you SHOULD:
+
+- Show YAML syntax with proper indentation.
+- Explain defaults and when they SHOULD or MUST be changed.
+- Document risks and trade-offs using RFC 2119 terminology.
+- Provide examples for different scenarios (for example, LWT vs non-LWT keyspaces).
+
+### Command Sequences
+
+For multi-step procedures:
+
+1. Use numbered lists for sequential steps.
+2. Include expected output or verification steps where useful.
+3. Add troubleshooting notes for common failures at each step.
+4. Specify rollback procedures when applicable.
+
+### Version-Specific Notes
+
+- Clearly mark content that applies to specific versions only.
+- Use callouts for version-specific warnings (for example, "Cassandra 5.0.5+ only").
+- Document behavioral changes across versions when they affect operational procedures.
+
 ## Architecture
 
 ```

@@ -4,6 +4,7 @@ package steps
 
 import (
 	"fmt"
+	"io"
 	"regexp"
 	"strconv"
 	"strings"
@@ -11,39 +12,46 @@ import (
 	"github.com/cucumber/godog"
 )
 
-// RegisterMetricsSteps registers step definitions for Prometheus metric assertions.
+// RegisterMetricsSteps registers step definitions for metric assertions.
 func RegisterMetricsSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 	ctx.Step(`^the metric "([^"]*)" should exist$`, func(metricName string) error {
-		return tc.GET("/metrics")
+		body, err := tc.scrapeMetrics()
+		if err != nil {
+			return err
+		}
+		if !hasMetric(body, metricName) {
+			return fmt.Errorf("metric %q not found in metrics output", metricName)
+		}
+		return nil
 	})
 
 	ctx.Step(`^the Prometheus metric "([^"]*)" should exist$`, func(metricName string) error {
-		if err := tc.GET("/metrics"); err != nil {
+		body, err := tc.scrapeMetrics()
+		if err != nil {
 			return err
 		}
-		body := string(tc.LastBody)
 		if !hasMetric(body, metricName) {
-			return fmt.Errorf("metric %q not found in /metrics output (first 1000 chars: %s)", metricName, truncateStr(body, 1000))
+			return fmt.Errorf("metric %q not found in metrics output (first 1000 chars: %s)", metricName, truncateStr(body, 1000))
 		}
 		return nil
 	})
 
 	ctx.Step(`^the Prometheus metric "([^"]*)" should not exist$`, func(metricName string) error {
-		if err := tc.GET("/metrics"); err != nil {
+		body, err := tc.scrapeMetrics()
+		if err != nil {
 			return err
 		}
-		body := string(tc.LastBody)
 		if hasMetric(body, metricName) {
-			return fmt.Errorf("metric %q unexpectedly found in /metrics output", metricName)
+			return fmt.Errorf("metric %q unexpectedly found in metrics output", metricName)
 		}
 		return nil
 	})
 
 	ctx.Step(`^the Prometheus metric "([^"]*)" should have value >= (\d+)$`, func(metricName string, minVal int) error {
-		if err := tc.GET("/metrics"); err != nil {
+		body, err := tc.scrapeMetrics()
+		if err != nil {
 			return err
 		}
-		body := string(tc.LastBody)
 		val, err := getMetricValue(body, metricName)
 		if err != nil {
 			return err
@@ -55,10 +63,10 @@ func RegisterMetricsSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 	})
 
 	ctx.Step(`^the Prometheus metric "([^"]*)" should have value (\d+)$`, func(metricName string, expected int) error {
-		if err := tc.GET("/metrics"); err != nil {
+		body, err := tc.scrapeMetrics()
+		if err != nil {
 			return err
 		}
-		body := string(tc.LastBody)
 		val, err := getMetricValue(body, metricName)
 		if err != nil {
 			return err
@@ -69,23 +77,34 @@ func RegisterMetricsSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 		return nil
 	})
 
-	ctx.Step(`^the Prometheus metric "([^"]*)" with labels "([^"]*)" should exist$`, func(metricName, labels string) error {
-		if err := tc.GET("/metrics"); err != nil {
+	ctx.Step(`^the Prometheus metric "([^"]*)" with labels "((?:[^"\\]|\\.)*)" should exist$`, func(metricName, labels string) error {
+		body, err := tc.scrapeMetrics()
+		if err != nil {
 			return err
 		}
-		body := string(tc.LastBody)
-		search := metricName + "{" + labels
-		if !strings.Contains(body, search) {
-			return fmt.Errorf("metric %s{%s...} not found in /metrics output", metricName, labels)
+		// Unescape backslash-escaped quotes from Gherkin: \" → "
+		labels = strings.ReplaceAll(labels, `\"`, `"`)
+		// Search for a line that starts with the metric name and contains the label substring.
+		// Labels can appear in any order in Prometheus output, so we check each
+		// label pair individually rather than assuming position after '{'.
+		found := false
+		for _, line := range strings.Split(body, "\n") {
+			if strings.HasPrefix(line, metricName+"{") && strings.Contains(line, labels) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return fmt.Errorf("metric %s with labels %s not found in metrics output", metricName, labels)
 		}
 		return nil
 	})
 
 	ctx.Step(`^I store the current value of metric "([^"]*)" as "([^"]*)"$`, func(metricName, storageKey string) error {
-		if err := tc.GET("/metrics"); err != nil {
+		body, err := tc.scrapeMetrics()
+		if err != nil {
 			return err
 		}
-		body := string(tc.LastBody)
 		val, err := getMetricValue(body, metricName)
 		if err != nil {
 			// Metric might not exist yet — default to 0
@@ -97,10 +116,10 @@ func RegisterMetricsSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 	})
 
 	ctx.Step(`^the Prometheus metric "([^"]*)" should have increased from "([^"]*)"$`, func(metricName, storageKey string) error {
-		if err := tc.GET("/metrics"); err != nil {
+		body, err := tc.scrapeMetrics()
+		if err != nil {
 			return err
 		}
-		body := string(tc.LastBody)
 		val, err := getMetricValue(body, metricName)
 		if err != nil {
 			return fmt.Errorf("metric %q not found after operation: %w", metricName, err)
@@ -114,6 +133,26 @@ func RegisterMetricsSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 		}
 		return nil
 	})
+}
+
+// scrapeMetrics fetches metrics from the appropriate endpoint.
+// When MetricsURL is set (e.g. JMX exporter sidecar for Confluent), it scrapes
+// that URL directly. Otherwise it falls back to BaseURL + "/metrics".
+func (tc *TestContext) scrapeMetrics() (string, error) {
+	url := tc.BaseURL + "/metrics"
+	if tc.MetricsURL != "" {
+		url = tc.MetricsURL
+	}
+	resp, err := tc.client.Get(url)
+	if err != nil {
+		return "", fmt.Errorf("scrape metrics at %s: %w", url, err)
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("read metrics response: %w", err)
+	}
+	return string(body), nil
 }
 
 // hasMetric checks if a metric name appears in Prometheus text format output.

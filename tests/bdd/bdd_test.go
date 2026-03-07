@@ -48,6 +48,7 @@ import (
 	"github.com/axonops/axonops-schema-registry/internal/kms"
 	openbaokms "github.com/axonops/axonops-schema-registry/internal/kms/openbao"
 	vaultkms "github.com/axonops/axonops-schema-registry/internal/kms/vault"
+	"github.com/axonops/axonops-schema-registry/internal/metrics"
 	"github.com/axonops/axonops-schema-registry/internal/registry"
 	"github.com/axonops/axonops-schema-registry/internal/schema"
 	"github.com/axonops/axonops-schema-registry/internal/schema/avro"
@@ -64,6 +65,7 @@ import (
 var (
 	dockerMode   bool
 	registryURL  string
+	metricsURL   string // separate metrics endpoint (e.g. JMX exporter sidecar for Confluent)
 	webhookURL   string
 	backend      string
 	bddStorage   string // BDD_STORAGE: "postgres", "mysql", "cassandra" for in-process DB tests
@@ -100,6 +102,11 @@ func TestMain(m *testing.M) {
 
 		registryURL = fmt.Sprintf("http://localhost:%s", envOrDefault("REGISTRY_PORT", "18081"))
 		webhookURL = fmt.Sprintf("http://localhost:%s", envOrDefault("WEBHOOK_PORT", "19000"))
+
+		// Confluent: JMX exporter sidecar exposes metrics on a separate port.
+		if backend == "confluent" {
+			metricsURL = fmt.Sprintf("http://localhost:%s/metrics", envOrDefault("JMX_METRICS_PORT", "19090"))
+		}
 
 		waitTimeout := 120 * time.Second
 		if backend == "confluent" {
@@ -168,6 +175,11 @@ func newTestServerWithStore(store storage.Storage) (*httptest.Server, storage.St
 // newTestServerWithStoreAndAudit creates an in-process schema registry with the provided storage
 // and optional audit logging. This is the core factory used by all non-auth test server constructors.
 func newTestServerWithStoreAndAudit(store storage.Storage, al *auth.AuditLogger) (*httptest.Server, storage.Storage, *registry.Registry) {
+	m := metrics.New()
+
+	// Wrap storage with instrumentation for storage metrics
+	instrumentedStore := storage.NewInstrumentedStorage(store, "memory", m)
+
 	schemaRegistry := schema.NewRegistry()
 	schemaRegistry.Register(avro.NewParser())
 	schemaRegistry.Register(protobuf.NewParser())
@@ -178,13 +190,14 @@ func newTestServerWithStoreAndAudit(store storage.Storage, al *auth.AuditLogger)
 	compatChecker.Register(storage.SchemaTypeProtobuf, protocompat.NewChecker())
 	compatChecker.Register(storage.SchemaTypeJSON, jsoncompat.NewChecker())
 
-	reg := registry.New(store, schemaRegistry, compatChecker, "BACKWARD")
+	reg := registry.New(instrumentedStore, schemaRegistry, compatChecker, "BACKWARD")
 
 	cfg := &config.Config{
 		Server: config.ServerConfig{Host: "localhost", Port: 0, DocsEnabled: true},
 	}
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 	var opts []api.ServerOption
+	opts = append(opts, api.WithMetrics(m))
 	if al != nil {
 		opts = append(opts, api.WithAuditLogger(al))
 	}
@@ -445,6 +458,7 @@ func TestFeatures(t *testing.T) {
 		Output:   colors.Colored(os.Stdout),
 		Paths:    []string{"features"},
 		Tags:     tags,
+		Strict:   true,
 		TestingT: t,
 	}
 
@@ -455,6 +469,7 @@ func TestFeatures(t *testing.T) {
 			if registryURL != "" {
 				// Docker-based: use external registry, clean state before each scenario
 				tc = steps.NewTestContext(registryURL)
+				tc.MetricsURL = metricsURL
 				tc.WebhookURL = webhookURL
 
 				// Clean state before each scenario.
@@ -570,6 +585,7 @@ func TestAuthFeatures(t *testing.T) {
 		Output:   colors.Colored(os.Stdout),
 		Paths:    []string{"features"},
 		Tags:     "@auth && ~@pending-impl",
+		Strict:   true,
 		TestingT: t,
 	}
 

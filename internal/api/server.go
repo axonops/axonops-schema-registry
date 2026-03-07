@@ -73,18 +73,30 @@ func WithAuditLogger(al *auth.AuditLogger) ServerOption {
 	}
 }
 
+// WithMetrics provides a pre-created metrics instance.
+// When set, NewServer uses this instead of creating a new one.
+func WithMetrics(m *metrics.Metrics) ServerOption {
+	return func(s *Server) {
+		s.metrics = m
+	}
+}
+
 // NewServer creates a new HTTP server.
 func NewServer(cfg *config.Config, reg *registry.Registry, logger *slog.Logger, opts ...ServerOption) *Server {
 	s := &Server{
 		config:   cfg,
 		registry: reg,
 		logger:   logger,
-		metrics:  metrics.New(),
 	}
 
-	// Apply options
+	// Apply options (may set metrics via WithMetrics)
 	for _, opt := range opts {
 		opt(s)
+	}
+
+	// Create metrics if not provided via WithMetrics
+	if s.metrics == nil {
+		s.metrics = metrics.New()
 	}
 
 	// Wire metrics to auth components so they can record Prometheus metrics.

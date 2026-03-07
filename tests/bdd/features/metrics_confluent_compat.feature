@@ -1,35 +1,55 @@
 @functional @metrics
-Feature: Confluent-Compatible Prometheus Metrics
-  As a schema registry operator migrating from Confluent
-  I want AxonOps Schema Registry to expose Confluent-compatible Prometheus metrics
-  So that existing Grafana dashboards and Prometheus alerts continue to work
+Feature: Wire-Compatible Metrics
+  As a schema registry operator migrating from an existing deployment
+  I want AxonOps Schema Registry to expose wire-compatible metrics
+  So that existing Grafana dashboards and alerting rules continue to work
 
   Background:
     Given the schema registry is running
     And the global compatibility level is "NONE"
 
   # ---------------------------------------------------------------------------
-  # Static gauges: master-slave role and node count
+  # Static gauges
   # ---------------------------------------------------------------------------
 
-  Scenario: master_slave_role gauge is always 1 (standalone leader)
+  Scenario: master_slave_role gauge reports leader status
     Then the Prometheus metric "kafka_schema_registry_master_slave_role" should exist
     And the Prometheus metric "kafka_schema_registry_master_slave_role" should have value 1
 
-  Scenario: node_count gauge is always 1 (standalone)
+  Scenario: node_count gauge reports cluster size
     Then the Prometheus metric "kafka_schema_registry_node_count" should exist
     And the Prometheus metric "kafka_schema_registry_node_count" should have value 1
 
   # ---------------------------------------------------------------------------
-  # API call counters
+  # Wire-compatible metric existence (after triggering at least one operation)
   # ---------------------------------------------------------------------------
 
+  Scenario: All wire-compatible metrics appear in metrics output
+    # Trigger at least one registration so counters are initialized
+    When I register a schema under subject "metrics-existence-test":
+      """
+      {"type":"record","name":"MetricsExist","fields":[{"name":"id","type":"int"}]}
+      """
+    Then the response status should be 200
+    And the Prometheus metric "kafka_schema_registry_registered_count" should exist
+    And the Prometheus metric "kafka_schema_registry_api_success_count" should exist
+    And the Prometheus metric "kafka_schema_registry_api_failure_count" should exist
+    And the Prometheus metric "kafka_schema_registry_schemas_created" should exist
+    And the Prometheus metric "kafka_schema_registry_master_slave_role" should exist
+    And the Prometheus metric "kafka_schema_registry_node_count" should exist
+
+  # ---------------------------------------------------------------------------
+  # API call counters (AxonOps-only — counter semantics differ across JMX bridge)
+  # ---------------------------------------------------------------------------
+
+  @axonops-only
   Scenario: api_success_count increments on successful requests
     Given I store the current value of metric "kafka_schema_registry_api_success_count" as "before"
     When I GET "/"
     Then the response status should be 200
     And the Prometheus metric "kafka_schema_registry_api_success_count" should have increased from "before"
 
+  @axonops-only
   Scenario: api_failure_count increments on failed requests
     Given I store the current value of metric "kafka_schema_registry_api_failure_count" as "before"
     When I GET "/subjects/nonexistent-subject-xxxxx/versions/999"
@@ -37,9 +57,10 @@ Feature: Confluent-Compatible Prometheus Metrics
     And the Prometheus metric "kafka_schema_registry_api_failure_count" should have increased from "before"
 
   # ---------------------------------------------------------------------------
-  # Schema registration counters
+  # Schema registration counters (AxonOps-only — increment verification)
   # ---------------------------------------------------------------------------
 
+  @axonops-only
   Scenario: registered_count increments when a schema is registered
     Given I store the current value of metric "kafka_schema_registry_registered_count" as "before"
     When I register a schema under subject "metrics-reg-test":
@@ -49,6 +70,7 @@ Feature: Confluent-Compatible Prometheus Metrics
     Then the response status should be 200
     And the Prometheus metric "kafka_schema_registry_registered_count" should have increased from "before"
 
+  @axonops-only
   Scenario: schemas_created counter tracks Avro registrations
     Given I store the current value of metric "kafka_schema_registry_registered_count" as "before_total"
     When I register a schema under subject "metrics-avro-test":
@@ -59,6 +81,7 @@ Feature: Confluent-Compatible Prometheus Metrics
     And the Prometheus metric "kafka_schema_registry_schemas_created" with labels "schema_type=\"avro\"" should exist
     And the Prometheus metric "kafka_schema_registry_registered_count" should have increased from "before_total"
 
+  @axonops-only
   Scenario: schemas_created counter tracks JSON Schema registrations
     When I register a "JSON" schema under subject "metrics-json-test":
       """
@@ -68,9 +91,10 @@ Feature: Confluent-Compatible Prometheus Metrics
     And the Prometheus metric "kafka_schema_registry_schemas_created" with labels "schema_type=\"json\"" should exist
 
   # ---------------------------------------------------------------------------
-  # Schema deletion counters
+  # Schema deletion counters (AxonOps-only — increment verification)
   # ---------------------------------------------------------------------------
 
+  @axonops-only
   Scenario: deleted_count increments when a subject is deleted
     Given subject "metrics-del-test" has schema:
       """
@@ -81,6 +105,7 @@ Feature: Confluent-Compatible Prometheus Metrics
     Then the response status should be 200
     And the Prometheus metric "kafka_schema_registry_deleted_count" should have increased from "before"
 
+  @axonops-only
   Scenario: deleted_count increments when a version is deleted
     Given subject "metrics-ver-del" has schema:
       """
@@ -96,32 +121,13 @@ Feature: Confluent-Compatible Prometheus Metrics
     And the Prometheus metric "kafka_schema_registry_deleted_count" should have increased from "before"
 
   # ---------------------------------------------------------------------------
-  # All Confluent-compatible metrics exist in /metrics output
+  # AxonOps-native metrics coexist with wire-compatible metrics
   # ---------------------------------------------------------------------------
 
-  Scenario: All Confluent-compatible metrics appear in Prometheus output
-    # Trigger at least one registration so counters are initialized
-    When I register a schema under subject "metrics-existence-test":
-      """
-      {"type":"record","name":"MetricsExist","fields":[{"name":"id","type":"int"}]}
-      """
-    Then the response status should be 200
-    And the Prometheus metric "kafka_schema_registry_registered_count" should exist
-    And the Prometheus metric "kafka_schema_registry_deleted_count" should exist
-    And the Prometheus metric "kafka_schema_registry_api_success_count" should exist
-    And the Prometheus metric "kafka_schema_registry_api_failure_count" should exist
-    And the Prometheus metric "kafka_schema_registry_schemas_created" should exist
-    And the Prometheus metric "kafka_schema_registry_master_slave_role" should exist
-    And the Prometheus metric "kafka_schema_registry_node_count" should exist
-
-  # ---------------------------------------------------------------------------
-  # AxonOps-native metrics still work
-  # ---------------------------------------------------------------------------
-
-  Scenario: AxonOps-native metrics coexist with Confluent metrics
+  @axonops-only
+  Scenario: AxonOps-native request metrics are present
     When I GET "/"
     Then the response status should be 200
     And the Prometheus metric "schema_registry_requests_total" should exist
     And the Prometheus metric "schema_registry_request_duration_seconds" should exist
     And the Prometheus metric "schema_registry_requests_in_flight" should exist
-    And the Prometheus metric "kafka_schema_registry_api_success_count" should exist

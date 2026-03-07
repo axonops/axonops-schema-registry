@@ -563,6 +563,12 @@ func (m *Metrics) RecordCompatibilityCheck(schemaType, level string, compatible 
 	m.CompatibilityChecks.WithLabelValues(schemaType, level, result).Inc()
 }
 
+// RecordCompatibilityError records an internal error during a compatibility check.
+// This is distinct from an "incompatible" result — it means the check itself failed.
+func (m *Metrics) RecordCompatibilityError(schemaType, level string) {
+	m.CompatibilityErrors.WithLabelValues(schemaType, level).Inc()
+}
+
 // RecordStorageOperation records a storage operation.
 func (m *Metrics) RecordStorageOperation(backend, operation string, duration time.Duration, err error) {
 	m.StorageOperations.WithLabelValues(backend, operation).Inc()

@@ -71,7 +71,7 @@ var toolPermissionScope = map[string]string{
 	"count_subjects":          "",
 	"get_registry_statistics": "",
 	"get_metrics_summary":     "",
-	"get_confluent_metrics":   "",
+	"get_metrics_by_category": "",
 	"query_metric":            "",
 	"list_metrics":            "",
 

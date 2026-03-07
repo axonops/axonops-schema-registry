@@ -122,11 +122,11 @@ func (s *Server) registerGlossaryResources() {
 	}, s.handleGlossaryToolSelectionGuideResource)
 
 	s.mcpServer.AddResource(&gomcp.Resource{
-		URI:         "schema://glossary/prometheus-metrics",
-		Name:        "glossary-prometheus-metrics",
-		Description: "Prometheus metrics reference: Confluent-compatible metrics (kafka_schema_registry_*), AxonOps-native metrics (schema_registry_*), metric types, labels, and cardinality",
+		URI:         "schema://glossary/metrics-reference",
+		Name:        "glossary-metrics-reference",
+		Description: "Complete metrics reference: all 36 application metrics with names, types, labels, descriptions, and usage guidance across 10 categories (request, schema, compatibility, storage, cache, auth, rate limit, MCP, principal, wire-compatible)",
 		MIMEType:    "text/markdown",
-	}, s.handleGlossaryPrometheusMetricsResource)
+	}, s.handleGlossaryMetricsReferenceResource)
 }
 
 // --- Glossary resource handlers ---
@@ -196,6 +196,6 @@ func (s *Server) handleGlossaryToolSelectionGuideResource(_ context.Context, req
 	return resourceMarkdownFromFS(content.GlossaryFS, "glossary/tool-selection-guide.md", req.Params.URI)
 }
 
-func (s *Server) handleGlossaryPrometheusMetricsResource(_ context.Context, req *gomcp.ReadResourceRequest) (*gomcp.ReadResourceResult, error) {
-	return resourceMarkdownFromFS(content.GlossaryFS, "glossary/prometheus-metrics.md", req.Params.URI)
+func (s *Server) handleGlossaryMetricsReferenceResource(_ context.Context, req *gomcp.ReadResourceRequest) (*gomcp.ReadResourceResult, error) {
+	return resourceMarkdownFromFS(content.GlossaryFS, "glossary/metrics-reference.md", req.Params.URI)
 }

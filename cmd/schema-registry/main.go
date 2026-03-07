@@ -24,6 +24,7 @@ import (
 	openbaokms "github.com/axonops/axonops-schema-registry/internal/kms/openbao"
 	vaultkms "github.com/axonops/axonops-schema-registry/internal/kms/vault"
 	mcpkg "github.com/axonops/axonops-schema-registry/internal/mcp"
+	"github.com/axonops/axonops-schema-registry/internal/metrics"
 	"github.com/axonops/axonops-schema-registry/internal/registry"
 	"github.com/axonops/axonops-schema-registry/internal/schema"
 	"github.com/axonops/axonops-schema-registry/internal/schema/avro"
@@ -97,12 +98,18 @@ func main() {
 		slog.String("address", cfg.Address()),
 	)
 
+	// Create metrics early so we can wrap storage with instrumentation
+	m := metrics.New()
+
 	// Create storage backend
 	store, err := createStorage(cfg, logger)
 	if err != nil {
 		logger.Error("failed to create storage backend", slog.String("error", err.Error()))
 		os.Exit(1)
 	}
+
+	// Wrap storage with instrumentation to record operation metrics
+	instrumentedStore := storage.NewInstrumentedStorage(store, cfg.Storage.Type, m)
 
 	// Create schema parser registry
 	schemaRegistry := schema.NewRegistry()
@@ -116,8 +123,8 @@ func main() {
 	compatChecker.Register(storage.SchemaTypeProtobuf, protocompat.NewChecker())
 	compatChecker.Register(storage.SchemaTypeJSON, jsoncompat.NewChecker())
 
-	// Create the registry service
-	reg := registry.New(store, schemaRegistry, compatChecker, cfg.Compatibility.DefaultLevel)
+	// Create the registry service (uses instrumented storage for metrics)
+	reg := registry.New(instrumentedStore, schemaRegistry, compatChecker, cfg.Compatibility.DefaultLevel)
 
 	// Wire KMS provider registry for server-side DEK encryption.
 	// Providers are only registered when their connection env vars are present.
@@ -129,6 +136,7 @@ func main() {
 	// Create server options
 	var serverOpts []api.ServerOption
 	serverOpts = append(serverOpts, api.WithBuildInfo(version, commit))
+	serverOpts = append(serverOpts, api.WithMetrics(m))
 
 	// Create audit logger if enabled
 	var auditLogger *auth.AuditLogger
@@ -201,6 +209,9 @@ func main() {
 			APIKeyPrefix:         cfg.Security.Auth.APIKey.KeyPrefix,
 			CacheRefreshInterval: time.Duration(cfg.Security.Auth.APIKey.CacheRefreshSeconds) * time.Second,
 		})
+
+		// Wire metrics to auth service for cache metrics
+		authService.SetMetrics(m)
 
 		// Wire the service to the authenticator for database-backed auth
 		authenticator.SetService(authService)

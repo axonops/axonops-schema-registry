@@ -71,6 +71,38 @@ func (h *Handler) SetMetrics(m *metrics.Metrics) {
 	h.metrics = m
 }
 
+// updateSchemaGauges refreshes the schema and subject count gauges.
+// Called asynchronously after mutations to avoid blocking responses.
+func (h *Handler) updateSchemaGauges(registryCtx string) {
+	if h.metrics == nil {
+		return
+	}
+	// Use a background context since the HTTP request may have completed.
+	ctx := context.Background()
+
+	// Update subject count
+	subjects, err := h.registry.ListSubjects(ctx, registryCtx, false)
+	if err == nil {
+		h.metrics.UpdateSubjectCount(float64(len(subjects)))
+	}
+
+	// Update schema counts by type — list all schemas and count by type
+	schemas, err := h.registry.ListSchemas(ctx, registryCtx, &storage.ListSchemasParams{})
+	if err == nil {
+		typeCounts := map[string]int{}
+		for _, s := range schemas {
+			st := string(s.SchemaType)
+			if st == "" {
+				st = "AVRO"
+			}
+			typeCounts[st]++
+		}
+		for _, st := range []string{"AVRO", "PROTOBUF", "JSON"} {
+			h.metrics.UpdateSchemaCount(st, float64(typeCounts[st]))
+		}
+	}
+}
+
 // HealthCheck handles GET /
 func (h *Handler) HealthCheck(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
@@ -621,7 +653,9 @@ func (h *Handler) RegisterSchema(w http.ResponseWriter, r *http.Request) {
 
 	if h.metrics != nil {
 		h.metrics.RecordSchemaRegistration(string(schema.SchemaType), true)
+		h.metrics.SchemaVersions.WithLabelValues(subject).Set(float64(schema.Version))
 	}
+	go h.updateSchemaGauges(registryCtx)
 
 	writeJSON(w, http.StatusOK, types.RegisterSchemaResponse{
 		ID: schema.ID,
@@ -738,6 +772,7 @@ func (h *Handler) DeleteSubject(w http.ResponseWriter, r *http.Request) {
 			h.metrics.RecordSchemaDeletion("")
 		}
 	}
+	go h.updateSchemaGauges(registryCtx)
 
 	writeJSON(w, http.StatusOK, versions)
 }
@@ -795,6 +830,7 @@ func (h *Handler) DeleteVersion(w http.ResponseWriter, r *http.Request) {
 	if h.metrics != nil {
 		h.metrics.RecordSchemaDeletion("")
 	}
+	go h.updateSchemaGauges(registryCtx)
 
 	writeJSON(w, http.StatusOK, deletedVersion)
 }
@@ -969,6 +1005,9 @@ func (h *Handler) CheckCompatibility(w http.ResponseWriter, r *http.Request) {
 	result, err := h.registry.CheckCompatibility(r.Context(), registryCtx, subject, req.Schema, schemaType, req.References, versionStr, normalizeSchema)
 	if err != nil {
 		if errors.Is(err, registry.ErrInvalidSchema) {
+			if h.metrics != nil {
+				h.metrics.RecordCompatibilityError(string(schemaType), "")
+			}
 			writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidSchema, err.Error())
 			return
 		}
@@ -991,8 +1030,15 @@ func (h *Handler) CheckCompatibility(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidVersion, err.Error())
 			return
 		}
+		if h.metrics != nil {
+			h.metrics.RecordCompatibilityError(string(schemaType), "")
+		}
 		writeInternalError(w, err)
 		return
+	}
+
+	if h.metrics != nil {
+		h.metrics.RecordCompatibilityCheck(string(schemaType), "", result.IsCompatible)
 	}
 
 	verbose := r.URL.Query().Get("verbose") == "true"
@@ -1475,6 +1521,8 @@ func (h *Handler) ImportSchemas(w http.ResponseWriter, r *http.Request) {
 			Error:   r.Error,
 		}
 	}
+
+	go h.updateSchemaGauges(registryCtx)
 
 	writeJSON(w, http.StatusOK, resp)
 }

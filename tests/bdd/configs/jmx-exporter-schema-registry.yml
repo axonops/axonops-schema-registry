@@ -1,0 +1,68 @@
+# JMX Exporter config for Confluent Schema Registry.
+# Used in BDD conformance tests to verify AxonOps metrics match
+# what the Confluent JMX exporter produces.
+#
+# Based on: https://github.com/confluentinc/jmx-monitoring-stacks
+#           shared-assets/jmx-exporter/confluent_schemaregistry.yml
+
+lowercaseOutputName: true
+lowercaseOutputLabelNames: true
+
+whitelistObjectNames:
+  - kafka.schema.registry:type=jetty-metrics
+  - kafka.schema.registry:type=jersey-metrics
+  - kafka.schema.registry:type=app-info,id=*
+  - kafka.schema.registry:type=registered-count
+  - kafka.schema.registry:type=deleted-count
+  - kafka.schema.registry:type=json-schemas-created
+  - kafka.schema.registry:type=json-schemas-deleted
+  - kafka.schema.registry:type=protobuf-schemas-created
+  - kafka.schema.registry:type=protobuf-schemas-deleted
+  - kafka.schema.registry:type=avro-schemas-created
+  - kafka.schema.registry:type=avro-schemas-deleted
+  - kafka.schema.registry:type=master-slave-role
+  - kafka.schema.registry:type=node-count
+  - kafka.schema.registry:type=api-success-count
+  - kafka.schema.registry:type=api-failure-count
+
+blacklistObjectNames:
+  - kafka.schema.registry:type=app-info,id=*
+
+rules:
+  # Global schema counters
+  - pattern: kafka.schema.registry<type=registered-count><>(\w+)
+    name: kafka_schema_registry_registered_count
+    type: GAUGE
+  - pattern: kafka.schema.registry<type=deleted-count><>(\w+)
+    name: kafka_schema_registry_deleted_count
+    type: GAUGE
+
+  # API call counters
+  - pattern: kafka.schema.registry<type=api-success-count><>(\w+)
+    name: kafka_schema_registry_api_success_count
+    type: GAUGE
+  - pattern: kafka.schema.registry<type=api-failure-count><>(\w+)
+    name: kafka_schema_registry_api_failure_count
+    type: GAUGE
+
+  # Per-type schema counters (avro-schemas-created -> kafka_schema_registry_schemas_created{schema_type="avro"})
+  - pattern: kafka.schema.registry<type=(\w+)-schemas-(\w+)><>(\w+)
+    name: kafka_schema_registry_schemas_$2
+    type: GAUGE
+    labels:
+      schema_type: $1
+
+  # Leader/follower role
+  - pattern: kafka.schema.registry<type=master-slave-role><>(\w+)
+    name: kafka_schema_registry_master_slave_role
+    type: GAUGE
+
+  # Cluster node count
+  - pattern: kafka.schema.registry<type=node-count><>(\w+)
+    name: kafka_schema_registry_node_count
+    type: GAUGE
+
+  # Catch-all for remaining kafka.schema.registry metrics
+  - pattern: kafka.schema.registry<type=(.+)><>(\w+)
+    name: kafka_schema_registry_$1_$2
+    type: GAUGE

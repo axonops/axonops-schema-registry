@@ -17,6 +17,7 @@ import (
 // TestContext holds state shared across steps within a single scenario.
 type TestContext struct {
 	BaseURL        string
+	MetricsURL     string // separate base URL for /metrics scraping (e.g. JMX exporter on Confluent)
 	WebhookURL     string
 	LastResponse   *http.Response
 	LastBody       []byte
