@@ -192,8 +192,11 @@ func (s *Server) handleSearchSchemas(ctx context.Context, _ *gomcp.CallToolReque
 	if limit <= 0 {
 		limit = 100
 	}
+	if limit > 1000 {
+		limit = 1000
+	}
 
-	var matches []searchSchemasMatch
+	matches := make([]searchSchemasMatch, 0, min(len(subjects), limit))
 	for _, subj := range subjects {
 		if len(matches) >= limit {
 			break
@@ -215,9 +218,6 @@ func (s *Server) handleSearchSchemas(ctx context.Context, _ *gomcp.CallToolReque
 				SchemaType: string(record.SchemaType),
 			})
 		}
-	}
-	if matches == nil {
-		matches = []searchSchemasMatch{}
 	}
 	return jsonResult(map[string]any{
 		"matches": matches,

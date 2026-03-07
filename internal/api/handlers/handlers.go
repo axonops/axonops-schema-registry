@@ -1172,17 +1172,21 @@ func configToResponse(config *storage.ConfigRecord) types.ConfigResponse {
 func writeJSON(w http.ResponseWriter, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/vnd.schemaregistry.v1+json")
 	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(data)
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		slog.Debug("json encode error", "error", err)
+	}
 }
 
 // writeError writes an error response.
 func writeError(w http.ResponseWriter, status int, code int, message string) {
 	w.Header().Set("Content-Type", "application/vnd.schemaregistry.v1+json")
 	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(types.ErrorResponse{
+	if err := json.NewEncoder(w).Encode(types.ErrorResponse{
 		ErrorCode: code,
 		Message:   message,
-	})
+	}); err != nil {
+		slog.Debug("json encode error", "error", err)
+	}
 }
 
 // writeInternalError writes a generic 500 error response and logs the actual error.

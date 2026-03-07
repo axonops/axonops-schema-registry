@@ -332,11 +332,6 @@ func main() {
 			mcpOpts = append(mcpOpts, mcpkg.WithAuditLogger(auditLogger))
 		}
 		mcpServer = mcpkg.New(&cfg.MCP, reg, logger, version, mcpOpts...)
-		go func() {
-			if err := mcpServer.Start(); err != nil && err != http.ErrServerClosed {
-				logger.Error("MCP server error", slog.String("error", err.Error()))
-			}
-		}()
 	}
 
 	// Handle shutdown and reload signals
@@ -358,11 +353,18 @@ func main() {
 		}
 	}()
 
-	// Start server in goroutine
-	serverErr := make(chan error, 1)
+	// Start servers in goroutines — both feed into the same error channel.
+	serverErr := make(chan error, 2)
 	go func() {
 		serverErr <- server.Start()
 	}()
+	if mcpServer != nil {
+		go func() {
+			if err := mcpServer.Start(); err != nil && err != http.ErrServerClosed {
+				serverErr <- fmt.Errorf("MCP server: %w", err)
+			}
+		}()
+	}
 
 	// Wait for shutdown signal or error
 	select {

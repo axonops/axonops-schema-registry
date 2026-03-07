@@ -111,8 +111,12 @@ func (s *Server) handleFindSchemasByField(ctx context.Context, _ *gomcp.CallTool
 		}
 	}
 
-	var matches []fieldSchemaMatch
+	const maxResults = 1000
+	matches := make([]fieldSchemaMatch, 0, min(len(subjects), maxResults))
 	for _, subj := range subjects {
+		if len(matches) >= maxResults {
+			break
+		}
 		record, err := s.registry.GetLatestSchema(ctx, registryCtx, subj)
 		if err != nil {
 			continue
@@ -149,11 +153,11 @@ func (s *Server) handleFindSchemasByField(ctx context.Context, _ *gomcp.CallTool
 					m.Score = score
 				}
 				matches = append(matches, m)
+				if len(matches) >= maxResults {
+					break
+				}
 			}
 		}
-	}
-	if matches == nil {
-		matches = []fieldSchemaMatch{}
 	}
 
 	return jsonResult(map[string]any{
@@ -192,8 +196,12 @@ func (s *Server) handleFindSchemasByType(ctx context.Context, _ *gomcp.CallToolR
 		FieldType string `json:"field_type"`
 	}
 
-	var matches []typeMatch
+	const maxResults = 1000
+	matches := make([]typeMatch, 0, min(len(subjects), maxResults))
 	for _, subj := range subjects {
+		if len(matches) >= maxResults {
+			break
+		}
 		record, err := s.registry.GetLatestSchema(ctx, registryCtx, subj)
 		if err != nil {
 			continue
@@ -213,11 +221,11 @@ func (s *Server) handleFindSchemasByType(ctx context.Context, _ *gomcp.CallToolR
 					Path:      f.Path,
 					FieldType: f.Type,
 				})
+				if len(matches) >= maxResults {
+					break
+				}
 			}
 		}
-	}
-	if matches == nil {
-		matches = []typeMatch{}
 	}
 
 	return jsonResult(map[string]any{
@@ -266,7 +274,7 @@ func (s *Server) handleFindSimilarSchemas(ctx context.Context, _ *gomcp.CallTool
 		return errorResult(err), nil, nil
 	}
 
-	var matches []similarSchemaMatch
+	matches := make([]similarSchemaMatch, 0, min(len(subjects), 100))
 	for _, subj := range subjects {
 		if subj == input.Subject {
 			continue
@@ -276,14 +284,14 @@ func (s *Server) handleFindSimilarSchemas(ctx context.Context, _ *gomcp.CallTool
 			continue
 		}
 		otherFields := ExtractFields(other.Schema, other.SchemaType)
-		otherSet := make(map[string]bool)
+		otherSet := make(map[string]bool, len(otherFields))
 		for _, f := range otherFields {
 			otherSet[NormalizeFieldName(f.Name)] = true
 		}
 
 		// Jaccard similarity
 		intersect := 0
-		var common []string
+		common := make([]string, 0, min(len(sourceSet), len(otherSet)))
 		for name := range sourceSet {
 			if otherSet[name] {
 				intersect++
@@ -306,9 +314,6 @@ func (s *Server) handleFindSimilarSchemas(ctx context.Context, _ *gomcp.CallTool
 	}
 
 	sort.Slice(matches, func(i, j int) bool { return matches[i].Similarity > matches[j].Similarity })
-	if matches == nil {
-		matches = []similarSchemaMatch{}
-	}
 
 	return jsonResult(map[string]any{
 		"subject": input.Subject,
@@ -369,8 +374,9 @@ func (s *Server) handleCheckFieldConsistency(ctx context.Context, _ *gomcp.CallT
 		return errorResult(err), nil, nil
 	}
 
-	var usages []fieldUsage
+	usages := make([]fieldUsage, 0, min(len(subjects), 100))
 	typeCounts := map[string]int{}
+	normalizedInput := NormalizeFieldName(input.Field)
 
 	for _, subj := range subjects {
 		record, err := s.registry.GetLatestSchema(ctx, registryCtx, subj)
@@ -379,7 +385,7 @@ func (s *Server) handleCheckFieldConsistency(ctx context.Context, _ *gomcp.CallT
 		}
 		fields := ExtractFields(record.Schema, record.SchemaType)
 		for _, f := range fields {
-			if strings.EqualFold(NormalizeFieldName(f.Name), NormalizeFieldName(input.Field)) {
+			if strings.EqualFold(NormalizeFieldName(f.Name), normalizedInput) {
 				usages = append(usages, fieldUsage{
 					Subject:   subj,
 					FieldType: f.Type,
@@ -391,9 +397,6 @@ func (s *Server) handleCheckFieldConsistency(ctx context.Context, _ *gomcp.CallT
 	}
 
 	consistent := len(typeCounts) <= 1
-	if usages == nil {
-		usages = []fieldUsage{}
-	}
 
 	return jsonResult(map[string]any{
 		"field":       input.Field,
@@ -487,9 +490,9 @@ func (s *Server) handleDetectSchemaPatterns(ctx context.Context, _ *gomcp.CallTo
 	}
 
 	// Naming patterns (suffixes)
-	suffixCounts := map[string]int{}
-	typeCounts := map[string]int{}
-	fieldFrequency := map[string]int{} // how many schemas use each field name
+	suffixCounts := make(map[string]int, min(len(subjects), 100))
+	typeCounts := make(map[string]int, 3)
+	fieldFrequency := make(map[string]int, min(len(subjects)*5, 10000)) // how many schemas use each field name
 	totalVersions := 0
 	multiVersionSubjects := 0
 
