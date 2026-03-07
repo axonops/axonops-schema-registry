@@ -154,7 +154,7 @@ func (s *Service) runCacheRefresh() {
 }
 
 // refreshAPIKeyCache loads all API keys from the database into the cache.
-// The stop channel context ensures cache refresh is cancelled on shutdown.
+// The stop channel context ensures cache refresh is canceled on shutdown.
 func (s *Service) refreshAPIKeyCache() {
 	bgCtx, bgCancel := context.WithCancel(context.Background())
 	go func() {
