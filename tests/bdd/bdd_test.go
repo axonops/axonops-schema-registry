@@ -157,24 +157,25 @@ func TestMain(m *testing.M) {
 }
 
 // newTestServer creates a fresh in-process schema registry backed by memory storage.
-func newTestServer() (*httptest.Server, storage.Storage, *registry.Registry) {
+func newTestServer() (*httptest.Server, storage.Storage, *registry.Registry, chan struct{}) {
 	return newTestServerWithAudit(nil)
 }
 
 // newTestServerWithAudit creates a fresh in-process schema registry with optional audit logging.
-func newTestServerWithAudit(al *auth.AuditLogger) (*httptest.Server, storage.Storage, *registry.Registry) {
+func newTestServerWithAudit(al *auth.AuditLogger) (*httptest.Server, storage.Storage, *registry.Registry, chan struct{}) {
 	return newTestServerWithStoreAndAudit(memory.NewStore(), al)
 }
 
 // newTestServerWithStore creates an in-process schema registry using the provided storage backend.
 // This enables BDD tests (MCP, audit, analysis, functional) to run against database backends.
-func newTestServerWithStore(store storage.Storage) (*httptest.Server, storage.Storage, *registry.Registry) {
+func newTestServerWithStore(store storage.Storage) (*httptest.Server, storage.Storage, *registry.Registry, chan struct{}) {
 	return newTestServerWithStoreAndAudit(store, nil)
 }
 
 // newTestServerWithStoreAndAudit creates an in-process schema registry with the provided storage
 // and optional audit logging. This is the core factory used by all non-auth test server constructors.
-func newTestServerWithStoreAndAudit(store storage.Storage, al *auth.AuditLogger) (*httptest.Server, storage.Storage, *registry.Registry) {
+// Returns a gaugeStop channel that MUST be closed when the server is torn down.
+func newTestServerWithStoreAndAudit(store storage.Storage, al *auth.AuditLogger) (*httptest.Server, storage.Storage, *registry.Registry, chan struct{}) {
 	m := metrics.New()
 
 	// Wrap storage with instrumentation for storage metrics
@@ -203,7 +204,11 @@ func newTestServerWithStoreAndAudit(store storage.Storage, al *auth.AuditLogger)
 	}
 	server := api.NewServer(cfg, reg, logger, opts...)
 
-	return httptest.NewServer(server), store, reg
+	// Start gauge refresh with 1-second interval for tests
+	gaugeStop := make(chan struct{})
+	m.StartGaugeRefresh(reg, 1*time.Second, gaugeStop)
+
+	return httptest.NewServer(server), store, reg, gaugeStop
 }
 
 // newAuthTestServer creates an in-process schema registry with authentication enabled.
@@ -493,6 +498,7 @@ func TestFeatures(t *testing.T) {
 				tc = steps.NewTestContext("http://placeholder")
 				var ts *httptest.Server
 				var st storage.Storage
+				var gaugeStop chan struct{}
 				var storeOwned bool // false when using sharedDBStore (don't close in After)
 				ctx.Before(func(gctx context.Context, sc *godog.Scenario) (context.Context, error) {
 					var reg *registry.Registry
@@ -516,10 +522,10 @@ func TestFeatures(t *testing.T) {
 							if err := cleanDBStore(); err != nil {
 								return gctx, fmt.Errorf("clean %s storage: %w", bddStorage, err)
 							}
-							ts, st, reg = newTestServerWithStoreAndAudit(sharedDBStore, al)
+							ts, st, reg, gaugeStop = newTestServerWithStoreAndAudit(sharedDBStore, al)
 							storeOwned = false
 						} else {
-							ts, st, reg = newTestServerWithAudit(al)
+							ts, st, reg, gaugeStop = newTestServerWithAudit(al)
 							storeOwned = true
 						}
 						tc.AuditBuffer = auditBuf
@@ -528,10 +534,10 @@ func TestFeatures(t *testing.T) {
 							if err := cleanDBStore(); err != nil {
 								return gctx, fmt.Errorf("clean %s storage: %w", bddStorage, err)
 							}
-							ts, st, reg = newTestServerWithStore(sharedDBStore)
+							ts, st, reg, gaugeStop = newTestServerWithStore(sharedDBStore)
 							storeOwned = false
 						} else {
-							ts, st, reg = newTestServer()
+							ts, st, reg, gaugeStop = newTestServer()
 							storeOwned = true
 						}
 					}
@@ -541,6 +547,10 @@ func TestFeatures(t *testing.T) {
 					return gctx, nil
 				})
 				ctx.After(func(gctx context.Context, sc *godog.Scenario, err error) (context.Context, error) {
+					if gaugeStop != nil {
+						close(gaugeStop)
+						gaugeStop = nil
+					}
 					if ts != nil {
 						ts.Close()
 					}

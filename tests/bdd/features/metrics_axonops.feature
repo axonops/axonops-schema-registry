@@ -53,6 +53,7 @@ Feature: AxonOps-Native Metrics
       {"type":"record","name":"MetricsSchemasTotal","fields":[{"name":"id","type":"int"}]}
       """
     Then the response status should be 200
+    And I wait for metrics refresh
     And the Prometheus metric "schema_registry_schemas_total" with labels "type=\"AVRO\"" should exist
 
   Scenario: subjects_total gauge tracks subject count
@@ -61,6 +62,7 @@ Feature: AxonOps-Native Metrics
       {"type":"record","name":"MetricsSubjectsTotal","fields":[{"name":"id","type":"int"}]}
       """
     Then the response status should be 200
+    And I wait for metrics refresh
     And the Prometheus metric "schema_registry_subjects_total" should exist
 
   Scenario: schema_versions gauge tracks version count per subject

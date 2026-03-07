@@ -506,6 +506,34 @@ func (r *Registry) ListSubjects(ctx context.Context, registryCtx string, deleted
 	return r.storage.ListSubjects(ctx, registryCtx, deleted)
 }
 
+// SubjectCount returns the number of active (non-deleted) subjects in the default context.
+// Satisfies metrics.GaugeSource.
+func (r *Registry) SubjectCount() (int, error) {
+	subjects, err := r.storage.ListSubjects(context.Background(), registrycontext.DefaultContext, false)
+	if err != nil {
+		return 0, err
+	}
+	return len(subjects), nil
+}
+
+// SchemaCountsByType returns schema counts keyed by type (e.g. "AVRO", "JSON", "PROTOBUF").
+// Satisfies metrics.GaugeSource.
+func (r *Registry) SchemaCountsByType() (map[string]int, error) {
+	schemas, err := r.storage.ListSchemas(context.Background(), registrycontext.DefaultContext, &storage.ListSchemasParams{})
+	if err != nil {
+		return nil, err
+	}
+	counts := map[string]int{}
+	for _, s := range schemas {
+		st := string(s.SchemaType)
+		if st == "" {
+			st = "AVRO"
+		}
+		counts[st]++
+	}
+	return counts, nil
+}
+
 // GetVersions returns all versions for a subject within a context.
 func (r *Registry) GetVersions(ctx context.Context, registryCtx string, subject string, deleted bool) ([]int, error) {
 	schemas, err := r.storage.GetSchemasBySubject(ctx, registryCtx, subject, deleted)

@@ -677,3 +677,44 @@ func (m *Metrics) RecordMCPToolCall(tool, status string, duration time.Duration)
 		m.MCPToolCallErrors.WithLabelValues(tool).Inc()
 	}
 }
+
+// GaugeSource provides the data needed to periodically refresh gauge metrics.
+// This avoids importing the registry or storage packages from the metrics package.
+type GaugeSource interface {
+	// SubjectCount returns the number of active subjects.
+	SubjectCount() (int, error)
+	// SchemaCountsByType returns schema counts keyed by type (e.g. "AVRO", "JSON", "PROTOBUF").
+	SchemaCountsByType() (map[string]int, error)
+}
+
+// StartGaugeRefresh starts a background goroutine that periodically refreshes
+// the schemas_total and subjects_total gauge metrics by querying the source.
+// The goroutine stops when the stop channel is closed.
+func (m *Metrics) StartGaugeRefresh(source GaugeSource, interval time.Duration, stop <-chan struct{}) {
+	// Do an immediate refresh before starting the ticker
+	m.refreshGauges(source)
+
+	go func() {
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				m.refreshGauges(source)
+			case <-stop:
+				return
+			}
+		}
+	}()
+}
+
+func (m *Metrics) refreshGauges(source GaugeSource) {
+	if count, err := source.SubjectCount(); err == nil {
+		m.SubjectsTotal.Set(float64(count))
+	}
+	if counts, err := source.SchemaCountsByType(); err == nil {
+		for _, st := range []string{"AVRO", "PROTOBUF", "JSON"} {
+			m.SchemasTotal.WithLabelValues(st).Set(float64(counts[st]))
+		}
+	}
+}

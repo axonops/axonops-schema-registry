@@ -42,14 +42,15 @@ type MCPConfig struct {
 
 // ServerConfig represents HTTP server configuration.
 type ServerConfig struct {
-	Host               string `yaml:"host"`
-	Port               int    `yaml:"port"`
-	ReadTimeout        int    `yaml:"read_timeout"`
-	WriteTimeout       int    `yaml:"write_timeout"`
-	ShutdownTimeout    int    `yaml:"shutdown_timeout"` // Graceful shutdown timeout in seconds (default: 30)
-	DocsEnabled        bool   `yaml:"docs_enabled"`
-	ClusterID          string `yaml:"cluster_id"`
-	MaxRequestBodySize int64  `yaml:"max_request_body_size"`
+	Host                   string `yaml:"host"`
+	Port                   int    `yaml:"port"`
+	ReadTimeout            int    `yaml:"read_timeout"`
+	WriteTimeout           int    `yaml:"write_timeout"`
+	ShutdownTimeout        int    `yaml:"shutdown_timeout"` // Graceful shutdown timeout in seconds (default: 30)
+	DocsEnabled            bool   `yaml:"docs_enabled"`
+	ClusterID              string `yaml:"cluster_id"`
+	MaxRequestBodySize     int64  `yaml:"max_request_body_size"`
+	MetricsRefreshInterval int    `yaml:"metrics_refresh_interval"` // Gauge metrics refresh interval in seconds (default: 300)
 }
 
 // StorageConfig represents storage backend configuration.
@@ -406,6 +407,11 @@ func (c *Config) applyEnvOverrides() {
 	if v := os.Getenv("SCHEMA_REGISTRY_SHUTDOWN_TIMEOUT"); v != "" {
 		if n, ok := envInt("SCHEMA_REGISTRY_SHUTDOWN_TIMEOUT", v); ok {
 			c.Server.ShutdownTimeout = n
+		}
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_METRICS_REFRESH_INTERVAL"); v != "" {
+		if n, ok := envInt("SCHEMA_REGISTRY_METRICS_REFRESH_INTERVAL", v); ok {
+			c.Server.MetricsRefreshInterval = n
 		}
 	}
 	if v := os.Getenv("SCHEMA_REGISTRY_STORAGE_TYPE"); v != "" {

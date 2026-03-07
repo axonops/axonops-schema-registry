@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/cucumber/godog"
 )
@@ -132,6 +133,13 @@ func RegisterMetricsSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 			return fmt.Errorf("metric %q did not increase: was %.0f, now %.0f", metricName, prev, val)
 		}
 		return nil
+	})
+
+	ctx.Step(`^I wait for metrics refresh$`, func() {
+		// Wait long enough for the periodic gauge refresh to run.
+		// In-process tests use a 1-second interval; Docker tests should
+		// configure metrics_refresh_interval via YAML/env accordingly.
+		time.Sleep(2 * time.Second)
 	})
 }
 

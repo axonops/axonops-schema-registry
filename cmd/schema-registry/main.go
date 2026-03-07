@@ -327,6 +327,15 @@ func main() {
 		logger.Info("per-principal metrics enabled")
 	}
 
+	// Start periodic gauge metrics refresh (schemas_total, subjects_total).
+	gaugeRefreshInterval := time.Duration(cfg.Server.MetricsRefreshInterval) * time.Second
+	if gaugeRefreshInterval <= 0 {
+		gaugeRefreshInterval = 5 * time.Minute
+	}
+	gaugeStop := make(chan struct{})
+	m.StartGaugeRefresh(reg, gaugeRefreshInterval, gaugeStop)
+	logger.Info("gauge metrics refresh started", slog.Duration("interval", gaugeRefreshInterval))
+
 	// Create and start the MCP server if enabled
 	var mcpServer *mcpkg.Server
 	if cfg.MCP.Enabled {
@@ -393,6 +402,8 @@ func main() {
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 		defer cancel()
+
+		close(gaugeStop)
 
 		if err := server.Shutdown(ctx); err != nil {
 			logger.Error("shutdown error", slog.String("error", err.Error()))
