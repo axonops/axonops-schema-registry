@@ -13,6 +13,7 @@ services:
   # Downloads the Prometheus JMX Exporter agent JAR into a shared volume.
   jmx-exporter-init:
     image: curlimages/curl:8.11.1
+    user: root
     volumes:
       - jmx-agent:/opt/jmx-agent
     entrypoint: ["sh", "-c"]
