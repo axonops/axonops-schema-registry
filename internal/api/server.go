@@ -103,6 +103,9 @@ func NewServer(cfg *config.Config, reg *registry.Registry, logger *slog.Logger, 
 	if s.authenticator != nil {
 		s.authenticator.SetMetrics(s.metrics)
 	}
+	if s.authService != nil {
+		s.authService.SetMetrics(s.metrics)
+	}
 	if s.rateLimiter != nil {
 		s.rateLimiter.SetMetrics(s.metrics)
 	}

@@ -157,25 +157,25 @@ func TestMain(m *testing.M) {
 }
 
 // newTestServer creates a fresh in-process schema registry backed by memory storage.
-func newTestServer() (*httptest.Server, storage.Storage, *registry.Registry, chan struct{}) {
+func newTestServer() (*httptest.Server, storage.Storage, *registry.Registry, *metrics.Metrics, chan struct{}) {
 	return newTestServerWithAudit(nil)
 }
 
 // newTestServerWithAudit creates a fresh in-process schema registry with optional audit logging.
-func newTestServerWithAudit(al *auth.AuditLogger) (*httptest.Server, storage.Storage, *registry.Registry, chan struct{}) {
+func newTestServerWithAudit(al *auth.AuditLogger) (*httptest.Server, storage.Storage, *registry.Registry, *metrics.Metrics, chan struct{}) {
 	return newTestServerWithStoreAndAudit(memory.NewStore(), al)
 }
 
 // newTestServerWithStore creates an in-process schema registry using the provided storage backend.
 // This enables BDD tests (MCP, audit, analysis, functional) to run against database backends.
-func newTestServerWithStore(store storage.Storage) (*httptest.Server, storage.Storage, *registry.Registry, chan struct{}) {
+func newTestServerWithStore(store storage.Storage) (*httptest.Server, storage.Storage, *registry.Registry, *metrics.Metrics, chan struct{}) {
 	return newTestServerWithStoreAndAudit(store, nil)
 }
 
 // newTestServerWithStoreAndAudit creates an in-process schema registry with the provided storage
 // and optional audit logging. This is the core factory used by all non-auth test server constructors.
 // Returns a gaugeStop channel that MUST be closed when the server is torn down.
-func newTestServerWithStoreAndAudit(store storage.Storage, al *auth.AuditLogger) (*httptest.Server, storage.Storage, *registry.Registry, chan struct{}) {
+func newTestServerWithStoreAndAudit(store storage.Storage, al *auth.AuditLogger) (*httptest.Server, storage.Storage, *registry.Registry, *metrics.Metrics, chan struct{}) {
 	m := metrics.New()
 
 	// Wrap storage with instrumentation for storage metrics
@@ -208,7 +208,7 @@ func newTestServerWithStoreAndAudit(store storage.Storage, al *auth.AuditLogger)
 	gaugeStop := make(chan struct{})
 	m.StartGaugeRefresh(reg, 1*time.Second, gaugeStop)
 
-	return httptest.NewServer(server), store, reg, gaugeStop
+	return httptest.NewServer(server), store, reg, m, gaugeStop
 }
 
 // newAuthTestServer creates an in-process schema registry with authentication enabled.
@@ -258,8 +258,8 @@ func newAuthTestServerWithStore(store storage.Storage) (*httptest.Server, storag
 
 	authenticator := auth.NewAuthenticator(authCfg)
 	authService := auth.NewServiceWithConfig(store, auth.ServiceConfig{
-		CacheRefreshInterval: 0, // disable background refresh for tests
-		UserCacheTTL:         0, // disable credential caching for tests
+		CacheRefreshInterval: 5 * time.Second,  // enable API key cache for BDD metrics
+		UserCacheTTL:         10 * time.Second, // enable credential caching for BDD metrics
 	})
 	authenticator.SetService(authService)
 
@@ -498,6 +498,7 @@ func TestFeatures(t *testing.T) {
 				tc = steps.NewTestContext("http://placeholder")
 				var ts *httptest.Server
 				var st storage.Storage
+				var m *metrics.Metrics
 				var gaugeStop chan struct{}
 				var storeOwned bool // false when using sharedDBStore (don't close in After)
 				ctx.Before(func(gctx context.Context, sc *godog.Scenario) (context.Context, error) {
@@ -522,10 +523,10 @@ func TestFeatures(t *testing.T) {
 							if err := cleanDBStore(); err != nil {
 								return gctx, fmt.Errorf("clean %s storage: %w", bddStorage, err)
 							}
-							ts, st, reg, gaugeStop = newTestServerWithStoreAndAudit(sharedDBStore, al)
+							ts, st, reg, m, gaugeStop = newTestServerWithStoreAndAudit(sharedDBStore, al)
 							storeOwned = false
 						} else {
-							ts, st, reg, gaugeStop = newTestServerWithAudit(al)
+							ts, st, reg, m, gaugeStop = newTestServerWithAudit(al)
 							storeOwned = true
 						}
 						tc.AuditBuffer = auditBuf
@@ -534,16 +535,17 @@ func TestFeatures(t *testing.T) {
 							if err := cleanDBStore(); err != nil {
 								return gctx, fmt.Errorf("clean %s storage: %w", bddStorage, err)
 							}
-							ts, st, reg, gaugeStop = newTestServerWithStore(sharedDBStore)
+							ts, st, reg, m, gaugeStop = newTestServerWithStore(sharedDBStore)
 							storeOwned = false
 						} else {
-							ts, st, reg, gaugeStop = newTestServer()
+							ts, st, reg, m, gaugeStop = newTestServer()
 							storeOwned = true
 						}
 					}
 					tc.BaseURL = ts.URL
 					tc.Registry = reg
 					tc.StoredValues["_storage"] = st
+					tc.StoredValues["_metrics"] = m
 					return gctx, nil
 				})
 				ctx.After(func(gctx context.Context, sc *godog.Scenario, err error) (context.Context, error) {

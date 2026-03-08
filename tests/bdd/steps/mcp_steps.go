@@ -17,6 +17,7 @@ import (
 	"github.com/axonops/axonops-schema-registry/internal/auth"
 	"github.com/axonops/axonops-schema-registry/internal/config"
 	mcpkg "github.com/axonops/axonops-schema-registry/internal/mcp"
+	"github.com/axonops/axonops-schema-registry/internal/metrics"
 	"github.com/axonops/axonops-schema-registry/internal/registry"
 	"github.com/axonops/axonops-schema-registry/internal/storage"
 )
@@ -64,6 +65,9 @@ func getMCPSession(tc *TestContext) (*gomcp.ClientSession, error) {
 	}
 
 	var mcpOpts []mcpkg.Option
+	if m, ok := tc.StoredValues["_metrics"].(*metrics.Metrics); ok && m != nil {
+		mcpOpts = append(mcpOpts, mcpkg.WithMetrics(m))
+	}
 	if st, ok := tc.StoredValues["_storage"].(storage.Storage); ok {
 		authSvc := auth.NewServiceWithConfig(st, auth.ServiceConfig{})
 		mcpOpts = append(mcpOpts, mcpkg.WithAuthService(authSvc))
