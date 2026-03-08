@@ -32,3 +32,24 @@ Feature: Auth and Rate-Limit Metrics
     When I GET "/subjects"
     Then the response status should be 200
     And the Prometheus metric "schema_registry_cache_hits_total" should exist
+
+  # ---------------------------------------------------------------------------
+  # API key cache size metric
+  # ---------------------------------------------------------------------------
+
+  Scenario: Cache size metric reported after cache refresh
+    # The background cache refresh runs every 5 seconds.
+    # Wait for at least one refresh cycle to populate the gauge.
+    And I wait for metrics refresh
+    And I wait for metrics refresh
+    And I wait for metrics refresh
+    Then the Prometheus metric "schema_registry_cache_size" should exist
+
+  # ---------------------------------------------------------------------------
+  # Per-principal metrics
+  # ---------------------------------------------------------------------------
+
+  Scenario: Per-principal request metric tracks authenticated user
+    When I GET "/subjects"
+    Then the response status should be 200
+    And the Prometheus metric "schema_registry_principal_requests_total" with labels "principal=\"admin\"" should exist

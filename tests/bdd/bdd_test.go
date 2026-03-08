@@ -289,7 +289,11 @@ func newAuthTestServerWithStore(store storage.Storage) (*httptest.Server, storag
 	}
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 
+	m := metrics.New()
+	m.EnablePrincipalMetrics()
+
 	server := api.NewServer(cfg, reg, logger,
+		api.WithMetrics(m),
 		api.WithAuth(authenticator, authorizer, authService),
 		api.WithRateLimiter(auth.NewRateLimiter(rateLimitCfg)),
 	)
