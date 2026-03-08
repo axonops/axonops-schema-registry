@@ -60,14 +60,17 @@ type Metrics struct {
 	PrincipalMCPCallsTotal *prometheus.CounterVec // labels: principal, tool, status
 
 	// Confluent-compatible metrics (kafka_schema_registry_* prefix for dashboard compatibility)
-	ConfluentRegisteredCount prometheus.Counter     // kafka_schema_registry_registered_count
-	ConfluentDeletedCount    prometheus.Counter     // kafka_schema_registry_deleted_count
-	ConfluentAPISuccessCount prometheus.Counter     // kafka_schema_registry_api_success_count
-	ConfluentAPIFailureCount prometheus.Counter     // kafka_schema_registry_api_failure_count
-	ConfluentSchemasCreated  *prometheus.CounterVec // kafka_schema_registry_schemas_created{schema_type}
-	ConfluentSchemasDeleted  *prometheus.CounterVec // kafka_schema_registry_schemas_deleted{schema_type}
-	ConfluentMasterSlaveRole prometheus.Gauge       // kafka_schema_registry_master_slave_role (always 1.0 for standalone)
-	ConfluentNodeCount       prometheus.Gauge       // kafka_schema_registry_node_count (always 1 for standalone)
+	ConfluentRegisteredCount  prometheus.Counter       // kafka_schema_registry_registered_count
+	ConfluentDeletedCount     prometheus.Counter       // kafka_schema_registry_deleted_count
+	ConfluentAPISuccessCount  prometheus.Counter       // kafka_schema_registry_api_success_count
+	ConfluentAPIFailureCount  prometheus.Counter       // kafka_schema_registry_api_failure_count
+	ConfluentSchemasCreated   *prometheus.CounterVec   // kafka_schema_registry_schemas_created{schema_type}
+	ConfluentSchemasDeleted   *prometheus.CounterVec   // kafka_schema_registry_schemas_deleted{schema_type}
+	ConfluentMasterSlaveRole  prometheus.Gauge         // kafka_schema_registry_master_slave_role (always 1.0 for standalone)
+	ConfluentNodeCount        prometheus.Gauge         // kafka_schema_registry_node_count (always 1 for standalone)
+	ConfluentEndpointRequests *prometheus.CounterVec   // kafka_schema_registry_jersey_metrics_request_total{endpoint}
+	ConfluentEndpointLatency  *prometheus.HistogramVec // kafka_schema_registry_jersey_metrics_request_latency_seconds{endpoint}
+	ConfluentEndpointErrors   *prometheus.CounterVec   // kafka_schema_registry_jersey_metrics_request_error_total{endpoint}
 
 	registry *prometheus.Registry
 }
@@ -358,6 +361,32 @@ func New() *Metrics {
 	)
 	m.ConfluentNodeCount.Set(1)
 
+	// Per-endpoint Confluent-compatible metrics (jersey_metrics_*)
+	m.ConfluentEndpointRequests = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "kafka_schema_registry_jersey_metrics_request_total",
+			Help: "Total number of requests per endpoint (Confluent-compatible)",
+		},
+		[]string{"endpoint"},
+	)
+
+	m.ConfluentEndpointLatency = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "kafka_schema_registry_jersey_metrics_request_latency_seconds",
+			Help:    "Request latency per endpoint in seconds (Confluent-compatible)",
+			Buckets: prometheus.DefBuckets,
+		},
+		[]string{"endpoint"},
+	)
+
+	m.ConfluentEndpointErrors = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "kafka_schema_registry_jersey_metrics_request_error_total",
+			Help: "Total number of request errors per endpoint (Confluent-compatible)",
+		},
+		[]string{"endpoint"},
+	)
+
 	// Register all collectors
 	m.registry.MustRegister(
 		m.RequestsTotal,
@@ -394,6 +423,9 @@ func New() *Metrics {
 		m.ConfluentSchemasDeleted,
 		m.ConfluentMasterSlaveRole,
 		m.ConfluentNodeCount,
+		m.ConfluentEndpointRequests,
+		m.ConfluentEndpointLatency,
+		m.ConfluentEndpointErrors,
 	)
 
 	// Also register the default collectors (go runtime, process info)
@@ -442,6 +474,15 @@ func (m *Metrics) Middleware(next http.Handler) http.Handler {
 			m.ConfluentAPISuccessCount.Inc()
 		} else {
 			m.ConfluentAPIFailureCount.Inc()
+		}
+
+		// Per-endpoint Confluent-compatible metrics
+		if endpoint := confluentEndpoint(r.Method, path); endpoint != "" {
+			m.ConfluentEndpointRequests.WithLabelValues(endpoint).Inc()
+			m.ConfluentEndpointLatency.WithLabelValues(endpoint).Observe(duration)
+			if wrapped.statusCode >= 400 {
+				m.ConfluentEndpointErrors.WithLabelValues(endpoint).Inc()
+			}
 		}
 	})
 }
@@ -517,6 +558,84 @@ func contains(s, substr string) bool {
 		}
 	}
 	return false
+}
+
+// confluentEndpoint maps a normalized HTTP method+path to Confluent's @PerformanceMetric
+// endpoint names. Returns "" for paths that have no Confluent equivalent.
+func confluentEndpoint(method, path string) string {
+	// Strip context prefix if present
+	if startsWith(path, "/contexts/{context}") {
+		path = path[len("/contexts/{context}"):]
+	}
+
+	switch {
+	// Schema operations
+	case method == "GET" && path == "/schemas":
+		return "schemas.get-schemas"
+	case method == "GET" && path == "/schemas/types":
+		return "schemas.get-types"
+	case method == "GET" && path == "/schemas/ids/{id}" && !contains(path, "/subjects") && !contains(path, "/versions"):
+		return "schemas.ids.get-schema"
+	case method == "GET" && startsWith(path, "/schemas/ids/{id}"):
+		return "schemas.ids.get-schema"
+
+	// Subject operations
+	case method == "GET" && path == "/subjects":
+		return "subjects.list"
+	case method == "POST" && path == "/subjects/{subject}" && !contains(path, "/versions"):
+		return "subjects.get-schema"
+	case method == "DELETE" && path == "/subjects/{subject}" && !contains(path, "/versions"):
+		return "subjects.delete-subject"
+
+	// Subject version operations
+	case method == "POST" && path == "/subjects/{subject}/versions":
+		return "subjects.versions.register"
+	case method == "GET" && path == "/subjects/{subject}/versions" && !contains(path, "{version}"):
+		return "subjects.versions.list"
+	case method == "GET" && path == "/subjects/{subject}/versions/{version}":
+		return "subjects.versions.get-schema"
+	case method == "DELETE" && path == "/subjects/{subject}/versions/{version}":
+		return "subjects.versions.deleteSchemaVersion-schema"
+
+	// Compatibility
+	case method == "POST" && startsWith(path, "/compatibility/"):
+		return "compatibility.subjects.versions.verify"
+
+	// Config
+	case method == "GET" && path == "/config":
+		return "config.get-global"
+	case method == "PUT" && path == "/config":
+		return "config.update-global"
+	case method == "DELETE" && path == "/config":
+		return "config.delete-global"
+	case method == "GET" && path == "/config/{subject}":
+		return "config.get-subject"
+	case method == "PUT" && path == "/config/{subject}":
+		return "config.update-subject"
+	case method == "DELETE" && path == "/config/{subject}":
+		return "config.delete-subject"
+
+	// Mode
+	case method == "GET" && path == "/mode":
+		return "mode.get-global"
+	case method == "PUT" && path == "/mode":
+		return "mode.update-global"
+	case method == "DELETE" && path == "/mode":
+		return "mode.delete-global"
+	case method == "GET" && path == "/mode/{subject}":
+		return "mode.get-subject"
+	case method == "PUT" && path == "/mode/{subject}":
+		return "mode.update-subject"
+	case method == "DELETE" && path == "/mode/{subject}":
+		return "mode.delete-subject"
+
+	// Contexts
+	case method == "GET" && path == "/contexts":
+		return "contexts.list"
+
+	default:
+		return ""
+	}
 }
 
 // RecordSchemaRegistration records a schema registration attempt.

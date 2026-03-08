@@ -710,6 +710,14 @@ func (h *Handler) DeleteSubject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Capture schema type before deletion for metrics (best-effort).
+	var deletionSchemaType string
+	if h.metrics != nil {
+		if latest, err := h.registry.GetLatestSchema(r.Context(), registryCtx, subject); err == nil {
+			deletionSchemaType = schemaTypeForResponse(latest.SchemaType)
+		}
+	}
+
 	versions, err := h.registry.DeleteSubject(r.Context(), registryCtx, subject, permanent)
 	if err != nil {
 		if errors.Is(err, storage.ErrSubjectNotFound) {
@@ -736,7 +744,7 @@ func (h *Handler) DeleteSubject(w http.ResponseWriter, r *http.Request) {
 
 	if h.metrics != nil {
 		for range versions {
-			h.metrics.RecordSchemaDeletion("")
+			h.metrics.RecordSchemaDeletion(deletionSchemaType)
 		}
 	}
 
@@ -770,6 +778,14 @@ func (h *Handler) DeleteVersion(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Capture schema type before deletion for metrics (best-effort).
+	var deletionSchemaType string
+	if h.metrics != nil {
+		if schema, err := h.registry.GetSchemaBySubjectVersion(r.Context(), registryCtx, subject, version); err == nil {
+			deletionSchemaType = schemaTypeForResponse(schema.SchemaType)
+		}
+	}
+
 	deletedVersion, err := h.registry.DeleteVersion(r.Context(), registryCtx, subject, version, permanent)
 	if err != nil {
 		if errors.Is(err, storage.ErrSubjectNotFound) {
@@ -794,7 +810,7 @@ func (h *Handler) DeleteVersion(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if h.metrics != nil {
-		h.metrics.RecordSchemaDeletion("")
+		h.metrics.RecordSchemaDeletion(deletionSchemaType)
 	}
 
 	writeJSON(w, http.StatusOK, deletedVersion)

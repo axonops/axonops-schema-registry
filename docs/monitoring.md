@@ -110,6 +110,45 @@ AxonOps Schema Registry exposes metrics with the `kafka_schema_registry_` prefix
 
 > **Confluent Dashboard Compatibility:** If you are migrating from Confluent Schema Registry, your existing Grafana dashboards querying `kafka_schema_registry_*` metrics SHOULD work without changes. AxonOps exposes these metrics natively via the `/metrics` endpoint — no JMX exporter is required.
 
+#### Per-Endpoint Metrics
+
+AxonOps also exposes per-endpoint metrics that mirror Confluent's Jersey/JMX per-endpoint instrumentation. The `endpoint` label uses Confluent's `@PerformanceMetric` naming convention.
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `kafka_schema_registry_jersey_metrics_request_total` | Counter | `endpoint` | Total requests per endpoint |
+| `kafka_schema_registry_jersey_metrics_request_latency_seconds` | Histogram | `endpoint` | Request latency per endpoint |
+| `kafka_schema_registry_jersey_metrics_request_error_total` | Counter | `endpoint` | Total error responses (4xx/5xx) per endpoint |
+
+**Supported endpoint names:**
+
+| Endpoint Label | HTTP Method + Path |
+|---|---|
+| `subjects.list` | `GET /subjects` |
+| `subjects.get-schema` | `POST /subjects/{subject}` |
+| `subjects.delete-subject` | `DELETE /subjects/{subject}` |
+| `subjects.versions.register` | `POST /subjects/{subject}/versions` |
+| `subjects.versions.list` | `GET /subjects/{subject}/versions` |
+| `subjects.versions.get-schema` | `GET /subjects/{subject}/versions/{version}` |
+| `subjects.versions.deleteSchemaVersion-schema` | `DELETE /subjects/{subject}/versions/{version}` |
+| `schemas.get-schemas` | `GET /schemas` |
+| `schemas.get-types` | `GET /schemas/types` |
+| `schemas.ids.get-schema` | `GET /schemas/ids/{id}` |
+| `compatibility.subjects.versions.verify` | `POST /compatibility/subjects/{subject}/versions/{version}` |
+| `config.get-global` | `GET /config` |
+| `config.update-global` | `PUT /config` |
+| `config.delete-global` | `DELETE /config` |
+| `config.get-subject` | `GET /config/{subject}` |
+| `config.update-subject` | `PUT /config/{subject}` |
+| `config.delete-subject` | `DELETE /config/{subject}` |
+| `mode.get-global` | `GET /mode` |
+| `mode.update-global` | `PUT /mode` |
+| `mode.delete-global` | `DELETE /mode` |
+| `mode.get-subject` | `GET /mode/{subject}` |
+| `mode.update-subject` | `PUT /mode/{subject}` |
+| `mode.delete-subject` | `DELETE /mode/{subject}` |
+| `contexts.list` | `GET /contexts` |
+
 **Confluent metrics NOT exposed** (not applicable to AxonOps architecture):
 
 - `leader-initialization-latency` — Kafka leader election concept (AxonOps does not use Kafka for coordination)

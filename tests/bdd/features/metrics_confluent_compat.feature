@@ -105,6 +105,16 @@ Feature: Wire-Compatible Metrics
     And the Prometheus metric "kafka_schema_registry_deleted_count" should have increased from "before"
 
   @axonops-only
+  Scenario: schemas_deleted counter tracks deletions by type
+    Given subject "metrics-del-type-test" has schema:
+      """
+      {"type":"record","name":"MetricsDelType","fields":[{"name":"id","type":"int"}]}
+      """
+    When I delete subject "metrics-del-type-test"
+    Then the response status should be 200
+    And the Prometheus metric "kafka_schema_registry_schemas_deleted" with labels "schema_type=\"avro\"" should exist
+
+  @axonops-only
   Scenario: deleted_count increments when a version is deleted
     Given subject "metrics-ver-del" has schema:
       """
@@ -118,6 +128,33 @@ Feature: Wire-Compatible Metrics
     When I delete version 1 of subject "metrics-ver-del"
     Then the response status should be 200
     And the Prometheus metric "kafka_schema_registry_deleted_count" should have increased from "before"
+    And the Prometheus metric "kafka_schema_registry_schemas_deleted" with labels "schema_type=\"avro\"" should exist
+
+  # ---------------------------------------------------------------------------
+  # Per-endpoint Confluent-compatible metrics
+  # ---------------------------------------------------------------------------
+
+  @axonops-only
+  Scenario: Per-endpoint request metrics track schema registration
+    When I register a schema under subject "metrics-endpoint-test":
+      """
+      {"type":"record","name":"MetricsEndpoint","fields":[{"name":"id","type":"int"}]}
+      """
+    Then the response status should be 200
+    And the Prometheus metric "kafka_schema_registry_jersey_metrics_request_total" with labels "endpoint=\"subjects.versions.register\"" should exist
+    And the Prometheus metric "kafka_schema_registry_jersey_metrics_request_latency_seconds_count" with labels "endpoint=\"subjects.versions.register\"" should exist
+
+  @axonops-only
+  Scenario: Per-endpoint request metrics track subject listing
+    When I GET "/subjects"
+    Then the response status should be 200
+    And the Prometheus metric "kafka_schema_registry_jersey_metrics_request_total" with labels "endpoint=\"subjects.list\"" should exist
+
+  @axonops-only
+  Scenario: Per-endpoint error metrics track failures
+    When I GET "/subjects/nonexistent-endpoint-metrics-test/versions"
+    Then the response status should be 404
+    And the Prometheus metric "kafka_schema_registry_jersey_metrics_request_error_total" with labels "endpoint=\"subjects.versions.list\"" should exist
 
   # ---------------------------------------------------------------------------
   # AxonOps-native metrics coexist with wire-compatible metrics
