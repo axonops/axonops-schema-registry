@@ -273,7 +273,29 @@ func TestMCPToolCallsActive(t *testing.T) {
 	m.MCPToolCallsActive.Inc()
 	m.MCPToolCallsActive.Dec()
 
-	// Should be 1 after Inc, Inc, Dec. No panic.
+	// Verify gauge value is 1 after Inc, Inc, Dec.
+	handler := m.Handler()
+	req := httptest.NewRequest("GET", "/metrics", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	body, _ := io.ReadAll(rr.Body)
+	content := string(body)
+	if !strings.Contains(content, "schema_registry_mcp_tool_calls_active 1") {
+		t.Errorf("Expected mcp_tool_calls_active gauge to be 1, got output:\n%s",
+			extractMetricLines(content, "schema_registry_mcp_tool_calls_active"))
+	}
+}
+
+// extractMetricLines returns all lines matching a metric name for diagnostics.
+func extractMetricLines(body, metric string) string {
+	var lines []string
+	for _, line := range strings.Split(body, "\n") {
+		if strings.Contains(line, metric) {
+			lines = append(lines, line)
+		}
+	}
+	return strings.Join(lines, "\n")
 }
 
 func TestEnablePrincipalMetrics(t *testing.T) {
@@ -298,7 +320,7 @@ func TestEnablePrincipalMetrics(t *testing.T) {
 	m.RecordPrincipalRequest("api-user", "POST", "/subjects/*", "OK")
 	m.RecordPrincipalMCPCall("mcp-client", "register_schema", "success")
 
-	// Verify they appear in /metrics output.
+	// Verify they appear in /metrics output with correct labels.
 	handler := m.Handler()
 	req := httptest.NewRequest("GET", "/metrics", nil)
 	rr := httptest.NewRecorder()
@@ -306,11 +328,29 @@ func TestEnablePrincipalMetrics(t *testing.T) {
 
 	body, _ := io.ReadAll(rr.Body)
 	content := string(body)
-	if !strings.Contains(content, "schema_registry_principal_requests_total") {
+
+	// Verify principal HTTP request metrics with label values
+	if !strings.Contains(content, `schema_registry_principal_requests_total{`) {
 		t.Error("Expected metrics output to contain schema_registry_principal_requests_total")
 	}
-	if !strings.Contains(content, "schema_registry_principal_mcp_calls_total") {
+	if !strings.Contains(content, `principal="admin"`) {
+		t.Error("Expected principal_requests_total to have principal=\"admin\" label")
+	}
+	if !strings.Contains(content, `principal="api-user"`) {
+		t.Error("Expected principal_requests_total to have principal=\"api-user\" label")
+	}
+
+	// Verify principal MCP call metrics with label values
+	if !strings.Contains(content, `schema_registry_principal_mcp_calls_total{`) {
 		t.Error("Expected metrics output to contain schema_registry_principal_mcp_calls_total")
+	}
+	if !strings.Contains(content, `principal="mcp-client"`) {
+		t.Errorf("Expected principal_mcp_calls_total to have principal=\"mcp-client\" label, got:\n%s",
+			extractMetricLines(content, "schema_registry_principal_mcp_calls_total"))
+	}
+	if !strings.Contains(content, `tool="register_schema"`) {
+		t.Errorf("Expected principal_mcp_calls_total to have tool=\"register_schema\" label, got:\n%s",
+			extractMetricLines(content, "schema_registry_principal_mcp_calls_total"))
 	}
 }
 
