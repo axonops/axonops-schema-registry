@@ -1211,6 +1211,102 @@ func TestMCPPermissionsFeatures(t *testing.T) {
 	}
 }
 
+// TestKMSFeatures runs REST KMS encryption BDD tests against a Docker-deployed binary
+// with Vault Transit and OpenBao Transit engines.
+func TestKMSFeatures(t *testing.T) {
+	bddBackend := os.Getenv("BDD_BACKEND")
+	if bddBackend == "" {
+		t.Skip("KMS Docker tests only run with BDD_BACKEND set")
+	}
+	if bddBackend != "memory" {
+		t.Skip("KMS Docker tests only run with BDD_BACKEND=memory (they start their own compose stack)")
+	}
+
+	if containerCmd == "" {
+		containerCmd = findContainerCmd()
+	}
+	kmsFiles := []string{
+		"docker-compose.base.yml",
+		"docker-compose.memory.yml",
+		"docker-compose.kms-overlay.yml",
+	}
+	kmsEnv := []string{
+		"REGISTRY_PORT=18088",
+		"WEBHOOK_PORT=19007",
+		"VAULT_PORT=18204",
+		"BAO_PORT=18205",
+	}
+
+	log.Printf("Starting REST KMS compose stack...")
+	if err := composeUpWithProject(kmsFiles, "bdd-rest-kms", kmsEnv); err != nil {
+		t.Fatalf("Failed to start REST KMS compose: %v", err)
+	}
+	t.Cleanup(func() {
+		log.Println("Stopping REST KMS compose stack...")
+		composeDownWithProject(kmsFiles, "bdd-rest-kms")
+	})
+
+	restURL := "http://localhost:18088"
+
+	log.Printf("Waiting for KMS registry at %s ...", restURL)
+	if err := waitForURL(restURL+"/", 120*time.Second); err != nil {
+		composeLogsWithProject(kmsFiles, "bdd-rest-kms")
+		t.Fatalf("KMS registry did not become healthy: %v", err)
+	}
+	log.Println("KMS registry is healthy.")
+
+	// Set KMS env vars for test-side Transit decrypt calls
+	t.Setenv("KMS_VAULT_ADDR", "http://localhost:18204")
+	t.Setenv("KMS_VAULT_TOKEN", "test-root-token")
+	t.Setenv("KMS_BAO_ADDR", "http://localhost:18205")
+	t.Setenv("KMS_BAO_TOKEN", "test-bao-token")
+
+	opts := godog.Options{
+		Format:   "pretty",
+		Output:   colors.Colored(os.Stdout),
+		Paths:    []string{"features"},
+		Tags:     "@kms && ~@mcp",
+		Strict:   true,
+		TestingT: t,
+	}
+
+	suite := godog.TestSuite{
+		ScenarioInitializer: func(ctx *godog.ScenarioContext) {
+			tc := steps.NewTestContext(restURL)
+			tc.MetricsURL = restURL + "/metrics"
+
+			ctx.Before(func(gctx context.Context, sc *godog.Scenario) (context.Context, error) {
+				if err := cleanViaAPINoAuth(restURL); err != nil {
+					return gctx, fmt.Errorf("clean KMS registry: %w", err)
+				}
+				return gctx, nil
+			})
+
+			steps.RegisterSchemaSteps(ctx, tc)
+			steps.RegisterImportSteps(ctx, tc)
+			steps.RegisterModeSteps(ctx, tc)
+			steps.RegisterReferenceSteps(ctx, tc)
+			steps.RegisterInfraSteps(ctx, tc)
+			steps.RegisterAuthSteps(ctx, tc)
+			steps.RegisterEncryptionSteps(ctx, tc)
+			steps.RegisterConcurrencySteps(ctx, tc)
+			steps.RegisterRateLimitSteps(ctx, tc)
+			steps.RegisterMetricsSteps(ctx, tc)
+			steps.RegisterMCPSteps(ctx, tc)
+		},
+		Options: &opts,
+	}
+
+	if suite.Run() != 0 {
+		t.Fatal("REST KMS BDD tests failed")
+	}
+}
+
+// cleanViaAPINoAuth resets all state via the REST API (no auth required).
+func cleanViaAPINoAuth(baseURL string) error {
+	return cleanViaAPIWithAuth(baseURL, "", "")
+}
+
 // waitForMCPEndpoint waits for the MCP HTTP endpoint to accept connections.
 func waitForMCPEndpoint(mcpURL string, timeout time.Duration) error {
 	client := &http.Client{Timeout: 3 * time.Second}
@@ -1231,11 +1327,14 @@ func waitForMCPEndpoint(mcpURL string, timeout time.Duration) error {
 	return fmt.Errorf("timeout waiting for MCP endpoint %s: %v", mcpURL, lastErr)
 }
 
-// cleanViaAPIWithAuth resets all state via the REST API using Basic auth credentials.
-// Used by Docker MCP tests where the registry has auth enabled.
+// cleanViaAPIWithAuth resets all state via the REST API using optional Basic auth credentials.
+// When username is empty, no Authorization header is sent.
 func cleanViaAPIWithAuth(baseURL, username, password string) error {
 	client := &http.Client{Timeout: 10 * time.Second}
-	authHeader := "Basic " + base64.StdEncoding.EncodeToString([]byte(username+":"+password))
+	var authHeader string
+	if username != "" {
+		authHeader = "Basic " + base64.StdEncoding.EncodeToString([]byte(username+":"+password))
+	}
 
 	doReq := func(method, path string, body io.Reader) (*http.Response, error) {
 		req, err := http.NewRequest(method, baseURL+path, body)
@@ -1243,7 +1342,9 @@ func cleanViaAPIWithAuth(baseURL, username, password string) error {
 			return nil, err
 		}
 		req.Header.Set("Content-Type", "application/vnd.schemaregistry.v1+json")
-		req.Header.Set("Authorization", authHeader)
+		if authHeader != "" {
+			req.Header.Set("Authorization", authHeader)
+		}
 		return client.Do(req)
 	}
 
