@@ -1211,6 +1211,135 @@ func TestMCPPermissionsFeatures(t *testing.T) {
 	}
 }
 
+// TestMCPAuditFeatures runs MCP audit BDD tests against a Docker-deployed binary.
+// The audit log is written to a file inside the container and read via docker exec.
+func TestMCPAuditFeatures(t *testing.T) {
+	bddBackend := os.Getenv("BDD_BACKEND")
+	if bddBackend == "" {
+		t.Skip("MCP audit Docker tests only run with BDD_BACKEND set")
+	}
+	if bddBackend != "memory" {
+		t.Skip("MCP audit Docker tests only run with BDD_BACKEND=memory (they start their own compose stack)")
+	}
+
+	if containerCmd == "" {
+		containerCmd = findContainerCmd()
+	}
+	auditFiles := []string{"docker-compose.base.yml", "docker-compose.mcp-audit.yml"}
+	auditEnv := []string{
+		"REGISTRY_PORT=18089",
+		"WEBHOOK_PORT=19008",
+		"MCP_PORT=19086",
+	}
+	projectName := "bdd-mcp-audit"
+
+	log.Printf("Starting MCP audit compose stack...")
+	if err := composeUpWithProject(auditFiles, projectName, auditEnv); err != nil {
+		t.Fatalf("Failed to start MCP audit compose: %v", err)
+	}
+	t.Cleanup(func() {
+		log.Println("Stopping MCP audit compose stack...")
+		composeDownWithProject(auditFiles, projectName)
+	})
+
+	mcpRESTURL := "http://localhost:18089"
+	mcpURL := "http://localhost:19086/mcp"
+	mcpWebhook := "http://localhost:19008"
+
+	log.Printf("Waiting for MCP audit registry at %s ...", mcpRESTURL)
+	if err := waitForURL(mcpRESTURL+"/", 120*time.Second); err != nil {
+		composeLogsWithProject(auditFiles, projectName)
+		t.Fatalf("MCP audit registry did not become healthy: %v", err)
+	}
+
+	log.Printf("Waiting for MCP audit endpoint at %s ...", mcpURL)
+	if err := waitForMCPEndpoint(mcpURL, 30*time.Second); err != nil {
+		composeLogsWithProject(auditFiles, projectName)
+		t.Fatalf("MCP audit endpoint did not become ready: %v", err)
+	}
+	log.Println("MCP audit registry is healthy.")
+
+	// auditFetcher reads the audit log from the Docker container.
+	auditFetcher := func() (string, error) {
+		cmd := exec.Command(containerCmd, "compose",
+			"-f", "docker-compose.base.yml",
+			"-f", "docker-compose.mcp-audit.yml",
+			"-p", projectName,
+			"exec", "-T", "schema-registry",
+			"cat", "/tmp/audit.log",
+		)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			// File might not exist yet if no audit events fired
+			if strings.Contains(string(out), "No such file") {
+				return "", nil
+			}
+			return "", fmt.Errorf("read audit log: %w: %s", err, string(out))
+		}
+		return string(out), nil
+	}
+
+	// clearAuditLog truncates the audit log inside the container.
+	clearAuditLog := func() error {
+		cmd := exec.Command(containerCmd, "compose",
+			"-f", "docker-compose.base.yml",
+			"-f", "docker-compose.mcp-audit.yml",
+			"-p", projectName,
+			"exec", "-T", "schema-registry",
+			"sh", "-c", "truncate -s 0 /tmp/audit.log 2>/dev/null || true",
+		)
+		return cmd.Run()
+	}
+
+	opts := godog.Options{
+		Format:   "pretty",
+		Output:   colors.Colored(os.Stdout),
+		Paths:    []string{"features"},
+		Tags:     "@mcp && @audit",
+		Strict:   true,
+		TestingT: t,
+	}
+
+	suite := godog.TestSuite{
+		ScenarioInitializer: func(ctx *godog.ScenarioContext) {
+			tc := steps.NewTestContext(mcpRESTURL)
+			tc.MetricsURL = mcpRESTURL + "/metrics"
+			tc.WebhookURL = mcpWebhook
+			tc.StoredValues["_mcp_url"] = mcpURL
+			tc.StoredValues["_audit_fetcher"] = auditFetcher
+			tc.AuthHeader = "Basic " + base64.StdEncoding.EncodeToString([]byte("admin:admin-password"))
+
+			ctx.Before(func(gctx context.Context, sc *godog.Scenario) (context.Context, error) {
+				if err := cleanViaAPIWithAuth(mcpRESTURL, "admin", "admin-password"); err != nil {
+					return gctx, fmt.Errorf("clean MCP audit registry: %w", err)
+				}
+				// Clear audit log for clean assertions per scenario
+				if err := clearAuditLog(); err != nil {
+					return gctx, fmt.Errorf("clear audit log: %w", err)
+				}
+				return gctx, nil
+			})
+
+			steps.RegisterSchemaSteps(ctx, tc)
+			steps.RegisterImportSteps(ctx, tc)
+			steps.RegisterModeSteps(ctx, tc)
+			steps.RegisterReferenceSteps(ctx, tc)
+			steps.RegisterInfraSteps(ctx, tc)
+			steps.RegisterAuthSteps(ctx, tc)
+			steps.RegisterEncryptionSteps(ctx, tc)
+			steps.RegisterConcurrencySteps(ctx, tc)
+			steps.RegisterRateLimitSteps(ctx, tc)
+			steps.RegisterMetricsSteps(ctx, tc)
+			steps.RegisterMCPSteps(ctx, tc)
+		},
+		Options: &opts,
+	}
+
+	if suite.Run() != 0 {
+		t.Fatal("MCP audit BDD tests failed")
+	}
+}
+
 // TestKMSFeatures runs REST KMS encryption BDD tests against a Docker-deployed binary
 // with Vault Transit and OpenBao Transit engines.
 func TestKMSFeatures(t *testing.T) {

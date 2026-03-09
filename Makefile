@@ -262,7 +262,7 @@ _test-bdd-auth-single:
 test-bdd-mcp:
 	@echo "=== BDD MCP Tests (Docker, memory, timeout $(TIMEOUT_BDD_POSTGRES)) ==="; \
 	BDD_BACKEND=memory \
-		$(GOTEST) -tags bdd -v -count=1 -timeout $(TIMEOUT_BDD_POSTGRES) -run 'TestMCPFeatures|TestMCPMetricsFeatures|TestMCPConfirmationFeatures|TestMCPPermissionsFeatures' ./tests/bdd/...
+		$(GOTEST) -tags bdd -v -count=1 -timeout $(TIMEOUT_BDD_POSTGRES) -run 'TestMCPFeatures|TestMCPMetricsFeatures|TestMCPConfirmationFeatures|TestMCPPermissionsFeatures|TestMCPAuditFeatures' ./tests/bdd/...
 
 ## Run BDD MCP confirmation tests (Docker, require_confirmations=true)
 test-bdd-mcp-confirmations:

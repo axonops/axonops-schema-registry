@@ -694,32 +694,47 @@ func RegisterMCPSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 
 	// --- Audit log assertion steps ---
 
-	ctx.Step(`^the audit log should contain event "([^"]*)"$`, func(eventType string) error {
-		if tc.AuditBuffer == nil {
-			return fmt.Errorf("no audit buffer configured")
+	// getAuditLog returns the audit log content from either the in-process buffer
+	// or the Docker container's audit log file (via _audit_fetcher stored value).
+	getAuditLog := func() (string, error) {
+		if tc.AuditBuffer != nil {
+			return tc.AuditBuffer.String(), nil
 		}
-		if !strings.Contains(tc.AuditBuffer.String(), eventType) {
-			return fmt.Errorf("expected audit log to contain event %q, got: %s", eventType, tc.AuditBuffer.String())
+		if fetcher, ok := tc.StoredValues["_audit_fetcher"].(func() (string, error)); ok {
+			return fetcher()
+		}
+		return "", fmt.Errorf("no audit buffer or audit fetcher configured")
+	}
+
+	ctx.Step(`^the audit log should contain event "([^"]*)"$`, func(eventType string) error {
+		log, err := getAuditLog()
+		if err != nil {
+			return err
+		}
+		if !strings.Contains(log, eventType) {
+			return fmt.Errorf("expected audit log to contain event %q, got: %s", eventType, log)
 		}
 		return nil
 	})
 
 	ctx.Step(`^the audit log should contain "([^"]*)"$`, func(text string) error {
-		if tc.AuditBuffer == nil {
-			return fmt.Errorf("no audit buffer configured")
+		log, err := getAuditLog()
+		if err != nil {
+			return err
 		}
-		if !strings.Contains(tc.AuditBuffer.String(), text) {
-			return fmt.Errorf("expected audit log to contain %q, got: %s", text, tc.AuditBuffer.String())
+		if !strings.Contains(log, text) {
+			return fmt.Errorf("expected audit log to contain %q, got: %s", text, log)
 		}
 		return nil
 	})
 
 	ctx.Step(`^the audit log should not contain event "([^"]*)"$`, func(eventType string) error {
-		if tc.AuditBuffer == nil {
-			return fmt.Errorf("no audit buffer configured")
+		log, err := getAuditLog()
+		if err != nil {
+			return err
 		}
-		if strings.Contains(tc.AuditBuffer.String(), eventType) {
-			return fmt.Errorf("expected audit log NOT to contain event %q, got: %s", eventType, tc.AuditBuffer.String())
+		if strings.Contains(log, eventType) {
+			return fmt.Errorf("expected audit log NOT to contain event %q, got: %s", eventType, log)
 		}
 		return nil
 	})
