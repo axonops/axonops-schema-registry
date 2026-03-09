@@ -474,7 +474,7 @@ mcp:
   read_only: false
   auth_token: ""
   default_context: "."
-  tool_policy: "all"           # all | none | allow_list | deny_list
+  tool_policy: "allow_all"     # allow_all | deny_list | allow_list
   allowed_tools: []
   denied_tools: []
   permission_preset: ""        # readonly | developer | operator | admin | full
