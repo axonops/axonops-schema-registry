@@ -203,11 +203,14 @@ func main() {
 			authStorage = store
 		}
 
-		// Create auth service with secure API key configuration
+		// Create auth service with secure API key configuration.
+		// UserCacheTTL defaults to 60s to reduce database load for frequently
+		// authenticating users. CacheRefreshInterval ensures cluster consistency.
 		authService = auth.NewServiceWithConfig(authStorage, auth.ServiceConfig{
 			APIKeySecret:         cfg.Security.Auth.APIKey.Secret,
 			APIKeyPrefix:         cfg.Security.Auth.APIKey.KeyPrefix,
 			CacheRefreshInterval: time.Duration(cfg.Security.Auth.APIKey.CacheRefreshSeconds) * time.Second,
+			UserCacheTTL:         auth.DefaultUserCacheTTL,
 		})
 
 		// Wire metrics to auth service for cache metrics

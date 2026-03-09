@@ -447,7 +447,8 @@ func TestFeatures(t *testing.T) {
 		tags = "~@operational && ~@import && ~@axonops-only && ~@contexts && ~@pending-impl && ~@data-contracts && ~@auth && ~@kms && ~@mcp && ~@analysis && ~@audit && ~@memory && ~@postgres && ~@mysql && ~@cassandra"
 	} else if dockerMode {
 		// Only run operational scenarios tagged for this backend, exclude other backends.
-		// Auth and MCP tests require in-process server, skip in Docker mode.
+		// Auth tests are handled by TestAuthFeatures (separate compose stack).
+		// MCP tests require in-process server, skip in Docker mode for now.
 		// KMS tests are included when BDD_KMS=true (schema-registry has KMS providers configured).
 		allBackends := []string{"memory", "postgres", "mysql", "cassandra"}
 		excludes := []string{"~@pending-impl", "~@auth", "~@mcp", "~@audit"}
@@ -589,11 +590,44 @@ func TestFeatures(t *testing.T) {
 }
 
 // TestAuthFeatures runs BDD tests that require authentication enabled.
-// These tests use a separate in-process server with auth, RBAC, and a pre-seeded admin user.
+// In Docker mode: starts a separate compose stack with auth config.
+// In-process mode: creates a fresh in-process server with auth, RBAC, and a pre-seeded admin user.
 func TestAuthFeatures(t *testing.T) {
-	// Auth BDD tests only run in-process (no Docker mode for auth tests)
-	if dockerMode || registryURL != "" {
-		t.Skip("Auth BDD tests only run in-process mode")
+	// Docker mode: start auth-specific compose stack
+	var authURL string
+	var authWebhook string
+	var authFiles []string
+	authDockerMode := dockerMode || os.Getenv("BDD_BACKEND") != ""
+
+	if authDockerMode {
+		if containerCmd == "" {
+			containerCmd = findContainerCmd()
+		}
+		authFiles = []string{"docker-compose.base.yml", "docker-compose.auth.yml"}
+		authEnv := []string{
+			"REGISTRY_PORT=18082",
+			"WEBHOOK_PORT=19001",
+		}
+
+		log.Printf("Starting auth compose stack...")
+		if err := composeUpWithProject(authFiles, "bdd-auth", authEnv); err != nil {
+			t.Fatalf("Failed to start auth compose: %v", err)
+		}
+		t.Cleanup(func() {
+			log.Println("Stopping auth compose stack...")
+			composeDownWithProject(authFiles, "bdd-auth")
+		})
+
+		authURL = "http://localhost:18082"
+		authWebhook = "http://localhost:19001"
+
+		log.Printf("Waiting for auth registry at %s ...", authURL)
+		if err := waitForURL(authURL+"/", 120*time.Second); err != nil {
+			composeLogsWithProject(authFiles, "bdd-auth")
+			t.Fatalf("Auth registry did not become healthy: %v", err)
+		}
+		log.Println("Auth registry is healthy.")
+		_ = authWebhook // available for future operational tests
 	}
 
 	opts := godog.Options{
@@ -607,36 +641,54 @@ func TestAuthFeatures(t *testing.T) {
 
 	suite := godog.TestSuite{
 		ScenarioInitializer: func(ctx *godog.ScenarioContext) {
-			var ts *httptest.Server
-			var store storage.Storage
-			var authSvc *auth.Service
-			var storeOwned bool
+			var tc *steps.TestContext
 
-			tc := steps.NewTestContext("http://placeholder")
+			if authDockerMode && authURL != "" {
+				// Docker mode: use the external auth registry.
+				// Memory backend: restart the service between scenarios via webhook.
+				// This resets all state (users, schemas, rate limiter) cleanly.
+				// The bootstrap config re-creates the admin user on restart.
+				tc = steps.NewTestContext(authURL)
 
-			ctx.Before(func(gctx context.Context, sc *godog.Scenario) (context.Context, error) {
-				if sharedDBStore != nil {
-					if err := cleanDBStore(); err != nil {
-						return gctx, fmt.Errorf("clean %s storage for auth: %w", bddStorage, err)
+				ctx.Before(func(gctx context.Context, sc *godog.Scenario) (context.Context, error) {
+					if err := restartAuthRegistry(authURL, authWebhook); err != nil {
+						return gctx, fmt.Errorf("restart auth registry: %w", err)
 					}
-					ts, store, authSvc = newAuthTestServerWithStore(sharedDBStore)
-					storeOwned = false
-				} else {
-					ts, store, authSvc = newAuthTestServer()
-					storeOwned = true
-				}
-				tc.BaseURL = ts.URL
-				return gctx, nil
-			})
+					return gctx, nil
+				})
+			} else {
+				// In-process mode: create fresh server per scenario
+				var ts *httptest.Server
+				var store storage.Storage
+				var authSvc *auth.Service
+				var storeOwned bool
 
-			ctx.After(func(gctx context.Context, sc *godog.Scenario, err error) (context.Context, error) {
-				authSvc.Close()
-				ts.Close()
-				if storeOwned {
-					store.Close()
-				}
-				return gctx, nil
-			})
+				tc = steps.NewTestContext("http://placeholder")
+
+				ctx.Before(func(gctx context.Context, sc *godog.Scenario) (context.Context, error) {
+					if sharedDBStore != nil {
+						if err := cleanDBStore(); err != nil {
+							return gctx, fmt.Errorf("clean %s storage for auth: %w", bddStorage, err)
+						}
+						ts, store, authSvc = newAuthTestServerWithStore(sharedDBStore)
+						storeOwned = false
+					} else {
+						ts, store, authSvc = newAuthTestServer()
+						storeOwned = true
+					}
+					tc.BaseURL = ts.URL
+					return gctx, nil
+				})
+
+				ctx.After(func(gctx context.Context, sc *godog.Scenario, err error) (context.Context, error) {
+					authSvc.Close()
+					ts.Close()
+					if storeOwned {
+						store.Close()
+					}
+					return gctx, nil
+				})
+			}
 
 			// Register all step definitions (auth scenarios may also use schema steps)
 			steps.RegisterSchemaSteps(ctx, tc)
@@ -973,6 +1025,222 @@ func cleanViaAPI() error {
 	return nil
 }
 
+// restartAuthRegistry restarts the schema registry via the webhook and waits for it to become healthy.
+// For memory-backed Docker containers, this is the cleanest way to reset all state between scenarios:
+// the rate limiter, in-memory storage, and credential cache are all reset on restart, and the
+// bootstrap config automatically re-creates the admin user.
+func restartAuthRegistry(registryURL, webhookURL string) error {
+	client := &http.Client{Timeout: 5 * time.Second}
+
+	// Restart the service via webhook
+	resp, err := client.Post(webhookURL+"/hooks/restart-service", "application/json", nil)
+	if err != nil {
+		return fmt.Errorf("restart webhook: %w", err)
+	}
+	resp.Body.Close()
+
+	// Brief pause to let the old process die before polling
+	time.Sleep(500 * time.Millisecond)
+
+	// Wait for the registry to become healthy (bootstrap creates admin user)
+	deadline := time.Now().Add(30 * time.Second)
+	for time.Now().Before(deadline) {
+		resp, err := client.Get(registryURL + "/")
+		if err == nil {
+			resp.Body.Close()
+			if resp.StatusCode == 200 {
+				return nil
+			}
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+	return fmt.Errorf("timeout waiting for auth registry restart at %s", registryURL)
+}
+
+// cleanAuthViaAPI resets state via the REST API with admin authentication.
+// This is used for Docker-mode auth tests where the registry requires authentication.
+// It cleans subjects, config, mode, KEKs, exporters, and non-admin users/API keys.
+func cleanAuthViaAPI(baseURL string) error {
+	client := &http.Client{Timeout: 10 * time.Second}
+
+	doReq := func(method, url string, body io.Reader) (*http.Response, error) {
+		req, err := http.NewRequest(method, url, body)
+		if err != nil {
+			return nil, err
+		}
+		if body != nil {
+			req.Header.Set("Content-Type", "application/vnd.schemaregistry.v1+json")
+		}
+		req.SetBasicAuth("admin", "admin-password")
+		return client.Do(req)
+	}
+
+	// 1. Reset global mode to READWRITE
+	r, err := doReq("PUT", baseURL+"/mode", strings.NewReader(`{"mode":"READWRITE"}`))
+	if err != nil {
+		return fmt.Errorf("reset mode: %w", err)
+	}
+	r.Body.Close()
+
+	// 2. Soft-delete all active subjects
+	resp, err := doReq("GET", baseURL+"/subjects", nil)
+	if err != nil {
+		return fmt.Errorf("list subjects: %w", err)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	resp.Body.Close()
+
+	var activeSubjects []string
+	if resp.StatusCode == 200 && len(body) > 0 {
+		json.Unmarshal(body, &activeSubjects)
+	}
+	for _, subj := range activeSubjects {
+		r, err := doReq("DELETE", baseURL+"/subjects/"+url.PathEscape(subj), nil)
+		if err != nil {
+			return fmt.Errorf("soft-delete subject %s: %w", subj, err)
+		}
+		r.Body.Close()
+	}
+
+	// 3. Permanently delete all subjects (including previously soft-deleted)
+	resp, err = doReq("GET", baseURL+"/subjects?deleted=true", nil)
+	if err != nil {
+		return fmt.Errorf("list deleted subjects: %w", err)
+	}
+	body, _ = io.ReadAll(resp.Body)
+	resp.Body.Close()
+
+	var allSubjects []string
+	if resp.StatusCode == 200 && len(body) > 0 {
+		json.Unmarshal(body, &allSubjects)
+	}
+	for _, subj := range allSubjects {
+		r, err := doReq("DELETE", baseURL+"/subjects/"+url.PathEscape(subj)+"?permanent=true", nil)
+		if err != nil {
+			return fmt.Errorf("permanent-delete subject %s: %w", subj, err)
+		}
+		r.Body.Close()
+	}
+
+	// 4. Delete subject-level configs and modes
+	allSubjectsToClean := append(activeSubjects, allSubjects...)
+	seen := make(map[string]bool)
+	for _, subj := range allSubjectsToClean {
+		if seen[subj] {
+			continue
+		}
+		seen[subj] = true
+		escaped := url.PathEscape(subj)
+		if cr, err := doReq("DELETE", baseURL+"/config/"+escaped, nil); err == nil {
+			cr.Body.Close()
+		}
+		if mr, err := doReq("DELETE", baseURL+"/mode/"+escaped, nil); err == nil {
+			mr.Body.Close()
+		}
+	}
+
+	// 5. Delete global config
+	r, err = doReq("DELETE", baseURL+"/config", nil)
+	if err != nil {
+		return fmt.Errorf("reset config: %w", err)
+	}
+	r.Body.Close()
+
+	// 6. Delete all non-admin users.
+	// Response format: {"users": [{...}, ...]}
+	resp, err = doReq("GET", baseURL+"/admin/users", nil)
+	if err == nil && resp.StatusCode == 200 {
+		body, _ = io.ReadAll(resp.Body)
+		resp.Body.Close()
+		var usersResp struct {
+			Users []struct {
+				ID       float64 `json:"id"`
+				Username string  `json:"username"`
+			} `json:"users"`
+		}
+		if json.Unmarshal(body, &usersResp) == nil {
+			for _, u := range usersResp.Users {
+				if u.Username == "admin" {
+					continue // keep the bootstrap admin
+				}
+				dr, err := doReq("DELETE", fmt.Sprintf("%s/admin/users/%d", baseURL, int(u.ID)), nil)
+				if err == nil {
+					dr.Body.Close()
+				}
+			}
+		}
+	} else if resp != nil {
+		resp.Body.Close()
+	}
+
+	// 7. Delete all API keys.
+	// Response format: {"api_keys": [{...}, ...]}
+	resp, err = doReq("GET", baseURL+"/admin/apikeys", nil)
+	if err == nil && resp.StatusCode == 200 {
+		body, _ = io.ReadAll(resp.Body)
+		resp.Body.Close()
+		var keysResp struct {
+			APIKeys []struct {
+				ID float64 `json:"id"`
+			} `json:"api_keys"`
+		}
+		if json.Unmarshal(body, &keysResp) == nil {
+			for _, k := range keysResp.APIKeys {
+				dr, err := doReq("DELETE", fmt.Sprintf("%s/admin/apikeys/%d", baseURL, int(k.ID)), nil)
+				if err == nil {
+					dr.Body.Close()
+				}
+			}
+		}
+	} else if resp != nil {
+		resp.Body.Close()
+	}
+
+	// 8. Delete all KEKs
+	resp, err = doReq("GET", baseURL+"/dek-registry/v1/keks", nil)
+	if err == nil && resp.StatusCode == 200 {
+		body, _ = io.ReadAll(resp.Body)
+		resp.Body.Close()
+		var keks []map[string]interface{}
+		if json.Unmarshal(body, &keks) == nil {
+			for _, kek := range keks {
+				if name, ok := kek["name"].(string); ok {
+					dr, _ := doReq("DELETE", baseURL+"/dek-registry/v1/keks/"+url.PathEscape(name), nil)
+					if dr != nil {
+						dr.Body.Close()
+					}
+					dr, _ = doReq("DELETE", baseURL+"/dek-registry/v1/keks/"+url.PathEscape(name)+"?permanent=true", nil)
+					if dr != nil {
+						dr.Body.Close()
+					}
+				}
+			}
+		}
+	} else if resp != nil {
+		resp.Body.Close()
+	}
+
+	// 9. Delete all exporters
+	resp, err = doReq("GET", baseURL+"/exporters", nil)
+	if err == nil && resp.StatusCode == 200 {
+		body, _ = io.ReadAll(resp.Body)
+		resp.Body.Close()
+		var exporterNames []string
+		if json.Unmarshal(body, &exporterNames) == nil {
+			for _, name := range exporterNames {
+				dr, _ := doReq("DELETE", baseURL+"/exporters/"+url.PathEscape(name), nil)
+				if dr != nil {
+					dr.Body.Close()
+				}
+			}
+		}
+	} else if resp != nil {
+		resp.Body.Close()
+	}
+
+	return nil
+}
+
 // composeFilesForBackend returns the Docker Compose files for a given backend.
 // When BDD_KMS=true, the KMS overlay is appended to add Vault and OpenBao
 // Transit engines alongside the storage backend.
@@ -1015,7 +1283,23 @@ func findContainerCmd() string {
 }
 
 func composeUp(files []string) error {
+	return composeUpWithProject(files, "", nil)
+}
+
+func composeDown(files []string) {
+	composeDownWithProject(files, "")
+}
+
+func composeLogs(files []string) {
+	composeLogsWithProject(files, "")
+}
+
+// composeUpWithProject starts Docker Compose with an optional project name and extra env vars.
+func composeUpWithProject(files []string, project string, env []string) error {
 	args := []string{"compose"}
+	if project != "" {
+		args = append(args, "--project-name", project)
+	}
 	for _, f := range files {
 		args = append(args, "-f", f)
 	}
@@ -1025,11 +1309,16 @@ func composeUp(files []string) error {
 	cmd.Dir = "."
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+	cmd.Env = append(os.Environ(), env...)
 	return cmd.Run()
 }
 
-func composeDown(files []string) {
+// composeDownWithProject tears down Docker Compose with an optional project name.
+func composeDownWithProject(files []string, project string) {
 	args := []string{"compose"}
+	if project != "" {
+		args = append(args, "--project-name", project)
+	}
 	for _, f := range files {
 		args = append(args, "-f", f)
 	}
@@ -1044,8 +1333,12 @@ func composeDown(files []string) {
 	}
 }
 
-func composeLogs(files []string) {
+// composeLogsWithProject prints compose logs with an optional project name.
+func composeLogsWithProject(files []string, project string) {
 	args := []string{"compose"}
+	if project != "" {
+		args = append(args, "--project-name", project)
+	}
 	for _, f := range files {
 		args = append(args, "-f", f)
 	}

@@ -1,0 +1,18 @@
+# Auth overlay for BDD tests.
+# Layers on top of docker-compose.base.yml to enable authentication,
+# RBAC, rate limiting, htpasswd, and config-defined API keys.
+#
+# Usage:
+#   docker compose -f docker-compose.base.yml -f docker-compose.auth.yml up -d --build --wait
+
+services:
+  schema-registry:
+    command: ["--config", "/etc/schema-registry/config.memory-auth.yaml"]
+    environment:
+      REGISTRY_CONFIG: /etc/schema-registry/config.memory-auth.yaml
+      # bcrypt hashes for config-defined API keys.
+      # Injected as env vars because os.ExpandEnv in the config loader
+      # mangles literal $ characters in bcrypt hashes.
+      # Docker Compose $$ escapes to literal $ in the container env.
+      APIKEY_HASH_READONLY: "$$2a$$10$$ROuRURQ14AgQV2qYA3UWlOBKkrfQ5c93HO22VhFzl/m7SA9ETov5i"
+      APIKEY_HASH_ADMIN: "$$2a$$10$$BafRAM/ooSi1BnU4N2BnJu5Ci.X6tbybXBbNO18bZLSeZwBBikzza"
