@@ -8,6 +8,7 @@ Feature: MCP Permission Scopes — Granular Tool Access Control
   # 1. READONLY PRESET
   # ==========================================================================
 
+  @preset-readonly
   Scenario: Readonly preset allows list_subjects
     Given MCP permission preset is "readonly"
     When I call MCP tool "list_subjects" with JSON input:
@@ -16,6 +17,7 @@ Feature: MCP Permission Scopes — Granular Tool Access Control
       """
     Then the MCP result should not be an error
 
+  @preset-readonly
   Scenario: Readonly preset hides register_schema
     Given MCP permission preset is "readonly"
     When I list MCP tools
@@ -25,6 +27,7 @@ Feature: MCP Permission Scopes — Granular Tool Access Control
   # 2. DEVELOPER PRESET
   # ==========================================================================
 
+  @preset-developer
   Scenario: Developer preset allows register_schema
     Given MCP permission preset is "developer"
     When I call MCP tool "register_schema" with JSON input:
@@ -36,11 +39,13 @@ Feature: MCP Permission Scopes — Granular Tool Access Control
       """
     Then the MCP result should not be an error
 
+  @preset-developer
   Scenario: Developer preset hides delete_subject
     Given MCP permission preset is "developer"
     When I list MCP tools
     Then the MCP result should not contain "delete_subject"
 
+  @preset-developer
   Scenario: Developer preset hides create_user
     Given MCP permission preset is "developer"
     When I list MCP tools
@@ -50,6 +55,7 @@ Feature: MCP Permission Scopes — Granular Tool Access Control
   # 3. OPERATOR PRESET
   # ==========================================================================
 
+  @preset-operator
   Scenario: Operator preset allows delete_subject
     Given MCP permission preset is "operator"
     When I call MCP tool "register_schema" with JSON input:
@@ -66,6 +72,7 @@ Feature: MCP Permission Scopes — Granular Tool Access Control
       """
     Then the MCP result should not be an error
 
+  @preset-operator
   Scenario: Operator preset hides create_user
     Given MCP permission preset is "operator"
     When I list MCP tools
@@ -75,6 +82,7 @@ Feature: MCP Permission Scopes — Granular Tool Access Control
   # 4. ADMIN PRESET
   # ==========================================================================
 
+  @preset-admin
   Scenario: Admin preset allows create_user
     Given MCP permission preset is "admin"
     When I list MCP tools
@@ -84,6 +92,7 @@ Feature: MCP Permission Scopes — Granular Tool Access Control
   # 5. SYSTEM TOOLS ALWAYS AVAILABLE
   # ==========================================================================
 
+  @preset-readonly
   Scenario: System tools available under readonly preset
     Given MCP permission preset is "readonly"
     When I call MCP tool "health_check" with JSON input:
@@ -92,6 +101,7 @@ Feature: MCP Permission Scopes — Granular Tool Access Control
       """
     Then the MCP result should not be an error
 
+  @preset-readonly
   Scenario: System tools listed under readonly preset
     Given MCP permission preset is "readonly"
     When I list MCP tools
@@ -104,6 +114,7 @@ Feature: MCP Permission Scopes — Granular Tool Access Control
   # 6. CUSTOM SCOPES
   # ==========================================================================
 
+  @preset-custom
   Scenario: Custom scopes allow schema_read but block config and writes
     Given MCP permission scopes are "schema_read"
     When I list MCP tools

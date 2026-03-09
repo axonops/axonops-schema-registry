@@ -69,7 +69,7 @@ TIMEOUT_COMPAT         := 10m
 # Phony targets
 # =====================================================================
 .PHONY: all build build-all \
-        test test-unit test-bdd test-bdd-functional test-bdd-db test-bdd-auth test-bdd-mcp test-bdd-mcp-kms test-bdd-kms \
+        test test-unit test-bdd test-bdd-functional test-bdd-db test-bdd-auth test-bdd-mcp test-bdd-mcp-confirmations test-bdd-mcp-permissions test-bdd-mcp-kms test-bdd-kms \
         test-integration test-concurrency test-conformance \
         test-migration test-api test-ldap test-vault test-oidc test-auth \
         test-compatibility test-coverage \
@@ -258,11 +258,23 @@ _test-bdd-auth-single:
 # BDD MCP tests — Docker binary with MCP server enabled
 # =====================================================================
 
-## Run BDD MCP tests (Docker, memory backend)
+## Run BDD MCP tests (Docker, memory backend — all MCP suites)
 test-bdd-mcp:
 	@echo "=== BDD MCP Tests (Docker, memory, timeout $(TIMEOUT_BDD_POSTGRES)) ==="; \
 	BDD_BACKEND=memory \
-		$(GOTEST) -tags bdd -v -count=1 -timeout $(TIMEOUT_BDD_POSTGRES) -run 'TestMCPFeatures|TestMCPMetricsFeatures' ./tests/bdd/...
+		$(GOTEST) -tags bdd -v -count=1 -timeout $(TIMEOUT_BDD_POSTGRES) -run 'TestMCPFeatures|TestMCPMetricsFeatures|TestMCPConfirmationFeatures|TestMCPPermissionsFeatures' ./tests/bdd/...
+
+## Run BDD MCP confirmation tests (Docker, require_confirmations=true)
+test-bdd-mcp-confirmations:
+	@echo "=== BDD MCP Confirmation Tests (Docker, memory, timeout $(TIMEOUT_BDD_POSTGRES)) ==="; \
+	BDD_BACKEND=memory \
+		$(GOTEST) -tags bdd -v -count=1 -timeout $(TIMEOUT_BDD_POSTGRES) -run TestMCPConfirmationFeatures ./tests/bdd/...
+
+## Run BDD MCP permissions tests (Docker, one stack per preset)
+test-bdd-mcp-permissions:
+	@echo "=== BDD MCP Permissions Tests (Docker, memory, timeout $(TIMEOUT_BDD_POSTGRES)) ==="; \
+	BDD_BACKEND=memory \
+		$(GOTEST) -tags bdd -v -count=1 -timeout $(TIMEOUT_BDD_POSTGRES) -run TestMCPPermissionsFeatures ./tests/bdd/...
 
 ## Run BDD MCP + KMS tests (Docker with Vault + OpenBao)
 test-bdd-mcp-kms:
@@ -742,7 +754,9 @@ help:
 	@echo "  test-bdd-functional BDD functional tests (in-process, memory, no Docker)"
 	@echo "  test-bdd-db         BDD tests with real DB (in-process)   [BACKEND=]"
 	@echo "  test-bdd-auth       BDD auth tests with real DB           [BACKEND=]"
-	@echo "  test-bdd-mcp        BDD MCP tests (Docker, memory backend)"
+	@echo "  test-bdd-mcp        BDD MCP tests — all MCP suites (Docker, memory)"
+	@echo "  test-bdd-mcp-confirmations  BDD MCP confirmation tests (Docker)"
+	@echo "  test-bdd-mcp-permissions    BDD MCP permission preset tests (Docker)"
 	@echo "  test-bdd-mcp-kms    BDD MCP+KMS tests (Docker + Vault + OpenBao)"
 	@echo "  test-bdd-kms        BDD KMS tests (Vault + OpenBao)       [BACKEND=]"
 	@echo "  test-integration    Integration tests against DB backends [BACKEND=] (no memory)"

@@ -992,6 +992,225 @@ func TestMCPMetricsFeatures(t *testing.T) {
 	}
 }
 
+// TestMCPConfirmationFeatures runs MCP confirmation BDD tests against Docker.
+// Uses a compose stack with SCHEMA_REGISTRY_MCP_REQUIRE_CONFIRMATIONS=true.
+func TestMCPConfirmationFeatures(t *testing.T) {
+	bddBackend := os.Getenv("BDD_BACKEND")
+	if bddBackend == "" {
+		t.Skip("MCP confirmation Docker tests only run with BDD_BACKEND set")
+	}
+	if bddBackend != "memory" {
+		t.Skip("MCP confirmation Docker tests only run with BDD_BACKEND=memory (they start their own compose stack)")
+	}
+
+	if containerCmd == "" {
+		containerCmd = findContainerCmd()
+	}
+	mcpFiles := []string{"docker-compose.base.yml", "docker-compose.mcp.yml"}
+	mcpEnv := []string{
+		"REGISTRY_PORT=18087",
+		"WEBHOOK_PORT=19006",
+		"MCP_PORT=19085",
+		"SCHEMA_REGISTRY_MCP_REQUIRE_CONFIRMATIONS=true",
+		"SCHEMA_REGISTRY_MCP_CONFIRMATION_TTL=300",
+	}
+
+	log.Printf("Starting MCP confirmation compose stack...")
+	if err := composeUpWithProject(mcpFiles, "bdd-mcp-confirm", mcpEnv); err != nil {
+		t.Fatalf("Failed to start MCP confirmation compose: %v", err)
+	}
+	t.Cleanup(func() {
+		log.Println("Stopping MCP confirmation compose stack...")
+		composeDownWithProject(mcpFiles, "bdd-mcp-confirm")
+	})
+
+	mcpRESTURL := "http://localhost:18087"
+	mcpURL := "http://localhost:19085/mcp"
+	mcpWebhook := "http://localhost:19006"
+
+	log.Printf("Waiting for MCP confirmation registry at %s ...", mcpRESTURL)
+	if err := waitForURL(mcpRESTURL+"/", 120*time.Second); err != nil {
+		composeLogsWithProject(mcpFiles, "bdd-mcp-confirm")
+		t.Fatalf("MCP confirmation registry did not become healthy: %v", err)
+	}
+
+	log.Printf("Waiting for MCP confirmation endpoint at %s ...", mcpURL)
+	if err := waitForMCPEndpoint(mcpURL, 30*time.Second); err != nil {
+		composeLogsWithProject(mcpFiles, "bdd-mcp-confirm")
+		t.Fatalf("MCP confirmation endpoint did not become ready: %v", err)
+	}
+	log.Println("MCP confirmation registry is healthy.")
+
+	opts := godog.Options{
+		Format:   "pretty",
+		Output:   colors.Colored(os.Stdout),
+		Paths:    []string{"features"},
+		Tags:     "@mcp-confirmation",
+		Strict:   true,
+		TestingT: t,
+	}
+
+	suite := godog.TestSuite{
+		ScenarioInitializer: func(ctx *godog.ScenarioContext) {
+			tc := steps.NewTestContext(mcpRESTURL)
+			tc.MetricsURL = mcpRESTURL + "/metrics"
+			tc.WebhookURL = mcpWebhook
+			tc.StoredValues["_mcp_url"] = mcpURL
+			tc.AuthHeader = "Basic " + base64.StdEncoding.EncodeToString([]byte("admin:admin-password"))
+
+			ctx.Before(func(gctx context.Context, sc *godog.Scenario) (context.Context, error) {
+				if err := cleanViaAPIWithAuth(mcpRESTURL, "admin", "admin-password"); err != nil {
+					return gctx, fmt.Errorf("clean MCP confirmation registry: %w", err)
+				}
+				return gctx, nil
+			})
+
+			steps.RegisterSchemaSteps(ctx, tc)
+			steps.RegisterImportSteps(ctx, tc)
+			steps.RegisterModeSteps(ctx, tc)
+			steps.RegisterReferenceSteps(ctx, tc)
+			steps.RegisterInfraSteps(ctx, tc)
+			steps.RegisterAuthSteps(ctx, tc)
+			steps.RegisterEncryptionSteps(ctx, tc)
+			steps.RegisterConcurrencySteps(ctx, tc)
+			steps.RegisterRateLimitSteps(ctx, tc)
+			steps.RegisterMetricsSteps(ctx, tc)
+			steps.RegisterMCPSteps(ctx, tc)
+		},
+		Options: &opts,
+	}
+
+	if suite.Run() != 0 {
+		t.Fatal("MCP confirmation BDD tests failed")
+	}
+}
+
+// TestMCPPermissionsFeatures runs MCP permission preset BDD tests against Docker.
+// Starts separate compose stacks per preset since each preset needs a different
+// server configuration (SCHEMA_REGISTRY_MCP_PERMISSION_PRESET env var).
+func TestMCPPermissionsFeatures(t *testing.T) {
+	bddBackend := os.Getenv("BDD_BACKEND")
+	if bddBackend == "" {
+		t.Skip("MCP permissions Docker tests only run with BDD_BACKEND set")
+	}
+	if bddBackend != "memory" {
+		t.Skip("MCP permissions Docker tests only run with BDD_BACKEND=memory (they start their own compose stack)")
+	}
+
+	if containerCmd == "" {
+		containerCmd = findContainerCmd()
+	}
+
+	type presetTest struct {
+		preset string
+		tag    string
+		// For custom scopes, we also need the scopes env var
+		extraEnv []string
+	}
+
+	presets := []presetTest{
+		{preset: "readonly", tag: "@mcp-permissions && @preset-readonly"},
+		{preset: "developer", tag: "@mcp-permissions && @preset-developer"},
+		{preset: "operator", tag: "@mcp-permissions && @preset-operator"},
+		{preset: "admin", tag: "@mcp-permissions && @preset-admin"},
+		{
+			preset:   "custom",
+			tag:      "@mcp-permissions && @preset-custom",
+			extraEnv: []string{"SCHEMA_REGISTRY_MCP_PERMISSION_SCOPES=schema_read"},
+		},
+	}
+
+	mcpFiles := []string{"docker-compose.base.yml", "docker-compose.mcp.yml"}
+	basePort := 18090
+
+	for i, pt := range presets {
+		pt := pt
+		restPort := basePort + i*3
+		mcpPort := basePort + i*3 + 1
+		webhookPort := basePort + i*3 + 2
+		projectName := fmt.Sprintf("bdd-mcp-perm-%s", pt.preset)
+
+		t.Run(pt.preset, func(t *testing.T) {
+			mcpEnv := []string{
+				fmt.Sprintf("REGISTRY_PORT=%d", restPort),
+				fmt.Sprintf("MCP_PORT=%d", mcpPort),
+				fmt.Sprintf("WEBHOOK_PORT=%d", webhookPort),
+				fmt.Sprintf("SCHEMA_REGISTRY_MCP_PERMISSION_PRESET=%s", pt.preset),
+			}
+			mcpEnv = append(mcpEnv, pt.extraEnv...)
+
+			log.Printf("Starting MCP permissions compose stack (preset=%s)...", pt.preset)
+			if err := composeUpWithProject(mcpFiles, projectName, mcpEnv); err != nil {
+				t.Fatalf("Failed to start MCP permissions compose (preset=%s): %v", pt.preset, err)
+			}
+			t.Cleanup(func() {
+				log.Printf("Stopping MCP permissions compose stack (preset=%s)...", pt.preset)
+				composeDownWithProject(mcpFiles, projectName)
+			})
+
+			mcpRESTURL := fmt.Sprintf("http://localhost:%d", restPort)
+			mcpURL := fmt.Sprintf("http://localhost:%d/mcp", mcpPort)
+			mcpWebhook := fmt.Sprintf("http://localhost:%d", webhookPort)
+
+			log.Printf("Waiting for MCP permissions registry (preset=%s) at %s ...", pt.preset, mcpRESTURL)
+			if err := waitForURL(mcpRESTURL+"/", 120*time.Second); err != nil {
+				composeLogsWithProject(mcpFiles, projectName)
+				t.Fatalf("MCP permissions registry (preset=%s) did not become healthy: %v", pt.preset, err)
+			}
+
+			log.Printf("Waiting for MCP permissions endpoint (preset=%s) at %s ...", pt.preset, mcpURL)
+			if err := waitForMCPEndpoint(mcpURL, 30*time.Second); err != nil {
+				composeLogsWithProject(mcpFiles, projectName)
+				t.Fatalf("MCP permissions endpoint (preset=%s) did not become ready: %v", pt.preset, err)
+			}
+			log.Printf("MCP permissions registry (preset=%s) is healthy.", pt.preset)
+
+			opts := godog.Options{
+				Format:   "pretty",
+				Output:   colors.Colored(os.Stdout),
+				Paths:    []string{"features"},
+				Tags:     pt.tag,
+				Strict:   true,
+				TestingT: t,
+			}
+
+			suite := godog.TestSuite{
+				ScenarioInitializer: func(ctx *godog.ScenarioContext) {
+					tc := steps.NewTestContext(mcpRESTURL)
+					tc.MetricsURL = mcpRESTURL + "/metrics"
+					tc.WebhookURL = mcpWebhook
+					tc.StoredValues["_mcp_url"] = mcpURL
+					tc.AuthHeader = "Basic " + base64.StdEncoding.EncodeToString([]byte("admin:admin-password"))
+
+					ctx.Before(func(gctx context.Context, sc *godog.Scenario) (context.Context, error) {
+						if err := cleanViaAPIWithAuth(mcpRESTURL, "admin", "admin-password"); err != nil {
+							return gctx, fmt.Errorf("clean MCP permissions registry (preset=%s): %w", pt.preset, err)
+						}
+						return gctx, nil
+					})
+
+					steps.RegisterSchemaSteps(ctx, tc)
+					steps.RegisterImportSteps(ctx, tc)
+					steps.RegisterModeSteps(ctx, tc)
+					steps.RegisterReferenceSteps(ctx, tc)
+					steps.RegisterInfraSteps(ctx, tc)
+					steps.RegisterAuthSteps(ctx, tc)
+					steps.RegisterEncryptionSteps(ctx, tc)
+					steps.RegisterConcurrencySteps(ctx, tc)
+					steps.RegisterRateLimitSteps(ctx, tc)
+					steps.RegisterMetricsSteps(ctx, tc)
+					steps.RegisterMCPSteps(ctx, tc)
+				},
+				Options: &opts,
+			}
+
+			if suite.Run() != 0 {
+				t.Fatalf("MCP permissions BDD tests (preset=%s) failed", pt.preset)
+			}
+		})
+	}
+}
+
 // waitForMCPEndpoint waits for the MCP HTTP endpoint to accept connections.
 func waitForMCPEndpoint(mcpURL string, timeout time.Duration) error {
 	client := &http.Client{Timeout: 3 * time.Second}

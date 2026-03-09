@@ -81,7 +81,7 @@ Feature: MCP Metrics
   # Permission denied metrics
   # ---------------------------------------------------------------------------
 
-  @mcp-permissions
+  @mcp-permissions @preset-readonly
   Scenario: MCP permission denied metric fires for blocked tools
     Given MCP permission preset is "readonly"
     When I list MCP tools
