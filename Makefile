@@ -69,7 +69,7 @@ TIMEOUT_COMPAT         := 10m
 # Phony targets
 # =====================================================================
 .PHONY: all build build-all \
-        test test-unit test-bdd test-bdd-functional test-bdd-db test-bdd-auth test-bdd-kms \
+        test test-unit test-bdd test-bdd-functional test-bdd-db test-bdd-auth test-bdd-mcp test-bdd-mcp-kms test-bdd-kms \
         test-integration test-concurrency test-conformance \
         test-migration test-api test-ldap test-vault test-oidc test-auth \
         test-compatibility test-coverage \
@@ -253,6 +253,24 @@ _test-bdd-auth-single:
 		CONTAINER_CMD=$(CONTAINER_CMD) $(SCRIPTS_DIR)/stop-db.sh $(BACKEND); \
 	fi; \
 	exit $$rc
+
+# =====================================================================
+# BDD MCP tests — Docker binary with MCP server enabled
+# =====================================================================
+
+## Run BDD MCP tests (Docker, memory backend)
+test-bdd-mcp:
+	@echo "=== BDD MCP Tests (Docker, memory, timeout $(TIMEOUT_BDD_POSTGRES)) ==="; \
+	BDD_BACKEND=memory \
+		$(GOTEST) -tags bdd -v -count=1 -timeout $(TIMEOUT_BDD_POSTGRES) -run 'TestMCPFeatures|TestMCPMetricsFeatures' ./tests/bdd/...
+
+## Run BDD MCP + KMS tests (Docker with Vault + OpenBao)
+test-bdd-mcp-kms:
+	@echo "=== BDD MCP+KMS Tests (Docker, memory, timeout $(TIMEOUT_BDD_POSTGRES)) ==="; \
+	KMS_VAULT_ADDR=http://localhost:18202 KMS_VAULT_TOKEN=test-root-token \
+		KMS_BAO_ADDR=http://localhost:18203 KMS_BAO_TOKEN=test-bao-token \
+		BDD_BACKEND=memory \
+		$(GOTEST) -tags bdd -v -count=1 -timeout $(TIMEOUT_BDD_POSTGRES) -run TestMCPKMSFeatures ./tests/bdd/...
 
 # =====================================================================
 # BDD KMS tests — in-process server with KMS services
@@ -724,6 +742,8 @@ help:
 	@echo "  test-bdd-functional BDD functional tests (in-process, memory, no Docker)"
 	@echo "  test-bdd-db         BDD tests with real DB (in-process)   [BACKEND=]"
 	@echo "  test-bdd-auth       BDD auth tests with real DB           [BACKEND=]"
+	@echo "  test-bdd-mcp        BDD MCP tests (Docker, memory backend)"
+	@echo "  test-bdd-mcp-kms    BDD MCP+KMS tests (Docker + Vault + OpenBao)"
 	@echo "  test-bdd-kms        BDD KMS tests (Vault + OpenBao)       [BACKEND=]"
 	@echo "  test-integration    Integration tests against DB backends [BACKEND=] (no memory)"
 	@echo "  test-concurrency    Concurrency tests against DB backends [BACKEND=] (no memory)"
