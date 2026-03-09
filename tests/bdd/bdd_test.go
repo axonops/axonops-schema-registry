@@ -716,9 +716,12 @@ func TestAuthFeatures(t *testing.T) {
 // Excludes @mcp-permissions and @mcp-confirmation (they need in-process config per scenario),
 // @kms (needs separate KMS compose stack), and @audit (needs audit log access).
 func TestMCPFeatures(t *testing.T) {
-	mcpDockerMode := dockerMode || os.Getenv("BDD_BACKEND") != ""
-	if !mcpDockerMode {
+	bddBackend := os.Getenv("BDD_BACKEND")
+	if bddBackend == "" {
 		t.Skip("MCP Docker tests only run with BDD_BACKEND set")
+	}
+	if bddBackend != "memory" {
+		t.Skip("MCP Docker tests only run with BDD_BACKEND=memory (they start their own compose stack)")
 	}
 
 	if containerCmd == "" {
