@@ -28,13 +28,44 @@ type mcpState struct {
 	ss      *gomcp.ServerSession
 }
 
-// getMCPSession lazily creates an MCP in-process client for the scenario.
+// getMCPSession lazily creates an MCP client for the scenario.
+// When "_mcp_url" is set in StoredValues (Docker mode), connects via HTTP Streamable transport.
+// Otherwise, creates an in-process MCP server with InMemoryTransport.
 func getMCPSession(tc *TestContext) (*gomcp.ClientSession, error) {
 	// Check if we already have a session stored
 	if s, ok := tc.StoredValues["_mcp_state"].(*mcpState); ok && s.session != nil {
 		return s.session, nil
 	}
 
+	// Docker mode: connect to external MCP server via HTTP
+	if mcpURL, ok := tc.StoredValues["_mcp_url"].(string); ok && mcpURL != "" {
+		return getMCPSessionHTTP(tc, mcpURL)
+	}
+
+	// In-process mode: create MCP server locally
+	return getMCPSessionInProcess(tc)
+}
+
+// getMCPSessionHTTP connects to an external MCP server via HTTP Streamable transport.
+// Used when tests run against a Docker-deployed binary.
+func getMCPSessionHTTP(tc *TestContext, mcpURL string) (*gomcp.ClientSession, error) {
+	transport := &gomcp.StreamableClientTransport{
+		Endpoint: mcpURL,
+	}
+
+	client := gomcp.NewClient(&gomcp.Implementation{Name: "bdd-client", Version: "1.0"}, nil)
+	cs, err := client.Connect(context.Background(), transport, nil)
+	if err != nil {
+		return nil, fmt.Errorf("MCP HTTP connect to %s: %w", mcpURL, err)
+	}
+
+	tc.StoredValues["_mcp_state"] = &mcpState{session: cs}
+	return cs, nil
+}
+
+// getMCPSessionInProcess creates an in-process MCP server with InMemoryTransport.
+// Used for tests that need per-scenario config variations (permissions, confirmations).
+func getMCPSessionInProcess(tc *TestContext) (*gomcp.ClientSession, error) {
 	reg, ok := tc.Registry.(*registry.Registry)
 	if !ok || reg == nil {
 		return nil, fmt.Errorf("MCP tests require a *registry.Registry on TestContext")

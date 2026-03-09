@@ -27,6 +27,7 @@ Feature: MCP Metrics
   # Confirmation metrics (two-phase flow)
   # ---------------------------------------------------------------------------
 
+  @mcp-confirmation
   Scenario: MCP confirmation token_issued metric fires on dry_run
     Given MCP confirmations are enabled
     And I register an Avro schema for subject "metrics-confirm-test"
@@ -41,6 +42,7 @@ Feature: MCP Metrics
     Then the MCP result should contain "confirm_token"
     And the Prometheus metric "schema_registry_mcp_confirmations_total" with labels "outcome=\"token_issued\"" should exist
 
+  @mcp-confirmation
   Scenario: MCP confirmation confirmed metric fires on token use
     Given MCP confirmations are enabled
     And I register an Avro schema for subject "metrics-confirm-exec"
@@ -60,6 +62,7 @@ Feature: MCP Metrics
     Then the MCP result should not be an error
     And the Prometheus metric "schema_registry_mcp_confirmations_total" with labels "outcome=\"confirmed\"" should exist
 
+  @mcp-confirmation
   Scenario: MCP policy denial metric fires when confirmation missing
     Given MCP confirmations are enabled
     And I register an Avro schema for subject "metrics-policy-deny"
@@ -78,6 +81,7 @@ Feature: MCP Metrics
   # Permission denied metrics
   # ---------------------------------------------------------------------------
 
+  @mcp-permissions
   Scenario: MCP permission denied metric fires for blocked tools
     Given MCP permission preset is "readonly"
     When I list MCP tools

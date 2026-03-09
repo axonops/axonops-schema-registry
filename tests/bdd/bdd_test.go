@@ -16,6 +16,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -708,6 +709,493 @@ func TestAuthFeatures(t *testing.T) {
 	if suite.Run() != 0 {
 		t.Fatal("Auth BDD tests failed")
 	}
+}
+
+// TestMCPFeatures runs MCP BDD tests against a Docker-deployed binary via HTTP Streamable transport.
+// Uses a separate compose stack with MCP enabled on port 9081 and auth enabled for admin tools.
+// Excludes @mcp-permissions and @mcp-confirmation (they need in-process config per scenario),
+// @kms (needs separate KMS compose stack), and @audit (needs audit log access).
+func TestMCPFeatures(t *testing.T) {
+	mcpDockerMode := dockerMode || os.Getenv("BDD_BACKEND") != ""
+	if !mcpDockerMode {
+		t.Skip("MCP Docker tests only run with BDD_BACKEND set")
+	}
+
+	if containerCmd == "" {
+		containerCmd = findContainerCmd()
+	}
+	mcpFiles := []string{"docker-compose.base.yml", "docker-compose.mcp.yml"}
+	mcpEnv := []string{
+		"REGISTRY_PORT=18083",
+		"WEBHOOK_PORT=19002",
+		"MCP_PORT=19081",
+	}
+
+	log.Printf("Starting MCP compose stack...")
+	if err := composeUpWithProject(mcpFiles, "bdd-mcp", mcpEnv); err != nil {
+		t.Fatalf("Failed to start MCP compose: %v", err)
+	}
+	t.Cleanup(func() {
+		log.Println("Stopping MCP compose stack...")
+		composeDownWithProject(mcpFiles, "bdd-mcp")
+	})
+
+	mcpRESTURL := "http://localhost:18083"
+	mcpURL := "http://localhost:19081/mcp"
+	mcpWebhook := "http://localhost:19002"
+
+	log.Printf("Waiting for MCP registry REST at %s ...", mcpRESTURL)
+	if err := waitForURL(mcpRESTURL+"/", 120*time.Second); err != nil {
+		composeLogsWithProject(mcpFiles, "bdd-mcp")
+		t.Fatalf("MCP registry did not become healthy: %v", err)
+	}
+
+	log.Printf("Waiting for MCP endpoint at %s ...", mcpURL)
+	if err := waitForMCPEndpoint(mcpURL, 30*time.Second); err != nil {
+		composeLogsWithProject(mcpFiles, "bdd-mcp")
+		t.Fatalf("MCP endpoint did not become ready: %v", err)
+	}
+	log.Println("MCP registry is healthy.")
+
+	opts := godog.Options{
+		Format:   "pretty",
+		Output:   colors.Colored(os.Stdout),
+		Paths:    []string{"features"},
+		Tags:     "@mcp && ~@mcp-permissions && ~@mcp-confirmation && ~@mcp-metrics && ~@kms && ~@audit",
+		Strict:   true,
+		TestingT: t,
+	}
+
+	suite := godog.TestSuite{
+		ScenarioInitializer: func(ctx *godog.ScenarioContext) {
+			tc := steps.NewTestContext(mcpRESTURL)
+			tc.MetricsURL = mcpRESTURL + "/metrics"
+			tc.WebhookURL = mcpWebhook
+			tc.StoredValues["_mcp_url"] = mcpURL
+			tc.AuthHeader = "Basic " + base64.StdEncoding.EncodeToString([]byte("admin:admin-password"))
+
+			ctx.Before(func(gctx context.Context, sc *godog.Scenario) (context.Context, error) {
+				if err := cleanViaAPIWithAuth(mcpRESTURL, "admin", "admin-password"); err != nil {
+					return gctx, fmt.Errorf("clean MCP registry: %w", err)
+				}
+				return gctx, nil
+			})
+
+			steps.RegisterSchemaSteps(ctx, tc)
+			steps.RegisterImportSteps(ctx, tc)
+			steps.RegisterModeSteps(ctx, tc)
+			steps.RegisterReferenceSteps(ctx, tc)
+			steps.RegisterInfraSteps(ctx, tc)
+			steps.RegisterAuthSteps(ctx, tc)
+			steps.RegisterEncryptionSteps(ctx, tc)
+			steps.RegisterConcurrencySteps(ctx, tc)
+			steps.RegisterRateLimitSteps(ctx, tc)
+			steps.RegisterMetricsSteps(ctx, tc)
+			steps.RegisterMCPSteps(ctx, tc)
+		},
+		Options: &opts,
+	}
+
+	if suite.Run() != 0 {
+		t.Fatal("MCP BDD tests failed")
+	}
+}
+
+// TestMCPKMSFeatures runs MCP + KMS BDD tests against Docker with Vault and OpenBao.
+func TestMCPKMSFeatures(t *testing.T) {
+	mcpDockerMode := dockerMode || os.Getenv("BDD_BACKEND") != ""
+	if !mcpDockerMode {
+		t.Skip("MCP KMS Docker tests only run with BDD_BACKEND set")
+	}
+
+	if containerCmd == "" {
+		containerCmd = findContainerCmd()
+	}
+	mcpFiles := []string{
+		"docker-compose.base.yml",
+		"docker-compose.mcp.yml",
+		"docker-compose.kms-overlay.yml",
+	}
+	mcpEnv := []string{
+		"REGISTRY_PORT=18085",
+		"WEBHOOK_PORT=19004",
+		"MCP_PORT=19083",
+		"VAULT_PORT=18202",
+		"BAO_PORT=18203",
+	}
+
+	log.Printf("Starting MCP + KMS compose stack...")
+	if err := composeUpWithProject(mcpFiles, "bdd-mcp-kms", mcpEnv); err != nil {
+		t.Fatalf("Failed to start MCP KMS compose: %v", err)
+	}
+	t.Cleanup(func() {
+		log.Println("Stopping MCP + KMS compose stack...")
+		composeDownWithProject(mcpFiles, "bdd-mcp-kms")
+	})
+
+	mcpRESTURL := "http://localhost:18085"
+	mcpURL := "http://localhost:19083/mcp"
+	mcpWebhook := "http://localhost:19004"
+
+	log.Printf("Waiting for MCP+KMS registry at %s ...", mcpRESTURL)
+	if err := waitForURL(mcpRESTURL+"/", 120*time.Second); err != nil {
+		composeLogsWithProject(mcpFiles, "bdd-mcp-kms")
+		t.Fatalf("MCP+KMS registry did not become healthy: %v", err)
+	}
+
+	log.Printf("Waiting for MCP+KMS endpoint at %s ...", mcpURL)
+	if err := waitForMCPEndpoint(mcpURL, 30*time.Second); err != nil {
+		composeLogsWithProject(mcpFiles, "bdd-mcp-kms")
+		t.Fatalf("MCP+KMS endpoint did not become ready: %v", err)
+	}
+	log.Println("MCP+KMS registry is healthy.")
+
+	opts := godog.Options{
+		Format:   "pretty",
+		Output:   colors.Colored(os.Stdout),
+		Paths:    []string{"features"},
+		Tags:     "@mcp && @kms",
+		Strict:   true,
+		TestingT: t,
+	}
+
+	suite := godog.TestSuite{
+		ScenarioInitializer: func(ctx *godog.ScenarioContext) {
+			tc := steps.NewTestContext(mcpRESTURL)
+			tc.MetricsURL = mcpRESTURL + "/metrics"
+			tc.WebhookURL = mcpWebhook
+			tc.StoredValues["_mcp_url"] = mcpURL
+			tc.AuthHeader = "Basic " + base64.StdEncoding.EncodeToString([]byte("admin:admin-password"))
+
+			ctx.Before(func(gctx context.Context, sc *godog.Scenario) (context.Context, error) {
+				if err := cleanViaAPIWithAuth(mcpRESTURL, "admin", "admin-password"); err != nil {
+					return gctx, fmt.Errorf("clean MCP+KMS registry: %w", err)
+				}
+				return gctx, nil
+			})
+
+			steps.RegisterSchemaSteps(ctx, tc)
+			steps.RegisterImportSteps(ctx, tc)
+			steps.RegisterModeSteps(ctx, tc)
+			steps.RegisterReferenceSteps(ctx, tc)
+			steps.RegisterInfraSteps(ctx, tc)
+			steps.RegisterAuthSteps(ctx, tc)
+			steps.RegisterEncryptionSteps(ctx, tc)
+			steps.RegisterConcurrencySteps(ctx, tc)
+			steps.RegisterRateLimitSteps(ctx, tc)
+			steps.RegisterMetricsSteps(ctx, tc)
+			steps.RegisterMCPSteps(ctx, tc)
+		},
+		Options: &opts,
+	}
+
+	if suite.Run() != 0 {
+		t.Fatal("MCP KMS BDD tests failed")
+	}
+}
+
+// TestMCPMetricsFeatures runs MCP metrics BDD tests against Docker.
+// Separate from main MCP tests because metrics tests need to verify Prometheus output
+// and some require confirmations or permission variations.
+func TestMCPMetricsFeatures(t *testing.T) {
+	mcpDockerMode := dockerMode || os.Getenv("BDD_BACKEND") != ""
+	if !mcpDockerMode {
+		t.Skip("MCP metrics Docker tests only run with BDD_BACKEND set")
+	}
+
+	if containerCmd == "" {
+		containerCmd = findContainerCmd()
+	}
+	mcpFiles := []string{"docker-compose.base.yml", "docker-compose.mcp.yml"}
+	mcpEnv := []string{
+		"REGISTRY_PORT=18086",
+		"WEBHOOK_PORT=19005",
+		"MCP_PORT=19084",
+	}
+
+	log.Printf("Starting MCP metrics compose stack...")
+	if err := composeUpWithProject(mcpFiles, "bdd-mcp-metrics", mcpEnv); err != nil {
+		t.Fatalf("Failed to start MCP metrics compose: %v", err)
+	}
+	t.Cleanup(func() {
+		log.Println("Stopping MCP metrics compose stack...")
+		composeDownWithProject(mcpFiles, "bdd-mcp-metrics")
+	})
+
+	mcpRESTURL := "http://localhost:18086"
+	mcpURL := "http://localhost:19084/mcp"
+	mcpWebhook := "http://localhost:19005"
+
+	log.Printf("Waiting for MCP metrics registry at %s ...", mcpRESTURL)
+	if err := waitForURL(mcpRESTURL+"/", 120*time.Second); err != nil {
+		composeLogsWithProject(mcpFiles, "bdd-mcp-metrics")
+		t.Fatalf("MCP metrics registry did not become healthy: %v", err)
+	}
+
+	log.Printf("Waiting for MCP metrics endpoint at %s ...", mcpURL)
+	if err := waitForMCPEndpoint(mcpURL, 30*time.Second); err != nil {
+		composeLogsWithProject(mcpFiles, "bdd-mcp-metrics")
+		t.Fatalf("MCP metrics endpoint did not become ready: %v", err)
+	}
+	log.Println("MCP metrics registry is healthy.")
+
+	opts := godog.Options{
+		Format:   "pretty",
+		Output:   colors.Colored(os.Stdout),
+		Paths:    []string{"features"},
+		Tags:     "@mcp-metrics && ~@mcp-confirmation && ~@mcp-permissions",
+		Strict:   true,
+		TestingT: t,
+	}
+
+	suite := godog.TestSuite{
+		ScenarioInitializer: func(ctx *godog.ScenarioContext) {
+			tc := steps.NewTestContext(mcpRESTURL)
+			tc.MetricsURL = mcpRESTURL + "/metrics"
+			tc.WebhookURL = mcpWebhook
+			tc.StoredValues["_mcp_url"] = mcpURL
+			tc.AuthHeader = "Basic " + base64.StdEncoding.EncodeToString([]byte("admin:admin-password"))
+
+			ctx.Before(func(gctx context.Context, sc *godog.Scenario) (context.Context, error) {
+				if err := cleanViaAPIWithAuth(mcpRESTURL, "admin", "admin-password"); err != nil {
+					return gctx, fmt.Errorf("clean MCP metrics registry: %w", err)
+				}
+				return gctx, nil
+			})
+
+			steps.RegisterSchemaSteps(ctx, tc)
+			steps.RegisterImportSteps(ctx, tc)
+			steps.RegisterModeSteps(ctx, tc)
+			steps.RegisterReferenceSteps(ctx, tc)
+			steps.RegisterInfraSteps(ctx, tc)
+			steps.RegisterAuthSteps(ctx, tc)
+			steps.RegisterEncryptionSteps(ctx, tc)
+			steps.RegisterConcurrencySteps(ctx, tc)
+			steps.RegisterRateLimitSteps(ctx, tc)
+			steps.RegisterMetricsSteps(ctx, tc)
+			steps.RegisterMCPSteps(ctx, tc)
+		},
+		Options: &opts,
+	}
+
+	if suite.Run() != 0 {
+		t.Fatal("MCP metrics BDD tests failed")
+	}
+}
+
+// waitForMCPEndpoint waits for the MCP HTTP endpoint to accept connections.
+func waitForMCPEndpoint(mcpURL string, timeout time.Duration) error {
+	client := &http.Client{Timeout: 3 * time.Second}
+	deadline := time.Now().Add(timeout)
+	var lastErr error
+
+	for time.Now().Before(deadline) {
+		resp, err := client.Post(mcpURL, "application/json", strings.NewReader(
+			`{"jsonrpc":"2.0","method":"initialize","id":1,"params":{"protocolVersion":"2025-11-25","clientInfo":{"name":"probe","version":"0.1"},"capabilities":{}}}`,
+		))
+		if err == nil {
+			resp.Body.Close()
+			return nil
+		}
+		lastErr = err
+		time.Sleep(1 * time.Second)
+	}
+	return fmt.Errorf("timeout waiting for MCP endpoint %s: %v", mcpURL, lastErr)
+}
+
+// cleanViaAPIWithAuth resets all state via the REST API using Basic auth credentials.
+// Used by Docker MCP tests where the registry has auth enabled.
+func cleanViaAPIWithAuth(baseURL, username, password string) error {
+	client := &http.Client{Timeout: 10 * time.Second}
+	authHeader := "Basic " + base64.StdEncoding.EncodeToString([]byte(username+":"+password))
+
+	doReq := func(method, path string, body io.Reader) (*http.Response, error) {
+		req, err := http.NewRequest(method, baseURL+path, body)
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Set("Content-Type", "application/vnd.schemaregistry.v1+json")
+		req.Header.Set("Authorization", authHeader)
+		return client.Do(req)
+	}
+
+	// 1. Reset global mode to READWRITE
+	r, err := doReq("PUT", "/mode", strings.NewReader(`{"mode":"READWRITE"}`))
+	if err != nil {
+		return fmt.Errorf("reset mode: %w", err)
+	}
+	r.Body.Close()
+
+	// 2. Soft-delete all active subjects
+	resp, err := doReq("GET", "/subjects", nil)
+	if err != nil {
+		return fmt.Errorf("list subjects: %w", err)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	resp.Body.Close()
+
+	var activeSubjects []string
+	if resp.StatusCode == 200 && len(body) > 0 {
+		json.Unmarshal(body, &activeSubjects)
+	}
+	for _, subj := range activeSubjects {
+		r, err := doReq("DELETE", "/subjects/"+url.PathEscape(subj), nil)
+		if err != nil {
+			return fmt.Errorf("soft-delete subject %s: %w", subj, err)
+		}
+		r.Body.Close()
+	}
+
+	// 3. Permanently delete all subjects (including previously soft-deleted)
+	resp, err = doReq("GET", "/subjects?deleted=true", nil)
+	if err != nil {
+		return fmt.Errorf("list deleted subjects: %w", err)
+	}
+	body, _ = io.ReadAll(resp.Body)
+	resp.Body.Close()
+
+	var allSubjects []string
+	if resp.StatusCode == 200 && len(body) > 0 {
+		json.Unmarshal(body, &allSubjects)
+	}
+	for _, subj := range allSubjects {
+		r, err := doReq("DELETE", "/subjects/"+url.PathEscape(subj)+"?permanent=true", nil)
+		if err != nil {
+			return fmt.Errorf("permanent-delete subject %s: %w", subj, err)
+		}
+		r.Body.Close()
+	}
+
+	// 4. Delete subject-level configs and modes
+	seen := make(map[string]bool)
+	for _, subj := range append(activeSubjects, allSubjects...) {
+		if seen[subj] {
+			continue
+		}
+		seen[subj] = true
+		escaped := url.PathEscape(subj)
+		if cr, err := doReq("DELETE", "/config/"+escaped, nil); err == nil {
+			cr.Body.Close()
+		}
+		if mr, err := doReq("DELETE", "/mode/"+escaped, nil); err == nil {
+			mr.Body.Close()
+		}
+	}
+
+	// 5. Reset global config
+	r, err = doReq("DELETE", "/config", nil)
+	if err != nil {
+		return fmt.Errorf("reset config: %w", err)
+	}
+	r.Body.Close()
+
+	// 6. Delete all KEKs (soft + permanent)
+	resp, err = doReq("GET", "/dek-registry/v1/keks", nil)
+	if err == nil && resp.StatusCode == 200 {
+		body, _ = io.ReadAll(resp.Body)
+		resp.Body.Close()
+		var keks []map[string]interface{}
+		if json.Unmarshal(body, &keks) == nil {
+			for _, kek := range keks {
+				if name, ok := kek["name"].(string); ok {
+					dr, _ := doReq("DELETE", "/dek-registry/v1/keks/"+url.PathEscape(name), nil)
+					if dr != nil {
+						dr.Body.Close()
+					}
+					dr, _ = doReq("DELETE", "/dek-registry/v1/keks/"+url.PathEscape(name)+"?permanent=true", nil)
+					if dr != nil {
+						dr.Body.Close()
+					}
+				}
+			}
+		}
+	} else if resp != nil {
+		resp.Body.Close()
+	}
+
+	// 7. Delete all exporters
+	resp, err = doReq("GET", "/exporters", nil)
+	if err == nil && resp.StatusCode == 200 {
+		body, _ = io.ReadAll(resp.Body)
+		resp.Body.Close()
+		var names []string
+		if json.Unmarshal(body, &names) == nil {
+			for _, name := range names {
+				dr, _ := doReq("DELETE", "/exporters/"+url.PathEscape(name), nil)
+				if dr != nil {
+					dr.Body.Close()
+				}
+			}
+		}
+	} else if resp != nil {
+		resp.Body.Close()
+	}
+
+	// 8. Delete users created during tests (keep bootstrap admin)
+	resp, err = doReq("GET", "/admin/users", nil)
+	if err == nil && resp.StatusCode == 200 {
+		body, _ = io.ReadAll(resp.Body)
+		resp.Body.Close()
+		var usersResp struct {
+			Users []struct {
+				ID       float64 `json:"id"`
+				Username string  `json:"username"`
+			} `json:"users"`
+		}
+		if json.Unmarshal(body, &usersResp) == nil {
+			for _, u := range usersResp.Users {
+				if u.Username == "admin" {
+					continue
+				}
+				dr, _ := doReq("DELETE", fmt.Sprintf("/admin/users/%d", int(u.ID)), nil)
+				if dr != nil {
+					dr.Body.Close()
+				}
+			}
+		}
+	} else if resp != nil {
+		resp.Body.Close()
+	}
+
+	// 9. Delete all contexts (except default)
+	resp, err = doReq("GET", "/contexts", nil)
+	if err == nil && resp.StatusCode == 200 {
+		body, _ = io.ReadAll(resp.Body)
+		resp.Body.Close()
+		var contexts []string
+		if json.Unmarshal(body, &contexts) == nil {
+			for _, ctxName := range contexts {
+				if ctxName == "." || ctxName == "" {
+					continue
+				}
+				// Clean subjects within context
+				ctxResp, ctxErr := doReq("GET", "/contexts/"+url.PathEscape(ctxName)+"/subjects", nil)
+				if ctxErr == nil && ctxResp.StatusCode == 200 {
+					ctxBody, _ := io.ReadAll(ctxResp.Body)
+					ctxResp.Body.Close()
+					var ctxSubjects []string
+					if json.Unmarshal(ctxBody, &ctxSubjects) == nil {
+						for _, s := range ctxSubjects {
+							dr, _ := doReq("DELETE", "/contexts/"+url.PathEscape(ctxName)+"/subjects/"+url.PathEscape(s), nil)
+							if dr != nil {
+								dr.Body.Close()
+							}
+							dr, _ = doReq("DELETE", "/contexts/"+url.PathEscape(ctxName)+"/subjects/"+url.PathEscape(s)+"?permanent=true", nil)
+							if dr != nil {
+								dr.Body.Close()
+							}
+						}
+					}
+				} else if ctxResp != nil {
+					ctxResp.Body.Close()
+				}
+			}
+		}
+	} else if resp != nil {
+		resp.Body.Close()
+	}
+
+	return nil
 }
 
 // hasTag checks if a scenario has a specific tag.

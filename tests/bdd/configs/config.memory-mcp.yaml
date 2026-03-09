@@ -1,0 +1,26 @@
+server:
+  host: "0.0.0.0"
+  port: 8081
+  docs_enabled: true
+  metrics_refresh_interval: 5
+storage:
+  type: memory
+compatibility:
+  default_level: BACKWARD
+logging:
+  level: info
+  format: json
+security:
+  auth:
+    enabled: true
+    methods:
+      - basic
+    bootstrap:
+      enabled: true
+      username: admin
+      password: admin-password
+mcp:
+  enabled: true
+  host: "0.0.0.0"
+  port: 9081
+  permission_preset: "full"
