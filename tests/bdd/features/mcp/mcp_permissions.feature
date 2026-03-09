@@ -24,7 +24,7 @@ Feature: MCP Permission Scopes — Granular Tool Access Control
     Then the MCP result should not contain "register_schema"
 
   # ==========================================================================
-  # 2. DEVELOPER PRESET
+  # 2. DEVELOPER PRESET — includes all readonly tools plus write tools
   # ==========================================================================
 
   @preset-developer
@@ -36,6 +36,15 @@ Feature: MCP Permission Scopes — Granular Tool Access Control
         "subject": "perm-dev-test",
         "schema": "{\"type\":\"string\"}"
       }
+      """
+    Then the MCP result should not be an error
+
+  @preset-developer
+  Scenario: Developer preset includes readonly tools
+    Given MCP permission preset is "developer"
+    When I call MCP tool "list_subjects" with JSON input:
+      """
+      {}
       """
     Then the MCP result should not be an error
 
@@ -52,7 +61,7 @@ Feature: MCP Permission Scopes — Granular Tool Access Control
     Then the MCP result should not contain "create_user"
 
   # ==========================================================================
-  # 3. OPERATOR PRESET
+  # 3. OPERATOR PRESET — includes all developer tools plus delete tools
   # ==========================================================================
 
   @preset-operator
@@ -73,13 +82,22 @@ Feature: MCP Permission Scopes — Granular Tool Access Control
     Then the MCP result should not be an error
 
   @preset-operator
+  Scenario: Operator preset includes readonly tools
+    Given MCP permission preset is "operator"
+    When I call MCP tool "list_subjects" with JSON input:
+      """
+      {}
+      """
+    Then the MCP result should not be an error
+
+  @preset-operator
   Scenario: Operator preset hides create_user
     Given MCP permission preset is "operator"
     When I list MCP tools
     Then the MCP result should not contain "create_user"
 
   # ==========================================================================
-  # 4. ADMIN PRESET
+  # 4. ADMIN PRESET — includes all operator tools plus admin tools
   # ==========================================================================
 
   @preset-admin
@@ -87,6 +105,44 @@ Feature: MCP Permission Scopes — Granular Tool Access Control
     Given MCP permission preset is "admin"
     When I list MCP tools
     Then the MCP result should contain "create_user"
+
+  @preset-admin
+  Scenario: Admin preset includes readonly tools
+    Given MCP permission preset is "admin"
+    When I call MCP tool "list_subjects" with JSON input:
+      """
+      {}
+      """
+    Then the MCP result should not be an error
+
+  @preset-admin
+  Scenario: Admin preset includes developer tools
+    Given MCP permission preset is "admin"
+    When I call MCP tool "register_schema" with JSON input:
+      """
+      {
+        "subject": "perm-admin-dev-test",
+        "schema": "{\"type\":\"string\"}"
+      }
+      """
+    Then the MCP result should not be an error
+
+  @preset-admin
+  Scenario: Admin preset includes operator tools
+    Given MCP permission preset is "admin"
+    When I call MCP tool "register_schema" with JSON input:
+      """
+      {
+        "subject": "perm-admin-op-test",
+        "schema": "{\"type\":\"string\"}"
+      }
+      """
+    Then the MCP result should not be an error
+    When I call MCP tool "delete_subject" with JSON input:
+      """
+      {"subject": "perm-admin-op-test"}
+      """
+    Then the MCP result should not be an error
 
   # ==========================================================================
   # 5. SYSTEM TOOLS ALWAYS AVAILABLE
