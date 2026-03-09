@@ -806,9 +806,12 @@ func TestMCPFeatures(t *testing.T) {
 
 // TestMCPKMSFeatures runs MCP + KMS BDD tests against Docker with Vault and OpenBao.
 func TestMCPKMSFeatures(t *testing.T) {
-	mcpDockerMode := dockerMode || os.Getenv("BDD_BACKEND") != ""
-	if !mcpDockerMode {
+	bddBackend := os.Getenv("BDD_BACKEND")
+	if bddBackend == "" {
 		t.Skip("MCP KMS Docker tests only run with BDD_BACKEND set")
+	}
+	if bddBackend != "memory" {
+		t.Skip("MCP KMS Docker tests only run with BDD_BACKEND=memory (they start their own compose stack)")
 	}
 
 	if containerCmd == "" {
@@ -901,9 +904,12 @@ func TestMCPKMSFeatures(t *testing.T) {
 // Separate from main MCP tests because metrics tests need to verify Prometheus output
 // and some require confirmations or permission variations.
 func TestMCPMetricsFeatures(t *testing.T) {
-	mcpDockerMode := dockerMode || os.Getenv("BDD_BACKEND") != ""
-	if !mcpDockerMode {
+	bddBackend := os.Getenv("BDD_BACKEND")
+	if bddBackend == "" {
 		t.Skip("MCP metrics Docker tests only run with BDD_BACKEND set")
+	}
+	if bddBackend != "memory" {
+		t.Skip("MCP metrics Docker tests only run with BDD_BACKEND=memory (they start their own compose stack)")
 	}
 
 	if containerCmd == "" {
