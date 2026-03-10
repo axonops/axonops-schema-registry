@@ -69,7 +69,7 @@ TIMEOUT_COMPAT         := 10m
 # Phony targets
 # =====================================================================
 .PHONY: all build build-all \
-        test test-unit test-bdd test-bdd-functional test-bdd-db test-bdd-auth test-bdd-mcp test-bdd-mcp-confirmations test-bdd-mcp-permissions test-bdd-kms-docker test-bdd-mcp-kms test-bdd-kms \
+        test test-unit test-bdd test-bdd-functional test-bdd-db test-bdd-auth test-bdd-mcp test-bdd-mcp-metrics test-bdd-mcp-confirmations test-bdd-mcp-permissions test-bdd-mcp-audit test-bdd-rest-audit test-bdd-kms-docker test-bdd-mcp-kms test-bdd-kms \
         test-integration test-concurrency test-conformance \
         test-migration test-api test-ldap test-vault test-oidc test-auth \
         test-compatibility test-coverage \
@@ -149,17 +149,17 @@ _test-bdd-single:
 	esac; \
 	echo "=== BDD Tests ($(BACKEND), timeout $$TIMEOUT) ==="; \
 	BDD_BACKEND=$(BACKEND) CONTAINER_CMD=$(CONTAINER_CMD) \
-		$(GOTEST) -tags bdd -v -count=1 -timeout $$TIMEOUT ./tests/bdd/...
+		$(GOTEST) -tags bdd -v -count=1 -timeout $$TIMEOUT -run TestFeatures ./tests/bdd/...
 
 # =====================================================================
 # BDD functional tests — Docker-deployed binary with memory backend
 # =====================================================================
 
-## Run BDD functional tests (Docker, memory backend — excludes KMS/Vault)
+## Run BDD functional tests (Docker, memory backend — runs only TestFeatures)
 test-bdd-functional:
 	@echo "=== BDD Functional Tests (Docker, memory) ==="
 	CONTAINER_CMD=$(CONTAINER_CMD) \
-		$(GOTEST) -tags bdd -v -count=1 -timeout 30m ./tests/bdd/...
+		$(GOTEST) -tags bdd -v -count=1 -timeout 30m -run TestFeatures ./tests/bdd/...
 
 # =====================================================================
 # BDD tests with database backend — Docker binary with DB overlay
@@ -193,7 +193,7 @@ _test-bdd-db-single:
 	esac; \
 	echo "=== BDD DB Tests ($(BACKEND), timeout $$TIMEOUT) ==="; \
 	BDD_BACKEND=$(BACKEND) \
-		$(GOTEST) -tags bdd -v -count=1 -timeout $$TIMEOUT ./tests/bdd/...
+		$(GOTEST) -tags bdd -v -count=1 -timeout $$TIMEOUT -run TestFeatures ./tests/bdd/...
 
 # =====================================================================
 # BDD auth tests with database backend — Docker binary with DB overlay
@@ -233,11 +233,29 @@ _test-bdd-auth-single:
 # BDD MCP tests — Docker binary with MCP server enabled
 # =====================================================================
 
-## Run BDD MCP tests (Docker, memory backend — all MCP suites)
+## Run BDD MCP core tests (Docker, memory backend — TestMCPFeatures only)
 test-bdd-mcp:
-	@echo "=== BDD MCP Tests (Docker, memory, timeout $(TIMEOUT_BDD_POSTGRES)) ==="; \
+	@echo "=== BDD MCP Core Tests (Docker, memory, timeout $(TIMEOUT_BDD_POSTGRES)) ==="; \
 	BDD_BACKEND=memory \
-		$(GOTEST) -tags bdd -v -count=1 -timeout $(TIMEOUT_BDD_POSTGRES) -run 'TestMCPFeatures|TestMCPMetricsFeatures|TestMCPConfirmationFeatures|TestMCPPermissionsFeatures|TestMCPAuditFeatures' ./tests/bdd/...
+		$(GOTEST) -tags bdd -v -count=1 -timeout $(TIMEOUT_BDD_POSTGRES) -run TestMCPFeatures ./tests/bdd/...
+
+## Run BDD MCP metrics tests (Docker, memory backend)
+test-bdd-mcp-metrics:
+	@echo "=== BDD MCP Metrics Tests (Docker, memory, timeout $(TIMEOUT_BDD_POSTGRES)) ==="; \
+	BDD_BACKEND=memory \
+		$(GOTEST) -tags bdd -v -count=1 -timeout $(TIMEOUT_BDD_POSTGRES) -run TestMCPMetricsFeatures ./tests/bdd/...
+
+## Run BDD MCP audit tests (Docker, memory backend)
+test-bdd-mcp-audit:
+	@echo "=== BDD MCP Audit Tests (Docker, memory, timeout $(TIMEOUT_BDD_POSTGRES)) ==="; \
+	BDD_BACKEND=memory \
+		$(GOTEST) -tags bdd -v -count=1 -timeout $(TIMEOUT_BDD_POSTGRES) -run TestMCPAuditFeatures ./tests/bdd/...
+
+## Run BDD REST audit tests (Docker, memory backend)
+test-bdd-rest-audit:
+	@echo "=== BDD REST Audit Tests (Docker, memory, timeout $(TIMEOUT_BDD_POSTGRES)) ==="; \
+	BDD_BACKEND=memory \
+		$(GOTEST) -tags bdd -v -count=1 -timeout $(TIMEOUT_BDD_POSTGRES) -run TestRESTAuditFeatures ./tests/bdd/...
 
 ## Run BDD MCP confirmation tests (Docker, require_confirmations=true)
 test-bdd-mcp-confirmations:
@@ -699,13 +717,16 @@ help:
 	@echo "  test                Run ALL tests (unit + BDD + integration + conformance"
 	@echo "                      + concurrency + migration + API + auth + compatibility)"
 	@echo "  test-unit           Unit tests (no Docker, no build tags)"
-	@echo "  test-bdd            BDD/Gherkin tests (Docker Compose)    [BACKEND=]"
-	@echo "  test-bdd-functional BDD functional tests (Docker, memory backend)"
-	@echo "  test-bdd-db         BDD tests with real DB (in-process)   [BACKEND=]"
+	@echo "  test-bdd            BDD/Gherkin tests (TestFeatures only) [BACKEND=]"
+	@echo "  test-bdd-functional BDD functional tests (TestFeatures, Docker, memory)"
+	@echo "  test-bdd-db         BDD tests with real DB (TestFeatures) [BACKEND=]"
 	@echo "  test-bdd-auth       BDD auth tests with real DB           [BACKEND=]"
-	@echo "  test-bdd-mcp        BDD MCP tests — all MCP suites (Docker, memory)"
+	@echo "  test-bdd-mcp        BDD MCP core tests (Docker, memory)"
+	@echo "  test-bdd-mcp-metrics        BDD MCP metrics tests (Docker)"
 	@echo "  test-bdd-mcp-confirmations  BDD MCP confirmation tests (Docker)"
 	@echo "  test-bdd-mcp-permissions    BDD MCP permission preset tests (Docker)"
+	@echo "  test-bdd-mcp-audit          BDD MCP audit tests (Docker)"
+	@echo "  test-bdd-rest-audit         BDD REST audit tests (Docker)"
 	@echo "  test-bdd-kms-docker BDD REST KMS tests (Docker + Vault + OpenBao)"
 	@echo "  test-bdd-mcp-kms    BDD MCP+KMS tests (Docker + Vault + OpenBao)"
 	@echo "  test-bdd-kms        BDD KMS tests (Vault + OpenBao)       [BACKEND=]"
