@@ -38,6 +38,7 @@ Feature: Metadata and RuleSets (Data Contracts)
     And the response body should contain "analytics"
     And the response body should contain "PII"
     And the response body should contain "SENSITIVE"
+    And the audit log should contain event "schema_register" with subject "meta-test"
 
   @data-contracts
   Scenario: Register schema with ruleSet — stored and returned
@@ -67,6 +68,7 @@ Feature: Metadata and RuleSets (Data Contracts)
     And the response body should contain "checkEmail"
     And the response body should contain "CONDITION"
     And the response body should contain "WRITE"
+    And the audit log should contain event "schema_register" with subject "ruleset-test"
 
   @data-contracts
   Scenario: Register schema with both metadata and ruleSet
@@ -99,6 +101,7 @@ Feature: Metadata and RuleSets (Data Contracts)
     And the response should have field "ruleSet"
     And the response body should contain "restricted"
     And the response body should contain "maskSSN"
+    And the audit log should contain event "schema_register" with subject "both-meta-rules"
 
   # ==========================================================================
   # METADATA DOES NOT AFFECT SCHEMA IDENTITY
@@ -126,6 +129,7 @@ Feature: Metadata and RuleSets (Data Contracts)
       """
     Then the response status should be 200
     And the response field "id" should equal stored "first_id"
+    And the audit log should contain event "schema_register" with subject "meta-identity"
 
   # ==========================================================================
   # SCHEMA BY ID INCLUDES METADATA
@@ -146,6 +150,7 @@ Feature: Metadata and RuleSets (Data Contracts)
     When I GET "/schemas/ids/{{schema_id}}"
     Then the response status should be 200
     And the response field "schemaType" should be "AVRO"
+    And the audit log should contain event "schema_register" with subject "meta-byid"
 
   # ==========================================================================
   # LOOKUP SCHEMA INCLUDES METADATA
@@ -183,6 +188,7 @@ Feature: Metadata and RuleSets (Data Contracts)
     Then the response status should be 200
     And the response should have field "subject"
     And the response field "subject" should be "meta-lookup"
+    And the audit log should contain event "schema_lookup" with subject "meta-lookup"
 
   # ==========================================================================
   # CONFIG WITH METADATA AND RULESETS
@@ -204,6 +210,7 @@ Feature: Metadata and RuleSets (Data Contracts)
     And the response field "compatibilityLevel" should be "BACKWARD"
     And the response should have field "defaultMetadata"
     And the response body should contain "platform"
+    And the audit log should contain event "config_update"
 
   Scenario: Set config with overrideMetadata
     When I PUT "/config/meta-override-subject" with body:
@@ -221,6 +228,7 @@ Feature: Metadata and RuleSets (Data Contracts)
     And the response field "compatibilityLevel" should be "FULL"
     And the response should have field "overrideMetadata"
     And the response body should contain "internal"
+    And the audit log should contain event "config_update"
 
   @data-contracts
   Scenario: Set config with defaultRuleSet
@@ -246,6 +254,7 @@ Feature: Metadata and RuleSets (Data Contracts)
     Then the response status should be 200
     And the response should have field "defaultRuleSet"
     And the response body should contain "defaultValidation"
+    And the audit log should contain event "config_update"
 
   @data-contracts
   Scenario: Set config with overrideRuleSet
@@ -271,6 +280,7 @@ Feature: Metadata and RuleSets (Data Contracts)
     Then the response status should be 200
     And the response should have field "overrideRuleSet"
     And the response body should contain "overrideRule"
+    And the audit log should contain event "config_update"
 
   Scenario: Set config with alias
     When I PUT "/config/alias-target" with body:
@@ -284,6 +294,7 @@ Feature: Metadata and RuleSets (Data Contracts)
     When I GET "/config/alias-target"
     Then the response status should be 200
     And the response field "alias" should be "my-alias"
+    And the audit log should contain event "config_update"
 
   # ==========================================================================
   # GLOBAL CONFIG WITH METADATA AND RULESETS
@@ -314,6 +325,7 @@ Feature: Metadata and RuleSets (Data Contracts)
       {"compatibility": "BACKWARD", "defaultMetadata": null}
       """
     Then the response status should be 200
+    And the audit log should contain event "config_update"
 
   # ==========================================================================
   # SCHEMA WITHOUT METADATA — FIELDS OMITTED
@@ -332,6 +344,7 @@ Feature: Metadata and RuleSets (Data Contracts)
     Then the response status should be 200
     And the response body should contain "confluent:version"
     And the response body should not contain "ruleSet"
+    And the audit log should contain event "schema_register" with subject "no-meta"
 
   # ==========================================================================
   # MIGRATION RULES
@@ -362,6 +375,7 @@ Feature: Metadata and RuleSets (Data Contracts)
     And the response body should contain "migrationRules"
     And the response body should contain "upgradeV1toV2"
     And the response body should contain "UPGRADE"
+    And the audit log should contain event "schema_register" with subject "migration-rules"
 
   # ==========================================================================
   # GET /subjects/{subject}/metadata ENDPOINT
@@ -402,6 +416,7 @@ Feature: Metadata and RuleSets (Data Contracts)
     When I GET "/subjects/meta-empty-test/metadata"
     Then the response status should be 200
     And the response should be valid JSON
+    And the audit log should contain event "schema_register" with subject "meta-empty-test"
 
   Scenario: Get subject metadata returns metadata from the latest version
     # Register v1 with metadata
@@ -430,3 +445,4 @@ Feature: Metadata and RuleSets (Data Contracts)
     Then the response status should be 200
     And the response body should contain "v2"
     And the response body should contain "updated"
+    And the audit log should contain event "schema_register" with subject "meta-latest-test"

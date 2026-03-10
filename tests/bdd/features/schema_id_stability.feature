@@ -23,6 +23,7 @@ Feature: Schema ID Stability and Content Validation
     When I get schema by ID {{id_a}}
     Then the response status should be 200
     And the response should contain "Stable"
+    And the audit log should contain event "schema_register" with subject "idstab-avro-b"
 
   Scenario: Different schema content gets different IDs
     When I register a schema under subject "idstab-diff-a":
@@ -37,6 +38,7 @@ Feature: Schema ID Stability and Content Validation
       """
     Then the response status should be 200
     And I store the response field "id" as "id_beta"
+    And the audit log should contain event "schema_register" with subject "idstab-diff-b"
 
   # ==========================================================================
   # RETRIEVED SCHEMA CONTENT VALIDATION
@@ -106,6 +108,7 @@ Feature: Schema ID Stability and Content Validation
     Then the response status should be 200
     And I store the response field "id" as "new_id"
     Then the stored "new_id" should be greater than 50000
+    And the audit log should contain event "schema_register" with subject "idstab-seq-new"
 
   # ==========================================================================
   # Schema ID stability after permanent delete — when the same schema is
@@ -137,6 +140,7 @@ Feature: Schema ID Stability and Content Validation
     When I get version 1 of subject "idstab-perm-b"
     Then the response status should be 200
     And the response field "id" should equal stored "stable_id"
+    And the audit log should contain event "subject_delete" with subject "idstab-perm-a"
 
   Scenario: Schema ID returned by subjects endpoint after permanent delete
     Given the global compatibility level is "NONE"
@@ -158,6 +162,7 @@ Feature: Schema ID Stability and Content Validation
     When I get the subjects for schema ID {{subj_id}}
     Then the response status should be 200
     And the response array should contain "idstab-subj-b"
+    And the audit log should contain event "subject_delete" with subject "idstab-subj-a"
 
   Scenario: References survive permanent delete of non-referenced registration
     Given the global compatibility level is "NONE"
@@ -190,6 +195,7 @@ Feature: Schema ID Stability and Content Validation
     When I get schema by ID {{base_id}}
     Then the response status should be 200
     And the response should contain "RefBase"
+    And the audit log should contain event "subject_delete" with subject "idstab-ref-base-b"
 
   Scenario: References survive permanent delete of canonical first-registered subject
     # The same schema is registered under two subjects (A first, B second),
@@ -242,3 +248,4 @@ Feature: Schema ID Stability and Content Validation
     # The surviving referenced subject must still be delete-protected
     When I DELETE "/subjects/idstab-ref-canon-b"
     Then the response status should be 422
+    And the audit log should contain event "subject_delete" with subject "idstab-ref-canon-a"

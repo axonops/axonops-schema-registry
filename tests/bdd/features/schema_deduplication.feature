@@ -20,6 +20,7 @@ Feature: Schema Deduplication
       """
     Then the response status should be 200
     And I store the response field "id" as "id_b"
+    And the audit log should contain event "schema_register" with subject "dedup-avro-b"
 
   Scenario: Same Protobuf schema in two subjects gets same schema ID
     When I register a "PROTOBUF" schema under subject "dedup-proto-a":
@@ -42,6 +43,7 @@ Feature: Schema Deduplication
       """
     Then the response status should be 200
     And I store the response field "id" as "id_b"
+    And the audit log should contain event "schema_register" with subject "dedup-proto-b"
 
   Scenario: Same JSON Schema in two subjects gets same schema ID
     When I register a "JSON" schema under subject "dedup-json-a":
@@ -56,6 +58,7 @@ Feature: Schema Deduplication
       """
     Then the response status should be 200
     And I store the response field "id" as "id_b"
+    And the audit log should contain event "schema_register" with subject "dedup-json-b"
 
   # --------------------------------------------------------------------------
   # IDEMPOTENT REGISTRATION
@@ -78,6 +81,7 @@ Feature: Schema Deduplication
     When I list versions of subject "dedup-idempotent"
     Then the response status should be 200
     And the response should be an array of length 1
+    And the audit log should contain event "schema_register" with subject "dedup-idempotent"
 
   # --------------------------------------------------------------------------
   # DIFFERENT CONTENT GETS DIFFERENT IDS
@@ -96,6 +100,7 @@ Feature: Schema Deduplication
       """
     Then the response status should be 200
     And the response should have field "id"
+    And the audit log should contain event "schema_register" with subject "dedup-diff-b"
 
   # --------------------------------------------------------------------------
   # CROSS-SUBJECT VISIBILITY VIA API
@@ -118,6 +123,7 @@ Feature: Schema Deduplication
     And the response should be an array of length 2
     And the response array should contain "dedup-vis-one"
     And the response array should contain "dedup-vis-two"
+    And the audit log should contain event "schema_register" with subject "dedup-vis-two"
 
   Scenario: Schema ID shared across subjects visible via GET /schemas/ids/{id}/versions
     When I register a schema under subject "dedup-ver-x":
@@ -134,6 +140,7 @@ Feature: Schema Deduplication
     When I get versions for schema ID {{schema_id}}
     Then the response status should be 200
     And the response should be an array of length 2
+    And the audit log should contain event "schema_register" with subject "dedup-ver-y"
 
   # --------------------------------------------------------------------------
   # NORMALIZATION / FINGERPRINTING
@@ -165,3 +172,4 @@ Feature: Schema Deduplication
     And the response should be an array of length 2
     And the response array should contain "dedup-ws-compact"
     And the response array should contain "dedup-ws-spaced"
+    And the audit log should contain event "schema_register" with subject "dedup-ws-spaced"

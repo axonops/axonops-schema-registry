@@ -15,6 +15,7 @@ Feature: Content-Type Header Handling
       """
     Then the response status should be 200
     And the response header "Content-Type" should contain "application/vnd.schemaregistry.v1+json"
+    And the audit log should contain event "schema_register" with subject "ct-reg"
 
   Scenario: Error response has correct Content-Type
     When I GET "/subjects/ct-no-such-subject/versions/1"

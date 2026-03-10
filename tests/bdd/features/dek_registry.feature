@@ -39,7 +39,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
     And the response field "kmsKeyId" should be "arn:aws:kms:us-east-1:123456789012:key/abcd1234-5678-90ab-cdef-1234567890ab"
     And the response field "doc" should be "Test KEK with all fields"
     And the response field "shared" should be true
-
+    And the audit log should contain event "kek_create"
 
   Scenario: Create KEK with minimal required fields
     When I POST "/dek-registry/v1/keks" with body:
@@ -55,7 +55,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
     And the response field "name" should be "test-kek-minimal"
     And the response field "kmsType" should be "aws-kms"
     And the response field "shared" should be false
-
+    And the audit log should contain event "kek_create"
 
   Scenario: Get KEK by name
     Given I POST "/dek-registry/v1/keks" with body:
@@ -152,6 +152,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       """
     When I DELETE "/dek-registry/v1/keks/soft-delete-kek"
     Then the response status should be 204
+    And the audit log should contain event "kek_delete"
 
   Scenario: Soft-deleted KEK not visible in default list
     Given I POST "/dek-registry/v1/keks" with body:
@@ -216,6 +217,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
     Then the response status should be 204
     And I GET "/dek-registry/v1/keks/permanent-delete-kek?deleted=true"
     And the response status should be 404
+    And the audit log should contain event "kek_delete"
 
   Scenario: List multiple KEKs
     Given I POST "/dek-registry/v1/keks" with body:
@@ -276,7 +278,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
     And the response field "subject" should be "user.email"
     And the response field "version" should be 1
     And the response field "algorithm" should be "AES256_GCM"
-
+    And the audit log should contain event "dek_create"
 
   Scenario: Create DEK with default algorithm
     Given I POST "/dek-registry/v1/keks" with body:
@@ -292,6 +294,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       """
     Then the response status should be 200
     And the response field "algorithm" should be "AES256_GCM"
+    And the audit log should contain event "dek_create"
 
   Scenario: Create DEK with AES128_GCM algorithm
     Given I POST "/dek-registry/v1/keks" with body:
@@ -308,6 +311,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       """
     Then the response status should be 200
     And the response field "algorithm" should be "AES128_GCM"
+    And the audit log should contain event "dek_create"
 
   Scenario: Create DEK with AES256_SIV algorithm
     Given I POST "/dek-registry/v1/keks" with body:
@@ -324,6 +328,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       """
     Then the response status should be 200
     And the response field "algorithm" should be "AES256_SIV"
+    And the audit log should contain event "dek_create"
 
   Scenario: Create DEK with invalid algorithm returns 422
     Given I POST "/dek-registry/v1/keks" with body:
@@ -372,6 +377,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
     Then the response status should be 200
     And the response should be valid JSON
     And the response field "version" should be 2
+    And the audit log should contain event "dek_create"
 
   Scenario: Get DEK for subject
     Given I POST "/dek-registry/v1/keks" with body:
@@ -474,6 +480,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       """
     When I DELETE "/dek-registry/v1/keks/delete-dek-kek/deks/delete.subject"
     Then the response status should be 204
+    And the audit log should contain event "dek_delete"
 
   Scenario: Undelete DEK
     Given I POST "/dek-registry/v1/keks" with body:
@@ -531,6 +538,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       """
     Then the response status should be 200
     And the response field "kmsType" should be "aws-kms"
+    And the audit log should contain event "kek_create"
 
   Scenario: KEK with Azure KMS type
     When I POST "/dek-registry/v1/keks" with body:
@@ -544,6 +552,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       """
     Then the response status should be 200
     And the response field "kmsType" should be "azure-kms"
+    And the audit log should contain event "kek_create"
 
   Scenario: KEK with GCP KMS type
     When I POST "/dek-registry/v1/keks" with body:
@@ -557,6 +566,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       """
     Then the response status should be 200
     And the response field "kmsType" should be "gcp-kms"
+    And the audit log should contain event "kek_create"
 
   Scenario: Multiple DEKs under same KEK with different subjects
     Given I POST "/dek-registry/v1/keks" with body:
@@ -645,6 +655,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       """
     Then the response status should be 200
     And the response field "name" should be "complex-props-kek"
+    And the audit log should contain event "kek_create"
 
   Scenario: Delete DEK for non-existent KEK returns 404
     When I DELETE "/dek-registry/v1/keks/non-existent-kek/deks/some.subject"
@@ -671,6 +682,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
     Then the response status should be 200
     And the response should be valid JSON
     And the response field "kekName" should be "deleted-kek-dek"
+    And the audit log should contain event "dek_create"
 
   Scenario: KEK shared flag reflected in response
     Given I POST "/dek-registry/v1/keks" with body:
@@ -767,6 +779,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
     And the response field "kekName" should be "path-create-kek"
     And the response field "subject" should be "path.subject"
     And the response field "version" should be 1
+    And the audit log should contain event "dek_create"
 
   Scenario: Create DEK with subject in path and empty body
     Given I POST "/dek-registry/v1/keks" with body:
@@ -778,6 +791,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
     And the response should be valid JSON
     And the response field "subject" should be "empty.subject"
     And the response field "algorithm" should be "AES256_GCM"
+    And the audit log should contain event "dek_create"
 
   Scenario: Delete DEK by specific version
     Given I POST "/dek-registry/v1/keks" with body:
@@ -790,6 +804,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       """
     When I DELETE "/dek-registry/v1/keks/delver-kek/deks/delver.subject/versions/1"
     Then the response status should be 204
+    And the audit log should contain event "dek_delete"
 
   Scenario: Undelete DEK by specific version
     Given I POST "/dek-registry/v1/keks" with body:
@@ -967,6 +982,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
     # Verify DEK is gone even with ?deleted=true
     When I GET "/dek-registry/v1/keks/permdel-dek-kek/deks/permdel.subject?deleted=true"
     Then the response status should be 404
+    And the audit log should contain event "dek_delete"
 
   Scenario: Permanent delete DEK version after soft-delete
     Given I POST "/dek-registry/v1/keks" with body:
@@ -983,6 +999,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
     # Verify version is gone even with ?deleted=true
     When I GET "/dek-registry/v1/keks/permdel-ver-kek/deks/permdel.ver.subject/versions/1?deleted=true"
     Then the response status should be 404
+    And the audit log should contain event "dek_delete"
 
   Scenario: Permanent delete DEK without soft-delete first
     Given I POST "/dek-registry/v1/keks" with body:
@@ -995,6 +1012,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       """
     When I DELETE "/dek-registry/v1/keks/permdel-direct-kek/deks/permdel.direct.subject?permanent=true"
     Then the response status should be 204
+    And the audit log should contain event "dek_delete"
 
   # ============================================================================
   # Algorithm Filter Scenarios (3 scenarios)
@@ -1025,6 +1043,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       """
     When I DELETE "/dek-registry/v1/keks/algo-del-kek/deks/algo.del.subject?algorithm=AES256_GCM"
     Then the response status should be 204
+    And the audit log should contain event "dek_delete"
 
   Scenario: List DEK versions filtered by algorithm
     Given I POST "/dek-registry/v1/keks" with body:

@@ -21,6 +21,7 @@ Feature: Unicode and Special Character Subject Names
     When I get the latest version of subject "test-subject"
     Then the response status should be 200
     And the response field "subject" should be "test-subject"
+    And the audit log should contain event "schema_register" with subject "test-subject"
 
   # ---------------------------------------------------------------------------
   # Subject names with dots and hyphens
@@ -35,6 +36,7 @@ Feature: Unicode and Special Character Subject Names
     When I get the latest version of subject "com.example.events.user-created"
     Then the response status should be 200
     And the response field "subject" should be "com.example.events.user-created"
+    And the audit log should contain event "schema_register" with subject "com.example.events.user-created"
 
   Scenario: Subject name with underscores and numbers
     When I register a schema under subject "my_subject_123_v2":
@@ -45,6 +47,7 @@ Feature: Unicode and Special Character Subject Names
     When I list all subjects
     Then the response status should be 200
     And the response array should contain "my_subject_123_v2"
+    And the audit log should contain event "schema_register" with subject "my_subject_123_v2"
 
   # ---------------------------------------------------------------------------
   # Subject names with Kafka topic conventions
@@ -65,6 +68,7 @@ Feature: Unicode and Special Character Subject Names
     Then the response status should be 200
     And the response array should contain "orders.events-value"
     And the response array should contain "orders.events-key"
+    And the audit log should contain event "schema_register" with subject "orders.events-key"
 
   # ---------------------------------------------------------------------------
   # Special character edge cases
@@ -79,6 +83,7 @@ Feature: Unicode and Special Character Subject Names
     When I list all subjects
     Then the response status should be 200
     And the response array should contain "ns:my-subject:v1"
+    And the audit log should contain event "schema_register" with subject "ns:my-subject:v1"
 
   Scenario: Subject name with tilde is valid
     When I register a schema under subject "test~subject":
@@ -89,6 +94,7 @@ Feature: Unicode and Special Character Subject Names
     When I get the latest version of subject "test~subject"
     Then the response status should be 200
     And the response field "subject" should be "test~subject"
+    And the audit log should contain event "schema_register" with subject "test~subject"
 
   # ---------------------------------------------------------------------------
   # Long subject names
@@ -100,6 +106,7 @@ Feature: Unicode and Special Character Subject Names
       {"type":"record","name":"LongSubj","fields":[{"name":"id","type":"int"}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register"
 
   # ---------------------------------------------------------------------------
   # Delete and re-register with special characters
@@ -121,6 +128,7 @@ Feature: Unicode and Special Character Subject Names
     When I get the latest version of subject "com.example.delete-test"
     Then the response status should be 200
     And the response should contain "DelDotV2"
+    And the audit log should contain event "schema_register" with subject "com.example.delete-test"
 
   # ---------------------------------------------------------------------------
   # Subject names used in compatibility checks
@@ -139,3 +147,4 @@ Feature: Unicode and Special Character Subject Names
       {"type":"record","name":"CompatDot","fields":[{"name":"id","type":"int"},{"name":"name","type":"string","default":""}]}
       """
     Then the compatibility check should be compatible
+    And the audit log should contain event "schema_register" with subject "com.example.compat-test"

@@ -97,6 +97,7 @@ Feature: Schema Listing, Querying, and Raw Schema Endpoints
     And the response should be an array of length 2
     And the response body should contain "Active"
     And the response body should contain "Deleted"
+    And the audit log should contain event "subject_delete" with subject "deleted-subj"
 
   # -----------------------------------------------------------------------
   # Scenario 5: GET /schemas?offset=N&limit=M paginates results
@@ -173,6 +174,7 @@ Feature: Schema Listing, Querying, and Raw Schema Endpoints
     Then the response status should be 200
     And the response body should contain "RawTest"
     And the response body should contain "bytes"
+    And the audit log should contain event "schema_register" with subject "raw-test-value"
 
   # -----------------------------------------------------------------------
   # Scenario 8: GET /subjects/{subject}/versions/{version}/schema returns raw
@@ -208,6 +210,7 @@ Feature: Schema Listing, Querying, and Raw Schema Endpoints
     Then the response status should be 200
     And the response should be an array of length 1
     And the response body should contain "svpair-value"
+    And the audit log should contain event "schema_register" with subject "svpair-value"
 
   # -----------------------------------------------------------------------
   # Scenario 10: GET /schemas/ids/{id}/subjects?deleted=true includes deleted
@@ -236,6 +239,7 @@ Feature: Schema Listing, Querying, and Raw Schema Endpoints
     And the response should be an array of length 2
     And the response array should contain "keep-subj"
     And the response array should contain "drop-subj"
+    And the audit log should contain event "subject_delete" with subject "drop-subj"
 
   # -----------------------------------------------------------------------
   # Scenario 11: GET /schemas/ids/{id}/versions with multiple subjects
@@ -263,6 +267,7 @@ Feature: Schema Listing, Querying, and Raw Schema Endpoints
     And the response body should contain "multi-a"
     And the response body should contain "multi-b"
     And the response body should contain "multi-c"
+    And the audit log should contain event "schema_register" with subject "multi-c"
 
   # -----------------------------------------------------------------------
   # Scenario 12: GET /schemas/ids/{id}/subjects with multiple subjects
@@ -290,3 +295,4 @@ Feature: Schema Listing, Querying, and Raw Schema Endpoints
     And the response array should contain "shared-alpha"
     And the response array should contain "shared-beta"
     And the response array should contain "shared-gamma"
+    And the audit log should contain event "schema_register" with subject "shared-gamma"

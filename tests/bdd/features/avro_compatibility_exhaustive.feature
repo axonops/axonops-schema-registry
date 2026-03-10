@@ -19,6 +19,7 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":"string"},{"name":"f2","type":"string","default":"foo"}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-ex-back-add-def"
 
   Scenario: Backward — adding field without default is incompatible
     Given the global compatibility level is "NONE"
@@ -32,6 +33,7 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":"string"},{"name":"f2","type":"string"}]}
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "avro-ex-back-add-nodef"
 
   Scenario: Backward — removing field is compatible (old reader ignores extra)
     Given the global compatibility level is "NONE"
@@ -45,6 +47,7 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":"string"}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-ex-back-remove"
 
   Scenario: Backward — changing field name with alias is compatible
     Given the global compatibility level is "NONE"
@@ -58,6 +61,7 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1_new","type":"string","aliases":["f1"]}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-ex-back-alias"
 
   Scenario: Backward — evolving field type to union is compatible
     Given the global compatibility level is "NONE"
@@ -71,6 +75,7 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":["null","string"]}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-ex-back-to-union"
 
   Scenario: Backward — removing type from union is incompatible
     Given the global compatibility level is "NONE"
@@ -84,6 +89,7 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":"string"}]}
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "avro-ex-back-narrow-union"
 
   Scenario: Backward — adding type to union is compatible
     Given the global compatibility level is "NONE"
@@ -97,6 +103,7 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":["null","string","int"]}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-ex-back-widen-union"
 
   Scenario: Backward — int to long promotion is compatible
     Given the global compatibility level is "NONE"
@@ -110,6 +117,7 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":"long"}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-ex-back-int-long"
 
   Scenario: Backward — int to float promotion is compatible
     Given the global compatibility level is "NONE"
@@ -123,6 +131,7 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":"float"}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-ex-back-int-float"
 
   Scenario: Backward — int to double promotion is compatible
     Given the global compatibility level is "NONE"
@@ -136,6 +145,7 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":"double"}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-ex-back-int-double"
 
   Scenario: Backward — long to float promotion is compatible
     Given the global compatibility level is "NONE"
@@ -149,6 +159,7 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":"float"}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-ex-back-long-float"
 
   Scenario: Backward — long to double promotion is compatible
     Given the global compatibility level is "NONE"
@@ -162,6 +173,7 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":"double"}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-ex-back-long-double"
 
   Scenario: Backward — float to double promotion is compatible
     Given the global compatibility level is "NONE"
@@ -175,6 +187,7 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":"double"}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-ex-back-float-double"
 
   Scenario: Backward — string to bytes promotion is compatible
     Given the global compatibility level is "NONE"
@@ -188,6 +201,7 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":"bytes"}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-ex-back-str-bytes"
 
   Scenario: Backward — bytes to string promotion is compatible
     Given the global compatibility level is "NONE"
@@ -201,6 +215,7 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":"string"}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-ex-back-bytes-str"
 
   Scenario: Backward — changing field type incompatibly is rejected
     Given the global compatibility level is "NONE"
@@ -214,6 +229,7 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":"int"}]}
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "avro-ex-back-type-change"
 
   Scenario: Backward — changing record name is incompatible
     Given the global compatibility level is "NONE"
@@ -227,6 +243,7 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"Renamed","fields":[{"name":"f1","type":"string"}]}
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "avro-ex-back-rename"
 
   Scenario: Backward — adding enum symbol is compatible
     Given the global compatibility level is "NONE"
@@ -240,6 +257,7 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"e","type":{"type":"enum","name":"E","symbols":["A","B","C"]}}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-ex-back-enum-add"
 
   Scenario: Backward — removing enum symbol is incompatible
     Given the global compatibility level is "NONE"
@@ -253,6 +271,7 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"e","type":{"type":"enum","name":"E","symbols":["A","B"]}}]}
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "avro-ex-back-enum-remove"
 
   # ==========================================================================
   # FORWARD COMPATIBILITY (Section 23)
@@ -270,6 +289,7 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":"string"},{"name":"f2","type":"string","default":"x"}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-ex-fwd-add-def"
 
   Scenario: Forward — adding field without default is compatible
     Given the global compatibility level is "NONE"
@@ -283,6 +303,7 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":"string"},{"name":"f2","type":"string"}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-ex-fwd-add-nodef"
 
   Scenario: Forward — removing field with default is compatible
     Given the global compatibility level is "NONE"
@@ -296,6 +317,7 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":"string"}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-ex-fwd-remove-def"
 
   Scenario: Forward — removing field without default is incompatible
     Given the global compatibility level is "NONE"
@@ -309,6 +331,7 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":"string"}]}
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "avro-ex-fwd-remove-nodef"
 
   Scenario: Forward — int to long is incompatible (old reader can't read long)
     Given the global compatibility level is "NONE"
@@ -322,6 +345,7 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":"long"}]}
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "avro-ex-fwd-int-long"
 
   Scenario: Forward — long to int is compatible (old reader promotes int to long)
     Given the global compatibility level is "NONE"
@@ -335,6 +359,7 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":"int"}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-ex-fwd-long-int"
 
   # ==========================================================================
   # FULL COMPATIBILITY (Section 24)
@@ -352,6 +377,7 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":"string"},{"name":"f2","type":"string","default":"x"}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-ex-full-add-def"
 
   Scenario: Full — adding field without default is incompatible
     Given the global compatibility level is "NONE"
@@ -365,6 +391,7 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":"string"},{"name":"f2","type":"string"}]}
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "avro-ex-full-add-nodef"
 
   Scenario: Full — removing field with default is compatible
     Given the global compatibility level is "NONE"
@@ -378,6 +405,7 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":"string"}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-ex-full-remove-def"
 
   Scenario: Full — removing field without default is incompatible
     Given the global compatibility level is "NONE"
@@ -391,6 +419,7 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":"string"}]}
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "avro-ex-full-remove-nodef"
 
   Scenario: Full — string/bytes bidirectional promotion is compatible
     Given the global compatibility level is "NONE"
@@ -404,6 +433,7 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":"bytes"}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-ex-full-str-bytes"
 
   Scenario: Full — int to long is incompatible (only forward-compatible)
     Given the global compatibility level is "NONE"
@@ -417,6 +447,7 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":"long"}]}
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "avro-ex-full-int-long"
 
   # ==========================================================================
   # TRANSITIVE COMPATIBILITY (Section 25)
@@ -438,6 +469,7 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":"string"},{"name":"f2","type":"string","default":"a"},{"name":"f3","type":"string","default":"b"}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-ex-bt-add"
 
   Scenario: BACKWARD_TRANSITIVE — removing default transitively is incompatible
     Given the global compatibility level is "NONE"
@@ -455,6 +487,7 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":"string"},{"name":"f2","type":"string"}]}
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "avro-ex-bt-nodef"
 
   Scenario: FORWARD_TRANSITIVE — progressive field removal is compatible
     Given the global compatibility level is "NONE"
@@ -472,6 +505,7 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":"string"}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-ex-ft-remove"
 
   Scenario: FORWARD_TRANSITIVE — adding field without default is compatible (old readers ignore new fields)
     Given the global compatibility level is "NONE"
@@ -489,6 +523,7 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":"string"},{"name":"f3","type":"string"}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-ex-ft-add-nodef"
 
   Scenario: FULL_TRANSITIVE — safe evolution with defaults is compatible
     Given the global compatibility level is "NONE"
@@ -506,6 +541,7 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":"string"},{"name":"f2","type":"string","default":"a"},{"name":"f3","type":"string","default":"b"}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-ex-fullt-safe"
 
   Scenario: FULL_TRANSITIVE — field without default transitively is incompatible
     Given the global compatibility level is "NONE"
@@ -523,6 +559,7 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"f1","type":"string"},{"name":"f2","type":"string"}]}
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "avro-ex-fullt-nodef"
 
   # ==========================================================================
   # COMPATIBILITY CHECK ENDPOINT (REST API)
@@ -604,6 +641,7 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"Outer","fields":[{"name":"inner","type":{"type":"record","name":"Inner","fields":[{"name":"a","type":"string"},{"name":"b","type":"string","default":"x"}]}}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-ex-nested-add"
 
   Scenario: Backward — nested record type change is incompatible
     Given the global compatibility level is "NONE"
@@ -617,6 +655,7 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"Outer","fields":[{"name":"inner","type":{"type":"record","name":"Inner","fields":[{"name":"a","type":"int"}]}}]}
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "avro-ex-nested-type"
 
   # ==========================================================================
   # MAP AND ARRAY COMPATIBILITY
@@ -634,6 +673,7 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"m","type":{"type":"map","values":"int"}}]}
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "avro-ex-map-type"
 
   Scenario: Backward — array item type change is incompatible
     Given the global compatibility level is "NONE"
@@ -647,6 +687,7 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"a","type":{"type":"array","items":"int"}}]}
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "avro-ex-array-type"
 
   Scenario: Backward — map value promotion (int to long) is compatible
     Given the global compatibility level is "NONE"
@@ -660,6 +701,7 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"m","type":{"type":"map","values":"long"}}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-ex-map-promo"
 
   Scenario: Backward — array item promotion (int to long) is compatible
     Given the global compatibility level is "NONE"
@@ -673,3 +715,4 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       {"type":"record","name":"R","fields":[{"name":"a","type":{"type":"array","items":"long"}}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-ex-array-promo"

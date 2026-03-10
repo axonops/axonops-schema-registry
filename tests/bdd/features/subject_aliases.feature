@@ -20,6 +20,7 @@ Feature: Subject Aliases
     When I GET "/config/my-alias"
     Then the response status should be 200
     And the response field "alias" should be "alias-target"
+    And the audit log should contain event "config_update" with subject "my-alias"
 
   Scenario: Remove alias by setting empty string
     When I PUT "/config/removable-alias" with body:
@@ -35,6 +36,7 @@ Feature: Subject Aliases
     When I GET "/config/removable-alias"
     Then the response status should be 200
     And the response field "compatibilityLevel" should be "BACKWARD"
+    And the audit log should contain event "config_update" with subject "removable-alias"
 
   # ==========================================================================
   # REGISTER AND GET VIA ALIAS
@@ -63,6 +65,7 @@ Feature: Subject Aliases
     When I GET "/subjects/alias-actual/versions"
     Then the response status should be 200
     And the response should be an array of length 2
+    And the audit log should contain event "schema_register"
 
   Scenario: Get version via alias returns from actual subject
     Given subject "alias-get-target" has schema:
@@ -112,6 +115,7 @@ Feature: Subject Aliases
       """
     Then the response status should be 200
     And the response field "subject" should be "alias-lookup-target"
+    And the audit log should contain event "schema_lookup"
 
   Scenario: Compatibility check via alias checks against actual subject
     Given subject "alias-compat-target" has schema:

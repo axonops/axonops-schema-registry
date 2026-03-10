@@ -37,6 +37,7 @@ Feature: RuleSet Validation
     And the response should have field "ruleSet"
     And the response body should contain "validateEmail"
     And the response body should contain "CONDITION"
+    And the audit log should contain event "schema_register" with subject "valid-ruleset"
 
   Scenario: Valid migration rule with UPGRADE mode succeeds
     When I POST "/subjects/migration-upgrade/versions" with body:
@@ -63,6 +64,7 @@ Feature: RuleSet Validation
     Then the response status should be 200
     And the response body should contain "migrationRules"
     And the response body should contain "UPGRADE"
+    And the audit log should contain event "schema_register" with subject "migration-upgrade"
 
   Scenario: Valid onSuccess and onFailure actions succeed
     When I POST "/subjects/on-actions/versions" with body:
@@ -90,6 +92,7 @@ Feature: RuleSet Validation
     Then the response status should be 200
     And the response body should contain "DLQ"
     And the response body should contain "ERROR"
+    And the audit log should contain event "schema_register" with subject "on-actions"
 
   Scenario: Empty ruleSet (no rules) succeeds
     When I POST "/subjects/empty-ruleset/versions" with body:
@@ -104,6 +107,7 @@ Feature: RuleSet Validation
       """
     Then the response status should be 200
     And the response should have field "id"
+    And the audit log should contain event "schema_register" with subject "empty-ruleset"
 
   Scenario: Multiple valid rules in domainRules succeeds
     When I POST "/subjects/multi-rules/versions" with body:
@@ -144,6 +148,7 @@ Feature: RuleSet Validation
     And the response body should contain "rule1"
     And the response body should contain "rule2"
     And the response body should contain "rule3"
+    And the audit log should contain event "schema_register" with subject "multi-rules"
 
   Scenario: Valid ruleSet in config PUT /config succeeds
     When I PUT "/config" with body:
@@ -168,6 +173,7 @@ Feature: RuleSet Validation
     Then the response status should be 200
     And the response should have field "defaultRuleSet"
     And the response body should contain "globalRule"
+    And the audit log should contain event "config_update"
 
   Scenario: Valid ruleSet in config PUT /config/{subject} succeeds
     When I PUT "/config/subject-rules" with body:
@@ -192,6 +198,7 @@ Feature: RuleSet Validation
     Then the response status should be 200
     And the response should have field "overrideRuleSet"
     And the response body should contain "subjectRule"
+    And the audit log should contain event "config_update"
 
   # ==========================================================================
   # INVALID RULESETS — MISSING FIELDS
@@ -356,6 +363,7 @@ Feature: RuleSet Validation
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "domain-write"
 
   Scenario: Domain rule mode READ succeeds
     When I POST "/subjects/domain-read/versions" with body:
@@ -377,6 +385,7 @@ Feature: RuleSet Validation
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "domain-read"
 
   Scenario: Domain rule mode WRITEREAD succeeds
     When I POST "/subjects/domain-writeread/versions" with body:
@@ -398,6 +407,7 @@ Feature: RuleSet Validation
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "domain-writeread"
 
   # ==========================================================================
   # INVALID RULESETS — INVALID MODE FOR MIGRATION RULES
@@ -467,6 +477,7 @@ Feature: RuleSet Validation
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "mig-upgrade"
 
   Scenario: Migration rule mode DOWNGRADE succeeds
     When I POST "/subjects/mig-downgrade/versions" with body:
@@ -488,6 +499,7 @@ Feature: RuleSet Validation
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "mig-downgrade"
 
   Scenario: Migration rule mode UPDOWN succeeds
     When I POST "/subjects/mig-updown/versions" with body:
@@ -509,6 +521,7 @@ Feature: RuleSet Validation
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "mig-updown"
 
   # ==========================================================================
   # INVALID RULESETS — INVALID ON_SUCCESS / ON_FAILURE ACTIONS
@@ -600,6 +613,7 @@ Feature: RuleSet Validation
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "all-actions"
 
   # ==========================================================================
   # INVALID RULESETS — CONFIG OPERATIONS
@@ -666,6 +680,7 @@ Feature: RuleSet Validation
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "config_update"
 
   Scenario: Invalid rule kind in migration rules of config returns 422
     When I PUT "/config/bad-mig-rules" with body:
@@ -712,6 +727,7 @@ Feature: RuleSet Validation
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "encoding-write"
 
   Scenario: Encoding rule mode must be WRITE, READ, or WRITEREAD
     When I POST "/subjects/encoding-invalid/versions" with body:

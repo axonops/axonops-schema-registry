@@ -13,6 +13,7 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       {"type":"record","name":"Valid","fields":[{"name":"f1","type":"string"},{"name":"f2","type":"int"}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "parse-avro-valid"
 
   Scenario: Invalid Avro field type returns INVALID_SCHEMA
     When I register a schema under subject "parse-avro-badtype":
@@ -36,6 +37,7 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       {"type":"record","name":"UnionNull","fields":[{"name":"f1","type":["null","string"],"default":null}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "parse-avro-union-null"
 
   Scenario: Avro schema with all primitive types
     When I register a schema under subject "parse-avro-prims":
@@ -43,6 +45,7 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       {"type":"record","name":"AllPrims","fields":[{"name":"a","type":"null"},{"name":"b","type":"boolean"},{"name":"c","type":"int"},{"name":"d","type":"long"},{"name":"e","type":"float"},{"name":"f","type":"double"},{"name":"g","type":"bytes"},{"name":"h","type":"string"}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "parse-avro-prims"
 
   Scenario: Avro schema with logical types
     When I register a schema under subject "parse-avro-logical":
@@ -50,6 +53,7 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       {"type":"record","name":"Logical","fields":[{"name":"d","type":{"type":"int","logicalType":"date"}},{"name":"ts","type":{"type":"long","logicalType":"timestamp-millis"}},{"name":"uuid","type":{"type":"string","logicalType":"uuid"}}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "parse-avro-logical"
 
   Scenario: Avro schema with enum type
     When I register a schema under subject "parse-avro-enum":
@@ -57,6 +61,7 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       {"type":"record","name":"WithEnum","fields":[{"name":"status","type":{"type":"enum","name":"Status","symbols":["ACTIVE","INACTIVE","DELETED"]}}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "parse-avro-enum"
 
   Scenario: Avro schema with fixed type
     When I register a schema under subject "parse-avro-fixed":
@@ -64,6 +69,7 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       {"type":"record","name":"WithFixed","fields":[{"name":"hash","type":{"type":"fixed","name":"MD5","size":16}}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "parse-avro-fixed"
 
   Scenario: Avro schema with map and array
     When I register a schema under subject "parse-avro-collections":
@@ -71,6 +77,7 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       {"type":"record","name":"Collections","fields":[{"name":"tags","type":{"type":"map","values":"string"}},{"name":"scores","type":{"type":"array","items":"int"}}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "parse-avro-collections"
 
   Scenario: Avro schema with nested records
     When I register a schema under subject "parse-avro-nested":
@@ -78,6 +85,7 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       {"type":"record","name":"Outer","fields":[{"name":"inner","type":{"type":"record","name":"Inner","fields":[{"name":"value","type":"string"}]}}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "parse-avro-nested"
 
   Scenario: Avro schema with recursive reference
     When I register a schema under subject "parse-avro-recursive":
@@ -85,6 +93,7 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       {"type":"record","name":"Node","fields":[{"name":"value","type":"string"},{"name":"next","type":["null","Node"],"default":null}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "parse-avro-recursive"
 
   # ==========================================================================
   # AVRO COMPATIBILITY — FIELD NAME ALIAS
@@ -102,6 +111,7 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       {"type":"record","name":"AliasTest","fields":[{"name":"f1_renamed","type":"string","aliases":["f1"]}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "parse-avro-alias"
 
   Scenario: Backward compatible — evolving field type to union
     Given the global compatibility level is "NONE"
@@ -115,6 +125,7 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       {"type":"record","name":"ToUnion","fields":[{"name":"f1","type":["null","string"]}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "parse-avro-to-union"
 
   Scenario: Backward incompatible — removing type from union
     Given the global compatibility level is "NONE"
@@ -141,6 +152,7 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       {"type":"record","name":"WidenUnion","fields":[{"name":"f1","type":["null","string","int"]}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "parse-avro-widen-union"
 
   # ==========================================================================
   # JSON SCHEMA PARSING (Section 33)
@@ -152,6 +164,7 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       {"type":"object","properties":{"name":{"type":"string"},"age":{"type":"integer"}},"required":["name"]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "parse-json-valid"
 
   Scenario: Invalid JSON Schema returns INVALID_SCHEMA
     When I POST "/subjects/parse-json-invalid/versions" with body:
@@ -167,6 +180,7 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       {"type":"object","$defs":{"Address":{"type":"object","properties":{"street":{"type":"string"},"city":{"type":"string"}}}},"properties":{"home":{"$ref":"#/$defs/Address"},"work":{"$ref":"#/$defs/Address"}}}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "parse-json-defs"
 
   Scenario: JSON Schema with recursive $ref
     When I register a "JSON" schema under subject "parse-json-recursive":
@@ -174,6 +188,7 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       {"type":"object","properties":{"name":{"type":"string"},"children":{"type":"array","items":{"$ref":"#"}}},"required":["name"]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "parse-json-recursive"
 
   Scenario: JSON Schema with enum
     When I register a "JSON" schema under subject "parse-json-enum":
@@ -181,6 +196,7 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       {"type":"object","properties":{"status":{"type":"string","enum":["active","inactive","deleted"]},"priority":{"type":"integer","enum":[1,2,3,4,5]}}}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "parse-json-enum"
 
   Scenario: JSON Schema with oneOf/anyOf/allOf
     When I register a "JSON" schema under subject "parse-json-composition":
@@ -188,6 +204,7 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       {"type":"object","properties":{"value":{"oneOf":[{"type":"string"},{"type":"integer"}]},"data":{"anyOf":[{"type":"object","properties":{"a":{"type":"string"}}},{"type":"object","properties":{"b":{"type":"integer"}}}]}}}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "parse-json-composition"
 
   Scenario: JSON Schema with string constraints
     When I register a "JSON" schema under subject "parse-json-string-constraints":
@@ -195,6 +212,7 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       {"type":"object","properties":{"email":{"type":"string","format":"email","minLength":5,"maxLength":255},"code":{"type":"string","pattern":"^[A-Z]{3}$"}}}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "parse-json-string-constraints"
 
   Scenario: JSON Schema with numeric constraints
     When I register a "JSON" schema under subject "parse-json-numeric-constraints":
@@ -202,6 +220,7 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       {"type":"object","properties":{"age":{"type":"integer","minimum":0,"maximum":150},"score":{"type":"number","exclusiveMinimum":0,"exclusiveMaximum":100,"multipleOf":0.5}}}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "parse-json-numeric-constraints"
 
   Scenario: JSON Schema with array constraints
     When I register a "JSON" schema under subject "parse-json-array-constraints":
@@ -209,6 +228,7 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       {"type":"object","properties":{"tags":{"type":"array","items":{"type":"string"},"minItems":1,"maxItems":10,"uniqueItems":true}}}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "parse-json-array-constraints"
 
   Scenario: JSON Schema with additionalProperties false
     When I register a "JSON" schema under subject "parse-json-closed":
@@ -216,6 +236,7 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       {"type":"object","properties":{"name":{"type":"string"}},"additionalProperties":false}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "parse-json-closed"
 
   Scenario: JSON Schema with nested objects
     When I register a "JSON" schema under subject "parse-json-nested":
@@ -223,6 +244,7 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       {"type":"object","properties":{"address":{"type":"object","properties":{"street":{"type":"string"},"geo":{"type":"object","properties":{"lat":{"type":"number"},"lng":{"type":"number"}},"required":["lat","lng"]}},"required":["street"]}}}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "parse-json-nested"
 
   Scenario: JSON Schema dedup — same schema gets same ID
     When I register a "JSON" schema under subject "parse-json-dedup1":
@@ -237,6 +259,7 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       """
     Then the response status should be 200
     And the response field "id" should equal stored "json_dedup_id"
+    And the audit log should contain event "schema_register" with subject "parse-json-dedup2"
 
   # ==========================================================================
   # PROTOBUF PARSING (Section 34)
@@ -252,6 +275,7 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "parse-proto-valid"
 
   Scenario: Invalid Protobuf schema returns INVALID_SCHEMA
     When I POST "/subjects/parse-proto-invalid/versions" with body:
@@ -274,6 +298,7 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "parse-proto-nested"
 
   Scenario: Protobuf with enum
     When I register a "PROTOBUF" schema under subject "parse-proto-enum":
@@ -289,6 +314,7 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "parse-proto-enum"
 
   Scenario: Protobuf with oneof
     When I register a "PROTOBUF" schema under subject "parse-proto-oneof":
@@ -304,6 +330,7 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "parse-proto-oneof"
 
   Scenario: Protobuf with map
     When I register a "PROTOBUF" schema under subject "parse-proto-map":
@@ -315,6 +342,7 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "parse-proto-map"
 
   Scenario: Protobuf with repeated field
     When I register a "PROTOBUF" schema under subject "parse-proto-repeated":
@@ -326,6 +354,7 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "parse-proto-repeated"
 
   Scenario: Protobuf with well-known type imports
     When I register a "PROTOBUF" schema under subject "parse-proto-wkt":
@@ -339,6 +368,7 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "parse-proto-wkt"
 
   Scenario: Protobuf with package declaration
     When I register a "PROTOBUF" schema under subject "parse-proto-package":
@@ -352,6 +382,7 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "parse-proto-package"
 
   Scenario: Protobuf with optional field (proto3)
     When I register a "PROTOBUF" schema under subject "parse-proto-optional":
@@ -364,6 +395,7 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "parse-proto-optional"
 
   Scenario: Protobuf dedup — same schema gets same ID
     When I register a "PROTOBUF" schema under subject "parse-proto-dedup1":
@@ -386,6 +418,7 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       """
     Then the response status should be 200
     And the response field "id" should equal stored "proto_dedup_id"
+    And the audit log should contain event "schema_register" with subject "parse-proto-dedup2"
 
   Scenario: Same message name in different packages are different schemas
     When I register a "PROTOBUF" schema under subject "parse-proto-pkg1":
@@ -409,3 +442,4 @@ Feature: Schema Parsing & Validation — Exhaustive (Confluent v8.1.1 Compatibil
       """
     Then the response status should be 200
     And I store the response field "id" as "pkg2_id"
+    And the audit log should contain event "schema_register" with subject "parse-proto-pkg2"

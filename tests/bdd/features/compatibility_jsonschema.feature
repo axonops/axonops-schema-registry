@@ -18,6 +18,7 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"name":{"type":"string"},"email":{"type":"string"}},"required":["name"]}
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "json-back-1"
 
   Scenario: BACKWARD - add required property is incompatible
     Given the global compatibility level is "BACKWARD"
@@ -30,6 +31,7 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"name":{"type":"string"},"age":{"type":"integer"}},"required":["name","age"]}
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "json-back-2"
 
   Scenario: BACKWARD - remove property from open content model is compatible
     Given the global compatibility level is "BACKWARD"
@@ -42,6 +44,7 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"name":{"type":"string"}},"required":["name"]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "json-back-3"
 
   Scenario: BACKWARD - make optional property required is incompatible
     Given the global compatibility level is "BACKWARD"
@@ -54,6 +57,7 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"name":{"type":"string"},"age":{"type":"integer"}},"required":["name","age"]}
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "json-back-4"
 
   Scenario: BACKWARD - widen type union is compatible
     Given the global compatibility level is "BACKWARD"
@@ -66,6 +70,7 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"value":{"type":["string","null"]}},"required":["value"]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "json-back-5"
 
   Scenario: BACKWARD - narrow type union is incompatible
     Given the global compatibility level is "BACKWARD"
@@ -78,6 +83,7 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"value":{"type":"string"}},"required":["value"]}
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "json-back-6"
 
   Scenario: BACKWARD - loosen array minItems is compatible
     Given the global compatibility level is "BACKWARD"
@@ -90,6 +96,7 @@ Feature: JSON Schema Compatibility
       {"type":"array","items":{"type":"string"},"minItems":1}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "json-back-7"
 
   Scenario: BACKWARD - tighten array minItems is incompatible
     Given the global compatibility level is "BACKWARD"
@@ -102,6 +109,7 @@ Feature: JSON Schema Compatibility
       {"type":"array","items":{"type":"string"},"minItems":5}
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "json-back-8"
 
   # ============================================================================
   # BACKWARD_TRANSITIVE mode (5 scenarios)
@@ -126,6 +134,7 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"name":{"type":"string"},"email":{"type":"string"},"phone":{"type":"string"}},"required":["name"],"additionalProperties":false}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "json-bt-1"
 
   Scenario: BACKWARD_TRANSITIVE - v3 adds required property absent in v1
     # Register v1 and v2 under NONE to avoid open-model incompatibility on v2.
@@ -145,6 +154,7 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"name":{"type":"string"},"age":{"type":"integer"}},"required":["name","age"]}
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "json-bt-2"
 
   Scenario: BACKWARD_TRANSITIVE - loosen minItems chain is compatible
     Given the global compatibility level is "BACKWARD_TRANSITIVE"
@@ -161,6 +171,7 @@ Feature: JSON Schema Compatibility
       {"type":"array","items":{"type":"string"},"minItems":1}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "json-bt-3"
 
   Scenario: BACKWARD_TRANSITIVE - v3 tightens minItems vs v1
     Given the global compatibility level is "BACKWARD_TRANSITIVE"
@@ -177,6 +188,7 @@ Feature: JSON Schema Compatibility
       {"type":"array","items":{"type":"string"},"minItems":5}
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "json-bt-4"
 
   Scenario: BACKWARD_TRANSITIVE - optional property additions chain is compatible (closed model)
     # With closed content model, adding optional properties is backward-compatible.
@@ -194,6 +206,7 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"id":{"type":"string"},"name":{"type":"string"},"email":{"type":"string"}},"required":["id"],"additionalProperties":false}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "json-bt-5"
 
   # ============================================================================
   # FORWARD mode (8 scenarios)
@@ -211,6 +224,7 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"name":{"type":"string"}},"required":["name"]}
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "json-fwd-1"
 
   Scenario: FORWARD - remove required property from new is incompatible
     Given the global compatibility level is "FORWARD"
@@ -223,6 +237,7 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"name":{"type":"string"}},"required":["name"]}
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "json-fwd-2"
 
   Scenario: FORWARD - make required property optional in new is incompatible
     Given the global compatibility level is "FORWARD"
@@ -235,6 +250,7 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"name":{"type":"string"},"email":{"type":"string"}},"required":["name"]}
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "json-fwd-3"
 
   Scenario: FORWARD - tighten array minItems in new is compatible
     Given the global compatibility level is "FORWARD"
@@ -247,6 +263,7 @@ Feature: JSON Schema Compatibility
       {"type":"array","items":{"type":"string"},"minItems":5}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "json-fwd-4"
 
   Scenario: FORWARD - loosen array minItems in new is incompatible
     Given the global compatibility level is "FORWARD"
@@ -259,6 +276,7 @@ Feature: JSON Schema Compatibility
       {"type":"array","items":{"type":"string"},"minItems":1}
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "json-fwd-5"
 
   Scenario: FORWARD - add enum value in new is incompatible
     Given the global compatibility level is "FORWARD"
@@ -271,6 +289,7 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"status":{"type":"string","enum":["active","inactive","pending"]}},"required":["status"]}
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "json-fwd-6"
 
   Scenario: FORWARD - remove enum value in new is compatible
     Given the global compatibility level is "FORWARD"
@@ -283,6 +302,7 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"status":{"type":"string","enum":["active","inactive"]}},"required":["status"]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "json-fwd-7"
 
   Scenario: FORWARD - identical schema is compatible
     Given the global compatibility level is "FORWARD"
@@ -295,6 +315,7 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"name":{"type":"string"},"age":{"type":"integer"}},"required":["name"]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "json-fwd-8"
 
   # ============================================================================
   # FORWARD_TRANSITIVE mode (4 scenarios)
@@ -318,6 +339,7 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"name":{"type":"string"}},"required":["name"],"additionalProperties":false}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "json-ft-1"
 
   Scenario: FORWARD_TRANSITIVE - removing required property in chain fails (closed model)
     # Removing a required property makes old reader unable to find expected data.
@@ -335,6 +357,7 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"name":{"type":"string"}},"required":["name"],"additionalProperties":false}
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "json-ft-2"
 
   Scenario: FORWARD_TRANSITIVE - making required optional in chain fails
     Given the global compatibility level is "FORWARD_TRANSITIVE"
@@ -351,6 +374,7 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"name":{"type":"string"},"email":{"type":"string"}},"required":["name"]}
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "json-ft-3"
 
   Scenario: FORWARD_TRANSITIVE - tighten constraints chain is compatible
     Given the global compatibility level is "FORWARD_TRANSITIVE"
@@ -367,6 +391,7 @@ Feature: JSON Schema Compatibility
       {"type":"array","items":{"type":"string"},"minItems":5}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "json-ft-4"
 
   # ============================================================================
   # FULL mode (7 scenarios)
@@ -384,6 +409,7 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"name":{"type":"string"},"email":{"type":"string"}},"required":["name"]}
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "json-full-1"
 
   Scenario: FULL - add required property is incompatible
     Given the global compatibility level is "FULL"
@@ -396,6 +422,7 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"name":{"type":"string"},"email":{"type":"string"}},"required":["name","email"]}
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "json-full-2"
 
   Scenario: FULL - remove property is incompatible
     Given the global compatibility level is "FULL"
@@ -408,6 +435,7 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"name":{"type":"string"}},"required":["name"]}
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "json-full-3"
 
   Scenario: FULL - make required to optional is incompatible (fails forward)
     Given the global compatibility level is "FULL"
@@ -420,6 +448,7 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"name":{"type":"string"},"age":{"type":"integer"}},"required":["name"]}
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "json-full-3b"
 
   Scenario: FULL - type change in both directions is incompatible
     Given the global compatibility level is "FULL"
@@ -432,6 +461,7 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"value":{"type":"integer"}},"required":["value"]}
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "json-full-4"
 
   Scenario: FULL - additionalProperties true to false is incompatible
     Given the global compatibility level is "FULL"
@@ -444,6 +474,7 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"name":{"type":"string"}},"additionalProperties":false}
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "json-full-5"
 
   Scenario: FULL - identical schema is compatible
     Given the global compatibility level is "FULL"
@@ -456,6 +487,7 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"name":{"type":"string"},"age":{"type":"integer"}},"required":["name"]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "json-full-6"
 
   # ============================================================================
   # FULL_TRANSITIVE mode (3 scenarios)
@@ -477,6 +509,7 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"id":{"type":"string"},"name":{"type":"string"}},"required":["id"]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "json-flt-1"
 
   Scenario: FULL_TRANSITIVE - removing property fails across versions
     Given the global compatibility level is "FULL_TRANSITIVE"
@@ -493,6 +526,7 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"name":{"type":"string"}},"required":["name"]}
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "json-flt-2"
 
   Scenario: FULL_TRANSITIVE - identical schemas across chain is compatible
     Given the global compatibility level is "FULL_TRANSITIVE"
@@ -509,6 +543,7 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"id":{"type":"string"},"value":{"type":"integer"}},"required":["id"]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "json-flt-3"
 
   # ============================================================================
   # NONE mode (2 scenarios)
@@ -526,6 +561,7 @@ Feature: JSON Schema Compatibility
       {"type":"array","items":{"type":"number"},"minItems":1}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "json-none-1"
 
   Scenario: NONE - root type change is allowed
     Given the global compatibility level is "NONE"
@@ -538,6 +574,7 @@ Feature: JSON Schema Compatibility
       {"type":"integer","minimum":0,"maximum":100}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "json-none-2"
 
   # ============================================================================
   # Edge Cases (12 scenarios)
@@ -554,6 +591,7 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"name":{"type":"string"}},"additionalProperties":false}
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "json-edge-1"
 
   Scenario: Edge - additionalProperties false to true is compatible (backward)
     Given the global compatibility level is "BACKWARD"
@@ -566,6 +604,7 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"name":{"type":"string"}},"additionalProperties":true}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "json-edge-2"
 
   Scenario: Edge - enum value addition is compatible (backward)
     Given the global compatibility level is "BACKWARD"
@@ -578,6 +617,7 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"color":{"type":"string","enum":["red","green","blue"]}},"required":["color"]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "json-edge-3"
 
   Scenario: Edge - enum value removal is incompatible (backward)
     Given the global compatibility level is "BACKWARD"
@@ -590,6 +630,7 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"color":{"type":"string","enum":["red","green"]}},"required":["color"]}
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "json-edge-4"
 
   Scenario: Edge - nested object property removal from open model is compatible
     Given the global compatibility level is "BACKWARD"
@@ -602,6 +643,7 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"user":{"type":"object","properties":{"name":{"type":"string"}}}},"required":["user"]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "json-edge-5"
 
   Scenario: Edge - array items type change is incompatible
     Given the global compatibility level is "BACKWARD"
@@ -614,6 +656,7 @@ Feature: JSON Schema Compatibility
       {"type":"array","items":{"type":"integer"}}
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "json-edge-6"
 
   Scenario: Edge - minItems increase is incompatible (backward)
     Given the global compatibility level is "BACKWARD"
@@ -626,6 +669,7 @@ Feature: JSON Schema Compatibility
       {"type":"array","items":{"type":"string"},"minItems":10}
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "json-edge-7"
 
   Scenario: Edge - maxItems decrease is incompatible (backward)
     Given the global compatibility level is "BACKWARD"
@@ -638,6 +682,7 @@ Feature: JSON Schema Compatibility
       {"type":"array","items":{"type":"string"},"maxItems":5}
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "json-edge-8"
 
   Scenario: Edge - type array expansion is compatible (backward)
     Given the global compatibility level is "BACKWARD"
@@ -650,6 +695,7 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"value":{"type":["string","null"]}},"required":["value"]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "json-edge-9"
 
   Scenario: Edge - maxItems increase is compatible (backward)
     Given the global compatibility level is "BACKWARD"
@@ -662,6 +708,7 @@ Feature: JSON Schema Compatibility
       {"type":"array","items":{"type":"string"},"maxItems":10}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "json-edge-10"
 
   Scenario: Edge - root type change object to array is incompatible (backward)
     Given the global compatibility level is "BACKWARD"
@@ -674,6 +721,7 @@ Feature: JSON Schema Compatibility
       {"type":"array","items":{"type":"string"}}
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "json-edge-11"
 
   Scenario: Edge - make required property optional is compatible (backward)
     Given the global compatibility level is "BACKWARD"
@@ -686,6 +734,7 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"name":{"type":"string"},"age":{"type":"integer"}},"required":["name"]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "json-edge-12"
 
   # ============================================================================
   # Error Validation (5 scenarios)
@@ -703,6 +752,7 @@ Feature: JSON Schema Compatibility
       """
     Then the response status should be 409
     And the response should have error code 409
+    And the audit log should contain event "schema_register" with subject "json-err-1"
 
   Scenario: Error - check endpoint returns is_compatible false for incompatible schema
     Given the global compatibility level is "BACKWARD"
@@ -728,6 +778,7 @@ Feature: JSON Schema Compatibility
       {"type":"array","items":{"type":"integer"}}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "json-err-3"
 
   Scenario: Error - check endpoint returns is_compatible false for open model property addition
     Given the global compatibility level is "BACKWARD"
@@ -760,6 +811,7 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"x":{"type":"number"}}}
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "json-err-5"
 
   # --- Gap-filling: JSON Schema-specific compatibility rules ---
 
@@ -774,6 +826,7 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"name":{"type":"string"}},"additionalProperties":true}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "json-gap-1"
 
   Scenario: BACKWARD - additionalProperties true to false is incompatible
     Given the global compatibility level is "BACKWARD"
@@ -786,6 +839,7 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"name":{"type":"string"}},"additionalProperties":false}
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "json-gap-2"
 
   Scenario: BACKWARD - nested property removal from open model is compatible
     Given the global compatibility level is "BACKWARD"
@@ -798,6 +852,7 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"address":{"type":"object","properties":{"street":{"type":"string"}}}}}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "json-gap-3"
 
   Scenario: BACKWARD - nested property addition to open model is incompatible
     Given the global compatibility level is "BACKWARD"
@@ -810,6 +865,7 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"address":{"type":"object","properties":{"street":{"type":"string"},"zip":{"type":"string"}}}}}
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "json-gap-4"
 
   Scenario: BACKWARD - type widening string to string-or-null is compatible
     Given the global compatibility level is "BACKWARD"
@@ -822,6 +878,7 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"name":{"type":["string","null"]}}}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "json-gap-5"
 
   Scenario: BACKWARD - type narrowing string-or-null to string is incompatible
     Given the global compatibility level is "BACKWARD"
@@ -834,6 +891,7 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"name":{"type":"string"}}}
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "json-gap-6"
 
   Scenario: BACKWARD - array items schema removal is compatible (relaxation)
     Given the global compatibility level is "BACKWARD"
@@ -846,6 +904,7 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"tags":{"type":"array"}}}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "json-gap-7"
 
   Scenario: BACKWARD - multiple simultaneous incompatible changes detected
     Given the global compatibility level is "BACKWARD"
@@ -858,6 +917,7 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"name":{"type":"integer"},"email":{"type":"string"}},"required":["name","email"]}
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "json-gap-8"
 
   # ==========================================================================
   # JSON Schema compatibility with external $ref — the compatibility checker
@@ -881,6 +941,7 @@ Feature: JSON Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "json-ref-person"
     When I check compatibility of "JSON" schema with reference "address.json" from subject "json-ref-address" version 1 against subject "json-ref-person":
       """
       {"type":"object","properties":{"name":{"type":"string"},"address":{"$ref":"address.json"},"email":{"type":"string"}},"required":["name"],"additionalProperties":false}
@@ -903,6 +964,7 @@ Feature: JSON Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "json-compat-person"
     When I check compatibility of "JSON" schema with reference "addr.json" from subject "json-compat-addr" version 1 against subject "json-compat-person":
       """
       {"type":"object","properties":{"name":{"type":"string"},"addr":{"$ref":"addr.json"}},"required":["name"],"additionalProperties":false}
@@ -925,6 +987,7 @@ Feature: JSON Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "json-incompat-person"
     When I check compatibility of "JSON" schema with reference "addr.json" from subject "json-incompat-addr" version 1 against subject "json-incompat-person":
       """
       {"type":"object","properties":{"name":{"type":"string"},"addr":{"$ref":"addr.json"}},"required":["name","addr"],"additionalProperties":false}

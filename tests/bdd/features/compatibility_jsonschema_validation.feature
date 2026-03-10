@@ -348,6 +348,7 @@ Feature: JSON Schema Validation Compatibility — Exhaustive (Confluent v8.1.1 C
       {"type":"object","properties":{"a":{"type":"integer"},"b":{"type":"string","default":""},"c":{"type":"number","default":0}},"required":["a"]}
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "jsv-trans-ok"
 
   Scenario: JSON Schema backward transitive — closed content model allows new properties
     Given the global compatibility level is "NONE"
@@ -365,6 +366,7 @@ Feature: JSON Schema Validation Compatibility — Exhaustive (Confluent v8.1.1 C
       {"type":"object","properties":{"a":{"type":"integer"},"b":{"type":"string"},"c":{"type":"number"}},"required":["a"],"additionalProperties":false}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "jsv-trans-fail"
 
   # ==========================================================================
   # UNION / ONEOF COMPATIBILITY

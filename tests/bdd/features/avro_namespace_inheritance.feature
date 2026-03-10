@@ -37,6 +37,7 @@ Feature: Avro Namespace Inheritance
     Then the response status should be 200
     And I store the response field "id" as "inherited_id"
     And the response field "id" should equal stored "explicit_id"
+    And the audit log should contain event "schema_register" with subject "ns-inherit-inherited"
 
   # ==========================================================================
   # 2. DIFFERENT PARENT NAMESPACES PRODUCE DIFFERENT SCHEMA IDS
@@ -66,6 +67,7 @@ Feature: Avro Namespace Inheritance
     Then the response status should be 200
     And I store the response field "id" as "beta_id"
     And the response field "id" should not equal stored "alpha_id"
+    And the audit log should contain event "schema_register" with subject "ns-inherit-beta"
 
   # ==========================================================================
   # 3. THREE-LEVEL DEEP INHERITANCE DEDUPLICATION
@@ -105,6 +107,7 @@ Feature: Avro Namespace Inheritance
     And the response should be an array of length 2
     And the response array should contain "ns-inherit-deep-a"
     And the response array should contain "ns-inherit-deep-b"
+    And the audit log should contain event "schema_register" with subject "ns-inherit-deep-b"
 
   # ==========================================================================
   # 4. NESTED TYPE WITH OVERRIDDEN NAMESPACE DIFFERS FROM INHERITED
@@ -134,6 +137,7 @@ Feature: Avro Namespace Inheritance
     Then the response status should be 200
     And I store the response field "id" as "override_ns_id"
     And the response field "id" should not equal stored "inherited_ns_id"
+    And the audit log should contain event "schema_register" with subject "ns-inherit-override-ns"
 
   # ==========================================================================
   # 5. NAMESPACE INHERITANCE THROUGH ARRAY ITEMS
@@ -162,6 +166,7 @@ Feature: Avro Namespace Inheritance
       """
     Then the response status should be 200
     And the response field "id" should equal stored "array_explicit_id"
+    And the audit log should contain event "schema_register" with subject "ns-inherit-array-inherited"
 
   # ==========================================================================
   # 6. NAMESPACE INHERITANCE THROUGH UNION
@@ -190,6 +195,7 @@ Feature: Avro Namespace Inheritance
       """
     Then the response status should be 200
     And the response field "id" should equal stored "union_explicit_id"
+    And the audit log should contain event "schema_register" with subject "ns-inherit-union-inherited"
 
   # ==========================================================================
   # 7. MIXED EXPLICIT AND INHERITED NAMESPACES
@@ -220,6 +226,7 @@ Feature: Avro Namespace Inheritance
       """
     Then the response status should be 200
     And the response field "id" should equal stored "mixed_partial_id"
+    And the audit log should contain event "schema_register" with subject "ns-inherit-mixed-full"
 
   # ==========================================================================
   # 8. NO NAMESPACE ANYWHERE — NESTED TYPES REMAIN UNQUALIFIED
@@ -248,6 +255,7 @@ Feature: Avro Namespace Inheritance
       """
     Then the response status should be 200
     And the response field "id" should equal stored "none_id"
+    And the audit log should contain event "schema_register" with subject "ns-inherit-none-b"
 
   # ==========================================================================
   # 9. OVERRIDE NAMESPACE PROPAGATES TO GRANDCHILDREN
@@ -281,3 +289,4 @@ Feature: Avro Namespace Inheritance
       """
     Then the response status should be 200
     And the response field "id" should equal stored "propagate_inherited_id"
+    And the audit log should contain event "schema_register" with subject "ns-inherit-propagate-explicit"

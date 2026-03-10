@@ -26,6 +26,7 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-back-1"
 
   Scenario: BACKWARD - add required field is incompatible (proto2)
     Given the global compatibility level is "BACKWARD"
@@ -45,6 +46,7 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "proto-back-2"
 
   Scenario: BACKWARD - remove field is compatible
     Given the global compatibility level is "BACKWARD"
@@ -64,6 +66,7 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-back-3"
 
   Scenario: BACKWARD - change field type int32 to string is incompatible
     Given the global compatibility level is "BACKWARD"
@@ -82,6 +85,7 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "proto-back-4"
 
   Scenario: BACKWARD - type change int32 to sint32 is incompatible
     Given the global compatibility level is "BACKWARD"
@@ -100,6 +104,7 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "proto-back-5"
 
   Scenario: BACKWARD - change field number is compatible
     Given the global compatibility level is "BACKWARD"
@@ -118,6 +123,7 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-back-6"
 
   Scenario: BACKWARD - optional to repeated is compatible
     Given the global compatibility level is "BACKWARD"
@@ -136,6 +142,7 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-back-7"
 
   Scenario: BACKWARD - repeated to singular string is compatible
     Given the global compatibility level is "BACKWARD"
@@ -154,6 +161,7 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-back-8"
 
   Scenario: BACKWARD - add enum value is compatible
     Given the global compatibility level is "BACKWARD"
@@ -181,6 +189,7 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-back-9"
 
   Scenario: BACKWARD - remove enum value is compatible
     Given the global compatibility level is "BACKWARD"
@@ -208,6 +217,7 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-back-10"
 
   # ==========================================================================
   # BACKWARD_TRANSITIVE mode (6 scenarios)
@@ -241,6 +251,7 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-bt-1"
 
   Scenario: BACKWARD_TRANSITIVE - field number reuse in v3 is incompatible
     Given the global compatibility level is "BACKWARD_TRANSITIVE"
@@ -271,6 +282,7 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "proto-bt-2"
 
   Scenario: BACKWARD_TRANSITIVE - type change chain within varint group is compatible
     Given the global compatibility level is "BACKWARD_TRANSITIVE"
@@ -296,6 +308,7 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-bt-3"
 
   Scenario: BACKWARD_TRANSITIVE - enum grows each version stays compatible
     Given the global compatibility level is "BACKWARD_TRANSITIVE"
@@ -333,6 +346,7 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-bt-4"
 
   Scenario: BACKWARD_TRANSITIVE - field additions across 3 versions compatible
     Given the global compatibility level is "BACKWARD_TRANSITIVE"
@@ -361,6 +375,7 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-bt-5"
 
   Scenario: BACKWARD_TRANSITIVE - field removal across versions is compatible
     Given the global compatibility level is "BACKWARD_TRANSITIVE"
@@ -390,6 +405,7 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-bt-6"
 
   # ==========================================================================
   # FORWARD mode (8 scenarios)
@@ -415,6 +431,7 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-fwd-1"
 
   Scenario: FORWARD - add field is compatible
     Given the global compatibility level is "FORWARD"
@@ -434,6 +451,7 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-fwd-2"
 
   Scenario: FORWARD - change field type is incompatible
     Given the global compatibility level is "FORWARD"
@@ -452,6 +470,7 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "proto-fwd-3"
 
   Scenario: FORWARD - cross-group type change uint32 to fixed32 is incompatible
     Given the global compatibility level is "FORWARD"
@@ -470,6 +489,7 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "proto-fwd-4"
 
   Scenario: FORWARD - remove enum value is compatible
     Given the global compatibility level is "FORWARD"
@@ -497,6 +517,7 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-fwd-5"
 
   Scenario: FORWARD - add enum value is compatible
     Given the global compatibility level is "FORWARD"
@@ -524,6 +545,7 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-fwd-6"
 
   Scenario: FORWARD - remove service method is compatible
     Given the global compatibility level is "FORWARD"
@@ -551,6 +573,7 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-fwd-7"
 
   Scenario: FORWARD - add service method is compatible (services ignored)
     Given the global compatibility level is "FORWARD"
@@ -578,6 +601,7 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-fwd-8"
 
   # ==========================================================================
   # FORWARD_TRANSITIVE mode (5 scenarios)
@@ -611,6 +635,7 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-ft-1"
 
   Scenario: FORWARD_TRANSITIVE - field addition is compatible
     Given the global compatibility level is "FORWARD_TRANSITIVE"
@@ -637,6 +662,7 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-ft-2"
 
   Scenario: FORWARD_TRANSITIVE - service method addition breaks against v1
     Given the global compatibility level is "FORWARD_TRANSITIVE"
@@ -671,6 +697,7 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "proto-ft-3"
 
   Scenario: FORWARD_TRANSITIVE - enum value addition is compatible
     Given the global compatibility level is "FORWARD_TRANSITIVE"
@@ -706,6 +733,7 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-ft-4"
 
   Scenario: FORWARD_TRANSITIVE - progressive field removal stays compatible
     Given the global compatibility level is "FORWARD_TRANSITIVE"
@@ -734,6 +762,7 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-ft-5"
 
   # ==========================================================================
   # FULL mode (7 scenarios)
@@ -759,6 +788,7 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-full-1"
 
   Scenario: FULL - add required field is incompatible
     Given the global compatibility level is "FULL"
@@ -778,6 +808,7 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "proto-full-2"
 
   Scenario: FULL - remove field is compatible
     Given the global compatibility level is "FULL"
@@ -797,6 +828,7 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-full-3"
 
   Scenario: FULL - identical schema is compatible
     Given the global compatibility level is "FULL"
@@ -817,6 +849,7 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-full-4"
 
   Scenario: FULL - within-group type change int32 to uint32 is compatible
     Given the global compatibility level is "FULL"
@@ -835,6 +868,7 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-full-5"
 
   Scenario: FULL - add enum value is compatible
     Given the global compatibility level is "FULL"
@@ -862,6 +896,7 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-full-6"
 
   Scenario: FULL - cross-group type change int32 to sint32 is incompatible
     Given the global compatibility level is "FULL"
@@ -882,6 +917,7 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "proto-full-7"
 
   # ==========================================================================
   # FULL_TRANSITIVE mode (4 scenarios)
@@ -915,6 +951,7 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-flt-1"
 
   Scenario: FULL_TRANSITIVE - incompatible type change fails against all versions
     Given the global compatibility level is "NONE"
@@ -944,6 +981,7 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "proto-flt-2"
 
   Scenario: FULL_TRANSITIVE - compatible varint type changes across 3 versions
     Given the global compatibility level is "FULL_TRANSITIVE"
@@ -972,6 +1010,7 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-flt-3"
 
   Scenario: FULL_TRANSITIVE - service method change fails
     Given the global compatibility level is "FULL_TRANSITIVE"
@@ -1006,6 +1045,7 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "proto-flt-4"
 
   # ==========================================================================
   # NONE mode (2 scenarios)
@@ -1032,6 +1072,7 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-none-1"
 
   Scenario: NONE - field number reuse with different type is accepted
     Given the global compatibility level is "NONE"
@@ -1052,6 +1093,7 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-none-2"
 
   # ==========================================================================
   # Edge Cases (8 scenarios)
@@ -1085,6 +1127,7 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "proto-edge-1"
 
   Scenario: Edge case - oneof field addition is compatible (backward)
     Given the global compatibility level is "BACKWARD"
@@ -1110,6 +1153,7 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-edge-2"
 
   Scenario: Edge case - oneof field removal is incompatible (backward)
     Given the global compatibility level is "BACKWARD"
@@ -1135,6 +1179,7 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "proto-edge-3"
 
   Scenario: Edge case - package name change is incompatible
     Given the global compatibility level is "BACKWARD"
@@ -1155,6 +1200,7 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "proto-edge-4"
 
   Scenario: Edge case - map field replaced by scalar is incompatible
     Given the global compatibility level is "BACKWARD"
@@ -1175,6 +1221,7 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "proto-edge-5"
 
   Scenario: Edge case - multiple messages with one field type changed is incompatible
     Given the global compatibility level is "BACKWARD"
@@ -1199,6 +1246,7 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "proto-edge-6"
 
   Scenario: Edge case - service streaming mode change is compatible (services ignored)
     Given the global compatibility level is "BACKWARD"
@@ -1221,6 +1269,7 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-edge-7"
 
   Scenario: Edge case - adding new message type is compatible (backward)
     Given the global compatibility level is "BACKWARD"
@@ -1243,6 +1292,7 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-edge-8"
 
   # ==========================================================================
   # Error Validation (5 scenarios)
@@ -1269,6 +1319,7 @@ Feature: Protobuf Schema Compatibility
       """
     Then the response status should be 409
     And the response should have error code 409
+    And the audit log should contain event "schema_register" with subject "proto-err-1"
 
   Scenario: Error validation - check endpoint returns is_compatible false
     Given the global compatibility level is "BACKWARD"
@@ -1309,6 +1360,7 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-err-3"
 
   Scenario: Error validation - check endpoint returns is_compatible true
     Given the global compatibility level is "BACKWARD"
@@ -1350,6 +1402,7 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "proto-err-5"
 
   # --- Gap-filling: Protobuf-specific compatibility rules ---
 
@@ -1372,6 +1425,7 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "proto-gap-1"
 
   Scenario: BACKWARD - syntax version change is compatible
     Given the global compatibility level is "BACKWARD"
@@ -1390,6 +1444,7 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-gap-2"
 
   Scenario: BACKWARD - cardinality optional to repeated is compatible
     Given the global compatibility level is "BACKWARD"
@@ -1408,6 +1463,7 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-gap-3"
 
   Scenario: BACKWARD - repeated to singular string is compatible
     Given the global compatibility level is "BACKWARD"
@@ -1426,6 +1482,7 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-gap-4"
 
   Scenario: BACKWARD - nested message removal is incompatible
     Given the global compatibility level is "BACKWARD"
@@ -1448,6 +1505,7 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "proto-gap-5"
 
   Scenario: BACKWARD - nested enum removal with type change to int32 is compatible
     Given the global compatibility level is "BACKWARD"
@@ -1472,6 +1530,7 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-gap-6"
 
   Scenario: BACKWARD - service method removal is compatible (services ignored)
     Given the global compatibility level is "BACKWARD"
@@ -1495,6 +1554,7 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-gap-7"
 
   Scenario: BACKWARD - service method addition is compatible
     Given the global compatibility level is "BACKWARD"
@@ -1518,6 +1578,7 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-gap-8"
 
   Scenario: BACKWARD - service method input type change is compatible (services ignored)
     Given the global compatibility level is "BACKWARD"
@@ -1542,6 +1603,7 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-gap-9"
 
   Scenario: BACKWARD - service streaming mode change is compatible (services ignored)
     Given the global compatibility level is "BACKWARD"
@@ -1564,6 +1626,7 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-gap-10"
 
   Scenario: BACKWARD - service removal is compatible (services ignored)
     Given the global compatibility level is "BACKWARD"
@@ -1583,6 +1646,7 @@ Feature: Protobuf Schema Compatibility
       message Resp { string data = 1; }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-gap-11"
 
   Scenario: BACKWARD - service addition is compatible
     Given the global compatibility level is "BACKWARD"
@@ -1602,3 +1666,4 @@ Feature: Protobuf Schema Compatibility
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-gap-12"

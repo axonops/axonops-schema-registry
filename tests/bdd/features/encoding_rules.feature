@@ -47,6 +47,7 @@ Feature: EncodingRules Support in RuleSet
     And the response body should contain "PII"
     And the response body should contain "ssn-key"
     And the response body should contain "message.ssn"
+    And the audit log should contain event "schema_register" with subject "enc-rules-basic"
 
   # ==========================================================================
   # ALL THREE RULE TYPES TOGETHER
@@ -106,6 +107,7 @@ Feature: EncodingRules Support in RuleSet
     And the response body should contain "encodingRules"
     And the response body should contain "compressPayload"
     And the response body should contain "COMPRESS"
+    And the audit log should contain event "schema_register" with subject "enc-rules-all-three"
 
   # ==========================================================================
   # CONFIG WITH defaultRuleSet INCLUDING ENCODING RULES
@@ -139,6 +141,7 @@ Feature: EncodingRules Support in RuleSet
     And the response body should contain "ENCRYPT"
     And the response body should contain "SENSITIVE"
     And the response body should contain "default-key"
+    And the audit log should contain event "config_update"
 
   # ==========================================================================
   # CONFIG WITH overrideRuleSet INCLUDING ENCODING RULES
@@ -170,6 +173,7 @@ Feature: EncodingRules Support in RuleSet
     And the response body should contain "overrideCompress"
     And the response body should contain "COMPRESS"
     And the response body should contain "gzip"
+    And the audit log should contain event "config_update"
 
   # ==========================================================================
   # SCHEMA WITHOUT RULES — ruleSet OMITTED
@@ -189,6 +193,7 @@ Feature: EncodingRules Support in RuleSet
     And the response body should not contain "encodingRules"
     And the response body should not contain "migrationRules"
     And the response body should not contain "domainRules"
+    And the audit log should contain event "schema_register" with subject "enc-rules-no-rules"
 
   # ==========================================================================
   # ENCODING RULES WITH ALL RULE FIELDS
@@ -241,6 +246,7 @@ Feature: EncodingRules Support in RuleSet
     And the response body should contain "message.ssn"
     And the response body should contain "NONE"
     And the response body should contain "ERROR"
+    And the audit log should contain event "schema_register" with subject "enc-rules-all-fields"
 
   # ==========================================================================
   # MULTIPLE ENCODING RULES IN A SINGLE RULESET
@@ -297,6 +303,7 @@ Feature: EncodingRules Support in RuleSet
     And the response body should contain "ssn-key"
     And the response body should contain "cc-key"
     And the response body should contain "COMPRESS"
+    And the audit log should contain event "schema_register" with subject "enc-rules-multiple"
 
   # ==========================================================================
   # ENCODING RULES RETRIEVED VIA SCHEMA ID ENDPOINT
@@ -328,6 +335,7 @@ Feature: EncodingRules Support in RuleSet
     When I GET "/schemas/ids/{{enc_schema_id}}"
     Then the response status should be 200
     And the response should have field "schema"
+    And the audit log should contain event "schema_register" with subject "enc-rules-by-id"
 
   # ==========================================================================
   # ENCODING RULES WITH DISABLED FLAG
@@ -361,6 +369,7 @@ Feature: EncodingRules Support in RuleSet
     And the response body should contain "encodingRules"
     And the response body should contain "disabledEncrypt"
     And the response body should contain "disabled"
+    And the audit log should contain event "schema_register" with subject "enc-rules-disabled"
 
   # ==========================================================================
   # CONFIG defaultRuleSet WITH ALL THREE RULE TYPES
@@ -415,6 +424,7 @@ Feature: EncodingRules Support in RuleSet
     And the response body should contain "cfgEncodingEncrypt"
     And the response body should contain "CONFIDENTIAL"
     And the response body should contain "cfg-key"
+    And the audit log should contain event "config_update"
 
   # ==========================================================================
   # ENCODING RULES PRESERVED ACROSS SCHEMA VERSIONS
@@ -478,3 +488,4 @@ Feature: EncodingRules Support in RuleSet
     And the response body should contain "v2Compress"
     And the response body should contain "COMPRESS"
     And the response body should not contain "v1Encrypt"
+    And the audit log should contain event "schema_register" with subject "enc-rules-versioned"

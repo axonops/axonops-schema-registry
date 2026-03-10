@@ -25,3 +25,4 @@ Feature: Schema Listing
     Then the response status should be 200
     And the response should be an array of length 1
     And the response array should contain "shared-value"
+    And the audit log should contain event "schema_register" with subject "shared-value"

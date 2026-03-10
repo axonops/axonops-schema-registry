@@ -27,6 +27,7 @@ Feature: Reserved Fields Validation
       {"compatibility": "BACKWARD", "validateFields": null}
       """
     Then the response status should be 200
+    And the audit log should contain event "config_update"
 
   Scenario: Enable validateFields via subject config
     When I PUT "/config/reserved-cfg" with body:
@@ -40,6 +41,7 @@ Feature: Reserved Fields Validation
     # Cleanup
     When I DELETE "/config/reserved-cfg"
     Then the response status should be 200
+    And the audit log should contain event "config_update"
 
   # ==========================================================================
   # RULE 1: Reserved fields must not conflict with actual fields
@@ -96,6 +98,7 @@ Feature: Reserved Fields Validation
       {"compatibility": "BACKWARD", "validateFields": null}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "reserved-noconflict"
 
   Scenario: Multiple reserved fields — one conflicts
     When I PUT "/config" with body:
@@ -195,6 +198,7 @@ Feature: Reserved Fields Validation
       {"compatibility": "BACKWARD", "validateFields": null}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "reserved-preserved"
 
   # ==========================================================================
   # DISABLED BY DEFAULT
@@ -213,6 +217,7 @@ Feature: Reserved Fields Validation
       """
     Then the response status should be 200
     And the response should have field "id"
+    And the audit log should contain event "schema_register" with subject "reserved-disabled"
 
   # ==========================================================================
   # SUBJECT-LEVEL OVERRIDE

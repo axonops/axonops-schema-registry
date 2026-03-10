@@ -16,6 +16,7 @@ Feature: Edge Cases and Boundary Conditions
     When I get the latest version of subject "com.example.Topic-value"
     Then the response status should be 200
     And the response field "subject" should be "com.example.Topic-value"
+    And the audit log should contain event "schema_register" with subject "com.example.Topic-value"
 
   Scenario: Subject name with underscores works
     When I register a schema under subject "my_topic_value":
@@ -26,6 +27,7 @@ Feature: Edge Cases and Boundary Conditions
     When I get the latest version of subject "my_topic_value"
     Then the response status should be 200
     And the response field "subject" should be "my_topic_value"
+    And the audit log should contain event "schema_register" with subject "my_topic_value"
 
   Scenario: Subject name with dashes works
     When I register a schema under subject "my-topic-value":
@@ -36,6 +38,7 @@ Feature: Edge Cases and Boundary Conditions
     When I get the latest version of subject "my-topic-value"
     Then the response status should be 200
     And the response field "subject" should be "my-topic-value"
+    And the audit log should contain event "schema_register" with subject "my-topic-value"
 
   # ==========================================================================
   # MALFORMED REQUEST BODIES
@@ -56,6 +59,7 @@ Feature: Edge Cases and Boundary Conditions
       """
     Then the response status should be 200
     And the response field "compatibility" should be "BACKWARD"
+    And the audit log should contain event "config_update"
 
   Scenario: PUT /config with invalid compatibility level returns error
     When I PUT "/config" with body:
@@ -72,6 +76,7 @@ Feature: Edge Cases and Boundary Conditions
       {}
       """
     Then the response status should be 200
+    And the audit log should contain event "mode_update"
 
   Scenario: PUT /mode with invalid mode value returns error
     When I PUT "/mode" with body:
@@ -127,6 +132,7 @@ Feature: Edge Cases and Boundary Conditions
     When I list versions of subject "edge-idempotent"
     Then the response status should be 200
     And the response should be an array of length 1
+    And the audit log should contain event "schema_register" with subject "edge-idempotent"
 
   # ==========================================================================
   # COMPATIBILITY CHECK AGAINST SPECIFIC VERSION NUMBERS
