@@ -192,7 +192,7 @@ _test-bdd-db-single:
 		*)         echo "Unknown BDD DB backend: $(BACKEND)"; exit 1 ;; \
 	esac; \
 	echo "=== BDD DB Tests ($(BACKEND), timeout $$TIMEOUT) ==="; \
-	BDD_BACKEND=$(BACKEND) \
+	BDD_BACKEND=$(BACKEND) CONTAINER_CMD=$(CONTAINER_CMD) \
 		$(GOTEST) -tags bdd -v -count=1 -timeout $$TIMEOUT -run TestFeatures ./tests/bdd/...
 
 # =====================================================================
@@ -226,7 +226,7 @@ _test-bdd-auth-single:
 		*)         echo "Unknown BDD auth backend: $(BACKEND)"; exit 1 ;; \
 	esac; \
 	echo "=== BDD Auth Tests ($(BACKEND), timeout $$TIMEOUT) ==="; \
-	BDD_BACKEND=$(BACKEND) \
+	BDD_BACKEND=$(BACKEND) CONTAINER_CMD=$(CONTAINER_CMD) \
 		$(GOTEST) -tags bdd -v -count=1 -timeout $$TIMEOUT -run TestAuthFeatures ./tests/bdd/...
 
 # =====================================================================
@@ -236,43 +236,43 @@ _test-bdd-auth-single:
 ## Run BDD MCP core tests (Docker, memory backend — TestMCPFeatures only)
 test-bdd-mcp:
 	@echo "=== BDD MCP Core Tests (Docker, memory, timeout $(TIMEOUT_BDD_POSTGRES)) ==="; \
-	BDD_BACKEND=memory \
+	BDD_BACKEND=memory CONTAINER_CMD=$(CONTAINER_CMD) \
 		$(GOTEST) -tags bdd -v -count=1 -timeout $(TIMEOUT_BDD_POSTGRES) -run TestMCPFeatures ./tests/bdd/...
 
 ## Run BDD MCP metrics tests (Docker, memory backend)
 test-bdd-mcp-metrics:
 	@echo "=== BDD MCP Metrics Tests (Docker, memory, timeout $(TIMEOUT_BDD_POSTGRES)) ==="; \
-	BDD_BACKEND=memory \
+	BDD_BACKEND=memory CONTAINER_CMD=$(CONTAINER_CMD) \
 		$(GOTEST) -tags bdd -v -count=1 -timeout $(TIMEOUT_BDD_POSTGRES) -run TestMCPMetricsFeatures ./tests/bdd/...
 
 ## Run BDD MCP audit tests (Docker, memory backend)
 test-bdd-mcp-audit:
 	@echo "=== BDD MCP Audit Tests (Docker, memory, timeout $(TIMEOUT_BDD_POSTGRES)) ==="; \
-	BDD_BACKEND=memory \
+	BDD_BACKEND=memory CONTAINER_CMD=$(CONTAINER_CMD) \
 		$(GOTEST) -tags bdd -v -count=1 -timeout $(TIMEOUT_BDD_POSTGRES) -run TestMCPAuditFeatures ./tests/bdd/...
 
 ## Run BDD REST audit tests (Docker, memory backend)
 test-bdd-rest-audit:
 	@echo "=== BDD REST Audit Tests (Docker, memory, timeout $(TIMEOUT_BDD_POSTGRES)) ==="; \
-	BDD_BACKEND=memory \
+	BDD_BACKEND=memory CONTAINER_CMD=$(CONTAINER_CMD) \
 		$(GOTEST) -tags bdd -v -count=1 -timeout $(TIMEOUT_BDD_POSTGRES) -run TestRESTAuditFeatures ./tests/bdd/...
 
 ## Run BDD MCP confirmation tests (Docker, require_confirmations=true)
 test-bdd-mcp-confirmations:
 	@echo "=== BDD MCP Confirmation Tests (Docker, memory, timeout $(TIMEOUT_BDD_POSTGRES)) ==="; \
-	BDD_BACKEND=memory \
+	BDD_BACKEND=memory CONTAINER_CMD=$(CONTAINER_CMD) \
 		$(GOTEST) -tags bdd -v -count=1 -timeout $(TIMEOUT_BDD_POSTGRES) -run TestMCPConfirmationFeatures ./tests/bdd/...
 
 ## Run BDD MCP permissions tests (Docker, one stack per preset)
 test-bdd-mcp-permissions:
 	@echo "=== BDD MCP Permissions Tests (Docker, memory, timeout $(TIMEOUT_BDD_POSTGRES)) ==="; \
-	BDD_BACKEND=memory \
+	BDD_BACKEND=memory CONTAINER_CMD=$(CONTAINER_CMD) \
 		$(GOTEST) -tags bdd -v -count=1 -timeout $(TIMEOUT_BDD_POSTGRES) -run TestMCPPermissionsFeatures ./tests/bdd/...
 
 ## Run BDD REST KMS tests (Docker with Vault + OpenBao, no MCP)
 test-bdd-kms-docker:
 	@echo "=== BDD REST KMS Tests (Docker, memory, timeout $(TIMEOUT_BDD_POSTGRES)) ==="; \
-	BDD_BACKEND=memory \
+	BDD_BACKEND=memory CONTAINER_CMD=$(CONTAINER_CMD) \
 		$(GOTEST) -tags bdd -v -count=1 -timeout $(TIMEOUT_BDD_POSTGRES) -run TestKMSFeatures ./tests/bdd/...
 
 ## Run BDD MCP + KMS tests (Docker with Vault + OpenBao)
@@ -280,7 +280,7 @@ test-bdd-mcp-kms:
 	@echo "=== BDD MCP+KMS Tests (Docker, memory, timeout $(TIMEOUT_BDD_POSTGRES)) ==="; \
 	KMS_VAULT_ADDR=http://localhost:18202 KMS_VAULT_TOKEN=test-root-token \
 		KMS_BAO_ADDR=http://localhost:18203 KMS_BAO_TOKEN=test-bao-token \
-		BDD_BACKEND=memory \
+		BDD_BACKEND=memory CONTAINER_CMD=$(CONTAINER_CMD) \
 		$(GOTEST) -tags bdd -v -count=1 -timeout $(TIMEOUT_BDD_POSTGRES) -run TestMCPKMSFeatures ./tests/bdd/...
 
 # =====================================================================
@@ -312,7 +312,7 @@ _test-bdd-kms-single:
 		*)         echo "Unknown BDD KMS backend: $(BACKEND)"; exit 1 ;; \
 	esac; \
 	echo "=== BDD KMS Tests ($(BACKEND), timeout $$TIMEOUT) ==="; \
-	BDD_BACKEND=$(BACKEND) \
+	BDD_BACKEND=$(BACKEND) CONTAINER_CMD=$(CONTAINER_CMD) \
 		$(GOTEST) -tags bdd -v -count=1 -timeout $$TIMEOUT -run 'TestKMSFeatures|TestMCPKMSFeatures' ./tests/bdd/...
 
 # =====================================================================
