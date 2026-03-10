@@ -1802,12 +1802,20 @@ jobs:
       - name: Show container logs on failure
         if: failure()
         working-directory: tests/bdd
-        run: docker compose -f docker-compose.base.yml -f docker-compose.postgres.yml logs --tail=100 || true
+        run: |
+          docker compose -f docker-compose.base.yml -f docker-compose.postgres.yml logs --tail=100 || true
+          docker compose -p bdd-auth -f docker-compose.base.yml -f docker-compose.auth.yml -f docker-compose.db-postgres.yml logs --tail=100 || true
+          docker compose -p bdd-rest-kms -f docker-compose.base.yml -f docker-compose.memory.yml -f docker-compose.kms-overlay.yml -f docker-compose.db-postgres.yml logs --tail=100 || true
+          docker compose -p bdd-mcp-kms -f docker-compose.base.yml -f docker-compose.mcp.yml -f docker-compose.kms-overlay.yml -f docker-compose.db-postgres.yml logs --tail=100 || true
 
       - name: Cleanup containers
         if: always()
         working-directory: tests/bdd
-        run: docker compose -f docker-compose.base.yml -f docker-compose.postgres.yml down -v || true
+        run: |
+          docker compose -f docker-compose.base.yml -f docker-compose.postgres.yml down -v || true
+          docker compose -p bdd-auth -f docker-compose.base.yml -f docker-compose.auth.yml -f docker-compose.db-postgres.yml down -v || true
+          docker compose -p bdd-rest-kms -f docker-compose.base.yml -f docker-compose.memory.yml -f docker-compose.kms-overlay.yml -f docker-compose.db-postgres.yml down -v || true
+          docker compose -p bdd-mcp-kms -f docker-compose.base.yml -f docker-compose.mcp.yml -f docker-compose.kms-overlay.yml -f docker-compose.db-postgres.yml down -v || true
 
   # BDD tests — MySQL backend (functional + operational scenarios)
   bdd-mysql-tests:
@@ -1831,12 +1839,20 @@ jobs:
       - name: Show container logs on failure
         if: failure()
         working-directory: tests/bdd
-        run: docker compose -f docker-compose.base.yml -f docker-compose.mysql.yml logs --tail=100 || true
+        run: |
+          docker compose -f docker-compose.base.yml -f docker-compose.mysql.yml logs --tail=100 || true
+          docker compose -p bdd-auth -f docker-compose.base.yml -f docker-compose.auth.yml -f docker-compose.db-mysql.yml logs --tail=100 || true
+          docker compose -p bdd-rest-kms -f docker-compose.base.yml -f docker-compose.memory.yml -f docker-compose.kms-overlay.yml -f docker-compose.db-mysql.yml logs --tail=100 || true
+          docker compose -p bdd-mcp-kms -f docker-compose.base.yml -f docker-compose.mcp.yml -f docker-compose.kms-overlay.yml -f docker-compose.db-mysql.yml logs --tail=100 || true
 
       - name: Cleanup containers
         if: always()
         working-directory: tests/bdd
-        run: docker compose -f docker-compose.base.yml -f docker-compose.mysql.yml down -v || true
+        run: |
+          docker compose -f docker-compose.base.yml -f docker-compose.mysql.yml down -v || true
+          docker compose -p bdd-auth -f docker-compose.base.yml -f docker-compose.auth.yml -f docker-compose.db-mysql.yml down -v || true
+          docker compose -p bdd-rest-kms -f docker-compose.base.yml -f docker-compose.memory.yml -f docker-compose.kms-overlay.yml -f docker-compose.db-mysql.yml down -v || true
+          docker compose -p bdd-mcp-kms -f docker-compose.base.yml -f docker-compose.mcp.yml -f docker-compose.kms-overlay.yml -f docker-compose.db-mysql.yml down -v || true
 
   # BDD tests — Cassandra backend (functional + operational scenarios)
   bdd-cassandra-tests:
@@ -1860,12 +1876,20 @@ jobs:
       - name: Show container logs on failure
         if: failure()
         working-directory: tests/bdd
-        run: docker compose -f docker-compose.base.yml -f docker-compose.cassandra.yml logs --tail=100 || true
+        run: |
+          docker compose -f docker-compose.base.yml -f docker-compose.cassandra.yml logs --tail=100 || true
+          docker compose -p bdd-auth -f docker-compose.base.yml -f docker-compose.auth.yml -f docker-compose.db-cassandra.yml logs --tail=100 || true
+          docker compose -p bdd-rest-kms -f docker-compose.base.yml -f docker-compose.memory.yml -f docker-compose.kms-overlay.yml -f docker-compose.db-cassandra.yml logs --tail=100 || true
+          docker compose -p bdd-mcp-kms -f docker-compose.base.yml -f docker-compose.mcp.yml -f docker-compose.kms-overlay.yml -f docker-compose.db-cassandra.yml logs --tail=100 || true
 
       - name: Cleanup containers
         if: always()
         working-directory: tests/bdd
-        run: docker compose -f docker-compose.base.yml -f docker-compose.cassandra.yml down -v || true
+        run: |
+          docker compose -f docker-compose.base.yml -f docker-compose.cassandra.yml down -v || true
+          docker compose -p bdd-auth -f docker-compose.base.yml -f docker-compose.auth.yml -f docker-compose.db-cassandra.yml down -v || true
+          docker compose -p bdd-rest-kms -f docker-compose.base.yml -f docker-compose.memory.yml -f docker-compose.kms-overlay.yml -f docker-compose.db-cassandra.yml down -v || true
+          docker compose -p bdd-mcp-kms -f docker-compose.base.yml -f docker-compose.mcp.yml -f docker-compose.kms-overlay.yml -f docker-compose.db-cassandra.yml down -v || true
 
   # BDD tests — Confluent Schema Registry 8.1.1 (compatibility conformance)
   bdd-confluent-tests:

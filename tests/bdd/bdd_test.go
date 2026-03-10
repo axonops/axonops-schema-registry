@@ -192,10 +192,23 @@ func TestAuthFeatures(t *testing.T) {
 	}
 
 	// Add database overlay if backend is a DB type.
+	// Use unique DB ports to avoid collisions with the main TestFeatures stack.
 	isDBBackend := false
+	authDBPort := ""
 	if dbOverlay := dbOverlayFile(backend); dbOverlay != "" {
 		authFiles = append(authFiles, dbOverlay)
 		isDBBackend = true
+		switch backend {
+		case "postgres":
+			authDBPort = "25432"
+			authEnv = append(authEnv, "POSTGRES_PORT=25432")
+		case "mysql":
+			authDBPort = "23306"
+			authEnv = append(authEnv, "MYSQL_PORT=23306")
+		case "cassandra":
+			authDBPort = "29042"
+			authEnv = append(authEnv, "CASSANDRA_PORT=29042")
+		}
 	}
 
 	log.Printf("Starting auth compose stack (backend=%s)...", backend)
@@ -237,7 +250,7 @@ func TestAuthFeatures(t *testing.T) {
 			ctx.Before(func(gctx context.Context, sc *godog.Scenario) (context.Context, error) {
 				// For DB backends: TRUNCATE tables first to clear persistent data.
 				if isDBBackend {
-					if err := cleanBackend(); err != nil {
+					if err := cleanBackendPort(authDBPort); err != nil {
 						return gctx, fmt.Errorf("clean %s backend for auth: %w", backend, err)
 					}
 				}
@@ -376,8 +389,21 @@ func TestMCPKMSFeatures(t *testing.T) {
 	}
 
 	// Add database overlay if backend is a DB type.
+	// Use unique DB ports to avoid collisions with the main TestFeatures stack.
+	mcpKMSDBPort := ""
 	if dbOverlay := dbOverlayFile(backend); dbOverlay != "" {
 		mcpFiles = append(mcpFiles, dbOverlay)
+		switch backend {
+		case "postgres":
+			mcpKMSDBPort = "25433"
+			mcpEnv = append(mcpEnv, "POSTGRES_PORT=25433")
+		case "mysql":
+			mcpKMSDBPort = "23307"
+			mcpEnv = append(mcpEnv, "MYSQL_PORT=23307")
+		case "cassandra":
+			mcpKMSDBPort = "29043"
+			mcpEnv = append(mcpEnv, "CASSANDRA_PORT=29043")
+		}
 	}
 
 	log.Printf("Starting MCP + KMS compose stack (backend=%s)...", backend)
@@ -900,8 +926,17 @@ func TestKMSFeatures(t *testing.T) {
 	}
 
 	// Add database overlay if backend is a DB type.
+	// Use unique DB ports to avoid collisions with the main TestFeatures stack.
 	if dbOverlay := dbOverlayFile(backend); dbOverlay != "" {
 		kmsFiles = append(kmsFiles, dbOverlay)
+		switch backend {
+		case "postgres":
+			kmsEnv = append(kmsEnv, "POSTGRES_PORT=25434")
+		case "mysql":
+			kmsEnv = append(kmsEnv, "MYSQL_PORT=23308")
+		case "cassandra":
+			kmsEnv = append(kmsEnv, "CASSANDRA_PORT=29044")
+		}
 	}
 
 	waitTimeout := 120 * time.Second
@@ -1310,17 +1345,35 @@ func hasTag(sc *godog.Scenario, name string) bool {
 	return false
 }
 
-// cleanBackend resets all state between scenarios.
+// cleanBackend resets all state between scenarios using default DB ports.
 // For memory: uses API cleanup (delete subjects, reset config/mode).
 // For DB backends: truncates all tables and resets sequences.
 func cleanBackend() error {
+	return cleanBackendPort("")
+}
+
+// cleanBackendPort resets all state between scenarios.
+// If dbPort is empty, uses the default port for the backend.
+func cleanBackendPort(dbPort string) error {
 	switch backend {
 	case "postgres":
-		return cleanPostgres()
+		port := dbPort
+		if port == "" {
+			port = envOrDefault("POSTGRES_PORT", "15432")
+		}
+		return cleanPostgresPort(port)
 	case "mysql":
-		return cleanMySQL()
+		port := dbPort
+		if port == "" {
+			port = envOrDefault("MYSQL_PORT", "13306")
+		}
+		return cleanMySQLPort(port)
 	case "cassandra":
-		return cleanCassandra()
+		port := dbPort
+		if port == "" {
+			port = envOrDefault("CASSANDRA_PORT", "19042")
+		}
+		return cleanCassandraPort(port)
 	case "confluent":
 		return cleanViaAPI()
 	default:
@@ -1328,9 +1381,8 @@ func cleanBackend() error {
 	}
 }
 
-// cleanPostgres truncates all tables and resets the ID sequence.
-func cleanPostgres() error {
-	port := envOrDefault("POSTGRES_PORT", "15432")
+// cleanPostgresPort truncates all tables and resets the ID sequence.
+func cleanPostgresPort(port string) error {
 	dsn := fmt.Sprintf("host=localhost port=%s user=schemaregistry password=schemaregistry dbname=schemaregistry sslmode=disable", port)
 	db, err := sql.Open("postgres", dsn)
 	if err != nil {
@@ -1359,9 +1411,8 @@ func cleanPostgres() error {
 	return nil
 }
 
-// cleanMySQL truncates all tables.
-func cleanMySQL() error {
-	port := envOrDefault("MYSQL_PORT", "13306")
+// cleanMySQLPort truncates all tables.
+func cleanMySQLPort(port string) error {
 	dsn := fmt.Sprintf("schemaregistry:schemaregistry@tcp(localhost:%s)/schemaregistry", port)
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
@@ -1396,13 +1447,14 @@ func cleanMySQL() error {
 	return nil
 }
 
-// getCassandraSession returns a long-lived session for BDD cleanup.
-// The session is created once and reused across all scenarios.
-func getCassandraSession() (*gocql.Session, error) {
-	if cassandraSession != nil {
+// getCassandraSessionPort returns a Cassandra session for BDD cleanup.
+// For the default port, it reuses a long-lived singleton session.
+// For non-default ports, it creates a new session each time.
+func getCassandraSessionPort(portStr string) (*gocql.Session, error) {
+	defaultPort := envOrDefault("CASSANDRA_PORT", "19042")
+	if portStr == defaultPort && cassandraSession != nil {
 		return cassandraSession, nil
 	}
-	portStr := envOrDefault("CASSANDRA_PORT", "19042")
 	port, _ := strconv.Atoi(portStr)
 	cluster := gocql.NewCluster("localhost")
 	cluster.Port = port
@@ -1414,15 +1466,22 @@ func getCassandraSession() (*gocql.Session, error) {
 	if err != nil {
 		return nil, fmt.Errorf("connect cassandra: %w", err)
 	}
-	cassandraSession = session
+	if portStr == defaultPort {
+		cassandraSession = session
+	}
 	return session, nil
 }
 
-// cleanCassandra truncates all tables in the schemaregistry keyspace.
-func cleanCassandra() error {
-	session, err := getCassandraSession()
+// cleanCassandraPort truncates all tables in the schemaregistry keyspace.
+func cleanCassandraPort(port string) error {
+	session, err := getCassandraSessionPort(port)
 	if err != nil {
 		return err
+	}
+	// Close non-singleton sessions after use.
+	defaultPort := envOrDefault("CASSANDRA_PORT", "19042")
+	if port != defaultPort {
+		defer session.Close()
 	}
 
 	// Truncate new tables first — ignore errors if tables don't exist yet
