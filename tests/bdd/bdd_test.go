@@ -596,46 +596,50 @@ func TestFeatures(t *testing.T) {
 }
 
 // TestAuthFeatures runs BDD tests that require authentication enabled.
-// In Docker mode: starts a separate compose stack with auth config.
-// In-process mode: creates a fresh in-process server with auth, RBAC, and a pre-seeded admin user.
+// Starts a Docker compose stack with auth config, optionally layered with a DB overlay.
 func TestAuthFeatures(t *testing.T) {
-	// Always use Docker: start auth-specific compose stack.
-	// In BDD_STORAGE mode (in-process with real DB), fall back to in-process.
-	var authURL string
-	var authWebhook string
-	var authFiles []string
-	authDockerMode := bddStorage == "" // Docker unless BDD_STORAGE is set (memory has nil sharedDBStore)
-
-	if authDockerMode {
-		if containerCmd == "" {
-			containerCmd = findContainerCmd()
-		}
-		authFiles = []string{"docker-compose.base.yml", "docker-compose.auth.yml"}
-		authEnv := []string{
-			"REGISTRY_PORT=18082",
-			"WEBHOOK_PORT=19001",
-		}
-
-		log.Printf("Starting auth compose stack...")
-		if err := composeUpWithProject(authFiles, "bdd-auth", authEnv); err != nil {
-			t.Fatalf("Failed to start auth compose: %v", err)
-		}
-		t.Cleanup(func() {
-			log.Println("Stopping auth compose stack...")
-			composeDownWithProject(authFiles, "bdd-auth")
-		})
-
-		authURL = "http://localhost:18082"
-		authWebhook = "http://localhost:19001"
-
-		log.Printf("Waiting for auth registry at %s ...", authURL)
-		if err := waitForURL(authURL+"/", 120*time.Second); err != nil {
-			composeLogsWithProject(authFiles, "bdd-auth")
-			t.Fatalf("Auth registry did not become healthy: %v", err)
-		}
-		log.Println("Auth registry is healthy.")
-		_ = authWebhook // available for future operational tests
+	if bddStorage != "" {
+		t.Skip("Auth tests skip in BDD_STORAGE mode (use BDD_BACKEND instead)")
 	}
+
+	if containerCmd == "" {
+		containerCmd = findContainerCmd()
+	}
+	authFiles := []string{"docker-compose.base.yml", "docker-compose.auth.yml"}
+	authEnv := []string{
+		"REGISTRY_PORT=18082",
+		"WEBHOOK_PORT=19001",
+	}
+
+	// Add database overlay if backend is a DB type.
+	isDBBackend := false
+	if dbOverlay := dbOverlayFile(backend); dbOverlay != "" {
+		authFiles = append(authFiles, dbOverlay)
+		isDBBackend = true
+	}
+
+	log.Printf("Starting auth compose stack (backend=%s)...", backend)
+	if err := composeUpWithProject(authFiles, "bdd-auth", authEnv); err != nil {
+		t.Fatalf("Failed to start auth compose: %v", err)
+	}
+	t.Cleanup(func() {
+		log.Println("Stopping auth compose stack...")
+		composeDownWithProject(authFiles, "bdd-auth")
+	})
+
+	authURL := "http://localhost:18082"
+	authWebhook := "http://localhost:19001"
+
+	waitTimeout := 120 * time.Second
+	if isDBBackend {
+		waitTimeout = 180 * time.Second // DB startup takes longer
+	}
+	log.Printf("Waiting for auth registry at %s ...", authURL)
+	if err := waitForURL(authURL+"/", waitTimeout); err != nil {
+		composeLogsWithProject(authFiles, "bdd-auth")
+		t.Fatalf("Auth registry did not become healthy: %v", err)
+	}
+	log.Println("Auth registry is healthy.")
 
 	opts := godog.Options{
 		Format:   "pretty",
@@ -648,54 +652,22 @@ func TestAuthFeatures(t *testing.T) {
 
 	suite := godog.TestSuite{
 		ScenarioInitializer: func(ctx *godog.ScenarioContext) {
-			var tc *steps.TestContext
+			tc := steps.NewTestContext(authURL)
 
-			if authDockerMode && authURL != "" {
-				// Docker mode: use the external auth registry.
-				// Memory backend: restart the service between scenarios via webhook.
-				// This resets all state (users, schemas, rate limiter) cleanly.
-				// The bootstrap config re-creates the admin user on restart.
-				tc = steps.NewTestContext(authURL)
-
-				ctx.Before(func(gctx context.Context, sc *godog.Scenario) (context.Context, error) {
-					if err := restartAuthRegistry(authURL, authWebhook); err != nil {
-						return gctx, fmt.Errorf("restart auth registry: %w", err)
+			ctx.Before(func(gctx context.Context, sc *godog.Scenario) (context.Context, error) {
+				// For DB backends: TRUNCATE tables first to clear persistent data.
+				if isDBBackend {
+					if err := cleanBackend(); err != nil {
+						return gctx, fmt.Errorf("clean %s backend for auth: %w", backend, err)
 					}
-					return gctx, nil
-				})
-			} else {
-				// In-process mode: create fresh server per scenario
-				var ts *httptest.Server
-				var store storage.Storage
-				var authSvc *auth.Service
-				var storeOwned bool
-
-				tc = steps.NewTestContext("http://placeholder")
-
-				ctx.Before(func(gctx context.Context, sc *godog.Scenario) (context.Context, error) {
-					if sharedDBStore != nil {
-						if err := cleanDBStore(); err != nil {
-							return gctx, fmt.Errorf("clean %s storage for auth: %w", bddStorage, err)
-						}
-						ts, store, authSvc = newAuthTestServerWithStore(sharedDBStore)
-						storeOwned = false
-					} else {
-						ts, store, authSvc = newAuthTestServer()
-						storeOwned = true
-					}
-					tc.BaseURL = ts.URL
-					return gctx, nil
-				})
-
-				ctx.After(func(gctx context.Context, sc *godog.Scenario, err error) (context.Context, error) {
-					authSvc.Close()
-					ts.Close()
-					if storeOwned {
-						store.Close()
-					}
-					return gctx, nil
-				})
-			}
+				}
+				// Restart registry to reset in-memory state (rate limiter, etc.)
+				// and re-bootstrap the admin user from config.
+				if err := restartAuthRegistry(authURL, authWebhook); err != nil {
+					return gctx, fmt.Errorf("restart auth registry: %w", err)
+				}
+				return gctx, nil
+			})
 
 			// Register all step definitions (auth scenarios may also use schema steps)
 			steps.RegisterSchemaSteps(ctx, tc)
@@ -811,8 +783,8 @@ func TestMCPFeatures(t *testing.T) {
 
 // TestMCPKMSFeatures runs MCP + KMS BDD tests against Docker with Vault and OpenBao.
 func TestMCPKMSFeatures(t *testing.T) {
-	if bddBackend := os.Getenv("BDD_BACKEND"); bddBackend != "memory" {
-		t.Skip("MCP KMS Docker tests require BDD_BACKEND=memory (they start Vault + OpenBao)")
+	if bddStorage != "" {
+		t.Skip("MCP KMS tests skip in BDD_STORAGE mode (use BDD_BACKEND instead)")
 	}
 
 	if containerCmd == "" {
@@ -831,7 +803,12 @@ func TestMCPKMSFeatures(t *testing.T) {
 		"BAO_PORT=18203",
 	}
 
-	log.Printf("Starting MCP + KMS compose stack...")
+	// Add database overlay if backend is a DB type.
+	if dbOverlay := dbOverlayFile(backend); dbOverlay != "" {
+		mcpFiles = append(mcpFiles, dbOverlay)
+	}
+
+	log.Printf("Starting MCP + KMS compose stack (backend=%s)...", backend)
 	if err := composeUpWithProject(mcpFiles, "bdd-mcp-kms", mcpEnv); err != nil {
 		t.Fatalf("Failed to start MCP KMS compose: %v", err)
 	}
@@ -844,8 +821,12 @@ func TestMCPKMSFeatures(t *testing.T) {
 	mcpURL := "http://localhost:19083/mcp"
 	mcpWebhook := "http://localhost:19004"
 
+	mcpKMSTimeout := 120 * time.Second
+	if dbOverlayFile(backend) != "" {
+		mcpKMSTimeout = 180 * time.Second
+	}
 	log.Printf("Waiting for MCP+KMS registry at %s ...", mcpRESTURL)
-	if err := waitForURL(mcpRESTURL+"/", 120*time.Second); err != nil {
+	if err := waitForURL(mcpRESTURL+"/", mcpKMSTimeout); err != nil {
 		composeLogsWithProject(mcpFiles, "bdd-mcp-kms")
 		t.Fatalf("MCP+KMS registry did not become healthy: %v", err)
 	}
@@ -1347,8 +1328,8 @@ func TestMCPAuditFeatures(t *testing.T) {
 // TestKMSFeatures runs REST KMS encryption BDD tests against a Docker-deployed binary
 // with Vault Transit and OpenBao Transit engines.
 func TestKMSFeatures(t *testing.T) {
-	if bddBackend := os.Getenv("BDD_BACKEND"); bddBackend != "memory" {
-		t.Skip("KMS Docker tests require BDD_BACKEND=memory (they start Vault + OpenBao)")
+	if bddStorage != "" {
+		t.Skip("KMS tests skip in BDD_STORAGE mode (use BDD_BACKEND instead)")
 	}
 
 	if containerCmd == "" {
@@ -1366,7 +1347,17 @@ func TestKMSFeatures(t *testing.T) {
 		"BAO_PORT=18205",
 	}
 
-	log.Printf("Starting REST KMS compose stack...")
+	// Add database overlay if backend is a DB type.
+	if dbOverlay := dbOverlayFile(backend); dbOverlay != "" {
+		kmsFiles = append(kmsFiles, dbOverlay)
+	}
+
+	waitTimeout := 120 * time.Second
+	if dbOverlayFile(backend) != "" {
+		waitTimeout = 180 * time.Second // DB startup takes longer
+	}
+
+	log.Printf("Starting REST KMS compose stack (backend=%s)...", backend)
 	if err := composeUpWithProject(kmsFiles, "bdd-rest-kms", kmsEnv); err != nil {
 		t.Fatalf("Failed to start REST KMS compose: %v", err)
 	}
@@ -1378,7 +1369,7 @@ func TestKMSFeatures(t *testing.T) {
 	restURL := "http://localhost:18088"
 
 	log.Printf("Waiting for KMS registry at %s ...", restURL)
-	if err := waitForURL(restURL+"/", 120*time.Second); err != nil {
+	if err := waitForURL(restURL+"/", waitTimeout); err != nil {
 		composeLogsWithProject(kmsFiles, "bdd-rest-kms")
 		t.Fatalf("KMS registry did not become healthy: %v", err)
 	}
@@ -2316,6 +2307,21 @@ func composeFilesForBackend(backend string) []string {
 		files = append(files, "docker-compose.kms-overlay.yml")
 	}
 	return files
+}
+
+// dbOverlayFile returns the Docker Compose database overlay file for a given backend.
+// Returns "" for memory/confluent/unknown backends (no DB overlay needed).
+func dbOverlayFile(backend string) string {
+	switch backend {
+	case "postgres":
+		return "docker-compose.db-postgres.yml"
+	case "mysql":
+		return "docker-compose.db-mysql.yml"
+	case "cassandra":
+		return "docker-compose.db-cassandra.yml"
+	default:
+		return ""
+	}
 }
 
 // findContainerCmd returns "podman" or "docker", preferring podman.

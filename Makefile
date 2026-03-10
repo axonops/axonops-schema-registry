@@ -162,7 +162,7 @@ test-bdd-functional:
 		$(GOTEST) -tags bdd -v -count=1 -timeout 30m ./tests/bdd/...
 
 # =====================================================================
-# BDD tests with database backend — in-process server, real DB
+# BDD tests with database backend — Docker binary with DB overlay
 # =====================================================================
 
 ## Run BDD tests with DB backend [BACKEND=postgres|mysql|cassandra|all]
@@ -192,22 +192,11 @@ _test-bdd-db-single:
 		*)         echo "Unknown BDD DB backend: $(BACKEND)"; exit 1 ;; \
 	esac; \
 	echo "=== BDD DB Tests ($(BACKEND), timeout $$TIMEOUT) ==="; \
-	if [ -z "$(CI)" ]; then \
-		DB_POSTGRES_PORT=$(DB_POSTGRES_PORT) DB_MYSQL_PORT=$(DB_MYSQL_PORT) DB_CASSANDRA_PORT=$(DB_CASSANDRA_PORT) \
-			DB_USER=$(DB_USER) DB_PASSWORD=$(DB_PASSWORD) DB_DATABASE=$(DB_DATABASE) \
-			CONTAINER_CMD=$(CONTAINER_CMD) $(SCRIPTS_DIR)/start-db.sh $(BACKEND); \
-	fi; \
-	rc=0; \
-	BDD_STORAGE=$(BACKEND) \
-		$(call db_env,$(BACKEND)) \
-		$(GOTEST) -tags bdd -v -count=1 -timeout $$TIMEOUT ./tests/bdd/... || rc=$$?; \
-	if [ -z "$(CI)" ]; then \
-		CONTAINER_CMD=$(CONTAINER_CMD) $(SCRIPTS_DIR)/stop-db.sh $(BACKEND); \
-	fi; \
-	exit $$rc
+	BDD_BACKEND=$(BACKEND) \
+		$(GOTEST) -tags bdd -v -count=1 -timeout $$TIMEOUT ./tests/bdd/...
 
 # =====================================================================
-# BDD auth tests with database backend — in-process server, real DB
+# BDD auth tests with database backend — Docker binary with DB overlay
 # =====================================================================
 
 ## Run BDD auth tests with DB backend [BACKEND=postgres|mysql|cassandra|all]
@@ -237,19 +226,8 @@ _test-bdd-auth-single:
 		*)         echo "Unknown BDD auth backend: $(BACKEND)"; exit 1 ;; \
 	esac; \
 	echo "=== BDD Auth Tests ($(BACKEND), timeout $$TIMEOUT) ==="; \
-	if [ -z "$(CI)" ]; then \
-		DB_POSTGRES_PORT=$(DB_POSTGRES_PORT) DB_MYSQL_PORT=$(DB_MYSQL_PORT) DB_CASSANDRA_PORT=$(DB_CASSANDRA_PORT) \
-			DB_USER=$(DB_USER) DB_PASSWORD=$(DB_PASSWORD) DB_DATABASE=$(DB_DATABASE) \
-			CONTAINER_CMD=$(CONTAINER_CMD) $(SCRIPTS_DIR)/start-db.sh $(BACKEND); \
-	fi; \
-	rc=0; \
-	BDD_STORAGE=$(BACKEND) \
-		$(call db_env,$(BACKEND)) \
-		$(GOTEST) -tags bdd -v -count=1 -timeout $$TIMEOUT -run TestAuthFeatures ./tests/bdd/... || rc=$$?; \
-	if [ -z "$(CI)" ]; then \
-		CONTAINER_CMD=$(CONTAINER_CMD) $(SCRIPTS_DIR)/stop-db.sh $(BACKEND); \
-	fi; \
-	exit $$rc
+	BDD_BACKEND=$(BACKEND) \
+		$(GOTEST) -tags bdd -v -count=1 -timeout $$TIMEOUT -run TestAuthFeatures ./tests/bdd/...
 
 # =====================================================================
 # BDD MCP tests — Docker binary with MCP server enabled
@@ -288,7 +266,7 @@ test-bdd-mcp-kms:
 		$(GOTEST) -tags bdd -v -count=1 -timeout $(TIMEOUT_BDD_POSTGRES) -run TestMCPKMSFeatures ./tests/bdd/...
 
 # =====================================================================
-# BDD KMS tests — in-process server with KMS services
+# BDD KMS tests — Docker binary with KMS overlay (Vault + OpenBao)
 # =====================================================================
 
 ## Run BDD KMS tests [BACKEND=memory|postgres|mysql|cassandra|all]
@@ -305,12 +283,6 @@ else
 	@$(MAKE) --no-print-directory _test-bdd-kms-single BACKEND=$(BACKEND)
 endif
 
-KMS_COMPOSE_FILE  := tests/bdd/docker-compose.kms.yml
-KMS_VAULT_ADDR    := http://localhost:18200
-KMS_BAO_ADDR      := http://localhost:18201
-KMS_VAULT_TOKEN   := test-root-token
-KMS_BAO_TOKEN     := test-bao-token
-
 .PHONY: _test-bdd-kms-single
 _test-bdd-kms-single:
 	@TIMEOUT=""; \
@@ -322,34 +294,8 @@ _test-bdd-kms-single:
 		*)         echo "Unknown BDD KMS backend: $(BACKEND)"; exit 1 ;; \
 	esac; \
 	echo "=== BDD KMS Tests ($(BACKEND), timeout $$TIMEOUT) ==="; \
-	if [ -z "$(CI)" ]; then \
-		$(CONTAINER_CMD) compose -f $(KMS_COMPOSE_FILE) up -d vault openbao; \
-		for i in $$(seq 1 30); do \
-			curl -sf $(KMS_VAULT_ADDR)/v1/sys/health > /dev/null 2>&1 && \
-			curl -sf $(KMS_BAO_ADDR)/v1/sys/health > /dev/null 2>&1 && break; \
-			sleep 2; \
-		done; \
-		$(CONTAINER_CMD) compose -f $(KMS_COMPOSE_FILE) run --rm setup-kms; \
-		if [ "$(BACKEND)" != "memory" ]; then \
-			DB_POSTGRES_PORT=$(DB_POSTGRES_PORT) DB_MYSQL_PORT=$(DB_MYSQL_PORT) DB_CASSANDRA_PORT=$(DB_CASSANDRA_PORT) \
-				DB_USER=$(DB_USER) DB_PASSWORD=$(DB_PASSWORD) DB_DATABASE=$(DB_DATABASE) \
-				CONTAINER_CMD=$(CONTAINER_CMD) $(SCRIPTS_DIR)/start-db.sh $(BACKEND); \
-		fi; \
-	fi; \
-	rc=0; \
-	BDD_TAGS="@kms" \
-		KMS_VAULT_ADDR=$(KMS_VAULT_ADDR) KMS_VAULT_TOKEN=$(KMS_VAULT_TOKEN) \
-		KMS_BAO_ADDR=$(KMS_BAO_ADDR) KMS_BAO_TOKEN=$(KMS_BAO_TOKEN) \
-		BDD_STORAGE=$(BACKEND) \
-		$(call db_env,$(BACKEND)) \
-		$(GOTEST) -tags bdd -v -count=1 -timeout $$TIMEOUT ./tests/bdd/... || rc=$$?; \
-	if [ -z "$(CI)" ]; then \
-		if [ "$(BACKEND)" != "memory" ]; then \
-			CONTAINER_CMD=$(CONTAINER_CMD) $(SCRIPTS_DIR)/stop-db.sh $(BACKEND); \
-		fi; \
-		$(CONTAINER_CMD) compose -f $(KMS_COMPOSE_FILE) down -v; \
-	fi; \
-	exit $$rc
+	BDD_BACKEND=$(BACKEND) \
+		$(GOTEST) -tags bdd -v -count=1 -timeout $$TIMEOUT -run 'TestKMSFeatures|TestMCPKMSFeatures' ./tests/bdd/...
 
 # =====================================================================
 # Integration tests — Makefile manages DB containers
