@@ -574,7 +574,9 @@ func (al *AuditLogger) LogEvent(eventType AuditEventType, r *http.Request, statu
 }
 
 // LogMCPEvent logs an MCP tool call audit event.
-func (al *AuditLogger) LogMCPEvent(eventType AuditEventType, toolName, status string, duration time.Duration, err error, subject string, metadata map[string]string) {
+// The user and role parameters identify the authenticated principal making the call.
+// For unauthenticated calls, pass "unknown" as user and empty string as role.
+func (al *AuditLogger) LogMCPEvent(eventType AuditEventType, user, role, toolName, status string, duration time.Duration, err error, subject string, metadata map[string]string) {
 	if !al.config.Enabled {
 		return
 	}
@@ -587,6 +589,8 @@ func (al *AuditLogger) LogMCPEvent(eventType AuditEventType, toolName, status st
 	event := &AuditEvent{
 		Timestamp: time.Now(),
 		EventType: eventType,
+		User:      user,
+		Role:      role,
 		Method:    "MCP",
 		Path:      toolName,
 		Duration:  duration,
@@ -602,7 +606,8 @@ func (al *AuditLogger) LogMCPEvent(eventType AuditEventType, toolName, status st
 }
 
 // LogMCPConfirmationEvent logs an MCP confirmation flow audit event.
-func (al *AuditLogger) LogMCPConfirmationEvent(eventType AuditEventType, toolName string, metadata map[string]string) {
+// The user and role parameters identify the authenticated principal.
+func (al *AuditLogger) LogMCPConfirmationEvent(eventType AuditEventType, user, role, toolName string, metadata map[string]string) {
 	if !al.config.Enabled {
 		return
 	}
@@ -610,6 +615,8 @@ func (al *AuditLogger) LogMCPConfirmationEvent(eventType AuditEventType, toolNam
 	event := &AuditEvent{
 		Timestamp: time.Now(),
 		EventType: eventType,
+		User:      user,
+		Role:      role,
 		Method:    "MCP",
 		Path:      toolName,
 		Metadata:  metadata,

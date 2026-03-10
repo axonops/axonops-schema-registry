@@ -289,7 +289,8 @@ func instrumentedHandler[T any](s *Server, name string, handler gomcp.ToolHandle
 				}
 				auditMeta = map[string]string{"schema": truncated}
 			}
-			s.auditLogger.LogMCPEvent(eventType, name, status, duration, auditErr, subject, auditMeta)
+			principal := s.mcpPrincipal()
+			s.auditLogger.LogMCPEvent(eventType, principal, "", name, status, duration, auditErr, subject, auditMeta)
 		}
 
 		return result, output, err

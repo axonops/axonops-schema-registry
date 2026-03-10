@@ -551,7 +551,7 @@ func TestLogMCPEvent(t *testing.T) {
 	}
 	defer al.Close()
 
-	al.LogMCPEvent(AuditEventMCPToolCall, "register_schema", "success", 15*time.Millisecond, nil, "test", map[string]string{"subject": "test"})
+	al.LogMCPEvent(AuditEventMCPToolCall, "mcp-authenticated", "", "register_schema", "success", 15*time.Millisecond, nil, "test", map[string]string{"subject": "test"})
 
 	al.Close()
 
@@ -581,7 +581,7 @@ func TestLogMCPEvent_Error(t *testing.T) {
 	}
 	defer al.Close()
 
-	al.LogMCPEvent(AuditEventMCPToolError, "get_schema_by_id", "error", 5*time.Millisecond, http.ErrNotSupported, "", nil)
+	al.LogMCPEvent(AuditEventMCPToolError, "mcp-authenticated", "", "get_schema_by_id", "error", 5*time.Millisecond, http.ErrNotSupported, "", nil)
 
 	al.Close()
 
@@ -600,7 +600,7 @@ func TestLogMCPEvent_Disabled(t *testing.T) {
 	defer al.Close()
 
 	// Should not panic.
-	al.LogMCPEvent(AuditEventMCPToolCall, "health_check", "success", time.Millisecond, nil, "", nil)
+	al.LogMCPEvent(AuditEventMCPToolCall, "mcp-anonymous", "", "health_check", "success", time.Millisecond, nil, "", nil)
 }
 
 func TestMCPEventTypeFiltering(t *testing.T) {
@@ -619,9 +619,9 @@ func TestMCPEventTypeFiltering(t *testing.T) {
 	defer al.Close()
 
 	// This should be filtered out
-	al.LogMCPEvent(AuditEventMCPToolCall, "health_check", "success", time.Millisecond, nil, "", nil)
+	al.LogMCPEvent(AuditEventMCPToolCall, "mcp-anonymous", "", "health_check", "success", time.Millisecond, nil, "", nil)
 	// This should be logged
-	al.LogMCPEvent(AuditEventMCPToolError, "get_schema_by_id", "error", time.Millisecond, http.ErrNotSupported, "", nil)
+	al.LogMCPEvent(AuditEventMCPToolError, "mcp-anonymous", "", "get_schema_by_id", "error", time.Millisecond, http.ErrNotSupported, "", nil)
 
 	al.Close()
 
@@ -782,7 +782,7 @@ func TestLogMCPConfirmationEvent(t *testing.T) {
 	}
 	defer al.Close()
 
-	al.LogMCPConfirmationEvent(AuditEventMCPConfirmIssued, "delete_subject", nil)
+	al.LogMCPConfirmationEvent(AuditEventMCPConfirmIssued, "mcp-authenticated", "", "delete_subject", nil)
 
 	al.Close()
 
@@ -809,7 +809,7 @@ func TestLogMCPEvent_WithSubject(t *testing.T) {
 	}
 	defer al.Close()
 
-	al.LogMCPEvent(AuditEventMCPToolCall, "register_schema", "success", 10*time.Millisecond, nil, "payments-value", nil)
+	al.LogMCPEvent(AuditEventMCPToolCall, "mcp-authenticated", "", "register_schema", "success", 10*time.Millisecond, nil, "payments-value", nil)
 
 	al.Close()
 
