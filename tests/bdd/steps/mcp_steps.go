@@ -645,6 +645,76 @@ func RegisterMCPSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 		return nil
 	})
 
+	// parseAuditEvents parses the audit log into structured events for field-level assertions.
+	parseAuditEvents := func(logStr string) []map[string]interface{} {
+		var events []map[string]interface{}
+		for _, line := range strings.Split(logStr, "\n") {
+			line = strings.TrimSpace(line)
+			if line == "" {
+				continue
+			}
+			var event map[string]interface{}
+			if json.Unmarshal([]byte(line), &event) == nil {
+				events = append(events, event)
+			}
+		}
+		return events
+	}
+
+	ctx.Step(`^the audit log should contain event "([^"]*)" for user "([^"]*)"$`, func(eventType, user string) error {
+		logStr, err := getAuditLog()
+		if err != nil {
+			return err
+		}
+		for _, event := range parseAuditEvents(logStr) {
+			if fmt.Sprintf("%v", event["event_type"]) == eventType && fmt.Sprintf("%v", event["user"]) == user {
+				return nil
+			}
+		}
+		return fmt.Errorf("expected audit event %q for user %q not found in log:\n%s", eventType, user, logStr)
+	})
+
+	ctx.Step(`^the audit log should contain event "([^"]*)" with subject "([^"]*)"$`, func(eventType, subject string) error {
+		logStr, err := getAuditLog()
+		if err != nil {
+			return err
+		}
+		for _, event := range parseAuditEvents(logStr) {
+			if fmt.Sprintf("%v", event["event_type"]) == eventType && fmt.Sprintf("%v", event["subject"]) == subject {
+				return nil
+			}
+		}
+		return fmt.Errorf("expected audit event %q with subject %q not found in log:\n%s", eventType, subject, logStr)
+	})
+
+	ctx.Step(`^the audit log should contain event "([^"]*)" with method "([^"]*)"$`, func(eventType, method string) error {
+		logStr, err := getAuditLog()
+		if err != nil {
+			return err
+		}
+		for _, event := range parseAuditEvents(logStr) {
+			if fmt.Sprintf("%v", event["event_type"]) == eventType && fmt.Sprintf("%v", event["method"]) == method {
+				return nil
+			}
+		}
+		return fmt.Errorf("expected audit event %q with method %q not found in log:\n%s", eventType, method, logStr)
+	})
+
+	ctx.Step(`^the audit log should contain event "([^"]*)" with path containing "([^"]*)"$`, func(eventType, pathFragment string) error {
+		logStr, err := getAuditLog()
+		if err != nil {
+			return err
+		}
+		for _, event := range parseAuditEvents(logStr) {
+			if fmt.Sprintf("%v", event["event_type"]) == eventType {
+				if path, ok := event["path"].(string); ok && strings.Contains(path, pathFragment) {
+					return nil
+				}
+			}
+		}
+		return fmt.Errorf("expected audit event %q with path containing %q not found in log:\n%s", eventType, pathFragment, logStr)
+	})
+
 	ctx.Step(`^I can unwrap the MCP result encrypted key material using KMS type "([^"]*)" and key ID "([^"]*)"$`, func(kmsType, keyID string) error {
 		if tc.MCPError != nil {
 			return fmt.Errorf("MCP call failed: %v", tc.MCPError)

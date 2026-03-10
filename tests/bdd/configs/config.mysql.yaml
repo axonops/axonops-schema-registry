@@ -16,3 +16,7 @@ compatibility:
 logging:
   level: info
   format: json
+security:
+  audit:
+    enabled: true
+    log_file: /tmp/audit.log

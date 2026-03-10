@@ -141,11 +141,16 @@ func TestFeatures(t *testing.T) {
 		TestingT: t,
 	}
 
+	auditFetcher, clearAuditLog := makeAuditHelpers(composeFiles, "")
+
 	suite := godog.TestSuite{
 		ScenarioInitializer: func(ctx *godog.ScenarioContext) {
 			tc := steps.NewTestContext(registryURL)
 			tc.MetricsURL = metricsURL
 			tc.WebhookURL = webhookURL
+			if auditFetcher != nil {
+				tc.StoredValues["_audit_fetcher"] = auditFetcher
+			}
 
 			ctx.Before(func(gctx context.Context, sc *godog.Scenario) (context.Context, error) {
 				if hasTag(sc, "@operational") {
@@ -155,6 +160,11 @@ func TestFeatures(t *testing.T) {
 				}
 				if err := cleanBackend(); err != nil {
 					return gctx, fmt.Errorf("clean backend: %w", err)
+				}
+				if clearAuditLog != nil {
+					if err := clearAuditLog(); err != nil {
+						return gctx, fmt.Errorf("clear audit log: %w", err)
+					}
 				}
 				return gctx, waitForURL(registryURL+"/", 30*time.Second)
 			})
@@ -234,6 +244,8 @@ func TestAuthFeatures(t *testing.T) {
 	}
 	log.Println("Auth registry is healthy.")
 
+	authAuditFetcher, clearAuthAuditLog := makeAuditHelpers(authFiles, "bdd-auth")
+
 	opts := godog.Options{
 		Format:   "pretty",
 		Output:   colors.Colored(os.Stdout),
@@ -246,6 +258,9 @@ func TestAuthFeatures(t *testing.T) {
 	suite := godog.TestSuite{
 		ScenarioInitializer: func(ctx *godog.ScenarioContext) {
 			tc := steps.NewTestContext(authURL)
+			if authAuditFetcher != nil {
+				tc.StoredValues["_audit_fetcher"] = authAuditFetcher
+			}
 
 			ctx.Before(func(gctx context.Context, sc *godog.Scenario) (context.Context, error) {
 				// For DB backends: TRUNCATE tables first to clear persistent data.
@@ -258,6 +273,11 @@ func TestAuthFeatures(t *testing.T) {
 				// and re-bootstrap the admin user from config.
 				if err := restartAuthRegistry(authURL, authWebhook); err != nil {
 					return gctx, fmt.Errorf("restart auth registry: %w", err)
+				}
+				if clearAuthAuditLog != nil {
+					if err := clearAuthAuditLog(); err != nil {
+						return gctx, fmt.Errorf("clear audit log: %w", err)
+					}
 				}
 				return gctx, nil
 			})
@@ -273,6 +293,7 @@ func TestAuthFeatures(t *testing.T) {
 			steps.RegisterConcurrencySteps(ctx, tc)
 			steps.RegisterRateLimitSteps(ctx, tc)
 			steps.RegisterMetricsSteps(ctx, tc)
+			steps.RegisterMCPSteps(ctx, tc)
 		},
 		Options: &opts,
 	}
@@ -326,6 +347,8 @@ func TestMCPFeatures(t *testing.T) {
 	}
 	log.Println("MCP registry is healthy.")
 
+	mcpAuditFetcher, clearMCPAuditLog := makeAuditHelpers(mcpFiles, "bdd-mcp")
+
 	opts := godog.Options{
 		Format:   "pretty",
 		Output:   colors.Colored(os.Stdout),
@@ -342,10 +365,18 @@ func TestMCPFeatures(t *testing.T) {
 			tc.WebhookURL = mcpWebhook
 			tc.StoredValues["_mcp_url"] = mcpURL
 			tc.AuthHeader = "Basic " + base64.StdEncoding.EncodeToString([]byte("admin:admin-password"))
+			if mcpAuditFetcher != nil {
+				tc.StoredValues["_audit_fetcher"] = mcpAuditFetcher
+			}
 
 			ctx.Before(func(gctx context.Context, sc *godog.Scenario) (context.Context, error) {
 				if err := cleanViaAPIWithAuth(mcpRESTURL, "admin", "admin-password"); err != nil {
 					return gctx, fmt.Errorf("clean MCP registry: %w", err)
+				}
+				if clearMCPAuditLog != nil {
+					if err := clearMCPAuditLog(); err != nil {
+						return gctx, fmt.Errorf("clear audit log: %w", err)
+					}
 				}
 				return gctx, nil
 			})
@@ -439,6 +470,8 @@ func TestMCPKMSFeatures(t *testing.T) {
 	t.Setenv("KMS_BAO_ADDR", "http://localhost:18203")
 	t.Setenv("KMS_BAO_TOKEN", "test-bao-token")
 
+	kmsAuditFetcher, clearKMSAuditLog := makeAuditHelpers(mcpFiles, "bdd-mcp-kms")
+
 	opts := godog.Options{
 		Format:   "pretty",
 		Output:   colors.Colored(os.Stdout),
@@ -455,10 +488,18 @@ func TestMCPKMSFeatures(t *testing.T) {
 			tc.WebhookURL = mcpWebhook
 			tc.StoredValues["_mcp_url"] = mcpURL
 			tc.AuthHeader = "Basic " + base64.StdEncoding.EncodeToString([]byte("admin:admin-password"))
+			if kmsAuditFetcher != nil {
+				tc.StoredValues["_audit_fetcher"] = kmsAuditFetcher
+			}
 
 			ctx.Before(func(gctx context.Context, sc *godog.Scenario) (context.Context, error) {
 				if err := cleanViaAPIWithAuth(mcpRESTURL, "admin", "admin-password"); err != nil {
 					return gctx, fmt.Errorf("clean MCP+KMS registry: %w", err)
+				}
+				if clearKMSAuditLog != nil {
+					if err := clearKMSAuditLog(); err != nil {
+						return gctx, fmt.Errorf("clear audit log: %w", err)
+					}
 				}
 				return gctx, nil
 			})
@@ -526,6 +567,8 @@ func TestMCPMetricsFeatures(t *testing.T) {
 	}
 	log.Println("MCP metrics registry is healthy.")
 
+	metricsAuditFetcher, clearMetricsAuditLog := makeAuditHelpers(mcpFiles, "bdd-mcp-metrics")
+
 	opts := godog.Options{
 		Format:   "pretty",
 		Output:   colors.Colored(os.Stdout),
@@ -542,10 +585,18 @@ func TestMCPMetricsFeatures(t *testing.T) {
 			tc.WebhookURL = mcpWebhook
 			tc.StoredValues["_mcp_url"] = mcpURL
 			tc.AuthHeader = "Basic " + base64.StdEncoding.EncodeToString([]byte("admin:admin-password"))
+			if metricsAuditFetcher != nil {
+				tc.StoredValues["_audit_fetcher"] = metricsAuditFetcher
+			}
 
 			ctx.Before(func(gctx context.Context, sc *godog.Scenario) (context.Context, error) {
 				if err := cleanViaAPIWithAuth(mcpRESTURL, "admin", "admin-password"); err != nil {
 					return gctx, fmt.Errorf("clean MCP metrics registry: %w", err)
+				}
+				if clearMetricsAuditLog != nil {
+					if err := clearMetricsAuditLog(); err != nil {
+						return gctx, fmt.Errorf("clear audit log: %w", err)
+					}
 				}
 				return gctx, nil
 			})
@@ -614,6 +665,8 @@ func TestMCPConfirmationFeatures(t *testing.T) {
 	}
 	log.Println("MCP confirmation registry is healthy.")
 
+	confirmAuditFetcher, clearConfirmAuditLog := makeAuditHelpers(mcpFiles, "bdd-mcp-confirm")
+
 	opts := godog.Options{
 		Format:   "pretty",
 		Output:   colors.Colored(os.Stdout),
@@ -630,10 +683,18 @@ func TestMCPConfirmationFeatures(t *testing.T) {
 			tc.WebhookURL = mcpWebhook
 			tc.StoredValues["_mcp_url"] = mcpURL
 			tc.AuthHeader = "Basic " + base64.StdEncoding.EncodeToString([]byte("admin:admin-password"))
+			if confirmAuditFetcher != nil {
+				tc.StoredValues["_audit_fetcher"] = confirmAuditFetcher
+			}
 
 			ctx.Before(func(gctx context.Context, sc *godog.Scenario) (context.Context, error) {
 				if err := cleanViaAPIWithAuth(mcpRESTURL, "admin", "admin-password"); err != nil {
 					return gctx, fmt.Errorf("clean MCP confirmation registry: %w", err)
+				}
+				if clearConfirmAuditLog != nil {
+					if err := clearConfirmAuditLog(); err != nil {
+						return gctx, fmt.Errorf("clear audit log: %w", err)
+					}
 				}
 				return gctx, nil
 			})
@@ -733,6 +794,8 @@ func TestMCPPermissionsFeatures(t *testing.T) {
 			}
 			log.Printf("MCP permissions registry (preset=%s) is healthy.", pt.preset)
 
+			permAuditFetcher, clearPermAuditLog := makeAuditHelpers(mcpFiles, projectName)
+
 			opts := godog.Options{
 				Format:   "pretty",
 				Output:   colors.Colored(os.Stdout),
@@ -749,10 +812,18 @@ func TestMCPPermissionsFeatures(t *testing.T) {
 					tc.WebhookURL = mcpWebhook
 					tc.StoredValues["_mcp_url"] = mcpURL
 					tc.AuthHeader = "Basic " + base64.StdEncoding.EncodeToString([]byte("admin:admin-password"))
+					if permAuditFetcher != nil {
+						tc.StoredValues["_audit_fetcher"] = permAuditFetcher
+					}
 
 					ctx.Before(func(gctx context.Context, sc *godog.Scenario) (context.Context, error) {
 						if err := cleanViaAPIWithAuth(mcpRESTURL, "admin", "admin-password"); err != nil {
 							return gctx, fmt.Errorf("clean MCP permissions registry (preset=%s): %w", pt.preset, err)
+						}
+						if clearPermAuditLog != nil {
+							if err := clearPermAuditLog(); err != nil {
+								return gctx, fmt.Errorf("clear audit log: %w", err)
+							}
 						}
 						return gctx, nil
 					})
@@ -822,37 +893,7 @@ func TestMCPAuditFeatures(t *testing.T) {
 	}
 	log.Println("MCP audit registry is healthy.")
 
-	// auditFetcher reads the audit log from the Docker container.
-	auditFetcher := func() (string, error) {
-		cmd := exec.Command(containerCmd, "compose",
-			"-f", "docker-compose.base.yml",
-			"-f", "docker-compose.mcp-audit.yml",
-			"-p", projectName,
-			"exec", "-T", "schema-registry",
-			"cat", "/tmp/audit.log",
-		)
-		out, err := cmd.CombinedOutput()
-		if err != nil {
-			// File might not exist yet if no audit events fired
-			if strings.Contains(string(out), "No such file") {
-				return "", nil
-			}
-			return "", fmt.Errorf("read audit log: %w: %s", err, string(out))
-		}
-		return string(out), nil
-	}
-
-	// clearAuditLog truncates the audit log inside the container.
-	clearAuditLog := func() error {
-		cmd := exec.Command(containerCmd, "compose",
-			"-f", "docker-compose.base.yml",
-			"-f", "docker-compose.mcp-audit.yml",
-			"-p", projectName,
-			"exec", "-T", "schema-registry",
-			"sh", "-c", "truncate -s 0 /tmp/audit.log 2>/dev/null || true",
-		)
-		return cmd.Run()
-	}
+	auditFetcher, clearAuditLog := makeAuditHelpers(auditFiles, projectName)
 
 	opts := godog.Options{
 		Format:   "pretty",
@@ -876,7 +917,6 @@ func TestMCPAuditFeatures(t *testing.T) {
 				if err := cleanViaAPIWithAuth(mcpRESTURL, "admin", "admin-password"); err != nil {
 					return gctx, fmt.Errorf("clean MCP audit registry: %w", err)
 				}
-				// Clear audit log for clean assertions per scenario
 				if err := clearAuditLog(); err != nil {
 					return gctx, fmt.Errorf("clear audit log: %w", err)
 				}
@@ -964,6 +1004,8 @@ func TestKMSFeatures(t *testing.T) {
 	t.Setenv("KMS_BAO_ADDR", "http://localhost:18205")
 	t.Setenv("KMS_BAO_TOKEN", "test-bao-token")
 
+	restKMSAuditFetcher, clearRestKMSAuditLog := makeAuditHelpers(kmsFiles, "bdd-rest-kms")
+
 	opts := godog.Options{
 		Format:   "pretty",
 		Output:   colors.Colored(os.Stdout),
@@ -977,10 +1019,18 @@ func TestKMSFeatures(t *testing.T) {
 		ScenarioInitializer: func(ctx *godog.ScenarioContext) {
 			tc := steps.NewTestContext(restURL)
 			tc.MetricsURL = restURL + "/metrics"
+			if restKMSAuditFetcher != nil {
+				tc.StoredValues["_audit_fetcher"] = restKMSAuditFetcher
+			}
 
 			ctx.Before(func(gctx context.Context, sc *godog.Scenario) (context.Context, error) {
 				if err := cleanViaAPINoAuth(restURL); err != nil {
 					return gctx, fmt.Errorf("clean KMS registry: %w", err)
+				}
+				if clearRestKMSAuditLog != nil {
+					if err := clearRestKMSAuditLog(); err != nil {
+						return gctx, fmt.Errorf("clear audit log: %w", err)
+					}
 				}
 				return gctx, nil
 			})
@@ -1039,28 +1089,7 @@ func TestRESTAuditFeatures(t *testing.T) {
 	}
 	log.Println("Audit registry is healthy.")
 
-	// Audit log fetcher and clearer via docker exec
-	auditFetcher := func() (string, error) {
-		cmd := exec.Command(containerCmd, "compose",
-			"-f", "docker-compose.base.yml", "-f", "docker-compose.audit.yml",
-			"-p", projectName, "exec", "-T", "schema-registry", "cat", "/tmp/audit.log")
-		out, err := cmd.CombinedOutput()
-		if err != nil {
-			if strings.Contains(string(out), "No such file") {
-				return "", nil
-			}
-			return "", fmt.Errorf("read audit log: %w: %s", err, string(out))
-		}
-		return string(out), nil
-	}
-
-	clearAuditLog := func() error {
-		cmd := exec.Command(containerCmd, "compose",
-			"-f", "docker-compose.base.yml", "-f", "docker-compose.audit.yml",
-			"-p", projectName, "exec", "-T", "schema-registry",
-			"sh", "-c", "truncate -s 0 /tmp/audit.log 2>/dev/null || true")
-		return cmd.Run()
-	}
+	auditFetcher, clearAuditLog := makeAuditHelpers(auditFiles, projectName)
 
 	opts := godog.Options{
 		Format:   "pretty",
@@ -1339,6 +1368,48 @@ func hasTag(sc *godog.Scenario, name string) bool {
 		}
 	}
 	return false
+}
+
+// makeAuditHelpers creates audit log fetcher and clearer functions for a Docker compose stack.
+// Returns nil functions if containerCmd is not set (external registry mode).
+func makeAuditHelpers(files []string, project string) (fetcher func() (string, error), clearer func() error) {
+	if containerCmd == "" {
+		return nil, nil
+	}
+
+	buildArgs := func(extraArgs ...string) []string {
+		args := []string{"compose"}
+		if project != "" {
+			args = append(args, "--project-name", project)
+		}
+		for _, f := range files {
+			args = append(args, "-f", f)
+		}
+		return append(args, extraArgs...)
+	}
+
+	fetcher = func() (string, error) {
+		args := buildArgs("exec", "-T", "schema-registry", "cat", "/tmp/audit.log")
+		cmd := exec.Command(containerCmd, args...)
+		cmd.Dir = "."
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			if strings.Contains(string(out), "No such file") {
+				return "", nil
+			}
+			return "", fmt.Errorf("read audit log: %w: %s", err, string(out))
+		}
+		return string(out), nil
+	}
+
+	clearer = func() error {
+		args := buildArgs("exec", "-T", "schema-registry", "sh", "-c", "truncate -s 0 /tmp/audit.log 2>/dev/null || true")
+		cmd := exec.Command(containerCmd, args...)
+		cmd.Dir = "."
+		return cmd.Run()
+	}
+
+	return fetcher, clearer
 }
 
 // cleanBackend resets all state between scenarios using default DB ports.
