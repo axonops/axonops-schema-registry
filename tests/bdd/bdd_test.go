@@ -390,18 +390,14 @@ func TestMCPKMSFeatures(t *testing.T) {
 
 	// Add database overlay if backend is a DB type.
 	// Use unique DB ports to avoid collisions with the main TestFeatures stack.
-	mcpKMSDBPort := ""
 	if dbOverlay := dbOverlayFile(backend); dbOverlay != "" {
 		mcpFiles = append(mcpFiles, dbOverlay)
 		switch backend {
 		case "postgres":
-			mcpKMSDBPort = "25433"
 			mcpEnv = append(mcpEnv, "POSTGRES_PORT=25433")
 		case "mysql":
-			mcpKMSDBPort = "23307"
 			mcpEnv = append(mcpEnv, "MYSQL_PORT=23307")
 		case "cassandra":
-			mcpKMSDBPort = "29043"
 			mcpEnv = append(mcpEnv, "CASSANDRA_PORT=29043")
 		}
 	}
