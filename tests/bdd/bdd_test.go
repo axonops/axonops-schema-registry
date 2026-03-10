@@ -2,18 +2,22 @@
 
 // Package bdd provides BDD tests using godog (Cucumber for Go).
 //
-// In-process (fast, memory backend, no Docker):
+// All tests run against a Docker-deployed binary by default:
 //
-//	go test -tags bdd -v ./tests/bdd/...
+//	go test -tags bdd -v -timeout 30m ./tests/bdd/...
 //
-// Docker-based (all tests including operational):
+// Or via Makefile:
 //
-//	BDD_BACKEND=memory go test -tags bdd -v -timeout 10m ./tests/bdd/...
-//	BDD_BACKEND=postgres go test -tags bdd -v -timeout 15m ./tests/bdd/...
+//	make test-bdd-functional          # Memory backend (Docker)
+//	make test-bdd BACKEND=memory      # Memory backend (Docker)
+//	make test-bdd BACKEND=postgres    # PostgreSQL backend (Docker)
+//
+// In-process with real DB (for BDD storage conformance):
+//
+//	BDD_STORAGE=postgres go test -tags bdd -v -timeout 15m ./tests/bdd/...
 package bdd
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
 	"encoding/base64"
@@ -89,6 +93,12 @@ func TestMain(m *testing.M) {
 	bddStorage = os.Getenv("BDD_STORAGE")
 	registryURL = os.Getenv("BDD_REGISTRY_URL")
 	webhookURL = os.Getenv("BDD_WEBHOOK_URL")
+
+	// Default to Docker with memory backend when no env vars are set.
+	// BDD_STORAGE overrides this (in-process with real DB).
+	if backend == "" && registryURL == "" && bddStorage == "" {
+		backend = "memory"
+	}
 
 	// If BDD_BACKEND is set but no external URL, start Docker Compose automatically.
 	if backend != "" && registryURL == "" {
@@ -434,23 +444,22 @@ func cleanDBStore() error {
 }
 
 func TestFeatures(t *testing.T) {
-	// In-process: skip @operational (no Docker infrastructure).
-	// Docker mode: run everything for this backend, skip other backends. BDD_TAGS overrides.
+	// Docker mode (default): registryURL is set by TestMain.
+	// In-process mode: BDD_STORAGE is set (database backend testing).
 	tags := ""
 	if envTags := os.Getenv("BDD_TAGS"); envTags != "" {
 		tags = envTags
-	} else if !dockerMode && registryURL == "" {
-		tags = "~@operational && ~@pending-impl && ~@auth && ~@kms"
+	} else if sharedDBStore != nil {
+		// In-process with database: exclude tags handled by separate test functions
+		tags = "~@operational && ~@pending-impl && ~@auth && ~@kms && ~@mcp && ~@audit"
 	} else if backend == "confluent" {
 		// Confluent: exclude operational, import (our custom API), axonops-only, contexts (our multi-tenant),
 		// pending-impl, data-contracts (ruleSet features require commercial Confluent license),
 		// and all backend tags.
 		tags = "~@operational && ~@import && ~@axonops-only && ~@contexts && ~@pending-impl && ~@data-contracts && ~@auth && ~@kms && ~@mcp && ~@analysis && ~@audit && ~@memory && ~@postgres && ~@mysql && ~@cassandra"
 	} else if dockerMode {
-		// Only run operational scenarios tagged for this backend, exclude other backends.
-		// Auth tests are handled by TestAuthFeatures (separate compose stack).
-		// MCP tests require in-process server, skip in Docker mode for now.
-		// KMS tests are included when BDD_KMS=true (schema-registry has KMS providers configured).
+		// Docker mode: run operational + functional scenarios for this backend.
+		// Auth, MCP, audit, KMS are handled by their own test functions with separate stacks.
 		allBackends := []string{"memory", "postgres", "mysql", "cassandra"}
 		excludes := []string{"~@pending-impl", "~@auth", "~@mcp", "~@audit"}
 		if os.Getenv("BDD_KMS") != "true" {
@@ -483,9 +492,6 @@ func TestFeatures(t *testing.T) {
 				tc.MetricsURL = metricsURL
 				tc.WebhookURL = webhookURL
 
-				// Clean state before each scenario.
-				// For operational scenarios, ensure the registry is running first
-				// (a previous scenario may have killed or stopped it).
 				ctx.Before(func(gctx context.Context, sc *godog.Scenario) (context.Context, error) {
 					if hasTag(sc, "@operational") {
 						// Ensure registry is up (previous scenario may have stopped/killed it)
@@ -499,55 +505,19 @@ func TestFeatures(t *testing.T) {
 					return gctx, waitForURL(registryURL+"/", 30*time.Second)
 				})
 			} else {
-				// In-process: create fresh server per scenario.
+				// In-process: create fresh server per scenario (BDD_STORAGE mode).
 				// tc must be allocated before step registration (steps capture the pointer).
 				tc = steps.NewTestContext("http://placeholder")
 				var ts *httptest.Server
 				var st storage.Storage
 				var m *metrics.Metrics
 				var gaugeStop chan struct{}
-				var storeOwned bool // false when using sharedDBStore (don't close in After)
 				ctx.Before(func(gctx context.Context, sc *godog.Scenario) (context.Context, error) {
 					var reg *registry.Registry
-					if hasTag(sc, "@kms") {
-						if sharedDBStore != nil {
-							// Using database backend: clean between scenarios, reuse store
-							if err := cleanDBStore(); err != nil {
-								return gctx, fmt.Errorf("clean %s storage: %w", bddStorage, err)
-							}
-							ts, st, reg = newKMSTestServerWithStore(sharedDBStore)
-							storeOwned = false
-						} else {
-							ts, st, reg = newKMSTestServer()
-							storeOwned = true
-						}
-					} else if hasTag(sc, "@audit") {
-						// Wire audit buffer for REST audit assertions
-						auditBuf := &bytes.Buffer{}
-						al := auth.NewAuditLoggerWithWriter(config.AuditConfig{Enabled: true}, auditBuf)
-						if sharedDBStore != nil {
-							if err := cleanDBStore(); err != nil {
-								return gctx, fmt.Errorf("clean %s storage: %w", bddStorage, err)
-							}
-							ts, st, reg, m, gaugeStop = newTestServerWithStoreAndAudit(sharedDBStore, al)
-							storeOwned = false
-						} else {
-							ts, st, reg, m, gaugeStop = newTestServerWithAudit(al)
-							storeOwned = true
-						}
-						tc.AuditBuffer = auditBuf
-					} else {
-						if sharedDBStore != nil {
-							if err := cleanDBStore(); err != nil {
-								return gctx, fmt.Errorf("clean %s storage: %w", bddStorage, err)
-							}
-							ts, st, reg, m, gaugeStop = newTestServerWithStore(sharedDBStore)
-							storeOwned = false
-						} else {
-							ts, st, reg, m, gaugeStop = newTestServer()
-							storeOwned = true
-						}
+					if err := cleanDBStore(); err != nil {
+						return gctx, fmt.Errorf("clean %s storage: %w", bddStorage, err)
 					}
+					ts, st, reg, m, gaugeStop = newTestServerWithStore(sharedDBStore)
 					tc.BaseURL = ts.URL
 					tc.Registry = reg
 					tc.StoredValues["_storage"] = st
@@ -561,9 +531,6 @@ func TestFeatures(t *testing.T) {
 					}
 					if ts != nil {
 						ts.Close()
-					}
-					if storeOwned && st != nil {
-						st.Close()
 					}
 					return gctx, nil
 				})
@@ -594,11 +561,12 @@ func TestFeatures(t *testing.T) {
 // In Docker mode: starts a separate compose stack with auth config.
 // In-process mode: creates a fresh in-process server with auth, RBAC, and a pre-seeded admin user.
 func TestAuthFeatures(t *testing.T) {
-	// Docker mode: start auth-specific compose stack
+	// Always use Docker: start auth-specific compose stack.
+	// In BDD_STORAGE mode (in-process with real DB), fall back to in-process.
 	var authURL string
 	var authWebhook string
 	var authFiles []string
-	authDockerMode := dockerMode || os.Getenv("BDD_BACKEND") != ""
+	authDockerMode := sharedDBStore == nil // Docker unless BDD_STORAGE is set
 
 	if authDockerMode {
 		if containerCmd == "" {
@@ -716,12 +684,8 @@ func TestAuthFeatures(t *testing.T) {
 // Excludes @mcp-permissions and @mcp-confirmation (they need in-process config per scenario),
 // @kms (needs separate KMS compose stack), and @audit (needs audit log access).
 func TestMCPFeatures(t *testing.T) {
-	bddBackend := os.Getenv("BDD_BACKEND")
-	if bddBackend == "" {
-		t.Skip("MCP Docker tests only run with BDD_BACKEND set")
-	}
-	if bddBackend != "memory" {
-		t.Skip("MCP Docker tests only run with BDD_BACKEND=memory (they start their own compose stack)")
+	if bddBackend := os.Getenv("BDD_BACKEND"); bddBackend != "" && bddBackend != "memory" {
+		t.Skip("MCP Docker tests only run on memory backend (they start their own compose stack)")
 	}
 
 	if containerCmd == "" {
@@ -806,12 +770,8 @@ func TestMCPFeatures(t *testing.T) {
 
 // TestMCPKMSFeatures runs MCP + KMS BDD tests against Docker with Vault and OpenBao.
 func TestMCPKMSFeatures(t *testing.T) {
-	bddBackend := os.Getenv("BDD_BACKEND")
-	if bddBackend == "" {
-		t.Skip("MCP KMS Docker tests only run with BDD_BACKEND set")
-	}
-	if bddBackend != "memory" {
-		t.Skip("MCP KMS Docker tests only run with BDD_BACKEND=memory (they start their own compose stack)")
+	if bddBackend := os.Getenv("BDD_BACKEND"); bddBackend != "memory" {
+		t.Skip("MCP KMS Docker tests require BDD_BACKEND=memory (they start Vault + OpenBao)")
 	}
 
 	if containerCmd == "" {
@@ -904,12 +864,8 @@ func TestMCPKMSFeatures(t *testing.T) {
 // Separate from main MCP tests because metrics tests need to verify Prometheus output
 // and some require confirmations or permission variations.
 func TestMCPMetricsFeatures(t *testing.T) {
-	bddBackend := os.Getenv("BDD_BACKEND")
-	if bddBackend == "" {
-		t.Skip("MCP metrics Docker tests only run with BDD_BACKEND set")
-	}
-	if bddBackend != "memory" {
-		t.Skip("MCP metrics Docker tests only run with BDD_BACKEND=memory (they start their own compose stack)")
+	if bddBackend := os.Getenv("BDD_BACKEND"); bddBackend != "" && bddBackend != "memory" {
+		t.Skip("MCP metrics Docker tests only run on memory backend (they start their own compose stack)")
 	}
 
 	if containerCmd == "" {
@@ -995,12 +951,8 @@ func TestMCPMetricsFeatures(t *testing.T) {
 // TestMCPConfirmationFeatures runs MCP confirmation BDD tests against Docker.
 // Uses a compose stack with SCHEMA_REGISTRY_MCP_REQUIRE_CONFIRMATIONS=true.
 func TestMCPConfirmationFeatures(t *testing.T) {
-	bddBackend := os.Getenv("BDD_BACKEND")
-	if bddBackend == "" {
-		t.Skip("MCP confirmation Docker tests only run with BDD_BACKEND set")
-	}
-	if bddBackend != "memory" {
-		t.Skip("MCP confirmation Docker tests only run with BDD_BACKEND=memory (they start their own compose stack)")
+	if bddBackend := os.Getenv("BDD_BACKEND"); bddBackend != "" && bddBackend != "memory" {
+		t.Skip("MCP confirmation Docker tests only run on memory backend (they start their own compose stack)")
 	}
 
 	if containerCmd == "" {
@@ -1089,12 +1041,8 @@ func TestMCPConfirmationFeatures(t *testing.T) {
 // Starts separate compose stacks per preset since each preset needs a different
 // server configuration (SCHEMA_REGISTRY_MCP_PERMISSION_PRESET env var).
 func TestMCPPermissionsFeatures(t *testing.T) {
-	bddBackend := os.Getenv("BDD_BACKEND")
-	if bddBackend == "" {
-		t.Skip("MCP permissions Docker tests only run with BDD_BACKEND set")
-	}
-	if bddBackend != "memory" {
-		t.Skip("MCP permissions Docker tests only run with BDD_BACKEND=memory (they start their own compose stack)")
+	if bddBackend := os.Getenv("BDD_BACKEND"); bddBackend != "" && bddBackend != "memory" {
+		t.Skip("MCP permissions Docker tests only run on memory backend (they start their own compose stack)")
 	}
 
 	if containerCmd == "" {
@@ -1214,12 +1162,8 @@ func TestMCPPermissionsFeatures(t *testing.T) {
 // TestMCPAuditFeatures runs MCP audit BDD tests against a Docker-deployed binary.
 // The audit log is written to a file inside the container and read via docker exec.
 func TestMCPAuditFeatures(t *testing.T) {
-	bddBackend := os.Getenv("BDD_BACKEND")
-	if bddBackend == "" {
-		t.Skip("MCP audit Docker tests only run with BDD_BACKEND set")
-	}
-	if bddBackend != "memory" {
-		t.Skip("MCP audit Docker tests only run with BDD_BACKEND=memory (they start their own compose stack)")
+	if bddBackend := os.Getenv("BDD_BACKEND"); bddBackend != "" && bddBackend != "memory" {
+		t.Skip("MCP audit Docker tests only run on memory backend (they start their own compose stack)")
 	}
 
 	if containerCmd == "" {
@@ -1343,12 +1287,8 @@ func TestMCPAuditFeatures(t *testing.T) {
 // TestKMSFeatures runs REST KMS encryption BDD tests against a Docker-deployed binary
 // with Vault Transit and OpenBao Transit engines.
 func TestKMSFeatures(t *testing.T) {
-	bddBackend := os.Getenv("BDD_BACKEND")
-	if bddBackend == "" {
-		t.Skip("KMS Docker tests only run with BDD_BACKEND set")
-	}
-	if bddBackend != "memory" {
-		t.Skip("KMS Docker tests only run with BDD_BACKEND=memory (they start their own compose stack)")
+	if bddBackend := os.Getenv("BDD_BACKEND"); bddBackend != "memory" {
+		t.Skip("KMS Docker tests require BDD_BACKEND=memory (they start Vault + OpenBao)")
 	}
 
 	if containerCmd == "" {
@@ -1428,6 +1368,108 @@ func TestKMSFeatures(t *testing.T) {
 
 	if suite.Run() != 0 {
 		t.Fatal("REST KMS BDD tests failed")
+	}
+}
+
+// TestRESTAuditFeatures runs REST audit BDD tests against a Docker-deployed binary
+// with audit logging enabled (no auth, no MCP).
+func TestRESTAuditFeatures(t *testing.T) {
+	if bddBackend := os.Getenv("BDD_BACKEND"); bddBackend != "" && bddBackend != "memory" {
+		t.Skip("REST audit Docker tests only run on memory backend (they start their own compose stack)")
+	}
+
+	if containerCmd == "" {
+		containerCmd = findContainerCmd()
+	}
+	auditFiles := []string{"docker-compose.base.yml", "docker-compose.audit.yml"}
+	auditEnv := []string{
+		"REGISTRY_PORT=18091",
+		"WEBHOOK_PORT=19009",
+	}
+	projectName := "bdd-rest-audit"
+
+	log.Printf("Starting REST audit compose stack...")
+	if err := composeUpWithProject(auditFiles, projectName, auditEnv); err != nil {
+		t.Fatalf("Failed to start REST audit compose: %v", err)
+	}
+	t.Cleanup(func() {
+		log.Println("Stopping REST audit compose stack...")
+		composeDownWithProject(auditFiles, projectName)
+	})
+
+	restURL := "http://localhost:18091"
+
+	log.Printf("Waiting for audit registry at %s ...", restURL)
+	if err := waitForURL(restURL+"/", 120*time.Second); err != nil {
+		composeLogsWithProject(auditFiles, projectName)
+		t.Fatalf("Audit registry did not become healthy: %v", err)
+	}
+	log.Println("Audit registry is healthy.")
+
+	// Audit log fetcher and clearer via docker exec
+	auditFetcher := func() (string, error) {
+		cmd := exec.Command(containerCmd, "compose",
+			"-f", "docker-compose.base.yml", "-f", "docker-compose.audit.yml",
+			"-p", projectName, "exec", "-T", "schema-registry", "cat", "/tmp/audit.log")
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			if strings.Contains(string(out), "No such file") {
+				return "", nil
+			}
+			return "", fmt.Errorf("read audit log: %w: %s", err, string(out))
+		}
+		return string(out), nil
+	}
+
+	clearAuditLog := func() error {
+		cmd := exec.Command(containerCmd, "compose",
+			"-f", "docker-compose.base.yml", "-f", "docker-compose.audit.yml",
+			"-p", projectName, "exec", "-T", "schema-registry",
+			"sh", "-c", "truncate -s 0 /tmp/audit.log 2>/dev/null || true")
+		return cmd.Run()
+	}
+
+	opts := godog.Options{
+		Format:   "pretty",
+		Output:   colors.Colored(os.Stdout),
+		Paths:    []string{"features"},
+		Tags:     "@audit && ~@mcp && ~@pending-impl",
+		Strict:   true,
+		TestingT: t,
+	}
+
+	suite := godog.TestSuite{
+		ScenarioInitializer: func(ctx *godog.ScenarioContext) {
+			tc := steps.NewTestContext(restURL)
+			tc.StoredValues["_audit_fetcher"] = auditFetcher
+
+			ctx.Before(func(gctx context.Context, sc *godog.Scenario) (context.Context, error) {
+				if err := clearAuditLog(); err != nil {
+					return gctx, fmt.Errorf("clear audit log: %w", err)
+				}
+				if err := cleanViaAPINoAuth(restURL); err != nil {
+					return gctx, fmt.Errorf("clean audit registry: %w", err)
+				}
+				return gctx, nil
+			})
+
+			steps.RegisterSchemaSteps(ctx, tc)
+			steps.RegisterImportSteps(ctx, tc)
+			steps.RegisterModeSteps(ctx, tc)
+			steps.RegisterReferenceSteps(ctx, tc)
+			steps.RegisterInfraSteps(ctx, tc)
+			steps.RegisterAuthSteps(ctx, tc)
+			steps.RegisterEncryptionSteps(ctx, tc)
+			steps.RegisterConcurrencySteps(ctx, tc)
+			steps.RegisterRateLimitSteps(ctx, tc)
+			steps.RegisterMetricsSteps(ctx, tc)
+			steps.RegisterMCPSteps(ctx, tc)
+		},
+		Options: &opts,
+	}
+
+	if suite.Run() != 0 {
+		t.Fatal("REST audit BDD tests failed")
 	}
 }
 
@@ -1540,7 +1582,7 @@ func cleanViaAPIWithAuth(baseURL, username, password string) error {
 		}
 	}
 
-	// 5. Reset global config
+	// 6. Reset global config
 	r, err = doReq("DELETE", "/config", nil)
 	if err != nil {
 		return fmt.Errorf("reset config: %w", err)

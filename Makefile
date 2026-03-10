@@ -148,21 +148,18 @@ _test-bdd-single:
 		*)         echo "Unknown BDD backend: $(BACKEND)"; exit 1 ;; \
 	esac; \
 	echo "=== BDD Tests ($(BACKEND), timeout $$TIMEOUT) ==="; \
-	if [ "$(BACKEND)" = "memory" ]; then \
-		$(GOTEST) -tags bdd -v -count=1 -timeout $$TIMEOUT ./tests/bdd/...; \
-	else \
-		BDD_BACKEND=$(BACKEND) CONTAINER_CMD=$(CONTAINER_CMD) \
-			$(GOTEST) -tags bdd -v -count=1 -timeout $$TIMEOUT ./tests/bdd/...; \
-	fi
+	BDD_BACKEND=$(BACKEND) CONTAINER_CMD=$(CONTAINER_CMD) \
+		$(GOTEST) -tags bdd -v -count=1 -timeout $$TIMEOUT ./tests/bdd/...
 
 # =====================================================================
-# BDD functional tests — in-process server with memory (no Docker)
+# BDD functional tests — Docker-deployed binary with memory backend
 # =====================================================================
 
-## Run BDD functional tests (in-process, memory, no Docker Compose)
+## Run BDD functional tests (Docker, memory backend — excludes KMS/Vault)
 test-bdd-functional:
-	@echo "=== BDD Functional Tests (in-process, memory) ==="
-	$(GOTEST) -tags bdd -v -count=1 -timeout $(TIMEOUT_BDD_MEMORY) ./tests/bdd/...
+	@echo "=== BDD Functional Tests (Docker, memory) ==="
+	CONTAINER_CMD=$(CONTAINER_CMD) \
+		$(GOTEST) -tags bdd -v -count=1 -timeout 30m ./tests/bdd/...
 
 # =====================================================================
 # BDD tests with database backend — in-process server, real DB
@@ -757,7 +754,7 @@ help:
 	@echo "                      + concurrency + migration + API + auth + compatibility)"
 	@echo "  test-unit           Unit tests (no Docker, no build tags)"
 	@echo "  test-bdd            BDD/Gherkin tests (Docker Compose)    [BACKEND=]"
-	@echo "  test-bdd-functional BDD functional tests (in-process, memory, no Docker)"
+	@echo "  test-bdd-functional BDD functional tests (Docker, memory backend)"
 	@echo "  test-bdd-db         BDD tests with real DB (in-process)   [BACKEND=]"
 	@echo "  test-bdd-auth       BDD auth tests with real DB           [BACKEND=]"
 	@echo "  test-bdd-mcp        BDD MCP tests — all MCP suites (Docker, memory)"

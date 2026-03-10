@@ -1,0 +1,13 @@
+# REST audit overlay for BDD tests.
+# Layers on top of docker-compose.base.yml to enable audit logging
+# to a file that can be read via docker exec.
+#
+# Usage:
+#   docker compose -f docker-compose.base.yml -f docker-compose.audit.yml up -d --build --wait
+#   docker compose -p <project> exec schema-registry cat /tmp/audit.log
+
+services:
+  schema-registry:
+    command: ["--config", "/etc/schema-registry/config.memory-audit.yaml"]
+    environment:
+      REGISTRY_CONFIG: /etc/schema-registry/config.memory-audit.yaml

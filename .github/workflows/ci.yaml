@@ -1153,7 +1153,7 @@ jobs:
           # Run the full migration test
           ./tests/migration/test-migration.sh
 
-  # BDD functional tests — in-process, no Docker, fast (~147 scenarios)
+  # BDD functional tests — Docker-deployed binary, memory backend
   bdd-functional-tests:
     name: BDD Functional Tests
     runs-on: ubuntu-latest
@@ -1169,8 +1169,24 @@ jobs:
       - name: Download dependencies
         run: go mod download
 
-      - name: Run BDD functional tests (in-process)
+      - name: Run BDD functional tests (Docker)
         run: make test-bdd-functional
+
+      - name: Show container logs on failure
+        if: failure()
+        working-directory: tests/bdd
+        run: |
+          docker compose -f docker-compose.base.yml -f docker-compose.memory.yml logs --tail=100 || true
+          docker compose -f docker-compose.base.yml -f docker-compose.mcp.yml logs --tail=100 || true
+          docker compose -f docker-compose.base.yml -f docker-compose.auth.yml logs --tail=100 || true
+
+      - name: Cleanup containers
+        if: always()
+        working-directory: tests/bdd
+        run: |
+          docker compose -f docker-compose.base.yml -f docker-compose.memory.yml -p bdd-functional down -v || true
+          docker compose -f docker-compose.base.yml -f docker-compose.mcp.yml down -v || true
+          docker compose -f docker-compose.base.yml -f docker-compose.auth.yml down -v || true
 
   # BDD tests — KMS encryption (Vault Transit + OpenBao Transit, in-process server)
   bdd-kms-tests:
