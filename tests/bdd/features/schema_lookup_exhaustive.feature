@@ -22,6 +22,7 @@ Feature: Schema Lookup & Retrieval — Exhaustive (Confluent v8.1.1 Compatibilit
     Then the response status should be 200
     And the response should contain "LookupByID"
     And the response should have field "schema"
+    And the audit log should contain event "schema_register" with subject "lookup-by-id"
 
   Scenario: Get schema-only by ID returns raw schema string
     When I register a schema under subject "lookup-raw":
@@ -32,6 +33,7 @@ Feature: Schema Lookup & Retrieval — Exhaustive (Confluent v8.1.1 Compatibilit
     When I get the raw schema by ID {{schema_id}}
     Then the response status should be 200
     And the response should contain "LookupRaw"
+    And the audit log should contain event "schema_register" with subject "lookup-raw"
 
   Scenario: Get schema with fetchMaxId returns maxId field
     When I register a schema under subject "lookup-maxid-1":
@@ -46,6 +48,7 @@ Feature: Schema Lookup & Retrieval — Exhaustive (Confluent v8.1.1 Compatibilit
     When I GET "/schemas/ids/{{schema_id}}?fetchMaxId=true"
     Then the response status should be 200
     And the response should have field "maxId"
+    And the audit log should contain event "schema_register" with subject "lookup-maxid-1"
 
   Scenario: Get schema types returns supported types
     When I GET "/schemas/types"
@@ -144,6 +147,7 @@ Feature: Schema Lookup & Retrieval — Exhaustive (Confluent v8.1.1 Compatibilit
     Then the response status should be 200
     And the response array should contain "lookup-assoc-s1"
     And the response array should contain "lookup-assoc-s2"
+    And the audit log should contain event "schema_register" with subject "lookup-assoc-s1"
 
   Scenario: Get subjects by schema ID after soft-delete excludes deleted
     When I register a schema under subject "lookup-delsub-s1":
@@ -164,6 +168,7 @@ Feature: Schema Lookup & Retrieval — Exhaustive (Confluent v8.1.1 Compatibilit
     Then the response status should be 200
     And the response array should contain "lookup-delsub-s1"
     And the response array should contain "lookup-delsub-s2"
+    And the audit log should contain event "subject_delete" with subject "lookup-delsub-s2"
 
   Scenario: Get subjects for non-existent schema ID returns 404
     When I GET "/schemas/ids/99999/subjects"
@@ -184,6 +189,7 @@ Feature: Schema Lookup & Retrieval — Exhaustive (Confluent v8.1.1 Compatibilit
     Then the response status should be 200
     And the response should contain "lookup-ver-assoc-s1"
     And the response should contain "lookup-ver-assoc-s2"
+    And the audit log should contain event "schema_register" with subject "lookup-ver-assoc-s1"
 
   # ==========================================================================
   # SCHEMAS LIST ENDPOINT

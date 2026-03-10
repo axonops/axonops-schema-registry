@@ -50,6 +50,7 @@ Feature: Contexts — Real-World Usage Patterns
     And the response array should contain "."
     And the response array should contain ".team-alpha"
     And the response array should contain ".team-bravo"
+    And the audit log should contain event "schema_register" with subject ":.team-bravo:user-events"
 
   # ==========================================================================
   # SCENARIO 2: Environment separation — dev, staging, prod
@@ -94,6 +95,7 @@ Feature: Contexts — Real-World Usage Patterns
     When I GET "/subjects/:.prod:payment-events/versions/1"
     Then the response status should be 200
     And the response field "version" should be 1
+    And the audit log should contain event "schema_register" with subject ":.prod:payment-events"
 
   # ==========================================================================
   # SCENARIO 3: Schema linking simulation — source and destination clusters
@@ -139,6 +141,7 @@ Feature: Contexts — Real-World Usage Patterns
     When I GET "/subjects/:.dest-cluster:product-value/versions/1"
     Then the response status should be 200
     And I store the response field "id" as "dest_schema_id"
+    And the audit log should contain event "schema_register" with subject ":.dest-cluster:product-value"
 
   # ==========================================================================
   # SCENARIO 4: Hierarchical context naming with dots
@@ -173,6 +176,7 @@ Feature: Contexts — Real-World Usage Patterns
     Then the response status should be 200
     And the response array should contain ".org.team1.payments"
     And the response array should contain ".org.team2.payments"
+    And the audit log should contain event "schema_register" with subject ":.org.team2.payments:transactions"
 
   # ==========================================================================
   # SCENARIO 5: Default context coexists with named contexts
@@ -208,6 +212,7 @@ Feature: Contexts — Real-World Usage Patterns
     And the response body should contain "warehouse"
     # Schemas are different, proving isolation
     And the response body should contain "com.rw.scenario5.prod"
+    And the audit log should contain event "schema_register" with subject ":.production:orders-value"
 
   # ==========================================================================
   # SCENARIO 6: Large number of contexts
@@ -279,6 +284,7 @@ Feature: Contexts — Real-World Usage Patterns
     And the response array should contain ".ctx08"
     And the response array should contain ".ctx09"
     And the response array should contain ".ctx10"
+    And the audit log should contain event "schema_register" with subject ":.ctx10:data"
 
   # ==========================================================================
   # SCENARIO 7: Migration from single-tenant to multi-tenant
@@ -329,6 +335,7 @@ Feature: Contexts — Real-World Usage Patterns
     Then the response status should be 200
     And the response array should contain "."
     And the response array should contain ".tenant-a"
+    And the audit log should contain event "schema_register" with subject ":.tenant-a:order-value-s7"
 
   # ==========================================================================
   # SCENARIO 8: Context cleanup — delete all subjects in a context
@@ -372,6 +379,7 @@ Feature: Contexts — Real-World Usage Patterns
     When I GET "/subjects/cleanup-proof-s8/versions"
     Then the response status should be 200
     And the response should be an array of length 1
+    And the audit log should contain event "subject_delete" with subject ":.cleanup-ctx:metrics"
 
   # ==========================================================================
   # SCENARIO 9: Cross-context schema comparison — different evolution speed
@@ -420,6 +428,7 @@ Feature: Contexts — Real-World Usage Patterns
     When I GET "/subjects/:.slow-evo:analytics/versions/latest"
     Then the response status should be 200
     And the response field "version" should be 1
+    And the audit log should contain event "schema_register" with subject ":.slow-evo:analytics"
 
   # ==========================================================================
   # SCENARIO 10: Config isolation — real-world compat policies
@@ -469,6 +478,7 @@ Feature: Contexts — Real-World Usage Patterns
     When I GET "/subjects/:.relaxed-ctx:inventory/versions"
     Then the response status should be 200
     And the response should be an array of length 2
+    And the audit log should contain event "schema_register" with subject ":.relaxed-ctx:inventory"
 
   # ==========================================================================
   # SCENARIO 11: Mode isolation — read-only production, writable staging
@@ -513,6 +523,7 @@ Feature: Contexts — Real-World Usage Patterns
     When I GET "/subjects/:.ro-prod:events/versions"
     Then the response status should be 200
     And the response should be an array of length 1
+    And the audit log should contain event "schema_register" with subject ":.rw-staging:events"
 
   # ==========================================================================
   # SCENARIO 12: Context with all valid character types in name
@@ -535,3 +546,4 @@ Feature: Contexts — Real-World Usage Patterns
     When I GET "/contexts"
     Then the response status should be 200
     And the response array should contain ".My-Context_v2.1"
+    And the audit log should contain event "schema_register" with subject ":.My-Context_v2.1:test-subject"

@@ -28,6 +28,7 @@ Feature: Advanced JSON Schema Parsing
     And the response should contain "if"
     And the response should contain "then"
     And the response should contain "else"
+    And the audit log should contain event "schema_register" with subject "json-adv-1"
 
   # ---------- 2. Deeply nested $defs (3 levels) ----------
   Scenario: Deeply nested $defs with 3 levels of definitions referencing each other
@@ -75,6 +76,7 @@ Feature: Advanced JSON Schema Parsing
     And the response should contain "Country"
     And the response should contain "City"
     And the response should contain "Person"
+    And the audit log should contain event "schema_register" with subject "json-adv-2"
 
   # ---------- 3. $defs with multiple cross-references ----------
   Scenario: Schema with $defs and multiple cross-references
@@ -116,6 +118,7 @@ Feature: Advanced JSON Schema Parsing
     Then the response status should be 200
     And the response should contain "contactInfo"
     And the response should contain "mailingAddress"
+    And the audit log should contain event "schema_register" with subject "json-adv-3"
 
   # ---------- 4. Schema with const keyword ----------
   Scenario: Schema with const keyword
@@ -139,6 +142,7 @@ Feature: Advanced JSON Schema Parsing
     When I get the stored schema by ID
     Then the response status should be 200
     And the response should contain "const"
+    And the audit log should contain event "schema_register" with subject "json-adv-4"
 
   # ---------- 5. Schema with dependencies keyword ----------
   Scenario: Schema with dependencies keyword (property dependencies)
@@ -170,6 +174,7 @@ Feature: Advanced JSON Schema Parsing
     When I get the stored schema by ID
     Then the response status should be 200
     And the response should contain "dependencies"
+    And the audit log should contain event "schema_register" with subject "json-adv-5"
 
   # ---------- 6. Schema with propertyNames constraint ----------
   Scenario: Schema with propertyNames constraint
@@ -193,6 +198,7 @@ Feature: Advanced JSON Schema Parsing
     When I get the stored schema by ID
     Then the response status should be 200
     And the response should contain "propertyNames"
+    And the audit log should contain event "schema_register" with subject "json-adv-6"
 
   # ---------- 7. Complex oneOf with discriminator-like pattern ----------
   Scenario: Complex oneOf with discriminator-like pattern using const
@@ -246,6 +252,7 @@ Feature: Advanced JSON Schema Parsing
     And the response should contain "click"
     And the response should contain "keypress"
     And the response should contain "scroll"
+    And the audit log should contain event "schema_register" with subject "json-adv-7"
 
   # ---------- 8. Nested anyOf inside oneOf ----------
   Scenario: Nested anyOf inside oneOf
@@ -290,6 +297,7 @@ Feature: Advanced JSON Schema Parsing
     Then the response status should be 200
     And the response should contain "anyOf"
     And the response should contain "oneOf"
+    And the audit log should contain event "schema_register" with subject "json-adv-8"
 
   # ---------- 9. allOf combining multiple object schemas ----------
   Scenario: allOf combining multiple object schemas
@@ -331,6 +339,7 @@ Feature: Advanced JSON Schema Parsing
     When I get the stored schema by ID
     Then the response status should be 200
     And the response should contain "allOf"
+    And the audit log should contain event "schema_register" with subject "json-adv-9"
 
   # ---------- 10. Schema with minimum/maximum/exclusiveMinimum/exclusiveMaximum ----------
   Scenario: Schema with numeric boundary constraints
@@ -355,6 +364,7 @@ Feature: Advanced JSON Schema Parsing
     Then the response status should be 200
     And the response should contain "exclusiveMinimum"
     And the response should contain "exclusiveMaximum"
+    And the audit log should contain event "schema_register" with subject "json-adv-10"
 
   # ---------- 11. Schema with multipleOf for decimals ----------
   Scenario: Schema with multipleOf for decimal precision
@@ -377,6 +387,7 @@ Feature: Advanced JSON Schema Parsing
     When I get the stored schema by ID
     Then the response status should be 200
     And the response should contain "multipleOf"
+    And the audit log should contain event "schema_register" with subject "json-adv-11"
 
   # ---------- 12. Schema with format validators ----------
   Scenario: Schema with format validators (date-time, email, uri, uuid)
@@ -406,6 +417,7 @@ Feature: Advanced JSON Schema Parsing
     Then the response status should be 200
     And the response should contain "date-time"
     And the response should contain "uuid"
+    And the audit log should contain event "schema_register" with subject "json-adv-12"
 
   # ---------- 13. Schema with pattern (regex) validation ----------
   Scenario: Schema with pattern (regex) validation
@@ -429,6 +441,7 @@ Feature: Advanced JSON Schema Parsing
     When I get the stored schema by ID
     Then the response status should be 200
     And the response should contain "pattern"
+    And the audit log should contain event "schema_register" with subject "json-adv-13"
 
   # ---------- 14. Complex patternProperties with multiple patterns ----------
   Scenario: Complex patternProperties with multiple patterns
@@ -455,6 +468,7 @@ Feature: Advanced JSON Schema Parsing
     When I get the stored schema by ID
     Then the response status should be 200
     And the response should contain "patternProperties"
+    And the audit log should contain event "schema_register" with subject "json-adv-14"
 
   # ---------- 15. additionalProperties with typed schema ----------
   Scenario: additionalProperties with typed schema (not just boolean)
@@ -483,6 +497,7 @@ Feature: Advanced JSON Schema Parsing
     When I get the stored schema by ID
     Then the response status should be 200
     And the response should contain "additionalProperties"
+    And the audit log should contain event "schema_register" with subject "json-adv-15"
 
   # ---------- 16. Schema with minProperties/maxProperties ----------
   Scenario: Schema with minProperties and maxProperties
@@ -507,6 +522,7 @@ Feature: Advanced JSON Schema Parsing
     Then the response status should be 200
     And the response should contain "minProperties"
     And the response should contain "maxProperties"
+    And the audit log should contain event "schema_register" with subject "json-adv-16"
 
   # ---------- 17. Array with items as schema (homogeneous array) ----------
   Scenario: Homogeneous array with complex item schema
@@ -539,6 +555,7 @@ Feature: Advanced JSON Schema Parsing
     When I get the stored schema by ID
     Then the response status should be 200
     And the response should contain "maxItems"
+    And the audit log should contain event "schema_register" with subject "json-adv-17"
 
   # ---------- 18. Array with contains keyword ----------
   Scenario: Array with contains keyword
@@ -574,6 +591,7 @@ Feature: Advanced JSON Schema Parsing
     When I get the stored schema by ID
     Then the response status should be 200
     And the response should contain "contains"
+    And the audit log should contain event "schema_register" with subject "json-adv-18"
 
   # ---------- 19. Nested object with 5 levels deep ----------
   Scenario: Nested object with 5 levels deep
@@ -624,6 +642,7 @@ Feature: Advanced JSON Schema Parsing
     When I get the stored schema by ID
     Then the response status should be 200
     And the response should contain "level5"
+    And the audit log should contain event "schema_register" with subject "json-adv-19"
 
   # ---------- 20. Object with 30+ properties (stress test) ----------
   Scenario: Object with 30+ properties (stress test)
@@ -675,6 +694,7 @@ Feature: Advanced JSON Schema Parsing
     When I get the stored schema by ID
     Then the response status should be 200
     And the response should contain "field32"
+    And the audit log should contain event "schema_register" with subject "json-adv-20"
 
   # ---------- 21. allOf with additional constraints ----------
   Scenario: Schema combining allOf with additional constraints
@@ -712,6 +732,7 @@ Feature: Advanced JSON Schema Parsing
     Then the response status should be 200
     And the response should contain "allOf"
     And the response should contain "additionalProperties"
+    And the audit log should contain event "schema_register" with subject "json-adv-21"
 
   # ---------- 22. Schema with null type ----------
   Scenario: Schema with null type
@@ -738,6 +759,7 @@ Feature: Advanced JSON Schema Parsing
     When I get the stored schema by ID
     Then the response status should be 200
     And the response should contain "null"
+    And the audit log should contain event "schema_register" with subject "json-adv-22"
 
   # ---------- 23. Schema with type as array ["string", "null"] ----------
   Scenario: Schema with nullable types using type array
@@ -763,6 +785,7 @@ Feature: Advanced JSON Schema Parsing
     When I get the stored schema by ID
     Then the response status should be 200
     And the response should contain "nickname"
+    And the audit log should contain event "schema_register" with subject "json-adv-23"
 
   # ---------- 24. Schema with readOnly/writeOnly annotations ----------
   Scenario: Schema with readOnly and writeOnly annotations
@@ -790,6 +813,7 @@ Feature: Advanced JSON Schema Parsing
     Then the response status should be 200
     And the response should contain "readOnly"
     And the response should contain "writeOnly"
+    And the audit log should contain event "schema_register" with subject "json-adv-24"
 
   # ---------- 25. Complex real-world: OpenAPI-style component schema ----------
   Scenario: Complex real-world OpenAPI-style component schema
@@ -844,6 +868,7 @@ Feature: Advanced JSON Schema Parsing
     And the response should contain "Pagination"
     And the response should contain "Error"
     And the response should contain "Link"
+    And the audit log should contain event "schema_register" with subject "json-adv-25"
 
   # ---------- 26. Complex real-world: GeoJSON-like schema ----------
   Scenario: Complex real-world GeoJSON-like schema
@@ -929,6 +954,7 @@ Feature: Advanced JSON Schema Parsing
     And the response should contain "Point"
     And the response should contain "LineString"
     And the response should contain "Polygon"
+    And the audit log should contain event "schema_register" with subject "json-adv-26"
 
   # ---------- 27. Complex real-world: Event schema with metadata + payload ----------
   Scenario: Complex real-world event schema with metadata and payload pattern
@@ -981,6 +1007,7 @@ Feature: Advanced JSON Schema Parsing
     And the response field "schemaType" should be "JSON"
     And the response should contain "EventMetadata"
     And the response should contain "correlationId"
+    And the audit log should contain event "schema_register" with subject "json-adv-27"
 
   # ---------- 28. Round-trip: register -> get by ID -> verify ----------
   Scenario: Round-trip register and retrieve with schema field verification
@@ -1020,6 +1047,7 @@ Feature: Advanced JSON Schema Parsing
     And the response field "subject" should be "json-adv-28"
     And the response field "version" should be 1
     And the response should contain "orderId"
+    And the audit log should contain event "schema_register" with subject "json-adv-28"
 
   # ---------- 29. Fingerprint stability: same schema in 2 subjects -> same ID ----------
   Scenario: Fingerprint stability same schema registered in two subjects gets same ID
@@ -1038,6 +1066,7 @@ Feature: Advanced JSON Schema Parsing
     And the response should have field "id"
     When I get the subjects for the stored schema ID
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "json-adv-29"
 
   # ---------- 30. Deeply nested constraints (object > array > object > constraints) ----------
   Scenario: Schema with deeply nested constraints across types
@@ -1095,6 +1124,7 @@ Feature: Advanced JSON Schema Parsing
     Then the response status should be 200
     And the response should contain "departments"
     And the response should contain "salary"
+    And the audit log should contain event "schema_register" with subject "json-adv-30"
 
   # ---------- 31. Boolean schemas (true/false) ----------
   Scenario: Schema with boolean schemas true and false
@@ -1118,6 +1148,7 @@ Feature: Advanced JSON Schema Parsing
     Then the response status should be 200
     And the response should contain "anything"
     And the response should contain "nothing"
+    And the audit log should contain event "schema_register" with subject "json-adv-31"
 
   # ---------- 32. Schema with not keyword ----------
   Scenario: Schema with not keyword
@@ -1149,6 +1180,7 @@ Feature: Advanced JSON Schema Parsing
     When I get the stored schema by ID
     Then the response status should be 200
     And the response should contain "not"
+    And the audit log should contain event "schema_register" with subject "json-adv-32"
 
   # ---------- 33. Schema with default values ----------
   Scenario: Schema with default values on properties
@@ -1182,6 +1214,7 @@ Feature: Advanced JSON Schema Parsing
     When I get the stored schema by ID
     Then the response status should be 200
     And the response should contain "default"
+    And the audit log should contain event "schema_register" with subject "json-adv-33"
 
   # ---------- 34. Schema with examples annotation ----------
   Scenario: Schema with examples annotation
@@ -1224,6 +1257,7 @@ Feature: Advanced JSON Schema Parsing
     When I get the stored schema by ID
     Then the response status should be 200
     And the response should contain "examples"
+    And the audit log should contain event "schema_register" with subject "json-adv-34"
 
   # ---------- 35. Schema with multiple anyOf options ----------
   Scenario: Schema with multiple anyOf options
@@ -1287,6 +1321,7 @@ Feature: Advanced JSON Schema Parsing
     And the response should contain "anyOf"
     And the response should contain "webhook"
     And the response should contain "push"
+    And the audit log should contain event "schema_register" with subject "json-adv-35"
 
   # ---------- 36. Schema with enum on multiple types ----------
   Scenario: Schema with enum on multiple types
@@ -1313,6 +1348,7 @@ Feature: Advanced JSON Schema Parsing
     Then the response status should be 200
     And the response should contain "mixedEnum"
     And the response should contain "statusCode"
+    And the audit log should contain event "schema_register" with subject "json-adv-36"
 
   # ---------- 37. Standalone non-object schema ----------
   Scenario: Standalone non-object schema with string type and constraints
@@ -1328,6 +1364,7 @@ Feature: Advanced JSON Schema Parsing
     Then the response status should be 200
     And the response should contain "minLength"
     And the response should contain "maxLength"
+    And the audit log should contain event "schema_register" with subject "json-adv-37"
 
   # ---------- 38. Standalone array schema with tuple-like items ----------
   Scenario: Standalone array schema with tuple-like items
@@ -1353,3 +1390,4 @@ Feature: Advanced JSON Schema Parsing
     When I get the stored schema by ID
     Then the response status should be 200
     And the response should contain "additionalItems"
+    And the audit log should contain event "schema_register" with subject "json-adv-38"

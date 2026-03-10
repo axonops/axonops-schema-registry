@@ -59,6 +59,7 @@ Feature: Avro E-Commerce Domain Modeling
       ]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "ecom-product"
 
   # ==========================================================================
   # 2. CUSTOMER SCHEMA WITH NESTED ADDRESS RECORD
@@ -94,6 +95,7 @@ Feature: Avro E-Commerce Domain Modeling
       ]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "ecom-customer"
 
   # ==========================================================================
   # 3. ORDER REFERENCES CUSTOMER AND PRODUCT
@@ -127,6 +129,7 @@ Feature: Avro E-Commerce Domain Modeling
     Then the response status should be 200
     When I get the referenced by for subject "ecom-ref-customer" version 1
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "ecom-ref-order"
 
   # ==========================================================================
   # 4. PAYMENT WITH LOGICAL TYPES
@@ -147,6 +150,7 @@ Feature: Avro E-Commerce Domain Modeling
     Then the response status should be 200
     And the response body should contain "decimal"
     And the response body should contain "timestamp-millis"
+    And the audit log should contain event "schema_register" with subject "ecom-payment"
 
   # ==========================================================================
   # 5. SAME PRODUCT IN TWO SUBJECTS — GLOBAL DEDUP
@@ -173,6 +177,7 @@ Feature: Avro E-Commerce Domain Modeling
       """
     Then the response status should be 200
     And the response field "id" should equal stored "product_event_id"
+    And the audit log should contain event "schema_register" with subject "ecom-product-changelog"
 
   # ==========================================================================
   # 6. FULL LIFECYCLE
@@ -202,6 +207,7 @@ Feature: Avro E-Commerce Domain Modeling
       {"type":"record","name":"Item","fields":[{"name":"id","type":"long"},{"name":"name","type":"string"},{"name":"desc","type":"string","default":""},{"name":"qty","type":"int","default":0},{"name":"sku","type":"string","default":""}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "ecom-lifecycle"
 
   # ==========================================================================
   # 7. BREAK COMPATIBILITY — REMOVE REQUIRED FIELD
@@ -248,3 +254,4 @@ Feature: Avro E-Commerce Domain Modeling
       {"type":"record","name":"Imported","fields":[{"name":"id","type":"long"},{"name":"data","type":"string"},{"name":"extra","type":"string","default":""}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "ecom-import"

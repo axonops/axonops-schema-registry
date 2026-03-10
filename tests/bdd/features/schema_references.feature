@@ -26,6 +26,7 @@ Feature: Schema References
     When I get the stored schema by ID
     Then the response status should be 200
     And the response should contain "Order"
+    And the audit log should contain event "schema_register" with subject "order-value"
 
   Scenario: JSON Schema with internal $ref
     Given the global compatibility level is "NONE"
@@ -38,6 +39,7 @@ Feature: Schema References
     When I get the stored schema by ID
     Then the response status should be 200
     And the response should contain "Address"
+    And the audit log should contain event "schema_register" with subject "json-internal-ref"
 
   Scenario: Get subjects by schema ID with referenced schemas
     Given the global compatibility level is "NONE"
@@ -52,6 +54,7 @@ Feature: Schema References
       """
     When I get the subjects for the stored schema ID
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "shared-type"
 
   Scenario: Register schema with non-existent reference
     Given the global compatibility level is "NONE"

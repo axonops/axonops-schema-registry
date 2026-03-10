@@ -20,6 +20,7 @@ Feature: Contexts — Schema Types
     When I GET "/subjects/:.type-ctx:avro-test/versions/1"
     Then the response status should be 200
     And the response field "schemaType" should be "AVRO"
+    And the audit log should contain event "schema_register" with subject ":.type-ctx:avro-test"
 
   Scenario: Avro compatibility check in context
     When I POST "/subjects/:.type-ctx2:avro-compat/versions" with body:
@@ -48,6 +49,7 @@ Feature: Contexts — Schema Types
     When I GET "/subjects/:.type-ctx3:proto-test/versions/1"
     Then the response status should be 200
     And the response field "schemaType" should be "PROTOBUF"
+    And the audit log should contain event "schema_register" with subject ":.type-ctx3:proto-test"
 
   Scenario: Protobuf compatibility check in context
     When I POST "/subjects/:.type-ctx4:proto-compat/versions" with body:
@@ -76,6 +78,7 @@ Feature: Contexts — Schema Types
     When I GET "/subjects/:.type-ctx5:json-test/versions/1"
     Then the response status should be 200
     And the response field "schemaType" should be "JSON"
+    And the audit log should contain event "schema_register" with subject ":.type-ctx5:json-test"
 
   Scenario: JSON Schema compatibility check in context
     When I POST "/subjects/:.type-ctx6:json-compat/versions" with body:
@@ -122,6 +125,7 @@ Feature: Contexts — Schema Types
     When I GET "/subjects/:.mixed-ctx:json-s/versions/1"
     Then the response status should be 200
     And the response field "schemaType" should be "JSON"
+    And the audit log should contain event "schema_register" with subject ":.mixed-ctx:json-s"
 
   Scenario: Same schema type across different contexts
     When I POST "/subjects/:.type-a:avro-cross/versions" with body:
@@ -140,3 +144,4 @@ Feature: Contexts — Schema Types
     When I GET "/subjects/:.type-b:avro-cross/versions/1"
     Then the response status should be 200
     And the response body should contain "CrossB"
+    And the audit log should contain event "schema_register" with subject ":.type-b:avro-cross"

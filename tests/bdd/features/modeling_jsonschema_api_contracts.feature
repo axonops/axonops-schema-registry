@@ -29,6 +29,7 @@ Feature: JSON Schema API Contract Domain Modeling
       {"type":"object","properties":{"name":{"type":"string"},"email":{"type":"string"},"phone":{"type":"string"},"address":{"type":"object","properties":{"street":{"type":"string"},"city":{"type":"string"}}}},"required":["name"],"additionalProperties":false}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "api-request"
 
   # ==========================================================================
   # 2. RESPONSE SCHEMA WITH $DEFS + ALLOF COMPOSITION
@@ -44,6 +45,7 @@ Feature: JSON Schema API Contract Domain Modeling
     Then the response status should be 200
     And the response body should contain "pagination"
     And the response body should contain "allOf"
+    And the audit log should contain event "schema_register" with subject "api-response"
 
   # ==========================================================================
   # 3. DISCRIMINATED UNION EVOLVES — ADD PAYMENT VARIANT
@@ -60,6 +62,7 @@ Feature: JSON Schema API Contract Domain Modeling
       {"oneOf":[{"type":"object","properties":{"method":{"const":"credit_card"},"card_number":{"type":"string"}},"required":["method","card_number"]},{"type":"object","properties":{"method":{"const":"bank_transfer"},"iban":{"type":"string"}},"required":["method","iban"]},{"type":"object","properties":{"method":{"const":"paypal"},"email":{"type":"string"}},"required":["method","email"]}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "api-payment-union"
 
   # ==========================================================================
   # 4. CONSTRAINT RELAXATION CHAIN
@@ -81,6 +84,7 @@ Feature: JSON Schema API Contract Domain Modeling
       {"type":"string","maxLength":200}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "api-constraint-chain"
 
   # ==========================================================================
   # 5. ADDING REQUIRED FIELD BREAKS BACKWARD_TRANSITIVE
@@ -137,6 +141,7 @@ Feature: JSON Schema API Contract Domain Modeling
       """
     Then the response status should be 200
     And the response field "id" should equal stored "keyorder_id"
+    And the audit log should contain event "schema_register" with subject "api-keyorder-b"
 
   # ==========================================================================
   # 8. CROSS-SUBJECT REFERENCES
@@ -160,3 +165,4 @@ Feature: JSON Schema API Contract Domain Modeling
     Then the response status should be 200
     When I get the referenced by for subject "api-ref-address" version 1
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "api-ref-person"

@@ -41,6 +41,7 @@ Feature: Contexts — __GLOBAL Config/Mode Inheritance (3-Tier)
     # Clean up
     When I DELETE "/config/:.__GLOBAL:"
     Then the response status should be 200
+    And the audit log should contain event "config_delete" with subject ":.__GLOBAL:"
 
   Scenario: Context-level config overrides __GLOBAL
     # Set __GLOBAL to FULL
@@ -68,6 +69,7 @@ Feature: Contexts — __GLOBAL Config/Mode Inheritance (3-Tier)
     # Clean up
     When I DELETE "/config/:.__GLOBAL:"
     Then the response status should be 200
+    And the audit log should contain event "config_delete" with subject ":.__GLOBAL:"
 
   Scenario: Per-subject config overrides both context-level and __GLOBAL
     # Set __GLOBAL to FULL
@@ -100,6 +102,7 @@ Feature: Contexts — __GLOBAL Config/Mode Inheritance (3-Tier)
     # Clean up
     When I DELETE "/config/:.__GLOBAL:"
     Then the response status should be 200
+    And the audit log should contain event "config_delete" with subject ":.__GLOBAL:"
 
   Scenario: Delete per-subject config falls back to context-level
     # Set context-level config
@@ -130,6 +133,7 @@ Feature: Contexts — __GLOBAL Config/Mode Inheritance (3-Tier)
     When I GET "/contexts/.gc-fallback/config/fb-topic?defaultToGlobal=true"
     Then the response status should be 200
     And the response field "compatibilityLevel" should be "FULL_TRANSITIVE"
+    And the audit log should contain event "config_delete"
 
   Scenario: Delete context-level config falls back to __GLOBAL
     # Set __GLOBAL to FORWARD_TRANSITIVE
@@ -164,6 +168,7 @@ Feature: Contexts — __GLOBAL Config/Mode Inheritance (3-Tier)
     # Clean up
     When I DELETE "/config/:.__GLOBAL:"
     Then the response status should be 200
+    And the audit log should contain event "config_delete" with subject ":.__GLOBAL:"
 
   Scenario: Delete __GLOBAL config falls back to server default
     # Set __GLOBAL
@@ -189,6 +194,7 @@ Feature: Contexts — __GLOBAL Config/Mode Inheritance (3-Tier)
     When I GET "/contexts/.gc-srvdef/config/def-topic?defaultToGlobal=true"
     Then the response status should be 200
     And the response field "compatibilityLevel" should be "BACKWARD"
+    And the audit log should contain event "config_delete" with subject ":.__GLOBAL:"
 
   Scenario: PUT /config at root does NOT affect named contexts
     # Set root global config (default context only)
@@ -207,6 +213,7 @@ Feature: Contexts — __GLOBAL Config/Mode Inheritance (3-Tier)
     When I GET "/contexts/.gc-noroot/config/nr-topic?defaultToGlobal=true"
     Then the response status should be 200
     And the response field "compatibilityLevel" should be "BACKWARD"
+    And the audit log should contain event "config_update"
 
   # ==========================================================================
   # defaultToGlobal PARAMETER
@@ -236,6 +243,7 @@ Feature: Contexts — __GLOBAL Config/Mode Inheritance (3-Tier)
     # Clean up
     When I DELETE "/config/:.__GLOBAL:"
     Then the response status should be 200
+    And the audit log should contain event "config_delete" with subject ":.__GLOBAL:"
 
   Scenario: GET /config/{subject}?defaultToGlobal=true walks 4-tier chain
     # Set __GLOBAL
@@ -260,6 +268,7 @@ Feature: Contexts — __GLOBAL Config/Mode Inheritance (3-Tier)
     # Clean up
     When I DELETE "/config/:.__GLOBAL:"
     Then the response status should be 200
+    And the audit log should contain event "config_delete" with subject ":.__GLOBAL:"
 
   # ==========================================================================
   # MODE INHERITANCE — 4-TIER CHAIN
@@ -285,6 +294,7 @@ Feature: Contexts — __GLOBAL Config/Mode Inheritance (3-Tier)
       {"mode": "READWRITE"}
       """
     Then the response status should be 200
+    And the audit log should contain event "mode_update"
 
   Scenario: READONLY on __GLOBAL blocks writes in named contexts
     # Register first in a clean context
@@ -311,6 +321,7 @@ Feature: Contexts — __GLOBAL Config/Mode Inheritance (3-Tier)
       {"mode": "READWRITE"}
       """
     Then the response status should be 200
+    And the audit log should contain event "mode_update"
 
   Scenario: Per-context READWRITE overrides __GLOBAL READONLY
     # Set __GLOBAL to READONLY
@@ -337,6 +348,7 @@ Feature: Contexts — __GLOBAL Config/Mode Inheritance (3-Tier)
       {"mode": "READWRITE"}
       """
     Then the response status should be 200
+    And the audit log should contain event "mode_update"
 
   Scenario: Per-subject READWRITE overrides __GLOBAL READONLY
     # Register a schema first
@@ -369,6 +381,7 @@ Feature: Contexts — __GLOBAL Config/Mode Inheritance (3-Tier)
       {"mode": "READWRITE"}
       """
     Then the response status should be 200
+    And the audit log should contain event "mode_update"
 
   Scenario: READONLY_OVERRIDE on default context overrides everything
     # Register a schema first
@@ -401,6 +414,7 @@ Feature: Contexts — __GLOBAL Config/Mode Inheritance (3-Tier)
       {"mode": "READWRITE"}
       """
     Then the response status should be 200
+    And the audit log should contain event "mode_update"
 
   # ==========================================================================
   # __GLOBAL CONTEXT — SCHEMA BLOCKING
@@ -439,6 +453,7 @@ Feature: Contexts — __GLOBAL Config/Mode Inheritance (3-Tier)
     # Delete config
     When I DELETE "/config/:.__GLOBAL:"
     Then the response status should be 200
+    And the audit log should contain event "config_delete" with subject ":.__GLOBAL:"
 
   Scenario: Mode operations on __GLOBAL work
     # Set mode
@@ -461,6 +476,7 @@ Feature: Contexts — __GLOBAL Config/Mode Inheritance (3-Tier)
       {"mode": "READWRITE"}
       """
     Then the response status should be 200
+    And the audit log should contain event "mode_update"
 
   # ==========================================================================
   # CONTEXT-LEVEL CONFIG VIA QUALIFIED SUBJECT
@@ -483,6 +499,7 @@ Feature: Contexts — __GLOBAL Config/Mode Inheritance (3-Tier)
     When I GET "/contexts/.gc-qualified/config/qual-topic?defaultToGlobal=true"
     Then the response status should be 200
     And the response field "compatibilityLevel" should be "FORWARD"
+    And the audit log should contain event "config_update" with subject ":.gc-qualified:"
 
   Scenario: Delete context-level config via qualified subject
     # Set context-level config
@@ -494,6 +511,7 @@ Feature: Contexts — __GLOBAL Config/Mode Inheritance (3-Tier)
     # Delete it
     When I DELETE "/config/:.gc-dq:"
     Then the response status should be 200
+    And the audit log should contain event "config_delete" with subject ":.gc-dq:"
 
   Scenario: GET /contexts does NOT include __GLOBAL
     # Set some config on __GLOBAL to ensure it exists in storage
@@ -516,6 +534,7 @@ Feature: Contexts — __GLOBAL Config/Mode Inheritance (3-Tier)
     # Clean up
     When I DELETE "/config/:.__GLOBAL:"
     Then the response status should be 200
+    And the audit log should contain event "config_delete" with subject ":.__GLOBAL:"
 
   # ==========================================================================
   # COMPAT ENFORCEMENT WITH __GLOBAL CONFIG
@@ -551,3 +570,4 @@ Feature: Contexts — __GLOBAL Config/Mode Inheritance (3-Tier)
     # Clean up
     When I DELETE "/config/:.__GLOBAL:"
     Then the response status should be 200
+    And the audit log should contain event "config_delete" with subject ":.__GLOBAL:"

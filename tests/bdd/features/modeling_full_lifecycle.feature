@@ -62,6 +62,7 @@ Feature: Full Schema Lifecycle
     When I get the latest version of subject "lifecycle-avro"
     Then the response status should be 200
     And the response body should contain "ts"
+    And the audit log should contain event "schema_register" with subject "lifecycle-avro"
 
   # ==========================================================================
   # 2. PROTOBUF FULL LIFECYCLE
@@ -115,6 +116,7 @@ message Event {
 }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "lifecycle-proto"
 
   # ==========================================================================
   # 3. JSON SCHEMA FULL LIFECYCLE
@@ -147,6 +149,7 @@ message Event {
       {"type":"object","properties":{"id":{"type":"integer"},"name":{"type":"string"},"email":{"type":"string"},"phone":{"type":"string"}},"required":["id","name"],"additionalProperties":false}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "lifecycle-json"
 
   # ==========================================================================
   # 4. CROSS-TYPE LIFECYCLE
@@ -183,6 +186,7 @@ message B {
     Then the response status should be 200
     When I delete subject "lifecycle-cross-json"
     Then the response status should be 200
+    And the audit log should contain event "subject_delete" with subject "lifecycle-cross-json"
 
   # ==========================================================================
   # 5. SCHEMA WITH REFERENCES LIFECYCLE
@@ -218,6 +222,7 @@ message B {
       ]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "lifecycle-ref-base"
 
   # ==========================================================================
   # 6. IMPORT AND EVOLVE
@@ -238,6 +243,7 @@ message B {
       {"type":"record","name":"Imported","fields":[{"name":"id","type":"long"},{"name":"data","type":"string","default":""}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "lifecycle-import"
 
   # ==========================================================================
   # 7. MODE CHANGES
@@ -268,6 +274,7 @@ message B {
       {"type":"record","name":"M","fields":[{"name":"id","type":"long"},{"name":"x","type":"string","default":""}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "lifecycle-mode"
 
   # ==========================================================================
   # 8. CONFIG CHANGES

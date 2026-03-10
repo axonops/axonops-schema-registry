@@ -20,6 +20,7 @@ Feature: Avro Advanced Compatibility
       {"type":"record","name":"R","fields":[{"name":"v","type":"long"}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-compat-int-long"
 
   Scenario: Type promotion int to float under BACKWARD
     Given subject "avro-compat-int-float" has compatibility level "BACKWARD"
@@ -32,6 +33,7 @@ Feature: Avro Advanced Compatibility
       {"type":"record","name":"R","fields":[{"name":"v","type":"float"}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-compat-int-float"
 
   Scenario: Type promotion int to double under BACKWARD
     Given subject "avro-compat-int-double" has compatibility level "BACKWARD"
@@ -44,6 +46,7 @@ Feature: Avro Advanced Compatibility
       {"type":"record","name":"R","fields":[{"name":"v","type":"double"}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-compat-int-double"
 
   Scenario: Type promotion long to float under BACKWARD
     Given subject "avro-compat-long-float" has compatibility level "BACKWARD"
@@ -56,6 +59,7 @@ Feature: Avro Advanced Compatibility
       {"type":"record","name":"R","fields":[{"name":"v","type":"float"}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-compat-long-float"
 
   Scenario: Type promotion long to double under BACKWARD
     Given subject "avro-compat-long-double" has compatibility level "BACKWARD"
@@ -68,6 +72,7 @@ Feature: Avro Advanced Compatibility
       {"type":"record","name":"R","fields":[{"name":"v","type":"double"}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-compat-long-double"
 
   Scenario: Type promotion float to double under BACKWARD
     Given subject "avro-compat-float-double" has compatibility level "BACKWARD"
@@ -80,6 +85,7 @@ Feature: Avro Advanced Compatibility
       {"type":"record","name":"R","fields":[{"name":"v","type":"double"}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-compat-float-double"
 
   # ==========================================================================
   # 7. STRING BYTES BIDIRECTIONAL (FULL)
@@ -96,6 +102,7 @@ Feature: Avro Advanced Compatibility
       {"type":"record","name":"R","fields":[{"name":"v","type":"bytes"}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-compat-str-bytes"
 
   # ==========================================================================
   # 8. TYPE PROMOTION INSIDE UNION
@@ -112,6 +119,7 @@ Feature: Avro Advanced Compatibility
       {"type":"record","name":"R","fields":[{"name":"v","type":["null","long"]}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-compat-union-promote"
 
   # ==========================================================================
   # 9. COLLECTION ITEM PROMOTION
@@ -128,6 +136,7 @@ Feature: Avro Advanced Compatibility
       {"type":"record","name":"R","fields":[{"name":"v","type":{"type":"array","items":"long"}}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-compat-array-promote"
 
   # ==========================================================================
   # 10. MAP VALUE PROMOTION
@@ -144,6 +153,7 @@ Feature: Avro Advanced Compatibility
       {"type":"record","name":"R","fields":[{"name":"v","type":{"type":"map","values":"long"}}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-compat-map-promote"
 
   # ==========================================================================
   # 11. ENUM REMOVING SYMBOL WITH DEFAULT — COMPATIBLE
@@ -160,6 +170,7 @@ Feature: Avro Advanced Compatibility
       {"type":"record","name":"R","fields":[{"name":"e","type":{"type":"enum","name":"E","symbols":["A","B"],"default":"A"}}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-compat-enum-default"
 
   # ==========================================================================
   # 12. ENUM REMOVING SYMBOL WITHOUT DEFAULT — INCOMPATIBLE
@@ -224,6 +235,7 @@ Feature: Avro Advanced Compatibility
       {"type":"record","name":"NewName","aliases":["OldName"],"fields":[{"name":"x","type":"int"}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-compat-record-alias"
 
   # ==========================================================================
   # 16. FIELD ALIAS ENABLES BACKWARD-COMPATIBLE RENAME
@@ -240,6 +252,7 @@ Feature: Avro Advanced Compatibility
       {"type":"record","name":"R","fields":[{"name":"new_field","type":"string","aliases":["old_field"]}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-compat-field-alias"
 
   # ==========================================================================
   # 17. 5-VERSION EVOLUTION CHAIN UNDER BACKWARD_TRANSITIVE
@@ -296,6 +309,7 @@ Feature: Avro Advanced Compatibility
       ]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-compat-5v-chain"
 
   # ==========================================================================
   # 18. FULL_TRANSITIVE 3-VERSION CHAIN
@@ -329,3 +343,4 @@ Feature: Avro Advanced Compatibility
       ]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-compat-full-trans"

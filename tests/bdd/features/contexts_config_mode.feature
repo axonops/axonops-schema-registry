@@ -24,6 +24,7 @@ Feature: Contexts — Per-Context Config and Mode
     When I GET "/config/:.cfg-ctx:s1"
     Then the response status should be 200
     And the response field "compatibilityLevel" should be "FULL"
+    And the audit log should contain event "config_update" with subject ":.cfg-ctx:s1"
 
   Scenario: Delete per-subject config in context
     When I POST "/subjects/:.cfg-del:s1/versions" with body:
@@ -38,6 +39,7 @@ Feature: Contexts — Per-Context Config and Mode
     Then the response status should be 200
     When I DELETE "/config/:.cfg-del:s1"
     Then the response status should be 200
+    And the audit log should contain event "config_delete" with subject ":.cfg-del:s1"
 
   Scenario: Config in one context does not affect another context
     # Set FULL in context A
@@ -70,6 +72,7 @@ Feature: Contexts — Per-Context Config and Mode
     When I GET "/config/:.cfg-iso-b:s1"
     Then the response status should be 200
     And the response field "compatibilityLevel" should be "NONE"
+    And the audit log should contain event "config_update" with subject ":.cfg-iso-b:s1"
 
   # ==========================================================================
   # PER-SUBJECT MODE IN CONTEXT
@@ -89,6 +92,7 @@ Feature: Contexts — Per-Context Config and Mode
     When I GET "/mode/:.mode-ctx:s1"
     Then the response status should be 200
     And the response field "mode" should be "READONLY"
+    And the audit log should contain event "mode_update" with subject ":.mode-ctx:s1"
 
   Scenario: Delete per-subject mode in context
     When I POST "/subjects/:.mode-del:s1/versions" with body:
@@ -103,6 +107,7 @@ Feature: Contexts — Per-Context Config and Mode
     Then the response status should be 200
     When I DELETE "/mode/:.mode-del:s1"
     Then the response status should be 200
+    And the audit log should contain event "mode_delete" with subject ":.mode-del:s1"
 
   Scenario: Mode in one context does not affect another context
     When I POST "/subjects/:.mode-iso-a:s1/versions" with body:
@@ -126,6 +131,7 @@ Feature: Contexts — Per-Context Config and Mode
     # Context B has no explicit mode set, so it falls back to global READWRITE
     When I GET "/mode/:.mode-iso-b:s1"
     Then the response status should be 404
+    And the audit log should contain event "mode_update" with subject ":.mode-iso-a:s1"
 
   # ==========================================================================
   # COMPATIBILITY ENFORCEMENT WITH CONTEXT CONFIG
@@ -148,6 +154,7 @@ Feature: Contexts — Per-Context Config and Mode
       {"schema": "{\"type\":\"record\",\"name\":\"CfgEnforce\",\"fields\":[{\"name\":\"a\",\"type\":\"string\"},{\"name\":\"b\",\"type\":\"string\",\"default\":\"\"}]}"}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject ":.cfg-enforce:s1"
 
   Scenario: Incompatible change rejected in context with BACKWARD config
     When I POST "/subjects/:.cfg-reject:s1/versions" with body:
@@ -184,3 +191,4 @@ Feature: Contexts — Per-Context Config and Mode
       {"schema": "{\"type\":\"record\",\"name\":\"CfgNone\",\"fields\":[{\"name\":\"x\",\"type\":\"int\"}]}"}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject ":.cfg-none:s1"

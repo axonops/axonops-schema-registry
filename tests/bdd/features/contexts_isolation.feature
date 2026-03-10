@@ -26,6 +26,7 @@ Feature: Contexts — Cross-Context Isolation
     And I store the response field "id" as "ctx_b_id"
     # Both contexts should assign ID 1 independently
     Then the response field "id" should be 1
+    And the audit log should contain event "schema_register" with subject ":.ctx-id-b:test-subj"
 
   Scenario: Schema IDs start at 1 in each new context
     # Register in context A
@@ -49,6 +50,7 @@ Feature: Contexts — Cross-Context Isolation
       """
     Then the response status should be 200
     And the response field "id" should be 1
+    And the audit log should contain event "schema_register" with subject ":.fresh-b:s1"
 
   # ==========================================================================
   # VERSION ISOLATION
@@ -78,6 +80,7 @@ Feature: Contexts — Cross-Context Isolation
     When I GET "/subjects/:.ver-b:versioned/versions"
     Then the response status should be 200
     And the response should be an array of length 1
+    And the audit log should contain event "schema_register" with subject ":.ver-b:versioned"
 
   # ==========================================================================
   # SUBJECT ISOLATION
@@ -99,6 +102,7 @@ Feature: Contexts — Cross-Context Isolation
     Then the response status should be 200
     And the response body should not contain "only-in-a"
     And the response body should not contain "only-in-b"
+    And the audit log should contain event "schema_register" with subject ":.subj-b:only-in-b"
 
   Scenario: Schema by ID is context-scoped
     # Register in context A
@@ -123,6 +127,7 @@ Feature: Contexts — Cross-Context Isolation
     When I GET "/subjects/:.byid-b:s1/versions/1"
     Then the response status should be 200
     And the response body should contain "ByIdB"
+    And the audit log should contain event "schema_register" with subject ":.byid-b:s1"
 
   # ==========================================================================
   # DELETE ISOLATION
@@ -149,6 +154,7 @@ Feature: Contexts — Cross-Context Isolation
     # Context A is deleted
     When I GET "/subjects/:.del-iso-a:shared/versions"
     Then the response status should be 404
+    And the audit log should contain event "subject_delete" with subject ":.del-iso-a:shared"
 
   Scenario: Permanent delete in one context does not affect another
     When I POST "/subjects/:.pdel-a:shared/versions" with body:
@@ -170,6 +176,7 @@ Feature: Contexts — Cross-Context Isolation
     When I GET "/subjects/:.pdel-b:shared/versions/1"
     Then the response status should be 200
     And the response body should contain "PDelB"
+    And the audit log should contain event "subject_delete" with subject ":.pdel-a:shared"
 
   # ==========================================================================
   # LOOKUP ISOLATION
@@ -193,6 +200,7 @@ Feature: Contexts — Cross-Context Isolation
       {"schema": "{\"type\":\"record\",\"name\":\"LookupA\",\"fields\":[{\"name\":\"a\",\"type\":\"string\"}]}"}
       """
     Then the response status should be 404
+    And the audit log should contain event "schema_lookup" with subject ":.lookup-a:s1"
 
   Scenario: Soft-delete isolation between contexts
     When I POST "/subjects/:.soft-a:s1/versions" with body:
@@ -215,6 +223,7 @@ Feature: Contexts — Cross-Context Isolation
     When I GET "/subjects/:.soft-b:s1/versions"
     Then the response status should be 200
     And the response should be an array of length 1
+    And the audit log should contain event "subject_delete" with subject ":.soft-a:s1"
 
   Scenario: Schema fingerprint dedup is per-context
     # Same schema content in two contexts should each get their own ID
@@ -232,6 +241,7 @@ Feature: Contexts — Cross-Context Isolation
     And I store the response field "id" as "fp_id_b"
     # Both should have ID 1 (per-context)
     Then the response field "id" should be 1
+    And the audit log should contain event "schema_register" with subject ":.fp-b:s1"
 
   Scenario: Default context and named context are isolated
     # Register in default context (no prefix)
@@ -255,6 +265,7 @@ Feature: Contexts — Cross-Context Isolation
     When I GET "/subjects/:.named:shared-name/versions/1"
     Then the response status should be 200
     And the response body should contain "NamedS"
+    And the audit log should contain event "schema_register" with subject ":.named:shared-name"
 
   Scenario: List versions is context-scoped
     When I POST "/subjects/:.lv-a:s1/versions" with body:
@@ -280,3 +291,4 @@ Feature: Contexts — Cross-Context Isolation
     When I GET "/subjects/:.lv-b:s1/versions"
     Then the response status should be 200
     And the response should be an array of length 1
+    And the audit log should contain event "schema_register" with subject ":.lv-b:s1"

@@ -67,6 +67,7 @@ Feature: Contexts — Advanced Config and Mode Behavior
     When I GET "/subjects/:.cfgm2:flexible/versions"
     Then the response status should be 200
     And the response should be an array of length 2
+    And the audit log should contain event "schema_register" with subject ":.cfgm2:flexible"
 
   # ==========================================================================
   # SCENARIO 3: DELETE PER-SUBJECT CONFIG FALLS BACK TO SERVER DEFAULT
@@ -106,6 +107,7 @@ Feature: Contexts — Advanced Config and Mode Behavior
       """
     Then the response status should be 200
     And the response field "is_compatible" should be false
+    And the audit log should contain event "config_delete" with subject ":.cfgm3:fallback"
 
   # ==========================================================================
   # SCENARIO 4: READONLY MODE BLOCKS REGISTRATION IN CONTEXT
@@ -135,6 +137,7 @@ Feature: Contexts — Advanced Config and Mode Behavior
       """
     Then the response status should be 422
     And the response field "error_code" should be 42205
+    And the audit log should contain event "mode_update" with subject ":.cfgm4:readonly-test"
 
   # ==========================================================================
   # SCENARIO 5: READWRITE MODE ALLOWS REGISTRATION AFTER MODE CHANGE
@@ -175,6 +178,7 @@ Feature: Contexts — Advanced Config and Mode Behavior
     When I GET "/subjects/:.cfgm5:rw-test/versions"
     Then the response status should be 200
     And the response should be an array of length 2
+    And the audit log should contain event "schema_register" with subject ":.cfgm5:rw-test"
 
   # ==========================================================================
   # SCENARIO 6: MODE IN ONE CONTEXT DOES NOT AFFECT ANOTHER
@@ -212,6 +216,7 @@ Feature: Contexts — Advanced Config and Mode Behavior
       {"schema": "{\"type\":\"record\",\"name\":\"ModeIsoB\",\"namespace\":\"com.cfgm.s6b\",\"fields\":[{\"name\":\"name\",\"type\":\"string\"},{\"name\":\"extra\",\"type\":[\"null\",\"string\"],\"default\":null}]}"}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject ":.cfgm6b:mode-iso"
 
   # ==========================================================================
   # SCENARIO 7: CONFIG IN ONE CONTEXT DOES NOT LEAK TO ANOTHER
@@ -250,6 +255,7 @@ Feature: Contexts — Advanced Config and Mode Behavior
       """
     Then the response status should be 200
     And the response field "is_compatible" should be false
+    And the audit log should contain event "schema_register" with subject ":.cfgm7a:cfg-leak"
 
   # ==========================================================================
   # SCENARIO 8: GLOBAL MODE APPLIES TO CONTEXT SUBJECTS
@@ -281,6 +287,7 @@ Feature: Contexts — Advanced Config and Mode Behavior
       {"mode": "READWRITE"}
       """
     Then the response status should be 200
+    And the audit log should contain event "mode_update"
 
   # ==========================================================================
   # SCENARIO 9: PER-SUBJECT MODE OVERRIDES GLOBAL MODE IN CONTEXT
@@ -316,6 +323,7 @@ Feature: Contexts — Advanced Config and Mode Behavior
       """
     Then the response status should be 422
     And the response field "error_code" should be 42205
+    And the audit log should contain event "mode_update" with subject ":.cfgm9:override"
 
   # ==========================================================================
   # SCENARIO 10: DELETE PER-SUBJECT MODE RESTORES DEFAULT BEHAVIOR
@@ -354,6 +362,7 @@ Feature: Contexts — Advanced Config and Mode Behavior
     When I GET "/subjects/:.cfgm10:mode-del/versions"
     Then the response status should be 200
     And the response should be an array of length 2
+    And the audit log should contain event "mode_delete" with subject ":.cfgm10:mode-del"
 
   # ==========================================================================
   # SCENARIO 11: COMPATIBILITY CHECK RESPECTS CONTEXT CONFIG
@@ -432,3 +441,4 @@ Feature: Contexts — Advanced Config and Mode Behavior
       """
     Then the response status should be 200
     And the response field "is_compatible" should be false
+    And the audit log should contain event "schema_register" with subject ":.cfgm12:avro-evo"

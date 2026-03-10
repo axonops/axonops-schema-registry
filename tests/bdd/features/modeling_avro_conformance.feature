@@ -32,6 +32,7 @@ Feature: Avro Conformance-Inspired Parsing
       """
     Then the response status should be 200
     And I store the response field "id" as "interop_id"
+    And the audit log should contain event "schema_register" with subject "avro-conform-interop"
 
   # ==========================================================================
   # 2. DEEPLY NESTED CONTAINERS
@@ -47,6 +48,7 @@ Feature: Avro Conformance-Inspired Parsing
       ]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-conform-deep-nest"
 
   # ==========================================================================
   # 3. AVRO ERROR TYPE
@@ -64,6 +66,7 @@ Feature: Avro Conformance-Inspired Parsing
     And I store the response field "id" as "error_id"
     When I get the raw schema for subject "avro-conform-error-type" version 1
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-conform-error-type"
 
   # ==========================================================================
   # 4. LOGICAL TYPES IN NULLABLE UNION
@@ -79,6 +82,7 @@ Feature: Avro Conformance-Inspired Parsing
       ]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-conform-logical"
 
   # ==========================================================================
   # 5. ORDER ATTRIBUTE STRIPPED FROM CANONICAL FORM
@@ -104,6 +108,7 @@ Feature: Avro Conformance-Inspired Parsing
       """
     Then the response status should be 200
     And the response field "id" should equal stored "order_id_a"
+    And the audit log should contain event "schema_register" with subject "avro-conform-order-b"
 
   # ==========================================================================
   # 6. DOC AND ALIASES STRIPPED — SAME FINGERPRINT
@@ -127,6 +132,7 @@ Feature: Avro Conformance-Inspired Parsing
       """
     Then the response status should be 200
     And the response field "id" should equal stored "doc_id"
+    And the audit log should contain event "schema_register" with subject "avro-conform-doc-b"
 
   # ==========================================================================
   # 7. ENUM SYMBOL ORDERING MATTERS
@@ -145,6 +151,7 @@ Feature: Avro Conformance-Inspired Parsing
       """
     Then the response status should be 200
     And the response field "id" should not equal stored "enum_order_a"
+    And the audit log should contain event "schema_register" with subject "avro-conform-enum-order-b"
 
   # ==========================================================================
   # 8. UNION ORDERING MATTERS
@@ -167,6 +174,7 @@ Feature: Avro Conformance-Inspired Parsing
       """
     Then the response status should be 200
     And the response field "id" should not equal stored "union_order_a"
+    And the audit log should contain event "schema_register" with subject "avro-conform-union-order-b"
 
   # ==========================================================================
   # 9. DEFAULT VALUE DIFFERENCES PRODUCE DIFFERENT FINGERPRINTS
@@ -189,6 +197,7 @@ Feature: Avro Conformance-Inspired Parsing
       """
     Then the response status should be 200
     And the response field "id" should not equal stored "default_a"
+    And the audit log should contain event "schema_register" with subject "avro-conform-default-b"
 
   # ==========================================================================
   # 10. FIELD DEFAULTS FOR EVERY TYPE
@@ -211,6 +220,7 @@ Feature: Avro Conformance-Inspired Parsing
       ]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-conform-all-defaults"
 
   # ==========================================================================
   # 11. ENUM WITH LOWERCASE SYMBOLS
@@ -222,6 +232,7 @@ Feature: Avro Conformance-Inspired Parsing
       {"type":"enum","name":"Lower","symbols":["alpha","beta","gamma"]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-conform-lower-enum"
 
   # ==========================================================================
   # 12. MAP WITH INLINE RECORD DEFINITION AND BACK-REFERENCE
@@ -236,6 +247,7 @@ Feature: Avro Conformance-Inspired Parsing
       ]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-conform-inline-ref"
 
   # ==========================================================================
   # 13. COMPLEX UNION BRANCHES
@@ -249,6 +261,7 @@ Feature: Avro Conformance-Inspired Parsing
       ]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-conform-complex-union"
 
   # ==========================================================================
   # 14. CONTENT ROUND-TRIP FOR INTEROP SCHEMA
@@ -314,6 +327,7 @@ Feature: Avro Conformance-Inspired Parsing
     And the response should be an array of length 2
     And the response array should contain "avro-conform-dedup-a"
     And the response array should contain "avro-conform-dedup-b"
+    And the audit log should contain event "schema_register" with subject "avro-conform-dedup-b"
 
   # ==========================================================================
   # 16. ENUM WITH RESERVED-WORD SYMBOLS
@@ -325,6 +339,7 @@ Feature: Avro Conformance-Inspired Parsing
       {"type":"enum","name":"Keywords","symbols":["null","boolean","int","long","float","double","string","bytes"]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-conform-reserved-enum"
 
   # ==========================================================================
   # 17. ENUM WITH ALIASES
@@ -342,6 +357,7 @@ Feature: Avro Conformance-Inspired Parsing
     When I get version 1 of subject "avro-conform-enum-aliases"
     Then the response status should be 200
     And the response body should contain "aliases"
+    And the audit log should contain event "schema_register" with subject "avro-conform-enum-aliases"
 
   # ==========================================================================
   # 18. DECIMAL LOGICAL TYPE ON FIXED BACKING TYPE
@@ -361,3 +377,4 @@ Feature: Avro Conformance-Inspired Parsing
     Then the response status should be 200
     And the response body should contain "Decimal"
     And the response body should contain "decimal"
+    And the audit log should contain event "schema_register" with subject "avro-conform-decimal-fixed"

@@ -21,6 +21,7 @@ Feature: Contexts — Full API Operations
     Then the response status should be 200
     And the response field "version" should be 1
     And the response body should contain "OpsRegister"
+    And the audit log should contain event "schema_register" with subject ":.ops-ctx:register-test"
 
   Scenario: Get latest version via qualified subject
     When I POST "/subjects/:.ops-ctx2:latest-test/versions" with body:
@@ -36,6 +37,7 @@ Feature: Contexts — Full API Operations
     When I GET "/subjects/:.ops-ctx2:latest-test/versions/latest"
     Then the response status should be 200
     And the response field "version" should be 2
+    And the audit log should contain event "schema_register" with subject ":.ops-ctx2:latest-test"
 
   Scenario: List versions for context-prefixed subject
     When I POST "/subjects/:.ops-ctx3:list-ver/versions" with body:
@@ -53,6 +55,7 @@ Feature: Contexts — Full API Operations
     And the response should be an array of length 2
     And the response array should contain integer 1
     And the response array should contain integer 2
+    And the audit log should contain event "schema_register" with subject ":.ops-ctx3:list-ver"
 
   # ==========================================================================
   # SCHEMA LOOKUP
@@ -71,6 +74,7 @@ Feature: Contexts — Full API Operations
       """
     Then the response status should be 200
     And the response field "id" should equal stored "lookup_id"
+    And the audit log should contain event "schema_lookup" with subject ":.ops-ctx4:lookup-test"
 
   Scenario: Lookup non-existent schema in context returns 404
     When I POST "/subjects/:.ops-ctx5:s1/versions" with body:
@@ -98,6 +102,7 @@ Feature: Contexts — Full API Operations
     Then the response status should be 200
     When I GET "/subjects/:.ops-ctx6:to-delete/versions"
     Then the response status should be 404
+    And the audit log should contain event "subject_delete" with subject ":.ops-ctx6:to-delete"
 
   Scenario: Permanently delete subject via qualified subject
     When I POST "/subjects/:.ops-ctx7:to-perm-del/versions" with body:
@@ -109,6 +114,7 @@ Feature: Contexts — Full API Operations
     Then the response status should be 200
     When I DELETE "/subjects/:.ops-ctx7:to-perm-del?permanent=true"
     Then the response status should be 200
+    And the audit log should contain event "subject_delete" with subject ":.ops-ctx7:to-perm-del"
 
   Scenario: Delete specific version via qualified subject
     When I POST "/subjects/:.ops-ctx8:ver-del/versions" with body:
@@ -126,6 +132,7 @@ Feature: Contexts — Full API Operations
     # Version 2 still exists
     When I GET "/subjects/:.ops-ctx8:ver-del/versions/2"
     Then the response status should be 200
+    And the audit log should contain event "schema_delete" with subject ":.ops-ctx8:ver-del"
 
   # ==========================================================================
   # COMPATIBILITY
@@ -173,6 +180,7 @@ Feature: Contexts — Full API Operations
     When I GET "/contexts/.ops-ctx11/schemas/ids/{{sbid}}/subjects"
     Then the response status should be 200
     And the response array should contain "subj-by-id"
+    And the audit log should contain event "schema_register" with subject ":.ops-ctx11:subj-by-id"
 
   Scenario: Re-registering same schema returns existing (idempotent)
     When I POST "/subjects/:.ops-ctx12:idempotent/versions" with body:
@@ -188,6 +196,7 @@ Feature: Contexts — Full API Operations
       """
     Then the response status should be 200
     And the response field "id" should equal stored "first_id"
+    And the audit log should contain event "schema_register" with subject ":.ops-ctx12:idempotent"
 
   Scenario: Get non-existent subject in context returns 404
     When I GET "/subjects/:.ops-ctx13:nonexistent/versions"

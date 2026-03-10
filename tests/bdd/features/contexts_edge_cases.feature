@@ -18,6 +18,7 @@ Feature: Contexts — Edge Cases and Error Conditions
     When I GET "/contexts"
     Then the response status should be 200
     And the response array should contain ".my-context"
+    And the audit log should contain event "schema_register" with subject ":.my-context:s1"
 
   Scenario: Context name with underscore is valid
     When I POST "/subjects/:.my_context:s1/versions" with body:
@@ -28,6 +29,7 @@ Feature: Contexts — Edge Cases and Error Conditions
     When I GET "/contexts"
     Then the response status should be 200
     And the response array should contain ".my_context"
+    And the audit log should contain event "schema_register" with subject ":.my_context:s1"
 
   Scenario: Context name with numbers is valid
     When I POST "/subjects/:.ctx123:s1/versions" with body:
@@ -38,6 +40,7 @@ Feature: Contexts — Edge Cases and Error Conditions
     When I GET "/contexts"
     Then the response status should be 200
     And the response array should contain ".ctx123"
+    And the audit log should contain event "schema_register" with subject ":.ctx123:s1"
 
   Scenario: Context name with mixed case is valid
     When I POST "/subjects/:.MyContext:s1/versions" with body:
@@ -48,6 +51,7 @@ Feature: Contexts — Edge Cases and Error Conditions
     When I GET "/contexts"
     Then the response status should be 200
     And the response array should contain ".MyContext"
+    And the audit log should contain event "schema_register" with subject ":.MyContext:s1"
 
   # ==========================================================================
   # SCHEMA DEDUP WITHIN CONTEXT
@@ -66,6 +70,7 @@ Feature: Contexts — Edge Cases and Error Conditions
       """
     Then the response status should be 200
     And the response field "id" should equal stored "first_id"
+    And the audit log should contain event "schema_register" with subject ":.dedup-ctx:s1"
 
   Scenario: Same schema in different subjects within same context shares ID
     When I POST "/subjects/:.shared-id:s1/versions" with body:
@@ -80,6 +85,7 @@ Feature: Contexts — Edge Cases and Error Conditions
       """
     Then the response status should be 200
     And the response field "id" should equal stored "shared_id"
+    And the audit log should contain event "schema_register" with subject ":.shared-id:s2"
 
   # ==========================================================================
   # OPERATIONS ON NON-EXISTENT CONTEXT DATA
@@ -120,3 +126,4 @@ Feature: Contexts — Edge Cases and Error Conditions
       """
     Then the response status should be 200
     And the response field "id" should be 3
+    And the audit log should contain event "schema_register" with subject ":.seq-ctx:s3"

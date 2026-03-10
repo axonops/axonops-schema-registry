@@ -27,6 +27,7 @@ Feature: Advanced Avro Schema Parsing
     When I get the stored schema by ID
     Then the response status should be 200
     And the response should have field "schema"
+    And the audit log should contain event "schema_register" with subject "avro-adv-1"
 
   # ---------- 2. Union with null and complex type (nullable record) ----------
   Scenario: Nullable record via union with null
@@ -48,6 +49,7 @@ Feature: Advanced Avro Schema Parsing
     When I get the stored schema by ID
     Then the response status should be 200
     And the response should have field "schema"
+    And the audit log should contain event "schema_register" with subject "avro-adv-2"
 
   # ---------- 3. Deeply nested records (4 levels deep) ----------
   Scenario: Four levels of nested records
@@ -73,6 +75,7 @@ Feature: Advanced Avro Schema Parsing
     Then the response status should be 200
     And the response should have field "schema"
     And the response should contain "Level4"
+    And the audit log should contain event "schema_register" with subject "avro-adv-3"
 
   # ---------- 4. Record with all logical types ----------
   Scenario: Record with all Avro logical types
@@ -95,6 +98,7 @@ Feature: Advanced Avro Schema Parsing
     Then the response status should be 200
     And the response should have field "schema"
     And the response should contain "AllLogicalTypes"
+    And the audit log should contain event "schema_register" with subject "avro-adv-4"
 
   # ---------- 5. Fixed type inside record field ----------
   Scenario: Fixed type as a record field
@@ -112,6 +116,7 @@ Feature: Advanced Avro Schema Parsing
     Then the response status should be 200
     And the response should have field "schema"
     And the response should contain "MD5Hash"
+    And the audit log should contain event "schema_register" with subject "avro-adv-5"
 
   # ---------- 6. Fixed type inside array items ----------
   Scenario: Array of fixed type values
@@ -127,6 +132,7 @@ Feature: Advanced Avro Schema Parsing
     Then the response status should be 200
     And the response should have field "schema"
     And the response should contain "SHA256"
+    And the audit log should contain event "schema_register" with subject "avro-adv-6"
 
   # ---------- 7. Enum with doc string ----------
   Scenario: Enum type with doc annotation
@@ -147,6 +153,7 @@ Feature: Advanced Avro Schema Parsing
     Then the response status should be 200
     And the response should have field "schema"
     And the response should contain "TaskStatus"
+    And the audit log should contain event "schema_register" with subject "avro-adv-7"
 
   # ---------- 8. Enum inside union ----------
   Scenario: Nullable enum via union
@@ -167,6 +174,7 @@ Feature: Advanced Avro Schema Parsing
     Then the response status should be 200
     And the response should have field "schema"
     And the response should contain "Department"
+    And the audit log should contain event "schema_register" with subject "avro-adv-8"
 
   # ---------- 9. Map with record values containing unions ----------
   Scenario: Map of records with union fields
@@ -191,6 +199,7 @@ Feature: Advanced Avro Schema Parsing
     Then the response status should be 200
     And the response should have field "schema"
     And the response should contain "ServiceInfo"
+    And the audit log should contain event "schema_register" with subject "avro-adv-9"
 
   # ---------- 10. Array of maps of records ----------
   Scenario: Array of maps containing record values
@@ -212,6 +221,7 @@ Feature: Advanced Avro Schema Parsing
     Then the response status should be 200
     And the response should have field "schema"
     And the response should contain "Widget"
+    And the audit log should contain event "schema_register" with subject "avro-adv-10"
 
   # ---------- 11. Self-referencing record (linked list) ----------
   Scenario: Self-referencing record as linked list
@@ -228,6 +238,7 @@ Feature: Advanced Avro Schema Parsing
     Then the response status should be 200
     And the response should have field "schema"
     And the response should contain "Node"
+    And the audit log should contain event "schema_register" with subject "avro-adv-11"
 
   # ---------- 12. Record with bytes field and default ----------
   Scenario: Record with bytes field and empty default
@@ -245,6 +256,7 @@ Feature: Advanced Avro Schema Parsing
     Then the response status should be 200
     And the response should have field "schema"
     And the response should contain "BinaryData"
+    And the audit log should contain event "schema_register" with subject "avro-adv-12"
 
   # ---------- 13. Record with 30+ fields (stress test) ----------
   Scenario: Record with more than 30 fields
@@ -291,6 +303,7 @@ Feature: Advanced Avro Schema Parsing
     Then the response status should be 200
     And the response should have field "schema"
     And the response should contain "WideRecord"
+    And the audit log should contain event "schema_register" with subject "avro-adv-13"
 
   # ---------- 14. Namespace inheritance in nested records ----------
   Scenario: Namespace inheritance with explicit and inherited namespaces
@@ -312,6 +325,7 @@ Feature: Advanced Avro Schema Parsing
     And the response should have field "schema"
     And the response should contain "com.example.outer"
     And the response should contain "com.example.inner"
+    And the audit log should contain event "schema_register" with subject "avro-adv-14"
 
   # ---------- 15. Multiple named types in same schema ----------
   Scenario: Schema with multiple named record types
@@ -339,6 +353,7 @@ Feature: Advanced Avro Schema Parsing
     And the response should have field "schema"
     And the response should contain "Invoice"
     And the response should contain "InvoiceLine"
+    And the audit log should contain event "schema_register" with subject "avro-adv-15"
 
   # ---------- 16. Record with all 8 primitive field types ----------
   Scenario: Record covering every Avro primitive type
@@ -362,6 +377,7 @@ Feature: Advanced Avro Schema Parsing
     Then the response status should be 200
     And the response should have field "schema"
     And the response should contain "AllPrimitivesAdvanced"
+    And the audit log should contain event "schema_register" with subject "avro-adv-16"
 
   # ---------- 17. Doc annotations at record and field level ----------
   Scenario: Schema with doc annotations on record and fields
@@ -380,6 +396,7 @@ Feature: Advanced Avro Schema Parsing
     Then the response status should be 200
     And the response should have field "schema"
     And the response should contain "DocumentedRecord"
+    And the audit log should contain event "schema_register" with subject "avro-adv-17"
 
   # ---------- 18. Field ordering (order attribute) ----------
   Scenario: Schema with field ordering annotations
@@ -398,6 +415,7 @@ Feature: Advanced Avro Schema Parsing
     Then the response status should be 200
     And the response should have field "schema"
     And the response should contain "SortableRecord"
+    And the audit log should contain event "schema_register" with subject "avro-adv-18"
 
   # ---------- 19. Aliases on records ----------
   Scenario: Schema with aliases on the record
@@ -415,6 +433,7 @@ Feature: Advanced Avro Schema Parsing
     Then the response status should be 200
     And the response should have field "schema"
     And the response should contain "UserProfile"
+    And the audit log should contain event "schema_register" with subject "avro-adv-19"
 
   # ---------- 20. Aliases on fields ----------
   Scenario: Schema with aliases on fields
@@ -432,6 +451,7 @@ Feature: Advanced Avro Schema Parsing
     Then the response status should be 200
     And the response should have field "schema"
     And the response should contain "LegacyCompatible"
+    And the audit log should contain event "schema_register" with subject "avro-adv-20"
 
   # ---------- 21. Decimal logical type with specific precision and scale ----------
   Scenario: Decimal logical type with high precision
@@ -449,6 +469,7 @@ Feature: Advanced Avro Schema Parsing
     Then the response status should be 200
     And the response should have field "schema"
     And the response should contain "FinancialAmount"
+    And the audit log should contain event "schema_register" with subject "avro-adv-21"
 
   # ---------- 22. Complex real-world: Kafka Connect source record ----------
   Scenario: Kafka Connect source record schema
@@ -486,6 +507,7 @@ Feature: Advanced Avro Schema Parsing
     And the response should have field "schema"
     And the response should contain "ConnectRecord"
     And the response should contain "Operation"
+    And the audit log should contain event "schema_register" with subject "avro-adv-22"
 
   # ---------- 23. Complex real-world: CDC change event ----------
   Scenario: CDC change event schema
@@ -511,6 +533,7 @@ Feature: Advanced Avro Schema Parsing
     And the response should have field "schema"
     And the response should contain "ChangeEvent"
     And the response should contain "ChangeType"
+    And the audit log should contain event "schema_register" with subject "avro-adv-23"
 
   # ---------- 24. Complex real-world: Financial transaction ----------
   Scenario: Financial transaction schema with multiple record types
@@ -546,6 +569,7 @@ Feature: Advanced Avro Schema Parsing
     And the response should contain "Transaction"
     And the response should contain "Currency"
     And the response should contain "AccountType"
+    And the audit log should contain event "schema_register" with subject "avro-adv-24"
 
   # ---------- 25. Round-trip: register, get by ID, verify schema field ----------
   Scenario: Round-trip registration and retrieval verifies schema field
@@ -570,6 +594,7 @@ Feature: Advanced Avro Schema Parsing
     And the response field "subject" should be "avro-adv-25"
     And the response field "version" should be 1
     And the response should contain "RoundTripTest"
+    And the audit log should contain event "schema_register" with subject "avro-adv-25"
 
   # ---------- 26. Fingerprint stability: same schema under 2 subjects ----------
   Scenario: Same schema registered under two subjects gets same schema ID
@@ -596,6 +621,7 @@ Feature: Advanced Avro Schema Parsing
     And the response should be an array of length 2
     And the response array should contain "avro-adv-26a"
     And the response array should contain "avro-adv-26b"
+    And the audit log should contain event "schema_register" with subject "avro-adv-26a"
 
   # ---------- 27. Field defaults of every primitive type ----------
   Scenario: Schema with default values for every primitive type
@@ -618,6 +644,7 @@ Feature: Advanced Avro Schema Parsing
     Then the response status should be 200
     And the response should have field "schema"
     And the response should contain "AllDefaults"
+    And the audit log should contain event "schema_register" with subject "avro-adv-27"
 
   # ---------- 28. Enum with many symbols (10+) ----------
   Scenario: Enum with more than 10 symbols
@@ -638,6 +665,7 @@ Feature: Advanced Avro Schema Parsing
     And the response should have field "schema"
     And the response should contain "HttpMethod"
     And the response should contain "PURGE"
+    And the audit log should contain event "schema_register" with subject "avro-adv-28"
 
   # ---------- 29. Map of arrays of strings ----------
   Scenario: Map whose values are arrays of strings
@@ -654,6 +682,7 @@ Feature: Advanced Avro Schema Parsing
     Then the response status should be 200
     And the response should have field "schema"
     And the response should contain "TagIndex"
+    And the audit log should contain event "schema_register" with subject "avro-adv-29"
 
   # ---------- 30. Array of arrays (nested collection) ----------
   Scenario: Array of arrays for matrix-like data
@@ -673,6 +702,7 @@ Feature: Advanced Avro Schema Parsing
     Then the response status should be 200
     And the response should have field "schema"
     And the response should contain "Matrix"
+    And the audit log should contain event "schema_register" with subject "avro-adv-30"
 
   # ---------- 31. Record with nullable array field ----------
   Scenario: Nullable array field in a record
@@ -689,6 +719,7 @@ Feature: Advanced Avro Schema Parsing
     Then the response status should be 200
     And the response should have field "schema"
     And the response should contain "UserWithTags"
+    And the audit log should contain event "schema_register" with subject "avro-adv-31"
 
   # ---------- 32. Record with nullable map field ----------
   Scenario: Nullable map field in a record
@@ -705,6 +736,7 @@ Feature: Advanced Avro Schema Parsing
     Then the response status should be 200
     And the response should have field "schema"
     And the response should contain "ConfigEntry"
+    And the audit log should contain event "schema_register" with subject "avro-adv-32"
 
   # ---------- 33. Record with nullable enum field ----------
   Scenario: Nullable enum field in a record
@@ -728,6 +760,7 @@ Feature: Advanced Avro Schema Parsing
     And the response should have field "schema"
     And the response should contain "TicketPriority"
     And the response should contain "Severity"
+    And the audit log should contain event "schema_register" with subject "avro-adv-33"
 
   # ---------- 34. Schema with very long record name ----------
   Scenario: Schema with a very long record name
@@ -744,6 +777,7 @@ Feature: Advanced Avro Schema Parsing
     Then the response status should be 200
     And the response should have field "schema"
     And the response should contain "ThisIsAnExtremelyLongRecordName"
+    And the audit log should contain event "schema_register" with subject "avro-adv-34"
 
   # ---------- 35. Schema with nested namespace ----------
   Scenario: Schema with deeply nested namespace hierarchy
@@ -766,6 +800,7 @@ Feature: Advanced Avro Schema Parsing
     Then the response status should be 200
     And the response should have field "schema"
     And the response should contain "com.example.division.team.project.module"
+    And the audit log should contain event "schema_register" with subject "avro-adv-35"
 
   # ---------- 36. Self-referencing binary tree ----------
   Scenario: Self-referencing record as binary tree
@@ -783,6 +818,7 @@ Feature: Advanced Avro Schema Parsing
     Then the response status should be 200
     And the response should have field "schema"
     And the response should contain "BinaryTreeNode"
+    And the audit log should contain event "schema_register" with subject "avro-adv-36"
 
   # ---------- 37. Record reusing named types across fields ----------
   Scenario: Reusing a named enum type across multiple fields
@@ -808,6 +844,7 @@ Feature: Advanced Avro Schema Parsing
     And the response should have field "schema"
     And the response should contain "FlightBooking"
     And the response should contain "CabinClass"
+    And the audit log should contain event "schema_register" with subject "avro-adv-37"
 
   # ---------- 38. Complex union with multiple record and enum types ----------
   Scenario: Union with multiple named record and enum types
@@ -844,6 +881,7 @@ Feature: Advanced Avro Schema Parsing
     And the response should contain "Notification"
     And the response should contain "EmailContent"
     And the response should contain "PushContent"
+    And the audit log should contain event "schema_register" with subject "avro-adv-38"
 
   # ---------- 39. Map with complex nested values ----------
   Scenario: Map with values being arrays of records
@@ -866,6 +904,7 @@ Feature: Advanced Avro Schema Parsing
     And the response should have field "schema"
     And the response should contain "Catalog"
     And the response should contain "Product"
+    And the audit log should contain event "schema_register" with subject "avro-adv-39"
 
   # ---------- 40. IoT sensor event with complex structure ----------
   Scenario: IoT sensor event with complex nested structure
@@ -907,3 +946,4 @@ Feature: Advanced Avro Schema Parsing
     And the response should contain "SensorReading"
     And the response should contain "SensorType"
     And the response should contain "GeoLocation"
+    And the audit log should contain event "schema_register" with subject "avro-adv-40"

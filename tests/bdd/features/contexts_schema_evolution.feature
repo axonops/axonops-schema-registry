@@ -56,6 +56,7 @@ Feature: Contexts — Schema Evolution Workflows
     And the response body should contain "name"
     And the response body should not contain "age"
     And the response body should not contain "email"
+    And the audit log should contain event "schema_register" with subject ":.evo1:User"
 
   # ==========================================================================
   # BACKWARD_TRANSITIVE ENFORCEMENT
@@ -88,6 +89,7 @@ Feature: Contexts — Schema Evolution Workflows
       {"schema": "{\"type\":\"record\",\"name\":\"Event\",\"namespace\":\"com.example.evo2\",\"fields\":[{\"name\":\"id\",\"type\":\"string\"},{\"name\":\"code\",\"type\":\"int\",\"default\":0}]}"}
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject ":.evo2:Event"
 
   # ==========================================================================
   # FORWARD COMPATIBILITY
@@ -117,6 +119,7 @@ Feature: Contexts — Schema Evolution Workflows
     When I GET "/subjects/:.evo3:Record/versions"
     Then the response status should be 200
     And the response should be an array of length 2
+    And the audit log should contain event "schema_register" with subject ":.evo3:Record"
 
   # ==========================================================================
   # FULL COMPATIBILITY
@@ -149,6 +152,7 @@ Feature: Contexts — Schema Evolution Workflows
       """
     Then the response status should be 200
     And the response field "is_compatible" should be false
+    And the audit log should contain event "schema_register" with subject ":.evo4:Profile"
 
   # ==========================================================================
   # VERSION DELETION
@@ -180,6 +184,7 @@ Feature: Contexts — Schema Evolution Workflows
     When I GET "/subjects/:.evo5:Data/versions/2"
     Then the response status should be 200
     And the response body should contain "Data"
+    And the audit log should contain event "schema_delete" with subject ":.evo5:Data"
 
   # ==========================================================================
   # PERMANENT VERSION DELETION
@@ -209,6 +214,7 @@ Feature: Contexts — Schema Evolution Workflows
     When I GET "/subjects/:.evo6:Entry/versions/2"
     Then the response status should be 200
     And the response body should contain "Entry"
+    And the audit log should contain event "schema_delete" with subject ":.evo6:Entry"
 
   # ==========================================================================
   # INDEPENDENT EVOLUTION ACROSS CONTEXTS
@@ -254,6 +260,7 @@ Feature: Contexts — Schema Evolution Workflows
     When I GET "/subjects/:.evo7b:User/versions"
     Then the response status should be 200
     And the response should be an array of length 2
+    And the audit log should contain event "schema_register" with subject ":.evo7b:User"
 
   # ==========================================================================
   # IDEMPOTENT RE-REGISTRATION
@@ -277,6 +284,7 @@ Feature: Contexts — Schema Evolution Workflows
     When I GET "/subjects/:.evo8:Metric/versions"
     Then the response status should be 200
     And the response should be an array of length 1
+    And the audit log should contain event "schema_register" with subject ":.evo8:Metric"
 
   # ==========================================================================
   # COMPATIBILITY CHECK AGAINST SPECIFIC VERSION
@@ -313,6 +321,7 @@ Feature: Contexts — Schema Evolution Workflows
       """
     Then the response status should be 200
     And the response field "is_compatible" should be true
+    And the audit log should contain event "config_update" with subject ":.evo9:Order"
 
   # ==========================================================================
   # COMPATIBILITY CHECK AGAINST ALL VERSIONS
@@ -342,6 +351,7 @@ Feature: Contexts — Schema Evolution Workflows
       """
     Then the response status should be 200
     And the response field "is_compatible" should be true
+    And the audit log should contain event "config_update" with subject ":.evo10:Item"
 
   # ==========================================================================
   # FULL_TRANSITIVE REJECTION
@@ -374,3 +384,4 @@ Feature: Contexts — Schema Evolution Workflows
       {"schema": "{\"type\":\"record\",\"name\":\"Sensor\",\"namespace\":\"com.example.evo11\",\"fields\":[{\"name\":\"id\",\"type\":\"string\"},{\"name\":\"reading\",\"type\":[\"null\",\"double\"],\"default\":null}]}"}
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject ":.evo11:Sensor"

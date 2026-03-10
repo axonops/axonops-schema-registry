@@ -86,6 +86,7 @@ message SensorReading {
 }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "iot-sensor"
 
   # ==========================================================================
   # 2. DEVICE CONFIG REFERENCES SHARED TYPES
@@ -114,6 +115,7 @@ message Address {
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "iot-device"
 
   # ==========================================================================
   # 3. ALERT WITH ONEOF PAYLOAD — ADD VARIANT
@@ -147,6 +149,7 @@ message Alert {
 }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "iot-alert"
 
   # ==========================================================================
   # 4. PACKAGE RENAME BREAKS COMPATIBILITY
@@ -207,6 +210,7 @@ message Config {
 }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "iot-reserved"
 
   # ==========================================================================
   # 6. NESTED MESSAGE EVOLUTION
@@ -258,6 +262,7 @@ message Gateway {
 }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "iot-nested-evo"
 
   # ==========================================================================
   # 7. ENUM GROWTH ACROSS VERSIONS
@@ -312,6 +317,7 @@ message Device {
 }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "iot-enum-grow"
 
   # ==========================================================================
   # 8. PROTO WITH WELL-KNOWN TYPE IMPORTS
@@ -336,3 +342,4 @@ message Measurement {
 }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "iot-wkt"

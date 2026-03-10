@@ -33,6 +33,7 @@ Feature: Contexts — Schema References
     And the response should contain "Order"
     And the response should contain "references"
     And the response should contain "com.example.Address"
+    And the audit log should contain event "schema_register" with subject ":.ref1:order-value"
 
   # ==========================================================================
   # REFERENCEDBY ENDPOINT IN CONTEXT
@@ -57,6 +58,7 @@ Feature: Contexts — Schema References
     When I GET "/subjects/:.ref2:address-value/versions/1/referencedby"
     Then the response status should be 200
     And the response should be valid JSON
+    And the audit log should contain event "schema_register" with subject ":.ref2:order-value"
 
   # ==========================================================================
   # CROSS-CONTEXT REFERENCE ISOLATION
@@ -82,6 +84,7 @@ Feature: Contexts — Schema References
       {"schema": "{\"type\":\"record\",\"name\":\"Order\",\"namespace\":\"com.example\",\"fields\":[{\"name\":\"id\",\"type\":\"long\"},{\"name\":\"address\",\"type\":\"com.example.Address\"}]}", "references": [{"name": "com.example.Address", "subject": "address-value", "version": 1}]}
       """
     Then the response status should be 422
+    And the audit log should contain event "schema_register" with subject ":.ref3a:order-value"
 
   # ==========================================================================
   # SAME SUBJECT NAME, DIFFERENT CONTEXTS, INDEPENDENT REFERENCES
@@ -127,6 +130,7 @@ Feature: Contexts — Schema References
     And the response body should contain "line1"
     And the response body should contain "zip"
     And the response body should not contain "street"
+    And the audit log should contain event "schema_register" with subject ":.ref4b:order-value"
 
   # ==========================================================================
   # RAW SCHEMA ENDPOINT FOR SCHEMA WITH REFERENCES
@@ -150,6 +154,7 @@ Feature: Contexts — Schema References
     Then the response status should be 200
     And the response body should contain "Order"
     And the response body should contain "com.example.Address"
+    And the audit log should contain event "schema_register" with subject ":.ref5:order-value"
 
   # ==========================================================================
   # DELETE PROTECTION FOR REFERENCED SCHEMAS IN CONTEXT
@@ -175,6 +180,7 @@ Feature: Contexts — Schema References
     # Also try to delete the specific version — should be blocked
     When I DELETE "/subjects/:.ref6:address-value/versions/1"
     Then the response status should be 422
+    And the audit log should contain event "schema_register" with subject ":.ref6:order-value"
 
   # ==========================================================================
   # PROTOBUF IMPORT IN SAME CONTEXT
@@ -200,6 +206,7 @@ Feature: Contexts — Schema References
     Then the response status should be 200
     And the response field "schemaType" should be "PROTOBUF"
     And the response should contain "references"
+    And the audit log should contain event "schema_register" with subject ":.ref7:order-proto"
 
   # ==========================================================================
   # SCHEMA VERSION DETAIL INCLUDES REFERENCES FIELD
@@ -228,3 +235,4 @@ Feature: Contexts — Schema References
     And the response should contain "address-value"
     And the response field "version" should be 1
     And the response field "subject" should be "order-value"
+    And the audit log should contain event "schema_register" with subject ":.ref8:order-value"

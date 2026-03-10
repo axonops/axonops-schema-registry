@@ -157,6 +157,7 @@ message Second {
       """
     Then the response status should be 200
     And the response field "id" should equal stored "idem_id"
+    And the audit log should contain event "schema_register" with subject "neg-idempotent"
 
   Scenario: Register same Avro under two subjects returns same global ID
     When I register a schema under subject "neg-dedup-a":
@@ -171,3 +172,4 @@ message Second {
       """
     Then the response status should be 200
     And the response field "id" should equal stored "dedup_global_id"
+    And the audit log should contain event "schema_register" with subject "neg-dedup-b"

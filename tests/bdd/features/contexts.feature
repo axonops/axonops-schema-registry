@@ -34,6 +34,7 @@ Feature: Contexts — Core Behavior
     When I GET "/contexts"
     Then the response status should be 200
     And the response array should contain ".testctx"
+    And the audit log should contain event "schema_register" with subject ":.testctx:ctx-subject1"
 
   Scenario: Register schemas in multiple contexts — all contexts listed
     When I POST "/subjects/:.ctx-alpha:multi-ctx/versions" with body:
@@ -51,6 +52,7 @@ Feature: Contexts — Core Behavior
     And the response array should contain ".ctx-alpha"
     And the response array should contain ".ctx-beta"
     And the response array should contain "."
+    And the audit log should contain event "schema_register" with subject ":.ctx-beta:multi-ctx"
 
   Scenario: Contexts are created implicitly on first schema registration
     # No explicit context creation API — contexts appear when schemas are registered
@@ -65,6 +67,7 @@ Feature: Contexts — Core Behavior
     When I GET "/contexts"
     Then the response status should be 200
     And the response array should contain ".newctx"
+    And the audit log should contain event "schema_register" with subject ":.newctx:first-schema"
 
   Scenario: GET /contexts returns sorted list
     When I POST "/subjects/:.zeta:s1/versions" with body:
@@ -82,6 +85,7 @@ Feature: Contexts — Core Behavior
     And the response array should contain "."
     And the response array should contain ".alpha"
     And the response array should contain ".zeta"
+    And the audit log should contain event "schema_register" with subject ":.alpha:s1"
 
   Scenario: Registering schema in default context via qualified subject
     # :.: prefix maps to the default context
@@ -93,6 +97,7 @@ Feature: Contexts — Core Behavior
     When I GET "/subjects"
     Then the response status should be 200
     And the response array should contain "mysubject"
+    And the audit log should contain event "schema_register" with subject "mysubject"
 
   Scenario: Context names are case-sensitive
     When I POST "/subjects/:.CaseSensitive:s1/versions" with body:
@@ -109,6 +114,7 @@ Feature: Contexts — Core Behavior
     Then the response status should be 200
     And the response array should contain ".CaseSensitive"
     And the response array should contain ".casesensitive"
+    And the audit log should contain event "schema_register" with subject ":.casesensitive:s1"
 
   # ==========================================================================
   # CONTEXT ISOLATION — BASIC
@@ -131,6 +137,7 @@ Feature: Contexts — Core Behavior
     When I GET "/subjects/:.iso-b:shared-name/versions/1"
     Then the response status should be 200
     And the response body should contain "IsoB"
+    And the audit log should contain event "schema_register" with subject ":.iso-b:shared-name"
 
   Scenario: Delete context-prefixed subject
     When I POST "/subjects/:.del-ctx:to-delete/versions" with body:
@@ -142,3 +149,4 @@ Feature: Contexts — Core Behavior
     Then the response status should be 200
     When I GET "/subjects/:.del-ctx:to-delete/versions"
     Then the response status should be 404
+    And the audit log should contain event "subject_delete" with subject ":.del-ctx:to-delete"

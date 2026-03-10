@@ -18,6 +18,7 @@ Feature: Contexts — URL Prefix Routing
       """
     Then the response status should be 200
     And the response field "id" should be 1
+    And the audit log should contain event "schema_register"
 
   Scenario: Retrieve schema via URL prefix
     When I POST "/contexts/.url-ctx2/subjects/get-test/versions" with body:
@@ -29,6 +30,7 @@ Feature: Contexts — URL Prefix Routing
     Then the response status should be 200
     And the response body should contain "UrlGet"
     And the response field "version" should be 1
+    And the audit log should contain event "schema_register"
 
   Scenario: Get latest version via URL prefix
     When I POST "/contexts/.url-ctx3/subjects/latest-test/versions" with body:
@@ -44,6 +46,7 @@ Feature: Contexts — URL Prefix Routing
     When I GET "/contexts/.url-ctx3/subjects/latest-test/versions/latest"
     Then the response status should be 200
     And the response field "version" should be 2
+    And the audit log should contain event "schema_register"
 
   # ==========================================================================
   # SUBJECT OPERATIONS VIA URL PREFIX
@@ -64,6 +67,7 @@ Feature: Contexts — URL Prefix Routing
     Then the response status should be 200
     And the response array should contain "subj-a"
     And the response array should contain "subj-b"
+    And the audit log should contain event "schema_register"
 
   Scenario: List versions via URL prefix
     When I POST "/contexts/.url-ver/subjects/versioned/versions" with body:
@@ -79,6 +83,7 @@ Feature: Contexts — URL Prefix Routing
     When I GET "/contexts/.url-ver/subjects/versioned/versions"
     Then the response status should be 200
     And the response should be an array of length 2
+    And the audit log should contain event "schema_register"
 
   Scenario: Lookup schema via URL prefix
     When I POST "/contexts/.url-lookup/subjects/lookup-s/versions" with body:
@@ -93,6 +98,7 @@ Feature: Contexts — URL Prefix Routing
       """
     Then the response status should be 200
     And the response field "id" should equal stored "url_lookup_id"
+    And the audit log should contain event "schema_lookup"
 
   Scenario: Delete subject via URL prefix
     When I POST "/contexts/.url-del/subjects/to-delete/versions" with body:
@@ -104,6 +110,7 @@ Feature: Contexts — URL Prefix Routing
     Then the response status should be 200
     When I GET "/contexts/.url-del/subjects/to-delete/versions"
     Then the response status should be 404
+    And the audit log should contain event "subject_delete"
 
   # ==========================================================================
   # CONFIG AND MODE VIA URL PREFIX
@@ -123,6 +130,7 @@ Feature: Contexts — URL Prefix Routing
     When I GET "/contexts/.url-cfg/config/cfg-test"
     Then the response status should be 200
     And the response field "compatibilityLevel" should be "FULL"
+    And the audit log should contain event "config_update"
 
   Scenario: Mode operations via URL prefix
     When I POST "/contexts/.url-mode/subjects/mode-test/versions" with body:
@@ -138,6 +146,7 @@ Feature: Contexts — URL Prefix Routing
     When I GET "/contexts/.url-mode/mode/mode-test"
     Then the response status should be 200
     And the response field "mode" should be "READONLY"
+    And the audit log should contain event "mode_update"
 
   # ==========================================================================
   # COMPATIBILITY VIA URL PREFIX
@@ -175,6 +184,7 @@ Feature: Contexts — URL Prefix Routing
     When I GET "/contexts/.url-byid/schemas/ids/{{url_byid}}"
     Then the response status should be 200
     And the response body should contain "UrlById"
+    And the audit log should contain event "schema_register"
 
   # ==========================================================================
   # CROSS-VALIDATION: URL PREFIX AND QUALIFIED SUBJECT
@@ -191,6 +201,7 @@ Feature: Contexts — URL Prefix Routing
     When I GET "/subjects/:.cross-val:cross-s/versions/1"
     Then the response status should be 200
     And the response body should contain "CrossVal"
+    And the audit log should contain event "schema_register"
 
   Scenario: Schema registered via qualified subject is accessible via URL prefix
     When I POST "/subjects/:.cross-val2:cross-s2/versions" with body:
@@ -202,3 +213,4 @@ Feature: Contexts — URL Prefix Routing
     When I GET "/contexts/.cross-val2/subjects/cross-s2/versions/1"
     Then the response status should be 200
     And the response body should contain "CrossVal2"
+    And the audit log should contain event "schema_register" with subject ":.cross-val2:cross-s2"

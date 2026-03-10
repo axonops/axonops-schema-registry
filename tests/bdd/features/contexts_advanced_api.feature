@@ -21,6 +21,7 @@ Feature: Contexts — Advanced API Surface Coverage
     Then the response status should be 200
     And the response body should contain "record"
     And the response body should contain "TestApi1"
+    And the audit log should contain event "schema_register" with subject ":.api1:raw-test"
 
   # ==========================================================================
   # SCHEMA LOOKUP IN CONTEXT
@@ -40,6 +41,7 @@ Feature: Contexts — Advanced API Surface Coverage
     And the response field "subject" should be "lookup-subj"
     And the response field "version" should be 1
     And I store the response field "id" as "api2_id"
+    And the audit log should contain event "schema_lookup" with subject ":.api2:lookup-subj"
 
   # ==========================================================================
   # CROSS-CONTEXT LOOKUP ISOLATION
@@ -106,6 +108,7 @@ Feature: Contexts — Advanced API Surface Coverage
     When I GET "/subjects?deleted=true"
     Then the response status should be 200
     And the response array should contain "default-api5-subj"
+    And the audit log should contain event "subject_delete" with subject "default-api5-subj"
 
   # ==========================================================================
   # SOFT DELETE — VERSION ACCESS
@@ -122,6 +125,7 @@ Feature: Contexts — Advanced API Surface Coverage
     # After soft delete, versions are not accessible
     When I GET "/subjects/:.api6:soft-del/versions/1"
     Then the response status should be 404
+    And the audit log should contain event "subject_delete" with subject ":.api6:soft-del"
 
   # ==========================================================================
   # PERMANENT DELETE — FULL LIFECYCLE
@@ -142,6 +146,7 @@ Feature: Contexts — Advanced API Surface Coverage
     # Subject should be completely gone
     When I GET "/subjects/:.api7:perm-del/versions"
     Then the response status should be 404
+    And the audit log should contain event "subject_delete" with subject ":.api7:perm-del"
 
   # ==========================================================================
   # SCHEMA FINGERPRINT DEDUP WITHIN CONTEXT
@@ -162,6 +167,7 @@ Feature: Contexts — Advanced API Surface Coverage
     And I store the response field "id" as "id_b"
     # Same schema content should be deduplicated — same ID within context
     Then the response field "id" should equal stored "id_a"
+    And the audit log should contain event "schema_register" with subject ":.api8:subj-b"
 
   # ==========================================================================
   # LATEST VERSION TRACKING
@@ -184,6 +190,7 @@ Feature: Contexts — Advanced API Surface Coverage
     When I GET "/subjects/:.api9:latest-track/versions/latest"
     Then the response status should be 200
     And the response field "version" should be 2
+    And the audit log should contain event "schema_register" with subject ":.api9:latest-track"
 
   # ==========================================================================
   # LIST VERSIONS — MULTI-VERSION
@@ -215,6 +222,7 @@ Feature: Contexts — Advanced API Surface Coverage
     And the response array should contain integer 1
     And the response array should contain integer 2
     And the response array should contain integer 3
+    And the audit log should contain event "schema_register" with subject ":.api10:multi-ver"
 
   # ==========================================================================
   # SUBJECT LISTING — DEFAULT CONTEXT SCOPING
@@ -240,6 +248,7 @@ Feature: Contexts — Advanced API Surface Coverage
     # Context-scoped subjects should NOT appear in default listing
     And the response body should not contain "ctx-subj"
     And the response body should not contain ":.api11:"
+    And the audit log should contain event "schema_register" with subject ":.api11:ctx-subj"
 
   # ==========================================================================
   # SCHEMA TYPES — GLOBAL ENDPOINT
@@ -343,3 +352,4 @@ Feature: Contexts — Advanced API Surface Coverage
     Then the response status should be 200
     And the response should be an array of length 1
     And the response array should contain integer 1
+    And the audit log should contain event "schema_register" with subject ":.api17:versions-test"

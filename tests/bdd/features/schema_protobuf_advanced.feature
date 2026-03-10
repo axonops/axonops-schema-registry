@@ -40,6 +40,7 @@ Feature: Advanced Protobuf Schema Parsing
     And the response should contain "AllScalarTypes"
     And the response should contain "field_double"
     And the response should contain "field_bytes"
+    And the audit log should contain event "schema_register" with subject "proto-adv-1"
 
   # --------------------------------------------------------------------------
   # 2. Deeply nested messages (4+ levels)
@@ -72,6 +73,7 @@ Feature: Advanced Protobuf Schema Parsing
     Then the response status should be 200
     And the response should contain "Outer"
     And the response should contain "Core"
+    And the audit log should contain event "schema_register" with subject "proto-adv-2"
 
   # --------------------------------------------------------------------------
   # 3. Enum with allow_alias option
@@ -100,6 +102,7 @@ Feature: Advanced Protobuf Schema Parsing
     Then the response status should be 200
     And the response should contain "PRIORITY_CRITICAL"
     And the response should contain "PRIORITY_URGENT"
+    And the audit log should contain event "schema_register" with subject "proto-adv-3"
 
   # --------------------------------------------------------------------------
   # 4. Enum with reserved values
@@ -128,6 +131,7 @@ Feature: Advanced Protobuf Schema Parsing
     Then the response status should be 200
     And the response should contain "ErrorCode"
     And the response should contain "reserved"
+    And the audit log should contain event "schema_register" with subject "proto-adv-4"
 
   # --------------------------------------------------------------------------
   # 5. Oneof with multiple field types
@@ -155,6 +159,7 @@ Feature: Advanced Protobuf Schema Parsing
     And the response should contain "oneof"
     And the response should contain "email"
     And the response should contain "push_device_id"
+    And the audit log should contain event "schema_register" with subject "proto-adv-5"
 
   # --------------------------------------------------------------------------
   # 6. Oneof with message type fields
@@ -192,6 +197,7 @@ Feature: Advanced Protobuf Schema Parsing
     And the response should contain "shape_type"
     And the response should contain "Circle"
     And the response should contain "Triangle"
+    And the audit log should contain event "schema_register" with subject "proto-adv-6"
 
   # --------------------------------------------------------------------------
   # 7. Map with enum values
@@ -218,6 +224,7 @@ Feature: Advanced Protobuf Schema Parsing
     Then the response status should be 200
     And the response should contain "FeatureConfig"
     And the response should contain "FeatureFlag"
+    And the audit log should contain event "schema_register" with subject "proto-adv-7"
 
   # --------------------------------------------------------------------------
   # 8. Map with nested message values
@@ -248,6 +255,7 @@ Feature: Advanced Protobuf Schema Parsing
     And the response should contain "UserProfiles"
     And the response should contain "UserProfile"
     And the response should contain "Address"
+    And the audit log should contain event "schema_register" with subject "proto-adv-8"
 
   # --------------------------------------------------------------------------
   # 9. Repeated message fields
@@ -280,6 +288,7 @@ Feature: Advanced Protobuf Schema Parsing
     And the response should contain "Playlist"
     And the response should contain "repeated"
     And the response should contain "Track"
+    And the audit log should contain event "schema_register" with subject "proto-adv-9"
 
   # --------------------------------------------------------------------------
   # 10. Service with server streaming
@@ -308,6 +317,7 @@ Feature: Advanced Protobuf Schema Parsing
     Then the response status should be 200
     And the response should contain "EventStream"
     And the response should contain "stream"
+    And the audit log should contain event "schema_register" with subject "proto-adv-10"
 
   # --------------------------------------------------------------------------
   # 11. Service with client streaming
@@ -336,6 +346,7 @@ Feature: Advanced Protobuf Schema Parsing
     Then the response status should be 200
     And the response should contain "LogIngestion"
     And the response should contain "stream"
+    And the audit log should contain event "schema_register" with subject "proto-adv-11"
 
   # --------------------------------------------------------------------------
   # 12. Service with bidirectional streaming
@@ -363,6 +374,7 @@ Feature: Advanced Protobuf Schema Parsing
     When I get the stored schema by ID
     Then the response status should be 200
     And the response should contain "ChatService"
+    And the audit log should contain event "schema_register" with subject "proto-adv-12"
 
   # --------------------------------------------------------------------------
   # 13. Service with multiple methods
@@ -413,6 +425,7 @@ Feature: Advanced Protobuf Schema Parsing
     And the response should contain "GetUser"
     And the response should contain "CreateUser"
     And the response should contain "ListUsers"
+    And the audit log should contain event "schema_register" with subject "proto-adv-13"
 
   # --------------------------------------------------------------------------
   # 14. Proto2 required fields
@@ -436,6 +449,7 @@ Feature: Advanced Protobuf Schema Parsing
     Then the response status should be 200
     And the response should contain "LegacyRecord"
     And the response should contain "required"
+    And the audit log should contain event "schema_register" with subject "proto-adv-14"
 
   # --------------------------------------------------------------------------
   # 15. Proto2 default values
@@ -459,6 +473,7 @@ Feature: Advanced Protobuf Schema Parsing
     Then the response status should be 200
     And the response should contain "ConfigEntry"
     And the response should contain "default"
+    And the audit log should contain event "schema_register" with subject "proto-adv-15"
 
   # --------------------------------------------------------------------------
   # 16. Well-known type: google.protobuf.Timestamp
@@ -482,6 +497,7 @@ Feature: Advanced Protobuf Schema Parsing
     Then the response status should be 200
     And the response should contain "AuditEvent"
     And the response should contain "google.protobuf.Timestamp"
+    And the audit log should contain event "schema_register" with subject "proto-adv-16"
 
   # --------------------------------------------------------------------------
   # 17. Well-known type: google.protobuf.Duration
@@ -504,6 +520,7 @@ Feature: Advanced Protobuf Schema Parsing
     Then the response status should be 200
     And the response should contain "TaskExecution"
     And the response should contain "google.protobuf.Duration"
+    And the audit log should contain event "schema_register" with subject "proto-adv-17"
 
   # --------------------------------------------------------------------------
   # 18. Well-known type: google.protobuf.Any
@@ -526,6 +543,7 @@ Feature: Advanced Protobuf Schema Parsing
     Then the response status should be 200
     And the response should contain "Envelope"
     And the response should contain "google.protobuf.Any"
+    And the audit log should contain event "schema_register" with subject "proto-adv-18"
 
   # --------------------------------------------------------------------------
   # 19. Well-known type: google.protobuf.Struct
@@ -548,6 +566,7 @@ Feature: Advanced Protobuf Schema Parsing
     Then the response status should be 200
     And the response should contain "DynamicConfig"
     And the response should contain "google.protobuf.Struct"
+    And the audit log should contain event "schema_register" with subject "proto-adv-19"
 
   # --------------------------------------------------------------------------
   # 20. Well-known type: google.protobuf.FieldMask
@@ -570,6 +589,7 @@ Feature: Advanced Protobuf Schema Parsing
     Then the response status should be 200
     And the response should contain "UpdateRequest"
     And the response should contain "google.protobuf.FieldMask"
+    And the audit log should contain event "schema_register" with subject "proto-adv-20"
 
   # --------------------------------------------------------------------------
   # 21. Well-known type: google.protobuf.StringValue (wrapper)
@@ -593,6 +613,7 @@ Feature: Advanced Protobuf Schema Parsing
     Then the response status should be 200
     And the response should contain "NullableFields"
     And the response should contain "google.protobuf.StringValue"
+    And the audit log should contain event "schema_register" with subject "proto-adv-21"
 
   # --------------------------------------------------------------------------
   # 22. Package with nested package name (a.b.c)
@@ -616,6 +637,7 @@ Feature: Advanced Protobuf Schema Parsing
     Then the response status should be 200
     And the response should contain "io.axonops.schema.registry.events"
     And the response should contain "SchemaRegistered"
+    And the audit log should contain event "schema_register" with subject "proto-adv-22"
 
   # --------------------------------------------------------------------------
   # 23. Message with reserved field numbers
@@ -639,6 +661,7 @@ Feature: Advanced Protobuf Schema Parsing
     Then the response status should be 200
     And the response should contain "EvolvingMessage"
     And the response should contain "reserved"
+    And the audit log should contain event "schema_register" with subject "proto-adv-23"
 
   # --------------------------------------------------------------------------
   # 24. Message with reserved field names
@@ -662,6 +685,7 @@ Feature: Advanced Protobuf Schema Parsing
     Then the response status should be 200
     And the response should contain "MigratedMessage"
     And the response should contain "old_field"
+    And the audit log should contain event "schema_register" with subject "proto-adv-24"
 
   # --------------------------------------------------------------------------
   # 25. Message with 30+ fields (stress test)
@@ -713,6 +737,7 @@ Feature: Advanced Protobuf Schema Parsing
     And the response should contain "WideMessage"
     And the response should contain "field_01"
     And the response should contain "field_32"
+    And the audit log should contain event "schema_register" with subject "proto-adv-25"
 
   # --------------------------------------------------------------------------
   # 26. Multiple messages with cross-references
@@ -765,6 +790,7 @@ Feature: Advanced Protobuf Schema Parsing
     And the response should contain "Customer"
     And the response should contain "Money"
     And the response should contain "ShippingAddress"
+    And the audit log should contain event "schema_register" with subject "proto-adv-26"
 
   # --------------------------------------------------------------------------
   # 27. Enum used across multiple messages
@@ -803,6 +829,7 @@ Feature: Advanced Protobuf Schema Parsing
     And the response should contain "Order"
     And the response should contain "Shipment"
     And the response should contain "Payment"
+    And the audit log should contain event "schema_register" with subject "proto-adv-27"
 
   # --------------------------------------------------------------------------
   # 28. Nested enum inside message
@@ -834,6 +861,7 @@ Feature: Advanced Protobuf Schema Parsing
     And the response should contain "HttpRequest"
     And the response should contain "METHOD_GET"
     And the response should contain "METHOD_DELETE"
+    And the audit log should contain event "schema_register" with subject "proto-adv-28"
 
   # --------------------------------------------------------------------------
   # 29. Proto3 optional keyword
@@ -858,6 +886,7 @@ Feature: Advanced Protobuf Schema Parsing
     Then the response status should be 200
     And the response should contain "UserPreferences"
     And the response should contain "optional"
+    And the audit log should contain event "schema_register" with subject "proto-adv-29"
 
   # --------------------------------------------------------------------------
   # 30. Complex real-world: gRPC service with request/response messages
@@ -938,6 +967,7 @@ Feature: Advanced Protobuf Schema Parsing
     And the response should contain "GetProduct"
     And the response should contain "WatchProducts"
     And the response field "schemaType" should be "PROTOBUF"
+    And the audit log should contain event "schema_register" with subject "proto-adv-30"
 
   # --------------------------------------------------------------------------
   # 31. Complex real-world: Kafka event message with header and payload
@@ -988,6 +1018,7 @@ Feature: Advanced Protobuf Schema Parsing
     And the response should contain "KafkaEventEnvelope"
     And the response should contain "EventHeader"
     And the response should contain "DeadLetterEvent"
+    And the audit log should contain event "schema_register" with subject "proto-adv-31"
 
   # --------------------------------------------------------------------------
   # 32. Complex real-world: Cloud events proto with any payload
@@ -1042,6 +1073,7 @@ Feature: Advanced Protobuf Schema Parsing
     And the response should contain "CloudEventAttributeValue"
     And the response should contain "CloudEventBatch"
     And the response should contain "google.protobuf.Any"
+    And the audit log should contain event "schema_register" with subject "proto-adv-32"
 
   # --------------------------------------------------------------------------
   # 33. Round-trip: register, get by ID, verify schema field
@@ -1069,6 +1101,7 @@ Feature: Advanced Protobuf Schema Parsing
     And the response field "subject" should be "proto-adv-33"
     And the response field "version" should be 1
     And the response should contain "RoundTripTest"
+    And the audit log should contain event "schema_register" with subject "proto-adv-33"
 
   # --------------------------------------------------------------------------
   # 34. Fingerprint stability: same schema in 2 subjects yields same ID
@@ -1094,6 +1127,7 @@ Feature: Advanced Protobuf Schema Parsing
       """
     Then the response status should be 200
     And I store the response field "id" as "second_id"
+    And the audit log should contain event "schema_register" with subject "proto-adv-34"
 
   # --------------------------------------------------------------------------
   # 35. Large proto with nested messages, enums, services combined
@@ -1200,6 +1234,7 @@ Feature: Advanced Protobuf Schema Parsing
     And the response should contain "ShipmentStatus"
     And the response should contain "Warehouse"
     And the response field "schemaType" should be "PROTOBUF"
+    And the audit log should contain event "schema_register" with subject "proto-adv-35"
 
   # --------------------------------------------------------------------------
   # 36. Map of string to bytes
@@ -1222,6 +1257,7 @@ Feature: Advanced Protobuf Schema Parsing
     Then the response status should be 200
     And the response should contain "BlobStore"
     And the response should contain "blobs"
+    And the audit log should contain event "schema_register" with subject "proto-adv-36"
 
   # --------------------------------------------------------------------------
   # 37. Deeply nested oneof
@@ -1283,6 +1319,7 @@ Feature: Advanced Protobuf Schema Parsing
     And the response should contain "Section"
     And the response should contain "TextBlock"
     And the response should contain "oneof"
+    And the audit log should contain event "schema_register" with subject "proto-adv-37"
 
   # --------------------------------------------------------------------------
   # 38. Multiple services in one file
@@ -1350,3 +1387,4 @@ Feature: Advanced Protobuf Schema Parsing
     And the response should contain "MetricsService"
     And the response should contain "DataPoint"
     And the response field "schemaType" should be "PROTOBUF"
+    And the audit log should contain event "schema_register" with subject "proto-adv-38"

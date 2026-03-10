@@ -49,6 +49,7 @@ Feature: Avro Reference Evolution
       """
     Then the response status should be 200
     And the response field "id" should equal stored "consumer_v1_id"
+    And the audit log should contain event "schema_register" with subject "avro-refevo-consumer-dup"
 
   # ==========================================================================
   # 2. CONSUMER UPGRADES TO REFERENCE V2
@@ -94,6 +95,7 @@ Feature: Avro Reference Evolution
       """
     Then the response status should be 200
     And the response field "id" should not equal stored "consumer_ref1_id"
+    And the audit log should contain event "schema_register" with subject "avro-refevo2-consumer-v2"
 
   # ==========================================================================
   # 3. MULTIPLE REFERENCES — ONE EVOLVES
@@ -120,6 +122,7 @@ Feature: Avro Reference Evolution
       """
     Then the response status should be 200
     And I store the response field "id" as "multi_v1_id"
+    And the audit log should contain event "schema_register" with subject "avro-multiref-consumer"
 
   # ==========================================================================
   # 4. SAME SCHEMA BODY WITH DIFFERENT REFERENCES — DIFFERENT IDS
@@ -158,6 +161,7 @@ Feature: Avro Reference Evolution
       """
     Then the response status should be 200
     And the response field "id" should not equal stored "diffref_v1"
+    And the audit log should contain event "schema_register" with subject "avro-diffref-c2"
 
   # ==========================================================================
   # 5-6. REFERENCEDBY TRACKING
@@ -190,6 +194,7 @@ Feature: Avro Reference Evolution
     Then the response status should be 200
     When I get the referenced by for subject "avro-refby-base" version 1
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-refby-consumer2"
 
   # ==========================================================================
   # 7. COMPATIBILITY CHECK API WITH REFERENCES
@@ -243,6 +248,7 @@ Feature: Avro Reference Evolution
     And I store the response field "id" as "consumer_id"
     When I get version 1 of subject "avro-refdel-consumer"
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-refdel-consumer"
 
   # ==========================================================================
   # 9. LOOKUP SCHEMA WITH REFERENCES
@@ -264,6 +270,7 @@ Feature: Avro Reference Evolution
       """
     Then the response status should be 200
     And I store the response field "id" as "lookup_id"
+    And the audit log should contain event "schema_register" with subject "avro-reflookup-consumer"
 
   # ==========================================================================
   # 10. SAME CONTENT AT DIFFERENT REFERENCE VERSIONS
@@ -302,3 +309,4 @@ Feature: Avro Reference Evolution
       """
     Then the response status should be 200
     And the response field "id" should not equal stored "refver_v1"
+    And the audit log should contain event "schema_register" with subject "avro-refver-c2"

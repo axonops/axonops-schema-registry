@@ -30,6 +30,7 @@ message Msg {
 }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-compat-varint-u32"
 
   Scenario: Varint group — int32 to int64 is compatible
     Given subject "proto-compat-varint-i64" has compatibility level "BACKWARD"
@@ -52,6 +53,7 @@ message Msg {
 }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-compat-varint-i64"
 
   Scenario: Varint group — int32 to bool is compatible
     Given subject "proto-compat-varint-bool" has compatibility level "BACKWARD"
@@ -74,6 +76,7 @@ message Msg {
 }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-compat-varint-bool"
 
   # ==========================================================================
   # 4. ENUM AND INT32 COMPATIBLE (VARINT GROUP)
@@ -104,6 +107,7 @@ message Msg {
 }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-compat-enum-int"
 
   # ==========================================================================
   # 5. ZIGZAG GROUP
@@ -130,6 +134,7 @@ message Msg {
 }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-compat-zigzag"
 
   # ==========================================================================
   # 6. CROSS-GROUP INCOMPATIBLE
@@ -182,6 +187,7 @@ message Msg {
 }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-compat-32bit"
 
   # ==========================================================================
   # 8. 64-BIT GROUP
@@ -208,6 +214,7 @@ message Msg {
 }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-compat-64bit"
 
   # ==========================================================================
   # 9. LENGTH-DELIMITED GROUP
@@ -234,6 +241,7 @@ message Msg {
 }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-compat-len-delim"
 
   # ==========================================================================
   # 10. ADDING FIELD TO ONEOF IS COMPATIBLE
@@ -265,6 +273,7 @@ message Msg {
 }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-compat-oneof-add"
 
   # ==========================================================================
   # 11. MOVING FIELD OUT OF ONEOF IS INCOMPATIBLE
@@ -369,6 +378,7 @@ service Search {
 }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-compat-service"
 
   # ==========================================================================
   # 14. 3-VERSION FIELD ADDITION CHAIN UNDER BACKWARD_TRANSITIVE
@@ -408,3 +418,4 @@ message Event {
 }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-compat-3v-chain"

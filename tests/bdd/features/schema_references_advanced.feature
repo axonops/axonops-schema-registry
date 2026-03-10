@@ -27,6 +27,7 @@ Feature: Advanced Schema References
     When I get the stored schema by ID
     Then the response status should be 200
     And the response should contain "Person"
+    And the audit log should contain event "schema_register" with subject "avro-ref-person"
 
   Scenario: Avro multiple cross-subject references
     Given the global compatibility level is "NONE"
@@ -49,6 +50,7 @@ Feature: Advanced Schema References
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-ref-order2"
 
   Scenario: Avro reference chain - A references B which references C
     Given the global compatibility level is "NONE"
@@ -77,6 +79,7 @@ Feature: Advanced Schema References
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-chain-a"
 
   Scenario: Avro reference with version pinning
     Given the global compatibility level is "NONE"
@@ -101,6 +104,7 @@ Feature: Advanced Schema References
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-pin-main"
 
   # ==========================================================================
   # JSON SCHEMA REFERENCES
@@ -123,6 +127,7 @@ Feature: Advanced Schema References
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "json-ref-person"
 
   Scenario: JSON Schema multiple external $refs
     Given the global compatibility level is "NONE"
@@ -146,6 +151,7 @@ Feature: Advanced Schema References
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "json-ref-checkout"
 
   Scenario: JSON Schema external $ref combined with internal $defs
     Given the global compatibility level is "NONE"
@@ -164,6 +170,7 @@ Feature: Advanced Schema References
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "json-ref-combo"
 
   Scenario: JSON Schema reference chain (3 levels)
     Given the global compatibility level is "NONE"
@@ -194,6 +201,7 @@ Feature: Advanced Schema References
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "json-chain-a"
 
   # ==========================================================================
   # PROTOBUF REFERENCES
@@ -222,6 +230,7 @@ Feature: Advanced Schema References
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-ref-person"
 
   Scenario: Protobuf multiple imports from different subjects
     Given the global compatibility level is "NONE"
@@ -255,6 +264,7 @@ Feature: Advanced Schema References
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-ref-order2"
 
   Scenario: Protobuf import chain - 3 levels
     Given the global compatibility level is "NONE"
@@ -290,6 +300,7 @@ Feature: Advanced Schema References
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-chain-a"
 
   Scenario: Protobuf import with well-known types plus custom import
     Given the global compatibility level is "NONE"
@@ -313,6 +324,7 @@ Feature: Advanced Schema References
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-ref-wkt-plus"
 
   # ==========================================================================
   # ERROR CASES
@@ -398,6 +410,7 @@ Feature: Advanced Schema References
     Then the response status should be 200
     When I get the referenced by for subject "ref-by-src" version 1
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "ref-by-consumer"
 
   Scenario: Verify referencedby with multiple consumers
     Given the global compatibility level is "NONE"
@@ -427,6 +440,7 @@ Feature: Advanced Schema References
     Then the response status should be 200
     When I get the referenced by for subject "ref-by-shared" version 1
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "ref-by-use2"
 
   # ==========================================================================
   # SPECIAL CASES
@@ -448,6 +462,7 @@ Feature: Advanced Schema References
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "ref-unused-main"
 
   Scenario: Register same schema with different references creates separate entries
     Given the global compatibility level is "NONE"
@@ -480,6 +495,7 @@ Feature: Advanced Schema References
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "ref-diff-main1"
 
   Scenario: Large reference count - 5 references in one Avro schema
     Given the global compatibility level is "NONE"
@@ -517,6 +533,7 @@ Feature: Advanced Schema References
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "ref-large-main"
 
   Scenario: Update referenced schema and register with new version
     Given the global compatibility level is "NONE"
@@ -551,3 +568,4 @@ Feature: Advanced Schema References
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "ref-update-consumer"

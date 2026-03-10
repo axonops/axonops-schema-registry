@@ -21,6 +21,7 @@ Feature: JSON Schema Advanced Compatibility
       {"type":"number"}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "json-compat-int-num"
 
   # ==========================================================================
   # 2. TYPE WIDENING — STRING TO NULLABLE STRING
@@ -37,6 +38,7 @@ Feature: JSON Schema Advanced Compatibility
       {"type":["string","null"]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "json-compat-nullable"
 
   # ==========================================================================
   # 3. ADDITIONAL PROPERTIES FALSE TO TRUE (RELAXING)
@@ -53,6 +55,7 @@ Feature: JSON Schema Advanced Compatibility
       {"type":"object","properties":{"a":{"type":"string"}}}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "json-compat-addl-open"
 
   # ==========================================================================
   # 4. ADDITIONAL PROPERTIES TRUE TO FALSE (TIGHTENING)
@@ -85,6 +88,7 @@ Feature: JSON Schema Advanced Compatibility
       {"oneOf":[{"type":"string"},{"type":"integer"},{"type":"boolean"}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "json-compat-oneof-add"
 
   # ==========================================================================
   # 6. ONEOF — REMOVE VARIANT (TIGHTENING)
@@ -117,6 +121,7 @@ Feature: JSON Schema Advanced Compatibility
       {"enum":["A","B","C"]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "json-compat-enum-add"
 
   # ==========================================================================
   # 8. ENUM VALUE REMOVAL (TIGHTENING)
@@ -197,6 +202,7 @@ Feature: JSON Schema Advanced Compatibility
       {"type":"object","properties":{"name":{"type":"string"},"email":{"type":"string"}},"additionalProperties":false}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "json-compat-closed-add"
 
   # ==========================================================================
   # 13. NUMERIC CONSTRAINT RELAXATION CHAIN (3 VERSIONS)
@@ -218,6 +224,7 @@ Feature: JSON Schema Advanced Compatibility
       {"type":"integer","minimum":0,"maximum":500}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "json-compat-num-chain"
 
   # ==========================================================================
   # 14. 4-VERSION CLOSED MODEL CHAIN UNDER BACKWARD_TRANSITIVE
@@ -244,3 +251,4 @@ Feature: JSON Schema Advanced Compatibility
       {"type":"object","properties":{"name":{"type":"string"},"email":{"type":"string"},"phone":{"type":"string"},"age":{"type":"integer"}},"required":["name"],"additionalProperties":false}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "json-compat-4v-chain"

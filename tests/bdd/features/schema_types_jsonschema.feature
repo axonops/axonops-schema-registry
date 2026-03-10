@@ -12,6 +12,7 @@ Feature: JSON Schema Types
     When I get the stored schema by ID
     Then the response status should be 200
     And the response should contain "name"
+    And the audit log should contain event "schema_register" with subject "json-simple"
 
   Scenario: String constraints (format, minLength, maxLength, pattern)
     When I register a "JSON" schema under subject "json-string-constraints":
@@ -26,6 +27,7 @@ Feature: JSON Schema Types
     And I store the response field "id" as "schema_id"
     When I get the stored schema by ID
     Then the response should contain "minLength"
+    And the audit log should contain event "schema_register" with subject "json-string-constraints"
 
   Scenario: Numeric constraints
     When I register a "JSON" schema under subject "json-numeric":
@@ -41,6 +43,7 @@ Feature: JSON Schema Types
     And I store the response field "id" as "schema_id"
     When I get the stored schema by ID
     Then the response should contain "multipleOf"
+    And the audit log should contain event "schema_register" with subject "json-numeric"
 
   Scenario: Array constraints
     When I register a "JSON" schema under subject "json-arrays":
@@ -55,6 +58,7 @@ Feature: JSON Schema Types
     And I store the response field "id" as "schema_id"
     When I get the stored schema by ID
     Then the response should contain "uniqueItems"
+    And the audit log should contain event "schema_register" with subject "json-arrays"
 
   Scenario: Nested objects (2 levels)
     When I register a "JSON" schema under subject "json-nested-2":
@@ -72,6 +76,7 @@ Feature: JSON Schema Types
     And I store the response field "id" as "schema_id"
     When I get the stored schema by ID
     Then the response should contain "address"
+    And the audit log should contain event "schema_register" with subject "json-nested-2"
 
   Scenario: Deeply nested objects (3+ levels)
     When I register a "JSON" schema under subject "json-nested-3":
@@ -92,6 +97,7 @@ Feature: JSON Schema Types
     And I store the response field "id" as "schema_id"
     When I get the stored schema by ID
     Then the response should contain "value"
+    And the audit log should contain event "schema_register" with subject "json-nested-3"
 
   Scenario: Enum values
     When I register a "JSON" schema under subject "json-enum":
@@ -106,6 +112,7 @@ Feature: JSON Schema Types
     And I store the response field "id" as "schema_id"
     When I get the stored schema by ID
     Then the response should contain "suspended"
+    And the audit log should contain event "schema_register" with subject "json-enum"
 
   Scenario: oneOf composition
     When I register a "JSON" schema under subject "json-oneof":
@@ -123,6 +130,7 @@ Feature: JSON Schema Types
     And I store the response field "id" as "schema_id"
     When I get the stored schema by ID
     Then the response should contain "oneOf"
+    And the audit log should contain event "schema_register" with subject "json-oneof"
 
   Scenario: anyOf composition
     When I register a "JSON" schema under subject "json-anyof":
@@ -138,6 +146,7 @@ Feature: JSON Schema Types
     And I store the response field "id" as "schema_id"
     When I get the stored schema by ID
     Then the response should contain "anyOf"
+    And the audit log should contain event "schema_register" with subject "json-anyof"
 
   Scenario: allOf composition
     When I register a "JSON" schema under subject "json-allof":
@@ -152,6 +161,7 @@ Feature: JSON Schema Types
     And I store the response field "id" as "schema_id"
     When I get the stored schema by ID
     Then the response should contain "allOf"
+    And the audit log should contain event "schema_register" with subject "json-allof"
 
   Scenario: additionalProperties (false and typed)
     When I register a "JSON" schema under subject "json-additional-props":
@@ -169,6 +179,7 @@ Feature: JSON Schema Types
       },"additionalProperties":{"type":"string"}}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "json-additional-props"
 
   Scenario: $defs and $ref (internal)
     When I register a "JSON" schema under subject "json-defs-ref":
@@ -188,6 +199,7 @@ Feature: JSON Schema Types
     And I store the response field "id" as "schema_id"
     When I get the stored schema by ID
     Then the response should contain "$defs"
+    And the audit log should contain event "schema_register" with subject "json-defs-ref"
 
   Scenario: Standalone non-object types (string)
     When I register a "JSON" schema under subject "json-standalone-string":
@@ -198,6 +210,7 @@ Feature: JSON Schema Types
     And I store the response field "id" as "schema_id"
     When I get the stored schema by ID
     Then the response should contain "maxLength"
+    And the audit log should contain event "schema_register" with subject "json-standalone-string"
 
   Scenario: Standalone non-object types (array)
     When I register a "JSON" schema under subject "json-standalone-array":
@@ -205,6 +218,7 @@ Feature: JSON Schema Types
       {"type":"array","items":{"type":"number"},"minItems":1}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "json-standalone-array"
 
   Scenario: Standalone non-object types (integer)
     When I register a "JSON" schema under subject "json-standalone-integer":
@@ -212,6 +226,7 @@ Feature: JSON Schema Types
       {"type":"integer","minimum":0,"maximum":100}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "json-standalone-integer"
 
   Scenario: patternProperties
     When I register a "JSON" schema under subject "json-pattern-props":
@@ -225,6 +240,7 @@ Feature: JSON Schema Types
     And I store the response field "id" as "schema_id"
     When I get the stored schema by ID
     Then the response should contain "patternProperties"
+    And the audit log should contain event "schema_register" with subject "json-pattern-props"
 
   Scenario: Complex real-world PaymentEvent schema
     When I register a "JSON" schema under subject "json-payment-event":
@@ -304,6 +320,7 @@ Feature: JSON Schema Types
     When I get version 1 of subject "json-payment-event"
     Then the response status should be 200
     And the response field "version" should be 1
+    And the audit log should contain event "schema_register" with subject "json-payment-event"
 
   Scenario: Retrieve JSON Schema round-trip
     Given subject "json-roundtrip" has "JSON" schema:

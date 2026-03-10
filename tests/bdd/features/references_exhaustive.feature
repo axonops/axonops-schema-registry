@@ -77,6 +77,7 @@ Feature: Schema References — Exhaustive (Confluent v8.1.1 Compatibility)
     # Now deleting the reference should succeed
     When I delete version 1 of subject "ref-ex-del-base"
     Then the response status should be 200
+    And the audit log should contain event "subject_delete" with subject "ref-ex-del-referrer"
 
   # ==========================================================================
   # MULTI-LEVEL REFERENCES WITH SCHEMA RETRIEVAL
@@ -113,6 +114,7 @@ Feature: Schema References — Exhaustive (Confluent v8.1.1 Compatibility)
     When I get schema by ID {{top_id}}
     Then the response status should be 200
     And the response should contain "MLTop"
+    And the audit log should contain event "schema_register" with subject "ref-ex-ml-top"
 
   Scenario: Referencedby shows multiple referrers
     Given the global compatibility level is "NONE"
@@ -146,6 +148,7 @@ Feature: Schema References — Exhaustive (Confluent v8.1.1 Compatibility)
     Then the response status should be 200
     And the response array should contain stored integer "use1_id"
     And the response array should contain stored integer "use2_id"
+    And the audit log should contain event "schema_register" with subject "ref-ex-use1"
 
   # ==========================================================================
   # DANGLING REFERENCES — Delete and recreate
@@ -212,6 +215,7 @@ Feature: Schema References — Exhaustive (Confluent v8.1.1 Compatibility)
     When I get schema by ID {{json_ref_id}}
     Then the response status should be 200
     And the response should have field "references"
+    And the audit log should contain event "schema_register" with subject "ref-ex-json-person"
 
   Scenario: Protobuf with cross-subject reference is retrievable
     Given the global compatibility level is "NONE"
@@ -239,6 +243,7 @@ Feature: Schema References — Exhaustive (Confluent v8.1.1 Compatibility)
     When I get schema by ID {{proto_ref_id}}
     Then the response status should be 200
     And the response should have field "references"
+    And the audit log should contain event "schema_register" with subject "ref-ex-proto-event"
 
   # ==========================================================================
   # MISSING/EMPTY REFERENCES
@@ -251,6 +256,7 @@ Feature: Schema References — Exhaustive (Confluent v8.1.1 Compatibility)
       {"schema": "{\"type\":\"record\",\"name\":\"EmptyRefs\",\"fields\":[{\"name\":\"a\",\"type\":\"string\"}]}", "references": []}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "ref-ex-empty-refs"
 
   Scenario: Referencedby for non-referenced schema returns empty array
     Given the global compatibility level is "NONE"

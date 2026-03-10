@@ -25,6 +25,7 @@ Feature: JSON Schema Reference Evolution
       """
     Then the response status should be 200
     And I store the response field "id" as "json_consumer_v1"
+    And the audit log should contain event "schema_register" with subject "json-refevo-consumer"
 
   # ==========================================================================
   # 2. CONSUMER UPGRADES REFERENCE VERSION
@@ -65,6 +66,7 @@ Feature: JSON Schema Reference Evolution
       """
     Then the response status should be 200
     And the response field "id" should not equal stored "json_ref1_id"
+    And the audit log should contain event "schema_register" with subject "json-refevo2-c2"
 
   # ==========================================================================
   # 3. MULTIPLE REFERENCES
@@ -91,6 +93,7 @@ Feature: JSON Schema Reference Evolution
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "json-multiref-person"
 
   # ==========================================================================
   # 4. REFERENCEDBY TRACKING
@@ -125,6 +128,7 @@ Feature: JSON Schema Reference Evolution
     Then the response status should be 200
     When I get the referenced by for subject "json-refby-shared" version 1
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "json-refby-c2"
 
   # ==========================================================================
   # 5. SAME BODY WITH DIFFERENT REF VERSIONS — DIFFERENT IDS
@@ -165,6 +169,7 @@ Feature: JSON Schema Reference Evolution
       """
     Then the response status should be 200
     And the response field "id" should not equal stored "json_diff_v1"
+    And the audit log should contain event "schema_register" with subject "json-diffref-b"
 
   # ==========================================================================
   # 6. DELETE REFERENCED SCHEMA — CONSUMER STILL RETRIEVABLE
@@ -188,6 +193,7 @@ Feature: JSON Schema Reference Evolution
     Then the response status should be 200
     When I get version 1 of subject "json-refdel-consumer"
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "json-refdel-consumer"
 
   # ==========================================================================
   # 7. COMPATIBILITY WITH REFERENCES
@@ -210,6 +216,7 @@ Feature: JSON Schema Reference Evolution
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "json-refcompat-main"
 
   # ==========================================================================
   # 8. REFERENCE CHAIN — A REFS B REFS C
@@ -242,3 +249,4 @@ Feature: JSON Schema Reference Evolution
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "json-chain-a"

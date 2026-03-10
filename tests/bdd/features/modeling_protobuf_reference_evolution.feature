@@ -31,6 +31,7 @@ message Address {
       """
     Then the response status should be 200
     And I store the response field "id" as "proto_consumer_v1"
+    And the audit log should contain event "schema_register" with subject "proto-refevo-consumer"
 
   # ==========================================================================
   # 2. CONSUMER UPGRADES TO IMPORT V2
@@ -82,6 +83,7 @@ message Dependency {
       """
     Then the response status should be 200
     And the response field "id" should not equal stored "proto_ref1_id"
+    And the audit log should contain event "schema_register" with subject "proto-refevo2-c2"
 
   # ==========================================================================
   # 3. MULTIPLE IMPORTS
@@ -120,6 +122,7 @@ enum Status {
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-multiref-consumer"
 
   # ==========================================================================
   # 4. REFERENCEDBY TRACKING
@@ -159,6 +162,7 @@ message Shared {
     Then the response status should be 200
     When I get the referenced by for subject "proto-refby-shared" version 1
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-refby-c2"
 
   # ==========================================================================
   # 5. SAME PROTO BODY WITH DIFFERENT IMPORT VERSIONS — DIFFERENT IDS
@@ -209,6 +213,7 @@ message Dep {
       """
     Then the response status should be 200
     And the response field "id" should not equal stored "proto_diff_v1"
+    And the audit log should contain event "schema_register" with subject "proto-diffref-b"
 
   # ==========================================================================
   # 6. DELETE REFERENCED PROTO — CONSUMER STILL RETRIEVABLE
@@ -237,6 +242,7 @@ message Base {
     Then the response status should be 200
     When I get version 1 of subject "proto-refdel-consumer"
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-refdel-consumer"
 
   # ==========================================================================
   # 7. COMPATIBILITY WITH IMPORT REFERENCES
@@ -264,6 +270,7 @@ message Dep {
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-refcompat-main"
 
   # ==========================================================================
   # 8. IMPORT CHAIN — A IMPORTS B IMPORTS C
@@ -302,3 +309,4 @@ message TypeC {
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-chain-a"

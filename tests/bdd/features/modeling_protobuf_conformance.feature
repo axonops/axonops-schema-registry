@@ -42,6 +42,7 @@ message AllScalars {
 }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-conform-scalars"
 
   # ==========================================================================
   # 2. RECURSIVE SELF-REFERENCING MESSAGE
@@ -59,6 +60,7 @@ message TreeNode {
 }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-conform-recursive"
 
   # ==========================================================================
   # 3. RECURSIVE MAP FIELD
@@ -76,6 +78,7 @@ message RecursiveMap {
 }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-conform-recmap"
 
   # ==========================================================================
   # 4. NEGATIVE ENUM VALUE
@@ -97,6 +100,7 @@ message Container {
 }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-conform-neg-enum"
 
   # ==========================================================================
   # 5. ALIASED ENUM
@@ -120,6 +124,7 @@ message Container {
 }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-conform-alias-enum"
 
   # ==========================================================================
   # 6. ALL VALID MAP KEY TYPES
@@ -147,6 +152,7 @@ message AllMapKeys {
 }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-conform-map-keys"
 
   # ==========================================================================
   # 7. MAP WITH NESTED MESSAGE VALUES
@@ -167,6 +173,7 @@ message Registry {
 }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-conform-map-msg"
 
   # ==========================================================================
   # 8. MULTIPLE ONEOFS IN SAME MESSAGE
@@ -191,6 +198,7 @@ message MultiOneof {
 }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-conform-multi-oneof"
 
   # ==========================================================================
   # 9. PROTO2 WITH DEFAULT VALUES
@@ -210,6 +218,7 @@ message WithDefaults {
 }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-conform-proto2-defaults"
 
   # ==========================================================================
   # 10. RESERVED FIELD NUMBERS AND NAMES
@@ -229,6 +238,7 @@ message Config {
 }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-conform-reserved"
 
   # ==========================================================================
   # 11. EMPTY MESSAGE
@@ -243,6 +253,7 @@ package test.empty;
 message Empty {}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-conform-empty"
 
   # ==========================================================================
   # 12. PACKED AND UNPACKED REPEATED
@@ -261,6 +272,7 @@ message Metrics {
 }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-conform-packed"
 
   # ==========================================================================
   # 13. WELL-KNOWN TYPES
@@ -284,6 +296,7 @@ message EventRecord {
 }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-conform-wkt"
 
   # ==========================================================================
   # 14. SERVICE DEFINITION
@@ -308,6 +321,7 @@ service SearchService {
 }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-conform-service"
 
   # ==========================================================================
   # 15. SAME PROTO IN TWO SUBJECTS — SAME ID (DEDUP)
@@ -346,6 +360,7 @@ message Event {
     And the response should be an array of length 2
     And the response array should contain "proto-conform-dedup-a"
     And the response array should contain "proto-conform-dedup-b"
+    And the audit log should contain event "schema_register" with subject "proto-conform-dedup-b"
 
   # ==========================================================================
   # 16. PROTO WITH ENUM AS MAP VALUE
@@ -367,6 +382,7 @@ message Config {
 }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-conform-enum-map"
 
   # ==========================================================================
   # 17. CONTENT ROUND-TRIP
@@ -415,6 +431,7 @@ message User {
 }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-conform-optional"
 
   # ==========================================================================
   # 19. PROTO2 EXTENSIONS
@@ -437,6 +454,7 @@ extend Base {
 }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-conform-extensions"
 
   # ==========================================================================
   # 20. PROTO2 GROUPS
@@ -456,3 +474,4 @@ message SearchResponse {
 }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-conform-groups"

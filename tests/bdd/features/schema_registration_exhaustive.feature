@@ -29,6 +29,7 @@ Feature: Schema Registration — Exhaustive (Confluent v8.1.1 Compatibility)
     When I list versions of subject "reg-multi-avro"
     Then the response status should be 200
     And the response should be an array of length 3
+    And the audit log should contain event "schema_register" with subject "reg-multi-avro"
 
   Scenario: Re-register existing schema returns same ID without new version
     Given subject "reg-redup" has schema:
@@ -43,6 +44,7 @@ Feature: Schema Registration — Exhaustive (Confluent v8.1.1 Compatibility)
     And I store the response field "id" as "dup_id"
     When I list versions of subject "reg-redup"
     Then the response should be an array of length 1
+    And the audit log should contain event "schema_register" with subject "reg-redup"
 
   Scenario: Same schema under different subjects returns same global ID
     When I register a schema under subject "reg-global-s1":
@@ -57,6 +59,7 @@ Feature: Schema Registration — Exhaustive (Confluent v8.1.1 Compatibility)
       """
     Then the response status should be 200
     And I store the response field "id" as "global_id2"
+    And the audit log should contain event "schema_register" with subject "reg-global-s1"
 
   Scenario: Register invalid Avro schema with bad field type returns 422
     When I POST "/subjects/reg-bad-avro/versions" with body:
@@ -101,6 +104,7 @@ Feature: Schema Registration — Exhaustive (Confluent v8.1.1 Compatibility)
       syntax = "proto3"; message Mixed { string x = 1; }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "reg-mixed-types"
 
   Scenario: Schema whitespace canonicalization returns same ID
     When I register a schema under subject "reg-canon-1":
@@ -115,6 +119,7 @@ Feature: Schema Registration — Exhaustive (Confluent v8.1.1 Compatibility)
       """
     Then the response status should be 200
     And I store the response field "id" as "canon_id2"
+    And the audit log should contain event "schema_register" with subject "reg-canon-1"
 
   # ==========================================================================
   # JSON SCHEMA REGISTRATION
@@ -134,6 +139,7 @@ Feature: Schema Registration — Exhaustive (Confluent v8.1.1 Compatibility)
     Then the response status should be 200
     When I list versions of subject "reg-multi-json"
     Then the response should be an array of length 2
+    And the audit log should contain event "schema_register" with subject "reg-multi-json"
 
   Scenario: Re-register existing JSON schema returns same ID
     When I register a "JSON" schema under subject "reg-redup-json":
@@ -150,6 +156,7 @@ Feature: Schema Registration — Exhaustive (Confluent v8.1.1 Compatibility)
     And I store the response field "id" as "json_dup_id2"
     When I list versions of subject "reg-redup-json"
     Then the response should be an array of length 1
+    And the audit log should contain event "schema_register" with subject "reg-redup-json"
 
   Scenario: Register invalid JSON schema returns 422
     When I POST "/subjects/reg-bad-json/versions" with body:
@@ -197,6 +204,7 @@ Feature: Schema Registration — Exhaustive (Confluent v8.1.1 Compatibility)
     Then the response status should be 200
     When I list versions of subject "reg-multi-proto"
     Then the response should be an array of length 2
+    And the audit log should contain event "schema_register" with subject "reg-multi-proto"
 
   Scenario: Register incompatible Protobuf schemas under BACKWARD compatibility returns 409
     Given subject "reg-incompat-proto" has compatibility level "BACKWARD"
@@ -234,3 +242,4 @@ Feature: Schema Registration — Exhaustive (Confluent v8.1.1 Compatibility)
       """
     Then the response status should be 200
     And I store the response field "id" as "xsubj_id3"
+    And the audit log should contain event "schema_register" with subject "reg-xsubj-s1"

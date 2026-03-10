@@ -29,6 +29,7 @@ Feature: Protobuf Schema Types
     When I get the stored schema by ID
     Then the response status should be 200
     And the response should contain "AllScalars"
+    And the audit log should contain event "schema_register" with subject "proto-scalars"
 
   Scenario: Nested messages (2 levels)
     When I register a "PROTOBUF" schema under subject "proto-nested-2":
@@ -47,6 +48,7 @@ Feature: Protobuf Schema Types
     And I store the response field "id" as "schema_id"
     When I get the stored schema by ID
     Then the response should contain "Customer"
+    And the audit log should contain event "schema_register" with subject "proto-nested-2"
 
   Scenario: Deeply nested messages (3+ levels)
     When I register a "PROTOBUF" schema under subject "proto-nested-3":
@@ -69,6 +71,7 @@ Feature: Protobuf Schema Types
     And I store the response field "id" as "schema_id"
     When I get the stored schema by ID
     Then the response should contain "L4"
+    And the audit log should contain event "schema_register" with subject "proto-nested-3"
 
   Scenario: Enums (top-level and nested)
     When I register a "PROTOBUF" schema under subject "proto-enums":
@@ -93,6 +96,7 @@ Feature: Protobuf Schema Types
     And I store the response field "id" as "schema_id"
     When I get the stored schema by ID
     Then the response should contain "STATUS_ACTIVE"
+    And the audit log should contain event "schema_register" with subject "proto-enums"
 
   Scenario: Repeated fields
     When I register a "PROTOBUF" schema under subject "proto-repeated":
@@ -112,6 +116,7 @@ Feature: Protobuf Schema Types
     And I store the response field "id" as "schema_id"
     When I get the stored schema by ID
     Then the response should contain "repeated"
+    And the audit log should contain event "schema_register" with subject "proto-repeated"
 
   Scenario: Simple and complex maps
     When I register a "PROTOBUF" schema under subject "proto-maps":
@@ -131,6 +136,7 @@ Feature: Protobuf Schema Types
     And I store the response field "id" as "schema_id"
     When I get the stored schema by ID
     Then the response should contain "WithMaps"
+    And the audit log should contain event "schema_register" with subject "proto-maps"
 
   Scenario: Oneof fields
     When I register a "PROTOBUF" schema under subject "proto-oneof":
@@ -157,6 +163,7 @@ Feature: Protobuf Schema Types
     And I store the response field "id" as "schema_id"
     When I get the stored schema by ID
     Then the response should contain "oneof"
+    And the audit log should contain event "schema_register" with subject "proto-oneof"
 
   Scenario: Proto3 optional fields
     When I register a "PROTOBUF" schema under subject "proto-optional":
@@ -173,6 +180,7 @@ Feature: Protobuf Schema Types
     And I store the response field "id" as "schema_id"
     When I get the stored schema by ID
     Then the response should contain "optional"
+    And the audit log should contain event "schema_register" with subject "proto-optional"
 
   Scenario: Package declarations
     When I register a "PROTOBUF" schema under subject "proto-package":
@@ -189,6 +197,7 @@ Feature: Protobuf Schema Types
     And I store the response field "id" as "schema_id"
     When I get the stored schema by ID
     Then the response should contain "com.example.events"
+    And the audit log should contain event "schema_register" with subject "proto-package"
 
   Scenario: Multiple top-level messages
     When I register a "PROTOBUF" schema under subject "proto-multi-msg":
@@ -214,6 +223,7 @@ Feature: Protobuf Schema Types
     Then the response should contain "Request"
     And the response should contain "Response"
     And the response should contain "Result"
+    And the audit log should contain event "schema_register" with subject "proto-multi-msg"
 
   Scenario: Service definition
     When I register a "PROTOBUF" schema under subject "proto-service":
@@ -233,6 +243,7 @@ Feature: Protobuf Schema Types
     And I store the response field "id" as "schema_id"
     When I get the stored schema by ID
     Then the response should contain "SearchService"
+    And the audit log should contain event "schema_register" with subject "proto-service"
 
   Scenario: Proto2 syntax
     When I register a "PROTOBUF" schema under subject "proto-proto2":
@@ -248,6 +259,7 @@ Feature: Protobuf Schema Types
     And I store the response field "id" as "schema_id"
     When I get the stored schema by ID
     Then the response should contain "LegacyMessage"
+    And the audit log should contain event "schema_register" with subject "proto-proto2"
 
   Scenario: Complex real-world PaymentEvent schema
     When I register a "PROTOBUF" schema under subject "proto-payment-event":
@@ -317,6 +329,7 @@ Feature: Protobuf Schema Types
     When I get version 1 of subject "proto-payment-event"
     Then the response status should be 200
     And the response field "version" should be 1
+    And the audit log should contain event "schema_register" with subject "proto-payment-event"
 
   Scenario: Retrieve Protobuf schema round-trip
     Given subject "proto-roundtrip" has "PROTOBUF" schema:

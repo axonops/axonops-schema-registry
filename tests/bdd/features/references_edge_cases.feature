@@ -129,6 +129,7 @@ Feature: Schema Reference Edge Cases
     When I get the latest version of subject "deep-level-5"
     Then the response status should be 200
     And the response should contain "Level5"
+    And the audit log should contain event "schema_register" with subject "deep-level-5"
 
   # ---------------------------------------------------------------------------
   # Reference to non-existent subject
@@ -188,3 +189,4 @@ Feature: Schema Reference Edge Cases
     When I get the referenced by for subject "ref-base" version 1
     Then the response status should be 200
     And the response should be valid JSON
+    And the audit log should contain event "schema_register" with subject "ref-consumer-1"

@@ -55,6 +55,7 @@ Feature: Contexts — Name Validation, Error Conditions, and Edge Cases
     When I GET "/contexts"
     Then the response status should be 200
     And the response array should contain ".ctx123"
+    And the audit log should contain event "schema_register" with subject ":.ctx123:valid-num"
 
   Scenario: Valid context name with all valid character types
     When I POST "/subjects/:.My-Ctx_v2.0:all-chars/versions" with body:
@@ -65,6 +66,7 @@ Feature: Contexts — Name Validation, Error Conditions, and Edge Cases
     When I GET "/contexts"
     Then the response status should be 200
     And the response array should contain ".My-Ctx_v2.0"
+    And the audit log should contain event "schema_register" with subject ":.My-Ctx_v2.0:all-chars"
 
   # ==========================================================================
   # DEFAULT CONTEXT BEHAVIOR
@@ -86,6 +88,7 @@ Feature: Contexts — Name Validation, Error Conditions, and Edge Cases
     When I GET "/contexts"
     Then the response status should be 200
     And the response array should contain "."
+    And the audit log should contain event "schema_register" with subject "plain-val"
 
   # ==========================================================================
   # INVALID CONTEXT ATTEMPTS DO NOT CREATE CONTEXTS
@@ -122,6 +125,7 @@ Feature: Contexts — Name Validation, Error Conditions, and Edge Cases
     Then the response status should be 200
     And the response array should contain "."
     And the response array should contain ".new-ctx"
+    And the audit log should contain event "schema_register" with subject ":.new-ctx:impl-create"
 
   # ==========================================================================
   # ERROR CONDITIONS FOR NON-EXISTENT RESOURCES IN VALID CONTEXTS
