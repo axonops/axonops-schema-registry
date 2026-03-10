@@ -18,6 +18,7 @@
 package bdd
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/base64"
@@ -95,7 +96,7 @@ func TestMain(m *testing.M) {
 	webhookURL = os.Getenv("BDD_WEBHOOK_URL")
 
 	// Default to Docker with memory backend when no env vars are set.
-	// BDD_STORAGE overrides this (in-process with real DB).
+	// BDD_STORAGE keeps the in-process path (for KMS tests with local Vault, etc.).
 	if backend == "" && registryURL == "" && bddStorage == "" {
 		backend = "memory"
 	}
@@ -512,12 +513,46 @@ func TestFeatures(t *testing.T) {
 				var st storage.Storage
 				var m *metrics.Metrics
 				var gaugeStop chan struct{}
+				var storeOwned bool // false when using sharedDBStore (don't close in After)
 				ctx.Before(func(gctx context.Context, sc *godog.Scenario) (context.Context, error) {
 					var reg *registry.Registry
-					if err := cleanDBStore(); err != nil {
-						return gctx, fmt.Errorf("clean %s storage: %w", bddStorage, err)
+					if hasTag(sc, "@kms") {
+						if sharedDBStore != nil {
+							if err := cleanDBStore(); err != nil {
+								return gctx, fmt.Errorf("clean %s storage: %w", bddStorage, err)
+							}
+							ts, st, reg = newKMSTestServerWithStore(sharedDBStore)
+							storeOwned = false
+						} else {
+							ts, st, reg = newKMSTestServer()
+							storeOwned = true
+						}
+					} else if hasTag(sc, "@audit") {
+						auditBuf := &bytes.Buffer{}
+						al := auth.NewAuditLoggerWithWriter(config.AuditConfig{Enabled: true}, auditBuf)
+						if sharedDBStore != nil {
+							if err := cleanDBStore(); err != nil {
+								return gctx, fmt.Errorf("clean %s storage: %w", bddStorage, err)
+							}
+							ts, st, reg, m, gaugeStop = newTestServerWithStoreAndAudit(sharedDBStore, al)
+							storeOwned = false
+						} else {
+							ts, st, reg, m, gaugeStop = newTestServerWithAudit(al)
+							storeOwned = true
+						}
+						tc.AuditBuffer = auditBuf
+					} else {
+						if sharedDBStore != nil {
+							if err := cleanDBStore(); err != nil {
+								return gctx, fmt.Errorf("clean %s storage: %w", bddStorage, err)
+							}
+							ts, st, reg, m, gaugeStop = newTestServerWithStore(sharedDBStore)
+							storeOwned = false
+						} else {
+							ts, st, reg, m, gaugeStop = newTestServer()
+							storeOwned = true
+						}
 					}
-					ts, st, reg, m, gaugeStop = newTestServerWithStore(sharedDBStore)
 					tc.BaseURL = ts.URL
 					tc.Registry = reg
 					tc.StoredValues["_storage"] = st
@@ -531,6 +566,9 @@ func TestFeatures(t *testing.T) {
 					}
 					if ts != nil {
 						ts.Close()
+					}
+					if storeOwned && st != nil {
+						st.Close()
 					}
 					return gctx, nil
 				})
