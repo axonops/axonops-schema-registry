@@ -26,6 +26,7 @@ const (
 	AuditEventSchemaDelete   AuditEventType = "schema_delete"
 	AuditEventSchemaGet      AuditEventType = "schema_get"
 	AuditEventSchemaLookup   AuditEventType = "schema_lookup"
+	AuditEventSchemaImport   AuditEventType = "schema_import"
 
 	// Config events
 	AuditEventConfigGet    AuditEventType = "config_get"
@@ -35,6 +36,7 @@ const (
 	// Mode events
 	AuditEventModeGet    AuditEventType = "mode_get"
 	AuditEventModeUpdate AuditEventType = "mode_update"
+	AuditEventModeDelete AuditEventType = "mode_delete"
 
 	// Auth events
 	AuditEventAuthSuccess   AuditEventType = "auth_success"
@@ -44,6 +46,31 @@ const (
 	// Subject events
 	AuditEventSubjectDelete AuditEventType = "subject_delete"
 	AuditEventSubjectList   AuditEventType = "subject_list"
+
+	// Admin events
+	AuditEventUserCreate   AuditEventType = "user_create"
+	AuditEventUserUpdate   AuditEventType = "user_update"
+	AuditEventUserDelete   AuditEventType = "user_delete"
+	AuditEventAPIKeyCreate AuditEventType = "apikey_create"
+	AuditEventAPIKeyUpdate AuditEventType = "apikey_update"
+	AuditEventAPIKeyDelete AuditEventType = "apikey_delete"
+	AuditEventAPIKeyRevoke AuditEventType = "apikey_revoke"
+	AuditEventAPIKeyRotate AuditEventType = "apikey_rotate"
+
+	// Encryption events (KEK/DEK)
+	AuditEventKEKCreate AuditEventType = "kek_create"
+	AuditEventKEKUpdate AuditEventType = "kek_update"
+	AuditEventKEKDelete AuditEventType = "kek_delete"
+	AuditEventDEKCreate AuditEventType = "dek_create"
+	AuditEventDEKDelete AuditEventType = "dek_delete"
+
+	// Exporter events
+	AuditEventExporterCreate AuditEventType = "exporter_create"
+	AuditEventExporterUpdate AuditEventType = "exporter_update"
+	AuditEventExporterDelete AuditEventType = "exporter_delete"
+	AuditEventExporterPause  AuditEventType = "exporter_pause"
+	AuditEventExporterResume AuditEventType = "exporter_resume"
+	AuditEventExporterReset  AuditEventType = "exporter_reset"
 
 	// MCP events
 	AuditEventMCPToolCall    AuditEventType = "mcp_tool_call"
@@ -94,20 +121,7 @@ func NewAuditLogger(cfg config.AuditConfig) (*AuditLogger, error) {
 
 	// Build set of enabled events
 	if len(cfg.Events) == 0 {
-		// Enable all events by default
-		al.enabledEvents[AuditEventSchemaRegister] = true
-		al.enabledEvents[AuditEventSchemaDelete] = true
-		al.enabledEvents[AuditEventConfigUpdate] = true
-		al.enabledEvents[AuditEventModeUpdate] = true
-		al.enabledEvents[AuditEventAuthFailure] = true
-		al.enabledEvents[AuditEventAuthForbidden] = true
-		al.enabledEvents[AuditEventSubjectDelete] = true
-		al.enabledEvents[AuditEventMCPToolCall] = true
-		al.enabledEvents[AuditEventMCPToolError] = true
-		al.enabledEvents[AuditEventMCPAdminAction] = true
-		al.enabledEvents[AuditEventMCPConfirmIssued] = true
-		al.enabledEvents[AuditEventMCPConfirmRejected] = true
-		al.enabledEvents[AuditEventMCPConfirmed] = true
+		setDefaultEnabledEvents(al.enabledEvents)
 	} else {
 		for _, event := range cfg.Events {
 			al.enabledEvents[AuditEventType(event)] = true
@@ -139,19 +153,7 @@ func NewAuditLoggerWithWriter(cfg config.AuditConfig, w io.Writer) *AuditLogger 
 
 	// Build set of enabled events (same logic as NewAuditLogger)
 	if len(cfg.Events) == 0 {
-		al.enabledEvents[AuditEventSchemaRegister] = true
-		al.enabledEvents[AuditEventSchemaDelete] = true
-		al.enabledEvents[AuditEventConfigUpdate] = true
-		al.enabledEvents[AuditEventModeUpdate] = true
-		al.enabledEvents[AuditEventAuthFailure] = true
-		al.enabledEvents[AuditEventAuthForbidden] = true
-		al.enabledEvents[AuditEventSubjectDelete] = true
-		al.enabledEvents[AuditEventMCPToolCall] = true
-		al.enabledEvents[AuditEventMCPToolError] = true
-		al.enabledEvents[AuditEventMCPAdminAction] = true
-		al.enabledEvents[AuditEventMCPConfirmIssued] = true
-		al.enabledEvents[AuditEventMCPConfirmRejected] = true
-		al.enabledEvents[AuditEventMCPConfirmed] = true
+		setDefaultEnabledEvents(al.enabledEvents)
 	} else {
 		for _, event := range cfg.Events {
 			al.enabledEvents[AuditEventType(event)] = true
@@ -168,6 +170,63 @@ func (al *AuditLogger) Close() error {
 		return al.file.Close()
 	}
 	return nil
+}
+
+// setDefaultEnabledEvents populates the enabled events map with all write operations,
+// auth failures, and MCP events. Read-only events (schema_get, config_get, mode_get,
+// subject_list) are excluded by default to reduce log volume.
+func setDefaultEnabledEvents(m map[AuditEventType]bool) {
+	// Schema write operations
+	m[AuditEventSchemaRegister] = true
+	m[AuditEventSchemaDelete] = true
+	m[AuditEventSchemaImport] = true
+	m[AuditEventSchemaLookup] = true
+
+	// Config/mode write operations
+	m[AuditEventConfigUpdate] = true
+	m[AuditEventConfigDelete] = true
+	m[AuditEventModeUpdate] = true
+	m[AuditEventModeDelete] = true
+
+	// Auth events
+	m[AuditEventAuthFailure] = true
+	m[AuditEventAuthForbidden] = true
+
+	// Subject events
+	m[AuditEventSubjectDelete] = true
+
+	// Admin events
+	m[AuditEventUserCreate] = true
+	m[AuditEventUserUpdate] = true
+	m[AuditEventUserDelete] = true
+	m[AuditEventAPIKeyCreate] = true
+	m[AuditEventAPIKeyUpdate] = true
+	m[AuditEventAPIKeyDelete] = true
+	m[AuditEventAPIKeyRevoke] = true
+	m[AuditEventAPIKeyRotate] = true
+
+	// Encryption events
+	m[AuditEventKEKCreate] = true
+	m[AuditEventKEKUpdate] = true
+	m[AuditEventKEKDelete] = true
+	m[AuditEventDEKCreate] = true
+	m[AuditEventDEKDelete] = true
+
+	// Exporter events
+	m[AuditEventExporterCreate] = true
+	m[AuditEventExporterUpdate] = true
+	m[AuditEventExporterDelete] = true
+	m[AuditEventExporterPause] = true
+	m[AuditEventExporterResume] = true
+	m[AuditEventExporterReset] = true
+
+	// MCP events
+	m[AuditEventMCPToolCall] = true
+	m[AuditEventMCPToolError] = true
+	m[AuditEventMCPAdminAction] = true
+	m[AuditEventMCPConfirmIssued] = true
+	m[AuditEventMCPConfirmRejected] = true
+	m[AuditEventMCPConfirmed] = true
 }
 
 // Log logs an audit event.
@@ -289,7 +348,12 @@ func (al *AuditLogger) determineEventType(r *http.Request, statusCode int) Audit
 		return AuditEventAuthForbidden
 	}
 
-	// Schema operations
+	// Import operations
+	if contains(path, "/import/") && r.Method == "POST" {
+		return AuditEventSchemaImport
+	}
+
+	// Schema operations — registration, deletion, retrieval via versioned paths
 	if contains(path, "/subjects/") && contains(path, "/versions") {
 		switch r.Method {
 		case "POST":
@@ -301,7 +365,12 @@ func (al *AuditLogger) determineEventType(r *http.Request, statusCode int) Audit
 		}
 	}
 
-	// Schema lookup
+	// Schema lookup via POST /subjects/{subject} (no /versions in path)
+	if contains(path, "/subjects/") && !contains(path, "/versions") && r.Method == "POST" {
+		return AuditEventSchemaLookup
+	}
+
+	// Schema lookup by ID
 	if contains(path, "/schemas/ids/") {
 		return AuditEventSchemaGet
 	}
@@ -314,6 +383,90 @@ func (al *AuditLogger) determineEventType(r *http.Request, statusCode int) Audit
 	// Subject list
 	if path == "/subjects" && r.Method == "GET" {
 		return AuditEventSubjectList
+	}
+
+	// Admin operations — user management
+	if contains(path, "/admin/users") {
+		switch r.Method {
+		case "POST":
+			return AuditEventUserCreate
+		case "PUT":
+			return AuditEventUserUpdate
+		case "DELETE":
+			return AuditEventUserDelete
+		}
+	}
+
+	// Admin operations — API key management
+	if contains(path, "/admin/apikeys") {
+		if contains(path, "/revoke") && r.Method == "POST" {
+			return AuditEventAPIKeyRevoke
+		}
+		if contains(path, "/rotate") && r.Method == "POST" {
+			return AuditEventAPIKeyRotate
+		}
+		switch r.Method {
+		case "POST":
+			return AuditEventAPIKeyCreate
+		case "PUT":
+			return AuditEventAPIKeyUpdate
+		case "DELETE":
+			return AuditEventAPIKeyDelete
+		}
+	}
+
+	// KEK operations
+	if contains(path, "/dek-registry/v1/keks") {
+		// DEK operations (path includes /deks/)
+		if contains(path, "/deks/") {
+			switch r.Method {
+			case "POST":
+				if contains(path, "/undelete") {
+					return AuditEventDEKCreate // undelete restores a DEK
+				}
+				return AuditEventDEKCreate
+			case "DELETE":
+				return AuditEventDEKDelete
+			}
+		} else if contains(path, "/deks") && r.Method == "POST" {
+			return AuditEventDEKCreate
+		}
+
+		// KEK operations (no /deks/ in path)
+		if !contains(path, "/deks") {
+			switch r.Method {
+			case "POST":
+				if contains(path, "/undelete") {
+					return AuditEventKEKCreate // undelete restores a KEK
+				}
+				return AuditEventKEKCreate
+			case "PUT":
+				return AuditEventKEKUpdate
+			case "DELETE":
+				return AuditEventKEKDelete
+			}
+		}
+	}
+
+	// Exporter operations
+	if contains(path, "/exporters") {
+		if contains(path, "/pause") && r.Method == "PUT" {
+			return AuditEventExporterPause
+		}
+		if contains(path, "/resume") && r.Method == "PUT" {
+			return AuditEventExporterResume
+		}
+		if contains(path, "/reset") && r.Method == "PUT" {
+			return AuditEventExporterReset
+		}
+		switch r.Method {
+		case "POST":
+			return AuditEventExporterCreate
+		case "PUT":
+			return AuditEventExporterUpdate
+		case "DELETE":
+			return AuditEventExporterDelete
+		}
 	}
 
 	// Config operations
@@ -335,6 +488,8 @@ func (al *AuditLogger) determineEventType(r *http.Request, statusCode int) Audit
 			return AuditEventModeGet
 		case "PUT":
 			return AuditEventModeUpdate
+		case "DELETE":
+			return AuditEventModeDelete
 		}
 	}
 

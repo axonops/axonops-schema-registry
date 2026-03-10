@@ -208,17 +208,52 @@ func TestDetermineEventType_SchemaOps(t *testing.T) {
 		path     string
 		expected AuditEventType
 	}{
+		// Schema operations
 		{"POST", "/subjects/test/versions", AuditEventSchemaRegister},
 		{"DELETE", "/subjects/test/versions/1", AuditEventSchemaDelete},
 		{"GET", "/subjects/test/versions/1", AuditEventSchemaGet},
 		{"GET", "/schemas/ids/1", AuditEventSchemaGet},
+		{"POST", "/subjects/test", AuditEventSchemaLookup},
 		{"DELETE", "/subjects/test", AuditEventSubjectDelete},
 		{"GET", "/subjects", AuditEventSubjectList},
+		// Import
+		{"POST", "/import/schemas", AuditEventSchemaImport},
+		// Config operations
 		{"GET", "/config", AuditEventConfigGet},
 		{"PUT", "/config", AuditEventConfigUpdate},
 		{"DELETE", "/config/test", AuditEventConfigDelete},
+		// Mode operations (including DELETE)
 		{"GET", "/mode", AuditEventModeGet},
 		{"PUT", "/mode", AuditEventModeUpdate},
+		{"DELETE", "/mode/test", AuditEventModeDelete},
+		{"DELETE", "/mode", AuditEventModeDelete},
+		// Admin — users
+		{"POST", "/admin/users", AuditEventUserCreate},
+		{"PUT", "/admin/users/1", AuditEventUserUpdate},
+		{"DELETE", "/admin/users/1", AuditEventUserDelete},
+		// Admin — API keys
+		{"POST", "/admin/apikeys", AuditEventAPIKeyCreate},
+		{"PUT", "/admin/apikeys/1", AuditEventAPIKeyUpdate},
+		{"DELETE", "/admin/apikeys/1", AuditEventAPIKeyDelete},
+		{"POST", "/admin/apikeys/1/revoke", AuditEventAPIKeyRevoke},
+		{"POST", "/admin/apikeys/1/rotate", AuditEventAPIKeyRotate},
+		// KEK operations
+		{"POST", "/dek-registry/v1/keks", AuditEventKEKCreate},
+		{"PUT", "/dek-registry/v1/keks/my-kek", AuditEventKEKUpdate},
+		{"DELETE", "/dek-registry/v1/keks/my-kek", AuditEventKEKDelete},
+		{"POST", "/dek-registry/v1/keks/my-kek/undelete", AuditEventKEKCreate},
+		// DEK operations
+		{"POST", "/dek-registry/v1/keks/my-kek/deks", AuditEventDEKCreate},
+		{"POST", "/dek-registry/v1/keks/my-kek/deks/my-subject", AuditEventDEKCreate},
+		{"DELETE", "/dek-registry/v1/keks/my-kek/deks/my-subject", AuditEventDEKDelete},
+		{"POST", "/dek-registry/v1/keks/my-kek/deks/my-subject/undelete", AuditEventDEKCreate},
+		// Exporter operations
+		{"POST", "/exporters", AuditEventExporterCreate},
+		{"PUT", "/exporters/my-export", AuditEventExporterUpdate},
+		{"DELETE", "/exporters/my-export", AuditEventExporterDelete},
+		{"PUT", "/exporters/my-export/pause", AuditEventExporterPause},
+		{"PUT", "/exporters/my-export/resume", AuditEventExporterResume},
+		{"PUT", "/exporters/my-export/reset", AuditEventExporterReset},
 	}
 
 	for _, tt := range tests {
