@@ -604,7 +604,7 @@ func TestAuthFeatures(t *testing.T) {
 	var authURL string
 	var authWebhook string
 	var authFiles []string
-	authDockerMode := sharedDBStore == nil // Docker unless BDD_STORAGE is set
+	authDockerMode := bddStorage == "" // Docker unless BDD_STORAGE is set (memory has nil sharedDBStore)
 
 	if authDockerMode {
 		if containerCmd == "" {
@@ -724,6 +724,9 @@ func TestAuthFeatures(t *testing.T) {
 func TestMCPFeatures(t *testing.T) {
 	if bddBackend := os.Getenv("BDD_BACKEND"); bddBackend != "" && bddBackend != "memory" {
 		t.Skip("MCP Docker tests only run on memory backend (they start their own compose stack)")
+	}
+	if bddStorage != "" {
+		t.Skip("MCP Docker tests skip in BDD_STORAGE mode (in-process path)")
 	}
 
 	if containerCmd == "" {
@@ -905,6 +908,9 @@ func TestMCPMetricsFeatures(t *testing.T) {
 	if bddBackend := os.Getenv("BDD_BACKEND"); bddBackend != "" && bddBackend != "memory" {
 		t.Skip("MCP metrics Docker tests only run on memory backend (they start their own compose stack)")
 	}
+	if bddStorage != "" {
+		t.Skip("MCP metrics Docker tests skip in BDD_STORAGE mode (in-process path)")
+	}
 
 	if containerCmd == "" {
 		containerCmd = findContainerCmd()
@@ -991,6 +997,9 @@ func TestMCPMetricsFeatures(t *testing.T) {
 func TestMCPConfirmationFeatures(t *testing.T) {
 	if bddBackend := os.Getenv("BDD_BACKEND"); bddBackend != "" && bddBackend != "memory" {
 		t.Skip("MCP confirmation Docker tests only run on memory backend (they start their own compose stack)")
+	}
+	if bddStorage != "" {
+		t.Skip("MCP confirmation Docker tests skip in BDD_STORAGE mode (in-process path)")
 	}
 
 	if containerCmd == "" {
@@ -1081,6 +1090,9 @@ func TestMCPConfirmationFeatures(t *testing.T) {
 func TestMCPPermissionsFeatures(t *testing.T) {
 	if bddBackend := os.Getenv("BDD_BACKEND"); bddBackend != "" && bddBackend != "memory" {
 		t.Skip("MCP permissions Docker tests only run on memory backend (they start their own compose stack)")
+	}
+	if bddStorage != "" {
+		t.Skip("MCP permissions Docker tests skip in BDD_STORAGE mode (in-process path)")
 	}
 
 	if containerCmd == "" {
@@ -1202,6 +1214,9 @@ func TestMCPPermissionsFeatures(t *testing.T) {
 func TestMCPAuditFeatures(t *testing.T) {
 	if bddBackend := os.Getenv("BDD_BACKEND"); bddBackend != "" && bddBackend != "memory" {
 		t.Skip("MCP audit Docker tests only run on memory backend (they start their own compose stack)")
+	}
+	if bddStorage != "" {
+		t.Skip("MCP audit Docker tests skip in BDD_STORAGE mode (in-process path)")
 	}
 
 	if containerCmd == "" {
@@ -1414,6 +1429,9 @@ func TestKMSFeatures(t *testing.T) {
 func TestRESTAuditFeatures(t *testing.T) {
 	if bddBackend := os.Getenv("BDD_BACKEND"); bddBackend != "" && bddBackend != "memory" {
 		t.Skip("REST audit Docker tests only run on memory backend (they start their own compose stack)")
+	}
+	if bddStorage != "" {
+		t.Skip("REST audit Docker tests skip in BDD_STORAGE mode (in-process path)")
 	}
 
 	if containerCmd == "" {
