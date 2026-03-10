@@ -857,6 +857,13 @@ func TestMCPKMSFeatures(t *testing.T) {
 	}
 	log.Println("MCP+KMS registry is healthy.")
 
+	// Set KMS env vars for test-side transit decrypt verification.
+	// The compose overlay exposes Vault at VAULT_PORT and OpenBao at BAO_PORT.
+	t.Setenv("KMS_VAULT_ADDR", "http://localhost:18202")
+	t.Setenv("KMS_VAULT_TOKEN", "test-root-token")
+	t.Setenv("KMS_BAO_ADDR", "http://localhost:18203")
+	t.Setenv("KMS_BAO_TOKEN", "test-bao-token")
+
 	opts := godog.Options{
 		Format:   "pretty",
 		Output:   colors.Colored(os.Stdout),
