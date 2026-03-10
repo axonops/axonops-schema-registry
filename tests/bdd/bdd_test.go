@@ -2,7 +2,7 @@
 
 // Package bdd provides BDD tests using godog (Cucumber for Go).
 //
-// All tests run against a Docker-deployed binary by default:
+// All tests run against a Docker-deployed binary:
 //
 //	go test -tags bdd -v -timeout 30m ./tests/bdd/...
 //
@@ -11,14 +11,9 @@
 //	make test-bdd-functional          # Memory backend (Docker)
 //	make test-bdd BACKEND=memory      # Memory backend (Docker)
 //	make test-bdd BACKEND=postgres    # PostgreSQL backend (Docker)
-//
-// In-process with real DB (for BDD storage conformance):
-//
-//	BDD_STORAGE=postgres go test -tags bdd -v -timeout 15m ./tests/bdd/...
 package bdd
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
 	"encoding/base64"
@@ -26,9 +21,7 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"log/slog"
 	"net/http"
-	"net/http/httptest"
 	"net/url"
 	"os"
 	"os/exec"
@@ -42,46 +35,17 @@ import (
 	"github.com/cucumber/godog/colors"
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
-	"golang.org/x/crypto/bcrypt"
 
-	"github.com/axonops/axonops-schema-registry/internal/api"
-	"github.com/axonops/axonops-schema-registry/internal/auth"
-	"github.com/axonops/axonops-schema-registry/internal/compatibility"
-	avrocompat "github.com/axonops/axonops-schema-registry/internal/compatibility/avro"
-	jsoncompat "github.com/axonops/axonops-schema-registry/internal/compatibility/jsonschema"
-	protocompat "github.com/axonops/axonops-schema-registry/internal/compatibility/protobuf"
-	"github.com/axonops/axonops-schema-registry/internal/config"
-	"github.com/axonops/axonops-schema-registry/internal/kms"
-	openbaokms "github.com/axonops/axonops-schema-registry/internal/kms/openbao"
-	vaultkms "github.com/axonops/axonops-schema-registry/internal/kms/vault"
-	"github.com/axonops/axonops-schema-registry/internal/metrics"
-	"github.com/axonops/axonops-schema-registry/internal/registry"
-	"github.com/axonops/axonops-schema-registry/internal/schema"
-	"github.com/axonops/axonops-schema-registry/internal/schema/avro"
-	"github.com/axonops/axonops-schema-registry/internal/schema/jsonschema"
-	"github.com/axonops/axonops-schema-registry/internal/schema/protobuf"
-	"github.com/axonops/axonops-schema-registry/internal/storage"
-	cassandrastore "github.com/axonops/axonops-schema-registry/internal/storage/cassandra"
-	"github.com/axonops/axonops-schema-registry/internal/storage/memory"
-	mysqlstore "github.com/axonops/axonops-schema-registry/internal/storage/mysql"
-	pgstore "github.com/axonops/axonops-schema-registry/internal/storage/postgres"
 	"github.com/axonops/axonops-schema-registry/tests/bdd/steps"
 )
 
 var (
-	dockerMode   bool
 	registryURL  string
 	metricsURL   string // separate metrics endpoint (e.g. JMX exporter sidecar for Confluent)
 	webhookURL   string
 	backend      string
-	bddStorage   string // BDD_STORAGE: "postgres", "mysql", "cassandra" for in-process DB tests
 	composeFiles []string
 	containerCmd string // "podman" or "docker"
-
-	// sharedDBStore is a long-lived database storage used for in-process BDD tests
-	// against real database backends. Created once in TestMain when BDD_STORAGE is set.
-	// All scenario types (functional, MCP, audit, auth, KMS) use this store when available.
-	sharedDBStore storage.Storage
 
 	// cassandraSession is a long-lived session reused across all BDD scenario cleanups.
 	// gocql sessions are expensive to create (topology discovery, connection pool setup),
@@ -91,19 +55,16 @@ var (
 
 func TestMain(m *testing.M) {
 	backend = os.Getenv("BDD_BACKEND")
-	bddStorage = os.Getenv("BDD_STORAGE")
 	registryURL = os.Getenv("BDD_REGISTRY_URL")
 	webhookURL = os.Getenv("BDD_WEBHOOK_URL")
 
 	// Default to Docker with memory backend when no env vars are set.
-	// BDD_STORAGE keeps the in-process path (for KMS tests with local Vault, etc.).
-	if backend == "" && registryURL == "" && bddStorage == "" {
+	if backend == "" && registryURL == "" {
 		backend = "memory"
 	}
 
 	// If BDD_BACKEND is set but no external URL, start Docker Compose automatically.
 	if backend != "" && registryURL == "" {
-		dockerMode = true
 		containerCmd = findContainerCmd()
 		composeFiles = composeFilesForBackend(backend)
 
@@ -133,26 +94,7 @@ func TestMain(m *testing.M) {
 		log.Println("Registry is healthy.")
 	}
 
-	// Create shared database store for in-process tests with database backends.
-	// When BDD_STORAGE is set (e.g., "postgres"), ALL in-process scenarios run
-	// using the specified database instead of memory storage. This enables MCP,
-	// audit, auth, and functional tests to run against real databases.
-	if bddStorage != "" && bddStorage != "memory" && !dockerMode {
-		var err error
-		sharedDBStore, err = createDBStore(bddStorage)
-		if err != nil {
-			log.Fatalf("Failed to create %s storage for BDD_STORAGE: %v", bddStorage, err)
-		}
-		log.Printf("Using %s storage for in-process BDD tests", bddStorage)
-	}
-
 	code := m.Run()
-
-	// Close shared database store before tearing down containers.
-	if sharedDBStore != nil {
-		sharedDBStore.Close()
-		sharedDBStore = nil
-	}
 
 	// Close the long-lived Cassandra session before tearing down containers.
 	if cassandraSession != nil {
@@ -160,7 +102,7 @@ func TestMain(m *testing.M) {
 		cassandraSession = nil
 	}
 
-	if dockerMode {
+	if composeFiles != nil {
 		log.Println("Stopping compose...")
 		composeDown(composeFiles)
 	}
@@ -168,297 +110,13 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-// newTestServer creates a fresh in-process schema registry backed by memory storage.
-func newTestServer() (*httptest.Server, storage.Storage, *registry.Registry, *metrics.Metrics, chan struct{}) {
-	return newTestServerWithAudit(nil)
-}
-
-// newTestServerWithAudit creates a fresh in-process schema registry with optional audit logging.
-func newTestServerWithAudit(al *auth.AuditLogger) (*httptest.Server, storage.Storage, *registry.Registry, *metrics.Metrics, chan struct{}) {
-	return newTestServerWithStoreAndAudit(memory.NewStore(), al)
-}
-
-// newTestServerWithStore creates an in-process schema registry using the provided storage backend.
-// This enables BDD tests (MCP, audit, analysis, functional) to run against database backends.
-func newTestServerWithStore(store storage.Storage) (*httptest.Server, storage.Storage, *registry.Registry, *metrics.Metrics, chan struct{}) {
-	return newTestServerWithStoreAndAudit(store, nil)
-}
-
-// newTestServerWithStoreAndAudit creates an in-process schema registry with the provided storage
-// and optional audit logging. This is the core factory used by all non-auth test server constructors.
-// Returns a gaugeStop channel that MUST be closed when the server is torn down.
-func newTestServerWithStoreAndAudit(store storage.Storage, al *auth.AuditLogger) (*httptest.Server, storage.Storage, *registry.Registry, *metrics.Metrics, chan struct{}) {
-	m := metrics.New()
-
-	// Wrap storage with instrumentation for storage metrics
-	instrumentedStore := storage.NewInstrumentedStorage(store, "memory", m)
-
-	schemaRegistry := schema.NewRegistry()
-	schemaRegistry.Register(avro.NewParser())
-	schemaRegistry.Register(protobuf.NewParser())
-	schemaRegistry.Register(jsonschema.NewParser())
-
-	compatChecker := compatibility.NewChecker()
-	compatChecker.Register(storage.SchemaTypeAvro, avrocompat.NewChecker())
-	compatChecker.Register(storage.SchemaTypeProtobuf, protocompat.NewChecker())
-	compatChecker.Register(storage.SchemaTypeJSON, jsoncompat.NewChecker())
-
-	reg := registry.New(instrumentedStore, schemaRegistry, compatChecker, "BACKWARD")
-
-	cfg := &config.Config{
-		Server: config.ServerConfig{Host: "localhost", Port: 0, DocsEnabled: true},
-	}
-	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	var opts []api.ServerOption
-	opts = append(opts, api.WithMetrics(m))
-	if al != nil {
-		opts = append(opts, api.WithAuditLogger(al))
-	}
-	server := api.NewServer(cfg, reg, logger, opts...)
-
-	// Start gauge refresh with 1-second interval for tests
-	gaugeStop := make(chan struct{})
-	m.StartGaugeRefresh(reg, 1*time.Second, gaugeStop)
-
-	return httptest.NewServer(server), store, reg, m, gaugeStop
-}
-
-// newAuthTestServer creates an in-process schema registry with authentication enabled.
-// It pre-seeds a super_admin user ("admin" / "admin-password") for testing.
-func newAuthTestServer() (*httptest.Server, storage.Storage, *auth.Service) {
-	return newAuthTestServerWithStore(memory.NewStore())
-}
-
-// newAuthTestServerWithStore creates an in-process schema registry with authentication enabled
-// using the provided storage backend. This enables auth BDD tests to run against database backends.
-func newAuthTestServerWithStore(store storage.Storage) (*httptest.Server, storage.Storage, *auth.Service) {
-	schemaRegistry := schema.NewRegistry()
-	schemaRegistry.Register(avro.NewParser())
-	schemaRegistry.Register(protobuf.NewParser())
-	schemaRegistry.Register(jsonschema.NewParser())
-
-	compatChecker := compatibility.NewChecker()
-	compatChecker.Register(storage.SchemaTypeAvro, avrocompat.NewChecker())
-	compatChecker.Register(storage.SchemaTypeProtobuf, protocompat.NewChecker())
-	compatChecker.Register(storage.SchemaTypeJSON, jsoncompat.NewChecker())
-
-	reg := registry.New(store, schemaRegistry, compatChecker, "BACKWARD")
-
-	// Configure auth with basic + api_key methods
-	authCfg := config.AuthConfig{
-		Enabled: true,
-		Methods: []string{"basic", "api_key"},
-		APIKey: config.APIKeyConfig{
-			Header: "X-API-Key",
-		},
-		RBAC: config.RBACConfig{
-			Enabled:     true,
-			DefaultRole: "readonly",
-		},
-	}
-
-	// Configure rate limiting for BDD rate-limiting scenarios.
-	// Low burst (3) and rate (2/s) ensure 429s trigger reliably even when
-	// CI runners are slow and serial HTTP round-trips take 50-70ms each.
-	rateLimitCfg := config.RateLimitConfig{
-		Enabled:           true,
-		RequestsPerSecond: 2,
-		BurstSize:         3,
-		PerClient:         false,
-		PerEndpoint:       false,
-	}
-
-	authenticator := auth.NewAuthenticator(authCfg)
-	authService := auth.NewServiceWithConfig(store, auth.ServiceConfig{
-		CacheRefreshInterval: 5 * time.Second,  // enable API key cache for BDD metrics
-		UserCacheTTL:         10 * time.Second, // enable credential caching for BDD metrics
-	})
-	authenticator.SetService(authService)
-
-	// Create htpasswd file with test users for auth_htpasswd.feature
-	htpasswdFile := createTestHTPasswdFile()
-	if htpasswdFile != "" {
-		htpasswdStore, err := auth.LoadHTPasswdFile(htpasswdFile)
-		if err != nil {
-			panic(fmt.Sprintf("failed to load test htpasswd file: %v", err))
-		}
-		authenticator.SetHTPasswdStore(htpasswdStore)
-	}
-
-	// Create memory API key store for auth_apikey_memory.feature
-	memAPIKeys := createTestMemoryAPIKeys()
-	if memAPIKeys != nil {
-		authenticator.SetMemoryAPIKeyStore(memAPIKeys)
-	}
-
-	authorizer := auth.NewAuthorizer(authCfg.RBAC)
-
-	cfg := &config.Config{
-		Server: config.ServerConfig{Host: "localhost", Port: 0},
-		Security: config.SecurityConfig{
-			Auth: authCfg,
-		},
-	}
-	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-
-	m := metrics.New()
-	m.EnablePrincipalMetrics()
-
-	server := api.NewServer(cfg, reg, logger,
-		api.WithMetrics(m),
-		api.WithAuth(authenticator, authorizer, authService),
-		api.WithRateLimiter(auth.NewRateLimiter(rateLimitCfg)),
-	)
-
-	// Pre-seed a super_admin user
-	_, err := authService.CreateUser(context.Background(), auth.CreateUserRequest{
-		Username: "admin",
-		Password: "admin-password",
-		Role:     "super_admin",
-		Enabled:  true,
-	})
-	if err != nil {
-		panic(fmt.Sprintf("failed to create seed admin user: %v", err))
-	}
-
-	return httptest.NewServer(server), store, authService
-}
-
-// newKMSTestServer creates an in-process schema registry with KMS providers configured
-// using memory storage. It reads KMS_VAULT_ADDR/KMS_VAULT_TOKEN and KMS_BAO_ADDR/KMS_BAO_TOKEN
-// env vars to configure Vault and OpenBao KMS providers respectively.
-func newKMSTestServer() (*httptest.Server, storage.Storage, *registry.Registry) {
-	return newKMSTestServerWithStore(memory.NewStore())
-}
-
-// newKMSTestServerWithStore creates an in-process schema registry with KMS providers
-// using the provided storage backend. This enables KMS tests (including MCP KMS tests)
-// to run against database backends (PostgreSQL, MySQL, Cassandra) instead of just memory.
-func newKMSTestServerWithStore(store storage.Storage) (*httptest.Server, storage.Storage, *registry.Registry) {
-	schemaRegistry := schema.NewRegistry()
-	schemaRegistry.Register(avro.NewParser())
-	schemaRegistry.Register(protobuf.NewParser())
-	schemaRegistry.Register(jsonschema.NewParser())
-
-	compatChecker := compatibility.NewChecker()
-	compatChecker.Register(storage.SchemaTypeAvro, avrocompat.NewChecker())
-	compatChecker.Register(storage.SchemaTypeProtobuf, protocompat.NewChecker())
-	compatChecker.Register(storage.SchemaTypeJSON, jsoncompat.NewChecker())
-
-	reg := registry.New(store, schemaRegistry, compatChecker, "BACKWARD")
-
-	// Configure KMS providers from environment variables
-	kmsReg := kms.NewRegistry()
-
-	if addr, token := os.Getenv("KMS_VAULT_ADDR"), os.Getenv("KMS_VAULT_TOKEN"); addr != "" && token != "" {
-		p, err := vaultkms.NewProvider(vaultkms.Config{Address: addr, Token: token})
-		if err != nil {
-			panic(fmt.Sprintf("failed to create Vault KMS provider: %v", err))
-		}
-		if err := kmsReg.Register(p); err != nil {
-			panic(fmt.Sprintf("failed to register Vault KMS provider: %v", err))
-		}
-	}
-
-	if addr, token := os.Getenv("KMS_BAO_ADDR"), os.Getenv("KMS_BAO_TOKEN"); addr != "" && token != "" {
-		p, err := openbaokms.NewProvider(vaultkms.Config{Address: addr, Token: token})
-		if err != nil {
-			panic(fmt.Sprintf("failed to create OpenBao KMS provider: %v", err))
-		}
-		if err := kmsReg.Register(p); err != nil {
-			panic(fmt.Sprintf("failed to register OpenBao KMS provider: %v", err))
-		}
-	}
-
-	reg.SetKMSRegistry(kmsReg)
-
-	cfg := &config.Config{
-		Server: config.ServerConfig{Host: "localhost", Port: 0, DocsEnabled: true},
-	}
-	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
-	server := api.NewServer(cfg, reg, logger)
-
-	return httptest.NewServer(server), store, reg
-}
-
-// createDBStore creates a storage backend for in-process testing with an external database.
-// The database must already be running (e.g., via Docker) before calling this function.
-// Migrations are run automatically by the storage constructors.
-func createDBStore(storageType string) (storage.Storage, error) {
-	switch storageType {
-	case "postgres":
-		port, _ := strconv.Atoi(envOrDefault("POSTGRES_PORT", "15432"))
-		return pgstore.NewStore(pgstore.Config{
-			Host:     "localhost",
-			Port:     port,
-			Database: "schemaregistry",
-			Username: "schemaregistry",
-			Password: "schemaregistry",
-			SSLMode:  "disable",
-		})
-	case "mysql":
-		port, _ := strconv.Atoi(envOrDefault("MYSQL_PORT", "13306"))
-		return mysqlstore.NewStore(mysqlstore.Config{
-			Host:     "localhost",
-			Port:     port,
-			Database: "schemaregistry",
-			Username: "schemaregistry",
-			Password: "schemaregistry",
-			TLS:      "false",
-		})
-	case "cassandra":
-		port, _ := strconv.Atoi(envOrDefault("CASSANDRA_PORT", "19042"))
-		return cassandrastore.NewStore(context.Background(), cassandrastore.Config{
-			Hosts:       []string{"localhost"},
-			Port:        port,
-			Keyspace:    "schemaregistry",
-			Consistency: "ONE",
-			Migrate:     true,
-		})
-	default:
-		return nil, fmt.Errorf("unknown BDD_STORAGE type: %s", storageType)
-	}
-}
-
-// cleanDBStore cleans the shared database storage between scenarios.
-// Reuses the existing cleanPostgres/cleanMySQL/cleanCassandra functions.
-func cleanDBStore() error {
-	switch bddStorage {
-	case "postgres":
-		return cleanPostgres()
-	case "mysql":
-		return cleanMySQL()
-	case "cassandra":
-		if err := cleanCassandra(); err != nil {
-			return err
-		}
-		// Reset in-memory ID cache to match the re-seeded id_alloc table.
-		// Without this, the block allocator serves stale IDs from a previous
-		// scenario while id_alloc.next_id has been reset to 1.
-		if cs, ok := sharedDBStore.(interface{ ResetIDCache() }); ok {
-			cs.ResetIDCache()
-		}
-		return nil
-	default:
-		return nil
-	}
-}
-
 func TestFeatures(t *testing.T) {
-	// Docker mode (default): registryURL is set by TestMain.
-	// In-process mode: BDD_STORAGE is set (database backend testing).
 	tags := ""
 	if envTags := os.Getenv("BDD_TAGS"); envTags != "" {
 		tags = envTags
-	} else if sharedDBStore != nil {
-		// In-process with database: exclude tags handled by separate test functions
-		tags = "~@operational && ~@pending-impl && ~@auth && ~@kms && ~@mcp && ~@audit"
 	} else if backend == "confluent" {
-		// Confluent: exclude operational, import (our custom API), axonops-only, contexts (our multi-tenant),
-		// pending-impl, data-contracts (ruleSet features require commercial Confluent license),
-		// and all backend tags.
 		tags = "~@operational && ~@import && ~@axonops-only && ~@contexts && ~@pending-impl && ~@data-contracts && ~@auth && ~@kms && ~@mcp && ~@analysis && ~@audit && ~@memory && ~@postgres && ~@mysql && ~@cassandra"
-	} else if dockerMode {
+	} else {
 		// Docker mode: run operational + functional scenarios for this backend.
 		// Auth, MCP, audit, KMS are handled by their own test functions with separate stacks.
 		allBackends := []string{"memory", "postgres", "mysql", "cassandra"}
@@ -485,96 +143,22 @@ func TestFeatures(t *testing.T) {
 
 	suite := godog.TestSuite{
 		ScenarioInitializer: func(ctx *godog.ScenarioContext) {
-			var tc *steps.TestContext
+			tc := steps.NewTestContext(registryURL)
+			tc.MetricsURL = metricsURL
+			tc.WebhookURL = webhookURL
 
-			if registryURL != "" {
-				// Docker-based: use external registry, clean state before each scenario
-				tc = steps.NewTestContext(registryURL)
-				tc.MetricsURL = metricsURL
-				tc.WebhookURL = webhookURL
+			ctx.Before(func(gctx context.Context, sc *godog.Scenario) (context.Context, error) {
+				if hasTag(sc, "@operational") {
+					if err := ensureRegistryRunning(); err != nil {
+						return gctx, fmt.Errorf("ensure registry running: %w", err)
+					}
+				}
+				if err := cleanBackend(); err != nil {
+					return gctx, fmt.Errorf("clean backend: %w", err)
+				}
+				return gctx, waitForURL(registryURL+"/", 30*time.Second)
+			})
 
-				ctx.Before(func(gctx context.Context, sc *godog.Scenario) (context.Context, error) {
-					if hasTag(sc, "@operational") {
-						// Ensure registry is up (previous scenario may have stopped/killed it)
-						if err := ensureRegistryRunning(); err != nil {
-							return gctx, fmt.Errorf("ensure registry running: %w", err)
-						}
-					}
-					if err := cleanBackend(); err != nil {
-						return gctx, fmt.Errorf("clean backend: %w", err)
-					}
-					return gctx, waitForURL(registryURL+"/", 30*time.Second)
-				})
-			} else {
-				// In-process: create fresh server per scenario (BDD_STORAGE mode).
-				// tc must be allocated before step registration (steps capture the pointer).
-				tc = steps.NewTestContext("http://placeholder")
-				var ts *httptest.Server
-				var st storage.Storage
-				var m *metrics.Metrics
-				var gaugeStop chan struct{}
-				var storeOwned bool // false when using sharedDBStore (don't close in After)
-				ctx.Before(func(gctx context.Context, sc *godog.Scenario) (context.Context, error) {
-					var reg *registry.Registry
-					if hasTag(sc, "@kms") {
-						if sharedDBStore != nil {
-							if err := cleanDBStore(); err != nil {
-								return gctx, fmt.Errorf("clean %s storage: %w", bddStorage, err)
-							}
-							ts, st, reg = newKMSTestServerWithStore(sharedDBStore)
-							storeOwned = false
-						} else {
-							ts, st, reg = newKMSTestServer()
-							storeOwned = true
-						}
-					} else if hasTag(sc, "@audit") {
-						auditBuf := &bytes.Buffer{}
-						al := auth.NewAuditLoggerWithWriter(config.AuditConfig{Enabled: true}, auditBuf)
-						if sharedDBStore != nil {
-							if err := cleanDBStore(); err != nil {
-								return gctx, fmt.Errorf("clean %s storage: %w", bddStorage, err)
-							}
-							ts, st, reg, m, gaugeStop = newTestServerWithStoreAndAudit(sharedDBStore, al)
-							storeOwned = false
-						} else {
-							ts, st, reg, m, gaugeStop = newTestServerWithAudit(al)
-							storeOwned = true
-						}
-						tc.AuditBuffer = auditBuf
-					} else {
-						if sharedDBStore != nil {
-							if err := cleanDBStore(); err != nil {
-								return gctx, fmt.Errorf("clean %s storage: %w", bddStorage, err)
-							}
-							ts, st, reg, m, gaugeStop = newTestServerWithStore(sharedDBStore)
-							storeOwned = false
-						} else {
-							ts, st, reg, m, gaugeStop = newTestServer()
-							storeOwned = true
-						}
-					}
-					tc.BaseURL = ts.URL
-					tc.Registry = reg
-					tc.StoredValues["_storage"] = st
-					tc.StoredValues["_metrics"] = m
-					return gctx, nil
-				})
-				ctx.After(func(gctx context.Context, sc *godog.Scenario, err error) (context.Context, error) {
-					if gaugeStop != nil {
-						close(gaugeStop)
-						gaugeStop = nil
-					}
-					if ts != nil {
-						ts.Close()
-					}
-					if storeOwned && st != nil {
-						st.Close()
-					}
-					return gctx, nil
-				})
-			}
-
-			// Register step definitions
 			steps.RegisterSchemaSteps(ctx, tc)
 			steps.RegisterImportSteps(ctx, tc)
 			steps.RegisterModeSteps(ctx, tc)
@@ -598,10 +182,6 @@ func TestFeatures(t *testing.T) {
 // TestAuthFeatures runs BDD tests that require authentication enabled.
 // Starts a Docker compose stack with auth config, optionally layered with a DB overlay.
 func TestAuthFeatures(t *testing.T) {
-	if bddStorage != "" {
-		t.Skip("Auth tests skip in BDD_STORAGE mode (use BDD_BACKEND instead)")
-	}
-
 	if containerCmd == "" {
 		containerCmd = findContainerCmd()
 	}
@@ -697,10 +277,6 @@ func TestMCPFeatures(t *testing.T) {
 	if bddBackend := os.Getenv("BDD_BACKEND"); bddBackend != "" && bddBackend != "memory" {
 		t.Skip("MCP Docker tests only run on memory backend (they start their own compose stack)")
 	}
-	if bddStorage != "" {
-		t.Skip("MCP Docker tests skip in BDD_STORAGE mode (in-process path)")
-	}
-
 	if containerCmd == "" {
 		containerCmd = findContainerCmd()
 	}
@@ -783,10 +359,6 @@ func TestMCPFeatures(t *testing.T) {
 
 // TestMCPKMSFeatures runs MCP + KMS BDD tests against Docker with Vault and OpenBao.
 func TestMCPKMSFeatures(t *testing.T) {
-	if bddStorage != "" {
-		t.Skip("MCP KMS tests skip in BDD_STORAGE mode (use BDD_BACKEND instead)")
-	}
-
 	if containerCmd == "" {
 		containerCmd = findContainerCmd()
 	}
@@ -896,10 +468,6 @@ func TestMCPMetricsFeatures(t *testing.T) {
 	if bddBackend := os.Getenv("BDD_BACKEND"); bddBackend != "" && bddBackend != "memory" {
 		t.Skip("MCP metrics Docker tests only run on memory backend (they start their own compose stack)")
 	}
-	if bddStorage != "" {
-		t.Skip("MCP metrics Docker tests skip in BDD_STORAGE mode (in-process path)")
-	}
-
 	if containerCmd == "" {
 		containerCmd = findContainerCmd()
 	}
@@ -986,10 +554,6 @@ func TestMCPConfirmationFeatures(t *testing.T) {
 	if bddBackend := os.Getenv("BDD_BACKEND"); bddBackend != "" && bddBackend != "memory" {
 		t.Skip("MCP confirmation Docker tests only run on memory backend (they start their own compose stack)")
 	}
-	if bddStorage != "" {
-		t.Skip("MCP confirmation Docker tests skip in BDD_STORAGE mode (in-process path)")
-	}
-
 	if containerCmd == "" {
 		containerCmd = findContainerCmd()
 	}
@@ -1079,10 +643,6 @@ func TestMCPPermissionsFeatures(t *testing.T) {
 	if bddBackend := os.Getenv("BDD_BACKEND"); bddBackend != "" && bddBackend != "memory" {
 		t.Skip("MCP permissions Docker tests only run on memory backend (they start their own compose stack)")
 	}
-	if bddStorage != "" {
-		t.Skip("MCP permissions Docker tests skip in BDD_STORAGE mode (in-process path)")
-	}
-
 	if containerCmd == "" {
 		containerCmd = findContainerCmd()
 	}
@@ -1203,10 +763,6 @@ func TestMCPAuditFeatures(t *testing.T) {
 	if bddBackend := os.Getenv("BDD_BACKEND"); bddBackend != "" && bddBackend != "memory" {
 		t.Skip("MCP audit Docker tests only run on memory backend (they start their own compose stack)")
 	}
-	if bddStorage != "" {
-		t.Skip("MCP audit Docker tests skip in BDD_STORAGE mode (in-process path)")
-	}
-
 	if containerCmd == "" {
 		containerCmd = findContainerCmd()
 	}
@@ -1328,10 +884,6 @@ func TestMCPAuditFeatures(t *testing.T) {
 // TestKMSFeatures runs REST KMS encryption BDD tests against a Docker-deployed binary
 // with Vault Transit and OpenBao Transit engines.
 func TestKMSFeatures(t *testing.T) {
-	if bddStorage != "" {
-		t.Skip("KMS tests skip in BDD_STORAGE mode (use BDD_BACKEND instead)")
-	}
-
 	if containerCmd == "" {
 		containerCmd = findContainerCmd()
 	}
@@ -1428,10 +980,6 @@ func TestRESTAuditFeatures(t *testing.T) {
 	if bddBackend := os.Getenv("BDD_BACKEND"); bddBackend != "" && bddBackend != "memory" {
 		t.Skip("REST audit Docker tests only run on memory backend (they start their own compose stack)")
 	}
-	if bddStorage != "" {
-		t.Skip("REST audit Docker tests skip in BDD_STORAGE mode (in-process path)")
-	}
-
 	if containerCmd == "" {
 		containerCmd = findContainerCmd()
 	}
@@ -2455,52 +2003,6 @@ func envOrDefault(key, def string) string {
 		return v
 	}
 	return def
-}
-
-// createTestHTPasswdFile creates a temporary htpasswd file with test users.
-// Returns the file path, or empty string on failure.
-func createTestHTPasswdFile() string {
-	dir, err := os.MkdirTemp("", "bdd-htpasswd-*")
-	if err != nil {
-		return ""
-	}
-	// bcrypt hashes generated for test passwords
-	// htuser1:htpassword1 and htuser2:htpassword2
-	hash1, err := bcrypt.GenerateFromPassword([]byte("htpassword1"), bcrypt.MinCost)
-	if err != nil {
-		return ""
-	}
-	hash2, err := bcrypt.GenerateFromPassword([]byte("htpassword2"), bcrypt.MinCost)
-	if err != nil {
-		return ""
-	}
-	content := fmt.Sprintf("# Test htpasswd file for BDD\nhtuser1:%s\nhtuser2:%s\n", hash1, hash2)
-	path := dir + "/htpasswd"
-	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
-		return ""
-	}
-	return path
-}
-
-// createTestMemoryAPIKeys creates a MemoryAPIKeyStore with test keys for BDD.
-// Keys: "test-apikey-readonly" (readonly), "test-apikey-admin" (admin)
-func createTestMemoryAPIKeys() *auth.MemoryAPIKeyStore {
-	hash1, err := bcrypt.GenerateFromPassword([]byte("test-apikey-readonly"), bcrypt.MinCost)
-	if err != nil {
-		return nil
-	}
-	hash2, err := bcrypt.GenerateFromPassword([]byte("test-apikey-admin"), bcrypt.MinCost)
-	if err != nil {
-		return nil
-	}
-	store, err := auth.NewMemoryAPIKeyStore([]config.ConfigAPIKey{
-		{Name: "readonly-key", KeyHash: string(hash1), Role: "readonly"},
-		{Name: "admin-key", KeyHash: string(hash2), Role: "admin"},
-	})
-	if err != nil {
-		return nil
-	}
-	return store
 }
 
 func init() {

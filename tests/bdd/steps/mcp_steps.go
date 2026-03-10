@@ -13,42 +13,21 @@ import (
 
 	"github.com/cucumber/godog"
 	gomcp "github.com/modelcontextprotocol/go-sdk/mcp"
-
-	"github.com/axonops/axonops-schema-registry/internal/auth"
-	"github.com/axonops/axonops-schema-registry/internal/config"
-	mcpkg "github.com/axonops/axonops-schema-registry/internal/mcp"
-	"github.com/axonops/axonops-schema-registry/internal/metrics"
-	"github.com/axonops/axonops-schema-registry/internal/registry"
-	"github.com/axonops/axonops-schema-registry/internal/storage"
 )
 
-// mcpState holds per-scenario MCP client state.
-type mcpState struct {
-	session *gomcp.ClientSession
-	ss      *gomcp.ServerSession
-}
-
 // getMCPSession lazily creates an MCP client for the scenario.
-// When "_mcp_url" is set in StoredValues (Docker mode), connects via HTTP Streamable transport.
-// Otherwise, creates an in-process MCP server with InMemoryTransport.
+// Connects to the Docker-deployed MCP server via HTTP Streamable transport.
 func getMCPSession(tc *TestContext) (*gomcp.ClientSession, error) {
 	// Check if we already have a session stored
-	if s, ok := tc.StoredValues["_mcp_state"].(*mcpState); ok && s.session != nil {
-		return s.session, nil
+	if s, ok := tc.StoredValues["_mcp_session"].(*gomcp.ClientSession); ok && s != nil {
+		return s, nil
 	}
 
-	// Docker mode: connect to external MCP server via HTTP
-	if mcpURL, ok := tc.StoredValues["_mcp_url"].(string); ok && mcpURL != "" {
-		return getMCPSessionHTTP(tc, mcpURL)
+	mcpURL, ok := tc.StoredValues["_mcp_url"].(string)
+	if !ok || mcpURL == "" {
+		return nil, fmt.Errorf("MCP URL not set (StoredValues[\"_mcp_url\"] is empty)")
 	}
 
-	// In-process mode: create MCP server locally
-	return getMCPSessionInProcess(tc)
-}
-
-// getMCPSessionHTTP connects to an external MCP server via HTTP Streamable transport.
-// Used when tests run against a Docker-deployed binary.
-func getMCPSessionHTTP(tc *TestContext, mcpURL string) (*gomcp.ClientSession, error) {
 	transport := &gomcp.StreamableClientTransport{
 		Endpoint: mcpURL,
 	}
@@ -59,88 +38,15 @@ func getMCPSessionHTTP(tc *TestContext, mcpURL string) (*gomcp.ClientSession, er
 		return nil, fmt.Errorf("MCP HTTP connect to %s: %w", mcpURL, err)
 	}
 
-	tc.StoredValues["_mcp_state"] = &mcpState{session: cs}
-	return cs, nil
-}
-
-// getMCPSessionInProcess creates an in-process MCP server with InMemoryTransport.
-// Used for tests that need per-scenario config variations (permissions, confirmations).
-func getMCPSessionInProcess(tc *TestContext) (*gomcp.ClientSession, error) {
-	reg, ok := tc.Registry.(*registry.Registry)
-	if !ok || reg == nil {
-		return nil, fmt.Errorf("MCP tests require a *registry.Registry on TestContext")
-	}
-
-	cfg := &config.MCPConfig{Host: "localhost", Port: 0}
-
-	// Enable two-phase confirmations if requested by scenario
-	if v, ok := tc.StoredValues["_mcp_confirmations_enabled"]; ok {
-		if enabled, ok := v.(bool); ok && enabled {
-			cfg.RequireConfirmations = true
-			cfg.ConfirmationTTLSecs = 300
-		}
-	}
-
-	// Apply permission preset if requested by scenario
-	if v, ok := tc.StoredValues["_mcp_permission_preset"]; ok {
-		if preset, ok := v.(string); ok && preset != "" {
-			cfg.PermissionPreset = preset
-		}
-	}
-
-	// Apply custom permission scopes if requested by scenario
-	if v, ok := tc.StoredValues["_mcp_permission_scopes"]; ok {
-		if scopes, ok := v.([]string); ok && len(scopes) > 0 {
-			cfg.PermissionScopes = scopes
-		}
-	}
-
-	var mcpOpts []mcpkg.Option
-	if m, ok := tc.StoredValues["_metrics"].(*metrics.Metrics); ok && m != nil {
-		mcpOpts = append(mcpOpts, mcpkg.WithMetrics(m))
-	}
-	if st, ok := tc.StoredValues["_storage"].(storage.Storage); ok {
-		authSvc := auth.NewServiceWithConfig(st, auth.ServiceConfig{})
-		mcpOpts = append(mcpOpts, mcpkg.WithAuthService(authSvc))
-	}
-
-	// Wire audit logger for BDD audit assertions
-	auditBuf := &bytes.Buffer{}
-	auditLogger := auth.NewAuditLoggerWithWriter(config.AuditConfig{Enabled: true}, auditBuf)
-	mcpOpts = append(mcpOpts, mcpkg.WithAuditLogger(auditLogger))
-	tc.AuditBuffer = auditBuf
-
-	srv := mcpkg.New(cfg, reg, nil, "bdd-test", mcpOpts...)
-
-	ctx := context.Background()
-	ct, st := gomcp.NewInMemoryTransports()
-
-	ss, err := srv.MCPServer().Connect(ctx, st, nil)
-	if err != nil {
-		return nil, fmt.Errorf("MCP server connect: %w", err)
-	}
-
-	client := gomcp.NewClient(&gomcp.Implementation{Name: "bdd-client", Version: "1.0"}, nil)
-	cs, err := client.Connect(ctx, ct, nil)
-	if err != nil {
-		ss.Close()
-		return nil, fmt.Errorf("MCP client connect: %w", err)
-	}
-
-	tc.StoredValues["_mcp_state"] = &mcpState{session: cs, ss: ss}
+	tc.StoredValues["_mcp_session"] = cs
 	return cs, nil
 }
 
 // closeMCPSession cleans up the MCP session if one was created.
 func closeMCPSession(tc *TestContext) {
-	if s, ok := tc.StoredValues["_mcp_state"].(*mcpState); ok {
-		if s.session != nil {
-			s.session.Close()
-		}
-		if s.ss != nil {
-			s.ss.Close()
-		}
-		delete(tc.StoredValues, "_mcp_state")
+	if s, ok := tc.StoredValues["_mcp_session"].(*gomcp.ClientSession); ok && s != nil {
+		s.Close()
+		delete(tc.StoredValues, "_mcp_session")
 	}
 }
 
