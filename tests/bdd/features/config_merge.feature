@@ -42,6 +42,7 @@ Feature: 3-layer metadata/ruleSet merge during schema registration
     And the response should have field "metadata"
     And the response body should contain "platform"
     And the response body should contain "prod"
+    And the audit log should contain event "config_update" with subject "cfg-merge-default"
 
   # ==========================================================================
   # OVERRIDE METADATA MERGE
@@ -79,6 +80,7 @@ Feature: 3-layer metadata/ruleSet merge during schema registration
     And the response body should contain "analytics"
     # The override "team":"security" should have replaced the request "team":"data-eng"
     And the response body should not contain "data-eng"
+    And the audit log should contain event "config_update" with subject "cfg-merge-override"
 
   # ==========================================================================
   # FULL 3-LAYER MERGE
@@ -122,6 +124,7 @@ Feature: 3-layer metadata/ruleSet merge during schema registration
     # "bronze" and "silver" should be overridden by "gold"
     And the response body should not contain "bronze"
     And the response body should not contain "silver"
+    And the audit log should contain event "config_update" with subject "cfg-merge-3layer"
 
   # ==========================================================================
   # DEFAULT RULESET MERGE
@@ -162,6 +165,7 @@ Feature: 3-layer metadata/ruleSet merge during schema registration
     And the response should have field "ruleSet"
     And the response body should contain "defaultCheck"
     And the response body should contain "CONDITION"
+    And the audit log should contain event "config_update" with subject "cfg-merge-defrule"
 
   # ==========================================================================
   # OVERRIDE RULESET MERGE
@@ -213,6 +217,7 @@ Feature: 3-layer metadata/ruleSet merge during schema registration
     And the response should have field "ruleSet"
     And the response body should contain "enforcePolicy"
     And the response body should contain "userValidation"
+    And the audit log should contain event "config_update" with subject "cfg-merge-ovrrule"
 
   # ==========================================================================
   # METADATA INHERITANCE FROM PREVIOUS VERSION
@@ -251,6 +256,7 @@ Feature: 3-layer metadata/ruleSet merge during schema registration
     And the response should have field "metadata"
     And the response body should contain "team-data"
     And the response body should contain "staging"
+    And the audit log should contain event "config_update" with subject "cfg-merge-inherit"
 
   # ==========================================================================
   # RULESET INHERITANCE FROM PREVIOUS VERSION
@@ -297,6 +303,7 @@ Feature: 3-layer metadata/ruleSet merge during schema registration
     Then the response status should be 200
     And the response should have field "ruleSet"
     And the response body should contain "inheritedRule"
+    And the audit log should contain event "config_update" with subject "cfg-merge-ruleinh"
 
   # ==========================================================================
   # OVERRIDE WINS OVER SPECIFIC
@@ -332,6 +339,7 @@ Feature: 3-layer metadata/ruleSet merge during schema registration
     And the response body should contain "governance-team"
     And the response body should contain "alpha"
     And the response body should not contain "dev-team"
+    And the audit log should contain event "config_update" with subject "cfg-merge-ovrwins"
 
   # ==========================================================================
   # DEFAULT + SPECIFIC MERGE (NO CONFLICT)
@@ -366,6 +374,7 @@ Feature: 3-layer metadata/ruleSet merge during schema registration
     And the response should have field "metadata"
     And the response body should contain "us-east-1"
     And the response body should contain "payments"
+    And the audit log should contain event "config_update" with subject "cfg-merge-defspec"
 
   # ==========================================================================
   # OVERRIDE + SPECIFIC MERGE (NO CONFLICT)
@@ -400,6 +409,7 @@ Feature: 3-layer metadata/ruleSet merge during schema registration
     And the response should have field "metadata"
     And the response body should contain "sox"
     And the response body should contain "engineering"
+    And the audit log should contain event "config_update" with subject "cfg-merge-ovrspec"
 
   # ==========================================================================
   # NO CONFIG, NO METADATA — SCHEMA HAS NO METADATA
@@ -420,6 +430,7 @@ Feature: 3-layer metadata/ruleSet merge during schema registration
     Then the response status should be 200
     And the response body should contain "confluent:version"
     And the response body should not contain "ruleSet"
+    And the audit log should contain event "schema_register" with subject "cfg-merge-nometa"
 
   # ==========================================================================
   # GLOBAL CONFIG DEFAULTS APPLIED
@@ -460,6 +471,7 @@ Feature: 3-layer metadata/ruleSet merge during schema registration
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "config_update"
 
   # ==========================================================================
   # METADATA TAGS AND SENSITIVE MERGE
@@ -498,6 +510,7 @@ Feature: 3-layer metadata/ruleSet merge during schema registration
     And the response body should contain "CONTACT"
     And the response body should contain "ssn"
     And the response body should contain "email"
+    And the audit log should contain event "config_update" with subject "cfg-merge-tags"
 
   # ==========================================================================
   # INHERITED METADATA ALSO GETS MERGED WITH CONFIG
@@ -545,6 +558,7 @@ Feature: 3-layer metadata/ruleSet merge during schema registration
     And the response should have field "metadata"
     And the response body should contain "team-x"
     And the response body should contain "approved"
+    And the audit log should contain event "config_update" with subject "cfg-merge-inhcfg"
 
   # ==========================================================================
   # OVERRIDE RULESET REPLACES SAME-NAME RULES
@@ -605,6 +619,7 @@ Feature: 3-layer metadata/ruleSet merge during schema registration
     And the response body should contain "extraCheck"
     # The specific expr should be replaced by override expr
     And the response body should not contain "size(message.a)"
+    And the audit log should contain event "config_update" with subject "cfg-merge-ruleovr"
 
   # ==========================================================================
   # 3-LAYER MERGE WITH RULESET
@@ -668,3 +683,4 @@ Feature: 3-layer metadata/ruleSet merge during schema registration
     And the response body should contain "baseRule"
     And the response body should contain "specificRule"
     And the response body should contain "enforcedRule"
+    And the audit log should contain event "config_update" with subject "cfg-merge-3rule"

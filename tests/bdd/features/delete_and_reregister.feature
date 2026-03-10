@@ -44,6 +44,8 @@ Feature: Delete and Re-register Semantics
     When I list all subjects
     Then the response status should be 200
     And the response array should contain "del-reregister"
+    And the audit log should contain event "subject_delete" with subject "del-reregister"
+    And the audit log should contain event "schema_register" with subject "del-reregister"
 
   Scenario: Re-registering the same schema after soft-delete returns existing ID
     Given subject "del-same-schema" has schema:
@@ -59,6 +61,8 @@ Feature: Delete and Re-register Semantics
       {"type":"record","name":"DelSame","fields":[{"name":"id","type":"int"}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "subject_delete" with subject "del-same-schema"
+    And the audit log should contain event "schema_register" with subject "del-same-schema"
 
   # ---------------------------------------------------------------------------
   # Lookup of deleted schemas
@@ -83,6 +87,7 @@ Feature: Delete and Re-register Semantics
       {"type":"record","name":"LookupDel","fields":[{"name":"id","type":"int"}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "subject_delete" with subject "lookup-del"
 
   # ---------------------------------------------------------------------------
   # Listing with deleted flag
@@ -109,6 +114,7 @@ Feature: Delete and Re-register Semantics
     Then the response status should be 200
     And the response array should contain "list-del-a"
     And the response array should contain "list-del-b"
+    And the audit log should contain event "subject_delete" with subject "list-del-a"
 
   # ---------------------------------------------------------------------------
   # Permanent delete
@@ -136,6 +142,7 @@ Feature: Delete and Re-register Semantics
     When I list subjects with deleted
     Then the response status should be 200
     And the response array should not contain "perm-del-ok"
+    And the audit log should contain event "subject_delete" with subject "perm-del-ok"
 
   # ---------------------------------------------------------------------------
   # Permanent delete of referenced subject
@@ -193,3 +200,4 @@ Feature: Delete and Re-register Semantics
     # Version 2 should be gone
     When I get version 2 of subject "ver-del"
     Then the response status should be 404
+    And the audit log should contain event "schema_delete" with subject "ver-del"

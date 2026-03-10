@@ -27,6 +27,7 @@ Feature: Config Inheritance and Fallback
     # Query subject config returns 404 (no subject-level config)
     When I get the config for subject "inherit-test"
     Then the response status should be 404
+    And the audit log should contain event "config_delete" with subject "inherit-test"
 
   Scenario: Subject config deletion causes registration to use global level
     # Set global to BACKWARD, subject to NONE
@@ -51,6 +52,7 @@ Feature: Config Inheritance and Fallback
       {"type":"record","name":"InheritFunc","fields":[{"name":"totally_new","type":"long"}]}
       """
     Then the response status should be 409
+    And the audit log should contain event "config_delete" with subject "inherit-func"
 
   # ---------------------------------------------------------------------------
   # Subject config overrides global
@@ -67,6 +69,7 @@ Feature: Config Inheritance and Fallback
     And I get the config for subject "override-test"
     Then the response status should be 200
     And the response field "compatibilityLevel" should be "NONE"
+    And the audit log should contain event "config_update"
 
   # ---------------------------------------------------------------------------
   # Multiple subjects with independent configs
@@ -92,6 +95,7 @@ Feature: Config Inheritance and Fallback
     When I get the config for subject "subj-b"
     Then the response status should be 200
     And the response field "compatibilityLevel" should be "FORWARD"
+    And the audit log should contain event "config_delete" with subject "subj-a"
 
   # ---------------------------------------------------------------------------
   # Global config set / get / delete cycle
@@ -110,6 +114,7 @@ Feature: Config Inheritance and Fallback
     When I get the global config
     Then the response status should be 200
     And the response field "compatibilityLevel" should be "BACKWARD"
+    And the audit log should contain event "config_delete"
 
   # ---------------------------------------------------------------------------
   # All 7 compatibility levels can be set per-subject

@@ -8,6 +8,7 @@ Feature: Schema Types
       {"type":"record","name":"Event","fields":[{"name":"id","type":"string"}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-test"
 
   Scenario: Register Protobuf schema
     When I register a "PROTOBUF" schema under subject "proto-test":
@@ -18,6 +19,7 @@ Feature: Schema Types
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-test"
 
   Scenario: Register JSON Schema
     When I register a "JSON" schema under subject "json-test":
@@ -25,6 +27,7 @@ Feature: Schema Types
       {"type":"object","properties":{"id":{"type":"string"}},"required":["id"]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "json-test"
 
   Scenario: Get schema by ID shows schemaType for Protobuf
     When I register a "PROTOBUF" schema under subject "proto-type-test":

@@ -29,6 +29,7 @@ Feature: Mode Management — Exhaustive (Confluent v8.1.1 Compatibility)
     And the response should have error code 42205
     # Reset
     When I set the global mode to "READWRITE"
+    And the audit log should contain event "mode_update"
 
   Scenario: READONLY mode still allows read operations
     Given the global mode is "READWRITE"
@@ -45,6 +46,7 @@ Feature: Mode Management — Exhaustive (Confluent v8.1.1 Compatibility)
     Then the response status should be 200
     # Reset
     When I set the global mode to "READWRITE"
+    And the audit log should contain event "mode_update"
 
   # ==========================================================================
   # SUBJECT MODE OVERRIDES
@@ -68,6 +70,7 @@ Feature: Mode Management — Exhaustive (Confluent v8.1.1 Compatibility)
     Then the response status should be 200
     # Reset
     When I set the global mode to "READWRITE"
+    And the audit log should contain event "mode_update" with subject "mode-ex-subj-override"
 
   Scenario: Delete subject mode falls back to global
     Given the global mode is "READWRITE"
@@ -81,6 +84,7 @@ Feature: Mode Management — Exhaustive (Confluent v8.1.1 Compatibility)
     When I GET "/mode/mode-ex-del-fallback?defaultToGlobal=true"
     Then the response status should be 200
     And the response field "mode" should be "READWRITE"
+    And the audit log should contain event "mode_delete" with subject "mode-ex-del-fallback"
 
   Scenario: Get mode for subject with no override and no defaultToGlobal returns 404
     When I GET "/mode/mode-ex-no-override"
@@ -107,6 +111,7 @@ Feature: Mode Management — Exhaustive (Confluent v8.1.1 Compatibility)
     And the response field "id" should be 100
     # Reset
     When I set the global mode to "READWRITE"
+    And the audit log should contain event "schema_register" with subject "mode-ex-import"
 
   Scenario: Import same schema with same ID but different subject succeeds
     When I set the global mode to "IMPORT"
@@ -122,6 +127,7 @@ Feature: Mode Management — Exhaustive (Confluent v8.1.1 Compatibility)
     Then the response status should be 200
     # Reset
     When I set the global mode to "READWRITE"
+    And the audit log should contain event "schema_register" with subject "mode-ex-import-reuse2"
 
   Scenario: Import different schema with same ID fails
     When I set the global mode to "IMPORT"
@@ -137,6 +143,7 @@ Feature: Mode Management — Exhaustive (Confluent v8.1.1 Compatibility)
     Then the response status should be 422
     # Reset
     When I set the global mode to "READWRITE"
+    And the audit log should contain event "schema_register" with subject "mode-ex-import-conflict1"
 
   Scenario: Import mode skips compatibility checking
     When I set the global mode to "IMPORT"
@@ -153,6 +160,7 @@ Feature: Mode Management — Exhaustive (Confluent v8.1.1 Compatibility)
     Then the response status should be 200
     # Reset
     When I set the global mode to "READWRITE"
+    And the audit log should contain event "schema_register" with subject "mode-ex-import-nocompat"
 
   Scenario: Register without ID after exiting import mode auto-assigns ID
     When I set the global mode to "IMPORT"
@@ -168,6 +176,7 @@ Feature: Mode Management — Exhaustive (Confluent v8.1.1 Compatibility)
       """
     Then the response status should be 200
     And the response should have field "id"
+    And the audit log should contain event "schema_register" with subject "mode-ex-exit-import-auto"
 
   # ==========================================================================
   # IMPORT MODE — EXPLICIT VERSION SUPPORT
@@ -186,6 +195,7 @@ Feature: Mode Management — Exhaustive (Confluent v8.1.1 Compatibility)
     Then the response status should be 200
     And the response field "version" should be 5
     And the response field "id" should be 600
+    And the audit log should contain event "schema_register" with subject "mode-ex-ver-explicit"
 
   Scenario: Import multiple versions out of order
     When I set the global mode to "IMPORT"
@@ -221,6 +231,7 @@ Feature: Mode Management — Exhaustive (Confluent v8.1.1 Compatibility)
     Then the response status should be 200
     And the response field "version" should be 3
     And the response field "id" should be 612
+    And the audit log should contain event "schema_register" with subject "mode-ex-ver-ooo"
 
   Scenario: Import with non-sequential version gaps
     When I set the global mode to "IMPORT"
@@ -243,6 +254,7 @@ Feature: Mode Management — Exhaustive (Confluent v8.1.1 Compatibility)
     When I list versions of subject "mode-ex-ver-gaps"
     Then the response status should be 200
     And the response should be an array of length 3
+    And the audit log should contain event "schema_register" with subject "mode-ex-ver-gaps"
 
   Scenario: Import without explicit version auto-assigns next version
     When I set the global mode to "IMPORT"
@@ -263,6 +275,7 @@ Feature: Mode Management — Exhaustive (Confluent v8.1.1 Compatibility)
     When I get version 2 of subject "mode-ex-ver-auto"
     Then the response status should be 200
     And the response field "id" should be 631
+    And the audit log should contain event "schema_register" with subject "mode-ex-ver-auto"
 
   Scenario: Import with duplicate version returns existing version
     When I set the global mode to "IMPORT"
@@ -278,6 +291,7 @@ Feature: Mode Management — Exhaustive (Confluent v8.1.1 Compatibility)
       """
     Then the response status should be 200
     When I set the global mode to "READWRITE"
+    And the audit log should contain event "schema_register" with subject "mode-ex-ver-dup"
 
   # ==========================================================================
   # IMPORT MODE — MUTUAL EXCLUSION WITH READWRITE
@@ -293,6 +307,7 @@ Feature: Mode Management — Exhaustive (Confluent v8.1.1 Compatibility)
     Then the response status should be 422
     And the response should have error code 42205
     When I set the global mode to "READWRITE"
+    And the audit log should contain event "mode_update"
 
   Scenario: READWRITE mode rejects registration with explicit ID
     When I set the global mode to "READWRITE"
@@ -303,3 +318,4 @@ Feature: Mode Management — Exhaustive (Confluent v8.1.1 Compatibility)
       """
     Then the response status should be 422
     And the response should have error code 42205
+    And the audit log should contain event "mode_update"

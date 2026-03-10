@@ -47,6 +47,7 @@ Feature: Config and Mode defaultToGlobal Parameter
     Then the response status should be 200
     When I get the global config
     Then the response field "compatibilityLevel" should be "BACKWARD"
+    And the audit log should contain event "config_delete"
 
   # ==========================================================================
   # MODE defaultToGlobal
@@ -62,6 +63,7 @@ Feature: Config and Mode defaultToGlobal Parameter
     When I GET "/mode/mode-default-test2?defaultToGlobal=true"
     Then the response status should be 200
     And the response field "mode" should be "READONLY"
+    And the audit log should contain event "mode_update"
 
   Scenario: GET /mode/{subject}?defaultToGlobal=false returns 404 when no subject mode
     When I GET "/mode/mode-default-test3?defaultToGlobal=false"
@@ -76,6 +78,7 @@ Feature: Config and Mode defaultToGlobal Parameter
     When I GET "/mode/mode-has-mode?defaultToGlobal=true"
     Then the response status should be 200
     And the response field "mode" should be "IMPORT"
+    And the audit log should contain event "mode_update" with subject "mode-has-mode"
 
   Scenario: GET /mode (global) always returns a value
     When I get the global mode

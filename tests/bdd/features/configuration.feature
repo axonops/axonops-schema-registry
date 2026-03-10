@@ -12,12 +12,14 @@ Feature: Configuration
     Then the response status should be 200
     When I get the global config
     Then the response field "compatibilityLevel" should be "FULL"
+    And the audit log should contain event "config_update"
 
   Scenario: Set per-subject compatibility
     When I set the config for subject "my-subject" to "NONE"
     Then the response status should be 200
     When I get the config for subject "my-subject"
     Then the response field "compatibilityLevel" should be "NONE"
+    And the audit log should contain event "config_update" with subject "my-subject"
 
   Scenario: Delete per-subject compatibility falls back to global with defaultToGlobal
     Given subject "my-subject" has compatibility level "FORWARD"
@@ -28,6 +30,7 @@ Feature: Configuration
     When I GET "/config/my-subject?defaultToGlobal=true"
     Then the response status should be 200
     And the response field "compatibilityLevel" should be "BACKWARD"
+    And the audit log should contain event "config_delete" with subject "my-subject"
 
   Scenario: Delete global config reverts to default
     When I set the global config to "FULL_TRANSITIVE"
@@ -36,11 +39,13 @@ Feature: Configuration
     Then the response status should be 200
     When I get the global config
     Then the response field "compatibilityLevel" should be "BACKWARD"
+    And the audit log should contain event "config_delete"
 
   Scenario: Invalid compatibility level returns 422
     When I set the global config to "INVALID_LEVEL"
     Then the response status should be 422
     And the response should have error code 42203
+    And the audit log should contain event "config_update"
 
   Scenario: Set all valid compatibility levels
     When I set the global config to "NONE"
@@ -57,6 +62,7 @@ Feature: Configuration
     Then the response status should be 200
     When I set the global config to "FULL_TRANSITIVE"
     Then the response status should be 200
+    And the audit log should contain event "config_update"
 
   Scenario: Get default global mode
     When I get the global mode
@@ -68,3 +74,4 @@ Feature: Configuration
     Then the response status should be 200
     When I get the global mode
     Then the response field "mode" should be "READONLY"
+    And the audit log should contain event "mode_update"

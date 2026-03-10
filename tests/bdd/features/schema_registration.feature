@@ -9,6 +9,7 @@ Feature: Schema Registration
       """
     Then the response status should be 200
     And the response should have field "id"
+    And the audit log should contain event "schema_register" with subject "user-value"
 
   Scenario: Register returns same ID for duplicate schema
     Given subject "user-value" has schema:
@@ -20,6 +21,7 @@ Feature: Schema Registration
       {"type":"record","name":"User","fields":[{"name":"name","type":"string"}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "user-value"
 
   Scenario: Register second version increments version
     Given subject "user-value" has schema:
@@ -33,6 +35,7 @@ Feature: Schema Registration
       """
     Then the response status should be 200
     And the response should have field "id"
+    And the audit log should contain event "schema_register" with subject "user-value"
 
   Scenario: Get schema by ID
     When I register a schema under subject "user-value":
@@ -79,6 +82,7 @@ Feature: Schema Registration
       """
     Then the response status should be 200
     And the response field "version" should be 1
+    And the audit log should contain event "schema_lookup" with subject "user-value"
 
   Scenario: Lookup non-existing schema returns 404
     Given subject "user-value" has schema:

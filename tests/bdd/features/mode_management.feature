@@ -12,12 +12,14 @@ Feature: Mode Management
     Then the response status should be 200
     When I get the global mode
     Then the response field "mode" should be "READONLY"
+    And the audit log should contain event "mode_update"
 
   Scenario: Set global mode to IMPORT
     When I set the global mode to "IMPORT"
     Then the response status should be 200
     When I get the global mode
     Then the response field "mode" should be "IMPORT"
+    And the audit log should contain event "mode_update"
 
   Scenario: Set per-subject mode
     When I set the mode for subject "my-subject" to "READONLY"
@@ -25,6 +27,7 @@ Feature: Mode Management
     When I get the mode for subject "my-subject"
     Then the response status should be 200
     And the response field "mode" should be "READONLY"
+    And the audit log should contain event "mode_update" with subject "my-subject"
 
   Scenario: Delete per-subject mode falls back to global with defaultToGlobal
     Given subject "mode-subj" has mode "READONLY"
@@ -35,6 +38,7 @@ Feature: Mode Management
     When I GET "/mode/mode-subj?defaultToGlobal=true"
     Then the response status should be 200
     And the response field "mode" should be "READWRITE"
+    And the audit log should contain event "mode_delete" with subject "mode-subj"
 
   Scenario: Per-subject mode isolation
     When I set the mode for subject "subj-a" to "READONLY"
@@ -43,3 +47,4 @@ Feature: Mode Management
     Then the response field "mode" should be "READONLY"
     When I get the mode for subject "subj-b"
     Then the response field "mode" should be "IMPORT"
+    And the audit log should contain event "mode_update" with subject "subj-b"

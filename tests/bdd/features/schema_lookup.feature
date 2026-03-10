@@ -17,6 +17,7 @@ Feature: Schema Lookup
     And the response should have field "id"
     And the response field "version" should be 1
     And the response should have field "schema"
+    And the audit log should contain event "schema_lookup" with subject "order-value"
 
   Scenario: Lookup non-existent schema in an existing subject returns 404
     Given subject "customer-value" has schema:
@@ -63,6 +64,7 @@ Feature: Schema Lookup
     And the response field "subject" should be "proto-lookup"
     And the response should have field "id"
     And the response field "version" should be 1
+    And the audit log should contain event "schema_lookup" with subject "proto-lookup"
 
   Scenario: Lookup existing JSON Schema with schemaType specified
     Given subject "json-lookup" has "JSON" schema:
@@ -77,6 +79,7 @@ Feature: Schema Lookup
     And the response field "subject" should be "json-lookup"
     And the response should have field "id"
     And the response field "version" should be 1
+    And the audit log should contain event "schema_lookup" with subject "json-lookup"
 
   Scenario: Lookup returns correct version when multiple versions exist
     Given the global compatibility level is "NONE"
@@ -99,6 +102,7 @@ Feature: Schema Lookup
     Then the response status should be 200
     And the response field "version" should be 2
     And the response field "subject" should be "multi-ver-lookup"
+    And the audit log should contain event "schema_lookup" with subject "multi-ver-lookup"
 
   Scenario: Lookup after soft-delete returns 404
     Given subject "del-lookup" has schema:
@@ -112,6 +116,7 @@ Feature: Schema Lookup
       {"type":"record","name":"Session","fields":[{"name":"session_id","type":"string"},{"name":"user_id","type":"string"},{"name":"started_at","type":"long"}]}
       """
     Then the response status should be 404
+    And the audit log should contain event "subject_delete" with subject "del-lookup"
 
   Scenario: Lookup after soft-delete with deleted flag returns the schema
     Given subject "del-lookup-recover" has schema:
@@ -128,6 +133,8 @@ Feature: Schema Lookup
     And the response field "subject" should be "del-lookup-recover"
     And the response field "version" should be 1
     And the response should have field "id"
+    And the audit log should contain event "subject_delete" with subject "del-lookup-recover"
+    And the audit log should contain event "schema_lookup" with subject "del-lookup-recover"
 
   Scenario: Lookup does not create a new version
     Given the global compatibility level is "NONE"
@@ -144,6 +151,7 @@ Feature: Schema Lookup
     When I list versions of subject "no-side-effect"
     Then the response status should be 200
     And the response should be an array of length 1
+    And the audit log should contain event "schema_lookup" with subject "no-side-effect"
 
   Scenario: Lookup with empty schema returns error
     Given subject "empty-lookup" has schema:
