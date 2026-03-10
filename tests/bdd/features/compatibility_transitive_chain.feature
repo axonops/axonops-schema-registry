@@ -43,6 +43,7 @@ Feature: Compatibility Transitive Chain with 5+ Versions
       """
     Then the response status should be 200
     And subject "bt-chain-5" should have exactly 5 versions
+    And the audit log should contain event "schema_register" with subject "bt-chain-5"
 
   # ---------------------------------------------------------------------------
   # BACKWARD_TRANSITIVE: v6 breaks compatibility because it adds required field
@@ -119,6 +120,7 @@ Feature: Compatibility Transitive Chain with 5+ Versions
       """
     Then the response status should be 200
     And subject "ft-chain-5" should have exactly 5 versions
+    And the audit log should contain event "schema_register" with subject "ft-chain-5"
 
   # ---------------------------------------------------------------------------
   # FULL_TRANSITIVE: 5-version chain, all compatible
@@ -150,6 +152,7 @@ Feature: Compatibility Transitive Chain with 5+ Versions
       """
     Then the response status should be 200
     And subject "fullt-chain-5" should have exactly 5 versions
+    And the audit log should contain event "schema_register" with subject "fullt-chain-5"
 
   # ---------------------------------------------------------------------------
   # BACKWARD_TRANSITIVE rejects what non-transitive BACKWARD allows

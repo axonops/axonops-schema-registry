@@ -75,6 +75,7 @@ Feature: Confluent Conformance
     And the response should contain "3"
     And the response body should not contain "1"
     And the response body should not contain "2"
+    And the audit log should contain event "schema_register" with subject "conf-ver-cont"
 
   Scenario: Version numbers reset after permanent delete
     Given subject "conf-ver-reset" has schema:
@@ -93,6 +94,7 @@ Feature: Confluent Conformance
     When I GET "/subjects/conf-ver-reset/versions"
     Then the response status should be 200
     And the response should contain "1"
+    And the audit log should contain event "schema_register" with subject "conf-ver-reset"
 
   # ==========================================================================
   # SCHEMA TYPE MIXING WHEN COMPATIBILITY=NONE
@@ -123,6 +125,7 @@ Feature: Confluent Conformance
     And the response should contain "1"
     And the response should contain "2"
     And the response should contain "3"
+    And the audit log should contain event "schema_register" with subject "conf-type-mix"
     When I set the global compatibility level to "BACKWARD"
 
   # ==========================================================================
@@ -152,6 +155,7 @@ Feature: Confluent Conformance
       {"type":"record","name":"CompatDel","fields":[{"name":"a","type":"string"},{"name":"c","type":"string","default":""}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "conf-compat-del"
 
   # ==========================================================================
   # CONFIG ON NON-EXISTENT SUBJECT
@@ -169,6 +173,7 @@ Feature: Confluent Conformance
     When I GET "/config/conf-config-nosub?defaultToGlobal=false"
     Then the response status should be 200
     And the response field "compatibilityLevel" should be "FULL"
+    And the audit log should contain event "config_update" with subject "conf-config-nosub"
 
   # ==========================================================================
   # CANONICAL STRING IDEMPOTENCE
@@ -190,6 +195,7 @@ Feature: Confluent Conformance
     Then the response status should be 200
     And I store the response field "id" as "canonical_id2"
     # Both should get the same ID (idempotent registration)
+    And the audit log should contain event "schema_register" with subject "conf-canonical"
 
   # ==========================================================================
   # GET VERSIONS AFTER ALL SOFT-DELETED
@@ -211,6 +217,7 @@ Feature: Confluent Conformance
     When I GET "/subjects/conf-all-del/versions?deleted=true"
     Then the response status should be 200
     And the response should contain "1"
+    And the audit log should contain event "subject_delete" with subject "conf-all-del"
 
   # ==========================================================================
   # REGISTER WITH VERSION -1 IN REQUEST BODY
@@ -258,3 +265,4 @@ Feature: Confluent Conformance
     Then the response status should be 200
     And the response should contain "1"
     And the response should contain "2"
+    And the audit log should contain event "subject_delete" with subject "conf-perm-list"

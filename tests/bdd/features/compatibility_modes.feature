@@ -35,6 +35,7 @@ Feature: Compatibility Modes
       {"type":"record","name":"User","fields":[{"name":"name","type":"string"},{"name":"code","type":"int","default":0}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-b"
 
   # --- FORWARD and FORWARD_TRANSITIVE with Avro ---
 
@@ -49,6 +50,7 @@ Feature: Compatibility Modes
       {"type":"record","name":"User","fields":[{"name":"name","type":"string"},{"name":"email","type":["null","string"],"default":null}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-fwd"
 
   Scenario: FORWARD incompatible schema rejected (Avro)
     Given the global compatibility level is "FORWARD"
@@ -91,6 +93,7 @@ Feature: Compatibility Modes
       {"type":"record","name":"User","fields":[{"name":"name","type":"string"},{"name":"email","type":["null","string"],"default":null}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-full"
 
   Scenario: FULL incompatible change rejected (Avro)
     Given the global compatibility level is "FULL"
@@ -158,6 +161,7 @@ Feature: Compatibility Modes
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-compat"
 
   Scenario: BACKWARD incompatible Protobuf schema rejected
     Given the global compatibility level is "BACKWARD"
@@ -195,6 +199,7 @@ Feature: Compatibility Modes
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-fwd"
 
   Scenario: FULL compatible Protobuf schema accepted
     Given the global compatibility level is "FULL"
@@ -215,6 +220,7 @@ Feature: Compatibility Modes
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "proto-full"
 
   # --- JSON Schema compatibility modes ---
 
@@ -265,6 +271,7 @@ Feature: Compatibility Modes
       {"type":"object","properties":{"name":{"type":"string"}},"required":["name"]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "json-full"
 
   # --- Per-subject override ---
 
@@ -280,3 +287,4 @@ Feature: Compatibility Modes
       {"type":"record","name":"User","fields":[{"name":"age","type":"int"}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "override-subj"

@@ -17,6 +17,7 @@ Feature: Advanced Features
       """
     Then the response status should be 200
     And the response field "mode" should be "IMPORT"
+    And the audit log should contain event "mode_update"
     When I set the global mode to "READWRITE"
 
   Scenario: Set mode to IMPORT with force=true when schemas exist
@@ -31,6 +32,7 @@ Feature: Advanced Features
       """
     Then the response status should be 200
     And the response field "mode" should be "IMPORT"
+    And the audit log should contain event "mode_update"
     When I set the global mode to "READWRITE"
 
   Scenario: Set mode to IMPORT without force when schemas exist returns error
@@ -73,6 +75,7 @@ Feature: Advanced Features
       """
     Then the response status should be 200
     And the response field "mode" should be "IMPORT"
+    And the audit log should contain event "mode_update"
     When I set the global mode to "READWRITE"
 
   Scenario: Force is not needed for non-IMPORT modes
@@ -86,6 +89,7 @@ Feature: Advanced Features
       {"mode": "READONLY"}
       """
     Then the response status should be 200
+    And the audit log should contain event "mode_update"
     When I set the global mode to "READWRITE"
 
   Scenario: Force not needed when already in IMPORT mode
@@ -100,6 +104,7 @@ Feature: Advanced Features
       {"mode": "IMPORT"}
       """
     Then the response status should be 200
+    And the audit log should contain event "mode_update"
     When I set the global mode to "READWRITE"
 
   # ==========================================================================
@@ -181,6 +186,7 @@ Feature: Advanced Features
       {"schema": "{\"type\":\"record\",\"name\":\"Norm\",\"fields\":[{\"name\":\"a\",\"type\":\"string\"}]}"}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "norm-test"
 
   Scenario: normalize parameter is accepted on lookup
     Given subject "norm-lookup" has schema:
@@ -192,6 +198,7 @@ Feature: Advanced Features
       {"schema": "{\"type\":\"record\",\"name\":\"NormLookup\",\"fields\":[{\"name\":\"a\",\"type\":\"string\"}]}"}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_lookup" with subject "norm-lookup"
 
   Scenario: normalize parameter is accepted on compatibility check
     Given subject "norm-compat" has schema:
@@ -211,6 +218,7 @@ Feature: Advanced Features
       """
     Then the response status should be 200
     And the response should contain "normalize"
+    And the audit log should contain event "config_update" with subject "norm-config-sub"
 
   Scenario: normalize config option can be set globally
     When I PUT "/config" with body:
@@ -218,6 +226,7 @@ Feature: Advanced Features
       {"compatibility": "BACKWARD", "normalize": true}
       """
     Then the response status should be 200
+    And the audit log should contain event "config_update"
     # Reset to avoid affecting other tests
     When I PUT "/config" with body:
       """

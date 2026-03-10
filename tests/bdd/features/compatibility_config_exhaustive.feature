@@ -20,6 +20,7 @@ Feature: Compatibility Configuration & Testing — Exhaustive (Confluent v8.1.1 
     And the response field "compatibilityLevel" should be "FORWARD"
     # Reset
     When I set the global config to "NONE"
+    And the audit log should contain event "config_update"
 
   Scenario: Set subject-level compatibility independent of global
     Given I set the global config to "NONE"
@@ -30,6 +31,7 @@ Feature: Compatibility Configuration & Testing — Exhaustive (Confluent v8.1.1 
     And the response field "compatibilityLevel" should be "FORWARD"
     When I get the global config
     And the response field "compatibilityLevel" should be "NONE"
+    And the audit log should contain event "config_update" with subject "cc-subj-level"
 
   Scenario: Set compatibility for non-existent subject succeeds
     When I set the config for subject "cc-nonexist-subj" to "FULL"
@@ -37,6 +39,7 @@ Feature: Compatibility Configuration & Testing — Exhaustive (Confluent v8.1.1 
     When I get the config for subject "cc-nonexist-subj"
     Then the response status should be 200
     And the response field "compatibilityLevel" should be "FULL"
+    And the audit log should contain event "config_update" with subject "cc-nonexist-subj"
 
   Scenario: Get config for subject with no subject-level config returns 404
     When I get the config for subject "cc-no-config-at-all"
@@ -57,6 +60,7 @@ Feature: Compatibility Configuration & Testing — Exhaustive (Confluent v8.1.1 
     And the response field "compatibilityLevel" should be "FULL"
     # Reset
     When I set the global config to "NONE"
+    And the audit log should contain event "config_delete" with subject "cc-del-config"
 
   # ==========================================================================
   # COMPATIBILITY TESTING ENDPOINTS
@@ -128,6 +132,7 @@ Feature: Compatibility Configuration & Testing — Exhaustive (Confluent v8.1.1 
       {"type":"record","name":"ChgNone","fields":[{"name":"f1","type":"int"}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "cc-change-none"
 
   Scenario: Change compatibility from FORWARD to BACKWARD enforces new rules
     Given the global compatibility level is "NONE"
@@ -150,6 +155,7 @@ Feature: Compatibility Configuration & Testing — Exhaustive (Confluent v8.1.1 
       {"type":"record","name":"FwdBwd","fields":[{"name":"f1","type":"string"},{"name":"f2","type":"string","default":"x"},{"name":"f3","type":"string","default":"y"}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "cc-fwd-to-bwd"
 
   # ==========================================================================
   # TRANSITIVE COMPATIBILITY VIA REST

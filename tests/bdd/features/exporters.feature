@@ -46,6 +46,8 @@ Feature: Exporters API
     And the response array should contain "exporter-1"
     And the response array should contain "exporter-2"
     And the response array should contain "exporter-3"
+    And the audit log should contain event "exporter_create"
+    And the audit log should contain event "exporter_create" with method "POST"
 
   # Create Operations
   Scenario: Create exporter with all fields
@@ -67,6 +69,8 @@ Feature: Exporters API
     Then the response status should be 200
     And the response should be valid JSON
     And the response field "name" should be "full-exporter"
+    And the audit log should contain event "exporter_create"
+    And the audit log should contain event "exporter_create" with method "POST"
 
   Scenario: Create exporter with minimal fields
     When I POST "/exporters" with body:
@@ -78,6 +82,8 @@ Feature: Exporters API
     Then the response status should be 200
     And the response should be valid JSON
     And the response field "name" should be "minimal-exporter"
+    And the audit log should contain event "exporter_create"
+    And the audit log should contain event "exporter_create" with method "POST"
 
   Scenario: Create exporter with contextType AUTO
     When I POST "/exporters" with body:
@@ -91,6 +97,8 @@ Feature: Exporters API
     Then the response status should be 200
     And the response should be valid JSON
     And the response field "name" should be "auto-exporter"
+    And the audit log should contain event "exporter_create"
+    And the audit log should contain event "exporter_create" with method "POST"
 
   Scenario: Create exporter with contextType CUSTOM and context
     When I POST "/exporters" with body:
@@ -105,6 +113,8 @@ Feature: Exporters API
     Then the response status should be 200
     And the response should be valid JSON
     And the response field "name" should be "custom-exporter"
+    And the audit log should contain event "exporter_create"
+    And the audit log should contain event "exporter_create" with method "POST"
 
   Scenario: Create exporter with contextType NONE
     When I POST "/exporters" with body:
@@ -118,6 +128,8 @@ Feature: Exporters API
     Then the response status should be 200
     And the response should be valid JSON
     And the response field "name" should be "none-exporter"
+    And the audit log should contain event "exporter_create"
+    And the audit log should contain event "exporter_create" with method "POST"
 
   Scenario: Create exporter with subject filters
     When I POST "/exporters" with body:
@@ -131,6 +143,8 @@ Feature: Exporters API
     Then the response status should be 200
     And the response should be valid JSON
     And the response field "name" should be "filtered-exporter"
+    And the audit log should contain event "exporter_create"
+    And the audit log should contain event "exporter_create" with method "POST"
 
   Scenario: Create exporter with multiple subjects
     When I POST "/exporters" with body:
@@ -144,6 +158,8 @@ Feature: Exporters API
     Then the response status should be 200
     And the response should be valid JSON
     And the response field "name" should be "multi-subject-exporter"
+    And the audit log should contain event "exporter_create"
+    And the audit log should contain event "exporter_create" with method "POST"
 
   Scenario: Create exporter with empty config
     When I POST "/exporters" with body:
@@ -158,6 +174,8 @@ Feature: Exporters API
     Then the response status should be 200
     And the response should be valid JSON
     And the response field "name" should be "empty-config-exporter"
+    And the audit log should contain event "exporter_create"
+    And the audit log should contain event "exporter_create" with method "POST"
 
   Scenario: Create exporter returns name in response
     When I POST "/exporters" with body:
@@ -171,6 +189,8 @@ Feature: Exporters API
     Then the response status should be 200
     And the response should be valid JSON
     And the response field "name" should be "response-check-exporter"
+    And the audit log should contain event "exporter_create"
+    And the audit log should contain event "exporter_create" with method "POST"
 
   Scenario: Create duplicate exporter
     When I POST "/exporters" with body:
@@ -192,6 +212,8 @@ Feature: Exporters API
     Then the response status should be 409
     And the response should be valid JSON
     And the response should have error code 40950
+    And the audit log should contain event "exporter_create"
+    And the audit log should contain event "exporter_create" with method "POST"
 
   Scenario: Create exporter with invalid contextType
     When I POST "/exporters" with body:
@@ -266,6 +288,8 @@ Feature: Exporters API
     Then the response status should be 200
     And the response should be valid JSON
     And the response field "name" should be "update-test-exporter"
+    And the audit log should contain event "exporter_update"
+    And the audit log should contain event "exporter_update" with method "PUT"
 
   Scenario: Update exporter subjects
     When I POST "/exporters" with body:
@@ -284,6 +308,8 @@ Feature: Exporters API
       """
     Then the response status should be 200
     And the response should be valid JSON
+    And the audit log should contain event "exporter_update"
+    And the audit log should contain event "exporter_update" with method "PUT"
 
   Scenario: Update exporter without changing all fields
     When I POST "/exporters" with body:
@@ -303,6 +329,8 @@ Feature: Exporters API
       """
     Then the response status should be 200
     And the response should be valid JSON
+    And the audit log should contain event "exporter_update"
+    And the audit log should contain event "exporter_update" with method "PUT"
 
   # Delete Operations
   Scenario: Delete exporter
@@ -316,6 +344,8 @@ Feature: Exporters API
       """
     And I DELETE "/exporters/delete-test-exporter"
     Then the response status should be 200
+    And the audit log should contain event "exporter_delete"
+    And the audit log should contain event "exporter_delete" with method "DELETE"
 
   Scenario: Delete exporter returns name in response
     When I POST "/exporters" with body:
@@ -328,6 +358,8 @@ Feature: Exporters API
       """
     And I DELETE "/exporters/delete-response-exporter"
     Then the response status should be 200
+    And the audit log should contain event "exporter_delete"
+    And the audit log should contain event "exporter_delete" with method "DELETE"
 
   Scenario: Delete non-existent exporter
     When I DELETE "/exporters/non-existent-delete-exporter"
@@ -350,6 +382,8 @@ Feature: Exporters API
       {}
       """
     Then the response status should be 200
+    And the audit log should contain event "exporter_pause"
+    And the audit log should contain event "exporter_pause" with method "PUT"
 
   Scenario: Resume exporter
     When I POST "/exporters" with body:
@@ -369,6 +403,8 @@ Feature: Exporters API
       {}
       """
     Then the response status should be 200
+    And the audit log should contain event "exporter_resume"
+    And the audit log should contain event "exporter_resume" with method "PUT"
 
   Scenario: Reset exporter
     When I POST "/exporters" with body:
@@ -384,6 +420,8 @@ Feature: Exporters API
       {}
       """
     Then the response status should be 200
+    And the audit log should contain event "exporter_reset"
+    And the audit log should contain event "exporter_reset" with method "PUT"
 
   Scenario: Pause non-existent exporter
     When I PUT "/exporters/non-existent-pause/pause" with body:
@@ -474,6 +512,8 @@ Feature: Exporters API
       """
     Then the response status should be 200
     And the response should be valid JSON
+    And the audit log should contain event "exporter_update"
+    And the audit log should contain event "exporter_update" with method "PUT"
 
   Scenario: Get config of non-existent exporter
     When I GET "/exporters/non-existent-config/config"
@@ -538,3 +578,8 @@ Feature: Exporters API
     When I GET "/exporters/lifecycle-exporter"
     Then the response status should be 404
     And the response should have error code 40450
+    And the audit log should contain event "exporter_create"
+    And the audit log should contain event "exporter_pause"
+    And the audit log should contain event "exporter_resume"
+    And the audit log should contain event "exporter_reset"
+    And the audit log should contain event "exporter_delete"

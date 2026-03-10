@@ -39,6 +39,7 @@ Feature: Concurrent Access and Race Conditions
     And the stored "id_a" should be greater than 0
     And the stored "id_b" should be greater than 0
     And the stored "id_c" should be greater than 0
+    And the audit log should contain event "schema_register" with subject "subject-c"
 
   Scenario: Schema deduplication across subjects returns same ID
     When I POST "/subjects/subject-alpha/versions" with body:
@@ -57,6 +58,7 @@ Feature: Concurrent Access and Race Conditions
       """
     Then the response status should be 200
     And the response field "id" should equal stored "first_id"
+    And the audit log should contain event "schema_register" with subject "subject-beta"
 
   Scenario: Rapid version creation under single subject
     When I POST "/subjects/rapid-subject/versions" with body:
@@ -97,6 +99,7 @@ Feature: Concurrent Access and Race Conditions
     When I GET "/subjects/rapid-subject/versions"
     Then the response status should be 200
     And the response should be an array of length 5
+    And the audit log should contain event "schema_register" with subject "rapid-subject"
 
   Scenario: Register schema during soft-delete succeeds
     When I POST "/subjects/delete-test/versions" with body:
@@ -118,6 +121,7 @@ Feature: Concurrent Access and Race Conditions
     When I GET "/subjects/delete-test/versions"
     Then the response status should be 200
     And the response should be an array of length 1
+    And the audit log should contain event "schema_register" with subject "delete-test"
 
   Scenario: Register after permanent delete creates new version series
     When I POST "/subjects/permanent-test/versions" with body:
@@ -140,6 +144,7 @@ Feature: Concurrent Access and Race Conditions
       """
     Then the response status should be 200
     And the response field "id" should not equal stored "original_id"
+    And the audit log should contain event "schema_register" with subject "permanent-test"
 
   Scenario: Config change does not affect already-registered schema
     When I POST "/subjects/config-test/versions" with body:
@@ -160,6 +165,7 @@ Feature: Concurrent Access and Race Conditions
     When I GET "/subjects/config-test/versions/1"
     Then the response status should be 200
     And the response field "id" should equal stored "config_id"
+    And the audit log should contain event "config_update" with subject "config-test"
 
   Scenario: Mode switch to READONLY blocks new registrations
     When I PUT "/mode" with body:
@@ -177,6 +183,7 @@ Feature: Concurrent Access and Race Conditions
       """
     Then the response status should be 422
     And the response field "error_code" should be 42205
+    And the audit log should contain event "mode_update"
 
   Scenario: Mode switch to READWRITE allows registrations again
     When I PUT "/mode" with body:
@@ -201,6 +208,7 @@ Feature: Concurrent Access and Race Conditions
       """
     Then the response status should be 200
     And the response should have field "id"
+    And the audit log should contain event "schema_register" with subject "readwrite-test"
 
   Scenario: Multiple subjects with identical schema receive same ID
     When I POST "/subjects/multi-a/versions" with body:
@@ -227,6 +235,7 @@ Feature: Concurrent Access and Race Conditions
       """
     Then the response status should be 200
     And the response field "id" should equal stored "shared_id"
+    And the audit log should contain event "schema_register" with subject "multi-c"
 
   Scenario: Sequential version numbering under rapid registration
     When I POST "/subjects/seq-test/versions" with body:
@@ -253,6 +262,7 @@ Feature: Concurrent Access and Race Conditions
     When I GET "/subjects/seq-test/versions"
     Then the response status should be 200
     And the response should be an array of length 3
+    And the audit log should contain event "schema_register" with subject "seq-test"
 
   Scenario: Delete and re-register preserves ID stability
     When I POST "/subjects/stable-test/versions" with body:
@@ -273,6 +283,7 @@ Feature: Concurrent Access and Race Conditions
       """
     Then the response status should be 200
     And the response field "id" should equal stored "stable_id"
+    And the audit log should contain event "schema_register" with subject "stable-test"
 
   Scenario: Interleaved operations across subjects maintain correct versions
     When I POST "/subjects/interleave-a/versions" with body:
@@ -316,3 +327,4 @@ Feature: Concurrent Access and Race Conditions
     When I GET "/subjects/interleave-b/versions"
     Then the response status should be 200
     And the response should be an array of length 2
+    And the audit log should contain event "schema_register" with subject "interleave-a"

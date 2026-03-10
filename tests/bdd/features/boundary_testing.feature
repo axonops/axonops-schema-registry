@@ -19,6 +19,7 @@ Feature: Boundary Testing
     When I GET "/subjects/large-schema/versions/1"
     Then the response status should be 200
     And the response should contain "field50"
+    And the audit log should contain event "schema_register" with subject "large-schema"
 
   Scenario: Register deeply nested Avro schema
     When I POST "/subjects/nested-schema/versions" with body:
@@ -32,6 +33,7 @@ Feature: Boundary Testing
     When I GET "/subjects/nested-schema/versions/1/schema"
     Then the response status should be 200
     And the response should contain "Level3"
+    And the audit log should contain event "schema_register" with subject "nested-schema"
 
   Scenario: Register schema with very long field names
     When I POST "/subjects/long-field-names/versions" with body:
@@ -42,6 +44,7 @@ Feature: Boundary Testing
       """
     Then the response status should be 200
     And the response should have field "id"
+    And the audit log should contain event "schema_register" with subject "long-field-names"
 
   Scenario: Register many versions under one subject
     When I POST "/subjects/versioned-subject/versions" with body:
@@ -117,6 +120,7 @@ Feature: Boundary Testing
     When I GET "/subjects/versioned-subject/versions"
     Then the response status should be 200
     And the response should be an array of length 10
+    And the audit log should contain event "schema_register" with subject "versioned-subject"
 
   Scenario: Register many subjects
     When I POST "/subjects/subject-01/versions" with body:
@@ -262,6 +266,7 @@ Feature: Boundary Testing
     When I GET "/subjects"
     Then the response status should be 200
     And the response should be an array of length 20
+    And the audit log should contain event "schema_register" with subject "subject-20"
 
   Scenario: Empty schema string returns error
     When I POST "/subjects/empty-schema/versions" with body:
@@ -295,6 +300,7 @@ Feature: Boundary Testing
     When I GET "/subjects/unicode-schema/versions/1/schema"
     Then the response status should be 200
     And the response should contain "UnicodeRecord"
+    And the audit log should contain event "schema_register" with subject "unicode-schema"
 
   Scenario: Schema with special characters in subject name
     When I POST "/subjects/com.example.test-service.events/versions" with body:
@@ -308,6 +314,7 @@ Feature: Boundary Testing
     When I GET "/subjects/com.example.test-service.events/versions"
     Then the response status should be 200
     And the response should be an array of length 1
+    And the audit log should contain event "schema_register" with subject "com.example.test-service.events"
 
   Scenario: Very long subject name
     When I POST "/subjects/this-is-an-extremely-long-subject-name-that-is-designed-to-test-the-boundary-conditions-for-subject-name-length-validation-in-the-schema-registry-implementation-to-ensure-robustness-and-proper-handling/versions" with body:
@@ -321,3 +328,4 @@ Feature: Boundary Testing
     When I GET "/subjects/this-is-an-extremely-long-subject-name-that-is-designed-to-test-the-boundary-conditions-for-subject-name-length-validation-in-the-schema-registry-implementation-to-ensure-robustness-and-proper-handling/versions/1"
     Then the response status should be 200
     And the response field "version" should be 1
+    And the audit log should contain event "schema_register" with subject "this-is-an-extremely-long-subject-name-that-is-designed-to-test-the-boundary-conditions-for-subject-name-length-validation-in-the-schema-registry-implementation-to-ensure-robustness-and-proper-handling"

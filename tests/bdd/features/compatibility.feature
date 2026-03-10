@@ -13,6 +13,7 @@ Feature: Compatibility Checking
       {"type":"record","name":"User","fields":[{"name":"name","type":"string"},{"name":"email","type":["null","string"],"default":null}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "user-value"
 
   Scenario: Backward incompatible schema is rejected
     Given the global compatibility level is "BACKWARD"
@@ -37,6 +38,7 @@ Feature: Compatibility Checking
       {"type":"record","name":"Order","fields":[{"name":"id","type":"long"}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "user-value"
 
   Scenario: Check compatibility endpoint - compatible
     Given the global compatibility level is "BACKWARD"
@@ -74,3 +76,4 @@ Feature: Compatibility Checking
       {"type":"record","name":"B","fields":[{"name":"y","type":"long"}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "flexible-value"

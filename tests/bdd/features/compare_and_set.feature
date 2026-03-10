@@ -23,6 +23,7 @@ Feature: Compare-and-Set (confluent:version)
       """
     Then the response status should be 200
     And the response should have field "id"
+    And the audit log should contain event "schema_register" with subject "cas-auto"
 
   Scenario: confluent:version=0 — auto-increment succeeds
     When I POST "/subjects/cas-zero/versions" with body:
@@ -35,6 +36,7 @@ Feature: Compare-and-Set (confluent:version)
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "cas-zero"
 
   Scenario: confluent:version=-1 — auto-increment succeeds
     When I POST "/subjects/cas-neg1/versions" with body:
@@ -47,6 +49,7 @@ Feature: Compare-and-Set (confluent:version)
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "cas-neg1"
 
   # ==========================================================================
   # EXPLICIT VERSION — SUCCESS CASES
@@ -63,6 +66,7 @@ Feature: Compare-and-Set (confluent:version)
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "cas-v1-new"
 
   Scenario: confluent:version=2 after v1 exists succeeds
     # Register v1
@@ -84,6 +88,7 @@ Feature: Compare-and-Set (confluent:version)
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "cas-v2-after-v1"
 
   # ==========================================================================
   # EXPLICIT VERSION — MISMATCH CASES
@@ -112,6 +117,7 @@ Feature: Compare-and-Set (confluent:version)
       """
     Then the response status should be 200
     And the response should have field "id"
+    And the audit log should contain event "schema_register" with subject "cas-conflict"
 
   Scenario: confluent:version with gap is treated as soft hint — schema registered normally
     # Register v1
@@ -134,6 +140,7 @@ Feature: Compare-and-Set (confluent:version)
       """
     Then the response status should be 200
     And the response should have field "id"
+    And the audit log should contain event "schema_register" with subject "cas-gap"
 
   # ==========================================================================
   # EXPLICIT VERSION ON EMPTY SUBJECT — SOFT HINT
@@ -152,6 +159,7 @@ Feature: Compare-and-Set (confluent:version)
       """
     Then the response status should be 200
     And the response should have field "id"
+    And the audit log should contain event "schema_register" with subject "cas-empty-v2"
 
   # ==========================================================================
   # NON-NUMERIC confluent:version — TREATED AS AUTO-INCREMENT
@@ -170,6 +178,7 @@ Feature: Compare-and-Set (confluent:version)
       """
     Then the response status should be 200
     And the response should have field "id"
+    And the audit log should contain event "schema_register" with subject "cas-nonnumeric"
 
   # ==========================================================================
   # SEQUENTIAL CAS REGISTRATION (v1, v2, v3)
@@ -218,6 +227,7 @@ Feature: Compare-and-Set (confluent:version)
     Then the response body should contain "1"
     Then the response body should contain "2"
     Then the response body should contain "3"
+    And the audit log should contain event "schema_register" with subject "cas-sequential"
 
   # ==========================================================================
   # CAS AFTER SOFT-DELETE
@@ -247,6 +257,7 @@ Feature: Compare-and-Set (confluent:version)
       """
     Then the response status should be 200
     And the response should have field "id"
+    And the audit log should contain event "schema_register" with subject "cas-softdel"
 
   # ==========================================================================
   # METADATA PROPERTIES PRESERVED ALONGSIDE confluent:version
@@ -276,6 +287,7 @@ Feature: Compare-and-Set (confluent:version)
     Then the response body should contain "team-data"
     Then the response body should contain "env"
     Then the response body should contain "test"
+    And the audit log should contain event "schema_register" with subject "cas-meta-props"
 
   # ==========================================================================
   # confluent:version AUTO-POPULATED IN RESPONSE
@@ -295,6 +307,7 @@ Feature: Compare-and-Set (confluent:version)
     When I GET "/subjects/cas-auto-pop/versions/1"
     Then the response status should be 200
     Then the response body should contain "confluent:version"
+    And the audit log should contain event "schema_register" with subject "cas-auto-pop"
 
   # ==========================================================================
   # DUPLICATE REGISTRATION WITH confluent:version RETURNS SAME ID (DEDUP)
@@ -325,3 +338,4 @@ Feature: Compare-and-Set (confluent:version)
       """
     Then the response status should be 200
     And the response field "id" should equal stored "first_id"
+    And the audit log should contain event "schema_register" with subject "cas-dedup"

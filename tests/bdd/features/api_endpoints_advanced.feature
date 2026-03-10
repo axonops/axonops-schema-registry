@@ -15,6 +15,7 @@ Feature: API Endpoint Behaviors Advanced
     When I get version 1 of subject "default-type-test"
     Then the response status should be 200
     And the response field "schemaType" should be "AVRO"
+    And the audit log should contain event "schema_register" with subject "default-type-test"
 
   # --- Schema type is case-sensitive (Confluent rejects lowercase) ---
 
@@ -70,6 +71,7 @@ Feature: API Endpoint Behaviors Advanced
     When I get the stored schema by ID
     Then the response status should be 200
     And the response body should not contain "references"
+    And the audit log should contain event "schema_register" with subject "no-refs-test"
 
   # --- References field present when schema has references ---
 
@@ -93,6 +95,7 @@ Feature: API Endpoint Behaviors Advanced
     When I get the stored schema by ID
     Then the response status should be 200
     And the response body should contain "references"
+    And the audit log should contain event "schema_register" with subject "ref-parent"
 
   # --- Raw schema by ID returns schema text, not JSON wrapper ---
 
@@ -107,6 +110,7 @@ Feature: API Endpoint Behaviors Advanced
     Then the response status should be 200
     And the response body should contain "RawTest"
     And the response body should not contain "schemaType"
+    And the audit log should contain event "schema_register" with subject "raw-by-id-test"
 
   # --- Raw schema by subject/version returns schema text ---
 

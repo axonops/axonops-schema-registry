@@ -21,6 +21,7 @@ Feature: Avro Schema Compatibility
       {"type":"record","name":"User","fields":[{"name":"name","type":"string"},{"name":"email","type":"string","default":"unknown"}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-back-1"
 
   Scenario: BACKWARD - add field without default is incompatible
     Given the global compatibility level is "BACKWARD"
@@ -45,6 +46,7 @@ Feature: Avro Schema Compatibility
       {"type":"record","name":"User","fields":[{"name":"name","type":"string"}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-back-3"
 
   Scenario: BACKWARD - change field type string to int is incompatible
     Given the global compatibility level is "BACKWARD"
@@ -69,6 +71,7 @@ Feature: Avro Schema Compatibility
       {"type":"record","name":"Metric","fields":[{"name":"value","type":"long"}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-back-5"
 
   Scenario: BACKWARD - reverse type promotion long to int is incompatible
     Given the global compatibility level is "BACKWARD"
@@ -93,6 +96,7 @@ Feature: Avro Schema Compatibility
       {"type":"record","name":"Event","fields":[{"name":"status","type":{"type":"enum","name":"Status","symbols":["ACTIVE","INACTIVE","PENDING"]}}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-back-7"
 
   Scenario: BACKWARD - rename field is incompatible (old field missing, no default)
     Given the global compatibility level is "BACKWARD"
@@ -126,6 +130,7 @@ Feature: Avro Schema Compatibility
       {"type":"record","name":"User","fields":[{"name":"name","type":"string"},{"name":"email","type":["null","string"],"default":null},{"name":"age","type":["null","int"],"default":null}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-bt-1"
 
   Scenario: BACKWARD_TRANSITIVE - v3 incompatible with v1 but compatible with v2 is rejected
     Given the global compatibility level is "BACKWARD_TRANSITIVE"
@@ -158,6 +163,7 @@ Feature: Avro Schema Compatibility
       {"type":"record","name":"Metric","fields":[{"name":"value","type":"float"}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-bt-3"
 
   Scenario: BACKWARD_TRANSITIVE - each version adds field with default
     Given the global compatibility level is "BACKWARD_TRANSITIVE"
@@ -174,6 +180,7 @@ Feature: Avro Schema Compatibility
       {"type":"record","name":"User","fields":[{"name":"name","type":"string"},{"name":"email","type":"string","default":"none"},{"name":"phone","type":"string","default":"none"}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-bt-4"
 
   Scenario: BACKWARD_TRANSITIVE - v3 changes type of field present in v1
     Given the global compatibility level is "BACKWARD_TRANSITIVE"
@@ -206,6 +213,7 @@ Feature: Avro Schema Compatibility
       {"type":"record","name":"Event","fields":[{"name":"status","type":{"type":"enum","name":"Status","symbols":["A","B","C"]}}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-bt-6"
 
   # ---------------------------------------------------------------------------
   # FORWARD mode (8 scenarios)
@@ -224,6 +232,7 @@ Feature: Avro Schema Compatibility
       {"type":"record","name":"User","fields":[{"name":"name","type":"string"},{"name":"email","type":"string"}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-fwd-1"
 
   Scenario: FORWARD - remove required field that old reader uses is incompatible
     Given the global compatibility level is "FORWARD"
@@ -248,6 +257,7 @@ Feature: Avro Schema Compatibility
       {"type":"record","name":"User","fields":[{"name":"name","type":"string"},{"name":"age","type":"int"}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-fwd-3"
 
   Scenario: FORWARD - change field type is incompatible
     Given the global compatibility level is "FORWARD"
@@ -272,6 +282,7 @@ Feature: Avro Schema Compatibility
       {"type":"record","name":"Data","fields":[{"name":"payload","type":"bytes"}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-fwd-5"
 
   Scenario: FORWARD - type demotion long to int is incompatible
     Given the global compatibility level is "FORWARD"
@@ -308,6 +319,7 @@ Feature: Avro Schema Compatibility
       {"type":"record","name":"User","fields":[{"name":"name","type":"string"}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-fwd-8"
 
   # ---------------------------------------------------------------------------
   # FORWARD_TRANSITIVE mode (5 scenarios)
@@ -329,6 +341,7 @@ Feature: Avro Schema Compatibility
       {"type":"record","name":"User","fields":[{"name":"name","type":"string"},{"name":"email","type":"string"},{"name":"phone","type":"string"}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-ft-1"
 
   Scenario: FORWARD_TRANSITIVE - v3 breaks v1 forward compat
     Given the global compatibility level is "FORWARD_TRANSITIVE"
@@ -378,6 +391,7 @@ Feature: Avro Schema Compatibility
       {"type":"record","name":"User","fields":[{"name":"name","type":"string"},{"name":"age","type":"int"},{"name":"score","type":"long"}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-ft-4"
 
   Scenario: FORWARD_TRANSITIVE - field type change breaks chain
     Given the global compatibility level is "FORWARD_TRANSITIVE"
@@ -411,6 +425,7 @@ Feature: Avro Schema Compatibility
       {"type":"record","name":"User","fields":[{"name":"name","type":"string"},{"name":"email","type":["null","string"],"default":null}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-full-1"
 
   Scenario: FULL - add field without default is incompatible (fails backward)
     Given the global compatibility level is "FULL"
@@ -447,6 +462,7 @@ Feature: Avro Schema Compatibility
       {"type":"record","name":"Data","fields":[{"name":"payload","type":"bytes"}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-full-4"
 
   Scenario: FULL - int to long promotion is incompatible (one-way only)
     Given the global compatibility level is "FULL"
@@ -471,6 +487,7 @@ Feature: Avro Schema Compatibility
       {"type":"record","name":"User","fields":[{"name":"name","type":"string"},{"name":"phone","type":["null","string"],"default":null}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-full-6"
 
   Scenario: FULL - identical schema is compatible
     Given the global compatibility level is "FULL"
@@ -483,6 +500,7 @@ Feature: Avro Schema Compatibility
       {"type":"record","name":"User","fields":[{"name":"name","type":"string"},{"name":"age","type":"int"}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-full-7"
 
   # ---------------------------------------------------------------------------
   # FULL_TRANSITIVE mode (4 scenarios)
@@ -504,6 +522,7 @@ Feature: Avro Schema Compatibility
       {"type":"record","name":"User","fields":[{"name":"name","type":"string"},{"name":"email","type":["null","string"],"default":null},{"name":"phone","type":["null","string"],"default":null}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-flt-1"
 
   Scenario: FULL_TRANSITIVE - one-way promotion in chain is incompatible
     Given the global compatibility level is "FULL_TRANSITIVE"
@@ -536,6 +555,7 @@ Feature: Avro Schema Compatibility
       {"type":"record","name":"User","fields":[{"name":"id","type":"long"},{"name":"name","type":"string"},{"name":"tag","type":["null","string"],"default":null},{"name":"score","type":["null","int"],"default":null}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-flt-3"
 
   Scenario: FULL_TRANSITIVE - remove field in chain is incompatible
     Given the global compatibility level is "FULL_TRANSITIVE"
@@ -569,6 +589,7 @@ Feature: Avro Schema Compatibility
       {"type":"record","name":"Order","fields":[{"name":"id","type":"long"},{"name":"total","type":"double"}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-none-1"
 
   Scenario: NONE - incompatible type change is accepted
     Given the global compatibility level is "NONE"
@@ -581,6 +602,7 @@ Feature: Avro Schema Compatibility
       {"type":"record","name":"User","fields":[{"name":"name","type":"int"},{"name":"age","type":"string"}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-none-2"
 
   # ---------------------------------------------------------------------------
   # Edge Cases (8 scenarios)
@@ -598,6 +620,7 @@ Feature: Avro Schema Compatibility
       {"type":"record","name":"Event","fields":[{"name":"payload","type":["null","string","int"]}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-edge-1"
 
   Scenario: BACKWARD - union contraction (remove type from union) is incompatible
     Given the global compatibility level is "BACKWARD"
@@ -726,6 +749,7 @@ Feature: Avro Schema Compatibility
       {"type":"record","name":"Order","fields":[{"name":"id","type":"long"}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-err-3"
 
   Scenario: Error validation - delete per-subject config falls back to global
     Given the global compatibility level is "BACKWARD"
@@ -740,6 +764,7 @@ Feature: Avro Schema Compatibility
       {"type":"record","name":"User","fields":[{"name":"name","type":"string"},{"name":"email","type":"string"}]}
       """
     Then the response status should be 409
+    And the audit log should contain event "config_delete" with subject "avro-err-4"
 
   Scenario: Error validation - READONLY mode can be set and retrieved
     When I set the global mode to "READONLY"
@@ -750,6 +775,7 @@ Feature: Avro Schema Compatibility
     # Reset mode so cleanup can proceed
     When I set the global mode to "READWRITE"
     Then the response status should be 200
+    And the audit log should contain event "mode_update"
 
   Scenario: Error validation - compatibility check endpoint returns is_compatible true for compatible schema
     Given the global compatibility level is "BACKWARD"
@@ -812,6 +838,7 @@ Feature: Avro Schema Compatibility
       {"type":"record","name":"Evt","fields":[{"name":"val","type":["null","string","int"]}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-gap-4"
 
   Scenario: BACKWARD - union narrowing (remove type from union) is incompatible
     Given the global compatibility level is "BACKWARD"
@@ -836,6 +863,7 @@ Feature: Avro Schema Compatibility
       {"type":"record","name":"Evt","fields":[{"name":"val","type":["null","string"]}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-gap-6"
 
   Scenario: BACKWARD - map value type change is incompatible
     Given the global compatibility level is "BACKWARD"
@@ -884,6 +912,7 @@ Feature: Avro Schema Compatibility
       {"type":"record","name":"Data","fields":[{"name":"payload","type":"bytes"}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-gap-10"
 
   Scenario: BACKWARD - bytes to string promotion is compatible
     Given the global compatibility level is "BACKWARD"
@@ -896,3 +925,4 @@ Feature: Avro Schema Compatibility
       {"type":"record","name":"Data","fields":[{"name":"payload","type":"string"}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "avro-gap-11"

@@ -22,6 +22,7 @@ Feature: Compatibility Groups
     When I GET "/config/cg-subject"
     Then the response status should be 200
     And the response field "compatibilityGroup" should be "major_version"
+    And the audit log should contain event "config_update" with subject "cg-subject"
 
   # ==========================================================================
   # COMPATIBILITY GROUP FILTERING
@@ -53,6 +54,7 @@ Feature: Compatibility Groups
       }
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "cg-bypass"
 
   Scenario: Schemas in same compatibility group are checked for compatibility
     # Configure compatibility group
