@@ -22,7 +22,7 @@ Feature: Admin User Management
       | actor_id    | admin          |
       | actor_type  | user           |
       | auth_method | basic          |
-      | role        | admin          |
+      | role        | super_admin    |
       | method      | POST           |
       | path        | /admin/users   |
       | status_code | 201            |
@@ -42,7 +42,7 @@ Feature: Admin User Management
       | actor_id    | admin          |
       | actor_type  | user           |
       | auth_method | basic          |
-      | role        | admin          |
+      | role        | super_admin    |
       | method      | POST           |
       | path        | /admin/users   |
       | status_code | 201            |
@@ -87,7 +87,7 @@ Feature: Admin User Management
       | actor_id    | admin          |
       | actor_type  | user           |
       | auth_method | basic          |
-      | role        | admin          |
+      | role        | super_admin    |
       | method      | PUT            |
       | path        | /admin/users   |
       | status_code | 200            |
@@ -110,7 +110,7 @@ Feature: Admin User Management
       | actor_id    | admin          |
       | actor_type  | user           |
       | auth_method | basic          |
-      | role        | admin          |
+      | role        | super_admin    |
       | method      | PUT            |
       | path        | /admin/users   |
       | status_code | 200            |
@@ -128,7 +128,7 @@ Feature: Admin User Management
       | actor_id    | admin          |
       | actor_type  | user           |
       | auth_method | basic          |
-      | role        | admin          |
+      | role        | super_admin    |
       | method      | DELETE         |
       | path        | /admin/users   |
       | status_code | 204            |

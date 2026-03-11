@@ -25,7 +25,7 @@ Feature: Admin API Key Management
       | actor_id    | admin          |
       | actor_type  | user           |
       | auth_method | basic          |
-      | role        | admin          |
+      | role        | super_admin    |
       | method      | POST           |
       | path        | /admin/apikeys |
       | status_code | 201            |
@@ -72,7 +72,7 @@ Feature: Admin API Key Management
       | actor_id    | admin          |
       | actor_type  | user           |
       | auth_method | basic          |
-      | role        | admin          |
+      | role        | super_admin    |
       | method      | PUT            |
       | path        | /admin/apikeys |
       | status_code | 200            |
@@ -96,7 +96,7 @@ Feature: Admin API Key Management
       | actor_id    | admin          |
       | actor_type  | user           |
       | auth_method | basic          |
-      | role        | admin          |
+      | role        | super_admin    |
       | method      | PUT            |
       | path        | /admin/apikeys |
       | status_code | 200            |
@@ -114,7 +114,7 @@ Feature: Admin API Key Management
       | actor_id    | admin          |
       | actor_type  | user           |
       | auth_method | basic          |
-      | role        | admin          |
+      | role        | super_admin    |
       | method      | DELETE         |
       | path        | /admin/apikeys |
       | status_code | 204            |
@@ -135,7 +135,7 @@ Feature: Admin API Key Management
       | actor_id    | admin          |
       | actor_type  | user           |
       | auth_method | basic          |
-      | role        | admin          |
+      | role        | super_admin    |
       | method      | POST           |
       | path        | /admin/apikeys |
       | status_code | 200            |
@@ -157,7 +157,7 @@ Feature: Admin API Key Management
       | actor_id    | admin          |
       | actor_type  | user           |
       | auth_method | basic          |
-      | role        | admin          |
+      | role        | super_admin    |
       | method      | POST           |
       | path        | /admin/apikeys |
       | status_code | 200            |
