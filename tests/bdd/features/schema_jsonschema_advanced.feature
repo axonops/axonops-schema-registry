@@ -1066,7 +1066,7 @@ Feature: Advanced JSON Schema Parsing
     And the response should have field "id"
     When I get the subjects for the stored schema ID
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "json-adv-29"
+    And the audit log should contain event "schema_register" with subject "json-adv-29b"
 
   # ---------- 30. Deeply nested constraints (object > array > object > constraints) ----------
   Scenario: Schema with deeply nested constraints across types

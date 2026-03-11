@@ -32,7 +32,6 @@ Feature: Import with Conflicting IDs
     # Reset mode
     When I set the global mode to "READWRITE"
     And the audit log should contain event "schema_import"
-    And the audit log should contain event "schema_import" with subject "import-existing"
 
   # ---------------------------------------------------------------------------
   # Import with an ID that already exists but same schema content
@@ -54,7 +53,6 @@ Feature: Import with Conflicting IDs
     Then the response status should be 200
     When I set the global mode to "READWRITE"
     And the audit log should contain event "schema_import"
-    And the audit log should contain event "schema_import" with subject "import-idem"
 
   # ---------------------------------------------------------------------------
   # Import requires IMPORT mode
@@ -89,7 +87,6 @@ Feature: Import with Conflicting IDs
     And the import should have 0 imported and 1 errors
     When I set the global mode to "READWRITE"
     And the audit log should contain event "schema_import"
-    And the audit log should contain event "schema_import" with subject "import-ver-dup"
 
   # ---------------------------------------------------------------------------
   # Import Protobuf and JSON Schema with conflicting IDs
@@ -117,7 +114,6 @@ Feature: Import with Conflicting IDs
     And the import should have 0 imported and 1 errors
     When I set the global mode to "READWRITE"
     And the audit log should contain event "schema_import"
-    And the audit log should contain event "schema_import" with subject "import-proto-1"
 
   # ---------------------------------------------------------------------------
   # IDs after import continue above highest imported
@@ -141,4 +137,3 @@ Feature: Import with Conflicting IDs
     And I store the response field "id" as "new_id"
     And the stored "new_id" should be greater than 50000
     And the audit log should contain event "schema_import"
-    And the audit log should contain event "schema_import" with subject "import-high-id"

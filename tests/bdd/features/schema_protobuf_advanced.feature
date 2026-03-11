@@ -1127,7 +1127,7 @@ Feature: Advanced Protobuf Schema Parsing
       """
     Then the response status should be 200
     And I store the response field "id" as "second_id"
-    And the audit log should contain event "schema_register" with subject "proto-adv-34"
+    And the audit log should contain event "schema_register" with subject "proto-adv-34b"
 
   # --------------------------------------------------------------------------
   # 35. Large proto with nested messages, enums, services combined
