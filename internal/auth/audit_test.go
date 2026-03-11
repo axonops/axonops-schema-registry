@@ -286,6 +286,11 @@ func TestExtractSubject(t *testing.T) {
 		{"/subjects/my-topic", "my-topic"},
 		{"/subjects/", ""},
 		{"/config", ""},
+		{"/config/my-subject", "my-subject"},
+		{"/config/subject-with-dashes", "subject-with-dashes"},
+		{"/mode", ""},
+		{"/mode/my-subject", "my-subject"},
+		{"/mode/subject-with-dashes", "subject-with-dashes"},
 		{"/schemas/ids/1", ""},
 		{"/subjects/topic-with-dashes/versions/latest", "topic-with-dashes"},
 	}

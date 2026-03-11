@@ -508,25 +508,45 @@ func (rw *responseWriter) WriteHeader(code int) {
 }
 
 // extractSubject extracts the subject name from a URL path.
+// Supports /subjects/{subject}/..., /config/{subject}, and /mode/{subject}.
 func extractSubject(path string) string {
-	// Pattern: /subjects/{subject}/...
-	if !contains(path, "/subjects/") {
-		return ""
+	// Try /subjects/{subject}/... first
+	if contains(path, "/subjects/") {
+		start := 10 // len("/subjects/")
+		if start < len(path) {
+			end := start
+			for end < len(path) && path[end] != '/' {
+				end++
+			}
+			return path[start:end]
+		}
 	}
 
-	// Find start after /subjects/
-	start := 10 // len("/subjects/")
-	if start >= len(path) {
-		return ""
+	// Try /config/{subject} (per-subject config, not global /config)
+	if len(path) > len("/config/") && contains(path, "/config/") {
+		start := 8 // len("/config/")
+		end := start
+		for end < len(path) && path[end] != '/' {
+			end++
+		}
+		if end > start {
+			return path[start:end]
+		}
 	}
 
-	// Find end (next slash or end of string)
-	end := start
-	for end < len(path) && path[end] != '/' {
-		end++
+	// Try /mode/{subject} (per-subject mode, not global /mode)
+	if len(path) > len("/mode/") && contains(path, "/mode/") {
+		start := 6 // len("/mode/")
+		end := start
+		for end < len(path) && path[end] != '/' {
+			end++
+		}
+		if end > start {
+			return path[start:end]
+		}
 	}
 
-	return path[start:end]
+	return ""
 }
 
 // contains checks if a string contains a substring.
