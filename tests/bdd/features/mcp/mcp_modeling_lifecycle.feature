@@ -60,6 +60,7 @@ Feature: MCP AI Data Modeling — Full Lifecycle Management
       | subject | lifecycle.session-value |
     Then the MCP result should contain "device_type"
     And the MCP result should contain "Session"
+    And the audit log should contain event "mcp_tool_call"
 
   # ==========================================================================
   # 2. AI PERFORMS IDEMPOTENT RE-REGISTRATION
@@ -83,6 +84,7 @@ Feature: MCP AI Data Modeling — Full Lifecycle Management
       }
       """
     Then the MCP result should contain "\"version\":1"
+    And the audit log should contain event "mcp_tool_call"
 
   # ==========================================================================
   # 3. AI DELETES A SPECIFIC VERSION
@@ -124,6 +126,7 @@ Feature: MCP AI Data Modeling — Full Lifecycle Management
       }
       """
     Then the MCP result should contain "\"version\":3"
+    And the audit log should contain event "mcp_tool_call"
 
   # ==========================================================================
   # 4. AI USES MODE TO PROTECT A PRODUCTION SUBJECT
@@ -154,6 +157,7 @@ Feature: MCP AI Data Modeling — Full Lifecycle Management
     When I call MCP tool "get_mode" with input:
       | subject | finalized.config-value |
     Then the MCP result should contain "READWRITE"
+    And the audit log should contain event "mcp_tool_call"
 
   # ==========================================================================
   # 5. AI COMPARES COMPATIBILITY LEVELS TO CHOOSE THE RIGHT ONE
@@ -204,6 +208,7 @@ Feature: MCP AI Data Modeling — Full Lifecycle Management
     When I call MCP tool "get_config" with input:
       | subject | compat-explore-value |
     Then the MCP result should contain "FULL"
+    And the audit log should contain event "mcp_tool_call"
 
   # ==========================================================================
   # 6. AI USES SCHEMA LOOKUP TO AVOID DUPLICATES
@@ -229,6 +234,7 @@ Feature: MCP AI Data Modeling — Full Lifecycle Management
       """
     Then the MCP result should contain "dedup-check-value"
     And the MCP result should contain "\"version\":1"
+    And the audit log should contain event "mcp_tool_call"
 
   # ==========================================================================
   # 7. AI DISCOVERS SCHEMA REUSE ACROSS SUBJECTS
@@ -258,3 +264,4 @@ Feature: MCP AI Data Modeling — Full Lifecycle Management
       | id | $schema_id |
     Then the MCP result should contain "reuse-topic-a-value"
     And the MCP result should contain "reuse-topic-b-value"
+    And the audit log should contain event "mcp_tool_call"

@@ -13,6 +13,7 @@ Feature: MCP Comparison and Search Tools
     Then the MCP result should contain "cmp-alpha-value"
     And the MCP result should contain "cmp-beta-value"
     And the MCP result should not contain "other-gamma"
+    And the audit log should contain event "mcp_tool_call"
 
   Scenario: Match subjects by regex
     Given I register an Avro schema for subject "rx-alpha-value"
@@ -22,11 +23,13 @@ Feature: MCP Comparison and Search Tools
       | regex   | true          |
     Then the MCP result should contain "rx-alpha-value"
     And the MCP result should not contain "rx-beta-key"
+    And the audit log should contain event "mcp_tool_call"
 
   Scenario: Match subjects with no matches
     When I call MCP tool "match_subjects" with input:
       | pattern | nonexistent_subject_pattern |
     Then the MCP result should contain "\"count\":0"
+    And the audit log should contain event "mcp_tool_call"
 
   # --- suggest_compatible_change ---
 
@@ -37,6 +40,7 @@ Feature: MCP Comparison and Search Tools
       | change_type | add_field        |
     Then the MCP result should contain "advice"
     And the MCP result should contain "BACKWARD"
+    And the audit log should contain event "mcp_tool_call"
 
   Scenario: Suggest compatible change - rename field
     Given I register an Avro schema for subject "suggest-rename-test"
@@ -45,6 +49,7 @@ Feature: MCP Comparison and Search Tools
       | change_type | rename_field        |
     Then the MCP result should contain "advice"
     And the MCP result should contain "alias"
+    And the audit log should contain event "mcp_tool_call"
 
   # --- check_compatibility_multi ---
 
@@ -59,6 +64,7 @@ Feature: MCP Comparison and Search Tools
       """
     Then the MCP result should contain "all_compatible"
     And the MCP result should contain "results"
+    And the audit log should contain event "mcp_tool_call"
 
   # --- explain_compatibility_failure ---
 
@@ -72,6 +78,7 @@ Feature: MCP Comparison and Search Tools
       }
       """
     Then the MCP result should contain "is_compatible"
+    And the audit log should contain event "mcp_tool_call"
 
   # --- diff_schemas ---
 
@@ -82,6 +89,7 @@ Feature: MCP Comparison and Search Tools
       | version_from | 1             |
       | version_to   | 1             |
     Then the MCP result should contain "diffs"
+    And the audit log should contain event "mcp_tool_call"
 
   # --- compare_subjects ---
 
@@ -94,3 +102,4 @@ Feature: MCP Comparison and Search Tools
     Then the MCP result should contain "common_fields"
     And the MCP result should contain "compare-a-test"
     And the MCP result should contain "compare-b-test"
+    And the audit log should contain event "mcp_tool_call"

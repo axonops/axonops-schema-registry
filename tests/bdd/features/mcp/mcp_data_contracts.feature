@@ -37,6 +37,7 @@ Feature: MCP AI Data Modeling — Data Contracts (Metadata & Rules)
     And the MCP result should contain "restricted"
     And the MCP result should contain "PII"
     And the MCP result should contain "GDPR"
+    And the audit log should contain event "mcp_tool_call"
 
   Scenario: AI registers a schema with domain ownership metadata
     When I call MCP tool "register_schema" with JSON input:
@@ -59,6 +60,7 @@ Feature: MCP AI Data Modeling — Data Contracts (Metadata & Rules)
       | subject | dc-order-events-value |
     Then the MCP result should contain "team-commerce"
     And the MCP result should contain "critical"
+    And the audit log should contain event "mcp_tool_call"
 
   # ==========================================================================
   # 2. AI REGISTERS SCHEMAS WITH DOMAIN RULES
@@ -101,6 +103,7 @@ Feature: MCP AI Data Modeling — Data Contracts (Metadata & Rules)
     Then the MCP result should contain "validateAmount"
     And the MCP result should contain "CONDITION"
     And the MCP result should contain "CEL"
+    And the audit log should contain event "mcp_tool_call"
 
   Scenario: AI registers a schema with TRANSFORM domain rule
     When I call MCP tool "register_schema" with JSON input:
@@ -124,6 +127,7 @@ Feature: MCP AI Data Modeling — Data Contracts (Metadata & Rules)
     Then the MCP result should contain "\"version\":1"
     And the MCP result should contain "normalizeLevel"
     And the MCP result should contain "TRANSFORM"
+    And the audit log should contain event "mcp_tool_call"
 
   # ==========================================================================
   # 3. AI REGISTERS SCHEMAS WITH ENCODING RULES FOR ENCRYPTION
@@ -166,6 +170,7 @@ Feature: MCP AI Data Modeling — Data Contracts (Metadata & Rules)
       | subject | dc-encrypted-payment-value |
     Then the MCP result should contain "encryptCardNumber"
     And the MCP result should contain "payment-kek"
+    And the audit log should contain event "mcp_tool_call"
 
   # ==========================================================================
   # 4. AI REGISTERS SCHEMAS WITH MIGRATION RULES
@@ -202,6 +207,7 @@ Feature: MCP AI Data Modeling — Data Contracts (Metadata & Rules)
     And the MCP result should contain "UPGRADE"
     And the MCP result should contain "downgradeRemoveTimestamp"
     And the MCP result should contain "DOWNGRADE"
+    And the audit log should contain event "mcp_tool_call"
 
   # ==========================================================================
   # 5. AI USES COMBINED METADATA + RULES
@@ -273,6 +279,7 @@ Feature: MCP AI Data Modeling — Data Contracts (Metadata & Rules)
     Then the MCP result should contain "validateAction"
     And the MCP result should contain "upgradeV1toV2"
     And the MCP result should contain "encryptSSN"
+    And the audit log should contain event "mcp_tool_call"
 
   # ==========================================================================
   # 6. AI SETS CONFIG-LEVEL DEFAULT RULES
@@ -325,6 +332,7 @@ Feature: MCP AI Data Modeling — Data Contracts (Metadata & Rules)
       | subject | dc-config-rules-value |
     Then the MCP result should contain "production"
     And the MCP result should contain "kafka"
+    And the audit log should contain event "mcp_tool_call"
 
   Scenario: AI sets override rules at config level
     When I call MCP tool "set_config_full" with JSON input:
@@ -356,6 +364,7 @@ Feature: MCP AI Data Modeling — Data Contracts (Metadata & Rules)
       | subject | dc-override-rules-value |
     Then the MCP result should contain "internal"
     And the MCP result should contain "securityCheck"
+    And the audit log should contain event "mcp_tool_call"
 
   # ==========================================================================
   # 7. AI EVOLVES SCHEMA WITH DIFFERENT RULES PER VERSION
@@ -426,6 +435,7 @@ Feature: MCP AI Data Modeling — Data Contracts (Metadata & Rules)
       | version | 2                       |
     Then the MCP result should contain "checkAction"
     And the MCP result should contain "checkTimestamp"
+    And the audit log should contain event "mcp_tool_call"
 
   # ==========================================================================
   # 8. AI USES DISABLED RULES
@@ -463,6 +473,7 @@ Feature: MCP AI Data Modeling — Data Contracts (Metadata & Rules)
       | subject | dc-disabled-rule-value |
     Then the MCP result should contain "activeRule"
     And the MCP result should contain "disabledRule"
+    And the audit log should contain event "mcp_tool_call"
 
   # ==========================================================================
   # 9. METADATA DOES NOT AFFECT SCHEMA IDENTITY
@@ -497,3 +508,4 @@ Feature: MCP AI Data Modeling — Data Contracts (Metadata & Rules)
       | id | $schema_id |
     Then the MCP result should contain "dc-identity-test-a"
     And the MCP result should contain "dc-identity-test-b"
+    And the audit log should contain event "mcp_tool_call"

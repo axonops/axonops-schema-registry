@@ -50,6 +50,7 @@ Feature: MCP AI Data Modeling — Domain Schema Design
     Then the MCP result should contain "ecom.address-value"
     And the MCP result should contain "ecom.customer-value"
     And the MCP result should contain "ecom.product-value"
+    And the audit log should contain event "mcp_tool_call"
 
   # ==========================================================================
   # 2. AI DISCOVERS AND UNDERSTANDS AN EXISTING DOMAIN
@@ -97,6 +98,7 @@ Feature: MCP AI Data Modeling — Domain Schema Design
     # AI checks the global config to understand compatibility policy
     When I call MCP tool "get_config"
     Then the MCP result should contain "BACKWARD"
+    And the audit log should contain event "mcp_tool_call"
 
   # ==========================================================================
   # 3. AI MODELS SAME DOMAIN IN MULTIPLE FORMATS
@@ -141,6 +143,7 @@ Feature: MCP AI Data Modeling — Domain Schema Design
     Then the MCP result should contain "sensor-reading-avro-value"
     And the MCP result should contain "sensor-reading-proto-value"
     And the MCP result should contain "sensor-reading-json-value"
+    And the audit log should contain event "mcp_tool_call"
 
   # ==========================================================================
   # 4. AI MODELS A PROTOBUF SERVICE DEFINITION
@@ -174,6 +177,7 @@ Feature: MCP AI Data Modeling — Domain Schema Design
       | subject | grpc-user-service-value |
     Then the MCP result should contain "phone"
     And the MCP result should contain "UserStatus"
+    And the audit log should contain event "mcp_tool_call"
 
   # ==========================================================================
   # 5. AI MODELS JSON SCHEMA API CONTRACTS
@@ -220,3 +224,4 @@ Feature: MCP AI Data Modeling — Domain Schema Design
     When I call MCP tool "get_schemas_by_subject" with input:
       | subject | api-product-request |
     Then the MCP result should contain "api-product-request"
+    And the audit log should contain event "mcp_tool_call"

@@ -16,6 +16,7 @@ Feature: MCP Permission Scopes — Granular Tool Access Control
       {}
       """
     Then the MCP result should not be an error
+    And the audit log should contain event "mcp_tool_call"
 
   @preset-readonly
   Scenario: Readonly preset hides register_schema
@@ -38,6 +39,7 @@ Feature: MCP Permission Scopes — Granular Tool Access Control
       }
       """
     Then the MCP result should not be an error
+    And the audit log should contain event "mcp_tool_call"
 
   @preset-developer
   Scenario: Developer preset includes readonly tools
@@ -47,6 +49,7 @@ Feature: MCP Permission Scopes — Granular Tool Access Control
       {}
       """
     Then the MCP result should not be an error
+    And the audit log should contain event "mcp_tool_call"
 
   @preset-developer
   Scenario: Developer preset hides delete_subject
@@ -80,6 +83,7 @@ Feature: MCP Permission Scopes — Granular Tool Access Control
       {"subject": "perm-op-test"}
       """
     Then the MCP result should not be an error
+    And the audit log should contain event "mcp_tool_call"
 
   @preset-operator
   Scenario: Operator preset includes readonly tools
@@ -89,6 +93,7 @@ Feature: MCP Permission Scopes — Granular Tool Access Control
       {}
       """
     Then the MCP result should not be an error
+    And the audit log should contain event "mcp_tool_call"
 
   @preset-operator
   Scenario: Operator preset hides create_user
@@ -114,6 +119,7 @@ Feature: MCP Permission Scopes — Granular Tool Access Control
       {}
       """
     Then the MCP result should not be an error
+    And the audit log should contain event "mcp_tool_call"
 
   @preset-admin
   Scenario: Admin preset includes developer tools
@@ -126,6 +132,7 @@ Feature: MCP Permission Scopes — Granular Tool Access Control
       }
       """
     Then the MCP result should not be an error
+    And the audit log should contain event "mcp_tool_call"
 
   @preset-admin
   Scenario: Admin preset includes operator tools
@@ -143,6 +150,7 @@ Feature: MCP Permission Scopes — Granular Tool Access Control
       {"subject": "perm-admin-op-test"}
       """
     Then the MCP result should not be an error
+    And the audit log should contain event "mcp_tool_call"
 
   # ==========================================================================
   # 5. SYSTEM TOOLS ALWAYS AVAILABLE
@@ -156,6 +164,7 @@ Feature: MCP Permission Scopes — Granular Tool Access Control
       {}
       """
     Then the MCP result should not be an error
+    And the audit log should contain event "mcp_tool_call"
 
   @preset-readonly
   Scenario: System tools listed under readonly preset

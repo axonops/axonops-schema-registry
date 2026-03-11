@@ -28,6 +28,7 @@ Feature: MCP Workflow — Cross-Cutting Change
     Then the MCP result should not be an error
     And the MCP result should contain "wf-xcut-orders"
     And the MCP result should contain "wf-xcut-payments"
+    And the audit log should contain event "mcp_tool_call"
 
   # Validates: prompts/cross-cutting-change.md — Step 3
   Scenario: Check field consistency for shared field
@@ -55,6 +56,7 @@ Feature: MCP Workflow — Cross-Cutting Change
       """
     Then the MCP result should not be an error
     And the MCP result should contain "tenant_id"
+    And the audit log should contain event "mcp_tool_call"
 
   # Validates: prompts/cross-cutting-change.md — Step 6
   Scenario: Check compatibility multi for change across subjects
@@ -82,3 +84,4 @@ Feature: MCP Workflow — Cross-Cutting Change
       }
       """
     Then the MCP result should not be an error
+    And the audit log should contain event "mcp_tool_call"

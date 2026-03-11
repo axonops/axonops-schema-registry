@@ -42,6 +42,7 @@ Feature: MCP Security — Tool Policy and Access Control
     When I call MCP tool "delete_subject" with input:
       | subject | security-test-write |
     Then the MCP result should contain "1"
+    And the audit log should contain event "mcp_tool_call"
 
   Scenario: Config tools work under default policy
     When I call MCP tool "set_config" with input:
@@ -50,3 +51,4 @@ Feature: MCP Security — Tool Policy and Access Control
     When I call MCP tool "get_config" with input:
       | subject | security-config-test |
     Then the MCP result should contain "FULL"
+    And the audit log should contain event "mcp_tool_call"

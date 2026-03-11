@@ -51,6 +51,7 @@ Feature: MCP AI Data Modeling — Encryption Lifecycle (KEK/DEK)
       """
     Then the MCP result should contain "user-data"
     And the MCP result should contain "AES256_GCM"
+    And the audit log should contain event "mcp_tool_call"
 
   # ==========================================================================
   # 2. AI MANAGES MULTIPLE KEKS FOR DIFFERENT DOMAINS
@@ -81,6 +82,7 @@ Feature: MCP AI Data Modeling — Encryption Lifecycle (KEK/DEK)
     When I call MCP tool "list_keks"
     Then the MCP result should contain "enc-finance-kek"
     And the MCP result should contain "enc-health-kek"
+    And the audit log should contain event "mcp_tool_call"
 
   # ==========================================================================
   # 3. AI MANAGES DEK VERSIONS
@@ -130,6 +132,7 @@ Feature: MCP AI Data Modeling — Encryption Lifecycle (KEK/DEK)
       """
     Then the MCP result should contain "1"
     And the MCP result should contain "2"
+    And the audit log should contain event "mcp_tool_call"
 
   # ==========================================================================
   # 4. AI MANAGES DEK WITH DIFFERENT ALGORITHMS
@@ -184,6 +187,7 @@ Feature: MCP AI Data Modeling — Encryption Lifecycle (KEK/DEK)
     Then the MCP result should contain "algo-gcm256"
     And the MCP result should contain "algo-gcm128"
     And the MCP result should contain "algo-siv256"
+    And the audit log should contain event "mcp_tool_call"
 
   # ==========================================================================
   # 5. AI MANAGES KEK SOFT-DELETE AND RESTORE
@@ -223,6 +227,7 @@ Feature: MCP AI Data Modeling — Encryption Lifecycle (KEK/DEK)
     # AI verifies it's back in the list
     When I call MCP tool "list_keks"
     Then the MCP result should contain "enc-delete-kek"
+    And the audit log should contain event "mcp_tool_call"
 
   # ==========================================================================
   # 6. AI MANAGES DEK SOFT-DELETE
@@ -274,6 +279,7 @@ Feature: MCP AI Data Modeling — Encryption Lifecycle (KEK/DEK)
       }
       """
     Then the MCP result should contain "true"
+    And the audit log should contain event "mcp_tool_call"
 
   # ==========================================================================
   # 7. AI UPDATES KEK PROPERTIES
@@ -307,6 +313,7 @@ Feature: MCP AI Data Modeling — Encryption Lifecycle (KEK/DEK)
     When I call MCP tool "get_kek" with input:
       | name | enc-updatable-kek |
     Then the MCP result should contain "Updated documentation for rotation"
+    And the audit log should contain event "mcp_tool_call"
 
   # ==========================================================================
   # 8. AI COMBINES SCHEMA REGISTRATION WITH ENCRYPTION SETUP
@@ -393,6 +400,7 @@ Feature: MCP AI Data Modeling — Encryption Lifecycle (KEK/DEK)
     When I call MCP tool "list_deks" with input:
       | kek_name | enc-pipeline-kek |
     Then the MCP result should contain "health-records-value"
+    And the audit log should contain event "mcp_tool_call"
 
   # ==========================================================================
   # 9. AI HANDLES ENCRYPTION ERRORS GRACEFULLY
@@ -418,11 +426,13 @@ Feature: MCP AI Data Modeling — Encryption Lifecycle (KEK/DEK)
       }
       """
     Then the MCP result should contain "error"
+    And the audit log should contain event "mcp_tool_error"
 
   Scenario: AI handles non-existent KEK lookup
     When I call MCP tool "get_kek" with input:
       | name | enc-nonexistent-kek |
     Then the MCP result should contain "error"
+    And the audit log should contain event "mcp_tool_error"
 
   Scenario: AI handles DEK creation for non-existent KEK
     When I call MCP tool "create_dek" with JSON input:
@@ -434,3 +444,4 @@ Feature: MCP AI Data Modeling — Encryption Lifecycle (KEK/DEK)
       }
       """
     Then the MCP result should contain "error"
+    And the audit log should contain event "mcp_tool_error"

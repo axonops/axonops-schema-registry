@@ -5,6 +5,7 @@ Feature: MCP Context & Import Tools
   Scenario: List contexts
     When I call MCP tool "list_contexts"
     Then the MCP result should contain "."
+    And the audit log should contain event "mcp_tool_call"
 
   Scenario: Import a schema with preserved ID
     When I call MCP tool "set_mode" with input:
@@ -15,3 +16,4 @@ Feature: MCP Context & Import Tools
       {"schemas":[{"id":100,"subject":"mcp-import-test","version":1,"schema":"{\"type\":\"string\"}"}]}
       """
     Then the MCP result should contain "1"
+    And the audit log should contain event "mcp_tool_call"

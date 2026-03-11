@@ -13,6 +13,7 @@ Feature: MCP Dependency Graph
       """
     Then the MCP result should not be an error
     And the MCP result should contain "depgraph-user-value"
+    And the audit log should contain event "mcp_tool_call"
 
   Scenario: Get dependency graph nonexistent subject
     When I call MCP tool "get_dependency_graph" with JSON input:
@@ -20,3 +21,4 @@ Feature: MCP Dependency Graph
       {"subject": "nonexistent-depgraph-value", "version": 1}
       """
     Then the MCP result should contain "nonexistent-depgraph-value"
+    And the audit log should contain event "mcp_tool_call"

@@ -11,6 +11,7 @@ Feature: MCP Observability — Logging & Error Tracking
   Scenario: Successful health check is tracked
     When I call MCP tool "health_check"
     Then the MCP result should contain "healthy"
+    And the audit log should contain event "mcp_tool_call"
 
   Scenario: Successful schema registration is tracked
     When I call MCP tool "register_schema" with JSON input:
@@ -22,6 +23,7 @@ Feature: MCP Observability — Logging & Error Tracking
       """
     Then the MCP result should contain "obs-track-test"
     And the MCP result should contain "\"version\":1"
+    And the audit log should contain event "mcp_tool_call"
 
   Scenario: Successful read operations are tracked
     Given I register an Avro schema for subject "obs-read-tracked"
@@ -31,6 +33,7 @@ Feature: MCP Observability — Logging & Error Tracking
     Then the MCP result should contain "string"
     When I call MCP tool "list_subjects"
     Then the MCP result should contain "obs-read-tracked"
+    And the audit log should contain event "mcp_tool_call"
 
   # ==========================================================================
   # 2. ERROR TOOL CALLS ARE TRACKED
@@ -40,11 +43,13 @@ Feature: MCP Observability — Logging & Error Tracking
     When I call MCP tool "get_schema_by_id" with input:
       | id | 888888 |
     Then the MCP result should contain "error"
+    And the audit log should contain event "mcp_tool_error"
 
   Scenario: Error on non-existent subject is tracked
     When I call MCP tool "get_latest_schema" with input:
       | subject | obs-nonexistent-subject |
     Then the MCP result should contain "error"
+    And the audit log should contain event "mcp_tool_error"
 
   Scenario: Error on invalid schema registration is tracked
     When I call MCP tool "register_schema" with JSON input:
@@ -55,6 +60,7 @@ Feature: MCP Observability — Logging & Error Tracking
       }
       """
     Then the MCP result should contain "error"
+    And the audit log should contain event "mcp_tool_error"
 
   # ==========================================================================
   # 3. MULTIPLE OPERATIONS IN SEQUENCE
@@ -86,6 +92,7 @@ Feature: MCP Observability — Logging & Error Tracking
     # Call 6: list subjects
     When I call MCP tool "list_subjects"
     Then the MCP result should contain "obs-sequence-test"
+    And the audit log should contain event "mcp_tool_call"
 
   # ==========================================================================
   # 4. MIXED SUCCESS AND ERROR CALLS
@@ -121,6 +128,7 @@ Feature: MCP Observability — Logging & Error Tracking
     When I call MCP tool "get_latest_schema" with input:
       | subject | obs-mixed-test |
     Then the MCP result should contain "Mixed"
+    And the audit log should contain event "mcp_tool_call"
 
   # ==========================================================================
   # 5. ADMIN OPERATIONS ARE TRACKED
@@ -133,3 +141,4 @@ Feature: MCP Observability — Logging & Error Tracking
     Then the MCP result should not contain "error"
     When I call MCP tool "get_server_version"
     Then the MCP result should not contain "error"
+    And the audit log should contain event "mcp_tool_call"

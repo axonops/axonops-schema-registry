@@ -23,6 +23,7 @@ Feature: MCP Workflow — CI/CD Integration
       """
     Then the MCP result should not be an error
     And the MCP result should contain "\"valid\":false"
+    And the audit log should contain event "mcp_tool_call"
 
   # Validates: prompts/cicd-integration.md — Pre-commit checks (compatibility)
   Scenario: Check compatibility as PR gate with pass and fail
@@ -52,6 +53,7 @@ Feature: MCP Workflow — CI/CD Integration
       }
       """
     Then the MCP result should contain "false"
+    And the audit log should contain event "mcp_tool_call"
 
   # Validates: prompts/cicd-integration.md — Quality gate
   Scenario: Score schema quality threshold check
@@ -69,6 +71,7 @@ Feature: MCP Workflow — CI/CD Integration
       """
     Then the MCP result should not be an error
     And the MCP result should contain "score"
+    And the audit log should contain event "mcp_tool_call"
 
   # Validates: prompts/cicd-integration.md — Deployment step
   Scenario: Register and verify with get_latest_schema
@@ -86,3 +89,4 @@ Feature: MCP Workflow — CI/CD Integration
       """
     Then the MCP result should not be an error
     And the MCP result should contain "Deployed"
+    And the audit log should contain event "mcp_tool_call"

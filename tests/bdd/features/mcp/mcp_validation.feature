@@ -11,6 +11,7 @@ Feature: MCP Validation, Export, and Statistics Tools
       """
     Then the MCP result should contain "\"valid\":true"
     And the MCP result should contain "fingerprint"
+    And the audit log should contain event "mcp_tool_call"
 
   Scenario: Validate an invalid Avro schema
     When I call MCP tool "validate_schema" with JSON input:
@@ -19,6 +20,7 @@ Feature: MCP Validation, Export, and Statistics Tools
       """
     Then the MCP result should contain "\"valid\":false"
     And the MCP result should contain "error"
+    And the audit log should contain event "mcp_tool_call"
 
   Scenario: Validate a valid JSON Schema
     When I call MCP tool "validate_schema" with JSON input:
@@ -26,6 +28,7 @@ Feature: MCP Validation, Export, and Statistics Tools
       {"schema": "{\"type\":\"object\",\"properties\":{\"id\":{\"type\":\"integer\"}}}", "schema_type": "JSON"}
       """
     Then the MCP result should contain "\"valid\":true"
+    And the audit log should contain event "mcp_tool_call"
 
   # --- normalize_schema ---
 
@@ -36,6 +39,7 @@ Feature: MCP Validation, Export, and Statistics Tools
       """
     Then the MCP result should contain "normalized"
     And the MCP result should contain "fingerprint"
+    And the audit log should contain event "mcp_tool_call"
 
   # --- validate_subject_name ---
 
@@ -44,18 +48,21 @@ Feature: MCP Validation, Export, and Statistics Tools
       | subject  | my-topic-value |
       | strategy | topic_name     |
     Then the MCP result should contain "\"valid\":true"
+    And the audit log should contain event "mcp_tool_call"
 
   Scenario: Validate subject name with topic_name strategy - invalid
     When I call MCP tool "validate_subject_name" with input:
       | subject  | my-topic       |
       | strategy | topic_name     |
     Then the MCP result should contain "\"valid\":false"
+    And the audit log should contain event "mcp_tool_call"
 
   Scenario: Validate subject name with record_name strategy
     When I call MCP tool "validate_subject_name" with input:
       | subject  | com.example.User |
       | strategy | record_name      |
     Then the MCP result should contain "\"valid\":true"
+    And the audit log should contain event "mcp_tool_call"
 
   # --- search_schemas ---
 
@@ -64,11 +71,13 @@ Feature: MCP Validation, Export, and Statistics Tools
     When I call MCP tool "search_schemas" with input:
       | pattern | string |
     Then the MCP result should contain "search-val-test"
+    And the audit log should contain event "mcp_tool_call"
 
   Scenario: Search schemas with no matches
     When I call MCP tool "search_schemas" with input:
       | pattern | nonexistent_pattern_xyz |
     Then the MCP result should contain "\"count\":0"
+    And the audit log should contain event "mcp_tool_call"
 
   # --- get_schema_history ---
 
@@ -78,6 +87,7 @@ Feature: MCP Validation, Export, and Statistics Tools
       | subject | history-val-test |
     Then the MCP result should contain "history-val-test"
     And the MCP result should contain "\"count\":1"
+    And the audit log should contain event "mcp_tool_call"
 
   # --- export_schema ---
 
@@ -88,6 +98,7 @@ Feature: MCP Validation, Export, and Statistics Tools
       | version | 1               |
     Then the MCP result should contain "export-val-test"
     And the MCP result should contain "schema_type"
+    And the audit log should contain event "mcp_tool_call"
 
   # --- export_subject ---
 
@@ -97,6 +108,7 @@ Feature: MCP Validation, Export, and Statistics Tools
       | subject | export-subj-val-test |
     Then the MCP result should contain "export-subj-val-test"
     And the MCP result should contain "\"count\":1"
+    And the audit log should contain event "mcp_tool_call"
 
   # --- get_registry_statistics ---
 
@@ -105,6 +117,7 @@ Feature: MCP Validation, Export, and Statistics Tools
     When I call MCP tool "get_registry_statistics"
     Then the MCP result should contain "total_subjects"
     And the MCP result should contain "total_versions"
+    And the audit log should contain event "mcp_tool_call"
 
   # --- count_versions ---
 
@@ -113,6 +126,7 @@ Feature: MCP Validation, Export, and Statistics Tools
     When I call MCP tool "count_versions" with input:
       | subject | count-val-test |
     Then the MCP result should contain "\"count\":1"
+    And the audit log should contain event "mcp_tool_call"
 
   # --- count_subjects ---
 
@@ -120,3 +134,4 @@ Feature: MCP Validation, Export, and Statistics Tools
     Given I register an Avro schema for subject "count-subj-val-test"
     When I call MCP tool "count_subjects"
     Then the MCP result should contain "count"
+    And the audit log should contain event "mcp_tool_call"

@@ -28,6 +28,7 @@ Feature: MCP AI Data Modeling — Error Handling and Edge Cases
       """
     Then the MCP result should contain "\"version\":1"
     And the MCP result should contain "error-invalid-avro"
+    And the audit log should contain event "mcp_tool_call"
 
   # ==========================================================================
   # 2. AI HANDLES READING NON-EXISTENT SCHEMAS
@@ -37,11 +38,13 @@ Feature: MCP AI Data Modeling — Error Handling and Edge Cases
     When I call MCP tool "get_schema_by_id" with input:
       | id | 999999 |
     Then the MCP result should contain "error"
+    And the audit log should contain event "mcp_tool_error"
 
   Scenario: AI handles non-existent subject
     When I call MCP tool "get_latest_schema" with input:
       | subject | totally-nonexistent-subject |
     Then the MCP result should contain "error"
+    And the audit log should contain event "mcp_tool_error"
 
   Scenario: AI handles non-existent version
     When I call MCP tool "register_schema" with JSON input:
@@ -56,6 +59,7 @@ Feature: MCP AI Data Modeling — Error Handling and Edge Cases
       | subject | error-noversion-test |
       | version | 99                   |
     Then the MCP result should contain "error"
+    And the audit log should contain event "mcp_tool_error"
 
   # ==========================================================================
   # 3. AI HANDLES SCHEMA TYPE MISMATCH
@@ -81,6 +85,7 @@ Feature: MCP AI Data Modeling — Error Handling and Edge Cases
       }
       """
     Then the MCP result should contain "error"
+    And the audit log should contain event "mcp_tool_error"
 
   # ==========================================================================
   # 4. AI HANDLES COMPATIBILITY REJECTION
@@ -134,6 +139,7 @@ Feature: MCP AI Data Modeling — Error Handling and Edge Cases
       }
       """
     Then the MCP result should contain "\"version\":2"
+    And the audit log should contain event "mcp_tool_call"
 
   # ==========================================================================
   # 5. AI HANDLES EMPTY AND MINIMAL SCHEMAS
@@ -165,6 +171,7 @@ Feature: MCP AI Data Modeling — Error Handling and Edge Cases
       }
       """
     Then the MCP result should contain "\"version\":1"
+    And the audit log should contain event "mcp_tool_call"
 
   # ==========================================================================
   # 6. AI HANDLES OPERATIONS ON DELETED SUBJECTS
@@ -186,6 +193,7 @@ Feature: MCP AI Data Modeling — Error Handling and Edge Cases
     When I call MCP tool "get_latest_schema" with input:
       | subject | error-deleted-lookup |
     Then the MCP result should contain "error"
+    And the audit log should contain event "mcp_tool_error"
 
   # ==========================================================================
   # 7. AI VALIDATES COMPLEX NESTED AVRO SCHEMA
@@ -207,3 +215,4 @@ Feature: MCP AI Data Modeling — Error Handling and Edge Cases
     Then the MCP result should contain "AnalyticsEvent"
     And the MCP result should contain "properties"
     And the MCP result should contain "EventData"
+    And the audit log should contain event "mcp_tool_call"

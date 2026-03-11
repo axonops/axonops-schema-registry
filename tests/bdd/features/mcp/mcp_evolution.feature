@@ -20,6 +20,7 @@ Feature: MCP Schema Evolution Tools
     Then the MCP result should contain "snippet"
     And the MCP result should contain "email"
     And the MCP result should contain "advice"
+    And the audit log should contain event "mcp_tool_call"
 
   Scenario: Suggest deprecating a field
     When I call MCP tool "suggest_schema_evolution" with JSON input:
@@ -32,6 +33,7 @@ Feature: MCP Schema Evolution Tools
       """
     Then the MCP result should contain "steps"
     And the MCP result should contain "deprecate"
+    And the audit log should contain event "mcp_tool_call"
 
   Scenario: Suggest adding an enum symbol
     When I call MCP tool "suggest_schema_evolution" with JSON input:
@@ -44,6 +46,7 @@ Feature: MCP Schema Evolution Tools
       """
     Then the MCP result should contain "NEW_STATUS"
     And the MCP result should contain "advice"
+    And the audit log should contain event "mcp_tool_call"
 
   Scenario: Suggest evolution with unsupported change type
     When I call MCP tool "suggest_schema_evolution" with JSON input:
@@ -54,6 +57,7 @@ Feature: MCP Schema Evolution Tools
       }
       """
     Then the MCP result should contain "unsupported change_type"
+    And the audit log should contain event "mcp_tool_call"
 
   # --- plan_migration_path ---
 
@@ -67,6 +71,7 @@ Feature: MCP Schema Evolution Tools
       """
     Then the MCP result should contain "steps"
     And the MCP result should contain "total_steps"
+    And the audit log should contain event "mcp_tool_call"
 
   Scenario: Plan migration with no changes needed
     When I call MCP tool "plan_migration_path" with JSON input:
@@ -77,6 +82,7 @@ Feature: MCP Schema Evolution Tools
       }
       """
     Then the MCP result should contain "total_steps"
+    And the audit log should contain event "mcp_tool_call"
 
   Scenario: Plan migration returns compatibility level
     When I call MCP tool "plan_migration_path" with JSON input:
@@ -88,3 +94,4 @@ Feature: MCP Schema Evolution Tools
       """
     Then the MCP result should contain "compatibility_level"
     And the MCP result should contain "current_version"
+    And the audit log should contain event "mcp_tool_call"

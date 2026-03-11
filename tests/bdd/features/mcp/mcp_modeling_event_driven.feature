@@ -54,6 +54,7 @@ Feature: MCP AI Data Modeling — Event-Driven Architecture
       | subject | user-events-value |
     Then the MCP result should contain "1"
     And the MCP result should contain "2"
+    And the audit log should contain event "mcp_tool_call"
 
   # ==========================================================================
   # 2. AI DETECTS AND RECOVERS FROM INCOMPATIBLE CHANGE
@@ -99,6 +100,7 @@ Feature: MCP AI Data Modeling — Event-Driven Architecture
       }
       """
     Then the MCP result should contain "\"version\":2"
+    And the audit log should contain event "mcp_tool_call"
 
   # ==========================================================================
   # 3. AI MODELS MULTIPLE EVENTS IN A DOMAIN
@@ -153,6 +155,7 @@ Feature: MCP AI Data Modeling — Event-Driven Architecture
     Then the MCP result should contain "PaymentInitiated"
     And the MCP result should contain "PaymentMethod"
     And the MCP result should contain "decimal"
+    And the audit log should contain event "mcp_tool_call"
 
   # ==========================================================================
   # 4. AI MODELS MULTI-VERSION EVOLUTION CHAIN
@@ -216,3 +219,4 @@ Feature: MCP AI Data Modeling — Event-Driven Architecture
       | version | 4                      |
     Then the MCP result should contain "batch_id"
     And the MCP result should contain "ChangeReason"
+    And the audit log should contain event "mcp_tool_call"

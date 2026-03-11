@@ -50,6 +50,7 @@ Feature: MCP AI Data Modeling — Multi-Format Schema Design
     Then the MCP result should contain "cqrs.account-events-value"
     And the MCP result should contain "cqrs.account-commands-value"
     And the MCP result should contain "cqrs.account-query-response"
+    And the audit log should contain event "mcp_tool_call"
 
   # ==========================================================================
   # 2. AI DESIGNS A PROTOBUF MICROSERVICE WITH NESTED MESSAGES
@@ -84,6 +85,7 @@ Feature: MCP AI Data Modeling — Multi-Format Schema Design
     Then the MCP result should contain "Notification"
     And the MCP result should contain "Recipient"
     And the MCP result should contain "callback_url"
+    And the audit log should contain event "mcp_tool_call"
 
   # ==========================================================================
   # 3. AI MODELS A JSON SCHEMA WITH COMPLEX VALIDATION
@@ -106,6 +108,7 @@ Feature: MCP AI Data Modeling — Multi-Format Schema Design
     Then the MCP result should contain "minLength"
     And the MCP result should contain "pattern"
     And the MCP result should contain "preferences"
+    And the audit log should contain event "mcp_tool_call"
 
   # ==========================================================================
   # 4. AI USES FORMAT_SCHEMA TO REVIEW REGISTERED SCHEMAS
@@ -129,6 +132,7 @@ Feature: MCP AI Data Modeling — Multi-Format Schema Design
       }
       """
     Then the MCP result should contain "Review"
+    And the audit log should contain event "mcp_tool_call"
 
   # ==========================================================================
   # 5. AI DESIGNS AN AVRO SCHEMA WITH UNION TYPES
@@ -148,6 +152,7 @@ Feature: MCP AI Data Modeling — Multi-Format Schema Design
     Then the MCP result should contain "DomainEvent"
     And the MCP result should contain "metadata"
     And the MCP result should contain "payload"
+    And the audit log should contain event "mcp_tool_call"
 
   # ==========================================================================
   # 6. AI MODELS A PROTOBUF WITH ONEOF FOR VARIANT TYPES
@@ -169,3 +174,4 @@ Feature: MCP AI Data Modeling — Multi-Format Schema Design
     And the MCP result should contain "TextContent"
     And the MCP result should contain "ImageContent"
     And the MCP result should contain "oneof"
+    And the audit log should contain event "mcp_tool_call"

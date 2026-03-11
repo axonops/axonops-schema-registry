@@ -9,6 +9,7 @@ Feature: MCP Admin Tools
     And the MCP result should contain "admin"
     And the MCP result should contain "developer"
     And the MCP result should contain "readonly"
+    And the audit log should contain event "mcp_tool_call"
 
   Scenario: Create and get a user
     When I call MCP tool "create_user" with JSON input:
@@ -19,6 +20,7 @@ Feature: MCP Admin Tools
     And the MCP result should contain "developer"
     When I call MCP tool "list_users"
     Then the MCP result should contain "alice"
+    And the audit log should contain event "mcp_tool_call"
 
   Scenario: Update a user role
     When I call MCP tool "create_user" with JSON input:
@@ -32,6 +34,7 @@ Feature: MCP Admin Tools
       {"id": $user_id, "role": "admin"}
       """
     Then the MCP result should contain "admin"
+    And the audit log should contain event "mcp_tool_call"
 
   Scenario: Delete a user
     When I call MCP tool "create_user" with JSON input:
@@ -45,6 +48,7 @@ Feature: MCP Admin Tools
     Then the MCP result should contain "true"
     When I call MCP tool "list_users"
     Then the MCP result should not contain "charlie"
+    And the audit log should contain event "mcp_tool_call"
 
   Scenario: Create and list API keys
     When I call MCP tool "create_user" with JSON input:
@@ -60,6 +64,7 @@ Feature: MCP Admin Tools
     Then the MCP result should contain "my-key"
     When I call MCP tool "list_apikeys"
     Then the MCP result should contain "my-key"
+    And the audit log should contain event "mcp_tool_call"
 
   Scenario: Revoke an API key
     When I call MCP tool "create_user" with JSON input:
@@ -79,6 +84,7 @@ Feature: MCP Admin Tools
     When I call MCP tool "get_apikey" with input:
       | id | $key_id |
     Then the MCP result should not contain "\"enabled\":true"
+    And the audit log should contain event "mcp_tool_call"
 
   Scenario: Change user password
     When I call MCP tool "create_user" with JSON input:
@@ -92,6 +98,7 @@ Feature: MCP Admin Tools
       {"id": $user_id, "old_password": "oldpass", "new_password": "newpass"}
       """
     Then the MCP result should contain "true"
+    And the audit log should contain event "mcp_tool_call"
 
   Scenario: Get user by username
     When I call MCP tool "create_user" with JSON input:
@@ -103,6 +110,7 @@ Feature: MCP Admin Tools
       | username | findme |
     Then the MCP result should contain "findme"
     And the MCP result should contain "admin"
+    And the audit log should contain event "mcp_tool_call"
 
   Scenario: Rotate an API key
     When I call MCP tool "create_user" with JSON input:
@@ -122,3 +130,4 @@ Feature: MCP Admin Tools
       """
     Then the MCP result should contain "key"
     And the MCP result should contain "rotated"
+    And the audit log should contain event "mcp_tool_call"

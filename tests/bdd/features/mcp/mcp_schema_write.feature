@@ -8,12 +8,14 @@ Feature: MCP Schema Write Tools
       | schema  | {"type":"string"} |
     Then the MCP result should contain "mcp-write-test"
     And the MCP result should contain "\"version\":1"
+    And the audit log should contain event "mcp_tool_call"
 
   Scenario: Delete a subject
     Given I register an Avro schema for subject "mcp-delete-subj"
     When I call MCP tool "delete_subject" with input:
       | subject | mcp-delete-subj |
     Then the MCP result should contain "1"
+    And the audit log should contain event "mcp_tool_call"
 
   Scenario: Delete a version
     Given I register an Avro schema for subject "mcp-delete-ver"
@@ -21,6 +23,7 @@ Feature: MCP Schema Write Tools
       | subject | mcp-delete-ver |
       | version | 1              |
     Then the MCP result should contain "1"
+    And the audit log should contain event "mcp_tool_call"
 
   Scenario: Check compatibility passes
     Given I register an Avro schema for subject "mcp-compat-test"
@@ -28,6 +31,7 @@ Feature: MCP Schema Write Tools
       | subject | mcp-compat-test   |
       | schema  | {"type":"string"} |
     Then the MCP result should contain "true"
+    And the audit log should contain event "mcp_tool_call"
 
   Scenario: Check compatibility fails
     Given I register an Avro schema for subject "mcp-incompat-test"
@@ -35,6 +39,7 @@ Feature: MCP Schema Write Tools
       | subject | mcp-incompat-test |
       | schema  | {"type":"int"}    |
     Then the MCP result should contain "false"
+    And the audit log should contain event "mcp_tool_call"
 
   Scenario: Register schema with explicit type
     When I call MCP tool "register_schema" with input:
@@ -43,3 +48,4 @@ Feature: MCP Schema Write Tools
       | schema_type | JSON                              |
     Then the MCP result should contain "mcp-json-test"
     And the MCP result should contain "JSON"
+    And the audit log should contain event "mcp_tool_call"

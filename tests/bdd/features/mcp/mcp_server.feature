@@ -6,21 +6,25 @@ Feature: MCP Server
   Scenario: Health check via MCP
     When I call MCP tool "health_check"
     Then the MCP result should contain "healthy"
+    And the audit log should contain event "mcp_tool_call"
 
   Scenario: Get server info via MCP
     When I call MCP tool "get_server_info"
     Then the MCP result should contain "AVRO"
     And the MCP result should contain "PROTOBUF"
     And the MCP result should contain "JSON"
+    And the audit log should contain event "mcp_tool_call"
 
   Scenario: List subjects when empty
     When I call MCP tool "list_subjects"
     Then the MCP result should be "[]"
+    And the audit log should contain event "mcp_tool_call"
 
   Scenario: List subjects after registration
     Given I register an Avro schema for subject "mcp-test-subject"
     When I call MCP tool "list_subjects"
     Then the MCP result should contain "mcp-test-subject"
+    And the audit log should contain event "mcp_tool_call"
 
   Scenario: List subjects with prefix filter
     Given I register an Avro schema for subject "orders-value"
@@ -29,6 +33,7 @@ Feature: MCP Server
       | prefix | orders |
     Then the MCP result should contain "orders-value"
     And the MCP result should not contain "users-value"
+    And the audit log should contain event "mcp_tool_call"
 
   Scenario: List subjects with regex pattern filter
     Given I register an Avro schema for subject "orders-value"
@@ -41,6 +46,7 @@ Feature: MCP Server
     Then the MCP result should contain "orders-value"
     And the MCP result should contain "users-value"
     And the MCP result should not contain "orders-key"
+    And the audit log should contain event "mcp_tool_call"
 
   Scenario: List subjects with prefix and pattern combined
     Given I register an Avro schema for subject "orders-value"
@@ -53,3 +59,4 @@ Feature: MCP Server
     Then the MCP result should contain "orders-value"
     And the MCP result should not contain "users-value"
     And the MCP result should not contain "orders-key"
+    And the audit log should contain event "mcp_tool_call"

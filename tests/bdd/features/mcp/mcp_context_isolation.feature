@@ -10,6 +10,7 @@ Feature: MCP Context Isolation
       | subject | ctx-default-value |
     Then the MCP result should not be an error
     And the MCP result should contain "ctx-default-value"
+    And the audit log should contain event "mcp_tool_call"
 
   Scenario: Register and retrieve schema in a named context
     When I call MCP tool "register_schema" with JSON input:
@@ -29,6 +30,7 @@ Feature: MCP Context Isolation
     Then the MCP result should not be an error
     And the MCP result should contain "ctx-staging-value"
     And the MCP result should contain "env"
+    And the audit log should contain event "mcp_tool_call"
 
   Scenario: Named context does not leak into default context
     When I call MCP tool "register_schema" with JSON input:
@@ -44,6 +46,7 @@ Feature: MCP Context Isolation
     When I call MCP tool "list_subjects"
     Then the MCP result should not be an error
     And the MCP result should not contain "ctx-isolated-value"
+    And the audit log should contain event "mcp_tool_call"
 
   Scenario: List subjects with context parameter
     When I call MCP tool "register_schema" with JSON input:
@@ -62,3 +65,4 @@ Feature: MCP Context Isolation
       """
     Then the MCP result should not be an error
     And the MCP result should contain "ctx-team-value"
+    And the audit log should contain event "mcp_tool_call"

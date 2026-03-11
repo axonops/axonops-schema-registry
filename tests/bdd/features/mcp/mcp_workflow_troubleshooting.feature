@@ -14,6 +14,7 @@ Feature: MCP Workflow — Troubleshooting
       """
     Then the MCP result should be an error
     And the MCP result should contain "invalid schema"
+    And the audit log should contain event "mcp_tool_error"
 
   # Validates: glossary/error-reference — 40401
   Scenario: Non-existent subject returns error via MCP
@@ -23,6 +24,7 @@ Feature: MCP Workflow — Troubleshooting
       """
     Then the MCP result should be an error
     And the MCP result should contain "not found"
+    And the audit log should contain event "mcp_tool_error"
 
   # Validates: glossary/error-reference — 409, troubleshooting Registration failures
   Scenario: Incompatible schema returns error then explain failure
@@ -51,6 +53,7 @@ Feature: MCP Workflow — Troubleshooting
       }
       """
     Then the MCP result should not be an error
+    And the audit log should contain event "mcp_tool_call"
 
   # Validates: troubleshooting — Subject not found, match_subjects fuzzy match
   Scenario: Match subjects fuzzy to find misspelled subject
@@ -68,6 +71,7 @@ Feature: MCP Workflow — Troubleshooting
       """
     Then the MCP result should not be an error
     And the MCP result should contain "orders-value"
+    And the audit log should contain event "mcp_tool_call"
 
   # Validates: glossary/error-reference — 40405, best-practices Soft-delete confusion
   Scenario: Permanent delete without soft-delete first returns error
@@ -76,3 +80,4 @@ Feature: MCP Workflow — Troubleshooting
       {"subject": "wf-trouble-no-soft-delete-xyz", "permanent": true}
       """
     Then the MCP result should be an error
+    And the audit log should contain event "mcp_tool_error"

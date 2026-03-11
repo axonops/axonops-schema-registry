@@ -30,6 +30,7 @@ Feature: MCP Workflow — Schema Evolution
       }
       """
     Then the MCP result should not be an error
+    And the audit log should contain event "mcp_tool_call"
 
   # Validates: schema-evolution-cookbook.md — Recipe 2: Add Required Field with Default
   Scenario: Add required field with default
@@ -50,6 +51,7 @@ Feature: MCP Workflow — Schema Evolution
       """
     Then the MCP result should not be an error
     And the MCP result should contain "true"
+    And the audit log should contain event "mcp_tool_call"
 
   # Validates: schema-evolution-cookbook.md — Recipe 3, glossary/design-patterns Three-Phase Rename
   Scenario: Three-phase rename is BACKWARD compatible
@@ -72,6 +74,7 @@ Feature: MCP Workflow — Schema Evolution
       """
     Then the MCP result should not be an error
     And the MCP result should contain "true"
+    And the audit log should contain event "mcp_tool_call"
 
   # Validates: schema-evolution-cookbook.md — Recipe 4, glossary/compatibility Type Promotions
   Scenario: Compatible type widening int to long
@@ -92,6 +95,7 @@ Feature: MCP Workflow — Schema Evolution
       """
     Then the MCP result should not be an error
     And the MCP result should contain "true"
+    And the audit log should contain event "mcp_tool_call"
 
   # Validates: schema-evolution-cookbook.md — Recipe 5
   Scenario: Remove field under BACKWARD compatibility
@@ -112,6 +116,7 @@ Feature: MCP Workflow — Schema Evolution
       """
     Then the MCP result should not be an error
     And the MCP result should contain "true"
+    And the audit log should contain event "mcp_tool_call"
 
   # Validates: schema-evolution-cookbook.md — Recipe 6 Option A
   Scenario: Break compatibility via new subject
@@ -132,6 +137,7 @@ Feature: MCP Workflow — Schema Evolution
       }
       """
     Then the MCP result should not be an error
+    And the audit log should contain event "mcp_tool_call"
 
   # Validates: schema-evolution-cookbook.md — Recipe 7, glossary/schema-types References
   Scenario: Add schema reference for shared type
@@ -152,6 +158,7 @@ Feature: MCP Workflow — Schema Evolution
       }
       """
     Then the MCP result should not be an error
+    And the audit log should contain event "mcp_tool_call"
 
   # Validates: evolve-schema prompt — Step 4
   Scenario: Explain compatibility failure when evolution fails
@@ -180,3 +187,4 @@ Feature: MCP Workflow — Schema Evolution
       }
       """
     Then the MCP result should not be an error
+    And the audit log should contain event "mcp_tool_call"

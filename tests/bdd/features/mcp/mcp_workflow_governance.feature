@@ -15,6 +15,7 @@ Feature: MCP Workflow — Governance Setup
       {}
       """
     Then the MCP result should contain "FULL"
+    And the audit log should contain event "mcp_tool_call"
 
   # Validates: prompts/governance-setup.md — Step 3
   Scenario: Score quality across subjects
@@ -32,6 +33,7 @@ Feature: MCP Workflow — Governance Setup
       """
     Then the MCP result should not be an error
     And the MCP result should contain "score"
+    And the audit log should contain event "mcp_tool_call"
 
   # Validates: prompts/governance-setup.md — Step 3
   Scenario: Check field consistency for type drift
@@ -59,6 +61,7 @@ Feature: MCP Workflow — Governance Setup
       """
     Then the MCP result should not be an error
     And the MCP result should contain "customer_id"
+    And the audit log should contain event "mcp_tool_call"
 
   # Validates: prompts/governance-setup.md — Step 4, glossary/data-contracts 3-Layer Merge
   Scenario: Data contract with override metadata for PII
@@ -87,3 +90,4 @@ Feature: MCP Workflow — Governance Setup
       """
     Then the MCP result should contain "pii"
     And the MCP result should contain "data-team"
+    And the audit log should contain event "mcp_tool_call"

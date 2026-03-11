@@ -24,6 +24,7 @@ Feature: MCP Workflow — Team Onboarding
       {}
       """
     Then the MCP result should not contain "wf-team-test"
+    And the audit log should contain event "mcp_tool_call"
 
   # Validates: prompts/team-onboarding.md — Step 3, glossary/contexts 4-Tier Inheritance
   Scenario: Set context-level compatibility default
@@ -40,6 +41,7 @@ Feature: MCP Workflow — Team Onboarding
       {"context": ".team-beta"}
       """
     Then the MCP result should contain "FULL_TRANSITIVE"
+    And the audit log should contain event "mcp_tool_call"
 
   # Validates: prompts/team-onboarding.md — Step 4, glossary/auth-and-security
   Scenario: Create user with developer role
@@ -53,6 +55,7 @@ Feature: MCP Workflow — Team Onboarding
       """
     Then the MCP result should not be an error
     And the MCP result should contain "wf-team-user"
+    And the audit log should contain event "mcp_tool_call"
 
   # Validates: prompts/team-onboarding.md — Step 8
   Scenario: Context-scoped resources return only team data
@@ -76,6 +79,7 @@ Feature: MCP Workflow — Team Onboarding
     When I read MCP resource "schema://contexts/.team-gamma/subjects"
     Then the MCP resource result should contain "wf-team-gamma-schema"
     And the MCP resource result should not contain "wf-default-schema"
+    And the audit log should contain event "mcp_tool_call"
 
   # Validates: prompts/team-onboarding.md — Complete workflow
   Scenario: Full onboarding end-to-end
@@ -105,3 +109,4 @@ Feature: MCP Workflow — Team Onboarding
     Then the MCP result should contain "BACKWARD_TRANSITIVE"
     When I read MCP resource "schema://contexts/.team-delta/subjects"
     Then the MCP resource result should contain "wf-team-delta-events"
+    And the audit log should contain event "mcp_tool_call"

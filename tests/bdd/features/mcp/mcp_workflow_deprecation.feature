@@ -26,6 +26,7 @@ Feature: MCP Workflow — Subject Deprecation
       }
       """
     Then the MCP result should be an error
+    And the audit log should contain event "mcp_tool_error"
 
   # Validates: prompts/deprecate-subject.md — Step 5, glossary/data-contracts Metadata
   Scenario: Add deprecation metadata via set_config_full
@@ -51,6 +52,7 @@ Feature: MCP Workflow — Subject Deprecation
       {"subject": "wf-dep-meta"}
       """
     Then the MCP result should contain "deprecated"
+    And the audit log should contain event "mcp_tool_call"
 
   # Validates: prompts/deprecate-subject.md — Step 7
   Scenario: Soft-delete hides from list but schema resolvable by ID
@@ -72,6 +74,7 @@ Feature: MCP Workflow — Subject Deprecation
       {}
       """
     Then the MCP result should not contain "wf-dep-soft"
+    And the audit log should contain event "mcp_tool_call"
 
   # Validates: prompts/deprecate-subject.md — Complete workflow
   Scenario: Full deprecation lifecycle
@@ -111,3 +114,4 @@ Feature: MCP Workflow — Subject Deprecation
       {}
       """
     Then the MCP result should not contain "wf-dep-full"
+    And the audit log should contain event "mcp_tool_call"

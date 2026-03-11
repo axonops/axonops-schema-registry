@@ -23,6 +23,7 @@ Feature: MCP Workflow — Encryption Lifecycle
       """
     Then the MCP result should not be an error
     And the MCP result should contain "wf-enc-kek"
+    And the audit log should contain event "mcp_tool_call"
 
   # Validates: full-encryption-lifecycle.md — Phase 2
   Scenario: Create DEK and verify retrieval
@@ -54,6 +55,7 @@ Feature: MCP Workflow — Encryption Lifecycle
       """
     Then the MCP result should not be an error
     And the MCP result should contain "AES256_GCM"
+    And the audit log should contain event "mcp_tool_call"
 
   # Validates: full-encryption-lifecycle.md — Phase 3
   Scenario: Multiple DEK versions for rotation
@@ -84,6 +86,7 @@ Feature: MCP Workflow — Encryption Lifecycle
       }
       """
     Then the MCP result should not be an error
+    And the audit log should contain event "mcp_tool_call"
 
   # Validates: full-encryption-lifecycle.md — Phase 5, glossary/encryption Soft-Delete
   Scenario: Soft-delete and restore DEK
@@ -126,6 +129,7 @@ Feature: MCP Workflow — Encryption Lifecycle
       }
       """
     Then the MCP result should not be an error
+    And the audit log should contain event "mcp_tool_call"
 
   # Validates: full-encryption-lifecycle.md — Complete workflow
   Scenario: Full encryption lifecycle end-to-end
@@ -162,3 +166,4 @@ Feature: MCP Workflow — Encryption Lifecycle
       """
     Then the MCP result should not be an error
     And the MCP result should contain "wf-enc-full-kek"
+    And the audit log should contain event "mcp_tool_call"

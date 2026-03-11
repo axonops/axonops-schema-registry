@@ -14,6 +14,7 @@ Feature: MCP Exporter Tools
     Then the MCP result should contain "mcp-exp-test"
     Then the MCP result should contain "AUTO"
     Then the MCP result should contain "orders-value"
+    And the audit log should contain event "mcp_tool_call"
 
   Scenario: List exporters
     When I call MCP tool "create_exporter" with JSON input:
@@ -27,6 +28,7 @@ Feature: MCP Exporter Tools
     When I call MCP tool "list_exporters"
     Then the MCP result should contain "mcp-exp-a"
     Then the MCP result should contain "mcp-exp-b"
+    And the audit log should contain event "mcp_tool_call"
 
   Scenario: Delete exporter
     When I call MCP tool "create_exporter" with JSON input:
@@ -36,6 +38,7 @@ Feature: MCP Exporter Tools
     When I call MCP tool "delete_exporter" with input:
       | name | mcp-exp-del |
     Then the MCP result should contain "true"
+    And the audit log should contain event "mcp_tool_call"
 
   Scenario: Pause and resume exporter
     When I call MCP tool "create_exporter" with JSON input:
@@ -51,6 +54,7 @@ Feature: MCP Exporter Tools
     When I call MCP tool "pause_exporter" with input:
       | name | mcp-exp-status |
     Then the MCP result should contain "PAUSED"
+    And the audit log should contain event "mcp_tool_call"
 
   Scenario: Reset exporter
     When I call MCP tool "create_exporter" with JSON input:
@@ -60,6 +64,7 @@ Feature: MCP Exporter Tools
     When I call MCP tool "reset_exporter" with input:
       | name | mcp-exp-reset |
     Then the MCP result should contain "reset"
+    And the audit log should contain event "mcp_tool_call"
 
   Scenario: Get and update exporter config
     When I call MCP tool "create_exporter" with JSON input:
@@ -76,3 +81,4 @@ Feature: MCP Exporter Tools
     When I call MCP tool "get_exporter_config" with input:
       | name | mcp-exp-cfg |
     Then the MCP result should contain "updated"
+    And the audit log should contain event "mcp_tool_call"
