@@ -339,6 +339,12 @@ type AuditHints struct {
 	Version    int
 	Context    string // registry context namespace
 
+	// Target fields — populated by handlers when the URL path alone is not
+	// sufficient to determine the target (e.g., bulk import where subjects
+	// are in the request body, not the URL).
+	TargetType string // subject, schema, config, mode, kek, dek, exporter, user, apikey
+	TargetID   string // subject name, KEK name, exporter name, etc.
+
 	// Actor fields — populated by the auth middleware so the audit middleware
 	// can read them even though the auth middleware runs after the audit
 	// middleware in the chi middleware chain. Using a shared mutable pointer
@@ -422,6 +428,16 @@ func (al *AuditLogger) Middleware(next http.Handler) http.Handler {
 		outcome := outcomeFromStatusCode(rw.statusCode)
 		reason := reasonFromStatusCode(rw.statusCode)
 		targetType, targetID := extractTarget(r.URL.Path, eventType)
+
+		// Prefer handler-supplied target info over URL-extracted info.
+		// This covers cases like bulk import where the target is in the
+		// request body, not the URL path.
+		if hints.TargetID != "" {
+			targetID = hints.TargetID
+		}
+		if hints.TargetType != "" {
+			targetType = hints.TargetType
+		}
 
 		event := &AuditEvent{
 			Timestamp:   start,

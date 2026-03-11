@@ -22,8 +22,25 @@ Feature: Advanced Schema Import
     Then the response status should be 200
     And the import should have 0 imported and 1 errors
     When I set the global mode to "READWRITE"
-    And the audit log should contain event "schema_import"
-    # Note: /import/schemas is a bulk endpoint — target_id is not populated from URL path
+    # First import (succeeded) — audit entry for imp-conflict-a
+    And the audit log should contain an event:
+      | event_type  | schema_import    |
+      | outcome     | success          |
+      | actor_type  | anonymous        |
+      | target_id   | imp-conflict-a   |
+      | method      | POST             |
+      | path        | /import/schemas  |
+      | status_code | 200              |
+    # Second import (conflict, 0 imported / 1 error) — still audits as "success"
+    # because the HTTP status is 200 (errors are in the response body, not status code)
+    And the audit log should contain an event:
+      | event_type  | schema_import    |
+      | outcome     | success          |
+      | actor_type  | anonymous        |
+      | target_id   | imp-conflict-b   |
+      | method      | POST             |
+      | path        | /import/schemas  |
+      | status_code | 200              |
 
   Scenario: Import with conflicting subject and version fails
     Given the global mode is "IMPORT"
@@ -40,7 +57,17 @@ Feature: Advanced Schema Import
     Then the response status should be 200
     And the import should have 0 imported and 1 errors
     When I set the global mode to "READWRITE"
-    And the audit log should contain event "schema_import"
+    # Both imports target the same subject so both audit entries share the same
+    # target_id.  The second import (0 imported / 1 error) still audits as
+    # "success" because the HTTP status is 200.
+    And the audit log should contain an event:
+      | event_type  | schema_import    |
+      | outcome     | success          |
+      | actor_type  | anonymous        |
+      | target_id   | imp-sv-conflict  |
+      | method      | POST             |
+      | path        | /import/schemas  |
+      | status_code | 200              |
 
   # --------------------------------------------------------------------------
   # PARTIAL IMPORT
@@ -65,8 +92,13 @@ Feature: Advanced Schema Import
     When I get schema by ID 302
     Then the response status should be 200
     And the response should contain "Good2"
-    And the audit log should contain event "schema_import"
-    And the audit log should contain event "schema_import" with method "POST"
+    And the audit log should contain an event:
+      | event_type  | schema_import   |
+      | outcome     | success         |
+      | actor_type  | anonymous       |
+      | method      | POST            |
+      | path        | /import/schemas |
+      | status_code | 200             |
 
   # --------------------------------------------------------------------------
   # ID SEQUENCING
@@ -88,7 +120,14 @@ Feature: Advanced Schema Import
     Then the response status should be 200
     And I store the response field "id" as "new_id"
     And the response should have field "id"
-    And the audit log should contain event "schema_import"
+    And the audit log should contain an event:
+      | event_type  | schema_import      |
+      | outcome     | success            |
+      | actor_type  | anonymous          |
+      | target_id   | imp-seq-imported   |
+      | method      | POST               |
+      | path        | /import/schemas    |
+      | status_code | 200                |
 
   # --------------------------------------------------------------------------
   # IMPORT WITH REFERENCES
@@ -114,8 +153,14 @@ Feature: Advanced Schema Import
     When I get schema by ID 601
     Then the response status should be 200
     And the response should contain "Person"
-    And the audit log should contain event "schema_import"
-    And the audit log should contain event "schema_import" with method "POST"
+    And the audit log should contain an event:
+      | event_type  | schema_import    |
+      | outcome     | success          |
+      | actor_type  | anonymous        |
+      | target_id   | imp-ref-base     |
+      | method      | POST             |
+      | path        | /import/schemas  |
+      | status_code | 200              |
 
   # --------------------------------------------------------------------------
   # SCHEMA TYPE PRESERVATION
@@ -142,7 +187,14 @@ Feature: Advanced Schema Import
     Then the response status should be 200
     And the response field "subject" should be "imp-type-proto"
     And the response field "version" should be 1
-    And the audit log should contain event "schema_import"
+    And the audit log should contain an event:
+      | event_type  | schema_import    |
+      | outcome     | success          |
+      | actor_type  | anonymous        |
+      | target_id   | imp-type-proto   |
+      | method      | POST             |
+      | path        | /import/schemas  |
+      | status_code | 200              |
 
   # --------------------------------------------------------------------------
   # RETRIEVAL BY SUBJECT AND VERSION
@@ -165,7 +217,14 @@ Feature: Advanced Schema Import
     When I get schema by ID 800
     Then the response status should be 200
     And the response should contain "Retrievable"
-    And the audit log should contain event "schema_import"
+    And the audit log should contain an event:
+      | event_type  | schema_import    |
+      | outcome     | success          |
+      | actor_type  | anonymous        |
+      | target_id   | imp-retrieve     |
+      | method      | POST             |
+      | path        | /import/schemas  |
+      | status_code | 200              |
 
   # --------------------------------------------------------------------------
   # MULTIPLE VERSIONS OF SAME SUBJECT
@@ -195,8 +254,14 @@ Feature: Advanced Schema Import
     Then the response status should be 200
     And the response field "version" should be 3
     And the response should contain "email"
-    And the audit log should contain event "schema_import"
-    And the audit log should contain event "schema_import" with method "POST"
+    And the audit log should contain an event:
+      | event_type  | schema_import   |
+      | outcome     | success         |
+      | actor_type  | anonymous       |
+      | target_id   | imp-multi-ver   |
+      | method      | POST            |
+      | path        | /import/schemas |
+      | status_code | 200             |
 
   # ==========================================================================
   # Bulk import requires IMPORT mode — /import/schemas must reject requests
@@ -211,6 +276,15 @@ Feature: Advanced Schema Import
       """
     Then the response status should be 422
     And the response should have error code 42205
+    # No target_id — the handler rejects before parsing the body
+    And the audit log should contain an event:
+      | event_type  | schema_import   |
+      | outcome     | failure         |
+      | reason      | invalid_schema  |
+      | actor_type  | anonymous       |
+      | method      | POST            |
+      | path        | /import/schemas |
+      | status_code | 422             |
 
   Scenario: Bulk import succeeds in IMPORT mode
     Given the global mode is "IMPORT"
@@ -224,4 +298,11 @@ Feature: Advanced Schema Import
     Then the response status should be 200
     And the response should contain "BulkImp"
     When I set the global mode to "READWRITE"
-    And the audit log should contain event "schema_import"
+    And the audit log should contain an event:
+      | event_type  | schema_import     |
+      | outcome     | success           |
+      | actor_type  | anonymous         |
+      | target_id   | imp-bulk-import   |
+      | method      | POST              |
+      | path        | /import/schemas   |
+      | status_code | 200               |

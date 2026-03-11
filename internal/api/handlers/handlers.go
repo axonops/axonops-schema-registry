@@ -1493,6 +1493,21 @@ func (h *Handler) ImportSchemas(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Set audit hints with imported subjects for audit trail.
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		seen := make(map[string]struct{})
+		var subjects []string
+		for _, s := range req.Schemas {
+			if _, ok := seen[s.Subject]; !ok && s.Subject != "" {
+				seen[s.Subject] = struct{}{}
+				subjects = append(subjects, s.Subject)
+			}
+		}
+		if len(subjects) > 0 {
+			hints.TargetID = strings.Join(subjects, ",")
+		}
+	}
+
 	// Convert API types to registry types
 	importReqs := make([]registry.ImportSchemaRequest, len(req.Schemas))
 	for i, s := range req.Schemas {

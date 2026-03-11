@@ -31,7 +31,25 @@ Feature: Import with Conflicting IDs
     And the import should have 0 imported and 1 errors
     # Reset mode
     When I set the global mode to "READWRITE"
-    And the audit log should contain event "schema_import"
+    # First import (succeeded) — audit entry for the successful import
+    And the audit log should contain an event:
+      | event_type  | schema_import     |
+      | outcome     | success           |
+      | actor_type  | anonymous         |
+      | target_id   | import-existing   |
+      | method      | POST              |
+      | path        | /import/schemas   |
+      | status_code | 200               |
+    # Second import (conflicting ID, 0 imported / 1 error) — still audits as
+    # "success" because the HTTP status is 200 (errors are in the response body)
+    And the audit log should contain an event:
+      | event_type  | schema_import     |
+      | outcome     | success           |
+      | actor_type  | anonymous         |
+      | target_id   | import-conflict   |
+      | method      | POST              |
+      | path        | /import/schemas   |
+      | status_code | 200               |
 
   # ---------------------------------------------------------------------------
   # Import with an ID that already exists but same schema content
@@ -52,7 +70,14 @@ Feature: Import with Conflicting IDs
       """
     Then the response status should be 200
     When I set the global mode to "READWRITE"
-    And the audit log should contain event "schema_import"
+    And the audit log should contain an event:
+      | event_type  | schema_import   |
+      | outcome     | success         |
+      | actor_type  | anonymous       |
+      | target_id   | import-idem     |
+      | method      | POST            |
+      | path        | /import/schemas |
+      | status_code | 200             |
 
   # ---------------------------------------------------------------------------
   # Import requires IMPORT mode
@@ -65,6 +90,16 @@ Feature: Import with Conflicting IDs
       {"type":"record","name":"Blocked","fields":[{"name":"f","type":"string"}]}
       """
     Then the response status should be 422
+    # No target_id — the handler rejects before parsing the body, so the
+    # subject is never extracted from the request.
+    And the audit log should contain an event:
+      | event_type  | schema_import     |
+      | outcome     | failure           |
+      | reason      | invalid_schema    |
+      | actor_type  | anonymous         |
+      | method      | POST              |
+      | path        | /import/schemas   |
+      | status_code | 422               |
 
   # ---------------------------------------------------------------------------
   # Import with version that already exists under same subject
@@ -86,7 +121,17 @@ Feature: Import with Conflicting IDs
     Then the response status should be 200
     And the import should have 0 imported and 1 errors
     When I set the global mode to "READWRITE"
-    And the audit log should contain event "schema_import"
+    # Both imports target the same subject so both audit entries share the same
+    # target_id.  The second import (0 imported / 1 error) still audits as
+    # "success" because the HTTP status is 200.
+    And the audit log should contain an event:
+      | event_type  | schema_import    |
+      | outcome     | success          |
+      | actor_type  | anonymous        |
+      | target_id   | import-ver-dup   |
+      | method      | POST             |
+      | path        | /import/schemas  |
+      | status_code | 200              |
 
   # ---------------------------------------------------------------------------
   # Import Protobuf and JSON Schema with conflicting IDs
@@ -113,7 +158,24 @@ Feature: Import with Conflicting IDs
     Then the response status should be 200
     And the import should have 0 imported and 1 errors
     When I set the global mode to "READWRITE"
-    And the audit log should contain event "schema_import"
+    # First import (succeeded)
+    And the audit log should contain an event:
+      | event_type  | schema_import          |
+      | outcome     | success                |
+      | actor_type  | anonymous              |
+      | target_id   | import-proto-1         |
+      | method      | POST                   |
+      | path        | /import/schemas        |
+      | status_code | 200                    |
+    # Second import (conflicting ID, 0 imported / 1 error) — still HTTP 200
+    And the audit log should contain an event:
+      | event_type  | schema_import          |
+      | outcome     | success                |
+      | actor_type  | anonymous              |
+      | target_id   | import-proto-conflict  |
+      | method      | POST                   |
+      | path        | /import/schemas        |
+      | status_code | 200                    |
 
   # ---------------------------------------------------------------------------
   # IDs after import continue above highest imported
@@ -136,4 +198,11 @@ Feature: Import with Conflicting IDs
     Then the response status should be 200
     And I store the response field "id" as "new_id"
     And the stored "new_id" should be greater than 50000
-    And the audit log should contain event "schema_import"
+    And the audit log should contain an event:
+      | event_type  | schema_import    |
+      | outcome     | success          |
+      | actor_type  | anonymous        |
+      | target_id   | import-high-id   |
+      | method      | POST             |
+      | path        | /import/schemas  |
+      | status_code | 200              |

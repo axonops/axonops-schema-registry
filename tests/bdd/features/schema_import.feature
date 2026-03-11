@@ -14,7 +14,14 @@ Feature: Schema Import
     Then the response status should be 200
     And the response should contain "Imported"
     When I set the global mode to "READWRITE"
-    And the audit log should contain event "schema_import"
+    And the audit log should contain an event:
+      | event_type  | schema_import    |
+      | outcome     | success          |
+      | actor_type  | anonymous        |
+      | target_id   | imported-value   |
+      | method      | POST             |
+      | path        | /import/schemas  |
+      | status_code | 200              |
 
   Scenario: Import schema and retrieve by subject/version
     Given the global mode is "IMPORT"
@@ -28,7 +35,14 @@ Feature: Schema Import
     Then the response status should be 200
     And the response field "subject" should be "import-subj"
     And the response field "version" should be 1
-    And the audit log should contain event "schema_import"
+    And the audit log should contain an event:
+      | event_type  | schema_import    |
+      | outcome     | success          |
+      | actor_type  | anonymous        |
+      | target_id   | import-subj      |
+      | method      | POST             |
+      | path        | /import/schemas  |
+      | status_code | 200              |
 
   Scenario: Import multiple schemas in one request
     Given the global mode is "IMPORT"
@@ -49,8 +63,13 @@ Feature: Schema Import
     Then the response status should be 200
     When I get schema by ID 302
     Then the response status should be 200
-    And the audit log should contain event "schema_import"
-    And the audit log should contain event "schema_import" with method "POST"
+    And the audit log should contain an event:
+      | event_type  | schema_import   |
+      | outcome     | success         |
+      | actor_type  | anonymous       |
+      | method      | POST            |
+      | path        | /import/schemas |
+      | status_code | 200             |
 
   Scenario: IDs after import continue above highest imported
     Given the global mode is "IMPORT"
@@ -66,7 +85,14 @@ Feature: Schema Import
       """
     Then the response status should be 200
     And I store the response field "id" as "new_id"
-    And the audit log should contain event "schema_import"
+    And the audit log should contain an event:
+      | event_type  | schema_import    |
+      | outcome     | success          |
+      | actor_type  | anonymous        |
+      | target_id   | import-seq       |
+      | method      | POST             |
+      | path        | /import/schemas  |
+      | status_code | 200              |
 
   Scenario: Import Protobuf schema with specific ID
     Given the global mode is "IMPORT"
@@ -82,7 +108,14 @@ Feature: Schema Import
     When I get schema by ID 600
     Then the response status should be 200
     And the response field "schemaType" should be "PROTOBUF"
-    And the audit log should contain event "schema_import"
+    And the audit log should contain an event:
+      | event_type  | schema_import    |
+      | outcome     | success          |
+      | actor_type  | anonymous        |
+      | target_id   | import-proto     |
+      | method      | POST             |
+      | path        | /import/schemas  |
+      | status_code | 200              |
 
   Scenario: Import JSON Schema with specific ID
     Given the global mode is "IMPORT"
@@ -95,4 +128,11 @@ Feature: Schema Import
     When I get schema by ID 700
     Then the response status should be 200
     And the response field "schemaType" should be "JSON"
-    And the audit log should contain event "schema_import"
+    And the audit log should contain an event:
+      | event_type  | schema_import    |
+      | outcome     | success          |
+      | actor_type  | anonymous        |
+      | target_id   | import-json      |
+      | method      | POST             |
+      | path        | /import/schemas  |
+      | status_code | 200              |
