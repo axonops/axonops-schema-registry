@@ -20,6 +20,7 @@ Feature: Error Codes Exhaustive
     When I DELETE "/subjects/err-no-subject3"
     Then the response status should be 404
     And the response should have error code 40401
+    And the audit log should contain event "subject_delete"
 
   Scenario: 40402 on compatibility check against specific version of non-existent subject
     When I POST "/compatibility/subjects/err-no-subject4/versions/1" with body:
@@ -50,6 +51,7 @@ Feature: Error Codes Exhaustive
     When I DELETE "/subjects/err-ver-nf2/versions/99"
     Then the response status should be 404
     And the response should have error code 40402
+    And the audit log should contain event "schema_delete"
 
   Scenario: 40402 on compatibility check against non-existent version
     Given subject "err-ver-nf3" has schema:
@@ -84,6 +86,7 @@ Feature: Error Codes Exhaustive
     When I DELETE "/subjects/err-perm-sub?permanent=true"
     Then the response status should be 404
     And the response should have error code 40405
+    And the audit log should contain event "subject_delete"
 
   Scenario: 40407 on permanent delete version without soft-delete
     Given subject "err-perm-ver" has schema:
@@ -93,6 +96,7 @@ Feature: Error Codes Exhaustive
     When I DELETE "/subjects/err-perm-ver/versions/1?permanent=true"
     Then the response status should be 404
     And the response should have error code 40407
+    And the audit log should contain event "schema_delete"
 
   # ==========================================================================
   # 409 — Incompatible schema
@@ -109,6 +113,7 @@ Feature: Error Codes Exhaustive
       {"type":"record","name":"IC","fields":[{"name":"a","type":"string"},{"name":"b","type":"string"}]}
       """
     Then the response status should be 409
+    And the audit log should contain event "schema_register" with subject "err-incompat"
 
   # ==========================================================================
   # 42201 — Invalid schema
@@ -121,6 +126,7 @@ Feature: Error Codes Exhaustive
       """
     Then the response status should be 422
     And the response should have error code 42201
+    And the audit log should contain event "schema_register"
 
   # ==========================================================================
   # 42202 — Invalid version
@@ -155,6 +161,7 @@ Feature: Error Codes Exhaustive
       """
     Then the response status should be 422
     And the response should have error code 42203
+    And the audit log should contain event "config_update"
 
   # ==========================================================================
   # 42204 — Invalid mode
@@ -167,6 +174,7 @@ Feature: Error Codes Exhaustive
       """
     Then the response status should be 422
     And the response should have error code 42204
+    And the audit log should contain event "mode_update"
 
   # ==========================================================================
   # 42205 — Operation not permitted (mode enforcement)
@@ -180,4 +188,5 @@ Feature: Error Codes Exhaustive
       """
     Then the response status should be 422
     And the response should have error code 42205
+    And the audit log should contain event "schema_register"
     When I set the global mode to "READWRITE"

@@ -116,6 +116,7 @@ Feature: Raw Schema Endpoints
     When I get the referenced by for subject "refby-base" version 1
     Then the response status should be 200
     And the response should be an array of length 1
+    And the audit log should contain event "schema_register" with subject "refby-consumer"
 
   Scenario: referencedby for non-existent subject returns 404
     When I GET "/subjects/no-such-refby-subject/versions/1/referencedby"

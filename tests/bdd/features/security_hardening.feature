@@ -29,6 +29,7 @@ Feature: Security Hardening
     And the response should not contain "panic"
     And the response should not contain "goroutine"
     And the response should not contain ".go:"
+    And the audit log should contain event "schema_register"
 
   Scenario: Invalid compatibility level returns clean error
     When I PUT "/config" with body:
@@ -39,6 +40,7 @@ Feature: Security Hardening
     And the response should be valid JSON
     And the response should not contain "panic"
     And the response should not contain "runtime error"
+    And the audit log should contain event "config_update"
 
   Scenario: Method not allowed returns standard JSON error
     When I PATCH "/subjects"

@@ -25,6 +25,7 @@ Feature: Config-defined API key authentication (memory storage)
       {"type":"record","name":"Test","fields":[{"name":"id","type":"int"}]}
       """
     Then the response status should be 403
+    And the audit log should contain event "auth_forbidden"
 
   @auth
   Scenario: config-defined admin API key can write
@@ -34,12 +35,14 @@ Feature: Config-defined API key authentication (memory storage)
       {"type":"record","name":"Test","fields":[{"name":"id","type":"int"}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "test-memory-apikey-admin"
 
   @auth
   Scenario: invalid API key gets 401
     Given I authenticate with API key "wrong-key"
     When I GET "/subjects"
     Then the response status should be 401
+    And the audit log should contain event "auth_failure"
 
   @auth
   Scenario: second config-defined API key also works

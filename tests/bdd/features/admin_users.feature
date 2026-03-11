@@ -16,6 +16,7 @@ Feature: Admin User Management
     And the response field "username" should be "alice"
     And the response field "role" should be "developer"
     And the response field "enabled" should be true
+    And the audit log should contain event "user_create"
 
   @auth
   Scenario: Create a user with email
@@ -26,6 +27,7 @@ Feature: Admin User Management
     And the response field "username" should be "bob"
     And the response field "role" should be "readonly"
     And the response field "email" should be "bob@example.com"
+    And the audit log should contain event "user_create"
 
   @auth
   Scenario: List users includes created users
@@ -61,6 +63,7 @@ Feature: Admin User Management
     Then the response status should be 200
     And the response field "role" should be "developer"
     And the response field "username" should be "frank"
+    And the audit log should contain event "user_update"
 
   @auth
   Scenario: Update user to disable account
@@ -74,6 +77,7 @@ Feature: Admin User Management
     Then the response status should be 200
     And the response field "enabled" should be false
     And the response field "username" should be "grace"
+    And the audit log should contain event "user_update"
 
   @auth
   Scenario: Delete user
@@ -82,6 +86,7 @@ Feature: Admin User Management
     And I store the response field "id" as "user_id"
     When I delete user with stored ID "user_id"
     Then the response status should be 204
+    And the audit log should contain event "user_delete"
 
   @auth
   Scenario: Duplicate username returns 409
@@ -95,6 +100,7 @@ Feature: Admin User Management
     Given I clear authentication
     When I create a user with username "judy" password "judy-secret" role "readonly"
     Then the response status should be 401
+    And the audit log should contain event "auth_failure"
 
   @auth
   Scenario: Create user as readonly user returns 403
@@ -103,6 +109,7 @@ Feature: Admin User Management
     When I authenticate as "karl" with password "karl-secret"
     And I create a user with username "liam" password "liam-secret" role "readonly"
     Then the response status should be 403
+    And the audit log should contain event "auth_forbidden"
 
   @auth
   Scenario: Create user with missing username returns 400

@@ -36,6 +36,7 @@ Feature: Wire-Compatible Metrics
     And the Prometheus metric "kafka_schema_registry_api_failure_count" should exist
     And the Prometheus metric "kafka_schema_registry_master_slave_role" should exist
     And the Prometheus metric "kafka_schema_registry_node_count" should exist
+    And the audit log should contain event "schema_register" with subject "metrics-existence-test"
 
   # ---------------------------------------------------------------------------
   # API call counters (AxonOps-only — counter semantics differ across JMX bridge)
@@ -68,6 +69,7 @@ Feature: Wire-Compatible Metrics
       """
     Then the response status should be 200
     And the Prometheus metric "kafka_schema_registry_registered_count" should have increased from "before"
+    And the audit log should contain event "schema_register" with subject "metrics-reg-test"
 
   @axonops-only
   Scenario: schemas_created counter tracks Avro registrations
@@ -79,6 +81,7 @@ Feature: Wire-Compatible Metrics
     Then the response status should be 200
     And the Prometheus metric "kafka_schema_registry_schemas_created" with labels "schema_type=\"avro\"" should exist
     And the Prometheus metric "kafka_schema_registry_registered_count" should have increased from "before_total"
+    And the audit log should contain event "schema_register" with subject "metrics-avro-test"
 
   @axonops-only
   Scenario: schemas_created counter tracks JSON Schema registrations
@@ -88,6 +91,7 @@ Feature: Wire-Compatible Metrics
       """
     Then the response status should be 200
     And the Prometheus metric "kafka_schema_registry_schemas_created" with labels "schema_type=\"json\"" should exist
+    And the audit log should contain event "schema_register" with subject "metrics-json-test"
 
   # ---------------------------------------------------------------------------
   # Schema deletion counters (AxonOps-only — increment verification)
@@ -103,6 +107,7 @@ Feature: Wire-Compatible Metrics
     When I delete subject "metrics-del-test"
     Then the response status should be 200
     And the Prometheus metric "kafka_schema_registry_deleted_count" should have increased from "before"
+    And the audit log should contain event "subject_delete" with subject "metrics-del-test"
 
   @axonops-only
   Scenario: schemas_deleted counter tracks deletions by type
@@ -113,6 +118,7 @@ Feature: Wire-Compatible Metrics
     When I delete subject "metrics-del-type-test"
     Then the response status should be 200
     And the Prometheus metric "kafka_schema_registry_schemas_deleted" with labels "schema_type=\"avro\"" should exist
+    And the audit log should contain event "subject_delete" with subject "metrics-del-type-test"
 
   @axonops-only
   Scenario: deleted_count increments when a version is deleted
@@ -129,6 +135,7 @@ Feature: Wire-Compatible Metrics
     Then the response status should be 200
     And the Prometheus metric "kafka_schema_registry_deleted_count" should have increased from "before"
     And the Prometheus metric "kafka_schema_registry_schemas_deleted" with labels "schema_type=\"avro\"" should exist
+    And the audit log should contain event "schema_delete" with subject "metrics-ver-del"
 
   # ---------------------------------------------------------------------------
   # Per-endpoint Confluent-compatible metrics
@@ -143,6 +150,7 @@ Feature: Wire-Compatible Metrics
     Then the response status should be 200
     And the Prometheus metric "kafka_schema_registry_jersey_metrics_request_total" with labels "endpoint=\"subjects.versions.register\"" should exist
     And the Prometheus metric "kafka_schema_registry_jersey_metrics_request_latency_seconds_count" with labels "endpoint=\"subjects.versions.register\"" should exist
+    And the audit log should contain event "schema_register" with subject "metrics-endpoint-test"
 
   @axonops-only
   Scenario: Per-endpoint request metrics track subject listing

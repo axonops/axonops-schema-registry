@@ -14,6 +14,7 @@ Feature: Response Shapes — Confluent Wire Compatibility
       """
     Then the response status should be 200
     And the response should have field "id"
+    And the audit log should contain event "schema_register" with subject "resp-reg-only-id"
 
   # ==========================================================================
   # SCHEMA-BY-ID RESPONSE — schemaType ALWAYS PRESENT
@@ -124,6 +125,7 @@ Feature: Response Shapes — Confluent Wire Compatibility
     And the response should have field "id"
     And the response should have field "schema"
     And the response field "schemaType" should be "AVRO"
+    And the audit log should contain event "schema_lookup" with subject "resp-avro-lookup"
 
   Scenario: Lookup response for Protobuf includes schemaType
     Given subject "resp-proto-lookup" has "PROTOBUF" schema:
@@ -146,6 +148,7 @@ Feature: Response Shapes — Confluent Wire Compatibility
     And the response should have field "id"
     And the response should have field "schema"
     And the response field "schemaType" should be "PROTOBUF"
+    And the audit log should contain event "schema_lookup" with subject "resp-proto-lookup"
 
   # ==========================================================================
   # CONFIG RESPONSE FIELD NAMES
@@ -160,6 +163,7 @@ Feature: Response Shapes — Confluent Wire Compatibility
     When I set the global config to "FULL"
     Then the response status should be 200
     And the response should have field "compatibility"
+    And the audit log should contain event "config_update"
 
   Scenario: GET /config/{subject} returns compatibilityLevel field
     Given subject "resp-cfg-sub" has compatibility level "FORWARD"
@@ -173,6 +177,7 @@ Feature: Response Shapes — Confluent Wire Compatibility
     Then the response status should be 200
     And the response should have field "compatibility"
     And the response field "compatibility" should be "FULL"
+    And the audit log should contain event "config_update"
 
   # ==========================================================================
   # MODE RESPONSE
@@ -189,6 +194,7 @@ Feature: Response Shapes — Confluent Wire Compatibility
     Then the response status should be 200
     And the response should have field "mode"
     And the response field "mode" should be "READWRITE"
+    And the audit log should contain event "mode_update"
 
   # ==========================================================================
   # DELETE SUBJECT RESPONSE BODY
@@ -203,6 +209,7 @@ Feature: Response Shapes — Confluent Wire Compatibility
     Then the response status should be 200
     And the response should be an array of length 1
     And the response array should contain integer 1
+    And the audit log should contain event "subject_delete" with subject "resp-del-sub-1"
 
   Scenario: DELETE subject with 3 versions returns array with all version numbers
     Given the global compatibility level is "NONE"
@@ -224,6 +231,7 @@ Feature: Response Shapes — Confluent Wire Compatibility
     And the response array should contain integer 1
     And the response array should contain integer 2
     And the response array should contain integer 3
+    And the audit log should contain event "subject_delete" with subject "resp-del-sub-3"
 
   # ==========================================================================
   # DELETE VERSION RESPONSE BODY
@@ -242,6 +250,7 @@ Feature: Response Shapes — Confluent Wire Compatibility
     When I delete version 1 of subject "resp-del-ver"
     Then the response status should be 200
     And the response should be an integer with value 1
+    And the audit log should contain event "schema_delete" with subject "resp-del-ver"
 
   Scenario: DELETE version 2 returns integer 2
     Given the global compatibility level is "NONE"
@@ -256,6 +265,7 @@ Feature: Response Shapes — Confluent Wire Compatibility
     When I delete version 2 of subject "resp-del-ver2"
     Then the response status should be 200
     And the response should be an integer with value 2
+    And the audit log should contain event "schema_delete" with subject "resp-del-ver2"
 
   # ==========================================================================
   # DELETE CONFIG RESPONSE

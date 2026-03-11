@@ -22,12 +22,14 @@ Feature: htpasswd file authentication
     Given I authenticate as "htuser1" with password "wrong-password"
     When I GET "/subjects"
     Then the response status should be 401
+    And the audit log should contain event "auth_failure"
 
   @auth
   Scenario: htpasswd user not in file gets 401
     Given I authenticate as "nonexistent" with password "any-password"
     When I GET "/subjects"
     Then the response status should be 401
+    And the audit log should contain event "auth_failure"
 
   @auth
   Scenario: htpasswd user gets default readonly role
@@ -37,6 +39,7 @@ Feature: htpasswd file authentication
       {"type":"record","name":"Test","fields":[{"name":"id","type":"int"}]}
       """
     Then the response status should be 403
+    And the audit log should contain event "auth_forbidden"
 
   @auth
   Scenario: database user takes priority over htpasswd user

@@ -22,18 +22,21 @@ Feature: Authentication flows and RBAC
     Given I authenticate as "admin" with password "wrong-password"
     When I GET "/subjects"
     Then the response status should be 401
+    And the audit log should contain event "auth_failure"
 
   @auth
   Scenario: Non-existent user returns 401
     Given I authenticate as "nonexistent" with password "any-password"
     When I GET "/subjects"
     Then the response status should be 401
+    And the audit log should contain event "auth_failure"
 
   @auth
   Scenario: No auth header on protected endpoint returns 401
     Given I clear authentication
     When I GET "/subjects"
     Then the response status should be 401
+    And the audit log should contain event "auth_failure"
 
   @auth
   Scenario: Public health endpoint works without auth
@@ -75,6 +78,7 @@ Feature: Authentication flows and RBAC
       {"type":"record","name":"Test","fields":[{"name":"id","type":"int"}]}
       """
     Then the response status should be 403
+    And the audit log should contain event "auth_forbidden"
 
   @auth
   Scenario: Readonly user cannot DELETE subject
@@ -91,6 +95,7 @@ Feature: Authentication flows and RBAC
     When I authenticate as "viewer3" with password "viewer-pass"
     And I DELETE "/subjects/to-delete-value"
     Then the response status should be 403
+    And the audit log should contain event "auth_forbidden"
 
   @auth
   Scenario: Readonly user can GET /config
@@ -112,6 +117,7 @@ Feature: Authentication flows and RBAC
       {"compatibility":"NONE"}
       """
     Then the response status should be 403
+    And the audit log should contain event "auth_forbidden"
 
   # ---------------------------------------------------------------------------
   # RBAC - developer role
@@ -137,6 +143,7 @@ Feature: Authentication flows and RBAC
       {"type":"record","name":"DevTest","fields":[{"name":"name","type":"string"}]}
       """
     Then the response status should be 200
+    And the audit log should contain event "schema_register" with subject "dev-test-value"
 
   @auth
   Scenario: Developer cannot DELETE subject
@@ -152,6 +159,7 @@ Feature: Authentication flows and RBAC
     When I authenticate as "dev3" with password "dev-pass"
     And I DELETE "/subjects/dev-nodelete-value"
     Then the response status should be 403
+    And the audit log should contain event "auth_forbidden"
 
   @auth
   Scenario: Developer can GET /config
@@ -179,6 +187,7 @@ Feature: Authentication flows and RBAC
     Then the response status should be 200
     When I DELETE "/subjects/admin-test-value"
     Then the response status should be 200
+    And the audit log should contain event "subject_delete" with subject "admin-test-value"
 
   @auth
   Scenario: Admin can read admin endpoints
@@ -197,6 +206,7 @@ Feature: Authentication flows and RBAC
     When I authenticate as "mgr3" with password "mgr-pass"
     And I create a user with username "should-fail" password "nope" role "readonly"
     Then the response status should be 403
+    And the audit log should contain event "auth_forbidden"
 
   # ---------------------------------------------------------------------------
   # RBAC - DEK Registry (encryption) endpoints
@@ -222,6 +232,7 @@ Feature: Authentication flows and RBAC
       {"name":"rbac-test-kek","kmsType":"aws-kms","kmsKeyId":"arn:aws:kms:us-east-1:123:key/test"}
       """
     Then the response status should be 403
+    And the audit log should contain event "auth_forbidden"
 
   @auth
   Scenario: Developer can GET /dek-registry/v1/keks
@@ -243,6 +254,7 @@ Feature: Authentication flows and RBAC
       {"name":"rbac-dev-kek","kmsType":"aws-kms","kmsKeyId":"arn:aws:kms:us-east-1:123:key/test"}
       """
     Then the response status should be 403
+    And the audit log should contain event "auth_forbidden"
 
   @auth
   Scenario: Admin can create and read KEK
@@ -296,6 +308,7 @@ Feature: Authentication flows and RBAC
       {"name":"rbac-test-exporter","subjects":["test"],"contextType":"CUSTOM","context":"test-ctx","config":{"schema.registry.url":"http://remote:8081"}}
       """
     Then the response status should be 403
+    And the audit log should contain event "auth_forbidden"
 
   @auth
   Scenario: Developer cannot POST exporter
@@ -308,6 +321,7 @@ Feature: Authentication flows and RBAC
       {"name":"dev-test-exporter","subjects":["test"],"contextType":"CUSTOM","context":"test-ctx","config":{"schema.registry.url":"http://remote:8081"}}
       """
     Then the response status should be 403
+    And the audit log should contain event "auth_forbidden"
 
   @auth
   Scenario: Admin can create and list exporters
