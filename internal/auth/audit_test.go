@@ -1421,6 +1421,86 @@ func TestLogMCPEvent_ActorFields(t *testing.T) {
 	}
 }
 
+func TestAuditHints_ContextRoundTrip(t *testing.T) {
+	// Verify that AuditHints can be stored and retrieved from context.
+	hints := &AuditHints{
+		BeforeHash: "sha256:aaa",
+		AfterHash:  "sha256:bbb",
+		SchemaType: "AVRO",
+		SchemaID:   42,
+		Version:    3,
+		Context:    "production",
+	}
+
+	ctx := context.WithValue(context.Background(), auditHintsKey{}, hints)
+	got := GetAuditHints(ctx)
+	if got == nil {
+		t.Fatal("expected AuditHints from context, got nil")
+	}
+	if got.BeforeHash != "sha256:aaa" {
+		t.Errorf("BeforeHash = %q, want sha256:aaa", got.BeforeHash)
+	}
+	if got.AfterHash != "sha256:bbb" {
+		t.Errorf("AfterHash = %q, want sha256:bbb", got.AfterHash)
+	}
+	if got.SchemaType != "AVRO" {
+		t.Errorf("SchemaType = %q, want AVRO", got.SchemaType)
+	}
+	if got.SchemaID != 42 {
+		t.Errorf("SchemaID = %d, want 42", got.SchemaID)
+	}
+	if got.Version != 3 {
+		t.Errorf("Version = %d, want 3", got.Version)
+	}
+	if got.Context != "production" {
+		t.Errorf("Context = %q, want production", got.Context)
+	}
+}
+
+func TestAuditHints_NilWhenAbsent(t *testing.T) {
+	got := GetAuditHints(context.Background())
+	if got != nil {
+		t.Error("expected nil AuditHints from context without hints")
+	}
+}
+
+func TestAuditLogger_Middleware_PropagatesHints(t *testing.T) {
+	var buf bytes.Buffer
+	al := NewAuditLoggerWithWriter(config.AuditConfig{Enabled: true}, &buf)
+	defer al.Close()
+
+	handler := al.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Handler sets audit hints (simulating what RegisterSchema handler does)
+		if hints := GetAuditHints(r.Context()); hints != nil {
+			hints.BeforeHash = "sha256:before123"
+			hints.AfterHash = "sha256:after456"
+			hints.SchemaType = "PROTOBUF"
+			hints.SchemaID = 99
+			hints.Version = 5
+			hints.Context = "staging"
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	r := httptest.NewRequest("POST", "/subjects/test/versions", nil)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+
+	content := buf.String()
+	if !strings.Contains(content, "sha256:before123") {
+		t.Error("expected before_hash in audit output")
+	}
+	if !strings.Contains(content, "sha256:after456") {
+		t.Error("expected after_hash in audit output")
+	}
+	if !strings.Contains(content, "PROTOBUF") {
+		t.Error("expected schema_type in audit output")
+	}
+	if !strings.Contains(content, "staging") {
+		t.Error("expected context in audit output")
+	}
+}
+
 func TestLogMCPConfirmationEvent_ActorFields(t *testing.T) {
 	var buf bytes.Buffer
 	al := NewAuditLoggerWithWriter(config.AuditConfig{Enabled: true}, &buf)

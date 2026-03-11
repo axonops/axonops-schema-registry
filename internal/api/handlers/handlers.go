@@ -3,6 +3,7 @@ package handlers
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,6 +15,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/axonops/axonops-schema-registry/internal/api/types"
+	"github.com/axonops/axonops-schema-registry/internal/auth"
 	"github.com/axonops/axonops-schema-registry/internal/metrics"
 	"github.com/axonops/axonops-schema-registry/internal/registry"
 	"github.com/axonops/axonops-schema-registry/internal/storage"
@@ -548,6 +550,12 @@ func (h *Handler) RegisterSchema(w http.ResponseWriter, r *http.Request) {
 
 	normalizeSchema := r.URL.Query().Get("normalize") == "true"
 
+	// Capture previous fingerprint for audit change integrity.
+	var prevFingerprint string
+	if prev, _ := h.registry.GetLatestSchema(r.Context(), registryCtx, subject); prev != nil {
+		prevFingerprint = prev.Fingerprint
+	}
+
 	var schema *storage.SchemaRecord
 	var err error
 
@@ -622,6 +630,20 @@ func (h *Handler) RegisterSchema(w http.ResponseWriter, r *http.Request) {
 	if h.metrics != nil {
 		h.metrics.RecordSchemaRegistration(string(schema.SchemaType), true)
 		h.metrics.SchemaVersions.WithLabelValues(subject).Set(float64(schema.Version))
+	}
+
+	// Set audit hints for change integrity tracking.
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		if prevFingerprint != "" {
+			hints.BeforeHash = "sha256:" + prevFingerprint
+		}
+		if schema.Fingerprint != "" {
+			hints.AfterHash = "sha256:" + schema.Fingerprint
+		}
+		hints.SchemaType = string(schema.SchemaType)
+		hints.SchemaID = schema.ID
+		hints.Version = schema.Version
+		hints.Context = registryCtx
 	}
 
 	writeJSON(w, http.StatusOK, types.RegisterSchemaResponse{
@@ -886,6 +908,9 @@ func (h *Handler) SetConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Capture previous config for audit change integrity.
+	prevConfig, _ := h.registry.GetConfig(r.Context(), registryCtx, subject)
+
 	configOpts := registry.SetConfigOpts{
 		Alias:               req.Alias,
 		CompatibilityGroup:  req.CompatibilityGroup,
@@ -908,6 +933,15 @@ func (h *Handler) SetConfig(w http.ResponseWriter, r *http.Request) {
 		}
 		writeInternalError(w, err)
 		return
+	}
+
+	// Set audit hints for config change integrity.
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		if prevConfig != "" {
+			hints.BeforeHash = hashString(prevConfig)
+		}
+		hints.AfterHash = hashString(strings.ToUpper(req.Compatibility))
+		hints.Context = registryCtx
 	}
 
 	resp := types.ConfigRequest{
@@ -1155,6 +1189,9 @@ func (h *Handler) SetMode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Capture previous mode for audit change integrity.
+	prevMode, _ := h.registry.GetMode(r.Context(), registryCtx, subject)
+
 	if err := h.registry.SetMode(r.Context(), registryCtx, subject, req.Mode, force); err != nil {
 		if errors.Is(err, registry.ErrInvalidMode) {
 			writeError(w, http.StatusUnprocessableEntity, types.ErrorCodeInvalidMode, err.Error())
@@ -1166,6 +1203,15 @@ func (h *Handler) SetMode(w http.ResponseWriter, r *http.Request) {
 		}
 		writeInternalError(w, err)
 		return
+	}
+
+	// Set audit hints for mode change integrity.
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		if prevMode != "" {
+			hints.BeforeHash = hashString(prevMode)
+		}
+		hints.AfterHash = hashString(strings.ToUpper(req.Mode))
+		hints.Context = registryCtx
 	}
 
 	writeJSON(w, http.StatusOK, types.ModeResponse{
@@ -1769,4 +1815,10 @@ func (h *Handler) resolveReferenceSchemasForResponse(ctx context.Context, regist
 		}
 	}
 	return resolved
+}
+
+// hashString returns "sha256:<hex>" for a non-empty string, used for audit change integrity.
+func hashString(s string) string {
+	h := sha256.Sum256([]byte(s))
+	return fmt.Sprintf("sha256:%x", h)
 }

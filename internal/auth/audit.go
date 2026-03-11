@@ -327,6 +327,31 @@ func (al *AuditLogger) Log(event *AuditEvent) {
 	al.logger.LogAttrs(context.Background(), slog.LevelInfo, "audit", attrs...)
 }
 
+// AuditHints allows handlers to pass additional audit information (such as
+// before/after hashes and schema metadata) back to the audit middleware.
+// The middleware injects a mutable *AuditHints into the request context before
+// calling the handler; the handler fills in the fields it knows about.
+type AuditHints struct {
+	BeforeHash string // sha256:xxxx of the object before a change
+	AfterHash  string // sha256:xxxx of the object after a change
+	SchemaType string // AVRO, PROTOBUF, JSON
+	SchemaID   int64
+	Version    int
+	Context    string // registry context namespace
+}
+
+type auditHintsKey struct{}
+
+// GetAuditHints retrieves the mutable AuditHints from the request context.
+// Returns nil if no hints are present (e.g., audit middleware is disabled).
+// Handlers call this to set before_hash, after_hash, and other audit metadata.
+func GetAuditHints(ctx context.Context) *AuditHints {
+	if hints, ok := ctx.Value(auditHintsKey{}).(*AuditHints); ok {
+		return hints
+	}
+	return nil
+}
+
 // Middleware returns HTTP middleware for audit logging.
 func (al *AuditLogger) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -348,6 +373,11 @@ func (al *AuditLogger) Middleware(next http.Handler) http.Handler {
 				requestBody = requestBody[:1000] + "..."
 			}
 		}
+
+		// Inject mutable audit hints into the request context.
+		// Handlers fill in fields like BeforeHash and AfterHash.
+		hints := &AuditHints{}
+		r = r.WithContext(context.WithValue(r.Context(), auditHintsKey{}, hints))
 
 		// Create response wrapper to capture status code
 		rw := &responseWriter{ResponseWriter: w, statusCode: http.StatusOK}
@@ -388,6 +418,12 @@ func (al *AuditLogger) Middleware(next http.Handler) http.Handler {
 			AuthMethod:  authMethod,
 			TargetType:  targetType,
 			TargetID:    targetID,
+			BeforeHash:  hints.BeforeHash,
+			AfterHash:   hints.AfterHash,
+			SchemaType:  hints.SchemaType,
+			SchemaID:    hints.SchemaID,
+			Version:     hints.Version,
+			Context:     hints.Context,
 			SourceIP:    getClientIP(r),
 			UserAgent:   r.UserAgent(),
 			Method:      r.Method,
