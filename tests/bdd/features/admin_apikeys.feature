@@ -19,7 +19,13 @@ Feature: Admin API Key Management
     And the response field "enabled" should be true
     And the response field "key" should not be empty
     And the response field "key_prefix" should not be empty
-    And the audit log should contain event "apikey_create"
+    And the audit log should contain an event:
+      | event_type  | apikey_create  |
+      | user        | admin          |
+      | role        | admin          |
+      | method      | POST           |
+      | path        | /admin/apikeys |
+      | status_code | 201            |
 
   @auth
   Scenario: List API keys
@@ -57,7 +63,13 @@ Feature: Admin API Key Management
     And the response should be valid JSON
     And the response field "name" should be "new-name"
     And the response field "role" should be "admin"
-    And the audit log should contain event "apikey_update"
+    And the audit log should contain an event:
+      | event_type  | apikey_update  |
+      | user        | admin          |
+      | role        | admin          |
+      | method      | PUT            |
+      | path        | /admin/apikeys |
+      | status_code | 200            |
 
   @auth
   Scenario: Disable API key via update
@@ -72,7 +84,13 @@ Feature: Admin API Key Management
     And the response should be valid JSON
     And the response field "enabled" should be false
     And the response field "name" should be "disable-me"
-    And the audit log should contain event "apikey_update"
+    And the audit log should contain an event:
+      | event_type  | apikey_update  |
+      | user        | admin          |
+      | role        | admin          |
+      | method      | PUT            |
+      | path        | /admin/apikeys |
+      | status_code | 200            |
 
   @auth
   Scenario: Delete API key
@@ -81,7 +99,13 @@ Feature: Admin API Key Management
     And I store the response field "id" as "key_id"
     When I delete API key with stored ID "key_id"
     Then the response status should be 204
-    And the audit log should contain event "apikey_delete"
+    And the audit log should contain an event:
+      | event_type  | apikey_delete  |
+      | user        | admin          |
+      | role        | admin          |
+      | method      | DELETE         |
+      | path        | /admin/apikeys |
+      | status_code | 204            |
 
   @auth
   Scenario: Revoke API key sets enabled to false
@@ -93,7 +117,13 @@ Feature: Admin API Key Management
     And the response should be valid JSON
     And the response field "enabled" should be false
     And the response field "name" should be "revoke-me"
-    And the audit log should contain event "apikey_revoke"
+    And the audit log should contain an event:
+      | event_type  | apikey_revoke  |
+      | user        | admin          |
+      | role        | admin          |
+      | method      | POST           |
+      | path        | /admin/apikeys |
+      | status_code | 200            |
 
   @auth
   Scenario: Rotate API key returns new key and revokes old
@@ -106,7 +136,13 @@ Feature: Admin API Key Management
     And the response should be valid JSON
     And the response should have field "new_key"
     And the response should have field "revoked_id"
-    And the audit log should contain event "apikey_rotate"
+    And the audit log should contain an event:
+      | event_type  | apikey_rotate  |
+      | user        | admin          |
+      | role        | admin          |
+      | method      | POST           |
+      | path        | /admin/apikeys |
+      | status_code | 200            |
 
   @auth
   Scenario: Duplicate API key name returns 409
@@ -120,7 +156,12 @@ Feature: Admin API Key Management
     Given I clear authentication
     When I create an API key with name "no-auth-key" role "admin" expires_in 86400
     Then the response status should be 401
-    And the audit log should contain event "auth_failure"
+    And the audit log should contain an event:
+      | event_type  | auth_failure   |
+      | user        |                |
+      | method      | POST           |
+      | path        | /admin/apikeys |
+      | status_code | 401            |
 
   @auth
   Scenario: Create API key as readonly user returns 403
@@ -129,7 +170,13 @@ Feature: Admin API Key Management
     And I authenticate as "viewer" with password "viewer-password"
     When I create an API key with name "forbidden-key" role "readonly" expires_in 86400
     Then the response status should be 403
-    And the audit log should contain event "auth_forbidden"
+    And the audit log should contain an event:
+      | event_type  | auth_forbidden |
+      | user        | viewer         |
+      | role        | readonly       |
+      | method      | POST           |
+      | path        | /admin/apikeys |
+      | status_code | 403            |
 
   @auth
   Scenario: Create API key with missing name returns 400

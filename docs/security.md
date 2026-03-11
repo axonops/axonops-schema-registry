@@ -230,80 +230,50 @@ When using per-client rate limiting, the registry provides a `CleanupStaleClient
 
 ## Audit Logging
 
-The audit logger records security-relevant events to a structured JSON log, either to a file or to standard output. Events are recorded after the request is processed, capturing the outcome (status code, duration).
+The audit logger records security-relevant events to a structured JSON log. Each event captures **who** performed an action (actor identity, type, role, and authentication method), **what** was affected (target type and identifier), and **whether** the action succeeded or failed (outcome and reason codes). Events cover both the REST API and the MCP server.
 
-### Configuration
+For the complete audit logging reference — including the full event schema, all field descriptions, event types, actor types, authentication methods, reason codes, change integrity hashes, and example payloads — see the **[Audit Logging Guide](auditing.md)**.
+
+### Quick Configuration
 
 ```yaml
 security:
   audit:
     enabled: true
     log_file: /var/log/axonops-schema-registry/audit.log
-    events:
-      - schema_register
-      - schema_delete
-      - config_update
-      - auth_failure
-      - auth_forbidden
-      - subject_delete
-    include_body: false
+    events: []          # empty = all security-relevant events (recommended)
+    include_body: false  # truncated request body in audit entries
 ```
 
-| Field | Description | Default |
-|-------|-------------|---------|
-| `enabled` | Enable audit logging | `false` |
-| `log_file` | Path to the audit log file (stdout if empty) | `""` |
-| `events` | List of event types to record (all security-relevant events if empty) | `[]` |
-| `include_body` | Include the request body in audit entries (truncated to 1000 characters) | `false` |
-
-### Event Types
-
-| Event | Trigger |
-|-------|---------|
-| `schema_register` | `POST /subjects/{subject}/versions` |
-| `schema_delete` | `DELETE /subjects/{subject}/versions/{version}` |
-| `schema_get` | `GET /subjects/{subject}/versions/*` or `GET /schemas/ids/*` |
-| `schema_lookup` | `POST /subjects/{subject}` |
-| `config_get` | `GET /config` or `GET /config/{subject}` |
-| `config_update` | `PUT /config` or `PUT /config/{subject}` |
-| `config_delete` | `DELETE /config` or `DELETE /config/{subject}` |
-| `mode_get` | `GET /mode` or `GET /mode/{subject}` |
-| `mode_update` | `PUT /mode` or `PUT /mode/{subject}` |
-| `auth_success` | Successful authentication |
-| `auth_failure` | HTTP 401 response (authentication failed) |
-| `auth_forbidden` | HTTP 403 response (authorization failed) |
-| `subject_delete` | `DELETE /subjects/{subject}` |
-| `subject_list` | `GET /subjects` |
-| `mcp_tool_call` | MCP tool invoked successfully |
-| `mcp_tool_error` | MCP tool invoked with error result |
-| `mcp_admin_action` | MCP admin tool invoked (user/API key management) |
-| `mcp_confirm_issued` | MCP two-phase confirmation token issued |
-| `mcp_confirm_rejected` | MCP confirmation token validation failed |
-| `mcp_confirmed` | MCP destructive operation confirmed and executed |
-
-When the `events` list is empty, the following events are logged by default: `schema_register`, `schema_delete`, `config_update`, `mode_update`, `auth_failure`, `auth_forbidden`, `subject_delete`, `mcp_tool_call`, `mcp_tool_error`, `mcp_admin_action`, `mcp_confirm_issued`, `mcp_confirm_rejected`, and `mcp_confirmed`.
-
-### Log Format
-
-Each audit entry is a JSON object written to a single line:
+### Example Event
 
 ```json
 {
-  "timestamp": "2026-02-16T10:30:00Z",
+  "timestamp": "2026-03-11T14:30:00Z",
+  "duration_ms": 42,
   "event_type": "schema_register",
-  "user": "jane",
+  "outcome": "success",
+  "actor_id": "jane",
+  "actor_type": "user",
   "role": "developer",
-  "client_ip": "192.168.1.50",
+  "auth_method": "basic",
+  "target_type": "subject",
+  "target_id": "payments-value",
+  "schema_id": 42,
+  "version": 3,
+  "schema_type": "AVRO",
+  "before_hash": "sha256:8b7f...",
+  "after_hash": "sha256:2d91...",
+  "source_ip": "172.18.0.1",
+  "user_agent": "curl/8.1",
   "method": "POST",
   "path": "/subjects/payments-value/versions",
   "status_code": 200,
-  "duration_ms": 42,
-  "subject": "payments-value",
   "request_id": "localhost/abc-123-def"
 }
 ```
 
-Fields include: `timestamp`, `event_type`, `user`, `role`, `client_ip`, `method`, `path`, `status_code`, `duration_ms`, `subject`, `version`, `schema_id`, `error`, `request_id`, and optionally `request_body` and `metadata`.
+See the [Audit Logging Guide](auditing.md) for the complete field reference and more examples.
 
 ## Unauthenticated Endpoints
 

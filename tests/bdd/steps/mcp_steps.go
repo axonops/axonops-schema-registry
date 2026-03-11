@@ -715,6 +715,93 @@ func RegisterMCPSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 		return fmt.Errorf("expected audit event %q with path containing %q not found in log:\n%s", eventType, pathFragment, logStr)
 	})
 
+	// Composite audit assertion: validates multiple fields of a single audit event at once.
+	// Usage:
+	//   And the audit log should contain an event:
+	//     | event_type  | apikey_create  |
+	//     | user        | admin          |
+	//     | role        | admin          |
+	//     | method      | POST           |
+	//     | path        | /admin/apikeys |
+	//     | status_code | 201            |
+	//
+	// Supported fields: event_type, user, role, method, path, status_code, subject, error.
+	// The "path" field uses "contains" matching; all others use exact match.
+	// An empty value (e.g., | user | |) matches the empty string.
+	ctx.Step(`^the audit log should contain an event:$`, func(table *godog.Table) error {
+		logStr, err := getAuditLog()
+		if err != nil {
+			return err
+		}
+
+		// Build expected field map from the table.
+		expected := make(map[string]string)
+		for _, row := range table.Rows {
+			if len(row.Cells) >= 2 {
+				expected[row.Cells[0].Value] = row.Cells[1].Value
+			}
+		}
+
+		if _, ok := expected["event_type"]; !ok {
+			return fmt.Errorf("audit assertion table must include event_type")
+		}
+
+		events := parseAuditEvents(logStr)
+
+		// Find an event matching ALL specified fields.
+		var bestMatch map[string]interface{}
+		bestMatchCount := 0
+		for _, event := range events {
+			matchCount := 0
+			allMatch := true
+			for field, wantVal := range expected {
+				gotVal := fmt.Sprintf("%v", event[field])
+				// Handle numeric fields that JSON decodes as float64.
+				if field == "status_code" {
+					if num, ok := event[field].(float64); ok {
+						gotVal = fmt.Sprintf("%d", int(num))
+					}
+				}
+				if field == "path" {
+					// Path uses contains matching.
+					if path, ok := event["path"].(string); ok && strings.Contains(path, wantVal) {
+						matchCount++
+					} else {
+						allMatch = false
+					}
+				} else {
+					if gotVal == wantVal {
+						matchCount++
+					} else {
+						allMatch = false
+					}
+				}
+			}
+			if allMatch {
+				return nil // All fields match.
+			}
+			if matchCount > bestMatchCount {
+				bestMatchCount = matchCount
+				bestMatch = event
+			}
+		}
+
+		// Build a helpful error message showing the best partial match.
+		var detail strings.Builder
+		detail.WriteString("expected audit event not found. Wanted:\n")
+		for field, val := range expected {
+			detail.WriteString(fmt.Sprintf("  %s = %q\n", field, val))
+		}
+		if bestMatch != nil {
+			detail.WriteString("best partial match:\n")
+			for field := range expected {
+				detail.WriteString(fmt.Sprintf("  %s = %q\n", field, fmt.Sprintf("%v", bestMatch[field])))
+			}
+		}
+		detail.WriteString(fmt.Sprintf("full audit log (%d events):\n%s", len(events), logStr))
+		return fmt.Errorf("%s", detail.String())
+	})
+
 	ctx.Step(`^I can unwrap the MCP result encrypted key material using KMS type "([^"]*)" and key ID "([^"]*)"$`, func(kmsType, keyID string) error {
 		if tc.MCPError != nil {
 			return fmt.Errorf("MCP call failed: %v", tc.MCPError)
