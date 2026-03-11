@@ -149,6 +149,11 @@ Feature: MCP Two-Phase Confirmation for Destructive Operations
 
   Scenario: Delete subject-level config does NOT require confirmation
     Given I register an Avro schema for subject "cfg-sub"
+    When I call MCP tool "set_config" with JSON input:
+      """
+      {"subject": "cfg-sub", "compatibility_level": "FULL"}
+      """
+    Then the MCP result should contain "FULL"
     When I call MCP tool "delete_config" with JSON input:
       """
       {"subject": "cfg-sub"}

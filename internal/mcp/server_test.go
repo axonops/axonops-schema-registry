@@ -3503,7 +3503,9 @@ func TestConfirmation_DeleteSubjectRequiresDryRun(t *testing.T) {
 		t.Fatalf("soft delete: %v", err)
 	}
 
-	// Permanent delete without dry_run should return confirmation_required error
+	// Permanent delete without dry_run should return a confirmation prompt.
+	// IsError is false because a confirmation prompt is informational, not a failure —
+	// the tool was called correctly and is directing the caller through the two-phase flow.
 	result, err := cs.CallTool(ctx, &gomcp.CallToolParams{
 		Name:      "delete_subject",
 		Arguments: map[string]any{"subject": "test-sub", "permanent": true},
@@ -3511,8 +3513,8 @@ func TestConfirmation_DeleteSubjectRequiresDryRun(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CallTool: %v", err)
 	}
-	if !result.IsError {
-		t.Fatal("expected error result when confirmation required")
+	if result.IsError {
+		t.Fatal("confirmation prompt should not set IsError (it is informational, not a failure)")
 	}
 	text := resultText(t, result)
 	if !strings.Contains(text, "confirmation_required") {
@@ -3620,7 +3622,8 @@ func TestConfirmation_ImportSchemasRequiresConfirmation(t *testing.T) {
 	cs, _ := newTestMCPClientWithConfirmations(t)
 	ctx := context.Background()
 
-	// Import without dry_run should require confirmation
+	// Import without dry_run should return a confirmation prompt.
+	// IsError is false — same rationale as delete_subject confirmation.
 	result, err := cs.CallTool(ctx, &gomcp.CallToolParams{
 		Name: "import_schemas",
 		Arguments: map[string]any{
@@ -3635,8 +3638,8 @@ func TestConfirmation_ImportSchemasRequiresConfirmation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CallTool: %v", err)
 	}
-	if !result.IsError {
-		t.Fatal("expected error result when confirmation required for import")
+	if result.IsError {
+		t.Fatal("confirmation prompt should not set IsError (it is informational, not a failure)")
 	}
 	text := resultText(t, result)
 	if !strings.Contains(text, "confirmation_required") {

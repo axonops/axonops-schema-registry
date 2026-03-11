@@ -271,10 +271,14 @@ func (s *Server) confirmationCheck(toolName string, dryRun bool, confirmToken st
 			IsError: true,
 		}
 	}
+	// IsError is false because a confirmation prompt is not a failure — the tool
+	// was called correctly and is returning an instructional response directing
+	// the caller through the two-phase confirmation flow.  The structured JSON
+	// body already contains "confirmation_required": true for MCP clients to parse.
 	return &gomcp.CallToolResult{
 		Content: []gomcp.Content{
 			&gomcp.TextContent{Text: string(data)},
 		},
-		IsError: true,
+		IsError: false,
 	}
 }

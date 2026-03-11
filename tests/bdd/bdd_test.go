@@ -141,7 +141,13 @@ func TestFeatures(t *testing.T) {
 		TestingT: t,
 	}
 
-	auditFetcher, clearAuditLog := makeAuditHelpers(composeFiles, "")
+	// Confluent's schema registry has no audit logging — don't wire up
+	// audit helpers so that audit assertion steps gracefully no-op.
+	var auditFetcher func() (string, error)
+	var clearAuditLog func() error
+	if backend != "confluent" {
+		auditFetcher, clearAuditLog = makeAuditHelpers(composeFiles, "")
+	}
 
 	suite := godog.TestSuite{
 		ScenarioInitializer: func(ctx *godog.ScenarioContext) {
