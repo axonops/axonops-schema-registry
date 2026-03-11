@@ -100,8 +100,12 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     When I set the global mode to "READONLY"
     Then the response status should be 200
     When I set the global mode to "READWRITE"
-    And the audit log should contain event "mode_update"
-    And the audit log should contain event "mode_update" with method "PUT"
+    And the audit log should contain an event:
+      | event_type  | mode_update |
+      | outcome     | success     |
+      | actor_type  | anonymous   |
+      | method      | PUT         |
+      | path        | /mode       |
 
   # ==========================================================================
   # PER-SUBJECT IMPORT MODE ISOLATION
@@ -117,8 +121,13 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
       """
     Then the response status should be 200
     And the response field "id" should be 70000
-    And the audit log should contain event "schema_register"
-    And the audit log should contain event "schema_register" with subject "imp-comp-per-imp"
+    And the audit log should contain an event:
+      | event_type  | schema_register                    |
+      | outcome     | success                            |
+      | actor_type  | anonymous                          |
+      | target_id   | imp-comp-per-imp                   |
+      | method      | POST                               |
+      | path        | /subjects/imp-comp-per-imp/versions |
 
   Scenario: Per-subject IMPORT blocks normal registration on that subject
     Given the global mode is "READWRITE"
@@ -145,8 +154,13 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
       {"type":"record","name":"Isolated","fields":[{"name":"a","type":"string"}]}
       """
     Then the response status should be 422
-    And the audit log should contain event "schema_register"
-    And the audit log should contain event "schema_register" with subject "imp-comp-per-other"
+    And the audit log should contain an event:
+      | event_type  | schema_register                      |
+      | outcome     | success                              |
+      | actor_type  | anonymous                            |
+      | target_id   | imp-comp-per-other                   |
+      | method      | POST                                 |
+      | path        | /subjects/imp-comp-per-other/versions |
 
   Scenario: Per-subject READWRITE overrides global IMPORT
     When I set the global mode to "IMPORT"
@@ -162,8 +176,13 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
       """
     Then the response status should be 200
     When I set the global mode to "READWRITE"
-    And the audit log should contain event "schema_register"
-    And the audit log should contain event "schema_register" with subject "imp-comp-per-rw-override"
+    And the audit log should contain an event:
+      | event_type  | schema_register                             |
+      | outcome     | success                                     |
+      | actor_type  | anonymous                                   |
+      | target_id   | imp-comp-per-rw-override                    |
+      | method      | POST                                        |
+      | path        | /subjects/imp-comp-per-rw-override/versions |
 
   Scenario: Per-subject IMPORT overrides global READWRITE for explicit ID
     Given the global mode is "READWRITE"
@@ -180,8 +199,13 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
       {"schema": "{\"type\":\"string\"}", "id": 70011}
       """
     Then the response status should be 422
-    And the audit log should contain event "schema_register"
-    And the audit log should contain event "schema_register" with subject "imp-comp-per-imp-override"
+    And the audit log should contain an event:
+      | event_type  | schema_register                                |
+      | outcome     | success                                        |
+      | actor_type  | anonymous                                      |
+      | target_id   | imp-comp-per-imp-override                      |
+      | method      | POST                                           |
+      | path        | /subjects/imp-comp-per-imp-override/versions   |
 
   # ==========================================================================
   # EXPLICIT VERSION HANDLING
@@ -199,8 +223,13 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     Then the response status should be 200
     And the response field "version" should be 1
     And the response field "id" should be 71000
-    And the audit log should contain event "schema_register"
-    And the audit log should contain event "schema_register" with subject "imp-comp-ver1"
+    And the audit log should contain an event:
+      | event_type  | schema_register                    |
+      | outcome     | success                            |
+      | actor_type  | anonymous                          |
+      | target_id   | imp-comp-ver1                      |
+      | method      | POST                               |
+      | path        | /subjects/imp-comp-ver1/versions   |
 
   Scenario: Import with high version number
     When I set the global mode to "IMPORT"
@@ -213,8 +242,13 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     When I get version 999 of subject "imp-comp-ver-high"
     Then the response status should be 200
     And the response field "version" should be 999
-    And the audit log should contain event "schema_register"
-    And the audit log should contain event "schema_register" with subject "imp-comp-ver-high"
+    And the audit log should contain an event:
+      | event_type  | schema_register                        |
+      | outcome     | success                                |
+      | actor_type  | anonymous                              |
+      | target_id   | imp-comp-ver-high                      |
+      | method      | POST                                   |
+      | path        | /subjects/imp-comp-ver-high/versions   |
 
   Scenario: Import reverse order — version 3 before version 1
     When I set the global mode to "IMPORT"
@@ -243,8 +277,13 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     When I get version 3 of subject "imp-comp-ver-rev"
     Then the response status should be 200
     And the response field "id" should be 71023
-    And the audit log should contain event "schema_register"
-    And the audit log should contain event "schema_register" with subject "imp-comp-ver-rev"
+    And the audit log should contain an event:
+      | event_type  | schema_register                       |
+      | outcome     | success                               |
+      | actor_type  | anonymous                             |
+      | target_id   | imp-comp-ver-rev                      |
+      | method      | POST                                  |
+      | path        | /subjects/imp-comp-ver-rev/versions   |
 
   Scenario: Import with large version gaps
     When I set the global mode to "IMPORT"
@@ -270,8 +309,13 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     When I get version 50 of subject "imp-comp-ver-gaps"
     Then the response status should be 200
     And the response field "id" should be 71031
-    And the audit log should contain event "schema_register"
-    And the audit log should contain event "schema_register" with subject "imp-comp-ver-gaps"
+    And the audit log should contain an event:
+      | event_type  | schema_register                        |
+      | outcome     | success                                |
+      | actor_type  | anonymous                              |
+      | target_id   | imp-comp-ver-gaps                      |
+      | method      | POST                                   |
+      | path        | /subjects/imp-comp-ver-gaps/versions   |
 
   Scenario: Import without version auto-assigns sequentially
     When I set the global mode to "IMPORT"
@@ -300,8 +344,13 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     When I get version 3 of subject "imp-comp-ver-auto"
     Then the response status should be 200
     And the response field "id" should be 71042
-    And the audit log should contain event "schema_register"
-    And the audit log should contain event "schema_register" with subject "imp-comp-ver-auto"
+    And the audit log should contain an event:
+      | event_type  | schema_register                        |
+      | outcome     | success                                |
+      | actor_type  | anonymous                              |
+      | target_id   | imp-comp-ver-auto                      |
+      | method      | POST                                   |
+      | path        | /subjects/imp-comp-ver-auto/versions   |
 
   Scenario: Import mixed explicit and auto-assigned versions
     When I set the global mode to "IMPORT"
@@ -324,8 +373,13 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     When I get version 2 of subject "imp-comp-ver-mixed"
     Then the response status should be 200
     And the response field "id" should be 71051
-    And the audit log should contain event "schema_register"
-    And the audit log should contain event "schema_register" with subject "imp-comp-ver-mixed"
+    And the audit log should contain an event:
+      | event_type  | schema_register                         |
+      | outcome     | success                                 |
+      | actor_type  | anonymous                               |
+      | target_id   | imp-comp-ver-mixed                      |
+      | method      | POST                                    |
+      | path        | /subjects/imp-comp-ver-mixed/versions   |
 
   Scenario: Duplicate version import returns existing version
     When I set the global mode to "IMPORT"
@@ -341,8 +395,13 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
       """
     Then the response status should be 200
     When I set the global mode to "READWRITE"
-    And the audit log should contain event "schema_register"
-    And the audit log should contain event "schema_register" with subject "imp-comp-ver-dup"
+    And the audit log should contain an event:
+      | event_type  | schema_register                       |
+      | outcome     | success                               |
+      | actor_type  | anonymous                             |
+      | target_id   | imp-comp-ver-dup                      |
+      | method      | POST                                  |
+      | path        | /subjects/imp-comp-ver-dup/versions   |
 
   Scenario: Same version number in different subjects succeeds
     When I set the global mode to "IMPORT"
@@ -363,8 +422,13 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     When I get version 1 of subject "imp-comp-ver-sub2"
     Then the response status should be 200
     And the response field "id" should be 71071
-    And the audit log should contain event "schema_register"
-    And the audit log should contain event "schema_register" with subject "imp-comp-ver-sub1"
+    And the audit log should contain an event:
+      | event_type  | schema_register                        |
+      | outcome     | success                                |
+      | actor_type  | anonymous                              |
+      | target_id   | imp-comp-ver-sub1                      |
+      | method      | POST                                   |
+      | path        | /subjects/imp-comp-ver-sub1/versions   |
 
   # ==========================================================================
   # ID HANDLING AND SEQUENCING
@@ -379,8 +443,13 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     Then the response status should be 200
     And the response field "id" should be 1
     When I set the global mode to "READWRITE"
-    And the audit log should contain event "schema_register"
-    And the audit log should contain event "schema_register" with subject "imp-comp-id1"
+    And the audit log should contain an event:
+      | event_type  | schema_register                   |
+      | outcome     | success                           |
+      | actor_type  | anonymous                         |
+      | target_id   | imp-comp-id1                      |
+      | method      | POST                              |
+      | path        | /subjects/imp-comp-id1/versions   |
 
   Scenario: Import with very large ID
     When I set the global mode to "IMPORT"
@@ -391,8 +460,13 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     Then the response status should be 200
     And the response field "id" should be 100000
     When I set the global mode to "READWRITE"
-    And the audit log should contain event "schema_register"
-    And the audit log should contain event "schema_register" with subject "imp-comp-id-large"
+    And the audit log should contain an event:
+      | event_type  | schema_register                        |
+      | outcome     | success                                |
+      | actor_type  | anonymous                              |
+      | target_id   | imp-comp-id-large                      |
+      | method      | POST                                   |
+      | path        | /subjects/imp-comp-id-large/versions   |
 
   Scenario: Same schema content with same ID across subjects succeeds
     When I set the global mode to "IMPORT"
@@ -422,8 +496,13 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     When I get version 1 of subject "imp-comp-idshare-c"
     Then the response status should be 200
     And the response field "id" should be 72000
-    And the audit log should contain event "schema_register"
-    And the audit log should contain event "schema_register" with subject "imp-comp-idshare-a"
+    And the audit log should contain an event:
+      | event_type  | schema_register                          |
+      | outcome     | success                                  |
+      | actor_type  | anonymous                                |
+      | target_id   | imp-comp-idshare-a                       |
+      | method      | POST                                     |
+      | path        | /subjects/imp-comp-idshare-a/versions    |
 
   Scenario: Different schema content with same ID is rejected
     When I set the global mode to "IMPORT"
@@ -439,8 +518,22 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     Then the response status should be 422
     And the response should have error code 42205
     When I set the global mode to "READWRITE"
-    And the audit log should contain event "schema_register"
-    And the audit log should contain event "schema_register" with subject "imp-comp-idconflict-a"
+    # Successful import of imp-comp-idconflict-a
+    And the audit log should contain an event:
+      | event_type  | schema_register                              |
+      | outcome     | success                                      |
+      | actor_type  | anonymous                                    |
+      | target_id   | imp-comp-idconflict-a                        |
+      | method      | POST                                         |
+      | path        | /subjects/imp-comp-idconflict-a/versions     |
+    # Failed import of imp-comp-idconflict-b (ID conflict — different content, same ID)
+    And the audit log should contain an event:
+      | event_type  | schema_register                              |
+      | outcome     | failure                                      |
+      | actor_type  | anonymous                                    |
+      | target_id   | imp-comp-idconflict-b                        |
+      | method      | POST                                         |
+      | path        | /subjects/imp-comp-idconflict-b/versions     |
 
   Scenario: Auto-assigned IDs continue above highest imported ID
     When I set the global mode to "IMPORT"
@@ -458,8 +551,13 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     Then the response status should be 200
     And I store the response field "id" as "auto1_id"
     And the stored "auto1_id" should be greater than 73000
-    And the audit log should contain event "schema_register"
-    And the audit log should contain event "schema_register" with subject "imp-comp-seq-base"
+    And the audit log should contain an event:
+      | event_type  | schema_register                         |
+      | outcome     | success                                 |
+      | actor_type  | anonymous                               |
+      | target_id   | imp-comp-seq-base                       |
+      | method      | POST                                    |
+      | path        | /subjects/imp-comp-seq-base/versions    |
 
   Scenario: Multiple imports then normal registration — IDs continue from max
     When I set the global mode to "IMPORT"
@@ -487,8 +585,13 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     Then the response status should be 200
     And I store the response field "id" as "after_id"
     And the stored "after_id" should be greater than 74500
-    And the audit log should contain event "schema_register"
-    And the audit log should contain event "schema_register" with subject "imp-comp-seq-multi1"
+    And the audit log should contain an event:
+      | event_type  | schema_register                           |
+      | outcome     | success                                   |
+      | actor_type  | anonymous                                 |
+      | target_id   | imp-comp-seq-multi1                       |
+      | method      | POST                                      |
+      | path        | /subjects/imp-comp-seq-multi1/versions    |
 
   # ==========================================================================
   # IDEMPOTENCY
@@ -514,8 +617,13 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     When I list versions of subject "imp-comp-idemp"
     Then the response status should be 200
     And the response should be an array of length 1
-    And the audit log should contain event "schema_register"
-    And the audit log should contain event "schema_register" with subject "imp-comp-idemp"
+    And the audit log should contain an event:
+      | event_type  | schema_register                      |
+      | outcome     | success                              |
+      | actor_type  | anonymous                            |
+      | target_id   | imp-comp-idemp                       |
+      | method      | POST                                 |
+      | path        | /subjects/imp-comp-idemp/versions    |
 
   # ==========================================================================
   # COMPATIBILITY SKIPPING IN IMPORT MODE
@@ -537,8 +645,13 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
       """
     Then the response status should be 200
     When I set the global mode to "READWRITE"
-    And the audit log should contain event "schema_register"
-    And the audit log should contain event "schema_register" with subject "imp-comp-compat-skip"
+    And the audit log should contain an event:
+      | event_type  | schema_register                            |
+      | outcome     | success                                    |
+      | actor_type  | anonymous                                  |
+      | target_id   | imp-comp-compat-skip                       |
+      | method      | POST                                       |
+      | path        | /subjects/imp-comp-compat-skip/versions    |
 
   Scenario: Compatibility re-enforced after exiting import mode
     Given the global compatibility level is "BACKWARD"
@@ -555,8 +668,22 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
       {"type":"record","name":"CE","fields":[{"name":"a","type":"string"},{"name":"b","type":"string"}]}
       """
     Then the response status should be 409
-    And the audit log should contain event "schema_register"
-    And the audit log should contain event "schema_register" with subject "imp-comp-compat-re"
+    # Successful import in IMPORT mode
+    And the audit log should contain an event:
+      | event_type  | schema_register                          |
+      | outcome     | success                                  |
+      | actor_type  | anonymous                                |
+      | target_id   | imp-comp-compat-re                       |
+      | method      | POST                                     |
+      | path        | /subjects/imp-comp-compat-re/versions    |
+    # Failed registration in READWRITE (backward incompatible — 409)
+    And the audit log should contain an event:
+      | event_type  | schema_register                          |
+      | outcome     | failure                                  |
+      | actor_type  | anonymous                                |
+      | target_id   | imp-comp-compat-re                       |
+      | method      | POST                                     |
+      | path        | /subjects/imp-comp-compat-re/versions    |
 
   # ==========================================================================
   # SCHEMA TYPE SUPPORT
@@ -575,8 +702,13 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     And the response field "schemaType" should be "AVRO"
     And the response field "version" should be 1
     And the response field "id" should be 77000
-    And the audit log should contain event "schema_register"
-    And the audit log should contain event "schema_register" with subject "imp-comp-avro"
+    And the audit log should contain an event:
+      | event_type  | schema_register                     |
+      | outcome     | success                             |
+      | actor_type  | anonymous                           |
+      | target_id   | imp-comp-avro                       |
+      | method      | POST                                |
+      | path        | /subjects/imp-comp-avro/versions    |
 
   Scenario: Import JSON Schema with explicit version
     When I set the global mode to "IMPORT"
@@ -591,8 +723,13 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     And the response field "schemaType" should be "JSON"
     And the response field "version" should be 3
     And the response field "id" should be 77010
-    And the audit log should contain event "schema_register"
-    And the audit log should contain event "schema_register" with subject "imp-comp-json"
+    And the audit log should contain an event:
+      | event_type  | schema_register                     |
+      | outcome     | success                             |
+      | actor_type  | anonymous                           |
+      | target_id   | imp-comp-json                       |
+      | method      | POST                                |
+      | path        | /subjects/imp-comp-json/versions    |
 
   Scenario: Import Protobuf schema with explicit version
     When I set the global mode to "IMPORT"
@@ -607,8 +744,13 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     And the response field "schemaType" should be "PROTOBUF"
     And the response field "version" should be 2
     And the response field "id" should be 77020
-    And the audit log should contain event "schema_register"
-    And the audit log should contain event "schema_register" with subject "imp-comp-proto"
+    And the audit log should contain an event:
+      | event_type  | schema_register                      |
+      | outcome     | success                              |
+      | actor_type  | anonymous                            |
+      | target_id   | imp-comp-proto                       |
+      | method      | POST                                 |
+      | path        | /subjects/imp-comp-proto/versions    |
 
   Scenario: Import mixed schema types under different subjects
     When I set the global mode to "IMPORT"
@@ -637,8 +779,13 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     When I get schema by ID 77032
     Then the response status should be 200
     And the response field "schemaType" should be "PROTOBUF"
-    And the audit log should contain event "schema_register"
-    And the audit log should contain event "schema_register" with subject "imp-comp-mix-avro"
+    And the audit log should contain an event:
+      | event_type  | schema_register                         |
+      | outcome     | success                                 |
+      | actor_type  | anonymous                               |
+      | target_id   | imp-comp-mix-avro                       |
+      | method      | POST                                    |
+      | path        | /subjects/imp-comp-mix-avro/versions    |
 
   # ==========================================================================
   # REAL-WORLD MIGRATION WORKFLOWS
@@ -692,8 +839,13 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     When I get version 3 of subject "imp-comp-migrate-users"
     Then the response status should be 200
     And the response should contain "email"
-    And the audit log should contain event "schema_register"
-    And the audit log should contain event "schema_register" with subject "imp-comp-migrate-users"
+    And the audit log should contain an event:
+      | event_type  | schema_register                              |
+      | outcome     | success                                      |
+      | actor_type  | anonymous                                    |
+      | target_id   | imp-comp-migrate-users                       |
+      | method      | POST                                         |
+      | path        | /subjects/imp-comp-migrate-users/versions    |
 
   Scenario: Import into existing subject (using force to switch to IMPORT mode)
     Given the global mode is "READWRITE"
@@ -717,8 +869,13 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     When I list versions of subject "imp-comp-existing"
     Then the response status should be 200
     And the response should be an array of length 2
-    And the audit log should contain event "schema_register"
-    And the audit log should contain event "schema_register" with subject "imp-comp-existing"
+    And the audit log should contain an event:
+      | event_type  | schema_register                         |
+      | outcome     | success                                 |
+      | actor_type  | anonymous                               |
+      | target_id   | imp-comp-existing                       |
+      | method      | POST                                    |
+      | path        | /subjects/imp-comp-existing/versions    |
 
   Scenario: Import preserves subject listing after import
     When I set the global mode to "IMPORT"
@@ -743,8 +900,13 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     And the response should contain "imp-comp-list-a"
     And the response should contain "imp-comp-list-b"
     And the response should contain "imp-comp-list-c"
-    And the audit log should contain event "schema_register"
-    And the audit log should contain event "schema_register" with subject "imp-comp-list-a"
+    And the audit log should contain an event:
+      | event_type  | schema_register                       |
+      | outcome     | success                               |
+      | actor_type  | anonymous                             |
+      | target_id   | imp-comp-list-a                       |
+      | method      | POST                                  |
+      | path        | /subjects/imp-comp-list-a/versions    |
 
   # ==========================================================================
   # RETRIEVAL AFTER IMPORT
@@ -761,8 +923,13 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     When I get schema by ID 80000
     Then the response status should be 200
     And the response should contain "RetById"
-    And the audit log should contain event "schema_register"
-    And the audit log should contain event "schema_register" with subject "imp-comp-ret-id"
+    And the audit log should contain an event:
+      | event_type  | schema_register                        |
+      | outcome     | success                                |
+      | actor_type  | anonymous                              |
+      | target_id   | imp-comp-ret-id                        |
+      | method      | POST                                   |
+      | path        | /subjects/imp-comp-ret-id/versions     |
 
   Scenario: Schema subjects endpoint works for imported schemas
     When I set the global mode to "IMPORT"
@@ -780,8 +947,13 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     When I get the subjects for schema ID 80010
     Then the response status should be 200
     And the response should be an array of length 2
-    And the audit log should contain event "schema_register"
-    And the audit log should contain event "schema_register" with subject "imp-comp-ret-subj1"
+    And the audit log should contain an event:
+      | event_type  | schema_register                          |
+      | outcome     | success                                  |
+      | actor_type  | anonymous                                |
+      | target_id   | imp-comp-ret-subj1                       |
+      | method      | POST                                     |
+      | path        | /subjects/imp-comp-ret-subj1/versions    |
 
   Scenario: Latest version resolves correctly after out-of-order import
     When I set the global mode to "IMPORT"
@@ -807,8 +979,13 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     Then the response status should be 200
     And the response field "version" should be 5
     And the response field "id" should be 80022
-    And the audit log should contain event "schema_register"
-    And the audit log should contain event "schema_register" with subject "imp-comp-ret-latest"
+    And the audit log should contain an event:
+      | event_type  | schema_register                           |
+      | outcome     | success                                   |
+      | actor_type  | anonymous                                 |
+      | target_id   | imp-comp-ret-latest                       |
+      | method      | POST                                      |
+      | path        | /subjects/imp-comp-ret-latest/versions    |
 
   Scenario: Lookup schema after import finds correct version
     When I set the global mode to "IMPORT"
@@ -825,8 +1002,13 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     Then the response status should be 200
     And the response field "id" should be 80030
     And the response field "version" should be 1
-    And the audit log should contain event "schema_register"
-    And the audit log should contain event "schema_register" with subject "imp-comp-ret-lookup"
+    And the audit log should contain an event:
+      | event_type  | schema_register                            |
+      | outcome     | success                                    |
+      | actor_type  | anonymous                                  |
+      | target_id   | imp-comp-ret-lookup                        |
+      | method      | POST                                       |
+      | path        | /subjects/imp-comp-ret-lookup/versions     |
 
   # ==========================================================================
   # DELETION AFTER IMPORT
@@ -855,8 +1037,13 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     When I GET "/subjects?deleted=true"
     Then the response status should be 200
     And the response should contain "imp-comp-del-soft"
-    And the audit log should contain event "schema_register"
-    And the audit log should contain event "schema_register" with subject "imp-comp-del-soft"
+    And the audit log should contain an event:
+      | event_type  | schema_register                         |
+      | outcome     | success                                 |
+      | actor_type  | anonymous                               |
+      | target_id   | imp-comp-del-soft                       |
+      | method      | POST                                    |
+      | path        | /subjects/imp-comp-del-soft/versions    |
 
   Scenario: Delete specific imported version
     When I set the global mode to "IMPORT"
@@ -883,8 +1070,13 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     When I list versions of subject "imp-comp-del-ver"
     Then the response status should be 200
     And the response should be an array of length 2
-    And the audit log should contain event "schema_register"
-    And the audit log should contain event "schema_register" with subject "imp-comp-del-ver"
+    And the audit log should contain an event:
+      | event_type  | schema_register                        |
+      | outcome     | success                                |
+      | actor_type  | anonymous                              |
+      | target_id   | imp-comp-del-ver                       |
+      | method      | POST                                   |
+      | path        | /subjects/imp-comp-del-ver/versions    |
 
   # ==========================================================================
   # IMPORT AFTER SOFT-DELETE
@@ -909,8 +1101,13 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     When I get version 2 of subject "imp-comp-reimport"
     Then the response status should be 200
     And the response field "id" should be 82000
-    And the audit log should contain event "schema_register"
-    And the audit log should contain event "schema_register" with subject "imp-comp-reimport"
+    And the audit log should contain an event:
+      | event_type  | schema_register                         |
+      | outcome     | success                                 |
+      | actor_type  | anonymous                               |
+      | target_id   | imp-comp-reimport                       |
+      | method      | POST                                    |
+      | path        | /subjects/imp-comp-reimport/versions    |
 
   # ==========================================================================
   # REFERENCES DURING IMPORT
@@ -934,8 +1131,13 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     When I get schema by ID 83001
     Then the response status should be 200
     And the response should contain "Person"
-    And the audit log should contain event "schema_register"
-    And the audit log should contain event "schema_register" with subject "imp-comp-ref-person"
+    And the audit log should contain an event:
+      | event_type  | schema_register                            |
+      | outcome     | success                                    |
+      | actor_type  | anonymous                                  |
+      | target_id   | imp-comp-ref-person                        |
+      | method      | POST                                       |
+      | path        | /subjects/imp-comp-ref-person/versions     |
 
   Scenario: Import referenced schema out of order — reference first, then base
     When I set the global mode to "IMPORT"
@@ -955,8 +1157,13 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     When I get version 1 of subject "imp-comp-ref-ooo-child"
     Then the response status should be 200
     And the response should contain "Child"
-    And the audit log should contain event "schema_register"
-    And the audit log should contain event "schema_register" with subject "imp-comp-ref-ooo-child"
+    And the audit log should contain an event:
+      | event_type  | schema_register                               |
+      | outcome     | success                                       |
+      | actor_type  | anonymous                                     |
+      | target_id   | imp-comp-ref-ooo-child                        |
+      | method      | POST                                          |
+      | path        | /subjects/imp-comp-ref-ooo-child/versions     |
 
   # ==========================================================================
   # MULTI-VERSION EVOLUTION DURING IMPORT
@@ -1005,8 +1212,13 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     When I get the latest version of subject "imp-comp-evolve"
     Then the response status should be 200
     And the response field "version" should be 5
-    And the audit log should contain event "schema_register"
-    And the audit log should contain event "schema_register" with subject "imp-comp-evolve"
+    And the audit log should contain an event:
+      | event_type  | schema_register                        |
+      | outcome     | success                                |
+      | actor_type  | anonymous                              |
+      | target_id   | imp-comp-evolve                        |
+      | method      | POST                                   |
+      | path        | /subjects/imp-comp-evolve/versions     |
 
   Scenario: Import then continue normal evolution — version continuity
     When I set the global mode to "IMPORT"
@@ -1033,5 +1245,10 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
     When I get version 3 of subject "imp-comp-cont"
     Then the response status should be 200
     And the response body should contain "c"
-    And the audit log should contain event "schema_register"
-    And the audit log should contain event "schema_register" with subject "imp-comp-cont"
+    And the audit log should contain an event:
+      | event_type  | schema_register                     |
+      | outcome     | success                             |
+      | actor_type  | anonymous                           |
+      | target_id   | imp-comp-cont                       |
+      | method      | POST                                |
+      | path        | /subjects/imp-comp-cont/versions    |
