@@ -667,11 +667,11 @@ func RegisterMCPSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 			return err
 		}
 		for _, event := range parseAuditEvents(logStr) {
-			if fmt.Sprintf("%v", event["event_type"]) == eventType && fmt.Sprintf("%v", event["user"]) == user {
+			if fmt.Sprintf("%v", event["event_type"]) == eventType && fmt.Sprintf("%v", event["actor_id"]) == user {
 				return nil
 			}
 		}
-		return fmt.Errorf("expected audit event %q for user %q not found in log:\n%s", eventType, user, logStr)
+		return fmt.Errorf("expected audit event %q for actor_id %q not found in log:\n%s", eventType, user, logStr)
 	})
 
 	ctx.Step(`^the audit log should contain event "([^"]*)" with subject "([^"]*)"$`, func(eventType, subject string) error {
@@ -680,11 +680,11 @@ func RegisterMCPSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 			return err
 		}
 		for _, event := range parseAuditEvents(logStr) {
-			if fmt.Sprintf("%v", event["event_type"]) == eventType && fmt.Sprintf("%v", event["subject"]) == subject {
+			if fmt.Sprintf("%v", event["event_type"]) == eventType && fmt.Sprintf("%v", event["target_id"]) == subject {
 				return nil
 			}
 		}
-		return fmt.Errorf("expected audit event %q with subject %q not found in log:\n%s", eventType, subject, logStr)
+		return fmt.Errorf("expected audit event %q with target_id %q not found in log:\n%s", eventType, subject, logStr)
 	})
 
 	ctx.Step(`^the audit log should contain event "([^"]*)" with method "([^"]*)"$`, func(eventType, method string) error {
@@ -719,15 +719,19 @@ func RegisterMCPSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 	// Usage:
 	//   And the audit log should contain an event:
 	//     | event_type  | apikey_create  |
-	//     | user        | admin          |
+	//     | actor_id    | admin          |
+	//     | actor_type  | user           |
+	//     | auth_method | basic          |
 	//     | role        | admin          |
 	//     | method      | POST           |
 	//     | path        | /admin/apikeys |
 	//     | status_code | 201            |
 	//
-	// Supported fields: event_type, user, role, method, path, status_code, subject, error.
+	// Supported fields: any JSON field in the audit event (event_type, outcome, actor_id,
+	// actor_type, role, auth_method, target_type, target_id, source_ip, user_agent, method,
+	// path, status_code, reason, error, etc.).
 	// The "path" field uses "contains" matching; all others use exact match.
-	// An empty value (e.g., | user | |) matches the empty string.
+	// An empty value (e.g., | actor_id | |) matches the empty string.
 	ctx.Step(`^the audit log should contain an event:$`, func(table *godog.Table) error {
 		logStr, err := getAuditLog()
 		if err != nil {
