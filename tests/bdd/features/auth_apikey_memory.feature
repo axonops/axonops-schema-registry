@@ -25,7 +25,16 @@ Feature: Config-defined API key authentication (memory storage)
       {"type":"record","name":"Test","fields":[{"name":"id","type":"int"}]}
       """
     Then the response status should be 403
-    And the audit log should contain event "auth_forbidden"
+    And the audit log should contain an event:
+      | event_type  | auth_forbidden    |
+      | outcome     | failure           |
+      | actor_type  | api_key           |
+      | auth_method | api_key           |
+      | role        | readonly          |
+      | reason      | permission_denied |
+      | method      | POST              |
+      | path        | /subjects/test-memory-apikey/versions |
+      | status_code | 403               |
 
   @auth
   Scenario: config-defined admin API key can write
@@ -35,14 +44,30 @@ Feature: Config-defined API key authentication (memory storage)
       {"type":"record","name":"Test","fields":[{"name":"id","type":"int"}]}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "test-memory-apikey-admin"
+    And the audit log should contain an event:
+      | event_type  | schema_register   |
+      | outcome     | success           |
+      | actor_type  | api_key           |
+      | auth_method | api_key           |
+      | role        | admin             |
+      | target_id   | test-memory-apikey-admin |
+      | method      | POST              |
+      | path        | /subjects/test-memory-apikey-admin/versions |
+      | status_code | 200               |
 
   @auth
   Scenario: invalid API key gets 401
     Given I authenticate with API key "wrong-key"
     When I GET "/subjects"
     Then the response status should be 401
-    And the audit log should contain event "auth_failure"
+    And the audit log should contain an event:
+      | event_type  | auth_failure         |
+      | outcome     | failure              |
+      | actor_type  | anonymous            |
+      | reason      | no_valid_credentials |
+      | method      | GET                  |
+      | path        | /subjects            |
+      | status_code | 401                  |
 
   @auth
   Scenario: second config-defined API key also works

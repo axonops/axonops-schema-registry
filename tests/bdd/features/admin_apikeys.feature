@@ -21,7 +21,10 @@ Feature: Admin API Key Management
     And the response field "key_prefix" should not be empty
     And the audit log should contain an event:
       | event_type  | apikey_create  |
+      | outcome     | success        |
       | actor_id    | admin          |
+      | actor_type  | user           |
+      | auth_method | basic          |
       | role        | admin          |
       | method      | POST           |
       | path        | /admin/apikeys |
@@ -65,7 +68,10 @@ Feature: Admin API Key Management
     And the response field "role" should be "admin"
     And the audit log should contain an event:
       | event_type  | apikey_update  |
+      | outcome     | success        |
       | actor_id    | admin          |
+      | actor_type  | user           |
+      | auth_method | basic          |
       | role        | admin          |
       | method      | PUT            |
       | path        | /admin/apikeys |
@@ -86,7 +92,10 @@ Feature: Admin API Key Management
     And the response field "name" should be "disable-me"
     And the audit log should contain an event:
       | event_type  | apikey_update  |
+      | outcome     | success        |
       | actor_id    | admin          |
+      | actor_type  | user           |
+      | auth_method | basic          |
       | role        | admin          |
       | method      | PUT            |
       | path        | /admin/apikeys |
@@ -101,7 +110,10 @@ Feature: Admin API Key Management
     Then the response status should be 204
     And the audit log should contain an event:
       | event_type  | apikey_delete  |
+      | outcome     | success        |
       | actor_id    | admin          |
+      | actor_type  | user           |
+      | auth_method | basic          |
       | role        | admin          |
       | method      | DELETE         |
       | path        | /admin/apikeys |
@@ -119,7 +131,10 @@ Feature: Admin API Key Management
     And the response field "name" should be "revoke-me"
     And the audit log should contain an event:
       | event_type  | apikey_revoke  |
+      | outcome     | success        |
       | actor_id    | admin          |
+      | actor_type  | user           |
+      | auth_method | basic          |
       | role        | admin          |
       | method      | POST           |
       | path        | /admin/apikeys |
@@ -138,7 +153,10 @@ Feature: Admin API Key Management
     And the response should have field "revoked_id"
     And the audit log should contain an event:
       | event_type  | apikey_rotate  |
+      | outcome     | success        |
       | actor_id    | admin          |
+      | actor_type  | user           |
+      | auth_method | basic          |
       | role        | admin          |
       | method      | POST           |
       | path        | /admin/apikeys |
@@ -158,7 +176,10 @@ Feature: Admin API Key Management
     Then the response status should be 401
     And the audit log should contain an event:
       | event_type  | auth_failure   |
+      | outcome     | failure        |
       | actor_id    |                |
+      | actor_type  | anonymous      |
+      | reason      | no_valid_credentials |
       | method      | POST           |
       | path        | /admin/apikeys |
       | status_code | 401            |
@@ -172,8 +193,12 @@ Feature: Admin API Key Management
     Then the response status should be 403
     And the audit log should contain an event:
       | event_type  | auth_forbidden |
+      | outcome     | failure        |
       | actor_id    | viewer         |
+      | actor_type  | user           |
+      | auth_method | basic          |
       | role        | readonly       |
+      | reason      | permission_denied |
       | method      | POST           |
       | path        | /admin/apikeys |
       | status_code | 403            |

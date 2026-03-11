@@ -16,7 +16,16 @@ Feature: Admin User Management
     And the response field "username" should be "alice"
     And the response field "role" should be "developer"
     And the response field "enabled" should be true
-    And the audit log should contain event "user_create"
+    And the audit log should contain an event:
+      | event_type  | user_create    |
+      | outcome     | success        |
+      | actor_id    | admin          |
+      | actor_type  | user           |
+      | auth_method | basic          |
+      | role        | admin          |
+      | method      | POST           |
+      | path        | /admin/users   |
+      | status_code | 201            |
 
   @auth
   Scenario: Create a user with email
@@ -27,7 +36,16 @@ Feature: Admin User Management
     And the response field "username" should be "bob"
     And the response field "role" should be "readonly"
     And the response field "email" should be "bob@example.com"
-    And the audit log should contain event "user_create"
+    And the audit log should contain an event:
+      | event_type  | user_create    |
+      | outcome     | success        |
+      | actor_id    | admin          |
+      | actor_type  | user           |
+      | auth_method | basic          |
+      | role        | admin          |
+      | method      | POST           |
+      | path        | /admin/users   |
+      | status_code | 201            |
 
   @auth
   Scenario: List users includes created users
@@ -63,7 +81,16 @@ Feature: Admin User Management
     Then the response status should be 200
     And the response field "role" should be "developer"
     And the response field "username" should be "frank"
-    And the audit log should contain event "user_update"
+    And the audit log should contain an event:
+      | event_type  | user_update    |
+      | outcome     | success        |
+      | actor_id    | admin          |
+      | actor_type  | user           |
+      | auth_method | basic          |
+      | role        | admin          |
+      | method      | PUT            |
+      | path        | /admin/users   |
+      | status_code | 200            |
 
   @auth
   Scenario: Update user to disable account
@@ -77,7 +104,16 @@ Feature: Admin User Management
     Then the response status should be 200
     And the response field "enabled" should be false
     And the response field "username" should be "grace"
-    And the audit log should contain event "user_update"
+    And the audit log should contain an event:
+      | event_type  | user_update    |
+      | outcome     | success        |
+      | actor_id    | admin          |
+      | actor_type  | user           |
+      | auth_method | basic          |
+      | role        | admin          |
+      | method      | PUT            |
+      | path        | /admin/users   |
+      | status_code | 200            |
 
   @auth
   Scenario: Delete user
@@ -86,7 +122,16 @@ Feature: Admin User Management
     And I store the response field "id" as "user_id"
     When I delete user with stored ID "user_id"
     Then the response status should be 204
-    And the audit log should contain event "user_delete"
+    And the audit log should contain an event:
+      | event_type  | user_delete    |
+      | outcome     | success        |
+      | actor_id    | admin          |
+      | actor_type  | user           |
+      | auth_method | basic          |
+      | role        | admin          |
+      | method      | DELETE         |
+      | path        | /admin/users   |
+      | status_code | 204            |
 
   @auth
   Scenario: Duplicate username returns 409
@@ -100,7 +145,14 @@ Feature: Admin User Management
     Given I clear authentication
     When I create a user with username "judy" password "judy-secret" role "readonly"
     Then the response status should be 401
-    And the audit log should contain event "auth_failure"
+    And the audit log should contain an event:
+      | event_type  | auth_failure        |
+      | outcome     | failure             |
+      | actor_type  | anonymous           |
+      | reason      | no_valid_credentials |
+      | method      | POST                |
+      | path        | /admin/users        |
+      | status_code | 401                 |
 
   @auth
   Scenario: Create user as readonly user returns 403
@@ -109,7 +161,17 @@ Feature: Admin User Management
     When I authenticate as "karl" with password "karl-secret"
     And I create a user with username "liam" password "liam-secret" role "readonly"
     Then the response status should be 403
-    And the audit log should contain event "auth_forbidden"
+    And the audit log should contain an event:
+      | event_type  | auth_forbidden    |
+      | outcome     | failure           |
+      | actor_id    | karl              |
+      | actor_type  | user              |
+      | auth_method | basic             |
+      | role        | readonly          |
+      | reason      | permission_denied |
+      | method      | POST              |
+      | path        | /admin/users      |
+      | status_code | 403               |
 
   @auth
   Scenario: Create user with missing username returns 400

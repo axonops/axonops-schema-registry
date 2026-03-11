@@ -19,7 +19,14 @@ Feature: Self-service account management
     Given I clear authentication
     When I GET "/me"
     Then the response status should be 401
-    And the audit log should contain event "auth_failure"
+    And the audit log should contain an event:
+      | event_type  | auth_failure         |
+      | outcome     | failure              |
+      | actor_type  | anonymous            |
+      | reason      | no_valid_credentials |
+      | method      | GET                  |
+      | path        | /me                  |
+      | status_code | 401                  |
 
   Scenario: Change password successfully
     When I POST "/me/password" with body:
@@ -39,7 +46,17 @@ Feature: Self-service account management
       {"old_password": "wrong-password", "new_password": "new-pass-456"}
       """
     Then the response status should be 403
-    And the audit log should contain event "auth_forbidden"
+    And the audit log should contain an event:
+      | event_type  | auth_forbidden     |
+      | outcome     | failure            |
+      | actor_id    | selfservice-user   |
+      | actor_type  | user               |
+      | auth_method | basic              |
+      | role        | developer          |
+      | reason      | permission_denied  |
+      | method      | POST               |
+      | path        | /me/password       |
+      | status_code | 403                |
 
   Scenario: Change password with empty new password returns 400
     When I POST "/me/password" with body:
@@ -55,4 +72,11 @@ Feature: Self-service account management
       {"old_password": "old-pass-123", "new_password": "new-pass-456"}
       """
     Then the response status should be 401
-    And the audit log should contain event "auth_failure"
+    And the audit log should contain an event:
+      | event_type  | auth_failure         |
+      | outcome     | failure              |
+      | actor_type  | anonymous            |
+      | reason      | no_valid_credentials |
+      | method      | POST                 |
+      | path        | /me/password         |
+      | status_code | 401                  |
