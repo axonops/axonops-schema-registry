@@ -338,6 +338,16 @@ type AuditHints struct {
 	SchemaID   int64
 	Version    int
 	Context    string // registry context namespace
+
+	// Actor fields — populated by the auth middleware so the audit middleware
+	// can read them even though the auth middleware runs after the audit
+	// middleware in the chi middleware chain. Using a shared mutable pointer
+	// solves the Go context layering problem where r.WithContext() creates a
+	// new *Request invisible to outer middleware.
+	ActorID    string // username, key name, or MCP principal
+	ActorType  string // user, api_key, mcp_client, anonymous
+	Role       string // admin, developer, readonly
+	AuthMethod string // basic, api_key, jwt, oidc, ldap, mtls, bearer_token
 }
 
 type auditHintsKey struct{}
@@ -391,10 +401,16 @@ func (al *AuditLogger) Middleware(next http.Handler) http.Handler {
 			return
 		}
 
-		// Get user info from context
-		user := GetUser(r.Context())
+		// Read actor info from hints (populated by the auth middleware via the
+		// shared mutable pointer), or fall back to the user in context (for
+		// tests and code paths that set user context directly).
 		var actorID, role, authMethod, actorType string
-		if user != nil {
+		if hints.ActorType != "" {
+			actorID = hints.ActorID
+			actorType = hints.ActorType
+			role = hints.Role
+			authMethod = hints.AuthMethod
+		} else if user := GetUser(r.Context()); user != nil {
 			actorID = user.Username
 			role = user.Role
 			authMethod = user.Method
@@ -851,9 +867,15 @@ func (al *AuditLogger) LogEvent(eventType AuditEventType, r *http.Request, statu
 		return
 	}
 
-	user := GetUser(r.Context())
+	// Read actor info from AuditHints (populated by auth middleware) or
+	// fall back to context user (for callers outside the middleware chain).
 	var actorID, role, authMethod, actorType string
-	if user != nil {
+	if hints := GetAuditHints(r.Context()); hints != nil && hints.ActorType != "" {
+		actorID = hints.ActorID
+		actorType = hints.ActorType
+		role = hints.Role
+		authMethod = hints.AuthMethod
+	} else if user := GetUser(r.Context()); user != nil {
 		actorID = user.Username
 		role = user.Role
 		authMethod = user.Method

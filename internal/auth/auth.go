@@ -129,6 +129,17 @@ func (a *Authenticator) Middleware(next http.Handler) http.Handler {
 					ctx = context.WithValue(ctx, UserIDContextKey, user.ID)
 				}
 
+				// Propagate actor info to the audit middleware via the shared
+				// AuditHints pointer (audit middleware runs before auth in the
+				// chi middleware chain, so context-based communication is
+				// one-directional — audit injects the pointer, auth fills it).
+				if hints := GetAuditHints(r.Context()); hints != nil {
+					hints.ActorID = user.Username
+					hints.Role = user.Role
+					hints.AuthMethod = user.Method
+					hints.ActorType = actorTypeFromAuthMethod(user.Method)
+				}
+
 				// Record per-principal HTTP request metrics.
 				if a.metrics != nil {
 					rw := &principalResponseWriter{ResponseWriter: w, statusCode: http.StatusOK}
