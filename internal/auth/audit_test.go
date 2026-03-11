@@ -328,14 +328,18 @@ func TestAuditEvent_MarshalJSON(t *testing.T) {
 	event := &AuditEvent{
 		Timestamp:  time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC),
 		EventType:  AuditEventSchemaRegister,
-		User:       "admin",
+		Outcome:    "success",
+		ActorID:    "admin",
+		ActorType:  "user",
 		Role:       "admin",
-		ClientIP:   "127.0.0.1",
+		AuthMethod: "basic",
+		TargetType: "subject",
+		TargetID:   "test",
+		SourceIP:   "127.0.0.1",
 		Method:     "POST",
 		Path:       "/subjects/test/versions",
 		StatusCode: 200,
 		Duration:   150 * time.Millisecond,
-		Subject:    "test",
 	}
 
 	data, err := json.Marshal(event)
@@ -556,7 +560,7 @@ func TestLogMCPEvent(t *testing.T) {
 	}
 	defer al.Close()
 
-	al.LogMCPEvent(AuditEventMCPToolCall, "mcp-authenticated", "", "register_schema", "success", 15*time.Millisecond, nil, "test", map[string]string{"subject": "test"})
+	al.LogMCPEvent(AuditEventMCPToolCall, "mcp-authenticated", "mcp_client", "bearer_token", "register_schema", "success", 15*time.Millisecond, nil, "test", map[string]string{"subject": "test"})
 
 	al.Close()
 
@@ -586,7 +590,7 @@ func TestLogMCPEvent_Error(t *testing.T) {
 	}
 	defer al.Close()
 
-	al.LogMCPEvent(AuditEventMCPToolError, "mcp-authenticated", "", "get_schema_by_id", "error", 5*time.Millisecond, http.ErrNotSupported, "", nil)
+	al.LogMCPEvent(AuditEventMCPToolError, "mcp-authenticated", "mcp_client", "bearer_token", "get_schema_by_id", "error", 5*time.Millisecond, http.ErrNotSupported, "", nil)
 
 	al.Close()
 
@@ -605,7 +609,7 @@ func TestLogMCPEvent_Disabled(t *testing.T) {
 	defer al.Close()
 
 	// Should not panic.
-	al.LogMCPEvent(AuditEventMCPToolCall, "mcp-anonymous", "", "health_check", "success", time.Millisecond, nil, "", nil)
+	al.LogMCPEvent(AuditEventMCPToolCall, "mcp-anonymous", "anonymous", "", "health_check", "success", time.Millisecond, nil, "", nil)
 }
 
 func TestMCPEventTypeFiltering(t *testing.T) {
@@ -624,9 +628,9 @@ func TestMCPEventTypeFiltering(t *testing.T) {
 	defer al.Close()
 
 	// This should be filtered out
-	al.LogMCPEvent(AuditEventMCPToolCall, "mcp-anonymous", "", "health_check", "success", time.Millisecond, nil, "", nil)
+	al.LogMCPEvent(AuditEventMCPToolCall, "mcp-anonymous", "anonymous", "", "health_check", "success", time.Millisecond, nil, "", nil)
 	// This should be logged
-	al.LogMCPEvent(AuditEventMCPToolError, "mcp-anonymous", "", "get_schema_by_id", "error", time.Millisecond, http.ErrNotSupported, "", nil)
+	al.LogMCPEvent(AuditEventMCPToolError, "mcp-anonymous", "anonymous", "", "get_schema_by_id", "error", time.Millisecond, http.ErrNotSupported, "", nil)
 
 	al.Close()
 
@@ -787,7 +791,7 @@ func TestLogMCPConfirmationEvent(t *testing.T) {
 	}
 	defer al.Close()
 
-	al.LogMCPConfirmationEvent(AuditEventMCPConfirmIssued, "mcp-authenticated", "", "delete_subject", nil)
+	al.LogMCPConfirmationEvent(AuditEventMCPConfirmIssued, "mcp-authenticated", "mcp_client", "bearer_token", "delete_subject", nil)
 
 	al.Close()
 
@@ -814,7 +818,7 @@ func TestLogMCPEvent_WithSubject(t *testing.T) {
 	}
 	defer al.Close()
 
-	al.LogMCPEvent(AuditEventMCPToolCall, "mcp-authenticated", "", "register_schema", "success", 10*time.Millisecond, nil, "payments-value", nil)
+	al.LogMCPEvent(AuditEventMCPToolCall, "mcp-authenticated", "mcp_client", "bearer_token", "register_schema", "success", 10*time.Millisecond, nil, "payments-value", nil)
 
 	al.Close()
 
@@ -836,7 +840,7 @@ func TestNewAuditLoggerWithWriter(t *testing.T) {
 		EventType: AuditEventSchemaRegister,
 		Method:    "POST",
 		Path:      "/subjects/test/versions",
-		Subject:   "test",
+		TargetID:  "test",
 	})
 
 	content := buf.String()
@@ -864,5 +868,576 @@ func TestNewAuditLogger_DefaultIncludesMCPEvents(t *testing.T) {
 		if !al.enabledEvents[evt] {
 			t.Errorf("expected MCP event %s to be enabled by default", evt)
 		}
+	}
+}
+
+// --- Tests for new helper functions ---
+
+func TestActorTypeFromAuthMethod(t *testing.T) {
+	tests := []struct {
+		method   string
+		expected string
+	}{
+		{"basic", "user"},
+		{"jwt", "user"},
+		{"oidc", "user"},
+		{"ldap", "user"},
+		{"mtls", "user"},
+		{"api_key", "api_key"},
+		{"", "anonymous"},
+		{"unknown", "anonymous"},
+	}
+	for _, tt := range tests {
+		got := actorTypeFromAuthMethod(tt.method)
+		if got != tt.expected {
+			t.Errorf("actorTypeFromAuthMethod(%q) = %q, want %q", tt.method, got, tt.expected)
+		}
+	}
+}
+
+func TestOutcomeFromStatusCode(t *testing.T) {
+	tests := []struct {
+		code     int
+		expected string
+	}{
+		{200, "success"},
+		{201, "success"},
+		{204, "success"},
+		{301, "success"},
+		{399, "success"},
+		{400, "failure"},
+		{401, "failure"},
+		{403, "failure"},
+		{404, "failure"},
+		{409, "failure"},
+		{422, "failure"},
+		{429, "failure"},
+		{500, "failure"},
+		{502, "failure"},
+	}
+	for _, tt := range tests {
+		got := outcomeFromStatusCode(tt.code)
+		if got != tt.expected {
+			t.Errorf("outcomeFromStatusCode(%d) = %q, want %q", tt.code, got, tt.expected)
+		}
+	}
+}
+
+func TestReasonFromStatusCode(t *testing.T) {
+	tests := []struct {
+		code     int
+		expected string
+	}{
+		{200, ""},
+		{201, ""},
+		{204, ""},
+		{401, "no_valid_credentials"},
+		{403, "permission_denied"},
+		{404, "not_found"},
+		{409, "already_exists"},
+		{400, "validation_error"},
+		{422, "invalid_schema"},
+		{429, "rate_limited"},
+		{500, "internal_error"},
+		{502, "internal_error"},
+		{418, ""}, // I'm a teapot — unknown 4xx
+	}
+	for _, tt := range tests {
+		got := reasonFromStatusCode(tt.code)
+		if got != tt.expected {
+			t.Errorf("reasonFromStatusCode(%d) = %q, want %q", tt.code, got, tt.expected)
+		}
+	}
+}
+
+func TestClassifyMCPError(t *testing.T) {
+	tests := []struct {
+		errMsg   string
+		expected string
+	}{
+		{"subject 'foo' not found", "not_found"},
+		{"Not Found", "not_found"},
+		{"permission denied", "permission_denied"},
+		{"forbidden access", "permission_denied"},
+		{"unauthorized request", "permission_denied"},
+		{"subject already exists", "already_exists"},
+		{"duplicate entry", "already_exists"},
+		{"invalid schema: parse error", "invalid_schema"},
+		{"parse failure", "invalid_schema"},
+		{"schema is incompatible", "incompatible"},
+		{"invalid argument: missing field", "validation_error"},
+		{"required field missing", "validation_error"},
+		{"missing parameter", "validation_error"},
+		{"something went terribly wrong", "internal_error"},
+		{"", "internal_error"},
+	}
+	for _, tt := range tests {
+		got := classifyMCPError(tt.errMsg)
+		if got != tt.expected {
+			t.Errorf("classifyMCPError(%q) = %q, want %q", tt.errMsg, got, tt.expected)
+		}
+	}
+}
+
+func TestToLower(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"Hello World", "hello world"},
+		{"ABC", "abc"},
+		{"already lower", "already lower"},
+		{"MiXeD123", "mixed123"},
+		{"", ""},
+	}
+	for _, tt := range tests {
+		got := toLower(tt.input)
+		if got != tt.expected {
+			t.Errorf("toLower(%q) = %q, want %q", tt.input, got, tt.expected)
+		}
+	}
+}
+
+func TestExtractTarget(t *testing.T) {
+	tests := []struct {
+		path      string
+		eventType AuditEventType
+		wantType  string
+		wantID    string
+	}{
+		// Subject operations
+		{"/subjects/payments-value/versions", AuditEventSchemaRegister, "subject", "payments-value"},
+		{"/subjects/my-topic/versions/1", AuditEventSchemaGet, "subject", "my-topic"},
+		{"/subjects/my-topic", AuditEventSubjectDelete, "subject", "my-topic"},
+		// Schema by ID
+		{"/schemas/ids/42", AuditEventSchemaGet, "schema", "42"},
+		{"/schemas/ids/100/schema", AuditEventSchemaGet, "schema", "100"},
+		// Config operations
+		{"/config", AuditEventConfigGet, "config", "_global"},
+		{"/config/my-subject", AuditEventConfigUpdate, "config", "my-subject"},
+		// Mode operations
+		{"/mode", AuditEventModeGet, "mode", "_global"},
+		{"/mode/my-subject", AuditEventModeUpdate, "mode", "my-subject"},
+		// KEK operations
+		{"/dek-registry/v1/keks", AuditEventKEKCreate, "kek", ""},
+		{"/dek-registry/v1/keks/my-kek", AuditEventKEKUpdate, "kek", "my-kek"},
+		// DEK operations
+		{"/dek-registry/v1/keks/my-kek/deks/my-subject", AuditEventDEKCreate, "dek", "my-kek"},
+		// Exporter operations
+		{"/exporters", AuditEventExporterCreate, "exporter", ""},
+		{"/exporters/my-export", AuditEventExporterUpdate, "exporter", "my-export"},
+		{"/exporters/my-export/pause", AuditEventExporterPause, "exporter", "my-export"},
+		// Admin users
+		{"/admin/users", AuditEventUserCreate, "user", ""},
+		{"/admin/users/42", AuditEventUserUpdate, "user", "42"},
+		// Admin API keys
+		{"/admin/apikeys", AuditEventAPIKeyCreate, "apikey", ""},
+		{"/admin/apikeys/99", AuditEventAPIKeyDelete, "apikey", "99"},
+		{"/admin/apikeys/1/revoke", AuditEventAPIKeyRevoke, "apikey", "1"},
+		// Import
+		{"/import/schemas", AuditEventSchemaImport, "schema", ""},
+		// Unknown
+		{"/health", "", "", ""},
+	}
+	for _, tt := range tests {
+		gotType, gotID := extractTarget(tt.path, tt.eventType)
+		if gotType != tt.wantType || gotID != tt.wantID {
+			t.Errorf("extractTarget(%q, %q) = (%q, %q), want (%q, %q)",
+				tt.path, tt.eventType, gotType, gotID, tt.wantType, tt.wantID)
+		}
+	}
+}
+
+func TestExtractKEKDEKTarget(t *testing.T) {
+	tests := []struct {
+		path     string
+		wantType string
+		wantID   string
+	}{
+		{"/dek-registry/v1/keks/my-kek", "kek", "my-kek"},
+		{"/dek-registry/v1/keks/my-kek/deks/my-subject", "dek", "my-kek"},
+		{"/dek-registry/v1/keks/", "kek", ""},
+		{"/dek-registry/v1/keks", "kek", ""},
+	}
+	for _, tt := range tests {
+		gotType, gotID := extractKEKDEKTarget(tt.path)
+		if gotType != tt.wantType || gotID != tt.wantID {
+			t.Errorf("extractKEKDEKTarget(%q) = (%q, %q), want (%q, %q)",
+				tt.path, gotType, gotID, tt.wantType, tt.wantID)
+		}
+	}
+}
+
+func TestExtractExporterTarget(t *testing.T) {
+	tests := []struct {
+		path     string
+		wantType string
+		wantID   string
+	}{
+		{"/exporters/my-export", "exporter", "my-export"},
+		{"/exporters/my-export/pause", "exporter", "my-export"},
+		{"/exporters", "exporter", ""},
+		{"/exporters/", "exporter", ""},
+	}
+	for _, tt := range tests {
+		gotType, gotID := extractExporterTarget(tt.path)
+		if gotType != tt.wantType || gotID != tt.wantID {
+			t.Errorf("extractExporterTarget(%q) = (%q, %q), want (%q, %q)",
+				tt.path, gotType, gotID, tt.wantType, tt.wantID)
+		}
+	}
+}
+
+func TestExtractAdminTarget(t *testing.T) {
+	tests := []struct {
+		path       string
+		prefix     string
+		targetType string
+		wantType   string
+		wantID     string
+	}{
+		{"/admin/users/42", "/admin/users/", "user", "user", "42"},
+		{"/admin/users", "/admin/users/", "user", "user", ""},
+		{"/admin/apikeys/99", "/admin/apikeys/", "apikey", "apikey", "99"},
+		{"/admin/apikeys/1/revoke", "/admin/apikeys/", "apikey", "apikey", "1"},
+	}
+	for _, tt := range tests {
+		gotType, gotID := extractAdminTarget(tt.path, tt.prefix, tt.targetType)
+		if gotType != tt.wantType || gotID != tt.wantID {
+			t.Errorf("extractAdminTarget(%q, %q, %q) = (%q, %q), want (%q, %q)",
+				tt.path, tt.prefix, tt.targetType, gotType, gotID, tt.wantType, tt.wantID)
+		}
+	}
+}
+
+// --- Tests verifying new fields appear in JSON and slog output ---
+
+func TestAuditEvent_MarshalJSON_AllNewFields(t *testing.T) {
+	event := &AuditEvent{
+		Timestamp:  time.Date(2026, 3, 11, 14, 30, 0, 0, time.UTC),
+		Duration:   42 * time.Millisecond,
+		EventType:  AuditEventSchemaRegister,
+		Outcome:    "success",
+		ActorID:    "jane",
+		ActorType:  "user",
+		Role:       "developer",
+		AuthMethod: "basic",
+		TargetType: "subject",
+		TargetID:   "payments-value",
+		SchemaID:   42,
+		Version:    3,
+		SchemaType: "AVRO",
+		BeforeHash: "sha256:8b7f1234",
+		AfterHash:  "sha256:2d910abc",
+		Context:    "production",
+		RequestID:  "req-abc-123",
+		SourceIP:   "172.18.0.1",
+		UserAgent:  "curl/8.1",
+		Method:     "POST",
+		Path:       "/subjects/payments-value/versions",
+		StatusCode: 200,
+		Reason:     "",
+		Metadata:   map[string]string{"custom": "value"},
+	}
+
+	data, err := json.Marshal(event)
+	if err != nil {
+		t.Fatalf("failed to marshal: %v", err)
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(data, &result); err != nil {
+		t.Fatalf("failed to unmarshal: %v", err)
+	}
+
+	// Verify all new fields are present
+	checks := map[string]interface{}{
+		"outcome":     "success",
+		"actor_id":    "jane",
+		"actor_type":  "user",
+		"role":        "developer",
+		"auth_method": "basic",
+		"target_type": "subject",
+		"target_id":   "payments-value",
+		"schema_id":   float64(42),
+		"version":     float64(3),
+		"schema_type": "AVRO",
+		"before_hash": "sha256:8b7f1234",
+		"after_hash":  "sha256:2d910abc",
+		"context":     "production",
+		"request_id":  "req-abc-123",
+		"source_ip":   "172.18.0.1",
+		"user_agent":  "curl/8.1",
+		"duration_ms": float64(42),
+	}
+	for field, expected := range checks {
+		if result[field] != expected {
+			t.Errorf("field %q: got %v, want %v", field, result[field], expected)
+		}
+	}
+
+	// Verify metadata
+	meta, ok := result["metadata"].(map[string]interface{})
+	if !ok {
+		t.Fatal("expected metadata to be a map")
+	}
+	if meta["custom"] != "value" {
+		t.Errorf("metadata[custom]: got %v, want 'value'", meta["custom"])
+	}
+}
+
+func TestAuditEvent_MarshalJSON_OmitsEmptyOptional(t *testing.T) {
+	event := &AuditEvent{
+		Timestamp: time.Date(2026, 3, 11, 14, 30, 0, 0, time.UTC),
+		EventType: AuditEventSchemaGet,
+		Outcome:   "success",
+		Method:    "GET",
+		Path:      "/schemas/ids/1",
+	}
+
+	data, err := json.Marshal(event)
+	if err != nil {
+		t.Fatalf("failed to marshal: %v", err)
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(data, &result); err != nil {
+		t.Fatalf("failed to unmarshal: %v", err)
+	}
+
+	// These optional fields should not be present when empty/zero
+	omittedFields := []string{
+		"actor_id", "actor_type", "role", "auth_method",
+		"target_type", "target_id", "schema_type",
+		"before_hash", "after_hash", "context",
+		"reason", "error", "request_body", "request_id",
+		"source_ip", "user_agent",
+	}
+	for _, field := range omittedFields {
+		if _, ok := result[field]; ok {
+			t.Errorf("expected field %q to be omitted when empty, but it was present", field)
+		}
+	}
+}
+
+func TestAuditLogger_Log_EmitsNewFields(t *testing.T) {
+	var buf bytes.Buffer
+	al := NewAuditLoggerWithWriter(config.AuditConfig{Enabled: true}, &buf)
+	defer al.Close()
+
+	al.Log(&AuditEvent{
+		Timestamp:  time.Now(),
+		EventType:  AuditEventSchemaRegister,
+		Outcome:    "success",
+		ActorID:    "testuser",
+		ActorType:  "user",
+		AuthMethod: "basic",
+		TargetType: "subject",
+		TargetID:   "my-topic",
+		SourceIP:   "10.0.0.1",
+		UserAgent:  "test-agent/1.0",
+		Method:     "POST",
+		Path:       "/subjects/my-topic/versions",
+		Reason:     "",
+	})
+
+	content := buf.String()
+	for _, field := range []string{"outcome", "actor_id", "actor_type", "auth_method", "target_type", "target_id", "source_ip", "user_agent"} {
+		if !strings.Contains(content, field) {
+			t.Errorf("expected slog output to contain %q", field)
+		}
+	}
+	for _, value := range []string{"testuser", "user", "basic", "subject", "my-topic", "10.0.0.1", "test-agent/1.0"} {
+		if !strings.Contains(content, value) {
+			t.Errorf("expected slog output to contain value %q", value)
+		}
+	}
+}
+
+func TestAuditLogger_Middleware_PopulatesNewFields(t *testing.T) {
+	var buf bytes.Buffer
+	al := NewAuditLoggerWithWriter(config.AuditConfig{Enabled: true}, &buf)
+	defer al.Close()
+
+	handler := al.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	r := httptest.NewRequest("POST", "/subjects/test/versions", nil)
+	r.Header.Set("User-Agent", "test-client/2.0")
+	r.RemoteAddr = "192.168.1.100:12345"
+	ctx := context.WithValue(r.Context(), UserContextKey, &User{
+		Username: "admin",
+		Role:     "admin",
+		Method:   "basic",
+	})
+	r = r.WithContext(ctx)
+
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+
+	content := buf.String()
+	// Verify actor fields
+	if !strings.Contains(content, "admin") {
+		t.Error("expected actor_id=admin in output")
+	}
+	if !strings.Contains(content, "user") {
+		t.Error("expected actor_type=user in output")
+	}
+	if !strings.Contains(content, "basic") {
+		t.Error("expected auth_method=basic in output")
+	}
+	// Verify outcome
+	if !strings.Contains(content, "success") {
+		t.Error("expected outcome=success in output")
+	}
+	// Verify target
+	if !strings.Contains(content, "subject") {
+		t.Error("expected target_type=subject in output")
+	}
+	if !strings.Contains(content, "test") {
+		t.Error("expected target_id=test in output")
+	}
+	// Verify transport
+	if !strings.Contains(content, "test-client/2.0") {
+		t.Error("expected user_agent in output")
+	}
+	if !strings.Contains(content, "192.168.1.100") {
+		t.Error("expected source_ip in output")
+	}
+}
+
+func TestAuditLogger_Middleware_FailureOutcome(t *testing.T) {
+	var buf bytes.Buffer
+	al := NewAuditLoggerWithWriter(config.AuditConfig{Enabled: true}, &buf)
+	defer al.Close()
+
+	handler := al.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+
+	// Use DELETE which maps to schema_delete (enabled by default), not GET which maps to schema_get (not enabled)
+	r := httptest.NewRequest("DELETE", "/subjects/missing/versions/1", nil)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+
+	content := buf.String()
+	if !strings.Contains(content, "failure") {
+		t.Error("expected outcome=failure for 404 status")
+	}
+	if !strings.Contains(content, "not_found") {
+		t.Error("expected reason=not_found for 404 status")
+	}
+}
+
+func TestAuditLogger_Middleware_AnonymousActor(t *testing.T) {
+	var buf bytes.Buffer
+	al := NewAuditLoggerWithWriter(config.AuditConfig{Enabled: true}, &buf)
+	defer al.Close()
+
+	handler := al.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	// No user in context
+	r := httptest.NewRequest("POST", "/subjects/test/versions", nil)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+
+	content := buf.String()
+	if !strings.Contains(content, "anonymous") {
+		t.Error("expected actor_type=anonymous when no user in context")
+	}
+}
+
+func TestAuditLogger_Middleware_APIKeyActor(t *testing.T) {
+	var buf bytes.Buffer
+	al := NewAuditLoggerWithWriter(config.AuditConfig{Enabled: true}, &buf)
+	defer al.Close()
+
+	handler := al.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	r := httptest.NewRequest("POST", "/subjects/test/versions", nil)
+	ctx := context.WithValue(r.Context(), UserContextKey, &User{
+		Username: "ci-pipeline",
+		Role:     "developer",
+		Method:   "api_key",
+	})
+	r = r.WithContext(ctx)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+
+	content := buf.String()
+	if !strings.Contains(content, "api_key") {
+		t.Error("expected actor_type=api_key and auth_method=api_key for API key user")
+	}
+	if !strings.Contains(content, "ci-pipeline") {
+		t.Error("expected actor_id=ci-pipeline in output")
+	}
+	if !strings.Contains(content, "developer") {
+		t.Error("expected role=developer in output")
+	}
+}
+
+func TestLogMCPEvent_PopulatesOutcomeAndReason(t *testing.T) {
+	var buf bytes.Buffer
+	al := NewAuditLoggerWithWriter(config.AuditConfig{Enabled: true}, &buf)
+	defer al.Close()
+
+	// Success case
+	al.LogMCPEvent(AuditEventMCPToolCall, "mcp-authenticated", "mcp_client", "bearer_token", "health_check", "success", time.Millisecond, nil, "", nil)
+	content := buf.String()
+	if !strings.Contains(content, `"outcome":"success"`) && !strings.Contains(content, "success") {
+		t.Error("expected outcome=success for successful MCP call")
+	}
+
+	// Error case with classified reason
+	buf.Reset()
+	al.LogMCPEvent(AuditEventMCPToolError, "mcp-authenticated", "mcp_client", "bearer_token", "get_schema_by_id", "error", time.Millisecond,
+		http.ErrNotSupported, "", nil)
+	content = buf.String()
+	if !strings.Contains(content, "failure") {
+		t.Error("expected outcome=failure for MCP error")
+	}
+}
+
+func TestLogMCPEvent_ActorFields(t *testing.T) {
+	var buf bytes.Buffer
+	al := NewAuditLoggerWithWriter(config.AuditConfig{Enabled: true}, &buf)
+	defer al.Close()
+
+	al.LogMCPEvent(AuditEventMCPToolCall, "mcp-authenticated", "mcp_client", "bearer_token", "register_schema", "success", time.Millisecond, nil, "my-topic", nil)
+	content := buf.String()
+	if !strings.Contains(content, "mcp-authenticated") {
+		t.Error("expected actor_id=mcp-authenticated")
+	}
+	if !strings.Contains(content, "mcp_client") {
+		t.Error("expected actor_type=mcp_client")
+	}
+	if !strings.Contains(content, "bearer_token") {
+		t.Error("expected auth_method=bearer_token")
+	}
+}
+
+func TestLogMCPConfirmationEvent_ActorFields(t *testing.T) {
+	var buf bytes.Buffer
+	al := NewAuditLoggerWithWriter(config.AuditConfig{Enabled: true}, &buf)
+	defer al.Close()
+
+	al.LogMCPConfirmationEvent(AuditEventMCPConfirmIssued, "mcp-authenticated", "mcp_client", "bearer_token", "delete_subject", nil)
+	content := buf.String()
+	if !strings.Contains(content, "mcp-authenticated") {
+		t.Error("expected actor_id=mcp-authenticated")
+	}
+	if !strings.Contains(content, "mcp_client") {
+		t.Error("expected actor_type=mcp_client")
+	}
+	if !strings.Contains(content, "bearer_token") {
+		t.Error("expected auth_method=bearer_token")
+	}
+	if !strings.Contains(content, "success") {
+		t.Error("expected outcome=success for confirmation events")
 	}
 }

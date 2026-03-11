@@ -163,6 +163,15 @@ func (s *Server) mcpPrincipal() string {
 	return "mcp-anonymous"
 }
 
+// mcpActor returns the actor identity fields for audit logging.
+// Returns (actorID, actorType, authMethod).
+func (s *Server) mcpActor() (string, string, string) {
+	if s.config.AuthToken != "" {
+		return "mcp-authenticated", "mcp_client", "bearer_token"
+	}
+	return "mcp-anonymous", "anonymous", ""
+}
+
 // Shutdown gracefully shuts down the MCP server.
 func (s *Server) Shutdown(ctx context.Context) error {
 	if s.confirmStore != nil {

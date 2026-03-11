@@ -83,24 +83,50 @@ const (
 	AuditEventMCPConfirmed       AuditEventType = "mcp_confirmed"
 )
 
-// AuditEvent represents an audit log entry.
+// AuditEvent represents an audit log entry following industry-standard audit
+// logging practices. See docs/auditing.md for the full field reference.
 type AuditEvent struct {
-	Timestamp   time.Time         `json:"timestamp"`
-	EventType   AuditEventType    `json:"event_type"`
-	User        string            `json:"user,omitempty"`
-	Role        string            `json:"role,omitempty"`
-	ClientIP    string            `json:"client_ip"`
-	Method      string            `json:"method"`
-	Path        string            `json:"path"`
-	StatusCode  int               `json:"status_code"`
-	Duration    time.Duration     `json:"duration_ms"`
-	Subject     string            `json:"subject,omitempty"`
-	Version     int               `json:"version,omitempty"`
-	SchemaID    int64             `json:"schema_id,omitempty"`
-	RequestBody string            `json:"request_body,omitempty"`
-	Error       string            `json:"error,omitempty"`
-	Metadata    map[string]string `json:"metadata,omitempty"`
-	RequestID   string            `json:"request_id,omitempty"`
+	// Timing
+	Timestamp time.Time     `json:"timestamp"`
+	Duration  time.Duration `json:"duration_ms"`
+
+	// Event classification
+	EventType AuditEventType `json:"event_type"`
+	Outcome   string         `json:"outcome"` // "success" or "failure"
+
+	// Actor (who performed the action)
+	ActorID    string `json:"actor_id,omitempty"`    // username, key name, or MCP principal
+	ActorType  string `json:"actor_type,omitempty"`  // user, api_key, mcp_client, anonymous
+	Role       string `json:"role,omitempty"`        // admin, developer, readonly
+	AuthMethod string `json:"auth_method,omitempty"` // basic, api_key, jwt, oidc, ldap, mtls, bearer_token
+
+	// Target (what was affected)
+	TargetType string `json:"target_type,omitempty"` // subject, schema, config, mode, kek, dek, exporter, user, apikey
+	TargetID   string `json:"target_id,omitempty"`   // subject name, KEK name, exporter name, etc.
+	SchemaID   int64  `json:"schema_id,omitempty"`
+	Version    int    `json:"version,omitempty"`
+	SchemaType string `json:"schema_type,omitempty"` // AVRO, PROTOBUF, JSON
+
+	// Change integrity
+	BeforeHash string `json:"before_hash,omitempty"` // sha256:xxxx of object before change
+	AfterHash  string `json:"after_hash,omitempty"`  // sha256:xxxx of object after change
+
+	// Context and correlation
+	Context   string `json:"context,omitempty"` // registryCtx namespace
+	RequestID string `json:"request_id,omitempty"`
+
+	// Transport
+	SourceIP   string `json:"source_ip,omitempty"`
+	UserAgent  string `json:"user_agent,omitempty"`
+	Method     string `json:"method"`                // HTTP method or "MCP"
+	Path       string `json:"path"`                  // HTTP path or MCP tool name
+	StatusCode int    `json:"status_code,omitempty"` // HTTP status (REST only)
+
+	// Detail
+	Reason      string            `json:"reason,omitempty"`       // structured failure reason
+	Error       string            `json:"error,omitempty"`        // raw error message
+	RequestBody string            `json:"request_body,omitempty"` // truncated request body
+	Metadata    map[string]string `json:"metadata,omitempty"`     // event-specific extras
 }
 
 // AuditLogger handles audit logging.
@@ -244,18 +270,46 @@ func (al *AuditLogger) Log(event *AuditEvent) {
 
 	attrs := []slog.Attr{
 		slog.Time("timestamp", event.Timestamp),
+		slog.Int64("duration_ms", event.Duration.Milliseconds()),
 		slog.String("event_type", string(event.EventType)),
-		slog.String("user", event.User),
+		slog.String("outcome", event.Outcome),
+		slog.String("actor_id", event.ActorID),
+		slog.String("actor_type", event.ActorType),
 		slog.String("role", event.Role),
-		slog.String("client_ip", event.ClientIP),
+		slog.String("auth_method", event.AuthMethod),
+		slog.String("target_type", event.TargetType),
+		slog.String("target_id", event.TargetID),
+		slog.String("source_ip", event.SourceIP),
+		slog.String("user_agent", event.UserAgent),
 		slog.String("method", event.Method),
 		slog.String("path", event.Path),
-		slog.Int("status_code", event.StatusCode),
-		slog.Duration("duration", event.Duration),
-		slog.String("subject", event.Subject),
-		slog.Int("version", event.Version),
-		slog.Int64("schema_id", event.SchemaID),
-		slog.String("error", event.Error),
+	}
+	if event.StatusCode != 0 {
+		attrs = append(attrs, slog.Int("status_code", event.StatusCode))
+	}
+	if event.SchemaID != 0 {
+		attrs = append(attrs, slog.Int64("schema_id", event.SchemaID))
+	}
+	if event.Version != 0 {
+		attrs = append(attrs, slog.Int("version", event.Version))
+	}
+	if event.SchemaType != "" {
+		attrs = append(attrs, slog.String("schema_type", event.SchemaType))
+	}
+	if event.BeforeHash != "" {
+		attrs = append(attrs, slog.String("before_hash", event.BeforeHash))
+	}
+	if event.AfterHash != "" {
+		attrs = append(attrs, slog.String("after_hash", event.AfterHash))
+	}
+	if event.Context != "" {
+		attrs = append(attrs, slog.String("context", event.Context))
+	}
+	if event.Reason != "" {
+		attrs = append(attrs, slog.String("reason", event.Reason))
+	}
+	if event.Error != "" {
+		attrs = append(attrs, slog.String("error", event.Error))
 	}
 	if event.RequestBody != "" {
 		attrs = append(attrs, slog.String("request_body", event.RequestBody))
@@ -309,28 +363,40 @@ func (al *AuditLogger) Middleware(next http.Handler) http.Handler {
 
 		// Get user info from context
 		user := GetUser(r.Context())
-		var username, role string
+		var actorID, role, authMethod, actorType string
 		if user != nil {
-			username = user.Username
+			actorID = user.Username
 			role = user.Role
+			authMethod = user.Method
+			actorType = actorTypeFromAuthMethod(authMethod)
+		} else {
+			actorType = "anonymous"
 		}
+
+		outcome := outcomeFromStatusCode(rw.statusCode)
+		reason := reasonFromStatusCode(rw.statusCode)
+		targetType, targetID := extractTarget(r.URL.Path, eventType)
 
 		event := &AuditEvent{
 			Timestamp:   start,
+			Duration:    time.Since(start),
 			EventType:   eventType,
-			User:        username,
+			Outcome:     outcome,
+			ActorID:     actorID,
+			ActorType:   actorType,
 			Role:        role,
-			ClientIP:    getClientIP(r),
+			AuthMethod:  authMethod,
+			TargetType:  targetType,
+			TargetID:    targetID,
+			SourceIP:    getClientIP(r),
+			UserAgent:   r.UserAgent(),
 			Method:      r.Method,
 			Path:        r.URL.Path,
 			StatusCode:  rw.statusCode,
-			Duration:    time.Since(start),
+			Reason:      reason,
 			RequestBody: requestBody,
 			RequestID:   middleware.GetReqID(r.Context()),
 		}
-
-		// Extract subject from path if applicable
-		event.Subject = extractSubject(r.URL.Path)
 
 		al.Log(event)
 	})
@@ -549,6 +615,190 @@ func extractSubject(path string) string {
 	return ""
 }
 
+// actorTypeFromAuthMethod derives the actor type from the authentication method.
+func actorTypeFromAuthMethod(method string) string {
+	switch method {
+	case "api_key":
+		return "api_key"
+	case "basic", "jwt", "oidc", "ldap", "mtls":
+		return "user"
+	default:
+		return "anonymous"
+	}
+}
+
+// outcomeFromStatusCode returns "success" or "failure" based on the HTTP status code.
+func outcomeFromStatusCode(statusCode int) string {
+	if statusCode >= 200 && statusCode < 400 {
+		return "success"
+	}
+	return "failure"
+}
+
+// reasonFromStatusCode returns a structured reason code for failure status codes.
+// Returns empty string for success status codes.
+func reasonFromStatusCode(statusCode int) string {
+	switch {
+	case statusCode >= 200 && statusCode < 400:
+		return ""
+	case statusCode == http.StatusUnauthorized:
+		return "no_valid_credentials"
+	case statusCode == http.StatusForbidden:
+		return "permission_denied"
+	case statusCode == http.StatusNotFound:
+		return "not_found"
+	case statusCode == http.StatusConflict:
+		return "already_exists"
+	case statusCode == http.StatusBadRequest:
+		return "validation_error"
+	case statusCode == 422:
+		return "invalid_schema"
+	case statusCode == http.StatusTooManyRequests:
+		return "rate_limited"
+	default:
+		if statusCode >= 500 {
+			return "internal_error"
+		}
+		return ""
+	}
+}
+
+// classifyMCPError derives a structured reason code from an MCP error message.
+func classifyMCPError(errMsg string) string {
+	lower := toLower(errMsg)
+	switch {
+	case contains(lower, "not found"):
+		return "not_found"
+	case contains(lower, "permission") || contains(lower, "forbidden") || contains(lower, "unauthorized"):
+		return "permission_denied"
+	case contains(lower, "already exists") || contains(lower, "duplicate"):
+		return "already_exists"
+	case contains(lower, "invalid schema") || contains(lower, "parse"):
+		return "invalid_schema"
+	case contains(lower, "incompatible"):
+		return "incompatible"
+	case contains(lower, "invalid") || contains(lower, "required") || contains(lower, "missing"):
+		return "validation_error"
+	default:
+		return "internal_error"
+	}
+}
+
+// toLower converts ASCII uppercase to lowercase without importing strings.
+func toLower(s string) string {
+	b := make([]byte, len(s))
+	for i := range len(s) {
+		c := s[i]
+		if c >= 'A' && c <= 'Z' {
+			c += 'a' - 'A'
+		}
+		b[i] = c
+	}
+	return string(b)
+}
+
+// extractTarget derives the target_type and target_id from the URL path and event type.
+func extractTarget(path string, eventType AuditEventType) (targetType, targetID string) {
+	switch {
+	// Subject/schema operations
+	case contains(path, "/subjects/"):
+		subject := extractSubject(path)
+		if subject != "" {
+			return "subject", subject
+		}
+	// Schema by ID
+	case contains(path, "/schemas/ids/"):
+		start := 13 // len("/schemas/ids/")
+		if start < len(path) {
+			end := start
+			for end < len(path) && path[end] != '/' {
+				end++
+			}
+			return "schema", path[start:end]
+		}
+	// Config operations
+	case contains(path, "/config"):
+		subject := extractSubject(path)
+		if subject != "" {
+			return "config", subject
+		}
+		return "config", "_global"
+	// Mode operations
+	case contains(path, "/mode"):
+		subject := extractSubject(path)
+		if subject != "" {
+			return "mode", subject
+		}
+		return "mode", "_global"
+	// KEK/DEK operations
+	case contains(path, "/dek-registry/v1/keks"):
+		return extractKEKDEKTarget(path)
+	// Exporter operations
+	case contains(path, "/exporters"):
+		return extractExporterTarget(path)
+	// Admin user operations
+	case contains(path, "/admin/users"):
+		return extractAdminTarget(path, "/admin/users/", "user")
+	// Admin API key operations
+	case contains(path, "/admin/apikeys"):
+		return extractAdminTarget(path, "/admin/apikeys/", "apikey")
+	// Import
+	case contains(path, "/import/"):
+		return "schema", ""
+	}
+
+	return "", ""
+}
+
+// extractKEKDEKTarget extracts target type and ID from KEK/DEK paths.
+func extractKEKDEKTarget(path string) (string, string) {
+	// /dek-registry/v1/keks/{kekName}/deks/{subject}...
+	prefix := "/dek-registry/v1/keks/"
+	if !contains(path, prefix) || len(path) <= len(prefix) {
+		return "kek", ""
+	}
+	rest := path[len(prefix):]
+	// Extract KEK name
+	end := 0
+	for end < len(rest) && rest[end] != '/' {
+		end++
+	}
+	kekName := rest[:end]
+
+	// Check if this is a DEK operation
+	if contains(rest, "/deks") {
+		return "dek", kekName
+	}
+	return "kek", kekName
+}
+
+// extractExporterTarget extracts the exporter name from the path.
+func extractExporterTarget(path string) (string, string) {
+	prefix := "/exporters/"
+	if !contains(path, prefix) || len(path) <= len(prefix) {
+		return "exporter", ""
+	}
+	rest := path[len(prefix):]
+	end := 0
+	for end < len(rest) && rest[end] != '/' {
+		end++
+	}
+	return "exporter", rest[:end]
+}
+
+// extractAdminTarget extracts the target ID from admin paths.
+func extractAdminTarget(path, prefix, targetType string) (string, string) {
+	if !contains(path, prefix) || len(path) <= len(prefix) {
+		return targetType, ""
+	}
+	rest := path[len(prefix):]
+	end := 0
+	for end < len(rest) && rest[end] != '/' {
+		end++
+	}
+	return targetType, rest[:end]
+}
+
 // contains checks if a string contains a substring.
 func contains(s, substr string) bool {
 	for i := 0; i <= len(s)-len(substr); i++ {
@@ -566,10 +816,14 @@ func (al *AuditLogger) LogEvent(eventType AuditEventType, r *http.Request, statu
 	}
 
 	user := GetUser(r.Context())
-	var username, role string
+	var actorID, role, authMethod, actorType string
 	if user != nil {
-		username = user.Username
+		actorID = user.Username
 		role = user.Role
+		authMethod = user.Method
+		actorType = actorTypeFromAuthMethod(authMethod)
+	} else {
+		actorType = "anonymous"
 	}
 
 	var errStr string
@@ -577,16 +831,26 @@ func (al *AuditLogger) LogEvent(eventType AuditEventType, r *http.Request, statu
 		errStr = err.Error()
 	}
 
+	outcome := outcomeFromStatusCode(statusCode)
+	reason := reasonFromStatusCode(statusCode)
+	targetType, targetID := extractTarget(r.URL.Path, eventType)
+
 	event := &AuditEvent{
 		Timestamp:  time.Now(),
 		EventType:  eventType,
-		User:       username,
+		Outcome:    outcome,
+		ActorID:    actorID,
+		ActorType:  actorType,
 		Role:       role,
-		ClientIP:   getClientIP(r),
+		AuthMethod: authMethod,
+		TargetType: targetType,
+		TargetID:   targetID,
+		SourceIP:   getClientIP(r),
+		UserAgent:  r.UserAgent(),
 		Method:     r.Method,
 		Path:       r.URL.Path,
 		StatusCode: statusCode,
-		Subject:    extractSubject(r.URL.Path),
+		Reason:     reason,
 		Error:      errStr,
 	}
 
@@ -594,65 +858,81 @@ func (al *AuditLogger) LogEvent(eventType AuditEventType, r *http.Request, statu
 }
 
 // LogMCPEvent logs an MCP tool call audit event.
-// The user and role parameters identify the authenticated principal making the call.
-// For unauthenticated calls, pass "unknown" as user and empty string as role.
-func (al *AuditLogger) LogMCPEvent(eventType AuditEventType, user, role, toolName, status string, duration time.Duration, err error, subject string, metadata map[string]string) {
+// The actorID and actorType identify the authenticated principal.
+// The authMethod indicates how the MCP client authenticated ("bearer_token" or "").
+func (al *AuditLogger) LogMCPEvent(eventType AuditEventType, actorID, actorType, authMethod, toolName, status string, duration time.Duration, err error, subject string, metadata map[string]string) {
 	if !al.config.Enabled {
 		return
 	}
 
-	var errStr string
+	var errStr, reason string
+	outcome := "success"
 	if err != nil {
 		errStr = err.Error()
+		outcome = "failure"
+		reason = classifyMCPError(errStr)
+	} else if status == "error" {
+		outcome = "failure"
+		reason = "internal_error"
+	}
+
+	var targetType, targetID string
+	if subject != "" {
+		targetType = "subject"
+		targetID = subject
 	}
 
 	event := &AuditEvent{
-		Timestamp: time.Now(),
-		EventType: eventType,
-		User:      user,
-		Role:      role,
-		Method:    "MCP",
-		Path:      toolName,
-		Duration:  duration,
-		Error:     errStr,
-		Subject:   subject,
-		Metadata:  metadata,
-	}
-	if status == "error" {
-		event.StatusCode = 1
+		Timestamp:  time.Now(),
+		Duration:   duration,
+		EventType:  eventType,
+		Outcome:    outcome,
+		ActorID:    actorID,
+		ActorType:  actorType,
+		AuthMethod: authMethod,
+		TargetType: targetType,
+		TargetID:   targetID,
+		Method:     "MCP",
+		Path:       toolName,
+		Reason:     reason,
+		Error:      errStr,
+		Metadata:   metadata,
 	}
 
 	al.Log(event)
 }
 
 // LogMCPConfirmationEvent logs an MCP confirmation flow audit event.
-// The user and role parameters identify the authenticated principal.
-func (al *AuditLogger) LogMCPConfirmationEvent(eventType AuditEventType, user, role, toolName string, metadata map[string]string) {
+// The actorID and actorType identify the authenticated principal.
+func (al *AuditLogger) LogMCPConfirmationEvent(eventType AuditEventType, actorID, actorType, authMethod, toolName string, metadata map[string]string) {
 	if !al.config.Enabled {
 		return
 	}
 
 	event := &AuditEvent{
-		Timestamp: time.Now(),
-		EventType: eventType,
-		User:      user,
-		Role:      role,
-		Method:    "MCP",
-		Path:      toolName,
-		Metadata:  metadata,
+		Timestamp:  time.Now(),
+		EventType:  eventType,
+		Outcome:    "success",
+		ActorID:    actorID,
+		ActorType:  actorType,
+		AuthMethod: authMethod,
+		Method:     "MCP",
+		Path:       toolName,
+		Metadata:   metadata,
 	}
 
 	al.Log(event)
 }
 
 // MarshalJSON implements custom JSON marshaling for AuditEvent.
+// Converts the Duration field from time.Duration to integer milliseconds.
 func (e *AuditEvent) MarshalJSON() ([]byte, error) {
 	type Alias AuditEvent
 	return json.Marshal(&struct {
 		*Alias
-		Duration int64 `json:"duration_ms"`
+		DurationMs int64 `json:"duration_ms"`
 	}{
-		Alias:    (*Alias)(e),
-		Duration: e.Duration.Milliseconds(),
+		Alias:      (*Alias)(e),
+		DurationMs: e.Duration.Milliseconds(),
 	})
 }

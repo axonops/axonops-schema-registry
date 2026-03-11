@@ -204,7 +204,8 @@ func (s *Server) confirmationCheck(toolName string, dryRun bool, confirmToken st
 			s.metrics.RecordMCPConfirmation("token_issued")
 		}
 		if s.auditLogger != nil {
-			s.auditLogger.LogMCPConfirmationEvent(auth.AuditEventMCPConfirmIssued, s.mcpPrincipal(), "", toolName, nil)
+			actorID, actorType, authMethod := s.mcpActor()
+			s.auditLogger.LogMCPConfirmationEvent(auth.AuditEventMCPConfirmIssued, actorID, actorType, authMethod, toolName, nil)
 		}
 		data, err := json.Marshal(map[string]any{
 			"confirmation_required": true,
@@ -232,7 +233,8 @@ func (s *Server) confirmationCheck(toolName string, dryRun bool, confirmToken st
 				s.metrics.RecordMCPConfirmation("token_rejected")
 			}
 			if s.auditLogger != nil {
-				s.auditLogger.LogMCPConfirmationEvent(auth.AuditEventMCPConfirmRejected, s.mcpPrincipal(), "", toolName, nil)
+				actorID, actorType, authMethod := s.mcpActor()
+				s.auditLogger.LogMCPConfirmationEvent(auth.AuditEventMCPConfirmRejected, actorID, actorType, authMethod, toolName, nil)
 			}
 			return &gomcp.CallToolResult{
 				Content: []gomcp.Content{
@@ -245,7 +247,8 @@ func (s *Server) confirmationCheck(toolName string, dryRun bool, confirmToken st
 			s.metrics.RecordMCPConfirmation("confirmed")
 		}
 		if s.auditLogger != nil {
-			s.auditLogger.LogMCPConfirmationEvent(auth.AuditEventMCPConfirmed, s.mcpPrincipal(), "", toolName, nil)
+			actorID, actorType, authMethod := s.mcpActor()
+			s.auditLogger.LogMCPConfirmationEvent(auth.AuditEventMCPConfirmed, actorID, actorType, authMethod, toolName, nil)
 		}
 		return nil // proceed with the operation
 	}
