@@ -362,6 +362,7 @@ func setDefaultEnabledEvents(m map[AuditEventType]bool) {
 }
 
 // Log logs an audit event by serializing it and writing to all configured outputs.
+// Each output receives data in its configured format (JSON or CEF).
 func (al *AuditLogger) Log(event *AuditEvent) {
 	if !al.config.Enabled {
 		return
@@ -374,14 +375,29 @@ func (al *AuditLogger) Log(event *AuditEvent) {
 	al.mu.Lock()
 	defer al.mu.Unlock()
 
-	data, err := json.Marshal(event)
-	if err != nil {
-		slog.Warn("failed to marshal audit event", slog.String("error", err.Error()))
-		return
-	}
-	data = append(data, '\n')
+	// Lazy-serialize: only compute each format if at least one output needs it.
+	var jsonData, cefData []byte
+	var jsonErr error
 
 	for _, fo := range al.outputs {
+		var data []byte
+		switch fo.formatType {
+		case "cef":
+			if cefData == nil {
+				cefData = FormatCEF(event)
+			}
+			data = cefData
+		default:
+			if jsonData == nil {
+				jsonData, jsonErr = FormatJSON(event)
+				if jsonErr != nil {
+					slog.Warn("failed to marshal audit event", slog.String("error", jsonErr.Error()))
+					return
+				}
+			}
+			data = jsonData
+		}
+
 		if writeErr := fo.output.Write(data); writeErr != nil {
 			slog.Warn("failed to write audit event",
 				slog.String("output", fo.output.Name()),
