@@ -26,7 +26,7 @@ Each project serves different needs:
 
 - **Apicurio Registry** is a Java-based registry from Red Hat that supports multiple schema formats beyond Kafka (OpenAPI, GraphQL, AsyncAPI) and multiple storage backends. It targets broader API governance use cases.
 
-- **AxonOps Schema Registry** is a Go-based, API-compatible implementation built by [AxonOps](https://axonops.com) with a focus on operational simplicity, enterprise features without licensing costs, and AI-assisted schema management.
+- **AxonOps Schema Registry** is a Go-based, API-compatible implementation built by [AxonOps](https://axonops.com). It ships as a single binary with no Kafka dependency, supports three production storage backends (PostgreSQL, MySQL, Cassandra), and includes enterprise features — RBAC, data contracts, client-side field-level encryption, enterprise audit logging with multi-output delivery, rate limiting, schema exporters, and an MCP server for AI-assisted schema management — all under the Apache 2.0 license.
 
 ## Why We Built AxonOps Schema Registry
 
@@ -40,7 +40,18 @@ At [AxonOps](https://axonops.com), we work with organizations running Apache Kaf
 
 4. **AI integration** — As AI-assisted development becomes the norm, we saw an opportunity to make schema management more accessible through natural language — helping developers design better schemas, troubleshoot compatibility issues, and plan migrations without being schema format experts.
 
-AxonOps Schema Registry addresses all of these. It implements the full Confluent Schema Registry REST API (Community and Enterprise), adds additional REST APIs for schema analysis and administration, and includes a built-in MCP server for AI-assisted workflows — all under the Apache 2.0 license, in a single binary with no Kafka dependency for storage.
+AxonOps Schema Registry addresses all of these:
+
+- **Full API compatibility** — implements the complete Confluent Schema Registry REST API (Community and Enterprise surfaces), plus additional REST endpoints for schema analysis, quality scoring, field search, and administration.
+- **Enterprise security** — six authentication methods (Basic, API Keys, JWT, LDAP/AD, OIDC, mTLS), RBAC with four built-in roles, and token-bucket rate limiting.
+- **[Enterprise audit logging](auditing.md)** — structured audit events with actor identification, change-integrity hashes, and simultaneous delivery to stdout, rotating files, syslog (RFC 5424 over TCP/TLS), and webhooks — in JSON or CEF format, with Prometheus metrics for delivery health.
+- **[Data contracts](data-contracts.md)** — metadata tags, domain rules, migration rules, and encoding rules with a three-layer config merge, giving platform teams governance controls.
+- **[Client-side field encryption (CSFLE)](encryption.md)** — built-in DEK/KEK registry with HashiCorp Vault and OpenBao Transit integration, compatible with Confluent's CSFLE serializers.
+- **[Schema intelligence](mcp-reference.md)** — 26 analysis endpoints for field search, type search, structural similarity detection, quality scoring, complexity grading, pattern detection, evolution suggestions, and migration planning — available as both REST and MCP.
+- **[AI-assisted management (MCP server)](mcp.md)** — 107 tools, 47 resources, and 33 guided prompts for AI assistants, with server-side guardrails: read-only mode, tool allow/deny lists, permission presets and scopes, and two-phase confirmations for destructive operations.
+- **Multi-datacenter** — pair with Cassandra for active-active deployments with native cross-DC replication.
+
+All of this ships under the Apache 2.0 license, in a single ~50 MB binary, with no Kafka dependency for storage.
 
 ## Compatibility Philosophy
 
@@ -54,7 +65,7 @@ The right choice depends on your environment and priorities:
 
 - **If you need the reference implementation** and are comfortable with Kafka-based storage, Confluent Schema Registry (Community or Enterprise) is the established choice.
 
-- **If you want enterprise features without licensing costs**, want to use standard databases instead of Kafka for storage, or want AI-assisted schema management, AxonOps Schema Registry is purpose-built for these needs.
+- **If you want enterprise features without licensing costs** — RBAC, data contracts, CSFLE, audit logging, rate limiting, schema intelligence, and AI-assisted management — and prefer standard databases over Kafka for storage, AxonOps Schema Registry is purpose-built for these needs.
 
 - **If you need broad API governance** beyond Kafka (OpenAPI, GraphQL, AsyncAPI), Apicurio Registry's multi-format support may be a better fit.
 
