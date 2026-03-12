@@ -245,7 +245,16 @@ func NewAuditLogger(cfg config.AuditConfig) (*AuditLogger, error) {
 				formatType: normalizeFormat(cfg.Outputs.Syslog.FormatType),
 			})
 		}
-		// Webhook output is wired in Phase 6.
+		if cfg.Outputs.Webhook.Enabled {
+			webhookOut, err := NewWebhookOutput(cfg.Outputs.Webhook)
+			if err != nil {
+				return nil, err
+			}
+			al.outputs = append(al.outputs, formattedOutput{
+				output:     webhookOut,
+				formatType: normalizeFormat(cfg.Outputs.Webhook.FormatType),
+			})
+		}
 	} else if cfg.LogFile != "" {
 		// Legacy config: single file output
 		file, err := os.OpenFile(cfg.LogFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
