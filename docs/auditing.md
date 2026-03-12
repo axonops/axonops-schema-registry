@@ -213,6 +213,8 @@ The following Prometheus metrics are available for monitoring audit output healt
 
 Each audit entry is a single-line JSON object. All fields use underscore-separated naming (flat structure, no nesting).
 
+> **Zero-value field omission:** Fields with zero values (empty strings, zero integers, false booleans) are **omitted** from the JSON output. For example, an anonymous request will have no `actor_id` field rather than `"actor_id": ""`. Consumers MUST treat an absent field as equivalent to its zero value. The only fields guaranteed to be present on every event are `timestamp`, `event_type`, `outcome`, and `duration_ms`.
+
 ### Timing Fields
 
 | Field | Type | Description |

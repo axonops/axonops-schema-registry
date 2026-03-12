@@ -6,7 +6,7 @@
   **Drop-in Confluent Replacement with Extra REST APIs, Enterprise Security, Multi-Backend Storage, and Built-in MCP Server**
 
   [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
-  [![Go Version](https://img.shields.io/badge/Go-1.24+-00ADD8.svg)](https://go.dev/)
+  [![Go Version](https://img.shields.io/badge/Go-1.26+-00ADD8.svg)](https://go.dev/)
   [![GitHub Stars](https://img.shields.io/github/stars/axonops/axonops-schema-registry)](https://github.com/axonops/axonops-schema-registry)
   [![GitHub Issues](https://img.shields.io/github/issues/axonops/axonops-schema-registry)](https://github.com/axonops/axonops-schema-registry/issues)
 
