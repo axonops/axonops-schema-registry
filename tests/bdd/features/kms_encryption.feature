@@ -24,7 +24,12 @@ Feature: KMS Server-Side Field-Level Encryption
     And the response field "keyMaterial" should be non-empty
     And the response field "encryptedKeyMaterial" should be non-empty
     And I can unwrap the encrypted key material using KMS type "hcvault" and key ID "test-key"
-    And the audit log should contain event "dek_create"
+    And the audit log should contain an event:
+      | event_type  | dek_create                                    |
+      | outcome     | success                                       |
+      | actor_type  | anonymous                                     |
+      | method      | POST                                          |
+      | path        | /dek-registry/v1/keks/vault-kek-aes256gcm/deks |
 
   Scenario: Vault Transit DEK with AES128_GCM algorithm
     Given a shared KEK "vault-kek-aes128" with KMS type "hcvault" and key ID "test-key"
@@ -34,7 +39,12 @@ Feature: KMS Server-Side Field-Level Encryption
     And the response field "keyMaterial" should be non-empty
     And the response field "encryptedKeyMaterial" should be non-empty
     And I can unwrap the encrypted key material using KMS type "hcvault" and key ID "test-key"
-    And the audit log should contain event "dek_create"
+    And the audit log should contain an event:
+      | event_type  | dek_create                                 |
+      | outcome     | success                                    |
+      | actor_type  | anonymous                                  |
+      | method      | POST                                       |
+      | path        | /dek-registry/v1/keks/vault-kek-aes128/deks |
 
   Scenario: Vault Transit DEK with AES256_SIV algorithm
     Given a shared KEK "vault-kek-aes256siv" with KMS type "hcvault" and key ID "test-key"
@@ -44,7 +54,12 @@ Feature: KMS Server-Side Field-Level Encryption
     And the response field "keyMaterial" should be non-empty
     And the response field "encryptedKeyMaterial" should be non-empty
     And I can unwrap the encrypted key material using KMS type "hcvault" and key ID "test-key"
-    And the audit log should contain event "dek_create"
+    And the audit log should contain an event:
+      | event_type  | dek_create                                    |
+      | outcome     | success                                       |
+      | actor_type  | anonymous                                     |
+      | method      | POST                                          |
+      | path        | /dek-registry/v1/keks/vault-kek-aes256siv/deks |
 
   Scenario: Multi-version DEKs under Vault Transit KEK have unique key material
     Given a shared KEK "vault-kek-multiversion" with KMS type "hcvault" and key ID "test-key"
@@ -65,7 +80,12 @@ Feature: KMS Server-Side Field-Level Encryption
     And the response field "keyMaterial" should be non-empty
     And the response field "keyMaterial" should not equal stored "v1_keyMaterial"
     And the response field "keyMaterial" should not equal stored "v2_keyMaterial"
-    And the audit log should contain event "dek_create"
+    And the audit log should contain an event:
+      | event_type  | dek_create                                        |
+      | outcome     | success                                           |
+      | actor_type  | anonymous                                         |
+      | method      | POST                                              |
+      | path        | /dek-registry/v1/keks/vault-kek-multiversion/deks |
 
   # ============================================================================
   # OpenBao Transit Scenarios
@@ -82,7 +102,12 @@ Feature: KMS Server-Side Field-Level Encryption
     And the response field "keyMaterial" should be non-empty
     And the response field "encryptedKeyMaterial" should be non-empty
     And I can unwrap the encrypted key material using KMS type "openbao" and key ID "test-key"
-    And the audit log should contain event "dek_create"
+    And the audit log should contain an event:
+      | event_type  | dek_create                                   |
+      | outcome     | success                                      |
+      | actor_type  | anonymous                                    |
+      | method      | POST                                         |
+      | path        | /dek-registry/v1/keks/bao-kek-aes256gcm/deks |
 
   Scenario: OpenBao Transit DEK with AES128_GCM algorithm
     Given a shared KEK "bao-kek-aes128" with KMS type "openbao" and key ID "test-key"
@@ -92,7 +117,12 @@ Feature: KMS Server-Side Field-Level Encryption
     And the response field "keyMaterial" should be non-empty
     And the response field "encryptedKeyMaterial" should be non-empty
     And I can unwrap the encrypted key material using KMS type "openbao" and key ID "test-key"
-    And the audit log should contain event "dek_create"
+    And the audit log should contain an event:
+      | event_type  | dek_create                                |
+      | outcome     | success                                   |
+      | actor_type  | anonymous                                 |
+      | method      | POST                                      |
+      | path        | /dek-registry/v1/keks/bao-kek-aes128/deks |
 
   Scenario: OpenBao Transit DEK with AES256_SIV algorithm
     Given a shared KEK "bao-kek-aes256siv" with KMS type "openbao" and key ID "test-key"
@@ -102,7 +132,12 @@ Feature: KMS Server-Side Field-Level Encryption
     And the response field "keyMaterial" should be non-empty
     And the response field "encryptedKeyMaterial" should be non-empty
     And I can unwrap the encrypted key material using KMS type "openbao" and key ID "test-key"
-    And the audit log should contain event "dek_create"
+    And the audit log should contain an event:
+      | event_type  | dek_create                                   |
+      | outcome     | success                                      |
+      | actor_type  | anonymous                                    |
+      | method      | POST                                         |
+      | path        | /dek-registry/v1/keks/bao-kek-aes256siv/deks |
 
   # ============================================================================
   # Cross-KMS Scenarios
@@ -125,7 +160,12 @@ Feature: KMS Server-Side Field-Level Encryption
     And the response field "encryptedKeyMaterial" should be non-empty
     And I can unwrap the encrypted key material using KMS type "openbao" and key ID "test-key"
     And the response field "keyMaterial" should not equal stored "vault_key"
-    And the audit log should contain event "dek_create"
+    And the audit log should contain an event:
+      | event_type  | dek_create                                |
+      | outcome     | success                                   |
+      | actor_type  | anonymous                                 |
+      | method      | POST                                      |
+      | path        | /dek-registry/v1/keks/cross-bao-kek/deks  |
 
   # ============================================================================
   # Non-Shared / Client-Provided Scenarios
@@ -149,7 +189,12 @@ Feature: KMS Server-Side Field-Level Encryption
     And the response field "subject" should be "nonshared.subject"
     And the response field "keyMaterial" should be empty or absent
     And the response field "encryptedKeyMaterial" should be empty or absent
-    And the audit log should contain event "dek_create"
+    And the audit log should contain an event:
+      | event_type  | dek_create                                 |
+      | outcome     | success                                    |
+      | actor_type  | anonymous                                  |
+      | method      | POST                                       |
+      | path        | /dek-registry/v1/keks/non-shared-kek/deks  |
 
   Scenario: Client-provided encrypted key material is preserved
     Given a shared KEK "client-material-kek" with KMS type "hcvault" and key ID "test-key"
@@ -158,7 +203,12 @@ Feature: KMS Server-Side Field-Level Encryption
     And the response field "kekName" should be "client-material-kek"
     And the response field "subject" should be "client.provided.field"
     And the response field "encryptedKeyMaterial" should be "client-provided-material"
-    And the audit log should contain event "dek_create"
+    And the audit log should contain an event:
+      | event_type  | dek_create                                      |
+      | outcome     | success                                         |
+      | actor_type  | anonymous                                       |
+      | method      | POST                                            |
+      | path        | /dek-registry/v1/keks/client-material-kek/deks  |
 
   # ============================================================================
   # DEK Lifecycle with Encryption
@@ -185,7 +235,12 @@ Feature: KMS Server-Side Field-Level Encryption
     And the response field "subject" should be "lifecycle.encrypted.field"
     And the response field "encryptedKeyMaterial" should be non-empty
     And the response field "encryptedKeyMaterial" should equal stored "original_encrypted"
-    And the audit log should contain event "dek_create"
+    And the audit log should contain an event:
+      | event_type  | dek_create                                     |
+      | outcome     | success                                        |
+      | actor_type  | anonymous                                      |
+      | method      | POST                                           |
+      | path        | /dek-registry/v1/keks/lifecycle-enc-kek/deks   |
 
   Scenario: Permanent delete removes encrypted DEK
     Given a shared KEK "permdelete-enc-kek" with KMS type "hcvault" and key ID "test-key"
@@ -201,7 +256,12 @@ Feature: KMS Server-Side Field-Level Encryption
     # Verify DEK is gone even with deleted=true
     When I GET "/dek-registry/v1/keks/permdelete-enc-kek/deks/permdelete.encrypted.field?deleted=true"
     Then the response status should be 404
-    And the audit log should contain event "dek_delete"
+    And the audit log should contain an event:
+      | event_type  | dek_delete                                                              |
+      | outcome     | success                                                                 |
+      | actor_type  | anonymous                                                               |
+      | method      | DELETE                                                                  |
+      | path        | /dek-registry/v1/keks/permdelete-enc-kek/deks/permdelete.encrypted.field |
 
   # ============================================================================
   # Error Scenarios
@@ -225,7 +285,12 @@ Feature: KMS Server-Side Field-Level Encryption
     And the response field "subject" should be "unknown.kms.field"
     And the response field "keyMaterial" should be empty or absent
     And the response field "encryptedKeyMaterial" should be empty or absent
-    And the audit log should contain event "dek_create"
+    And the audit log should contain an event:
+      | event_type  | dek_create                                    |
+      | outcome     | success                                       |
+      | actor_type  | anonymous                                     |
+      | method      | POST                                          |
+      | path        | /dek-registry/v1/keks/unknown-kms-kek/deks    |
 
   Scenario: Vault Transit DEK version retrieval returns encrypted key material
     Given a shared KEK "vault-kek-retrieve" with KMS type "hcvault" and key ID "test-key"
@@ -237,7 +302,12 @@ Feature: KMS Server-Side Field-Level Encryption
     And the response field "version" should be 1
     And the response field "encryptedKeyMaterial" should be non-empty
     And the response field "encryptedKeyMaterial" should equal stored "created_encrypted"
-    And the audit log should contain event "dek_create"
+    And the audit log should contain an event:
+      | event_type  | dek_create                                      |
+      | outcome     | success                                         |
+      | actor_type  | anonymous                                       |
+      | method      | POST                                            |
+      | path        | /dek-registry/v1/keks/vault-kek-retrieve/deks   |
 
   # ============================================================================
   # Consumer Key Access Scenarios
@@ -259,7 +329,12 @@ Feature: KMS Server-Side Field-Level Encryption
     Then the response status should be 200
     And the response field "encryptedKeyMaterial" should be non-empty
     And the response field "keyMaterial" should be empty or absent
-    And the audit log should contain event "dek_create"
+    And the audit log should contain an event:
+      | event_type  | dek_create                                           |
+      | outcome     | success                                              |
+      | actor_type  | anonymous                                            |
+      | method      | POST                                                 |
+      | path        | /dek-registry/v1/keks/vault-kek-no-plaintext/deks    |
 
   Scenario: Non-shared KEK consumer only receives encryptedKeyMaterial
     When I POST "/dek-registry/v1/keks" with body:
@@ -289,7 +364,12 @@ Feature: KMS Server-Side Field-Level Encryption
     And the response field "encryptedKeyMaterial" should be "Y2xpZW50LXdyYXBwZWQta2V5LW1hdGVyaWFs"
     And the response field "keyMaterial" should be empty or absent
     And the response body should not contain "keyMaterial"
-    And the audit log should contain event "dek_create"
+    And the audit log should contain an event:
+      | event_type  | dek_create                                         |
+      | outcome     | success                                            |
+      | actor_type  | anonymous                                          |
+      | method      | POST                                               |
+      | path        | /dek-registry/v1/keks/consumer-nonshared-kek/deks  |
 
   Scenario: DEK subject listing does not expose any key material
     Given a shared KEK "vault-kek-list-safe" with KMS type "hcvault" and key ID "test-key"
@@ -304,7 +384,12 @@ Feature: KMS Server-Side Field-Level Encryption
     And the response body should not contain "keyMaterial"
     And the response body should not contain "encryptedKeyMaterial"
     And the response should be an array of length 2
-    And the audit log should contain event "dek_create"
+    And the audit log should contain an event:
+      | event_type  | dek_create                                       |
+      | outcome     | success                                          |
+      | actor_type  | anonymous                                        |
+      | method      | POST                                             |
+      | path        | /dek-registry/v1/keks/vault-kek-list-safe/deks   |
 
   Scenario: Multiple subjects under same Vault Transit KEK have independent keys
     Given a shared KEK "vault-kek-multi-subject" with KMS type "hcvault" and key ID "test-key"
@@ -322,4 +407,9 @@ Feature: KMS Server-Side Field-Level Encryption
     And the response field "keyMaterial" should be non-empty
     And the response field "keyMaterial" should not equal stored "email_key"
     And the response field "keyMaterial" should not equal stored "phone_key"
-    And the audit log should contain event "dek_create"
+    And the audit log should contain an event:
+      | event_type  | dek_create                                          |
+      | outcome     | success                                             |
+      | actor_type  | anonymous                                           |
+      | method      | POST                                                |
+      | path        | /dek-registry/v1/keks/vault-kek-multi-subject/deks  |
