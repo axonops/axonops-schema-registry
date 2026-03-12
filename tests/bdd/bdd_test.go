@@ -115,12 +115,12 @@ func TestFeatures(t *testing.T) {
 	if envTags := os.Getenv("BDD_TAGS"); envTags != "" {
 		tags = envTags
 	} else if backend == "confluent" {
-		tags = "~@operational && ~@import && ~@axonops-only && ~@contexts && ~@pending-impl && ~@data-contracts && ~@auth && ~@kms && ~@mcp && ~@analysis && ~@audit && ~@memory && ~@postgres && ~@mysql && ~@cassandra"
+		tags = "~@operational && ~@import && ~@axonops-only && ~@contexts && ~@pending-impl && ~@data-contracts && ~@auth && ~@kms && ~@mcp && ~@analysis && ~@audit && ~@audit-outputs && ~@memory && ~@postgres && ~@mysql && ~@cassandra"
 	} else {
 		// Docker mode: run operational + functional scenarios for this backend.
 		// Auth, MCP, audit, KMS are handled by their own test functions with separate stacks.
 		allBackends := []string{"memory", "postgres", "mysql", "cassandra"}
-		excludes := []string{"~@pending-impl", "~@auth", "~@mcp", "~@audit"}
+		excludes := []string{"~@pending-impl", "~@auth", "~@mcp", "~@audit", "~@audit-outputs"}
 		if os.Getenv("BDD_KMS") != "true" {
 			excludes = append(excludes, "~@kms")
 		}
