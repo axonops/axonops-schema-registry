@@ -226,12 +226,12 @@ func NewAuditLogger(cfg config.AuditConfig) (*AuditLogger, error) {
 			})
 		}
 		if cfg.Outputs.File.Enabled {
-			file, err := os.OpenFile(cfg.Outputs.File.Path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+			fileOut, err := NewFileOutput(cfg.Outputs.File)
 			if err != nil {
 				return nil, err
 			}
 			al.outputs = append(al.outputs, formattedOutput{
-				output:     &WriterOutput{w: file, closer: file, name: "file"},
+				output:     fileOut,
 				formatType: normalizeFormat(cfg.Outputs.File.FormatType),
 			})
 		}
