@@ -48,19 +48,21 @@ const (
 	AuditEventSubjectList   AuditEventType = "subject_list"
 
 	// Admin events
-	AuditEventUserCreate   AuditEventType = "user_create"
-	AuditEventUserUpdate   AuditEventType = "user_update"
-	AuditEventUserDelete   AuditEventType = "user_delete"
-	AuditEventAPIKeyCreate AuditEventType = "apikey_create"
-	AuditEventAPIKeyUpdate AuditEventType = "apikey_update"
-	AuditEventAPIKeyDelete AuditEventType = "apikey_delete"
-	AuditEventAPIKeyRevoke AuditEventType = "apikey_revoke"
-	AuditEventAPIKeyRotate AuditEventType = "apikey_rotate"
+	AuditEventUserCreate     AuditEventType = "user_create"
+	AuditEventUserUpdate     AuditEventType = "user_update"
+	AuditEventUserDelete     AuditEventType = "user_delete"
+	AuditEventPasswordChange AuditEventType = "password_change"
+	AuditEventAPIKeyCreate   AuditEventType = "apikey_create"
+	AuditEventAPIKeyUpdate   AuditEventType = "apikey_update"
+	AuditEventAPIKeyDelete   AuditEventType = "apikey_delete"
+	AuditEventAPIKeyRevoke   AuditEventType = "apikey_revoke"
+	AuditEventAPIKeyRotate   AuditEventType = "apikey_rotate"
 
 	// Encryption events (KEK/DEK)
 	AuditEventKEKCreate AuditEventType = "kek_create"
 	AuditEventKEKUpdate AuditEventType = "kek_update"
 	AuditEventKEKDelete AuditEventType = "kek_delete"
+	AuditEventKEKTest   AuditEventType = "kek_test"
 	AuditEventDEKCreate AuditEventType = "dek_create"
 	AuditEventDEKDelete AuditEventType = "dek_delete"
 
@@ -225,6 +227,7 @@ func setDefaultEnabledEvents(m map[AuditEventType]bool) {
 	m[AuditEventUserCreate] = true
 	m[AuditEventUserUpdate] = true
 	m[AuditEventUserDelete] = true
+	m[AuditEventPasswordChange] = true
 	m[AuditEventAPIKeyCreate] = true
 	m[AuditEventAPIKeyUpdate] = true
 	m[AuditEventAPIKeyDelete] = true
@@ -235,6 +238,7 @@ func setDefaultEnabledEvents(m map[AuditEventType]bool) {
 	m[AuditEventKEKCreate] = true
 	m[AuditEventKEKUpdate] = true
 	m[AuditEventKEKDelete] = true
+	m[AuditEventKEKTest] = true
 	m[AuditEventDEKCreate] = true
 	m[AuditEventDEKDelete] = true
 
@@ -531,6 +535,11 @@ func (al *AuditLogger) determineEventType(r *http.Request, statusCode int) Audit
 		}
 	}
 
+	// Account self-service — password change
+	if contains(path, "/me/password") && r.Method == "POST" {
+		return AuditEventPasswordChange
+	}
+
 	// Admin operations — API key management
 	if contains(path, "/admin/apikeys") {
 		if contains(path, "/revoke") && r.Method == "POST" {
@@ -568,6 +577,10 @@ func (al *AuditLogger) determineEventType(r *http.Request, statusCode int) Audit
 
 		// KEK operations (no /deks/ in path)
 		if !contains(path, "/deks") {
+			// KEK test endpoint
+			if contains(path, "/test") && r.Method == "POST" {
+				return AuditEventKEKTest
+			}
 			switch r.Method {
 			case "POST":
 				if contains(path, "/undelete") {

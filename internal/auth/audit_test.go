@@ -237,16 +237,22 @@ func TestDetermineEventType_SchemaOps(t *testing.T) {
 		{"DELETE", "/admin/apikeys/1", AuditEventAPIKeyDelete},
 		{"POST", "/admin/apikeys/1/revoke", AuditEventAPIKeyRevoke},
 		{"POST", "/admin/apikeys/1/rotate", AuditEventAPIKeyRotate},
+		// Account self-service
+		{"POST", "/me/password", AuditEventPasswordChange},
 		// KEK operations
 		{"POST", "/dek-registry/v1/keks", AuditEventKEKCreate},
 		{"PUT", "/dek-registry/v1/keks/my-kek", AuditEventKEKUpdate},
 		{"DELETE", "/dek-registry/v1/keks/my-kek", AuditEventKEKDelete},
 		{"POST", "/dek-registry/v1/keks/my-kek/undelete", AuditEventKEKCreate},
+		{"POST", "/dek-registry/v1/keks/my-kek/test", AuditEventKEKTest},
 		// DEK operations
 		{"POST", "/dek-registry/v1/keks/my-kek/deks", AuditEventDEKCreate},
 		{"POST", "/dek-registry/v1/keks/my-kek/deks/my-subject", AuditEventDEKCreate},
 		{"DELETE", "/dek-registry/v1/keks/my-kek/deks/my-subject", AuditEventDEKDelete},
 		{"POST", "/dek-registry/v1/keks/my-kek/deks/my-subject/undelete", AuditEventDEKCreate},
+		// DEK version operations
+		{"DELETE", "/dek-registry/v1/keks/my-kek/deks/my-subject/versions/1", AuditEventDEKDelete},
+		{"POST", "/dek-registry/v1/keks/my-kek/deks/my-subject/versions/1/undelete", AuditEventDEKCreate},
 		// Exporter operations
 		{"POST", "/exporters", AuditEventExporterCreate},
 		{"PUT", "/exporters/my-export", AuditEventExporterUpdate},

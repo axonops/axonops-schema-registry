@@ -198,6 +198,7 @@ When the `events` list is empty in configuration, all events marked with **[defa
 | `user_create` | `POST /admin/users` | **[default]** |
 | `user_update` | `PUT /admin/users/{id}` | **[default]** |
 | `user_delete` | `DELETE /admin/users/{id}` | **[default]** |
+| `password_change` | `POST /me/password` | **[default]** |
 | `apikey_create` | `POST /admin/apikeys` | **[default]** |
 | `apikey_update` | `PUT /admin/apikeys/{id}` | **[default]** |
 | `apikey_delete` | `DELETE /admin/apikeys/{id}` | **[default]** |
@@ -211,6 +212,7 @@ When the `events` list is empty in configuration, all events marked with **[defa
 | `kek_create` | `POST /dek-registry/v1/keks` or undelete | **[default]** |
 | `kek_update` | `PUT /dek-registry/v1/keks/{name}` | **[default]** |
 | `kek_delete` | `DELETE /dek-registry/v1/keks/{name}` | **[default]** |
+| `kek_test` | `POST /dek-registry/v1/keks/{name}/test` | **[default]** |
 | `dek_create` | `POST /dek-registry/v1/keks/{name}/deks` or undelete | **[default]** |
 | `dek_delete` | `DELETE /dek-registry/v1/keks/{name}/deks/{subject}` | **[default]** |
 
