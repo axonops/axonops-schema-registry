@@ -1837,3 +1837,63 @@ func hashString(s string) string {
 	h := sha256.Sum256([]byte(s))
 	return fmt.Sprintf("sha256:%x", h)
 }
+
+// hashKEK returns a sha256 hash of the KEK's non-sensitive metadata.
+// Excludes KmsProps which MAY contain credentials.
+func hashKEK(kek *storage.KEKRecord) string {
+	obj := struct {
+		Name     string `json:"name"`
+		KmsType  string `json:"kmsType"`
+		KmsKeyID string `json:"kmsKeyId"`
+		Doc      string `json:"doc"`
+		Shared   bool   `json:"shared"`
+		Deleted  bool   `json:"deleted"`
+	}{
+		Name:     kek.Name,
+		KmsType:  kek.KmsType,
+		KmsKeyID: kek.KmsKeyID,
+		Doc:      kek.Doc,
+		Shared:   kek.Shared,
+		Deleted:  kek.Deleted,
+	}
+	data, _ := json.Marshal(obj)
+	return hashString(string(data))
+}
+
+// hashDEK returns a sha256 hash of the DEK's non-sensitive metadata.
+// Excludes EncryptedKeyMaterial and KeyMaterial.
+func hashDEK(dek *storage.DEKRecord) string {
+	obj := struct {
+		Subject   string `json:"subject"`
+		Version   int    `json:"version"`
+		Algorithm string `json:"algorithm"`
+		Deleted   bool   `json:"deleted"`
+	}{
+		Subject:   dek.Subject,
+		Version:   dek.Version,
+		Algorithm: dek.Algorithm,
+		Deleted:   dek.Deleted,
+	}
+	data, _ := json.Marshal(obj)
+	return hashString(string(data))
+}
+
+// hashExporter returns a sha256 hash of the exporter's non-sensitive metadata.
+// Excludes Config map which MAY contain credentials or connection strings.
+func hashExporter(exp *storage.ExporterRecord) string {
+	obj := struct {
+		Name                string   `json:"name"`
+		ContextType         string   `json:"contextType"`
+		Context             string   `json:"context"`
+		Subjects            []string `json:"subjects"`
+		SubjectRenameFormat string   `json:"subjectRenameFormat"`
+	}{
+		Name:                exp.Name,
+		ContextType:         exp.ContextType,
+		Context:             exp.Context,
+		Subjects:            exp.Subjects,
+		SubjectRenameFormat: exp.SubjectRenameFormat,
+	}
+	data, _ := json.Marshal(obj)
+	return hashString(string(data))
+}

@@ -1960,3 +1960,98 @@ func TestGetVersions_DeletedOnly_ErrorPropagation(t *testing.T) {
 		t.Errorf("expected 500 when second GetSchemasBySubject call fails, got %d: %s", w.Code, w.Body.String())
 	}
 }
+
+func TestHashKEK(t *testing.T) {
+	kek := &storage.KEKRecord{
+		Name:     "test-kek",
+		KmsType:  "aws-kms",
+		KmsKeyID: "arn:aws:kms:us-east-1:123456:key/abc",
+		KmsProps: map[string]string{"secret": "credential"}, // excluded from hash
+		Doc:      "test doc",
+		Shared:   true,
+		Deleted:  false,
+	}
+
+	h := hashKEK(kek)
+	if !strings.HasPrefix(h, "sha256:") {
+		t.Errorf("expected sha256: prefix, got %s", h)
+	}
+
+	// Same metadata, different KmsProps → same hash (KmsProps excluded)
+	kek2 := *kek
+	kek2.KmsProps = map[string]string{"different": "props"}
+	if hashKEK(&kek2) != h {
+		t.Error("KmsProps should not affect hash")
+	}
+
+	// Different metadata → different hash
+	kek3 := *kek
+	kek3.Doc = "different doc"
+	if hashKEK(&kek3) == h {
+		t.Error("different Doc should produce different hash")
+	}
+}
+
+func TestHashDEK(t *testing.T) {
+	dek := &storage.DEKRecord{
+		KEKName:              "test-kek", // not in hash
+		Subject:              "test-subject",
+		Version:              1,
+		Algorithm:            "AES256_GCM",
+		EncryptedKeyMaterial: "secret-material", // excluded from hash
+		KeyMaterial:          "plaintext",        // excluded from hash
+		Deleted:              false,
+	}
+
+	h := hashDEK(dek)
+	if !strings.HasPrefix(h, "sha256:") {
+		t.Errorf("expected sha256: prefix, got %s", h)
+	}
+
+	// Same metadata, different key material → same hash
+	dek2 := *dek
+	dek2.EncryptedKeyMaterial = "different-encrypted"
+	dek2.KeyMaterial = "different-plaintext"
+	if hashDEK(&dek2) != h {
+		t.Error("key material should not affect hash")
+	}
+
+	// Different algorithm → different hash
+	dek3 := *dek
+	dek3.Algorithm = "AES128_GCM"
+	if hashDEK(&dek3) == h {
+		t.Error("different Algorithm should produce different hash")
+	}
+}
+
+func TestHashExporter(t *testing.T) {
+	exp := &storage.ExporterRecord{
+		Name:                "test-exporter",
+		ContextType:         "CUSTOM",
+		Context:             "my-context",
+		Subjects:            []string{"subject1", "subject2"},
+		SubjectRenameFormat: "${subject}",
+		Config:              map[string]string{"password": "secret"}, // excluded from hash
+	}
+
+	h := hashExporter(exp)
+	if !strings.HasPrefix(h, "sha256:") {
+		t.Errorf("expected sha256: prefix, got %s", h)
+	}
+
+	// Same metadata, different Config → same hash (Config excluded)
+	exp2 := *exp
+	exp2.Subjects = make([]string, len(exp.Subjects))
+	copy(exp2.Subjects, exp.Subjects)
+	exp2.Config = map[string]string{"different": "config"}
+	if hashExporter(&exp2) != h {
+		t.Error("Config should not affect hash")
+	}
+
+	// Different subjects → different hash
+	exp3 := *exp
+	exp3.Subjects = []string{"different"}
+	if hashExporter(&exp3) == h {
+		t.Error("different Subjects should produce different hash")
+	}
+}
