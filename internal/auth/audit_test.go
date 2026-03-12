@@ -80,8 +80,8 @@ func TestNewAuditLogger_WithLogFile(t *testing.T) {
 	}
 	defer al.Close()
 
-	if al.file == nil {
-		t.Error("expected file to be opened")
+	if len(al.outputs) == 0 {
+		t.Error("expected at least one output to be configured")
 	}
 
 	// Log an event and verify it's written
@@ -1525,5 +1525,173 @@ func TestLogMCPConfirmationEvent_ActorFields(t *testing.T) {
 	}
 	if !strings.Contains(content, "success") {
 		t.Error("expected outcome=success for confirmation events")
+	}
+}
+
+// --- AuditOutput interface tests ---
+
+func TestStdoutOutput_Name(t *testing.T) {
+	o := &StdoutOutput{}
+	if o.Name() != "stdout" {
+		t.Errorf("expected name stdout, got %s", o.Name())
+	}
+	if err := o.Close(); err != nil {
+		t.Errorf("unexpected close error: %v", err)
+	}
+}
+
+func TestWriterOutput_WriteAndClose(t *testing.T) {
+	var buf bytes.Buffer
+	o := &WriterOutput{w: &buf, name: "test"}
+	if o.Name() != "test" {
+		t.Errorf("expected name test, got %s", o.Name())
+	}
+
+	if err := o.Write([]byte("hello")); err != nil {
+		t.Fatalf("unexpected write error: %v", err)
+	}
+	if buf.String() != "hello" {
+		t.Errorf("expected hello, got %s", buf.String())
+	}
+
+	// Close with no closer should succeed
+	if err := o.Close(); err != nil {
+		t.Errorf("unexpected close error: %v", err)
+	}
+}
+
+func TestWriterOutput_CloseWithCloser(t *testing.T) {
+	dir := t.TempDir()
+	f, err := os.CreateTemp(dir, "audit-test-*.log")
+	if err != nil {
+		t.Fatal(err)
+	}
+	o := &WriterOutput{w: f, closer: f, name: "file"}
+	if err := o.Write([]byte("test\n")); err != nil {
+		t.Fatalf("unexpected write error: %v", err)
+	}
+	if err := o.Close(); err != nil {
+		t.Fatalf("unexpected close error: %v", err)
+	}
+	// Second close should fail (file already closed)
+	if err := o.Close(); err == nil {
+		t.Error("expected error on second close")
+	}
+}
+
+func TestAuditLogger_MultipleOutputs(t *testing.T) {
+	var buf1, buf2 bytes.Buffer
+	al := &AuditLogger{
+		config:        config.AuditConfig{Enabled: true},
+		enabledEvents: make(map[AuditEventType]bool),
+		outputs: []formattedOutput{
+			{output: &WriterOutput{w: &buf1, name: "buf1"}, formatType: "json"},
+			{output: &WriterOutput{w: &buf2, name: "buf2"}, formatType: "json"},
+		},
+	}
+	setDefaultEnabledEvents(al.enabledEvents)
+	defer al.Close()
+
+	al.Log(&AuditEvent{
+		Timestamp: time.Now(),
+		EventType: AuditEventSchemaRegister,
+		Outcome:   "success",
+		Method:    "POST",
+		Path:      "/subjects/test/versions",
+	})
+
+	for i, buf := range []*bytes.Buffer{&buf1, &buf2} {
+		content := buf.String()
+		if !strings.Contains(content, "schema_register") {
+			t.Errorf("output %d: expected schema_register in output", i)
+		}
+		// Verify the output is valid JSON
+		var event map[string]interface{}
+		if err := json.Unmarshal([]byte(strings.TrimSpace(content)), &event); err != nil {
+			t.Errorf("output %d: invalid JSON: %v", i, err)
+		}
+	}
+}
+
+type failingOutput struct {
+	name string
+}
+
+func (o *failingOutput) Write([]byte) error { return os.ErrPermission }
+func (o *failingOutput) Close() error       { return nil }
+func (o *failingOutput) Name() string       { return o.name }
+
+func TestAuditLogger_FailingOutputDoesNotBlockOthers(t *testing.T) {
+	var buf bytes.Buffer
+	al := &AuditLogger{
+		config:        config.AuditConfig{Enabled: true},
+		enabledEvents: make(map[AuditEventType]bool),
+		outputs: []formattedOutput{
+			{output: &failingOutput{name: "failing"}, formatType: "json"},
+			{output: &WriterOutput{w: &buf, name: "good"}, formatType: "json"},
+		},
+	}
+	setDefaultEnabledEvents(al.enabledEvents)
+	defer al.Close()
+
+	al.Log(&AuditEvent{
+		Timestamp: time.Now(),
+		EventType: AuditEventSchemaRegister,
+		Outcome:   "success",
+		Method:    "POST",
+		Path:      "/subjects/test/versions",
+	})
+
+	if !strings.Contains(buf.String(), "schema_register") {
+		t.Error("expected second output to receive event despite first output failing")
+	}
+}
+
+func TestAuditLogger_Log_ProducesValidJSON(t *testing.T) {
+	var buf bytes.Buffer
+	al := NewAuditLoggerWithWriter(config.AuditConfig{Enabled: true}, &buf)
+	defer al.Close()
+
+	al.Log(&AuditEvent{
+		Timestamp:  time.Date(2026, 3, 12, 10, 0, 0, 0, time.UTC),
+		Duration:   42 * time.Millisecond,
+		EventType:  AuditEventSchemaRegister,
+		Outcome:    "success",
+		ActorID:    "admin",
+		ActorType:  "user",
+		AuthMethod: "basic",
+		TargetType: "subject",
+		TargetID:   "test-topic",
+		Method:     "POST",
+		Path:       "/subjects/test-topic/versions",
+		StatusCode: 200,
+		Metadata:   map[string]string{"key": "value"},
+	})
+
+	var event map[string]interface{}
+	line := strings.TrimSpace(buf.String())
+	if err := json.Unmarshal([]byte(line), &event); err != nil {
+		t.Fatalf("output is not valid JSON: %v\nraw: %s", err, line)
+	}
+
+	// Verify key fields
+	if event["event_type"] != "schema_register" {
+		t.Errorf("event_type = %v, want schema_register", event["event_type"])
+	}
+	if event["outcome"] != "success" {
+		t.Errorf("outcome = %v, want success", event["outcome"])
+	}
+	if event["actor_id"] != "admin" {
+		t.Errorf("actor_id = %v, want admin", event["actor_id"])
+	}
+	if event["duration_ms"] != float64(42) {
+		t.Errorf("duration_ms = %v, want 42", event["duration_ms"])
+	}
+	meta, ok := event["metadata"].(map[string]interface{})
+	if !ok {
+		t.Fatal("expected metadata to be a map")
+	}
+	if meta["key"] != "value" {
+		t.Errorf("metadata[key] = %v, want value", meta["key"])
 	}
 }

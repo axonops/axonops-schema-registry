@@ -17,6 +17,64 @@ import (
 	"github.com/axonops/axonops-schema-registry/internal/config"
 )
 
+// AuditOutput writes serialized audit events to a destination.
+// Implementations MUST be goroutine-safe.
+type AuditOutput interface {
+	// Write writes pre-serialized audit event data to the output.
+	// Implementations SHOULD be non-blocking and MUST handle errors
+	// internally for best-effort delivery.
+	Write(data []byte) error
+	// Close flushes pending data and releases resources.
+	Close() error
+	// Name returns a human-readable output name for logging and metrics.
+	Name() string
+}
+
+// formattedOutput pairs an AuditOutput with a serialization format.
+type formattedOutput struct {
+	output     AuditOutput
+	formatType string // "json" or "cef"
+}
+
+// StdoutOutput writes audit events to os.Stdout.
+type StdoutOutput struct{}
+
+// Write writes data to stdout.
+func (o *StdoutOutput) Write(data []byte) error {
+	_, err := os.Stdout.Write(data)
+	return err
+}
+
+// Close is a no-op for stdout.
+func (o *StdoutOutput) Close() error { return nil }
+
+// Name returns "stdout".
+func (o *StdoutOutput) Name() string { return "stdout" }
+
+// WriterOutput wraps an io.Writer as an AuditOutput.
+type WriterOutput struct {
+	w      io.Writer
+	closer io.Closer // optional; closed on Close()
+	name   string
+}
+
+// Write writes data to the underlying writer.
+func (o *WriterOutput) Write(data []byte) error {
+	_, err := o.w.Write(data)
+	return err
+}
+
+// Close closes the underlying closer if set.
+func (o *WriterOutput) Close() error {
+	if o.closer != nil {
+		return o.closer.Close()
+	}
+	return nil
+}
+
+// Name returns the output name.
+func (o *WriterOutput) Name() string { return o.name }
+
 // AuditEventType represents the type of audit event.
 type AuditEventType string
 
@@ -134,8 +192,7 @@ type AuditEvent struct {
 // AuditLogger handles audit logging.
 type AuditLogger struct {
 	config        config.AuditConfig
-	logger        *slog.Logger
-	file          *os.File
+	outputs       []formattedOutput
 	mu            sync.Mutex
 	enabledEvents map[AuditEventType]bool
 }
@@ -156,16 +213,21 @@ func NewAuditLogger(cfg config.AuditConfig) (*AuditLogger, error) {
 		}
 	}
 
-	// Open log file if specified
+	// Open log file if specified, otherwise default to stdout
 	if cfg.LogFile != "" {
 		file, err := os.OpenFile(cfg.LogFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 		if err != nil {
 			return nil, err
 		}
-		al.file = file
-		al.logger = slog.New(slog.NewJSONHandler(file, nil))
+		al.outputs = append(al.outputs, formattedOutput{
+			output:     &WriterOutput{w: file, closer: file, name: "file"},
+			formatType: "json",
+		})
 	} else {
-		al.logger = slog.New(slog.NewJSONHandler(os.Stdout, nil))
+		al.outputs = append(al.outputs, formattedOutput{
+			output:     &StdoutOutput{},
+			formatType: "json",
+		})
 	}
 
 	return al, nil
@@ -188,16 +250,22 @@ func NewAuditLoggerWithWriter(cfg config.AuditConfig, w io.Writer) *AuditLogger 
 		}
 	}
 
-	al.logger = slog.New(slog.NewJSONHandler(w, nil))
+	al.outputs = append(al.outputs, formattedOutput{
+		output:     &WriterOutput{w: w, name: "writer"},
+		formatType: "json",
+	})
 	return al
 }
 
-// Close closes the audit logger.
+// Close closes all audit outputs.
 func (al *AuditLogger) Close() error {
-	if al.file != nil {
-		return al.file.Close()
+	var firstErr error
+	for _, fo := range al.outputs {
+		if err := fo.output.Close(); err != nil && firstErr == nil {
+			firstErr = err
+		}
 	}
-	return nil
+	return firstErr
 }
 
 // setDefaultEnabledEvents populates the enabled events map with all write operations,
@@ -259,7 +327,7 @@ func setDefaultEnabledEvents(m map[AuditEventType]bool) {
 	m[AuditEventMCPConfirmed] = true
 }
 
-// Log logs an audit event.
+// Log logs an audit event by serializing it and writing to all configured outputs.
 func (al *AuditLogger) Log(event *AuditEvent) {
 	if !al.config.Enabled {
 		return
@@ -272,63 +340,21 @@ func (al *AuditLogger) Log(event *AuditEvent) {
 	al.mu.Lock()
 	defer al.mu.Unlock()
 
-	attrs := []slog.Attr{
-		slog.Time("timestamp", event.Timestamp),
-		slog.Int64("duration_ms", event.Duration.Milliseconds()),
-		slog.String("event_type", string(event.EventType)),
-		slog.String("outcome", event.Outcome),
-		slog.String("actor_id", event.ActorID),
-		slog.String("actor_type", event.ActorType),
-		slog.String("role", event.Role),
-		slog.String("auth_method", event.AuthMethod),
-		slog.String("target_type", event.TargetType),
-		slog.String("target_id", event.TargetID),
-		slog.String("source_ip", event.SourceIP),
-		slog.String("user_agent", event.UserAgent),
-		slog.String("method", event.Method),
-		slog.String("path", event.Path),
+	data, err := json.Marshal(event)
+	if err != nil {
+		slog.Warn("failed to marshal audit event", slog.String("error", err.Error()))
+		return
 	}
-	if event.StatusCode != 0 {
-		attrs = append(attrs, slog.Int("status_code", event.StatusCode))
-	}
-	if event.SchemaID != 0 {
-		attrs = append(attrs, slog.Int64("schema_id", event.SchemaID))
-	}
-	if event.Version != 0 {
-		attrs = append(attrs, slog.Int("version", event.Version))
-	}
-	if event.SchemaType != "" {
-		attrs = append(attrs, slog.String("schema_type", event.SchemaType))
-	}
-	if event.BeforeHash != "" {
-		attrs = append(attrs, slog.String("before_hash", event.BeforeHash))
-	}
-	if event.AfterHash != "" {
-		attrs = append(attrs, slog.String("after_hash", event.AfterHash))
-	}
-	if event.Context != "" {
-		attrs = append(attrs, slog.String("context", event.Context))
-	}
-	if event.Reason != "" {
-		attrs = append(attrs, slog.String("reason", event.Reason))
-	}
-	if event.Error != "" {
-		attrs = append(attrs, slog.String("error", event.Error))
-	}
-	if event.RequestBody != "" {
-		attrs = append(attrs, slog.String("request_body", event.RequestBody))
-	}
-	if event.RequestID != "" {
-		attrs = append(attrs, slog.String("request_id", event.RequestID))
-	}
-	if len(event.Metadata) > 0 {
-		metadataAttrs := make([]any, 0, len(event.Metadata)*2)
-		for k, v := range event.Metadata {
-			metadataAttrs = append(metadataAttrs, slog.String(k, v))
+	data = append(data, '\n')
+
+	for _, fo := range al.outputs {
+		if writeErr := fo.output.Write(data); writeErr != nil {
+			slog.Warn("failed to write audit event",
+				slog.String("output", fo.output.Name()),
+				slog.String("error", writeErr.Error()),
+			)
 		}
-		attrs = append(attrs, slog.Group("metadata", metadataAttrs...))
 	}
-	al.logger.LogAttrs(context.Background(), slog.LevelInfo, "audit", attrs...)
 }
 
 // AuditHints allows handlers to pass additional audit information (such as
