@@ -23,7 +23,13 @@ Feature: Advanced Schema Deletion
     When I list versions of subject "del-adv-vis"
     Then the response status should be 200
     And the response should be an array of length 1
-    And the audit log should contain event "schema_delete" with subject "del-adv-vis"
+    And the audit log should contain an event:
+      | event_type  | schema_delete                        |
+      | outcome     | success                              |
+      | actor_type  | anonymous                            |
+      | target_id   | del-adv-vis                          |
+      | method      | DELETE                               |
+      | path        | /subjects/del-adv-vis/versions       |
 
   Scenario: Soft-deleted version is visible with deleted=true query parameter
     Given the global compatibility level is "NONE"
@@ -40,7 +46,13 @@ Feature: Advanced Schema Deletion
     When I GET "/subjects/del-adv-vis-del/versions?deleted=true"
     Then the response status should be 200
     And the response should be an array of length 2
-    And the audit log should contain event "schema_delete" with subject "del-adv-vis-del"
+    And the audit log should contain an event:
+      | event_type  | schema_delete                        |
+      | outcome     | success                              |
+      | actor_type  | anonymous                            |
+      | target_id   | del-adv-vis-del                      |
+      | method      | DELETE                               |
+      | path        | /subjects/del-adv-vis-del/versions   |
 
   # ==========================================================================
   # SOFT-DELETE SUBJECT VISIBILITY WITH MULTIPLE SUBJECTS
@@ -68,7 +80,13 @@ Feature: Advanced Schema Deletion
     When I list subjects with deleted
     Then the response should be an array of length 3
     And the response array should contain "del-adv-multi-b"
-    And the audit log should contain event "subject_delete" with subject "del-adv-multi-b"
+    And the audit log should contain an event:
+      | event_type  | subject_delete                       |
+      | outcome     | success                              |
+      | actor_type  | anonymous                            |
+      | target_id   | del-adv-multi-b                      |
+      | method      | DELETE                               |
+      | path        | /subjects/del-adv-multi-b            |
 
   # ==========================================================================
   # PERMANENT DELETE REMOVES FROM DELETED LIST
@@ -91,7 +109,13 @@ Feature: Advanced Schema Deletion
     When I GET "/subjects/del-adv-perm-ver/versions?deleted=true"
     Then the response status should be 200
     And the response should be an array of length 1
-    And the audit log should contain event "schema_delete" with subject "del-adv-perm-ver"
+    And the audit log should contain an event:
+      | event_type  | schema_delete                        |
+      | outcome     | success                              |
+      | actor_type  | anonymous                            |
+      | target_id   | del-adv-perm-ver                     |
+      | method      | DELETE                               |
+      | path        | /subjects/del-adv-perm-ver/versions  |
 
   Scenario: Permanent delete subject removes it from deleted=true list too
     Given subject "del-adv-perm-sub" has schema:
@@ -104,7 +128,13 @@ Feature: Advanced Schema Deletion
     Then the response status should be 200
     When I list subjects with deleted
     Then the response should be an array of length 0
-    And the audit log should contain event "subject_delete" with subject "del-adv-perm-sub"
+    And the audit log should contain an event:
+      | event_type  | subject_delete                       |
+      | outcome     | success                              |
+      | actor_type  | anonymous                            |
+      | target_id   | del-adv-perm-sub                     |
+      | method      | DELETE                               |
+      | path        | /subjects/del-adv-perm-sub           |
 
   # ==========================================================================
   # RE-REGISTRATION AFTER DELETION
@@ -130,8 +160,20 @@ Feature: Advanced Schema Deletion
     When I get the latest version of subject "del-adv-reregister"
     Then the response status should be 200
     And the response field "version" should be 3
-    And the audit log should contain event "subject_delete" with subject "del-adv-reregister"
-    And the audit log should contain event "schema_register" with subject "del-adv-reregister"
+    And the audit log should contain an event:
+      | event_type  | subject_delete                       |
+      | outcome     | success                              |
+      | actor_type  | anonymous                            |
+      | target_id   | del-adv-reregister                   |
+      | method      | DELETE                               |
+      | path        | /subjects/del-adv-reregister         |
+    And the audit log should contain an event:
+      | event_type  | schema_register                      |
+      | outcome     | success                              |
+      | actor_type  | anonymous                            |
+      | target_id   | del-adv-reregister                   |
+      | method      | POST                                 |
+      | path        | /subjects/del-adv-reregister/versions |
 
   Scenario: Permanent delete then re-register starts from version 1
     Given the global compatibility level is "NONE"
@@ -155,8 +197,20 @@ Feature: Advanced Schema Deletion
     When I get the latest version of subject "del-adv-fresh"
     Then the response status should be 200
     And the response field "version" should be 1
-    And the audit log should contain event "subject_delete" with subject "del-adv-fresh"
-    And the audit log should contain event "schema_register" with subject "del-adv-fresh"
+    And the audit log should contain an event:
+      | event_type  | subject_delete                       |
+      | outcome     | success                              |
+      | actor_type  | anonymous                            |
+      | target_id   | del-adv-fresh                        |
+      | method      | DELETE                               |
+      | path        | /subjects/del-adv-fresh              |
+    And the audit log should contain an event:
+      | event_type  | schema_register                      |
+      | outcome     | success                              |
+      | actor_type  | anonymous                            |
+      | target_id   | del-adv-fresh                        |
+      | method      | POST                                 |
+      | path        | /subjects/del-adv-fresh/versions     |
 
   # ==========================================================================
   # DELETION WITH ACTIVE REFERENCES
@@ -226,7 +280,13 @@ Feature: Advanced Schema Deletion
     When I list versions of subject "del-adv-two-step-ver"
     Then the response status should be 200
     And the response should be an array of length 1
-    And the audit log should contain event "schema_delete" with subject "del-adv-two-step-ver"
+    And the audit log should contain an event:
+      | event_type  | schema_delete                              |
+      | outcome     | success                                    |
+      | actor_type  | anonymous                                  |
+      | target_id   | del-adv-two-step-ver                       |
+      | method      | DELETE                                     |
+      | path        | /subjects/del-adv-two-step-ver/versions    |
 
   Scenario: Soft delete then permanent delete same subject works
     Given subject "del-adv-two-step-sub" has schema:
@@ -239,7 +299,13 @@ Feature: Advanced Schema Deletion
     Then the response status should be 200
     When I list subjects with deleted
     Then the response should be an array of length 0
-    And the audit log should contain event "subject_delete" with subject "del-adv-two-step-sub"
+    And the audit log should contain an event:
+      | event_type  | subject_delete                       |
+      | outcome     | success                              |
+      | actor_type  | anonymous                            |
+      | target_id   | del-adv-two-step-sub                 |
+      | method      | DELETE                               |
+      | path        | /subjects/del-adv-two-step-sub       |
 
   # ==========================================================================
   # DELETE NON-EXISTENT RESOURCES
@@ -277,7 +343,13 @@ Feature: Advanced Schema Deletion
     When I get schema by ID {{schema_id}}
     Then the response status should be 200
     And the response should contain "ByID"
-    And the audit log should contain event "subject_delete" with subject "del-adv-id-lookup"
+    And the audit log should contain an event:
+      | event_type  | subject_delete                       |
+      | outcome     | success                              |
+      | actor_type  | anonymous                            |
+      | target_id   | del-adv-id-lookup                    |
+      | method      | DELETE                               |
+      | path        | /subjects/del-adv-id-lookup          |
 
   Scenario: Permanent delete of last subject-version for a schema ID removes it from ID lookup
     Given the global compatibility level is "NONE"
@@ -294,4 +366,10 @@ Feature: Advanced Schema Deletion
     # After permanent deletion of the only subject-version, the schema ID should no longer resolve
     When I get the subjects for schema ID {{gone_id}}
     Then the response status should be 404
-    And the audit log should contain event "subject_delete" with subject "del-adv-id-gone"
+    And the audit log should contain an event:
+      | event_type  | subject_delete                       |
+      | outcome     | success                              |
+      | actor_type  | anonymous                            |
+      | target_id   | del-adv-id-gone                      |
+      | method      | DELETE                               |
+      | path        | /subjects/del-adv-id-gone            |

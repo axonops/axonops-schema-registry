@@ -16,7 +16,13 @@ Feature: Configuration and Mode Management Advanced
     When I get the config for subject "subj-b"
     Then the response status should be 200
     And the response field "compatibilityLevel" should be "FULL"
-    And the audit log should contain event "config_update" with subject "subj-b"
+    And the audit log should contain an event:
+      | event_type  | config_update                 |
+      | outcome     | success                       |
+      | actor_type  | anonymous                     |
+      | target_id   | subj-b                        |
+      | method      | PUT                           |
+      | path        | /config/subj-b                |
 
   # --- Subject config overrides global during registration ---
 
@@ -32,7 +38,13 @@ Feature: Configuration and Mode Management Advanced
       {"type":"record","name":"Event","fields":[{"name":"id","type":"int"}]}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "override-test"
+    And the audit log should contain an event:
+      | event_type  | schema_register                       |
+      | outcome     | success                               |
+      | actor_type  | anonymous                             |
+      | target_id   | override-test                         |
+      | method      | POST                                  |
+      | path        | /subjects/override-test/versions      |
 
   # --- Delete subject config falls back to global ---
 
@@ -48,7 +60,13 @@ Feature: Configuration and Mode Management Advanced
     When I GET "/config/fallback-cfg?defaultToGlobal=true"
     Then the response status should be 200
     And the response field "compatibilityLevel" should be "FULL"
-    And the audit log should contain event "config_delete" with subject "fallback-cfg"
+    And the audit log should contain an event:
+      | event_type  | config_delete                 |
+      | outcome     | success                       |
+      | actor_type  | anonymous                     |
+      | target_id   | fallback-cfg                  |
+      | method      | DELETE                        |
+      | path        | /config/fallback-cfg          |
 
   # --- Delete global config reverts to BACKWARD default ---
 
@@ -61,7 +79,12 @@ Feature: Configuration and Mode Management Advanced
     Then the response status should be 200
     When I get the global config
     Then the response field "compatibilityLevel" should be "BACKWARD"
-    And the audit log should contain event "config_delete"
+    And the audit log should contain an event:
+      | event_type  | config_delete                 |
+      | outcome     | success                       |
+      | actor_type  | anonymous                     |
+      | method      | DELETE                        |
+      | path        | /config                       |
 
   # --- Delete non-existent subject config returns 404 ---
 
@@ -69,7 +92,13 @@ Feature: Configuration and Mode Management Advanced
     When I delete the config for subject "never-configured-subject"
     Then the response status should be 404
     And the response should have error code 40401
-    And the audit log should contain event "config_delete" with subject "never-configured-subject"
+    And the audit log should contain an event:
+      | event_type  | config_delete                         |
+      | outcome     | failure                               |
+      | actor_type  | anonymous                             |
+      | target_id   | never-configured-subject              |
+      | method      | DELETE                                |
+      | path        | /config/never-configured-subject      |
 
   # --- Invalid compatibility level returns 422 ---
 
@@ -78,7 +107,12 @@ Feature: Configuration and Mode Management Advanced
     Then the response status should be 422
     And the response should have error code 42203
     And the response should have field "message"
-    And the audit log should contain event "config_update"
+    And the audit log should contain an event:
+      | event_type  | config_update                 |
+      | outcome     | failure                       |
+      | actor_type  | anonymous                     |
+      | method      | PUT                           |
+      | path        | /config                       |
 
   # --- Case insensitivity for compatibility levels ---
 
@@ -95,7 +129,12 @@ Feature: Configuration and Mode Management Advanced
       """
     Then the response status should be 200
     And the response field "compatibility" should be "FORWARD_TRANSITIVE"
-    And the audit log should contain event "config_update"
+    And the audit log should contain an event:
+      | event_type  | config_update                 |
+      | outcome     | success                       |
+      | actor_type  | anonymous                     |
+      | method      | PUT                           |
+      | path        | /config                       |
 
   # --- Set and get all 3 valid mode values ---
 
@@ -112,7 +151,12 @@ Feature: Configuration and Mode Management Advanced
     Then the response status should be 200
     When I get the global mode
     Then the response field "mode" should be "IMPORT"
-    And the audit log should contain event "mode_update"
+    And the audit log should contain an event:
+      | event_type  | mode_update                   |
+      | outcome     | success                       |
+      | actor_type  | anonymous                     |
+      | method      | PUT                           |
+      | path        | /mode                         |
 
   # --- Invalid mode value returns 422 ---
 
@@ -124,7 +168,12 @@ Feature: Configuration and Mode Management Advanced
     Then the response status should be 422
     And the response should have error code 42204
     And the response should have field "message"
-    And the audit log should contain event "mode_update"
+    And the audit log should contain an event:
+      | event_type  | mode_update                   |
+      | outcome     | failure                       |
+      | actor_type  | anonymous                     |
+      | method      | PUT                           |
+      | path        | /mode                         |
 
   # --- Delete non-existent subject mode returns 404 ---
 
@@ -132,7 +181,13 @@ Feature: Configuration and Mode Management Advanced
     When I delete the mode for subject "never-moded-subject"
     Then the response status should be 404
     And the response should have error code 40401
-    And the audit log should contain event "mode_delete" with subject "never-moded-subject"
+    And the audit log should contain an event:
+      | event_type  | mode_delete                           |
+      | outcome     | failure                               |
+      | actor_type  | anonymous                             |
+      | target_id   | never-moded-subject                   |
+      | method      | DELETE                                |
+      | path        | /mode/never-moded-subject             |
 
   # --- Mode fallback to global ---
 
@@ -141,7 +196,12 @@ Feature: Configuration and Mode Management Advanced
     Then the response status should be 200
     When I get the mode for subject "no-mode-set-subject"
     Then the response status should be 404
-    And the audit log should contain event "mode_update"
+    And the audit log should contain an event:
+      | event_type  | mode_update                   |
+      | outcome     | success                       |
+      | actor_type  | anonymous                     |
+      | method      | PUT                           |
+      | path        | /mode                         |
 
   Scenario: Subject mode not set falls back to global with defaultToGlobal
     When I set the global mode to "READONLY"
@@ -149,7 +209,12 @@ Feature: Configuration and Mode Management Advanced
     When I GET "/mode/no-mode-set-subject2?defaultToGlobal=true"
     Then the response status should be 200
     And the response field "mode" should be "READONLY"
-    And the audit log should contain event "mode_update"
+    And the audit log should contain an event:
+      | event_type  | mode_update                   |
+      | outcome     | success                       |
+      | actor_type  | anonymous                     |
+      | method      | PUT                           |
+      | path        | /mode                         |
 
   # --- Per-subject mode set and retrieved independently from global ---
 
@@ -166,4 +231,10 @@ Feature: Configuration and Mode Management Advanced
     Then the response field "mode" should be "READONLY"
     When I get the mode for subject "independent-mode-b"
     Then the response field "mode" should be "IMPORT"
-    And the audit log should contain event "mode_update" with subject "independent-mode-b"
+    And the audit log should contain an event:
+      | event_type  | mode_update                           |
+      | outcome     | success                               |
+      | actor_type  | anonymous                             |
+      | target_id   | independent-mode-b                    |
+      | method      | PUT                                   |
+      | path        | /mode/independent-mode-b              |
