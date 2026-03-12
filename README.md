@@ -91,7 +91,7 @@ Unlike Confluent Schema Registry, which uses Kafka itself (a special `_schemas` 
 | [**OIDC/OAuth2**](docs/authentication.md) | ✅ | ✅ &sup3; | ✅ | ❌ |
 | **mTLS** | ✅ | ✅ | ✅ | ✅ |
 | [**RBAC**](docs/authentication.md) | ✅ | ❌ | ✅ | ⚠️ Limited |
-| [**Audit Logging**](docs/security.md) | ✅ | ❌ | ✅ | ❌ |
+| [**Audit Logging**](docs/auditing.md) | ✅ | ❌ | ⚠️ Partial ⁶ | ❌ |
 | [**Rate Limiting**](docs/security.md) | ✅ | ❌ | ❌ | ❌ |
 | [**Prometheus Metrics**](docs/monitoring.md) | ✅ | ✅ | ✅ | ✅ |
 | **REST Proxy** | ❌ | Separate | Separate | ✅ |
@@ -118,6 +118,8 @@ Unlike Confluent Schema Registry, which uses Kafka itself (a special `_schemas` 
 ⁴ Karapace uses its own ACL-based credential mechanism rather than standard HTTP Basic Authentication.
 
 ⁵ Additional AxonOps REST APIs beyond the Schema Registry compatible surface: schema analysis and quality scoring, field/type search, similarity detection, compatibility suggestions, migration planning, registry statistics, user and API key admin, self-service account management, and built-in API documentation. See [AxonOps Extensions](#axonops-extensions).
+
+⁶ Confluent Platform audit logs are written exclusively to Kafka topics ([docs](https://docs.confluent.io/platform/current/security/compliance/audit-logs/audit-logs-concepts.html)). Delivering events to file, syslog, Splunk, or other destinations requires deploying separate Kafka Connect sink connectors. AxonOps provides native multi-output delivery — stdout, file (with rotation), syslog (RFC 5424 over TCP/TLS), and webhook (Splunk HEC, Elasticsearch, etc.) — built into the single binary with no additional infrastructure.
 
 > **In short:** AxonOps gives you **every Confluent Schema Registry REST API** (Community + Enterprise) plus **many additional REST endpoints** and a **built-in MCP server** — all under the Apache 2.0 license, in a single ~50 MB binary, with no Kafka dependency for storage. You get Enterprise-grade capabilities (data contracts, client-side encryption, RBAC, audit logging, multi-tenant contexts, rate limiting) **and** advanced schema analysis, quality scoring, field search, similarity detection, and AI-assisted schema management that no other registry offers. If you need enterprise support, [AxonOps](https://axonops.com) offers commercial support plans.
 
@@ -185,7 +187,7 @@ Auth storage can optionally be separated into HashiCorp Vault.
 - **Authentication** -- Basic Auth, API Keys, JWT, LDAP/AD, OIDC, mTLS
 - **Authorization** -- RBAC with 4 built-in roles (super_admin, admin, developer, readonly)
 - **Rate Limiting** -- Token bucket algorithm, per-client or per-endpoint
-- **Audit Logging** -- Structured JSON events to file or stdout
+- **[Audit Logging](docs/auditing.md)** -- Multi-output delivery (stdout, file with rotation, syslog RFC 5424/TLS, webhook), JSON and CEF formats, Prometheus metrics
 - **TLS** -- Auto-reload certificates, configurable minimum version, mutual TLS
 
 ### Operations
@@ -340,7 +342,8 @@ See the [Ecosystem Guide](docs/ecosystem.md) for a detailed comparison of Conflu
 | [Data Contracts](docs/data-contracts.md) | Metadata, rule sets, config defaults/overrides, and governance policies |
 | [API Reference](docs/api-reference.md) | All REST endpoints with parameters, examples, and compatibility reference |
 | [Authentication](docs/authentication.md) | All 6 auth methods, RBAC, user management, and admin CLI |
-| [Security](docs/security.md) | TLS, rate limiting, audit logging, credential storage, and hardening checklist |
+| [Security](docs/security.md) | TLS, rate limiting, credential storage, and hardening checklist |
+| [Auditing](docs/auditing.md) | Enterprise audit logging with multi-output delivery, CEF format, and Prometheus metrics |
 | [Deployment](docs/deployment.md) | Architecture diagrams, topologies, Docker Compose, Kubernetes manifests, systemd, and health checks |
 | [Monitoring](docs/monitoring.md) | Prometheus metrics, alerting rules, structured logging, and Grafana queries |
 | [Migration](docs/migration.md) | Migrating from Confluent Schema Registry with preserved schema IDs |
