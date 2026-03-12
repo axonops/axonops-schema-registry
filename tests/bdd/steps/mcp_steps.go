@@ -666,6 +666,12 @@ func RegisterMCPSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 			if line == "" {
 				continue
 			}
+			// Strip null bytes that can appear when reading a file that was
+			// truncated while lumberjack still held an fd at a non-zero offset
+			// (sparse file).
+			if idx := strings.IndexByte(line, '{'); idx > 0 {
+				line = line[idx:]
+			}
 			var event map[string]interface{}
 			if json.Unmarshal([]byte(line), &event) == nil {
 				events = append(events, event)
@@ -787,14 +793,19 @@ func RegisterMCPSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 			matchCount := 0
 			allMatch := true
 			for field, wantVal := range expected {
-				gotVal := fmt.Sprintf("%v", event[field])
+				rawVal := event[field]
+				gotVal := fmt.Sprintf("%v", rawVal)
 				// Handle numeric fields that JSON decodes as float64.
 				if field == "status_code" {
-					if num, ok := event[field].(float64); ok {
+					if num, ok := rawVal.(float64); ok {
 						gotVal = fmt.Sprintf("%d", int(num))
 					}
 				}
-				if field == "path" {
+				// Treat missing (nil) field as empty string for matching,
+				// since omitempty drops zero-value fields from JSON.
+				if rawVal == nil && wantVal == "" {
+					matchCount++
+				} else if field == "path" {
 					// Path uses contains matching.
 					if path, ok := event["path"].(string); ok && strings.Contains(path, wantVal) {
 						matchCount++
