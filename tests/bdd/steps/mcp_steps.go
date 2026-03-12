@@ -801,8 +801,8 @@ func RegisterMCPSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 						gotVal = fmt.Sprintf("%d", int(num))
 					}
 				}
-				// Treat missing (nil) field as empty string for matching,
-				// since omitempty drops zero-value fields from JSON.
+				// Treat missing (nil) field as empty string for matching —
+				// contextual fields use omitempty and are absent when zero.
 				if rawVal == nil && wantVal == "" {
 					matchCount++
 				} else if field == "path" {

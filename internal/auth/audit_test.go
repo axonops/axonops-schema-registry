@@ -1192,7 +1192,7 @@ func TestAuditEvent_MarshalJSON_AllNewFields(t *testing.T) {
 	}
 }
 
-func TestAuditEvent_MarshalJSON_OmitsEmptyOptional(t *testing.T) {
+func TestAuditEvent_MarshalJSON_CoreFieldsAlwaysPresent(t *testing.T) {
 	event := &AuditEvent{
 		Timestamp: time.Date(2026, 3, 11, 14, 30, 0, 0, time.UTC),
 		EventType: AuditEventSchemaGet,
@@ -1211,17 +1211,27 @@ func TestAuditEvent_MarshalJSON_OmitsEmptyOptional(t *testing.T) {
 		t.Fatalf("failed to unmarshal: %v", err)
 	}
 
-	// These optional fields should not be present when empty/zero
-	omittedFields := []string{
-		"actor_id", "actor_type", "role", "auth_method",
-		"target_type", "target_id", "schema_type",
+	// Core fields MUST always be present, even when zero-valued.
+	coreFields := []string{
+		"timestamp", "event_type", "outcome", "method", "path",
+		"actor_id", "actor_type", "target_type", "target_id",
+		"source_ip", "user_agent", "status_code",
+	}
+	for _, field := range coreFields {
+		if _, ok := result[field]; !ok {
+			t.Errorf("core field %q must always be present, but it was omitted", field)
+		}
+	}
+
+	// Contextual fields should be omitted when empty/zero.
+	contextualFields := []string{
+		"role", "auth_method", "schema_type",
 		"before_hash", "after_hash", "context",
 		"reason", "error", "request_body", "request_id",
-		"source_ip", "user_agent",
 	}
-	for _, field := range omittedFields {
+	for _, field := range contextualFields {
 		if _, ok := result[field]; ok {
-			t.Errorf("expected field %q to be omitted when empty, but it was present", field)
+			t.Errorf("contextual field %q should be omitted when empty, but it was present", field)
 		}
 	}
 }

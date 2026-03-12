@@ -155,14 +155,14 @@ type AuditEvent struct {
 	Outcome   string         `json:"outcome"` // "success" or "failure"
 
 	// Actor (who performed the action)
-	ActorID    string `json:"actor_id,omitempty"`    // username, key name, or MCP principal
-	ActorType  string `json:"actor_type,omitempty"`  // user, api_key, mcp_client, anonymous
+	ActorID    string `json:"actor_id"`              // username, key name, or MCP principal
+	ActorType  string `json:"actor_type"`            // user, api_key, mcp_client, anonymous
 	Role       string `json:"role,omitempty"`        // admin, developer, readonly
 	AuthMethod string `json:"auth_method,omitempty"` // basic, api_key, jwt, oidc, ldap, mtls, bearer_token
 
 	// Target (what was affected)
-	TargetType string `json:"target_type,omitempty"` // subject, schema, config, mode, kek, dek, exporter, user, apikey
-	TargetID   string `json:"target_id,omitempty"`   // subject name, KEK name, exporter name, etc.
+	TargetType string `json:"target_type"` // subject, schema, config, mode, kek, dek, exporter, user, apikey
+	TargetID   string `json:"target_id"`   // subject name, KEK name, exporter name, etc.
 	SchemaID   int64  `json:"schema_id,omitempty"`
 	Version    int    `json:"version,omitempty"`
 	SchemaType string `json:"schema_type,omitempty"` // AVRO, PROTOBUF, JSON
@@ -176,11 +176,11 @@ type AuditEvent struct {
 	RequestID string `json:"request_id,omitempty"`
 
 	// Transport
-	SourceIP   string `json:"source_ip,omitempty"`
-	UserAgent  string `json:"user_agent,omitempty"`
-	Method     string `json:"method"`                // HTTP method or "MCP"
-	Path       string `json:"path"`                  // HTTP path or MCP tool name
-	StatusCode int    `json:"status_code,omitempty"` // HTTP status (REST only)
+	SourceIP   string `json:"source_ip"`   // client IP address
+	UserAgent  string `json:"user_agent"`  // client user-agent header
+	Method     string `json:"method"`      // HTTP method or "MCP"
+	Path       string `json:"path"`        // HTTP path or MCP tool name
+	StatusCode int    `json:"status_code"` // HTTP status (REST only, 0 for MCP)
 
 	// Detail
 	Reason      string            `json:"reason,omitempty"`       // structured failure reason

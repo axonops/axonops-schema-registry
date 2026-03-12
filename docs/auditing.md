@@ -213,7 +213,7 @@ The following Prometheus metrics are available for monitoring audit output healt
 
 Each audit entry is a single-line JSON object. All fields use underscore-separated naming (flat structure, no nesting).
 
-> **Zero-value field omission:** Fields with zero values (empty strings, zero integers, false booleans) are **omitted** from the JSON output. For example, an anonymous request will have no `actor_id` field rather than `"actor_id": ""`. Consumers MUST treat an absent field as equivalent to its zero value. The only fields guaranteed to be present on every event are `timestamp`, `event_type`, `outcome`, and `duration_ms`.
+> **Core vs contextual fields:** Core fields (`timestamp`, `event_type`, `outcome`, `duration_ms`, `actor_id`, `actor_type`, `target_type`, `target_id`, `source_ip`, `user_agent`, `method`, `path`, `status_code`) are **always present** in the JSON output, even when their value is empty or zero. This follows industry-standard audit practice (AWS CloudTrail, CEF) where core fields MUST be present for reliable SIEM indexing and alerting. Contextual fields (`role`, `auth_method`, `schema_id`, `version`, `schema_type`, `before_hash`, `after_hash`, `context`, `request_id`, `reason`, `error`, `request_body`, `metadata`) are **omitted** when their value is zero/empty, as their presence depends on the operation type.
 
 ### Timing Fields
 
