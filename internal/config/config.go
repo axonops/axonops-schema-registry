@@ -307,6 +307,7 @@ type AuditConfig struct {
 	LogFile     string             `yaml:"log_file,omitempty"` // Deprecated: use Outputs.File instead
 	Events      []string           `yaml:"events"`             // schema_register, schema_delete, config_update
 	IncludeBody bool               `yaml:"include_body"`
+	BufferSize  int                `yaml:"buffer_size"` // Async channel buffer size (default: 10000, 0 = sync)
 	Outputs     AuditOutputsConfig `yaml:"outputs"`
 }
 
@@ -756,6 +757,11 @@ func (c *Config) applyEnvOverrides() {
 	}
 	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_INCLUDE_BODY"); v != "" {
 		c.Security.Audit.IncludeBody = strings.ToLower(v) == "true" || v == "1"
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_BUFFER_SIZE"); v != "" {
+		if n, ok := envInt("SCHEMA_REGISTRY_AUDIT_BUFFER_SIZE", v); ok {
+			c.Security.Audit.BufferSize = n
+		}
 	}
 
 	// Audit stdout output overrides

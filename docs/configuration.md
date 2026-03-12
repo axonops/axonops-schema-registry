@@ -567,6 +567,7 @@ security:
 | `security.audit.enabled` | bool | `false` | Enable audit logging. |
 | `security.audit.events` | list of strings | `[]` | Event types to log (empty = all enabled by default). |
 | `security.audit.include_body` | bool | `false` | Include request bodies in audit log entries. MAY increase log volume significantly. |
+| `security.audit.buffer_size` | int | `10000` | Async event buffer size. `Log()` enqueues events for a background goroutine; events are dropped when the buffer is full. |
 
 #### Audit Outputs
 
@@ -626,6 +627,7 @@ All audit settings support env var overrides with `SCHEMA_REGISTRY_AUDIT_` prefi
 ```
 SCHEMA_REGISTRY_AUDIT_ENABLED
 SCHEMA_REGISTRY_AUDIT_INCLUDE_BODY
+SCHEMA_REGISTRY_AUDIT_BUFFER_SIZE
 SCHEMA_REGISTRY_AUDIT_STDOUT_ENABLED / _FORMAT
 SCHEMA_REGISTRY_AUDIT_FILE_ENABLED / _PATH / _FORMAT / _MAX_SIZE_MB / _MAX_BACKUPS / _MAX_AGE_DAYS / _COMPRESS
 SCHEMA_REGISTRY_AUDIT_SYSLOG_ENABLED / _NETWORK / _ADDRESS / _APP_NAME / _FACILITY / _FORMAT / _TLS_CERT / _TLS_KEY / _TLS_CA

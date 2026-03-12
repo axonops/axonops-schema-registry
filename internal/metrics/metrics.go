@@ -58,6 +58,7 @@ type Metrics struct {
 	// Audit output metrics
 	AuditEventsTotal          *prometheus.CounterVec // labels: output, status
 	AuditOutputErrorsTotal    *prometheus.CounterVec // labels: output
+	AuditBufferDroppedTotal   prometheus.Counter
 	AuditWebhookDroppedTotal  prometheus.Counter
 	AuditWebhookBatchSize     prometheus.Histogram
 	AuditWebhookFlushDuration prometheus.Histogram
@@ -322,6 +323,13 @@ func New() *Metrics {
 		[]string{"output"},
 	)
 
+	m.AuditBufferDroppedTotal = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "schema_registry_audit_buffer_dropped_total",
+			Help: "Total number of audit events dropped due to async buffer overflow",
+		},
+	)
+
 	m.AuditWebhookDroppedTotal = prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Name: "schema_registry_audit_webhook_dropped_total",
@@ -464,6 +472,7 @@ func New() *Metrics {
 		m.MCPPermissionDeniedTotal,
 		m.AuditEventsTotal,
 		m.AuditOutputErrorsTotal,
+		m.AuditBufferDroppedTotal,
 		m.AuditWebhookDroppedTotal,
 		m.AuditWebhookBatchSize,
 		m.AuditWebhookFlushDuration,
@@ -857,6 +866,11 @@ func (m *Metrics) RecordAuditEvent(output, status string) {
 // RecordAuditOutputError records a write error for a given audit output.
 func (m *Metrics) RecordAuditOutputError(output string) {
 	m.AuditOutputErrorsTotal.WithLabelValues(output).Inc()
+}
+
+// RecordAuditBufferDrop records an event dropped due to async audit buffer overflow.
+func (m *Metrics) RecordAuditBufferDrop() {
+	m.AuditBufferDroppedTotal.Inc()
 }
 
 // RecordAuditWebhookDrop records an event dropped due to webhook buffer overflow.

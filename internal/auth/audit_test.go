@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -1703,5 +1704,241 @@ func TestAuditLogger_Log_ProducesValidJSON(t *testing.T) {
 	}
 	if meta["key"] != "value" {
 		t.Errorf("metadata[key] = %v, want value", meta["key"])
+	}
+}
+
+// --- Async audit logger tests ---
+
+// mockAuditMetrics records audit metric calls for assertions.
+type mockAuditMetrics struct {
+	bufferDrops int
+	mu          sync.Mutex
+}
+
+func (m *mockAuditMetrics) RecordAuditEvent(_, _ string)                   {}
+func (m *mockAuditMetrics) RecordAuditOutputError(_ string)                {}
+func (m *mockAuditMetrics) RecordAuditWebhookDrop()                        {}
+func (m *mockAuditMetrics) RecordAuditWebhookFlush(_ int, _ time.Duration) {}
+func (m *mockAuditMetrics) RecordAuditBufferDrop() {
+	m.mu.Lock()
+	m.bufferDrops++
+	m.mu.Unlock()
+}
+
+func (m *mockAuditMetrics) getBufferDrops() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.bufferDrops
+}
+
+// slowOutput blocks on Write for a configurable duration.
+type slowOutput struct {
+	delay  time.Duration
+	events [][]byte
+	mu     sync.Mutex
+}
+
+func (o *slowOutput) Write(data []byte) error {
+	time.Sleep(o.delay)
+	o.mu.Lock()
+	o.events = append(o.events, append([]byte(nil), data...))
+	o.mu.Unlock()
+	return nil
+}
+func (o *slowOutput) Close() error { return nil }
+func (o *slowOutput) Name() string { return "slow" }
+func (o *slowOutput) eventCount() int {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	return len(o.events)
+}
+
+func TestAuditLogger_AsyncNonBlocking(t *testing.T) {
+	// Create an async logger with a slow output to verify Log() returns immediately.
+	slow := &slowOutput{delay: 200 * time.Millisecond}
+	al := &AuditLogger{
+		config:        config.AuditConfig{Enabled: true},
+		outputs:       []formattedOutput{{output: slow, formatType: "json"}},
+		enabledEvents: make(map[AuditEventType]bool),
+		ch:            make(chan *AuditEvent, 100),
+		stopCh:        make(chan struct{}),
+	}
+	setDefaultEnabledEvents(al.enabledEvents)
+	al.wg.Add(1)
+	go al.drainLoop()
+
+	start := time.Now()
+	for i := range 10 {
+		al.Log(&AuditEvent{
+			Timestamp: time.Now(),
+			EventType: AuditEventSchemaRegister,
+			Method:    "POST",
+			Path:      "/subjects/test/versions",
+			Version:   i,
+		})
+	}
+	elapsed := time.Since(start)
+
+	// Log() should return nearly instantly — well under the slow output's delay.
+	if elapsed > 50*time.Millisecond {
+		t.Errorf("Log() took %v, expected non-blocking (<50ms)", elapsed)
+	}
+
+	al.Close()
+
+	// After close, all 10 events should have been drained.
+	if got := slow.eventCount(); got != 10 {
+		t.Errorf("slow output received %d events, want 10", got)
+	}
+}
+
+func TestAuditLogger_AsyncDrain(t *testing.T) {
+	// Verify all events are delivered after Close().
+	var buf bytes.Buffer
+	al, err := NewAuditLogger(config.AuditConfig{
+		Enabled: true,
+		Outputs: config.AuditOutputsConfig{
+			File: config.AuditFileConfig{
+				Enabled: true,
+				Path:    filepath.Join(t.TempDir(), "audit.log"),
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Replace the output with a writer for easy counting.
+	al.outputs = []formattedOutput{{
+		output:     &WriterOutput{w: &buf, name: "test"},
+		formatType: "json",
+	}}
+
+	for i := range 50 {
+		al.Log(&AuditEvent{
+			Timestamp: time.Now(),
+			EventType: AuditEventSchemaRegister,
+			Method:    "POST",
+			Path:      "/subjects/test/versions",
+			Version:   i,
+		})
+	}
+
+	al.Close()
+
+	// Count lines in buffer — each event is one JSON line.
+	lines := 0
+	for _, b := range buf.Bytes() {
+		if b == '\n' {
+			lines++
+		}
+	}
+	if lines != 50 {
+		t.Errorf("got %d lines, want 50", lines)
+	}
+}
+
+func TestAuditLogger_AsyncDropOnFull(t *testing.T) {
+	// Create async logger with tiny buffer, fill it, verify drops + metric.
+	block := make(chan struct{})
+	blocking := &slowOutput{delay: 0}
+	// Override Write to block until we release.
+	origWrite := blocking.Write
+	_ = origWrite
+	blockingOutput := &blockingAuditOutput{block: block}
+
+	metrics := &mockAuditMetrics{}
+	al := &AuditLogger{
+		config:        config.AuditConfig{Enabled: true},
+		outputs:       []formattedOutput{{output: blockingOutput, formatType: "json"}},
+		metrics:       metrics,
+		enabledEvents: make(map[AuditEventType]bool),
+		ch:            make(chan *AuditEvent, 2),
+		stopCh:        make(chan struct{}),
+	}
+	setDefaultEnabledEvents(al.enabledEvents)
+	al.wg.Add(1)
+	go al.drainLoop()
+
+	// The drain goroutine will pick up the first event and block on Write.
+	// The next 2 events fill the channel buffer. The 4th+ should be dropped.
+	for range 10 {
+		al.Log(&AuditEvent{
+			Timestamp: time.Now(),
+			EventType: AuditEventSchemaRegister,
+			Method:    "POST",
+			Path:      "/subjects/test/versions",
+		})
+	}
+
+	// We expect at least some drops (buffer is 2, output is blocked).
+	drops := metrics.getBufferDrops()
+	if drops == 0 {
+		t.Error("expected at least one buffer drop, got 0")
+	}
+
+	// Unblock and close.
+	close(block)
+	al.Close()
+}
+
+// blockingAuditOutput blocks on Write until its block channel is closed.
+type blockingAuditOutput struct {
+	block chan struct{}
+}
+
+func (o *blockingAuditOutput) Write(_ []byte) error {
+	<-o.block
+	return nil
+}
+func (o *blockingAuditOutput) Close() error { return nil }
+func (o *blockingAuditOutput) Name() string { return "blocking" }
+
+func TestAuditLogger_SyncModeViaWriter(t *testing.T) {
+	// NewAuditLoggerWithWriter should use sync mode (ch == nil).
+	al := NewAuditLoggerWithWriter(config.AuditConfig{Enabled: true}, &bytes.Buffer{})
+	if al.ch != nil {
+		t.Error("expected ch to be nil for NewAuditLoggerWithWriter (sync mode)")
+	}
+	if al.stopCh != nil {
+		t.Error("expected stopCh to be nil for NewAuditLoggerWithWriter (sync mode)")
+	}
+	al.Close()
+}
+
+func TestAuditLogger_BufferSizeConfig(t *testing.T) {
+	// Verify custom BufferSize sets channel capacity.
+	al, err := NewAuditLogger(config.AuditConfig{
+		Enabled:    true,
+		BufferSize: 42,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer al.Close()
+
+	if al.ch == nil {
+		t.Fatal("expected ch to be non-nil for NewAuditLogger")
+	}
+	if cap(al.ch) != 42 {
+		t.Errorf("channel capacity = %d, want 42", cap(al.ch))
+	}
+}
+
+func TestAuditLogger_DefaultBufferSize(t *testing.T) {
+	// Verify default buffer size is 10000 when BufferSize is 0.
+	al, err := NewAuditLogger(config.AuditConfig{
+		Enabled: true,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer al.Close()
+
+	if al.ch == nil {
+		t.Fatal("expected ch to be non-nil for NewAuditLogger")
+	}
+	if cap(al.ch) != 10000 {
+		t.Errorf("channel capacity = %d, want 10000", cap(al.ch))
 	}
 }

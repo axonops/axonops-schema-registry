@@ -107,7 +107,10 @@ security:
 | `enabled` | Enable audit logging. | `false` |
 | `events` | List of event types to record. If empty, all security-relevant events are logged by default (see [Event Types](#event-types)). | `[]` |
 | `include_body` | Include the request body in audit entries (truncated to 1,000 characters). SHOULD only be enabled in development or debugging scenarios, as request bodies MAY contain sensitive data. | `false` |
+| `buffer_size` | Async event buffer size. `Log()` enqueues events for a background goroutine; when the buffer is full, new events are dropped and counted via the `schema_registry_audit_buffer_dropped_total` metric. | `10000` |
 | `log_file` | **Legacy**. Path to audit log file. Use `outputs.file` instead. Kept for backward compatibility — when no explicit `outputs` are configured, this field creates a plain file output. | `""` |
+
+> **Async delivery:** `Log()` enqueues events onto a buffered channel. A single background goroutine reads, serializes (JSON/CEF), and fans out to all outputs. When the buffer is full, events are dropped with a warning log and the `schema_registry_audit_buffer_dropped_total` metric is incremented. On shutdown, the channel is drained with a 5-second deadline before outputs are closed.
 
 ### Stdout Output
 
@@ -169,6 +172,7 @@ All audit configuration fields support environment variable overrides with the `
 ```bash
 SCHEMA_REGISTRY_AUDIT_ENABLED=true
 SCHEMA_REGISTRY_AUDIT_INCLUDE_BODY=false
+SCHEMA_REGISTRY_AUDIT_BUFFER_SIZE=10000
 SCHEMA_REGISTRY_AUDIT_STDOUT_ENABLED=true
 SCHEMA_REGISTRY_AUDIT_STDOUT_FORMAT=json
 SCHEMA_REGISTRY_AUDIT_FILE_ENABLED=true
@@ -205,6 +209,7 @@ The following Prometheus metrics are available for monitoring audit output healt
 |--------|------|--------|-------------|
 | `schema_registry_audit_events_total` | Counter | `output`, `status` | Total audit events written per output and status. |
 | `schema_registry_audit_output_errors_total` | Counter | `output` | Total write errors per output. |
+| `schema_registry_audit_buffer_dropped_total` | Counter | — | Events dropped due to async audit buffer overflow. |
 | `schema_registry_audit_webhook_dropped_total` | Counter | — | Events dropped due to webhook buffer overflow. |
 | `schema_registry_audit_webhook_batch_size` | Histogram | — | Distribution of webhook batch sizes. |
 | `schema_registry_audit_webhook_flush_duration_seconds` | Histogram | — | Time to flush webhook batches. |

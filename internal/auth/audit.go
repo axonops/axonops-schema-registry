@@ -196,6 +196,7 @@ type AuditMetrics interface {
 	RecordAuditOutputError(output string)
 	RecordAuditWebhookDrop()
 	RecordAuditWebhookFlush(batchSize int, duration time.Duration)
+	RecordAuditBufferDrop()
 }
 
 // AuditLogger handles audit logging.
@@ -205,6 +206,13 @@ type AuditLogger struct {
 	metrics       AuditMetrics
 	mu            sync.Mutex
 	enabledEvents map[AuditEventType]bool
+
+	// Async delivery fields. When ch is non-nil, Log() enqueues events
+	// for a background goroutine instead of writing synchronously.
+	ch        chan *AuditEvent
+	stopCh    chan struct{}
+	wg        sync.WaitGroup
+	closeOnce sync.Once
 }
 
 // NewAuditLogger creates a new audit logger.
@@ -283,6 +291,16 @@ func NewAuditLogger(cfg config.AuditConfig) (*AuditLogger, error) {
 		})
 	}
 
+	// Start async drain goroutine. Default buffer size is 10,000.
+	bufSize := cfg.BufferSize
+	if bufSize <= 0 {
+		bufSize = 10000
+	}
+	al.ch = make(chan *AuditEvent, bufSize)
+	al.stopCh = make(chan struct{})
+	al.wg.Add(1)
+	go al.drainLoop()
+
 	return al, nil
 }
 
@@ -331,14 +349,36 @@ func NewAuditLoggerWithWriter(cfg config.AuditConfig, w io.Writer) *AuditLogger 
 	return al
 }
 
-// Close closes all audit outputs.
+// Close drains any pending async events and closes all audit outputs.
+// If the drain does not complete within 5 seconds, it proceeds to close outputs.
+// Close is safe to call multiple times.
 func (al *AuditLogger) Close() error {
 	var firstErr error
-	for _, fo := range al.outputs {
-		if err := fo.output.Close(); err != nil && firstErr == nil {
-			firstErr = err
+	al.closeOnce.Do(func() {
+		// Stop the async drain goroutine if running.
+		if al.stopCh != nil {
+			close(al.stopCh)
+
+			// Wait for drain with a 5-second deadline.
+			done := make(chan struct{})
+			go func() {
+				al.wg.Wait()
+				close(done)
+			}()
+
+			select {
+			case <-done:
+			case <-time.After(5 * time.Second):
+				slog.Warn("audit drain timed out after 5s, closing outputs with pending events")
+			}
 		}
-	}
+
+		for _, fo := range al.outputs {
+			if err := fo.output.Close(); err != nil && firstErr == nil {
+				firstErr = err
+			}
+		}
+	})
 	return firstErr
 }
 
@@ -401,8 +441,10 @@ func setDefaultEnabledEvents(m map[AuditEventType]bool) {
 	m[AuditEventMCPConfirmed] = true
 }
 
-// Log logs an audit event by serializing it and writing to all configured outputs.
-// Each output receives data in its configured format (JSON or CEF).
+// Log logs an audit event. When async mode is active (ch != nil), events are
+// enqueued onto a buffered channel for a background goroutine. When the channel
+// is nil (test mode via NewAuditLoggerWithWriter or struct literals), events are
+// written synchronously under the mutex.
 func (al *AuditLogger) Log(event *AuditEvent) {
 	if !al.config.Enabled {
 		return
@@ -412,9 +454,30 @@ func (al *AuditLogger) Log(event *AuditEvent) {
 		return
 	}
 
+	if al.ch != nil {
+		// Async mode: non-blocking enqueue.
+		select {
+		case al.ch <- event:
+		default:
+			slog.Warn("audit buffer full, dropping event",
+				slog.String("event_type", string(event.EventType)),
+			)
+			if al.metrics != nil {
+				al.metrics.RecordAuditBufferDrop()
+			}
+		}
+		return
+	}
+
+	// Sync mode (tests): write under mutex.
 	al.mu.Lock()
 	defer al.mu.Unlock()
+	al.writeEvent(event)
+}
 
+// writeEvent serializes the event and fans out to all configured outputs.
+// It MUST be called from a single goroutine (the drain loop) or under al.mu.
+func (al *AuditLogger) writeEvent(event *AuditEvent) {
 	// Lazy-serialize: only compute each format if at least one output needs it.
 	var jsonData, cefData []byte
 	var jsonErr error
@@ -449,6 +512,28 @@ func (al *AuditLogger) Log(event *AuditEvent) {
 			}
 		} else if al.metrics != nil {
 			al.metrics.RecordAuditEvent(fo.output.Name(), "success")
+		}
+	}
+}
+
+// drainLoop reads events from the async channel and writes them to outputs.
+// It runs as a single goroutine, so no locking is needed for writeEvent.
+func (al *AuditLogger) drainLoop() {
+	defer al.wg.Done()
+	for {
+		select {
+		case event := <-al.ch:
+			al.writeEvent(event)
+		case <-al.stopCh:
+			// Drain remaining events from the channel before returning.
+			for {
+				select {
+				case event := <-al.ch:
+					al.writeEvent(event)
+				default:
+					return
+				}
+			}
 		}
 	}
 }
