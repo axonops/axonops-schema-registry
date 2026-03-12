@@ -4,6 +4,12 @@
 
 - [Overview](#overview)
 - [Configuration](#configuration)
+  - [Stdout Output](#stdout-output)
+  - [File Output (with Rotation)](#file-output-with-rotation)
+  - [Syslog Output (RFC 5424)](#syslog-output-rfc-5424)
+  - [Webhook Output](#webhook-output)
+  - [Environment Variable Overrides](#environment-variable-overrides)
+  - [Prometheus Metrics](#prometheus-metrics)
 - [Audit Event Schema](#audit-event-schema)
   - [Timing Fields](#timing-fields)
   - [Event Classification](#event-classification)
@@ -45,11 +51,12 @@ Audit events follow industry-standard practices:
 
 ## Configuration
 
+The audit logger supports multiple simultaneous outputs: **stdout**, **file** (with rotation), **syslog** (RFC 5424 over TCP/UDP/TCP+TLS), and **webhook** (HTTP with batching and retry). Each output can be independently enabled and configured with its own format (`json` or `cef`).
+
 ```yaml
 security:
   audit:
     enabled: true
-    log_file: /var/log/axonops-schema-registry/audit.log
     events:
       - schema_register
       - schema_delete
@@ -58,19 +65,149 @@ security:
       - auth_forbidden
       - subject_delete
     include_body: false
+    outputs:
+      stdout:
+        enabled: true
+        format_type: json         # json or cef
+      file:
+        enabled: true
+        path: /var/log/axonops-schema-registry/audit.log
+        format_type: json
+        max_size_mb: 100          # Max size before rotation
+        max_backups: 5            # Number of rotated files to keep
+        max_age_days: 30          # Days to retain rotated files
+        compress: true            # Gzip rotated files
+      syslog:
+        enabled: false
+        network: tcp              # tcp, udp, or tcp+tls
+        address: "localhost:514"
+        app_name: schema-registry
+        facility: local0
+        format_type: json
+        tls_ca: ""                # CA cert path (for tcp+tls)
+        tls_cert: ""              # Client cert path (for mTLS)
+        tls_key: ""               # Client key path (for mTLS)
+      webhook:
+        enabled: false
+        url: "https://splunk-hec:8088/services/collector/event"
+        format_type: json
+        batch_size: 100           # Events per batch
+        flush_interval: "5s"      # Max time before flushing
+        timeout: "10s"            # HTTP request timeout
+        max_retries: 3            # Retries on 5xx errors
+        buffer_size: 10000        # Channel buffer (overflow drops)
+        headers:                  # Custom HTTP headers
+          Authorization: "Splunk test-token"
 ```
+
+### Top-Level Fields
 
 | Field | Description | Default |
 |-------|-------------|---------|
 | `enabled` | Enable audit logging. | `false` |
-| `log_file` | Path to the audit log file. If empty, audit events are written to stdout. | `""` |
 | `events` | List of event types to record. If empty, all security-relevant events are logged by default (see [Event Types](#event-types)). | `[]` |
 | `include_body` | Include the request body in audit entries (truncated to 1,000 characters). SHOULD only be enabled in development or debugging scenarios, as request bodies MAY contain sensitive data. | `false` |
+| `log_file` | **Legacy**. Path to audit log file. Use `outputs.file` instead. Kept for backward compatibility — when no explicit `outputs` are configured, this field creates a plain file output. | `""` |
 
-Environment variable overrides:
+### Stdout Output
 
-- `SCHEMA_REGISTRY_SECURITY_AUDIT_ENABLED=true`
-- `SCHEMA_REGISTRY_SECURITY_AUDIT_LOG_FILE=/tmp/audit.log`
+| Field | Description | Default |
+|-------|-------------|---------|
+| `outputs.stdout.enabled` | Enable stdout audit output. | `false` |
+| `outputs.stdout.format_type` | Serialization format: `json` or `cef`. | `json` |
+
+### File Output (with Rotation)
+
+Uses [lumberjack](https://github.com/natefinch/lumberjack) for automatic log rotation.
+
+| Field | Description | Default |
+|-------|-------------|---------|
+| `outputs.file.enabled` | Enable file audit output. | `false` |
+| `outputs.file.path` | Absolute path to the audit log file. **REQUIRED** when enabled. | `""` |
+| `outputs.file.format_type` | Serialization format: `json` or `cef`. | `json` |
+| `outputs.file.max_size_mb` | Maximum file size in MB before rotation. | `100` |
+| `outputs.file.max_backups` | Number of rotated log files to retain. | `5` |
+| `outputs.file.max_age_days` | Days to retain rotated log files. | `30` |
+| `outputs.file.compress` | Gzip-compress rotated log files. | `true` |
+
+### Syslog Output (RFC 5424)
+
+Sends audit events to a syslog server over TCP, UDP, or TCP+TLS using RFC 5424 format.
+
+| Field | Description | Default |
+|-------|-------------|---------|
+| `outputs.syslog.enabled` | Enable syslog audit output. | `false` |
+| `outputs.syslog.network` | Transport protocol: `tcp`, `udp`, or `tcp+tls`. | `tcp` |
+| `outputs.syslog.address` | Syslog server address (host:port). **REQUIRED** when enabled. | `""` |
+| `outputs.syslog.app_name` | Application name in syslog messages. | `schema-registry` |
+| `outputs.syslog.facility` | Syslog facility: `local0`–`local7`, `auth`, `daemon`, etc. | `local0` |
+| `outputs.syslog.format_type` | Serialization format: `json` or `cef`. | `json` |
+| `outputs.syslog.tls_ca` | Path to CA certificate file (for `tcp+tls`). | `""` |
+| `outputs.syslog.tls_cert` | Path to client certificate file (for mTLS). | `""` |
+| `outputs.syslog.tls_key` | Path to client private key file (for mTLS). | `""` |
+
+### Webhook Output
+
+Delivers batched audit events to an HTTP endpoint with exponential backoff retry on 5xx errors.
+
+| Field | Description | Default |
+|-------|-------------|---------|
+| `outputs.webhook.enabled` | Enable webhook audit output. | `false` |
+| `outputs.webhook.url` | HTTP endpoint URL. **REQUIRED** when enabled. | `""` |
+| `outputs.webhook.format_type` | Serialization format: `json` or `cef`. | `json` |
+| `outputs.webhook.batch_size` | Number of events per batch before flushing. | `100` |
+| `outputs.webhook.flush_interval` | Maximum time between flushes (Go duration string). | `5s` |
+| `outputs.webhook.timeout` | HTTP request timeout (Go duration string). | `10s` |
+| `outputs.webhook.max_retries` | Maximum retry attempts on 5xx errors. | `3` |
+| `outputs.webhook.buffer_size` | Internal channel buffer size. Events are dropped when full. | `10000` |
+| `outputs.webhook.headers` | Custom HTTP headers (map of key-value pairs). | `{}` |
+
+### Environment Variable Overrides
+
+All audit configuration fields support environment variable overrides with the `SCHEMA_REGISTRY_AUDIT_` prefix:
+
+```bash
+SCHEMA_REGISTRY_AUDIT_ENABLED=true
+SCHEMA_REGISTRY_AUDIT_INCLUDE_BODY=false
+SCHEMA_REGISTRY_AUDIT_STDOUT_ENABLED=true
+SCHEMA_REGISTRY_AUDIT_STDOUT_FORMAT=json
+SCHEMA_REGISTRY_AUDIT_FILE_ENABLED=true
+SCHEMA_REGISTRY_AUDIT_FILE_PATH=/var/log/audit.log
+SCHEMA_REGISTRY_AUDIT_FILE_FORMAT=json
+SCHEMA_REGISTRY_AUDIT_FILE_MAX_SIZE_MB=100
+SCHEMA_REGISTRY_AUDIT_FILE_MAX_BACKUPS=5
+SCHEMA_REGISTRY_AUDIT_FILE_MAX_AGE_DAYS=30
+SCHEMA_REGISTRY_AUDIT_FILE_COMPRESS=true
+SCHEMA_REGISTRY_AUDIT_SYSLOG_ENABLED=true
+SCHEMA_REGISTRY_AUDIT_SYSLOG_NETWORK=tcp+tls
+SCHEMA_REGISTRY_AUDIT_SYSLOG_ADDRESS=syslog.internal:6514
+SCHEMA_REGISTRY_AUDIT_SYSLOG_APP_NAME=schema-registry
+SCHEMA_REGISTRY_AUDIT_SYSLOG_FACILITY=local0
+SCHEMA_REGISTRY_AUDIT_SYSLOG_FORMAT=json
+SCHEMA_REGISTRY_AUDIT_SYSLOG_TLS_CA=/etc/ssl/ca.pem
+SCHEMA_REGISTRY_AUDIT_SYSLOG_TLS_CERT=/etc/ssl/client.pem
+SCHEMA_REGISTRY_AUDIT_SYSLOG_TLS_KEY=/etc/ssl/client-key.pem
+SCHEMA_REGISTRY_AUDIT_WEBHOOK_ENABLED=true
+SCHEMA_REGISTRY_AUDIT_WEBHOOK_URL=https://splunk:8088/
+SCHEMA_REGISTRY_AUDIT_WEBHOOK_FORMAT=json
+SCHEMA_REGISTRY_AUDIT_WEBHOOK_BATCH_SIZE=100
+SCHEMA_REGISTRY_AUDIT_WEBHOOK_FLUSH_INTERVAL=5s
+SCHEMA_REGISTRY_AUDIT_WEBHOOK_TIMEOUT=10s
+SCHEMA_REGISTRY_AUDIT_WEBHOOK_MAX_RETRIES=3
+SCHEMA_REGISTRY_AUDIT_WEBHOOK_BUFFER_SIZE=10000
+```
+
+### Prometheus Metrics
+
+The following Prometheus metrics are available for monitoring audit output health:
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `schema_registry_audit_events_total` | Counter | `output`, `status` | Total audit events written per output and status. |
+| `schema_registry_audit_output_errors_total` | Counter | `output` | Total write errors per output. |
+| `schema_registry_audit_webhook_dropped_total` | Counter | — | Events dropped due to webhook buffer overflow. |
+| `schema_registry_audit_webhook_batch_size` | Histogram | — | Distribution of webhook batch sizes. |
+| `schema_registry_audit_webhook_flush_duration_seconds` | Histogram | — | Time to flush webhook batches. |
 
 ## Audit Event Schema
 
@@ -492,12 +629,15 @@ To verify an audit entry against stored data:
 
 ## Log Forwarding and Analysis
 
-Audit log entries are single-line JSON, making them compatible with standard log aggregation tools:
+Audit events can be delivered directly to external systems using the built-in outputs:
 
-- **Elasticsearch / OpenSearch**: Ingest directly; all fields are top-level for easy indexing and querying.
-- **Splunk**: Parse as JSON; use `event_type`, `outcome`, and `actor_id` as indexed fields.
-- **Grafana Loki**: Use label extraction on `event_type` and `outcome`.
-- **jq**: Filter on the command line, e.g., `jq 'select(.outcome == "failure")' audit.log`.
+- **Splunk**: Use the webhook output with Splunk HEC (`url: https://splunk:8088/services/collector/event`) and add an `Authorization: Splunk <token>` header.
+- **Elasticsearch / OpenSearch**: Use the webhook output pointing to the bulk API endpoint.
+- **Syslog (SIEM)**: Use the syslog output with `tcp+tls` for encrypted delivery to your SIEM.
+- **File + Fluentd/Logstash**: Use the file output with rotation, then ship with a sidecar agent.
+- **Grafana Loki**: Use label extraction on `event_type` and `outcome` from the file output.
+
+Audit log entries are single-line JSON (or CEF), making them compatible with standard log aggregation tools. For file-based forwarding:
 
 Useful queries:
 
