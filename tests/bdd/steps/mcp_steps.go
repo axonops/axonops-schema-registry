@@ -760,8 +760,9 @@ func RegisterMCPSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 	//
 	// Supported fields: any JSON field in the audit event (event_type, outcome, actor_id,
 	// actor_type, role, auth_method, target_type, target_id, source_ip, user_agent, method,
-	// path, status_code, reason, error, etc.).
+	// path, status_code, reason, error, before_hash, after_hash, etc.).
 	// The "path" field uses "contains" matching; all others use exact match.
+	// A value ending with "*" uses prefix matching (e.g., | after_hash | sha256:* |).
 	// An empty value (e.g., | actor_id | |) matches the empty string.
 	ctx.Step(`^the audit log should contain an event:$`, func(table *godog.Table) error {
 		logStr, available, err := getAuditLog()
@@ -808,6 +809,14 @@ func RegisterMCPSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 				} else if field == "path" {
 					// Path uses contains matching.
 					if path, ok := event["path"].(string); ok && strings.Contains(path, wantVal) {
+						matchCount++
+					} else {
+						allMatch = false
+					}
+				} else if strings.HasSuffix(wantVal, "*") {
+					// Prefix matching: "sha256:*" matches any value starting with "sha256:".
+					prefix := strings.TrimSuffix(wantVal, "*")
+					if strings.HasPrefix(gotVal, prefix) {
 						matchCount++
 					} else {
 						allMatch = false

@@ -52,6 +52,7 @@ Feature: Exporters API
       | actor_type  | anonymous       |
       | method      | POST            |
       | path        | /exporters      |
+      | after_hash  | sha256:*        |
 
   # Create Operations
   Scenario: Create exporter with all fields
@@ -79,6 +80,7 @@ Feature: Exporters API
       | actor_type  | anonymous       |
       | method      | POST            |
       | path        | /exporters      |
+      | after_hash  | sha256:*        |
 
   Scenario: Create exporter with minimal fields
     When I POST "/exporters" with body:
@@ -96,6 +98,7 @@ Feature: Exporters API
       | actor_type  | anonymous       |
       | method      | POST            |
       | path        | /exporters      |
+      | after_hash  | sha256:*        |
 
   Scenario: Create exporter with contextType AUTO
     When I POST "/exporters" with body:
@@ -115,6 +118,7 @@ Feature: Exporters API
       | actor_type  | anonymous       |
       | method      | POST            |
       | path        | /exporters      |
+      | after_hash  | sha256:*        |
 
   Scenario: Create exporter with contextType CUSTOM and context
     When I POST "/exporters" with body:
@@ -135,6 +139,7 @@ Feature: Exporters API
       | actor_type  | anonymous       |
       | method      | POST            |
       | path        | /exporters      |
+      | after_hash  | sha256:*        |
 
   Scenario: Create exporter with contextType NONE
     When I POST "/exporters" with body:
@@ -154,6 +159,7 @@ Feature: Exporters API
       | actor_type  | anonymous       |
       | method      | POST            |
       | path        | /exporters      |
+      | after_hash  | sha256:*        |
 
   Scenario: Create exporter with subject filters
     When I POST "/exporters" with body:
@@ -173,6 +179,7 @@ Feature: Exporters API
       | actor_type  | anonymous       |
       | method      | POST            |
       | path        | /exporters      |
+      | after_hash  | sha256:*        |
 
   Scenario: Create exporter with multiple subjects
     When I POST "/exporters" with body:
@@ -192,6 +199,7 @@ Feature: Exporters API
       | actor_type  | anonymous       |
       | method      | POST            |
       | path        | /exporters      |
+      | after_hash  | sha256:*        |
 
   Scenario: Create exporter with empty config
     When I POST "/exporters" with body:
@@ -212,6 +220,7 @@ Feature: Exporters API
       | actor_type  | anonymous       |
       | method      | POST            |
       | path        | /exporters      |
+      | after_hash  | sha256:*        |
 
   Scenario: Create exporter returns name in response
     When I POST "/exporters" with body:
@@ -231,6 +240,7 @@ Feature: Exporters API
       | actor_type  | anonymous       |
       | method      | POST            |
       | path        | /exporters      |
+      | after_hash  | sha256:*        |
 
   Scenario: Create duplicate exporter
     When I POST "/exporters" with body:
@@ -333,11 +343,13 @@ Feature: Exporters API
     And the response should be valid JSON
     And the response field "name" should be "update-test-exporter"
     And the audit log should contain an event:
-      | event_type  | exporter_update              |
-      | outcome     | success                      |
-      | actor_type  | anonymous                    |
-      | method      | PUT                          |
-      | path        | /exporters/update-test-exporter |
+      | event_type   | exporter_update                 |
+      | outcome      | success                         |
+      | actor_type   | anonymous                       |
+      | method       | PUT                             |
+      | path         | /exporters/update-test-exporter |
+      | before_hash  | sha256:*                        |
+      | after_hash   | sha256:*                        |
 
   Scenario: Update exporter subjects
     When I POST "/exporters" with body:
@@ -357,11 +369,13 @@ Feature: Exporters API
     Then the response status should be 200
     And the response should be valid JSON
     And the audit log should contain an event:
-      | event_type  | exporter_update                    |
-      | outcome     | success                            |
-      | actor_type  | anonymous                          |
-      | method      | PUT                                |
-      | path        | /exporters/subject-update-exporter |
+      | event_type   | exporter_update                    |
+      | outcome      | success                            |
+      | actor_type   | anonymous                          |
+      | method       | PUT                                |
+      | path         | /exporters/subject-update-exporter |
+      | before_hash  | sha256:*                           |
+      | after_hash   | sha256:*                           |
 
   Scenario: Update exporter without changing all fields
     When I POST "/exporters" with body:
@@ -382,11 +396,13 @@ Feature: Exporters API
     Then the response status should be 200
     And the response should be valid JSON
     And the audit log should contain an event:
-      | event_type  | exporter_update                    |
-      | outcome     | success                            |
-      | actor_type  | anonymous                          |
-      | method      | PUT                                |
-      | path        | /exporters/partial-update-exporter |
+      | event_type   | exporter_update                    |
+      | outcome      | success                            |
+      | actor_type   | anonymous                          |
+      | method       | PUT                                |
+      | path         | /exporters/partial-update-exporter |
+      | before_hash  | sha256:*                           |
+      | after_hash   | sha256:*                           |
 
   # Delete Operations
   Scenario: Delete exporter
@@ -401,11 +417,12 @@ Feature: Exporters API
     And I DELETE "/exporters/delete-test-exporter"
     Then the response status should be 200
     And the audit log should contain an event:
-      | event_type  | exporter_delete                    |
-      | outcome     | success                            |
-      | actor_type  | anonymous                          |
-      | method      | DELETE                             |
-      | path        | /exporters/delete-test-exporter    |
+      | event_type   | exporter_delete                 |
+      | outcome      | success                         |
+      | actor_type   | anonymous                       |
+      | method       | DELETE                          |
+      | path         | /exporters/delete-test-exporter |
+      | before_hash  | sha256:*                        |
 
   Scenario: Delete exporter returns name in response
     When I POST "/exporters" with body:
@@ -419,11 +436,12 @@ Feature: Exporters API
     And I DELETE "/exporters/delete-response-exporter"
     Then the response status should be 200
     And the audit log should contain an event:
-      | event_type  | exporter_delete                      |
-      | outcome     | success                              |
-      | actor_type  | anonymous                            |
-      | method      | DELETE                               |
-      | path        | /exporters/delete-response-exporter  |
+      | event_type   | exporter_delete                     |
+      | outcome      | success                             |
+      | actor_type   | anonymous                           |
+      | method       | DELETE                              |
+      | path         | /exporters/delete-response-exporter |
+      | before_hash  | sha256:*                            |
 
   Scenario: Delete non-existent exporter
     When I DELETE "/exporters/non-existent-delete-exporter"
@@ -589,11 +607,13 @@ Feature: Exporters API
     Then the response status should be 200
     And the response should be valid JSON
     And the audit log should contain an event:
-      | event_type  | exporter_update                           |
-      | outcome     | success                                   |
-      | actor_type  | anonymous                                 |
-      | method      | PUT                                       |
-      | path        | /exporters/config-update-exporter/config  |
+      | event_type   | exporter_update                          |
+      | outcome      | success                                  |
+      | actor_type   | anonymous                                |
+      | method       | PUT                                      |
+      | path         | /exporters/config-update-exporter/config |
+      | before_hash  | sha256:*                                 |
+      | after_hash   | sha256:*                                 |
 
   Scenario: Get config of non-existent exporter
     When I GET "/exporters/non-existent-config/config"
@@ -664,6 +684,7 @@ Feature: Exporters API
       | actor_type  | anonymous       |
       | method      | POST            |
       | path        | /exporters      |
+      | after_hash  | sha256:*        |
     And the audit log should contain an event:
       | event_type  | exporter_pause                          |
       | outcome     | success                                 |
@@ -683,8 +704,9 @@ Feature: Exporters API
       | method      | PUT                                     |
       | path        | /exporters/lifecycle-exporter/reset     |
     And the audit log should contain an event:
-      | event_type  | exporter_delete                         |
-      | outcome     | success                                 |
-      | actor_type  | anonymous                               |
-      | method      | DELETE                                  |
-      | path        | /exporters/lifecycle-exporter           |
+      | event_type   | exporter_delete               |
+      | outcome      | success                       |
+      | actor_type   | anonymous                     |
+      | method       | DELETE                        |
+      | path         | /exporters/lifecycle-exporter |
+      | before_hash  | sha256:*                      |

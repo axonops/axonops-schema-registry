@@ -250,6 +250,7 @@ Feature: REST API Audit Logging
       | method      | POST             |
       | path        | /exporters       |
       | status_code | 200              |
+      | after_hash  | sha256:*         |
 
   Scenario: Exporter update emits exporter_update audit event
     Given I POST "/exporters" with body:
@@ -270,13 +271,15 @@ Feature: REST API Audit Logging
       """
     Then the response status should be 200
     And the audit log should contain an event:
-      | event_type  | exporter_update  |
-      | outcome     | success          |
-      | actor_type  | anonymous        |
-      | target_id   | audit-exp-update |
-      | method      | PUT              |
-      | path        | /exporters/audit-exp-update |
-      | status_code | 200              |
+      | event_type   | exporter_update             |
+      | outcome      | success                     |
+      | actor_type   | anonymous                   |
+      | target_id    | audit-exp-update            |
+      | method       | PUT                         |
+      | path         | /exporters/audit-exp-update |
+      | status_code  | 200                         |
+      | before_hash  | sha256:*                    |
+      | after_hash   | sha256:*                    |
 
   Scenario: Exporter deletion emits exporter_delete audit event
     Given I POST "/exporters" with body:
@@ -290,13 +293,14 @@ Feature: REST API Audit Logging
     When I DELETE "/exporters/audit-exp-delete"
     Then the response status should be 200
     And the audit log should contain an event:
-      | event_type  | exporter_delete  |
-      | outcome     | success          |
-      | actor_type  | anonymous        |
-      | target_id   | audit-exp-delete |
-      | method      | DELETE           |
-      | path        | /exporters/audit-exp-delete |
-      | status_code | 200              |
+      | event_type   | exporter_delete             |
+      | outcome      | success                     |
+      | actor_type   | anonymous                   |
+      | target_id    | audit-exp-delete            |
+      | method       | DELETE                      |
+      | path         | /exporters/audit-exp-delete |
+      | status_code  | 200                         |
+      | before_hash  | sha256:*                    |
 
   Scenario: Exporter pause emits exporter_pause audit event
     Given I POST "/exporters" with body:
