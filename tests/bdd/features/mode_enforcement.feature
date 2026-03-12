@@ -18,7 +18,12 @@ Feature: Mode Enforcement
     And the response should have error code 42205
     # Reset mode
     When I set the global mode to "READWRITE"
-    And the audit log should contain event "mode_update"
+    And the audit log should contain an event:
+      | event_type  | mode_update |
+      | outcome     | success     |
+      | actor_type  | anonymous   |
+      | method      | PUT         |
+      | path        | /mode       |
 
   Scenario: READONLY mode blocks subject deletion
     Given the global mode is "READWRITE"
@@ -31,7 +36,12 @@ Feature: Mode Enforcement
     Then the response status should be 422
     And the response should have error code 42205
     When I set the global mode to "READWRITE"
-    And the audit log should contain event "mode_update"
+    And the audit log should contain an event:
+      | event_type  | mode_update |
+      | outcome     | success     |
+      | actor_type  | anonymous   |
+      | method      | PUT         |
+      | path        | /mode       |
 
   Scenario: READONLY mode blocks version deletion
     Given the global mode is "READWRITE"
@@ -44,7 +54,12 @@ Feature: Mode Enforcement
     Then the response status should be 422
     And the response should have error code 42205
     When I set the global mode to "READWRITE"
-    And the audit log should contain event "mode_update"
+    And the audit log should contain an event:
+      | event_type  | mode_update |
+      | outcome     | success     |
+      | actor_type  | anonymous   |
+      | method      | PUT         |
+      | path        | /mode       |
 
   Scenario: READONLY mode still allows GET operations
     Given the global mode is "READWRITE"
@@ -58,7 +73,12 @@ Feature: Mode Enforcement
     When I list all subjects
     Then the response status should be 200
     When I set the global mode to "READWRITE"
-    And the audit log should contain event "mode_update"
+    And the audit log should contain an event:
+      | event_type  | mode_update |
+      | outcome     | success     |
+      | actor_type  | anonymous   |
+      | method      | PUT         |
+      | path        | /mode       |
 
   # ==========================================================================
   # PER-SUBJECT READONLY MODE
@@ -80,7 +100,13 @@ Feature: Mode Enforcement
       {"type":"record","name":"PerRW","fields":[{"name":"a","type":"string"}]}
       """
     Then the response status should be 200
-    And the audit log should contain event "mode_update" with subject "mode-per-ro"
+    And the audit log should contain an event:
+      | event_type  | mode_update        |
+      | outcome     | success            |
+      | actor_type  | anonymous          |
+      | target_id   | mode-per-ro        |
+      | method      | PUT                |
+      | path        | /mode/mode-per-ro  |
 
   # ==========================================================================
   # READONLY_OVERRIDE MODE
@@ -92,7 +118,12 @@ Feature: Mode Enforcement
     When I get the global mode
     Then the response field "mode" should be "READONLY_OVERRIDE"
     When I set the global mode to "READWRITE"
-    And the audit log should contain event "mode_update"
+    And the audit log should contain an event:
+      | event_type  | mode_update |
+      | outcome     | success     |
+      | actor_type  | anonymous   |
+      | method      | PUT         |
+      | path        | /mode       |
 
   Scenario: READONLY_OVERRIDE blocks schema registration
     Given the global mode is "READONLY_OVERRIDE"
@@ -103,7 +134,12 @@ Feature: Mode Enforcement
     Then the response status should be 422
     And the response should have error code 42205
     When I set the global mode to "READWRITE"
-    And the audit log should contain event "mode_update"
+    And the audit log should contain an event:
+      | event_type  | mode_update |
+      | outcome     | success     |
+      | actor_type  | anonymous   |
+      | method      | PUT         |
+      | path        | /mode       |
 
   Scenario: READONLY_OVERRIDE allows changing mode back
     When I set the global mode to "READONLY_OVERRIDE"
@@ -112,7 +148,12 @@ Feature: Mode Enforcement
     Then the response status should be 200
     When I get the global mode
     Then the response field "mode" should be "READWRITE"
-    And the audit log should contain event "mode_update"
+    And the audit log should contain an event:
+      | event_type  | mode_update |
+      | outcome     | success     |
+      | actor_type  | anonymous   |
+      | method      | PUT         |
+      | path        | /mode       |
 
   # ==========================================================================
   # DELETE /mode/{subject}
@@ -127,12 +168,24 @@ Feature: Mode Enforcement
     Then the response status should be 200
     When I GET "/mode/mode-del-test"
     Then the response status should be 404
-    And the audit log should contain event "mode_delete" with subject "mode-del-test"
+    And the audit log should contain an event:
+      | event_type  | mode_delete             |
+      | outcome     | success                 |
+      | actor_type  | anonymous               |
+      | target_id   | mode-del-test           |
+      | method      | DELETE                  |
+      | path        | /mode/mode-del-test     |
 
   Scenario: DELETE /mode/{subject} when no mode returns 404
     When I delete the mode for subject "mode-del-nonexist"
     Then the response status should be 404
-    And the audit log should contain event "mode_delete" with subject "mode-del-nonexist"
+    And the audit log should contain an event:
+      | event_type  | mode_delete                 |
+      | outcome     | failure                     |
+      | actor_type  | anonymous                   |
+      | target_id   | mode-del-nonexist           |
+      | method      | DELETE                      |
+      | path        | /mode/mode-del-nonexist     |
 
   # ==========================================================================
   # IMPORT MODE
@@ -148,7 +201,13 @@ Feature: Mode Enforcement
     Then the response status should be 200
     And the response field "id" should be 99990
     When I set the global mode to "READWRITE"
-    And the audit log should contain event "schema_register" with subject "mode-import-with-id"
+    And the audit log should contain an event:
+      | event_type  | schema_register                         |
+      | outcome     | success                                 |
+      | actor_type  | anonymous                               |
+      | target_id   | mode-import-with-id                     |
+      | method      | POST                                    |
+      | path        | /subjects/mode-import-with-id/versions  |
 
   Scenario: IMPORT mode rejects different schema with same ID
     When I set the global mode to "IMPORT"
@@ -167,7 +226,22 @@ Feature: Mode Enforcement
     Then the response status should be 422
     And the response should have error code 42205
     When I set the global mode to "READWRITE"
-    And the audit log should contain event "schema_register" with subject "mode-import-dup1"
+    # First import succeeded
+    And the audit log should contain an event:
+      | event_type  | schema_register                        |
+      | outcome     | success                                |
+      | actor_type  | anonymous                              |
+      | target_id   | mode-import-dup1                       |
+      | method      | POST                                   |
+      | path        | /subjects/mode-import-dup1/versions    |
+    # Second import failed (ID conflict)
+    And the audit log should contain an event:
+      | event_type  | schema_register                        |
+      | outcome     | failure                                |
+      | actor_type  | anonymous                              |
+      | target_id   | mode-import-dup2                       |
+      | method      | POST                                   |
+      | path        | /subjects/mode-import-dup2/versions    |
 
   Scenario: IMPORT mode allows same schema with same ID in different subject
     When I set the global mode to "IMPORT"
@@ -186,7 +260,13 @@ Feature: Mode Enforcement
     Then the response status should be 200
     And the response field "id" should be 99992
     When I set the global mode to "READWRITE"
-    And the audit log should contain event "schema_register" with subject "mode-import-share2"
+    And the audit log should contain an event:
+      | event_type  | schema_register                          |
+      | outcome     | success                                  |
+      | actor_type  | anonymous                                |
+      | target_id   | mode-import-share2                       |
+      | method      | POST                                     |
+      | path        | /subjects/mode-import-share2/versions    |
 
   Scenario: IMPORT mode rejects registration without explicit ID
     When I set the global mode to "IMPORT"
@@ -198,7 +278,12 @@ Feature: Mode Enforcement
     Then the response status should be 422
     And the response should have error code 42205
     When I set the global mode to "READWRITE"
-    And the audit log should contain event "mode_update"
+    And the audit log should contain an event:
+      | event_type  | mode_update |
+      | outcome     | success     |
+      | actor_type  | anonymous   |
+      | method      | PUT         |
+      | path        | /mode       |
 
   # ==========================================================================
   # INVALID MODE
@@ -211,7 +296,13 @@ Feature: Mode Enforcement
       """
     Then the response status should be 422
     And the response should have error code 42204
-    And the audit log should contain event "mode_update"
+    # Invalid mode value — 422 failure
+    And the audit log should contain an event:
+      | event_type  | mode_update |
+      | outcome     | failure     |
+      | actor_type  | anonymous   |
+      | method      | PUT         |
+      | path        | /mode       |
 
   # ==========================================================================
   # Explicit ID enforcement — explicit schema IDs in register requests
@@ -226,7 +317,14 @@ Feature: Mode Enforcement
       """
     Then the response status should be 422
     And the response should have error code 42205
-    And the audit log should contain event "schema_register" with subject "mode-rw-explicit"
+    # Explicit ID in READWRITE mode — 422 failure
+    And the audit log should contain an event:
+      | event_type  | schema_register                          |
+      | outcome     | failure                                  |
+      | actor_type  | anonymous                                |
+      | target_id   | mode-rw-explicit                         |
+      | method      | POST                                     |
+      | path        | /subjects/mode-rw-explicit/versions      |
 
   Scenario: Explicit ID in IMPORT mode succeeds
     Given the global mode is "IMPORT"
@@ -237,7 +335,13 @@ Feature: Mode Enforcement
     Then the response status should be 200
     And the response field "id" should be 12345
     When I set the global mode to "READWRITE"
-    And the audit log should contain event "schema_register" with subject "mode-import-explicit"
+    And the audit log should contain an event:
+      | event_type  | schema_register                            |
+      | outcome     | success                                    |
+      | actor_type  | anonymous                                  |
+      | target_id   | mode-import-explicit                       |
+      | method      | POST                                       |
+      | path        | /subjects/mode-import-explicit/versions    |
 
   Scenario: Per-subject IMPORT mode allows explicit ID
     Given the global mode is "READWRITE"
@@ -249,4 +353,10 @@ Feature: Mode Enforcement
       """
     Then the response status should be 200
     And the response field "id" should be 12346
-    And the audit log should contain event "mode_update" with subject "mode-subj-import"
+    And the audit log should contain an event:
+      | event_type  | mode_update              |
+      | outcome     | success                  |
+      | actor_type  | anonymous                |
+      | target_id   | mode-subj-import         |
+      | method      | PUT                      |
+      | path        | /mode/mode-subj-import   |

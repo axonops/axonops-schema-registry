@@ -18,7 +18,13 @@ Feature: Deletion Lifecycle (Two-Step Delete)
     Then the response status should be 200
     When I list all subjects
     Then the response should be an array of length 0
-    And the audit log should contain event "subject_delete" with subject "del-lifecycle-1"
+    And the audit log should contain an event:
+      | event_type  | subject_delete                |
+      | outcome     | success                       |
+      | actor_type  | anonymous                     |
+      | target_id   | del-lifecycle-1               |
+      | method      | DELETE                        |
+      | path        | /subjects/del-lifecycle-1     |
 
   Scenario: Soft-deleted subject visible with deleted=true
     Given subject "del-lifecycle-2" has schema:
@@ -30,7 +36,13 @@ Feature: Deletion Lifecycle (Two-Step Delete)
     When I list subjects with deleted
     Then the response status should be 200
     And the response should contain "del-lifecycle-2"
-    And the audit log should contain event "subject_delete" with subject "del-lifecycle-2"
+    And the audit log should contain an event:
+      | event_type  | subject_delete                |
+      | outcome     | success                       |
+      | actor_type  | anonymous                     |
+      | target_id   | del-lifecycle-2               |
+      | method      | DELETE                        |
+      | path        | /subjects/del-lifecycle-2     |
 
   Scenario: Permanent delete without soft-delete first returns 40405
     Given subject "del-lifecycle-3" has schema:
@@ -52,7 +64,13 @@ Feature: Deletion Lifecycle (Two-Step Delete)
     Then the response status should be 200
     When I list subjects with deleted
     Then the response body should not contain "del-lifecycle-4"
-    And the audit log should contain event "subject_delete" with subject "del-lifecycle-4"
+    And the audit log should contain an event:
+      | event_type  | subject_delete                |
+      | outcome     | success                       |
+      | actor_type  | anonymous                     |
+      | target_id   | del-lifecycle-4               |
+      | method      | DELETE                        |
+      | path        | /subjects/del-lifecycle-4     |
 
   # ==========================================================================
   # TWO-STEP DELETION — VERSION LEVEL
@@ -86,7 +104,13 @@ Feature: Deletion Lifecycle (Two-Step Delete)
     Then the response status should be 200
     When I DELETE "/subjects/del-ver-lifecycle-2/versions/1?permanent=true"
     Then the response status should be 200
-    And the audit log should contain event "schema_delete" with subject "del-ver-lifecycle-2"
+    And the audit log should contain an event:
+      | event_type  | schema_delete                            |
+      | outcome     | success                                  |
+      | actor_type  | anonymous                                |
+      | target_id   | del-ver-lifecycle-2                      |
+      | method      | DELETE                                   |
+      | path        | /subjects/del-ver-lifecycle-2/versions   |
 
   # ==========================================================================
   # SOFT-DELETED VERSION VISIBILITY
@@ -107,7 +131,13 @@ Feature: Deletion Lifecycle (Two-Step Delete)
     When I list versions of subject "del-vis-1"
     Then the response status should be 200
     And the response should be an array of length 1
-    And the audit log should contain event "schema_delete" with subject "del-vis-1"
+    And the audit log should contain an event:
+      | event_type  | schema_delete                    |
+      | outcome     | success                          |
+      | actor_type  | anonymous                        |
+      | target_id   | del-vis-1                        |
+      | method      | DELETE                           |
+      | path        | /subjects/del-vis-1/versions     |
 
   Scenario: Soft-deleted version visible with deleted=true param
     Given the global compatibility level is "NONE"
@@ -124,7 +154,13 @@ Feature: Deletion Lifecycle (Two-Step Delete)
     When I GET "/subjects/del-vis-2/versions?deleted=true"
     Then the response status should be 200
     And the response should be an array of length 2
-    And the audit log should contain event "schema_delete" with subject "del-vis-2"
+    And the audit log should contain an event:
+      | event_type  | schema_delete                    |
+      | outcome     | success                          |
+      | actor_type  | anonymous                        |
+      | target_id   | del-vis-2                        |
+      | method      | DELETE                           |
+      | path        | /subjects/del-vis-2/versions     |
 
   Scenario: GET soft-deleted version without deleted param returns 404
     Given subject "del-vis-3" has schema:
@@ -135,7 +171,13 @@ Feature: Deletion Lifecycle (Two-Step Delete)
     Then the response status should be 200
     When I GET "/subjects/del-vis-3/versions/1"
     Then the response status should be 404
-    And the audit log should contain event "schema_delete" with subject "del-vis-3"
+    And the audit log should contain an event:
+      | event_type  | schema_delete                    |
+      | outcome     | success                          |
+      | actor_type  | anonymous                        |
+      | target_id   | del-vis-3                        |
+      | method      | DELETE                           |
+      | path        | /subjects/del-vis-3/versions     |
 
   # ==========================================================================
   # RE-REGISTRATION AFTER DELETE
@@ -157,8 +199,20 @@ Feature: Deletion Lifecycle (Two-Step Delete)
     When I get the latest version of subject "del-rereg-1"
     Then the response status should be 200
     And the response field "version" should be 2
-    And the audit log should contain event "subject_delete" with subject "del-rereg-1"
-    And the audit log should contain event "schema_register" with subject "del-rereg-1"
+    And the audit log should contain an event:
+      | event_type  | subject_delete             |
+      | outcome     | success                    |
+      | actor_type  | anonymous                  |
+      | target_id   | del-rereg-1                |
+      | method      | DELETE                     |
+      | path        | /subjects/del-rereg-1      |
+    And the audit log should contain an event:
+      | event_type  | schema_register                   |
+      | outcome     | success                           |
+      | actor_type  | anonymous                         |
+      | target_id   | del-rereg-1                       |
+      | method      | POST                              |
+      | path        | /subjects/del-rereg-1/versions    |
 
   Scenario: Re-register after permanent delete starts at version 1
     Given subject "del-rereg-2" has schema:
@@ -177,8 +231,20 @@ Feature: Deletion Lifecycle (Two-Step Delete)
     When I get the latest version of subject "del-rereg-2"
     Then the response status should be 200
     And the response field "version" should be 1
-    And the audit log should contain event "subject_delete" with subject "del-rereg-2"
-    And the audit log should contain event "schema_register" with subject "del-rereg-2"
+    And the audit log should contain an event:
+      | event_type  | subject_delete             |
+      | outcome     | success                    |
+      | actor_type  | anonymous                  |
+      | target_id   | del-rereg-2                |
+      | method      | DELETE                     |
+      | path        | /subjects/del-rereg-2      |
+    And the audit log should contain an event:
+      | event_type  | schema_register                   |
+      | outcome     | success                           |
+      | actor_type  | anonymous                         |
+      | target_id   | del-rereg-2                       |
+      | method      | POST                              |
+      | path        | /subjects/del-rereg-2/versions    |
 
   # ==========================================================================
   # DELETE VERSION "latest"
@@ -199,7 +265,13 @@ Feature: Deletion Lifecycle (Two-Step Delete)
     When I get the latest version of subject "del-latest-1"
     Then the response status should be 200
     And the response field "version" should be 1
-    And the audit log should contain event "schema_delete" with subject "del-latest-1"
+    And the audit log should contain an event:
+      | event_type  | schema_delete                      |
+      | outcome     | success                            |
+      | actor_type  | anonymous                          |
+      | target_id   | del-latest-1                       |
+      | method      | DELETE                             |
+      | path        | /subjects/del-latest-1/versions    |
 
   Scenario: DELETE version -1 works like latest
     Given the global compatibility level is "NONE"
@@ -216,7 +288,13 @@ Feature: Deletion Lifecycle (Two-Step Delete)
     When I get the latest version of subject "del-minus1"
     Then the response status should be 200
     And the response field "version" should be 1
-    And the audit log should contain event "schema_delete" with subject "del-minus1"
+    And the audit log should contain an event:
+      | event_type  | schema_delete                    |
+      | outcome     | success                          |
+      | actor_type  | anonymous                        |
+      | target_id   | del-minus1                       |
+      | method      | DELETE                           |
+      | path        | /subjects/del-minus1/versions    |
 
   # ==========================================================================
   # LOOKUP AFTER DELETION
@@ -234,7 +312,13 @@ Feature: Deletion Lifecycle (Two-Step Delete)
       {"type":"record","name":"LK1","fields":[{"name":"a","type":"string"}]}
       """
     Then the response status should be 404
-    And the audit log should contain event "subject_delete" with subject "del-lookup-1"
+    And the audit log should contain an event:
+      | event_type  | subject_delete             |
+      | outcome     | success                    |
+      | actor_type  | anonymous                  |
+      | target_id   | del-lookup-1               |
+      | method      | DELETE                     |
+      | path        | /subjects/del-lookup-1     |
 
   # ==========================================================================
   # Re-register after version soft-delete — re-registering the same content
@@ -267,8 +351,20 @@ Feature: Deletion Lifecycle (Two-Step Delete)
     When I get the latest version of subject "del-ver-reregister"
     Then the response status should be 200
     And the response field "version" should be 3
-    And the audit log should contain event "schema_delete" with subject "del-ver-reregister"
-    And the audit log should contain event "schema_register" with subject "del-ver-reregister"
+    And the audit log should contain an event:
+      | event_type  | schema_delete                            |
+      | outcome     | success                                  |
+      | actor_type  | anonymous                                |
+      | target_id   | del-ver-reregister                       |
+      | method      | DELETE                                   |
+      | path        | /subjects/del-ver-reregister/versions    |
+    And the audit log should contain an event:
+      | event_type  | schema_register                            |
+      | outcome     | success                                    |
+      | actor_type  | anonymous                                  |
+      | target_id   | del-ver-reregister                         |
+      | method      | POST                                       |
+      | path        | /subjects/del-ver-reregister/versions      |
 
   Scenario: Re-register different content after version soft-delete
     Given the global compatibility level is "NONE"
@@ -293,5 +389,17 @@ Feature: Deletion Lifecycle (Two-Step Delete)
     Then the response status should be 200
     And the response field "version" should be 3
     And the response should contain "D3"
-    And the audit log should contain event "schema_delete" with subject "del-diff-reregister"
-    And the audit log should contain event "schema_register" with subject "del-diff-reregister"
+    And the audit log should contain an event:
+      | event_type  | schema_delete                              |
+      | outcome     | success                                    |
+      | actor_type  | anonymous                                  |
+      | target_id   | del-diff-reregister                        |
+      | method      | DELETE                                     |
+      | path        | /subjects/del-diff-reregister/versions     |
+    And the audit log should contain an event:
+      | event_type  | schema_register                              |
+      | outcome     | success                                      |
+      | actor_type  | anonymous                                    |
+      | target_id   | del-diff-reregister                          |
+      | method      | POST                                         |
+      | path        | /subjects/del-diff-reregister/versions       |

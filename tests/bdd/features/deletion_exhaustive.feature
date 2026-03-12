@@ -21,7 +21,13 @@ Feature: Schema & Subject Deletion — Exhaustive (Confluent v8.1.1 Compatibilit
     Then the response status should be 200
     When I list versions of subject "del-ex-soft"
     Then the response should be an array of length 1
-    And the audit log should contain event "schema_delete" with subject "del-ex-soft"
+    And the audit log should contain an event:
+      | event_type  | schema_delete                    |
+      | outcome     | success                          |
+      | actor_type  | anonymous                        |
+      | target_id   | del-ex-soft                      |
+      | method      | DELETE                           |
+      | path        | /subjects/del-ex-soft/versions   |
 
   Scenario: Get soft-deleted version without deleted flag returns 404
     Given subject "del-ex-flag" has schema:
@@ -33,7 +39,13 @@ Feature: Schema & Subject Deletion — Exhaustive (Confluent v8.1.1 Compatibilit
     When I get version 1 of subject "del-ex-flag"
     Then the response status should be 404
     And the response should have error code 40401
-    And the audit log should contain event "schema_delete" with subject "del-ex-flag"
+    And the audit log should contain an event:
+      | event_type  | schema_delete                    |
+      | outcome     | success                          |
+      | actor_type  | anonymous                        |
+      | target_id   | del-ex-flag                      |
+      | method      | DELETE                           |
+      | path        | /subjects/del-ex-flag/versions   |
 
   Scenario: Get soft-deleted version with deleted=true succeeds
     Given subject "del-ex-getdel" has schema:
@@ -45,7 +57,13 @@ Feature: Schema & Subject Deletion — Exhaustive (Confluent v8.1.1 Compatibilit
     When I GET "/subjects/del-ex-getdel/versions/1?deleted=true"
     Then the response status should be 200
     And the response should contain "GetDel"
-    And the audit log should contain event "schema_delete" with subject "del-ex-getdel"
+    And the audit log should contain an event:
+      | event_type  | schema_delete                      |
+      | outcome     | success                            |
+      | actor_type  | anonymous                          |
+      | target_id   | del-ex-getdel                      |
+      | method      | DELETE                             |
+      | path        | /subjects/del-ex-getdel/versions   |
 
   Scenario: Lookup soft-deleted schema fails without deleted flag
     Given subject "del-ex-lookup" has schema:
@@ -59,7 +77,13 @@ Feature: Schema & Subject Deletion — Exhaustive (Confluent v8.1.1 Compatibilit
       {"type":"record","name":"LookupDel","fields":[{"name":"a","type":"string"}]}
       """
     Then the response status should be 404
-    And the audit log should contain event "schema_delete" with subject "del-ex-lookup"
+    And the audit log should contain an event:
+      | event_type  | schema_delete                      |
+      | outcome     | success                            |
+      | actor_type  | anonymous                          |
+      | target_id   | del-ex-lookup                      |
+      | method      | DELETE                             |
+      | path        | /subjects/del-ex-lookup/versions   |
 
   Scenario: Lookup soft-deleted schema succeeds with deleted=true
     Given subject "del-ex-lookup2" has schema:
@@ -73,7 +97,13 @@ Feature: Schema & Subject Deletion — Exhaustive (Confluent v8.1.1 Compatibilit
       {"type":"record","name":"LookupDel2","fields":[{"name":"a","type":"string"}]}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_delete" with subject "del-ex-lookup2"
+    And the audit log should contain an event:
+      | event_type  | schema_delete                       |
+      | outcome     | success                             |
+      | actor_type  | anonymous                           |
+      | target_id   | del-ex-lookup2                      |
+      | method      | DELETE                              |
+      | path        | /subjects/del-ex-lookup2/versions   |
 
   # ==========================================================================
   # VERSION HARD DELETE
@@ -90,7 +120,13 @@ Feature: Schema & Subject Deletion — Exhaustive (Confluent v8.1.1 Compatibilit
     Then the response status should be 200
     When I GET "/subjects/del-ex-hard/versions/1?deleted=true"
     Then the response status should be 404
-    And the audit log should contain event "schema_delete" with subject "del-ex-hard"
+    And the audit log should contain an event:
+      | event_type  | schema_delete                    |
+      | outcome     | success                          |
+      | actor_type  | anonymous                        |
+      | target_id   | del-ex-hard                      |
+      | method      | DELETE                           |
+      | path        | /subjects/del-ex-hard/versions   |
 
   Scenario: Delete latest version falls back to previous version
     Given the global compatibility level is "NONE"
@@ -107,7 +143,13 @@ Feature: Schema & Subject Deletion — Exhaustive (Confluent v8.1.1 Compatibilit
     When I get the latest version of subject "del-ex-latest"
     Then the response status should be 200
     And the response field "version" should be 1
-    And the audit log should contain event "schema_delete" with subject "del-ex-latest"
+    And the audit log should contain an event:
+      | event_type  | schema_delete                      |
+      | outcome     | success                            |
+      | actor_type  | anonymous                          |
+      | target_id   | del-ex-latest                      |
+      | method      | DELETE                             |
+      | path        | /subjects/del-ex-latest/versions   |
 
   Scenario: Delete non-existent subject version returns 404
     When I DELETE "/subjects/del-ex-nosub/versions/1"
@@ -139,7 +181,13 @@ Feature: Schema & Subject Deletion — Exhaustive (Confluent v8.1.1 Compatibilit
       """
     When I delete subject "del-ex-subj"
     Then the response status should be 200
-    And the audit log should contain event "subject_delete" with subject "del-ex-subj"
+    And the audit log should contain an event:
+      | event_type  | subject_delete          |
+      | outcome     | success                 |
+      | actor_type  | anonymous               |
+      | target_id   | del-ex-subj             |
+      | method      | DELETE                  |
+      | path        | /subjects/del-ex-subj   |
 
   # ==========================================================================
   # SUBJECT HARD DELETE
@@ -161,7 +209,13 @@ Feature: Schema & Subject Deletion — Exhaustive (Confluent v8.1.1 Compatibilit
     Then the response status should be 200
     When I GET "/subjects?deleted=true"
     Then the response status should be 200
-    And the audit log should contain event "subject_delete" with subject "del-ex-subj-hard"
+    And the audit log should contain an event:
+      | event_type  | subject_delete               |
+      | outcome     | success                      |
+      | actor_type  | anonymous                    |
+      | target_id   | del-ex-subj-hard             |
+      | method      | DELETE                       |
+      | path        | /subjects/del-ex-subj-hard   |
 
   # ==========================================================================
   # RE-REGISTRATION AFTER DELETE
@@ -186,8 +240,20 @@ Feature: Schema & Subject Deletion — Exhaustive (Confluent v8.1.1 Compatibilit
     Then the response status should be 200
     When I list versions of subject "del-ex-rereg"
     Then the response status should be 200
-    And the audit log should contain event "subject_delete" with subject "del-ex-rereg"
-    And the audit log should contain event "schema_register" with subject "del-ex-rereg"
+    And the audit log should contain an event:
+      | event_type  | subject_delete            |
+      | outcome     | success                   |
+      | actor_type  | anonymous                 |
+      | target_id   | del-ex-rereg              |
+      | method      | DELETE                    |
+      | path        | /subjects/del-ex-rereg    |
+    And the audit log should contain an event:
+      | event_type  | schema_register                    |
+      | outcome     | success                            |
+      | actor_type  | anonymous                          |
+      | target_id   | del-ex-rereg                       |
+      | method      | POST                               |
+      | path        | /subjects/del-ex-rereg/versions    |
 
   Scenario: Lookup after delete and re-register finds new version
     Given the global compatibility level is "NONE"
@@ -219,8 +285,20 @@ Feature: Schema & Subject Deletion — Exhaustive (Confluent v8.1.1 Compatibilit
       {"type":"record","name":"LRR1","fields":[{"name":"a","type":"string"}]}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_delete" with subject "del-ex-lookup-rereg"
-    And the audit log should contain event "schema_register" with subject "del-ex-lookup-rereg"
+    And the audit log should contain an event:
+      | event_type  | schema_delete                            |
+      | outcome     | success                                  |
+      | actor_type  | anonymous                                |
+      | target_id   | del-ex-lookup-rereg                      |
+      | method      | DELETE                                   |
+      | path        | /subjects/del-ex-lookup-rereg/versions   |
+    And the audit log should contain an event:
+      | event_type  | schema_register                            |
+      | outcome     | success                                    |
+      | actor_type  | anonymous                                  |
+      | target_id   | del-ex-lookup-rereg                        |
+      | method      | POST                                       |
+      | path        | /subjects/del-ex-lookup-rereg/versions     |
 
   # ==========================================================================
   # COMPATIBILITY AFTER DELETE
@@ -244,9 +322,26 @@ Feature: Schema & Subject Deletion — Exhaustive (Confluent v8.1.1 Compatibilit
       {"type":"record","name":"Compat","fields":[{"name":"f1","type":"string"},{"name":"f2","type":"string","default":"x"}]}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_delete" with subject "del-ex-compat"
-    And the audit log should contain event "config_update"
-    And the audit log should contain event "schema_register" with subject "del-ex-compat"
+    And the audit log should contain an event:
+      | event_type  | schema_delete                      |
+      | outcome     | success                            |
+      | actor_type  | anonymous                          |
+      | target_id   | del-ex-compat                      |
+      | method      | DELETE                             |
+      | path        | /subjects/del-ex-compat/versions   |
+    And the audit log should contain an event:
+      | event_type  | config_update                      |
+      | outcome     | success                            |
+      | actor_type  | anonymous                          |
+      | method      | PUT                                |
+      | path        | /config/del-ex-compat              |
+    And the audit log should contain an event:
+      | event_type  | schema_register                      |
+      | outcome     | success                              |
+      | actor_type  | anonymous                            |
+      | target_id   | del-ex-compat                        |
+      | method      | POST                                 |
+      | path        | /subjects/del-ex-compat/versions     |
 
   # ==========================================================================
   # SUBJECT CONFIG AFTER DELETE
@@ -271,7 +366,13 @@ Feature: Schema & Subject Deletion — Exhaustive (Confluent v8.1.1 Compatibilit
     Then the response status should be 404
     # Reset global config
     When I set the global config to "NONE"
-    And the audit log should contain event "subject_delete" with subject "del-ex-cfg"
+    And the audit log should contain an event:
+      | event_type  | subject_delete          |
+      | outcome     | success                 |
+      | actor_type  | anonymous               |
+      | target_id   | del-ex-cfg              |
+      | method      | DELETE                  |
+      | path        | /subjects/del-ex-cfg    |
 
   Scenario: Subject config persists when individual versions are deleted
     Given the global compatibility level is "NONE"
@@ -290,7 +391,13 @@ Feature: Schema & Subject Deletion — Exhaustive (Confluent v8.1.1 Compatibilit
     Then the response status should be 200
     When I get the config for subject "del-ex-cfg-ver"
     Then the response status should be 200
-    And the audit log should contain event "schema_delete" with subject "del-ex-cfg-ver"
+    And the audit log should contain an event:
+      | event_type  | schema_delete                        |
+      | outcome     | success                              |
+      | actor_type  | anonymous                            |
+      | target_id   | del-ex-cfg-ver                       |
+      | method      | DELETE                               |
+      | path        | /subjects/del-ex-cfg-ver/versions    |
 
   # ==========================================================================
   # GET latest?deleted=true — when all versions of a subject are soft-deleted,
@@ -317,7 +424,13 @@ Feature: Schema & Subject Deletion — Exhaustive (Confluent v8.1.1 Compatibilit
     Then the response status should be 200
     And the response field "version" should be 2
     And the response should contain "LatDel2"
-    And the audit log should contain event "subject_delete" with subject "del-ex-latest-del"
+    And the audit log should contain an event:
+      | event_type  | subject_delete                 |
+      | outcome     | success                        |
+      | actor_type  | anonymous                      |
+      | target_id   | del-ex-latest-del              |
+      | method      | DELETE                         |
+      | path        | /subjects/del-ex-latest-del    |
 
   Scenario: GET specific version with deleted=true after soft-delete
     Given subject "del-ex-specific-del" has schema:
@@ -332,7 +445,13 @@ Feature: Schema & Subject Deletion — Exhaustive (Confluent v8.1.1 Compatibilit
     Then the response status should be 200
     And the response field "version" should be 1
     And the response should contain "SpecDel"
-    And the audit log should contain event "subject_delete" with subject "del-ex-specific-del"
+    And the audit log should contain an event:
+      | event_type  | subject_delete                   |
+      | outcome     | success                          |
+      | actor_type  | anonymous                        |
+      | target_id   | del-ex-specific-del              |
+      | method      | DELETE                           |
+      | path        | /subjects/del-ex-specific-del    |
 
   Scenario: GET specific deleted version with deleted=true while active versions exist
     Given the global compatibility level is "NONE"
@@ -353,4 +472,10 @@ Feature: Schema & Subject Deletion — Exhaustive (Confluent v8.1.1 Compatibilit
     Then the response status should be 200
     And the response field "version" should be 2
     And the response should contain "PD2"
-    And the audit log should contain event "schema_delete" with subject "del-ex-partial-del"
+    And the audit log should contain an event:
+      | event_type  | schema_delete                          |
+      | outcome     | success                                |
+      | actor_type  | anonymous                              |
+      | target_id   | del-ex-partial-del                     |
+      | method      | DELETE                                 |
+      | path        | /subjects/del-ex-partial-del/versions  |
