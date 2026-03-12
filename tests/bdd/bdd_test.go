@@ -1141,6 +1141,173 @@ func TestRESTAuditFeatures(t *testing.T) {
 	}
 }
 
+// TestAuditOutputsFeatures runs BDD tests for multi-output audit delivery
+// (file + syslog + webhook simultaneously). Uses a docker compose overlay
+// with syslog-ng and a custom webhook-receiver container.
+func TestAuditOutputsFeatures(t *testing.T) {
+	if bddBackend := os.Getenv("BDD_BACKEND"); bddBackend != "" && bddBackend != "memory" {
+		t.Skip("Audit outputs Docker tests only run on memory backend")
+	}
+	if containerCmd == "" {
+		containerCmd = findContainerCmd()
+	}
+	composeFiles := []string{"docker-compose.base.yml", "docker-compose.audit-outputs.yml"}
+	composeEnv := []string{
+		"REGISTRY_PORT=18110",
+		"WEBHOOK_PORT=19012",
+		"WEBHOOK_RECEIVER_PORT=19013",
+	}
+	projectName := "bdd-audit-outputs"
+
+	log.Printf("Starting audit outputs compose stack...")
+	if err := composeUpWithProject(composeFiles, projectName, composeEnv); err != nil {
+		t.Fatalf("Failed to start audit outputs compose: %v", err)
+	}
+	t.Cleanup(func() {
+		log.Println("Stopping audit outputs compose stack...")
+		composeDownWithProject(composeFiles, projectName)
+	})
+
+	restURL := "http://localhost:18110"
+	webhookReceiverURL := "http://localhost:19013"
+
+	log.Printf("Waiting for audit outputs registry at %s ...", restURL)
+	if err := waitForURL(restURL+"/", 120*time.Second); err != nil {
+		composeLogsWithProject(composeFiles, projectName)
+		t.Fatalf("Audit outputs registry did not become healthy: %v", err)
+	}
+	log.Println("Audit outputs registry is healthy.")
+
+	// Wait for webhook receiver
+	log.Printf("Waiting for webhook receiver at %s ...", webhookReceiverURL)
+	if err := waitForURL(webhookReceiverURL+"/health", 30*time.Second); err != nil {
+		composeLogsWithProject(composeFiles, projectName)
+		t.Fatalf("Webhook receiver did not become healthy: %v", err)
+	}
+	log.Println("Webhook receiver is healthy.")
+
+	auditFetcher, clearAuditLog := makeAuditHelpers(composeFiles, projectName)
+	syslogFetcher := makeSyslogFetcherFile(composeFiles, projectName, "/var/log/syslog-audit/audit.log")
+	syslogTLSFetcher := makeSyslogFetcherFile(composeFiles, projectName, "/var/log/syslog-audit/audit-tls.log")
+
+	opts := godog.Options{
+		Format:   "pretty",
+		Output:   colors.Colored(os.Stdout),
+		Paths:    []string{"features"},
+		Tags:     "@audit-outputs && ~@pending-impl",
+		Strict:   true,
+		TestingT: t,
+	}
+
+	suite := godog.TestSuite{
+		ScenarioInitializer: func(ctx *godog.ScenarioContext) {
+			tc := steps.NewTestContext(restURL)
+			tc.StoredValues["_audit_fetcher"] = auditFetcher
+			tc.StoredValues["_webhook_receiver_url"] = webhookReceiverURL
+			tc.StoredValues["_syslog_fetcher"] = syslogFetcher
+			tc.StoredValues["_syslog_tls_fetcher"] = syslogTLSFetcher
+
+			ctx.Before(func(gctx context.Context, sc *godog.Scenario) (context.Context, error) {
+				if err := clearAuditLog(); err != nil {
+					return gctx, fmt.Errorf("clear audit log: %w", err)
+				}
+				// Clear webhook receiver events
+				if err := clearWebhookReceiver(webhookReceiverURL); err != nil {
+					return gctx, fmt.Errorf("clear webhook receiver: %w", err)
+				}
+				// Clear syslog file
+				if err := clearSyslog(composeFiles, projectName); err != nil {
+					return gctx, fmt.Errorf("clear syslog: %w", err)
+				}
+				if err := cleanViaAPINoAuth(restURL); err != nil {
+					return gctx, fmt.Errorf("clean registry: %w", err)
+				}
+				return gctx, nil
+			})
+
+			steps.RegisterSchemaSteps(ctx, tc)
+			steps.RegisterImportSteps(ctx, tc)
+			steps.RegisterModeSteps(ctx, tc)
+			steps.RegisterReferenceSteps(ctx, tc)
+			steps.RegisterInfraSteps(ctx, tc)
+			steps.RegisterAuthSteps(ctx, tc)
+			steps.RegisterEncryptionSteps(ctx, tc)
+			steps.RegisterConcurrencySteps(ctx, tc)
+			steps.RegisterRateLimitSteps(ctx, tc)
+			steps.RegisterMetricsSteps(ctx, tc)
+			steps.RegisterMCPSteps(ctx, tc)
+			steps.RegisterAuditOutputSteps(ctx, tc)
+		},
+		Options: &opts,
+	}
+
+	if suite.Run() != 0 {
+		t.Fatal("Audit outputs BDD tests failed")
+	}
+}
+
+// makeSyslogFetcherFile creates a function that reads a syslog-ng log file from the container.
+func makeSyslogFetcherFile(files []string, project, logPath string) func() (string, error) {
+	if containerCmd == "" {
+		return nil
+	}
+
+	return func() (string, error) {
+		args := []string{"compose"}
+		if project != "" {
+			args = append(args, "--project-name", project)
+		}
+		for _, f := range files {
+			args = append(args, "-f", f)
+		}
+		args = append(args, "exec", "-T", "syslog-ng", "cat", logPath)
+		cmd := exec.Command(containerCmd, args...)
+		cmd.Dir = "."
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			if strings.Contains(string(out), "No such file") {
+				return "", nil
+			}
+			return "", fmt.Errorf("read syslog log: %w: %s", err, string(out))
+		}
+		return string(out), nil
+	}
+}
+
+// clearWebhookReceiver clears all events from the webhook receiver.
+func clearWebhookReceiver(baseURL string) error {
+	req, err := http.NewRequest("DELETE", baseURL+"/events", nil)
+	if err != nil {
+		return err
+	}
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("clear webhook receiver: %w", err)
+	}
+	resp.Body.Close()
+	return nil
+}
+
+// clearSyslog truncates the syslog-ng log files (TCP and TLS) inside the container.
+func clearSyslog(files []string, project string) error {
+	if containerCmd == "" {
+		return nil
+	}
+	args := []string{"compose"}
+	if project != "" {
+		args = append(args, "--project-name", project)
+	}
+	for _, f := range files {
+		args = append(args, "-f", f)
+	}
+	args = append(args, "exec", "-T", "syslog-ng", "sh", "-c",
+		"truncate -s 0 /var/log/syslog-audit/audit.log 2>/dev/null; truncate -s 0 /var/log/syslog-audit/audit-tls.log 2>/dev/null; true")
+	cmd := exec.Command(containerCmd, args...)
+	cmd.Dir = "."
+	return cmd.Run()
+}
+
 // cleanViaAPINoAuth resets all state via the REST API (no auth required).
 func cleanViaAPINoAuth(baseURL string) error {
 	return cleanViaAPIWithAuth(baseURL, "", "")

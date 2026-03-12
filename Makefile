@@ -69,7 +69,7 @@ TIMEOUT_COMPAT         := 10m
 # Phony targets
 # =====================================================================
 .PHONY: all build build-all \
-        test test-unit test-bdd test-bdd-functional test-bdd-db test-bdd-auth test-bdd-mcp test-bdd-mcp-metrics test-bdd-mcp-confirmations test-bdd-mcp-permissions test-bdd-mcp-audit test-bdd-rest-audit test-bdd-kms-docker test-bdd-mcp-kms test-bdd-kms \
+        test test-unit test-bdd test-bdd-functional test-bdd-db test-bdd-auth test-bdd-mcp test-bdd-mcp-metrics test-bdd-mcp-confirmations test-bdd-mcp-permissions test-bdd-mcp-audit test-bdd-rest-audit test-bdd-audit-outputs test-bdd-kms-docker test-bdd-mcp-kms test-bdd-kms \
         test-integration test-concurrency test-conformance \
         test-migration test-api test-ldap test-vault test-oidc test-auth \
         test-compatibility test-coverage \
@@ -256,6 +256,12 @@ test-bdd-rest-audit:
 	@echo "=== BDD REST Audit Tests (Docker, memory, timeout $(TIMEOUT_BDD_POSTGRES)) ==="; \
 	BDD_BACKEND=memory CONTAINER_CMD=$(CONTAINER_CMD) \
 		$(GOTEST) -tags bdd -v -count=1 -timeout $(TIMEOUT_BDD_POSTGRES) -run TestRESTAuditFeatures ./tests/bdd/...
+
+## Run BDD audit outputs tests (Docker, file + syslog + webhook)
+test-bdd-audit-outputs:
+	@echo "=== BDD Audit Outputs Tests (Docker, memory, timeout $(TIMEOUT_BDD_POSTGRES)) ==="; \
+	BDD_BACKEND=memory CONTAINER_CMD=$(CONTAINER_CMD) \
+		$(GOTEST) -tags bdd -v -count=1 -timeout $(TIMEOUT_BDD_POSTGRES) -run TestAuditOutputsFeatures ./tests/bdd/...
 
 ## Run BDD MCP confirmation tests (Docker, require_confirmations=true)
 test-bdd-mcp-confirmations:
@@ -727,6 +733,7 @@ help:
 	@echo "  test-bdd-mcp-permissions    BDD MCP permission preset tests (Docker)"
 	@echo "  test-bdd-mcp-audit          BDD MCP audit tests (Docker)"
 	@echo "  test-bdd-rest-audit         BDD REST audit tests (Docker)"
+	@echo "  test-bdd-audit-outputs      BDD audit outputs tests (Docker, file+syslog+webhook)"
 	@echo "  test-bdd-kms-docker BDD REST KMS tests (Docker + Vault + OpenBao)"
 	@echo "  test-bdd-mcp-kms    BDD MCP+KMS tests (Docker + Vault + OpenBao)"
 	@echo "  test-bdd-kms        BDD KMS tests (Vault + OpenBao)       [BACKEND=]"

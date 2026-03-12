@@ -1362,6 +1362,35 @@ jobs:
         working-directory: tests/bdd
         run: docker compose -p bdd-rest-audit -f docker-compose.base.yml -f docker-compose.memory.yml down -v || true
 
+  # BDD tests — Audit outputs (Docker Compose with syslog-ng + webhook-receiver)
+  bdd-audit-outputs-tests:
+    name: BDD Tests (Audit Outputs)
+    runs-on: ubuntu-latest
+    needs: [bdd-functional-tests]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run BDD audit outputs tests (Docker)
+        run: make test-bdd-audit-outputs
+
+      - name: Show container logs on failure
+        if: failure()
+        working-directory: tests/bdd
+        run: docker compose -p bdd-audit-outputs -f docker-compose.base.yml -f docker-compose.audit-outputs.yml logs --tail=100 || true
+
+      - name: Cleanup containers
+        if: always()
+        working-directory: tests/bdd
+        run: docker compose -p bdd-audit-outputs -f docker-compose.base.yml -f docker-compose.audit-outputs.yml down -v || true
+
   # BDD tests — KMS encryption (Docker Compose with Vault + OpenBao overlay)
   bdd-kms-tests:
     name: BDD Tests (KMS Encryption)
