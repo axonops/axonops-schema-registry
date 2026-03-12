@@ -182,9 +182,17 @@ make test-bdd-auth BACKEND=postgres  # BDD auth tests with real DB
 make test-bdd-auth BACKEND=all       # BDD auth tests with all DBs
 make test-bdd-kms BACKEND=memory     # BDD KMS encryption tests (Vault + OpenBao)
 make test-bdd-kms BACKEND=all        # BDD KMS tests with all backends
+
+# Audit BDD tests
+make test-bdd-rest-audit             # REST audit event assertions
+make test-bdd-mcp-audit              # MCP audit event assertions
+make test-bdd-mcp-metrics            # MCP Prometheus metrics tests
+make test-bdd-audit-outputs          # Multi-output audit (file + syslog TLS + webhook)
 ```
 
 The `confluent` backend starts a real Confluent Schema Registry via Docker Compose to verify wire compatibility.
+
+The `test-bdd-audit-outputs` target uses a Docker Compose overlay (`docker-compose.audit-outputs.yml`) that adds syslog-ng (TCP+TLS on port 6514) and a webhook-receiver container alongside the schema registry.
 
 ### Integration Tests
 
@@ -437,7 +445,7 @@ docker run -p 8081:8081 -p 9081:9081 \
 
 ## CI Pipeline
 
-GitHub Actions runs 37 jobs on every push to `main` or `feature/**` branches:
+GitHub Actions runs 43 jobs on every push to `main` or `feature/**` branches:
 
 - **Build & Unit Tests:** Compile binary + all test binaries, run unit tests with coverage
 - **Static Analysis:** golangci-lint, go vet, gosec, Trivy vulnerability scanner
@@ -452,6 +460,7 @@ GitHub Actions runs 37 jobs on every push to `main` or `feature/**` branches:
 - **BDD DB:** In-process with real DB: PostgreSQL, MySQL, Cassandra (3 jobs)
 - **BDD Auth:** Auth BDD with real DB: PostgreSQL, MySQL, Cassandra (3 jobs)
 - **BDD KMS:** KMS encryption: memory, PostgreSQL, MySQL, Cassandra (4 jobs)
+- **BDD Audit:** REST audit, MCP audit, MCP metrics, audit outputs with syslog TLS + webhook (4 jobs)
 - **Compatibility:** Go + Java (4 Confluent versions) + Python (3 versions)
 - **Data Contracts:** Java SerDe, Go SerDe, Python SerDe — data contract + CSFLE with Vault (3 jobs)
 

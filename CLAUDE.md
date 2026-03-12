@@ -127,7 +127,12 @@ internal/
     service.go                    User/API key business logic
     jwt.go                        JWT auth
     ratelimit.go                  Rate limiting
-    ldap.go, oidc.go, audit.go, tls.go
+    ldap.go, oidc.go, tls.go
+    audit.go                      Audit logger, AuditOutput interface, multi-output fan-out
+    audit_file.go                 FileOutput with lumberjack rotation
+    audit_syslog.go               SyslogOutput (RFC 5424, TCP/UDP/TLS via srslog)
+    audit_webhook.go              WebhookOutput with batching, retry, overflow drop
+    audit_format.go               CEF format serialization
   compatibility/
     checker.go                    Compatibility checker registry
     modes.go                      7 compat modes (NONE, BACKWARD, FORWARD, FULL + _TRANSITIVE)
@@ -169,7 +174,7 @@ internal/
       glossary/                   16 glossary markdown files
       prompts/                    35 prompt markdown files
   metrics/
-    metrics.go                    Prometheus metrics (REST + MCP)
+    metrics.go                    Prometheus metrics (REST + MCP + audit outputs)
   registry/
     registry.go                   Core business logic (shared by REST and MCP)
   rules/
@@ -190,13 +195,16 @@ internal/
     vault/                        HashiCorp Vault auth storage
 tests/
   api/api_test.go                 External HTTP tests (38 tests, build tag: api)
-  bdd/                            BDD/Cucumber tests (178 feature files, 2,670 scenarios)
+  bdd/                            BDD/Cucumber tests (192 feature files, 2,843 scenarios)
     bdd_test.go                   Test runner (godog init, backend selection)
-    features/                     135 top-level .feature files
-    features/mcp/                 43 MCP-specific .feature files
-    steps/                        11 step definition files
-    configs/                      Per-backend config files (memory, postgres, mysql, cassandra)
-    docker-compose*.yml           9 Docker Compose files (base, per-backend, KMS, confluent)
+    features/                     148 top-level .feature files
+    features/mcp/                 44 MCP-specific .feature files
+    steps/                        13 step definition files
+    configs/                      9 per-backend/feature config files
+    docker-compose*.yml           17 Docker Compose files (base, backends, KMS, audit, auth, mcp)
+    docker/webhook-receiver/      Webhook receiver container for audit output BDD tests
+    docker/syslog-ng/             syslog-ng TLS config for audit output BDD tests
+    certs/                        Self-signed ECDSA P256 certs for TLS syslog testing
   integration/
     integration_test.go           httptest integration (32 tests, build tag: integration)
     analysis_integration_test.go  Analysis integration (10 tests)
@@ -507,6 +515,10 @@ make test-bdd BACKEND=all      # All backends: memory, postgres, mysql, cassandr
 make test-bdd-db BACKEND=all   # In-process server with real DB (postgres, mysql, cassandra)
 make test-bdd-auth BACKEND=all # BDD auth tests with real DB
 make test-bdd-kms BACKEND=all  # BDD KMS encryption tests (Vault + OpenBao)
+make test-bdd-rest-audit       # REST audit BDD tests
+make test-bdd-mcp-audit        # MCP audit BDD tests
+make test-bdd-mcp-metrics      # MCP metrics BDD tests
+make test-bdd-audit-outputs    # Audit outputs BDD (file + syslog TLS + webhook)
 
 # Integration & concurrency (require DB)
 make test-integration BACKEND=postgres
@@ -539,7 +551,7 @@ make docs-mcp                  # Generate MCP API reference from live introspect
 
 ## CI Pipeline (`.github/workflows/ci.yaml`)
 
-37 jobs run on every push to `main` or `feature/**` branches:
+43 jobs run on every push to `main` or `feature/**` branches:
 
 | Stage | Jobs |
 |-------|------|
@@ -557,6 +569,7 @@ make docs-mcp                  # Generate MCP API reference from live introspect
 | **BDD DB** | In-process with real DB: PostgreSQL, MySQL, Cassandra (3 jobs) |
 | **BDD Auth** | Auth BDD with real DB: PostgreSQL, MySQL, Cassandra (3 jobs) |
 | **BDD KMS** | KMS encryption: memory, PostgreSQL, MySQL, Cassandra (4 jobs) |
+| **BDD Audit** | REST audit, MCP audit, MCP metrics, audit outputs (syslog TLS + webhook) (4 jobs) |
 | **Compatibility** | Go + Java (4 Confluent versions) + Python (3 versions) serializer tests |
 | **Data Contracts** | Java SerDe, Go SerDe, Python SerDe — data contract + CSFLE with Vault (3 jobs) |
 
@@ -580,6 +593,8 @@ The `build` job compiles all test binaries and uploads them as artifacts. Downst
 | CLI | github.com/spf13/cobra |
 | BDD | github.com/cucumber/godog |
 | MCP SDK | github.com/modelcontextprotocol/go-sdk |
+| File rotation | gopkg.in/natefinch/lumberjack.v2 |
+| Syslog RFC 5424 | github.com/RackSec/srslog |
 
 ## API Documentation
 
@@ -616,4 +631,7 @@ All API documentation (OpenAPI descriptions, doc comments, user-facing text) MUS
 - Import API preserves original IDs (Kafka wire format embeds schema IDs)
 - Multi-stage Docker build: golang:1.26-alpine -> alpine:3.19, binary at /app/schema-registry
 - BDD-first testing: every feature MUST have BDD coverage; if it is not BDD tested in a black-box manner, it is not considered tested
+- BDD tests MUST assert audit events for write operations using composite table assertions (`the audit log should contain an event:` + DataTable)
+- All BDD tests run against Docker compose-deployed binaries — never in-process
+- Audit output architecture: `AuditOutput` interface with fan-out (stdout, file+rotation, syslog RFC 5424/TLS, webhook with batching/retry)
 - Makefile targets are the canonical way to run tests — they match what CI runs

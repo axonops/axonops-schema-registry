@@ -565,20 +565,111 @@ security:
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | `security.audit.enabled` | bool | `false` | Enable audit logging. |
-| `security.audit.log_file` | string | `""` | Path to the audit log file. |
-| `security.audit.events` | list of strings | `[]` | Event types to log. Values: `schema_register`, `schema_delete`, `config_update`, `mode_update`, `auth_failure`, `auth_forbidden`, `subject_delete`, `mcp_tool_call`, `mcp_tool_error`, `mcp_admin_action`, `mcp_confirm_issued`, `mcp_confirm_rejected`, `mcp_confirmed`. |
-| `security.audit.include_body` | bool | `false` | Include request bodies in audit log entries. May increase log volume significantly. |
+| `security.audit.events` | list of strings | `[]` | Event types to log (empty = all enabled by default). |
+| `security.audit.include_body` | bool | `false` | Include request bodies in audit log entries. MAY increase log volume significantly. |
+
+#### Audit Outputs
+
+Events can be delivered to multiple outputs simultaneously. Each output has its own `enabled` flag and `format_type` (`json` or `cef`).
+
+**Stdout Output:**
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `security.audit.outputs.stdout.enabled` | bool | `true` | Enable stdout audit output. |
+| `security.audit.outputs.stdout.format_type` | string | `json` | Format: `json` or `cef`. |
+
+**File Output (with rotation):**
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `security.audit.outputs.file.enabled` | bool | `false` | Enable file audit output. |
+| `security.audit.outputs.file.path` | string | `""` | Path to audit log file. REQUIRED when enabled. |
+| `security.audit.outputs.file.format_type` | string | `json` | Format: `json` or `cef`. |
+| `security.audit.outputs.file.max_size_mb` | int | `100` | Max file size before rotation (MB). |
+| `security.audit.outputs.file.max_backups` | int | `5` | Max number of rotated backup files. |
+| `security.audit.outputs.file.max_age_days` | int | `30` | Max days to retain rotated files. |
+| `security.audit.outputs.file.compress` | bool | `true` | Compress rotated files with gzip. |
+
+**Syslog Output (RFC 5424):**
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `security.audit.outputs.syslog.enabled` | bool | `false` | Enable syslog audit output. |
+| `security.audit.outputs.syslog.network` | string | `tcp` | Network protocol: `tcp`, `udp`, or `tcp+tls`. |
+| `security.audit.outputs.syslog.address` | string | `""` | Syslog server address (`host:port`). REQUIRED when enabled. |
+| `security.audit.outputs.syslog.app_name` | string | `schema-registry` | RFC 5424 APP-NAME field. |
+| `security.audit.outputs.syslog.facility` | string | `local0` | Syslog facility. Values: `kern`, `user`, `mail`, `daemon`, `auth`, `syslog`, `lpr`, `news`, `uucp`, `cron`, `local0`–`local7`. |
+| `security.audit.outputs.syslog.format_type` | string | `json` | Format: `json` or `cef`. |
+| `security.audit.outputs.syslog.tls_cert` | string | `""` | Path to TLS client certificate (for mTLS). |
+| `security.audit.outputs.syslog.tls_key` | string | `""` | Path to TLS client key (for mTLS). |
+| `security.audit.outputs.syslog.tls_ca` | string | `""` | Path to CA certificate for server verification. |
+
+**Webhook Output:**
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `security.audit.outputs.webhook.enabled` | bool | `false` | Enable webhook audit output. |
+| `security.audit.outputs.webhook.url` | string | `""` | Webhook endpoint URL. REQUIRED when enabled. |
+| `security.audit.outputs.webhook.format_type` | string | `json` | Format: `json` or `cef`. |
+| `security.audit.outputs.webhook.batch_size` | int | `100` | Max events per batch. |
+| `security.audit.outputs.webhook.flush_interval` | string | `5s` | Max time between flushes (Go duration). |
+| `security.audit.outputs.webhook.timeout` | string | `10s` | HTTP request timeout (Go duration). |
+| `security.audit.outputs.webhook.max_retries` | int | `3` | Max retry attempts on 5xx errors. |
+| `security.audit.outputs.webhook.buffer_size` | int | `10000` | Max events buffered in memory. Events are dropped when full. |
+| `security.audit.outputs.webhook.headers` | map | `{}` | Custom HTTP headers (e.g., auth tokens). |
+
+#### Audit Environment Variable Overrides
+
+All audit settings support env var overrides with `SCHEMA_REGISTRY_AUDIT_` prefix:
+
+```
+SCHEMA_REGISTRY_AUDIT_ENABLED
+SCHEMA_REGISTRY_AUDIT_INCLUDE_BODY
+SCHEMA_REGISTRY_AUDIT_STDOUT_ENABLED / _FORMAT
+SCHEMA_REGISTRY_AUDIT_FILE_ENABLED / _PATH / _FORMAT / _MAX_SIZE_MB / _MAX_BACKUPS / _MAX_AGE_DAYS / _COMPRESS
+SCHEMA_REGISTRY_AUDIT_SYSLOG_ENABLED / _NETWORK / _ADDRESS / _APP_NAME / _FACILITY / _FORMAT / _TLS_CERT / _TLS_KEY / _TLS_CA
+SCHEMA_REGISTRY_AUDIT_WEBHOOK_ENABLED / _URL / _FORMAT / _BATCH_SIZE / _FLUSH_INTERVAL / _TIMEOUT / _MAX_RETRIES / _BUFFER_SIZE
+```
+
+#### Example: Multi-Output Configuration
 
 ```yaml
 security:
   audit:
     enabled: true
-    log_file: /var/log/schema-registry/audit.log
-    events:
-      - schema_register
-      - schema_delete
-      - config_update
     include_body: false
+    outputs:
+      stdout:
+        enabled: true
+        format_type: json
+      file:
+        enabled: true
+        path: /var/log/schema-registry/audit.log
+        format_type: json
+        max_size_mb: 100
+        max_backups: 5
+        max_age_days: 30
+        compress: true
+      syslog:
+        enabled: true
+        network: tcp+tls
+        address: "syslog.example.com:6514"
+        app_name: schema-registry
+        facility: local0
+        format_type: json
+        tls_ca: /etc/ssl/certs/syslog-ca.pem
+      webhook:
+        enabled: true
+        url: "https://splunk-hec.example.com:8088/services/collector/event"
+        format_type: json
+        batch_size: 100
+        flush_interval: "5s"
+        timeout: "10s"
+        max_retries: 3
+        buffer_size: 10000
+        headers:
+          Authorization: "Splunk YOUR-HEC-TOKEN"
 ```
 
 ### Per-Principal Metrics

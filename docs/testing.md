@@ -144,6 +144,10 @@ Every test target accepts an optional `BACKEND` variable. Database containers ar
 | `make test-bdd-auth BACKEND=all` | BDD auth tests with all DBs | Yes | ~15m |
 | `make test-bdd-kms` | BDD KMS tests (memory) | Yes | ~3m |
 | `make test-bdd-kms BACKEND=all` | BDD KMS tests (all backends) | Yes | ~15m |
+| `make test-bdd-rest-audit` | REST audit event BDD tests | Yes | ~2m |
+| `make test-bdd-mcp-audit` | MCP audit event BDD tests | Yes | ~2m |
+| `make test-bdd-mcp-metrics` | MCP Prometheus metrics BDD tests | Yes | ~2m |
+| `make test-bdd-audit-outputs` | Audit outputs (file + syslog TLS + webhook) | Yes | ~3m |
 | `make test-integration BACKEND=postgres` | Integration tests (PostgreSQL) | Yes | ~2m |
 | `make test-integration BACKEND=all` | Integration tests (all backends) | Yes | ~8m |
 | `make test-concurrency BACKEND=postgres` | Concurrency tests (PostgreSQL) | Yes | ~3m |
@@ -369,7 +373,7 @@ The BDD tests also serve as the primary mechanism for **Confluent conformance te
 ```
 tests/bdd/
 ├── bdd_test.go                   # Test runner (godog initialization, backend selection)
-├── features/                     # 135 top-level .feature files
+├── features/                     # 148 top-level .feature files
 │   ├── compatibility_avro.feature
 │   ├── compatibility_protobuf.feature
 │   ├── compatibility_jsonschema.feature
@@ -383,7 +387,7 @@ tests/bdd/
 │   ├── contexts_*.feature        # Multi-tenant context features
 │   ├── ...
 │   ├── operational_resilience.feature
-│   └── mcp/                      # MCP-specific .feature files
+│   └── mcp/                      # 44 MCP-specific .feature files
 │       ├── mcp_tools.feature
 │       ├── mcp_resources.feature
 │       ├── mcp_prompts.feature
@@ -391,7 +395,7 @@ tests/bdd/
 │       ├── mcp_permissions.feature
 │       ├── mcp_workflow_*.feature  # 9 workflow scenario files
 │       └── ...
-├── steps/                        # 11 step definition files
+├── steps/                        # 13 step definition files
 │   ├── context.go                # TestContext: HTTP client, state, JSON parsing
 │   ├── schema_steps.go           # Schema registration, retrieval, deletion, compat, config
 │   ├── mcp_steps.go              # MCP tool calls, resource reads, prompt gets
@@ -402,12 +406,23 @@ tests/bdd/
 │   ├── infra_steps.go            # Operational scenarios (service start/stop)
 │   ├── import_steps.go           # Bulk import API
 │   ├── mode_steps.go             # Mode management
-│   └── rate_limit_steps.go       # Rate limiting steps
-├── configs/                      # Per-backend BDD config files
+│   ├── rate_limit_steps.go       # Rate limiting steps
+│   ├── metrics_steps.go          # Prometheus metrics assertions
+│   └── audit_output_steps.go     # Webhook/syslog/CEF audit output assertions
+├── configs/                      # Per-backend/feature BDD config files
 │   ├── config.memory.yaml
+│   ├── config.memory-auth.yaml
+│   ├── config.memory-mcp.yaml
+│   ├── config.memory-mcp-audit.yaml
+│   ├── config.memory-audit.yaml
+│   ├── config.memory-audit-outputs.yaml
 │   ├── config.postgres.yaml
 │   ├── config.mysql.yaml
 │   └── config.cassandra.yaml
+├── docker/                       # Custom test containers
+│   ├── webhook-receiver/         # Go HTTP server for webhook audit output testing
+│   └── syslog-ng/                # syslog-ng TLS/TCP configs
+├── certs/                        # Self-signed ECDSA P256 certs for TLS syslog testing
 ├── docker-compose.yml            # BDD standalone compose
 ├── docker-compose.base.yml       # Base service definition
 ├── docker-compose.postgres.yml   # PostgreSQL overlay
@@ -416,7 +431,9 @@ tests/bdd/
 ├── docker-compose.confluent.yml  # Confluent Schema Registry 8.1.1 + Kafka
 ├── docker-compose.memory.yml     # Memory overlay
 ├── docker-compose.kms.yml        # KMS services (Vault + OpenBao)
-└── docker-compose.kms-overlay.yml # KMS overlay for backend compose
+├── docker-compose.kms-overlay.yml # KMS overlay for backend compose
+├── docker-compose.audit-outputs.yml # Syslog-ng + webhook-receiver overlay
+└── docker-compose.*.yml          # Additional overlays (auth, mcp, audit, db-*)
 ```
 
 ### Feature Files
