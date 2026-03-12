@@ -147,6 +147,7 @@ func main() {
 			logger.Error("failed to create audit logger", slog.String("error", err.Error()))
 			os.Exit(1)
 		}
+		auditLogger.SetMetrics(m)
 		serverOpts = append(serverOpts, api.WithAuditLogger(auditLogger))
 		logger.Info("audit logging enabled",
 			slog.Bool("stdout", cfg.Security.Audit.Outputs.Stdout.Enabled),

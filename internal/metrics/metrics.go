@@ -55,6 +55,13 @@ type Metrics struct {
 	MCPPolicyDenialsTotal    *prometheus.CounterVec // labels: reason (origin_rejected, confirmation_required)
 	MCPPermissionDeniedTotal *prometheus.CounterVec // labels: tool, scope
 
+	// Audit output metrics
+	AuditEventsTotal        *prometheus.CounterVec   // labels: output, status
+	AuditOutputErrorsTotal  *prometheus.CounterVec   // labels: output
+	AuditWebhookDroppedTotal prometheus.Counter
+	AuditWebhookBatchSize   prometheus.Histogram
+	AuditWebhookFlushDuration prometheus.Histogram
+
 	// Per-principal metrics (optional, may be nil if disabled)
 	PrincipalRequestsTotal *prometheus.CounterVec // labels: principal, method, path, status
 	PrincipalMCPCallsTotal *prometheus.CounterVec // labels: principal, tool, status
@@ -298,6 +305,46 @@ func New() *Metrics {
 		[]string{"tool", "scope"},
 	)
 
+	// Audit output metrics
+	m.AuditEventsTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "schema_registry_audit_events_total",
+			Help: "Total number of audit events written per output and status",
+		},
+		[]string{"output", "status"},
+	)
+
+	m.AuditOutputErrorsTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "schema_registry_audit_output_errors_total",
+			Help: "Total number of audit output write errors per output",
+		},
+		[]string{"output"},
+	)
+
+	m.AuditWebhookDroppedTotal = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "schema_registry_audit_webhook_dropped_total",
+			Help: "Total number of audit events dropped due to webhook buffer overflow",
+		},
+	)
+
+	m.AuditWebhookBatchSize = prometheus.NewHistogram(
+		prometheus.HistogramOpts{
+			Name:    "schema_registry_audit_webhook_batch_size",
+			Help:    "Distribution of webhook batch sizes (number of events per flush)",
+			Buckets: []float64{1, 5, 10, 25, 50, 100, 250, 500, 1000},
+		},
+	)
+
+	m.AuditWebhookFlushDuration = prometheus.NewHistogram(
+		prometheus.HistogramOpts{
+			Name:    "schema_registry_audit_webhook_flush_duration_seconds",
+			Help:    "Time taken to flush webhook batches to the HTTP endpoint",
+			Buckets: prometheus.DefBuckets,
+		},
+	)
+
 	// Confluent-compatible metrics (kafka_schema_registry_* prefix)
 	// These mirror Confluent Schema Registry JMX metrics so that existing
 	// Grafana dashboards and Prometheus alerts continue to work.
@@ -415,6 +462,11 @@ func New() *Metrics {
 		m.MCPConfirmationsTotal,
 		m.MCPPolicyDenialsTotal,
 		m.MCPPermissionDeniedTotal,
+		m.AuditEventsTotal,
+		m.AuditOutputErrorsTotal,
+		m.AuditWebhookDroppedTotal,
+		m.AuditWebhookBatchSize,
+		m.AuditWebhookFlushDuration,
 		m.ConfluentRegisteredCount,
 		m.ConfluentDeletedCount,
 		m.ConfluentAPISuccessCount,
@@ -795,6 +847,27 @@ func (m *Metrics) RecordMCPToolCall(tool, status string, duration time.Duration)
 	if status == "error" {
 		m.MCPToolCallErrors.WithLabelValues(tool).Inc()
 	}
+}
+
+// RecordAuditEvent records an audit event write for a given output.
+func (m *Metrics) RecordAuditEvent(output, status string) {
+	m.AuditEventsTotal.WithLabelValues(output, status).Inc()
+}
+
+// RecordAuditOutputError records a write error for a given audit output.
+func (m *Metrics) RecordAuditOutputError(output string) {
+	m.AuditOutputErrorsTotal.WithLabelValues(output).Inc()
+}
+
+// RecordAuditWebhookDrop records an event dropped due to webhook buffer overflow.
+func (m *Metrics) RecordAuditWebhookDrop() {
+	m.AuditWebhookDroppedTotal.Inc()
+}
+
+// RecordAuditWebhookFlush records a webhook batch flush.
+func (m *Metrics) RecordAuditWebhookFlush(batchSize int, duration time.Duration) {
+	m.AuditWebhookBatchSize.Observe(float64(batchSize))
+	m.AuditWebhookFlushDuration.Observe(duration.Seconds())
 }
 
 // GaugeSource provides the data needed to periodically refresh gauge metrics.

@@ -24,6 +24,7 @@ type WebhookOutput struct {
 	timeout    time.Duration
 	maxRetries int
 	client     *http.Client
+	metrics    AuditMetrics // optional
 
 	ch     chan []byte
 	wg     sync.WaitGroup
@@ -80,6 +81,11 @@ func NewWebhookOutput(cfg config.AuditWebhookConfig) (*WebhookOutput, error) {
 	return w, nil
 }
 
+// SetMetrics sets the optional metrics recorder for webhook telemetry.
+func (w *WebhookOutput) SetMetrics(m AuditMetrics) {
+	w.metrics = m
+}
+
 // Write enqueues audit event data for delivery.
 // If the buffer is full, the event is silently dropped.
 func (w *WebhookOutput) Write(data []byte) error {
@@ -92,6 +98,9 @@ func (w *WebhookOutput) Write(data []byte) error {
 	default:
 		// Buffer full — drop event
 		slog.Warn("audit webhook buffer full, dropping event")
+		if w.metrics != nil {
+			w.metrics.RecordAuditWebhookDrop()
+		}
 	}
 	return nil
 }
@@ -164,10 +173,17 @@ func (w *WebhookOutput) flushLoop() {
 // sendBatch sends a batch of events to the webhook endpoint.
 // Events are concatenated (each already has a trailing newline).
 func (w *WebhookOutput) sendBatch(batch [][]byte) {
+	start := time.Now()
 	var buf bytes.Buffer
 	for _, data := range batch {
 		buf.Write(data)
 	}
+
+	defer func() {
+		if w.metrics != nil {
+			w.metrics.RecordAuditWebhookFlush(len(batch), time.Since(start))
+		}
+	}()
 
 	for attempt := range w.maxRetries {
 		req, err := http.NewRequest("POST", w.url, bytes.NewReader(buf.Bytes()))

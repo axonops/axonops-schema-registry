@@ -189,10 +189,20 @@ type AuditEvent struct {
 	Metadata    map[string]string `json:"metadata,omitempty"`     // event-specific extras
 }
 
+// AuditMetrics is an optional interface for recording audit output metrics.
+// The metrics package implements this; passing nil disables metric recording.
+type AuditMetrics interface {
+	RecordAuditEvent(output, status string)
+	RecordAuditOutputError(output string)
+	RecordAuditWebhookDrop()
+	RecordAuditWebhookFlush(batchSize int, duration time.Duration)
+}
+
 // AuditLogger handles audit logging.
 type AuditLogger struct {
 	config        config.AuditConfig
 	outputs       []formattedOutput
+	metrics       AuditMetrics
 	mu            sync.Mutex
 	enabledEvents map[AuditEventType]bool
 }
@@ -274,6 +284,17 @@ func NewAuditLogger(cfg config.AuditConfig) (*AuditLogger, error) {
 	}
 
 	return al, nil
+}
+
+// SetMetrics sets the optional metrics recorder for audit output telemetry.
+// It also propagates metrics to any webhook outputs for batch/drop tracking.
+func (al *AuditLogger) SetMetrics(m AuditMetrics) {
+	al.metrics = m
+	for _, fo := range al.outputs {
+		if wo, ok := fo.output.(*WebhookOutput); ok {
+			wo.SetMetrics(m)
+		}
+	}
 }
 
 // normalizeFormat returns "json" for empty/unknown format strings.
@@ -422,6 +443,12 @@ func (al *AuditLogger) Log(event *AuditEvent) {
 				slog.String("output", fo.output.Name()),
 				slog.String("error", writeErr.Error()),
 			)
+			if al.metrics != nil {
+				al.metrics.RecordAuditOutputError(fo.output.Name())
+				al.metrics.RecordAuditEvent(fo.output.Name(), "error")
+			}
+		} else if al.metrics != nil {
+			al.metrics.RecordAuditEvent(fo.output.Name(), "success")
 		}
 	}
 }
