@@ -1999,7 +1999,7 @@ func TestHashDEK(t *testing.T) {
 		Version:              1,
 		Algorithm:            "AES256_GCM",
 		EncryptedKeyMaterial: "secret-material", // excluded from hash
-		KeyMaterial:          "plaintext",        // excluded from hash
+		KeyMaterial:          "plaintext",       // excluded from hash
 		Deleted:              false,
 	}
 
