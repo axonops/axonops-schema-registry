@@ -184,7 +184,7 @@ func TestParseFacility(t *testing.T) {
 		{"local1", 136},
 		{"auth", 32},
 		{"daemon", 24},
-		{"", 128},     // default
+		{"", 128},      // default
 		{"bogus", 128}, // default
 	}
 

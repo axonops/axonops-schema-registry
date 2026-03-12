@@ -205,8 +205,8 @@ func (w *WebhookOutput) sendBatch(batch [][]byte) {
 			backoff(attempt)
 			continue
 		}
-		io.Copy(io.Discard, resp.Body)
-		resp.Body.Close()
+		_, _ = io.Copy(io.Discard, resp.Body)
+		_ = resp.Body.Close()
 
 		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 			return // Success
@@ -237,7 +237,14 @@ func (w *WebhookOutput) sendBatch(batch [][]byte) {
 
 // backoff sleeps for exponential backoff duration.
 func backoff(attempt int) {
-	d := time.Duration(1<<uint(attempt)) * 100 * time.Millisecond
+	shift := attempt
+	if shift < 0 {
+		shift = 0
+	}
+	if shift > 30 {
+		shift = 30
+	}
+	d := time.Duration(1<<uint(shift)) * 100 * time.Millisecond // #nosec G115 -- shift is bounded [0,30]
 	if d > 5*time.Second {
 		d = 5 * time.Second
 	}

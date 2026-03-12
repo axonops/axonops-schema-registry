@@ -56,10 +56,10 @@ type Metrics struct {
 	MCPPermissionDeniedTotal *prometheus.CounterVec // labels: tool, scope
 
 	// Audit output metrics
-	AuditEventsTotal        *prometheus.CounterVec   // labels: output, status
-	AuditOutputErrorsTotal  *prometheus.CounterVec   // labels: output
-	AuditWebhookDroppedTotal prometheus.Counter
-	AuditWebhookBatchSize   prometheus.Histogram
+	AuditEventsTotal          *prometheus.CounterVec // labels: output, status
+	AuditOutputErrorsTotal    *prometheus.CounterVec // labels: output
+	AuditWebhookDroppedTotal  prometheus.Counter
+	AuditWebhookBatchSize     prometheus.Histogram
 	AuditWebhookFlushDuration prometheus.Histogram
 
 	// Per-principal metrics (optional, may be nil if disabled)
