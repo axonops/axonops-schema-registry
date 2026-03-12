@@ -58,7 +58,7 @@ Unlike Confluent Schema Registry, which uses Kafka itself (a special `_schemas` 
 - **Enterprise Security** -- LDAP, OIDC, mTLS, API keys, JWT, and RBAC out of the box
 - **Cloud Native** -- designed for Kubernetes with health checks, Prometheus metrics, and graceful shutdown
 - **Multi-Datacenter** -- active-active deployments with Cassandra's native cross-DC replication
-- **Enterprise Features, Zero Cost** -- RBAC, data contracts, CSFLE encryption, audit logging, and rate limiting are included free under Apache 2.0. With Confluent, these require a [commercial Enterprise license](https://docs.confluent.io/platform/current/installation/license.html).
+- **Enterprise Features, Zero Cost** -- RBAC, data contracts, CSFLE encryption, enterprise audit logging, and rate limiting are included free under Apache 2.0. With Confluent, these require a [commercial Enterprise license](https://docs.confluent.io/platform/current/installation/license.html).
 - **More REST APIs** -- beyond full Schema Registry compatibility (Community + Enterprise), AxonOps adds [many additional REST endpoints](#axonops-extensions) for schema analysis, quality scoring, field/type search, similarity detection, migration planning, and admin management
 - **Strict Specification Compliance** -- enforces Avro, Protobuf, and JSON Schema specifications more faithfully than Confluent, catching invalid schemas at registration time rather than at runtime ([details](#strict-specification-compliance))
 - **Built-in API Documentation** -- OpenAPI spec with Swagger UI and ReDoc, always in sync with the codebase
@@ -91,7 +91,7 @@ Unlike Confluent Schema Registry, which uses Kafka itself (a special `_schemas` 
 | [**OIDC/OAuth2**](docs/authentication.md) | ✅ | ✅ &sup3; | ✅ | ❌ |
 | **mTLS** | ✅ | ✅ | ✅ | ✅ |
 | [**RBAC**](docs/authentication.md) | ✅ | ❌ | ✅ | ⚠️ Limited |
-| [**Audit Logging**](docs/auditing.md) | ✅ | ❌ | ⚠️ Partial ⁶ | ❌ |
+| [**Enterprise Audit Logging**](docs/auditing.md) | ✅ | ❌ | ❌ ⁶ | ❌ |
 | [**Rate Limiting**](docs/security.md) | ✅ | ❌ | ❌ | ❌ |
 | [**Prometheus Metrics**](docs/monitoring.md) | ✅ | ✅ | ✅ | ✅ |
 | **REST Proxy** | ❌ | Separate | Separate | ✅ |
@@ -119,7 +119,7 @@ Unlike Confluent Schema Registry, which uses Kafka itself (a special `_schemas` 
 
 ⁵ Additional AxonOps REST APIs beyond the Schema Registry compatible surface: schema analysis and quality scoring, field/type search, similarity detection, compatibility suggestions, migration planning, registry statistics, user and API key admin, self-service account management, and built-in API documentation. See [AxonOps Extensions](#axonops-extensions).
 
-⁶ Confluent Platform audit logs are written exclusively to Kafka topics ([docs](https://docs.confluent.io/platform/current/security/compliance/audit-logs/audit-logs-concepts.html)). Delivering events to file, syslog, Splunk, or other destinations requires deploying separate Kafka Connect sink connectors. AxonOps provides native multi-output delivery — stdout, file (with rotation), syslog (RFC 5424 over TCP/TLS), and webhook (Splunk HEC, Elasticsearch, etc.) — built into the single binary with no additional infrastructure.
+⁶ Confluent Platform does not include built-in audit log outputs. Audit events are written exclusively to internal Kafka topics ([docs](https://docs.confluent.io/platform/current/security/compliance/audit-logs/audit-logs-concepts.html)); delivering events to file, syslog, Splunk, or any external destination requires deploying separate Kafka Connect sink connectors and additional infrastructure. AxonOps provides native multi-output delivery — stdout, file (with rotation), syslog (RFC 5424 over TCP/TLS), and webhook (Splunk HEC, Elasticsearch, etc.) — built into the single binary.
 
 > **In short:** AxonOps gives you **every Confluent Schema Registry REST API** (Community + Enterprise) plus **many additional REST endpoints** and a **built-in MCP server** — all under the Apache 2.0 license, in a single ~50 MB binary, with no Kafka dependency for storage. You get Enterprise-grade capabilities (data contracts, client-side encryption, RBAC, audit logging, multi-tenant contexts, rate limiting) **and** advanced schema analysis, quality scoring, field search, similarity detection, and AI-assisted schema management that no other registry offers. If you need enterprise support, [AxonOps](https://axonops.com) offers commercial support plans.
 
@@ -187,7 +187,7 @@ Auth storage can optionally be separated into HashiCorp Vault.
 - **Authentication** -- Basic Auth, API Keys, JWT, LDAP/AD, OIDC, mTLS
 - **Authorization** -- RBAC with 4 built-in roles (super_admin, admin, developer, readonly)
 - **Rate Limiting** -- Token bucket algorithm, per-client or per-endpoint
-- **[Audit Logging](docs/auditing.md)** -- Multi-output delivery (stdout, file with rotation, syslog RFC 5424/TLS, webhook), JSON and CEF formats, Prometheus metrics
+- **[Enterprise Audit Logging](docs/auditing.md)** -- Multi-output delivery (stdout, file with rotation, syslog RFC 5424/TLS, webhook), JSON and CEF formats, Prometheus metrics
 - **TLS** -- Auto-reload certificates, configurable minimum version, mutual TLS
 
 ### Operations
