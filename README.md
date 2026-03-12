@@ -52,17 +52,21 @@ Unlike Confluent Schema Registry, which uses Kafka itself (a special `_schemas` 
 
 ## Why AxonOps Schema Registry?
 
-- **No Kafka Dependency** -- uses standard databases (PostgreSQL, MySQL, Cassandra) instead of Kafka for storage
-- **Single Binary** -- ~50 MB memory footprint, zero runtime dependencies
-- **Full API Compatibility** -- works with Confluent serializers for Java, Go, and Python
-- **Enterprise Security** -- LDAP, OIDC, mTLS, API keys, JWT, and RBAC out of the box
-- **Cloud Native** -- designed for Kubernetes with health checks, Prometheus metrics, and graceful shutdown
-- **Multi-Datacenter** -- active-active deployments with Cassandra's native cross-DC replication
-- **Enterprise Features, Zero Cost** -- RBAC, data contracts, CSFLE encryption, enterprise audit logging, and rate limiting are included free under Apache 2.0. With Confluent, these require a [commercial Enterprise license](https://docs.confluent.io/platform/current/installation/license.html).
-- **More REST APIs** -- beyond full Schema Registry compatibility (Community + Enterprise), AxonOps adds [many additional REST endpoints](#axonops-extensions) for schema analysis, quality scoring, field/type search, similarity detection, migration planning, and admin management
-- **Strict Specification Compliance** -- enforces Avro, Protobuf, and JSON Schema specifications more faithfully than Confluent, catching invalid schemas at registration time rather than at runtime ([details](#strict-specification-compliance))
-- **Built-in API Documentation** -- OpenAPI spec with Swagger UI and ReDoc, always in sync with the codebase
-- **AI-Ready** -- built-in [MCP server](docs/mcp.md) with extensive tools, resources, and prompts for AI-assisted schema management via Claude, Cursor, VS Code Copilot, and other MCP-compatible clients
+We built AxonOps Schema Registry because we believe schema management should be simple to deploy, open by default, and packed with the features teams actually need -- without requiring a commercial license or a fleet of infrastructure to support it.
+
+- **Drop-in Compatible** -- works with existing Confluent serializers for Java, Go, and Python. Migrate by changing one URL; your producers and consumers keep working.
+- **No Kafka Required** -- stores schemas in PostgreSQL, MySQL, or Cassandra instead of Kafka. One fewer moving part in your stack, and you choose the database your team already knows.
+- **Single Binary, Tiny Footprint** -- ships as a ~50 MB statically-linked binary with no runtime dependencies. Runs comfortably on a Raspberry Pi, a side-car container, or a fleet of VMs.
+- **Enterprise Security Built In** -- six authentication methods (Basic, API Keys, JWT, LDAP/AD, OIDC, mTLS), four RBAC roles, token-bucket rate limiting, and auto-reloading TLS -- all configured through YAML, no plugins required.
+- **[Enterprise Audit Logging](docs/auditing.md)** -- every write operation produces a structured audit event with actor, target, outcome, and change-integrity hashes. Events are delivered simultaneously to any combination of stdout, rotating files, syslog (RFC 5424 over TCP/TLS), and webhooks (Splunk HEC, Elasticsearch, and more) -- in JSON or CEF format, with Prometheus metrics for delivery health. Everything ships in the single binary; no external log infrastructure needed.
+- **[Data Contracts](docs/data-contracts.md)** -- attach metadata tags, domain rules, migration rules, and encoding rules to your schemas. Config-level defaults merge with per-subject overrides in a three-layer hierarchy, giving platform teams governance without slowing down individual squads.
+- **[Client-Side Field Encryption (CSFLE)](docs/encryption.md)** -- built-in DEK/KEK registry with HashiCorp Vault and OpenBao Transit integration, compatible with Confluent's CSFLE serializers. Encrypt sensitive fields before they leave the producer, with key rotation and versioned DEKs handled automatically.
+- **[Schema Intelligence](docs/mcp-reference.md)** -- 26 analysis endpoints (REST and MCP) for field search with fuzzy and regex matching, type search, structural similarity detection, quality scoring, complexity grading, cross-schema pattern detection, compatibility-aware evolution suggestions, and multi-step migration planning. Useful in CI/CD gates, code reviews, and day-to-day schema exploration.
+- **[AI-Ready (MCP Server)](docs/mcp.md)** -- the first schema registry with a built-in [Model Context Protocol](https://modelcontextprotocol.io/) server. AI assistants like Claude, Cursor, VS Code Copilot, and Windsurf can design schemas, check compatibility, score quality, and plan migrations through natural conversation -- backed by 107 tools, 47 resources, and 33 guided prompts.
+- **Multi-Datacenter Ready** -- pair with Cassandra for active-active deployments that replicate schemas across data centers with no leader election and no coordination overhead.
+- **Cloud Native** -- health checks, Prometheus metrics, graceful shutdown, and automatic database migrations. Designed for Kubernetes from the start.
+- **Strict Spec Compliance** -- catches invalid Avro, Protobuf, and JSON Schemas at registration time rather than letting them surface at runtime. Fewer surprises in production. ([details](#strict-specification-compliance))
+- **Open Source, All Inclusive** -- every feature listed above ships under the Apache 2.0 license. There is no "Enterprise Edition" gate. Community contributions, issues, and pull requests are welcome.
 
 ## Feature Comparison
 
