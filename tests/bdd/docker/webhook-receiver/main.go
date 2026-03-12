@@ -19,6 +19,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 )
 
 type server struct {
@@ -42,8 +43,15 @@ func main() {
 	mux.HandleFunc("POST /reset", s.handleReset)
 	mux.HandleFunc("GET /health", s.handleHealth)
 
+	srv := &http.Server{
+		Addr:         ":" + port,
+		Handler:      mux,
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  60 * time.Second,
+	}
 	log.Printf("webhook-receiver listening on :%s", port)
-	if err := http.ListenAndServe(":"+port, mux); err != nil {
+	if err := srv.ListenAndServe(); err != nil {
 		log.Fatal(err)
 	}
 }
