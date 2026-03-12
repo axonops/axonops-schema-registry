@@ -213,8 +213,31 @@ func NewAuditLogger(cfg config.AuditConfig) (*AuditLogger, error) {
 		}
 	}
 
-	// Open log file if specified, otherwise default to stdout
-	if cfg.LogFile != "" {
+	// Determine which outputs to configure.
+	// Priority: new outputs config > legacy log_file > default (stdout).
+	hasExplicitOutputs := cfg.Outputs.Stdout.Enabled || cfg.Outputs.File.Enabled ||
+		cfg.Outputs.Syslog.Enabled || cfg.Outputs.Webhook.Enabled
+
+	if hasExplicitOutputs {
+		if cfg.Outputs.Stdout.Enabled {
+			al.outputs = append(al.outputs, formattedOutput{
+				output:     &StdoutOutput{},
+				formatType: normalizeFormat(cfg.Outputs.Stdout.FormatType),
+			})
+		}
+		if cfg.Outputs.File.Enabled {
+			file, err := os.OpenFile(cfg.Outputs.File.Path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+			if err != nil {
+				return nil, err
+			}
+			al.outputs = append(al.outputs, formattedOutput{
+				output:     &WriterOutput{w: file, closer: file, name: "file"},
+				formatType: normalizeFormat(cfg.Outputs.File.FormatType),
+			})
+		}
+		// Syslog and webhook outputs are wired in later phases.
+	} else if cfg.LogFile != "" {
+		// Legacy config: single file output
 		file, err := os.OpenFile(cfg.LogFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 		if err != nil {
 			return nil, err
@@ -224,6 +247,7 @@ func NewAuditLogger(cfg config.AuditConfig) (*AuditLogger, error) {
 			formatType: "json",
 		})
 	} else {
+		// Default: stdout
 		al.outputs = append(al.outputs, formattedOutput{
 			output:     &StdoutOutput{},
 			formatType: "json",
@@ -231,6 +255,16 @@ func NewAuditLogger(cfg config.AuditConfig) (*AuditLogger, error) {
 	}
 
 	return al, nil
+}
+
+// normalizeFormat returns "json" for empty/unknown format strings.
+func normalizeFormat(f string) string {
+	switch f {
+	case "cef":
+		return "cef"
+	default:
+		return "json"
+	}
 }
 
 // NewAuditLoggerWithWriter creates a new audit logger that writes to the provided writer.

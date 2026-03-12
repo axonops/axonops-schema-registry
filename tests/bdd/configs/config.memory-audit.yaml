@@ -13,4 +13,7 @@ logging:
 security:
   audit:
     enabled: true
-    log_file: /tmp/audit.log
+    outputs:
+      file:
+        enabled: true
+        path: /tmp/audit.log

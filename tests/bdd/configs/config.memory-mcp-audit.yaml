@@ -21,7 +21,10 @@ security:
       password: admin-password
   audit:
     enabled: true
-    log_file: /tmp/audit.log
+    outputs:
+      file:
+        enabled: true
+        path: /tmp/audit.log
 mcp:
   enabled: true
   host: "0.0.0.0"

@@ -303,10 +303,63 @@ type RateLimitConfig struct {
 
 // AuditConfig represents audit logging configuration.
 type AuditConfig struct {
-	Enabled     bool     `yaml:"enabled"`
-	LogFile     string   `yaml:"log_file"`
-	Events      []string `yaml:"events"` // schema_register, schema_delete, config_update
-	IncludeBody bool     `yaml:"include_body"`
+	Enabled     bool               `yaml:"enabled"`
+	LogFile     string             `yaml:"log_file,omitempty"` // Deprecated: use Outputs.File instead
+	Events      []string           `yaml:"events"`             // schema_register, schema_delete, config_update
+	IncludeBody bool               `yaml:"include_body"`
+	Outputs     AuditOutputsConfig `yaml:"outputs"`
+}
+
+// AuditOutputsConfig represents the multi-output audit configuration.
+type AuditOutputsConfig struct {
+	Stdout  AuditStdoutConfig  `yaml:"stdout"`
+	File    AuditFileConfig    `yaml:"file"`
+	Syslog  AuditSyslogConfig  `yaml:"syslog"`
+	Webhook AuditWebhookConfig `yaml:"webhook"`
+}
+
+// AuditStdoutConfig configures stdout audit output.
+type AuditStdoutConfig struct {
+	Enabled    bool   `yaml:"enabled"`
+	FormatType string `yaml:"format"` // "json" (default) or "cef"
+}
+
+// AuditFileConfig configures file audit output with rotation.
+type AuditFileConfig struct {
+	Enabled     bool   `yaml:"enabled"`
+	Path        string `yaml:"path"`
+	FormatType  string `yaml:"format"`       // "json" (default) or "cef"
+	MaxSizeMB   int    `yaml:"max_size_mb"`  // Max size in MB before rotation (default: 100)
+	MaxBackups  int    `yaml:"max_backups"`  // Max number of old files to retain (default: 5)
+	MaxAgeDays  int    `yaml:"max_age_days"` // Max age in days before deletion (default: 30)
+	Compress    *bool  `yaml:"compress"`     // Compress rotated files (default: true)
+	Permissions string `yaml:"permissions"`  // File permissions (default: "0600")
+}
+
+// AuditSyslogConfig configures syslog audit output (RFC 5424).
+type AuditSyslogConfig struct {
+	Enabled    bool   `yaml:"enabled"`
+	Network    string `yaml:"network"`  // "tcp", "udp", "tcp+tls" (default: "tcp")
+	Address    string `yaml:"address"`  // host:port
+	AppName    string `yaml:"app_name"` // syslog APP-NAME (default: "schema-registry")
+	Facility   string `yaml:"facility"` // syslog facility (default: "local0")
+	FormatType string `yaml:"format"`   // "json" (default) or "cef"
+	TLSCert    string `yaml:"tls_cert"` // Client certificate for TLS
+	TLSKey     string `yaml:"tls_key"`  // Client key for TLS
+	TLSCA      string `yaml:"tls_ca"`   // CA certificate for TLS
+}
+
+// AuditWebhookConfig configures webhook audit output.
+type AuditWebhookConfig struct {
+	Enabled       bool              `yaml:"enabled"`
+	URL           string            `yaml:"url"`            // Webhook endpoint URL
+	FormatType    string            `yaml:"format"`         // "json" (default) or "cef"
+	Headers       map[string]string `yaml:"headers"`        // Custom HTTP headers
+	BatchSize     int               `yaml:"batch_size"`     // Events per batch (default: 100)
+	FlushInterval string            `yaml:"flush_interval"` // Flush interval (default: "5s")
+	Timeout       string            `yaml:"timeout"`        // HTTP timeout (default: "10s")
+	MaxRetries    int               `yaml:"max_retries"`    // Retry count for 5xx (default: 3)
+	BufferSize    int               `yaml:"buffer_size"`    // Channel buffer size (default: 10000)
 }
 
 // DefaultConfig returns a configuration with default values.
@@ -696,6 +749,116 @@ func (c *Config) applyEnvOverrides() {
 			c.Security.Auth.JWT.HTTPTimeout = n
 		}
 	}
+
+	// Audit overrides
+	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_ENABLED"); v != "" {
+		c.Security.Audit.Enabled = strings.ToLower(v) == "true" || v == "1"
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_INCLUDE_BODY"); v != "" {
+		c.Security.Audit.IncludeBody = strings.ToLower(v) == "true" || v == "1"
+	}
+
+	// Audit stdout output overrides
+	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_STDOUT_ENABLED"); v != "" {
+		c.Security.Audit.Outputs.Stdout.Enabled = strings.ToLower(v) == "true" || v == "1"
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_STDOUT_FORMAT"); v != "" {
+		c.Security.Audit.Outputs.Stdout.FormatType = v
+	}
+
+	// Audit file output overrides
+	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_FILE_ENABLED"); v != "" {
+		c.Security.Audit.Outputs.File.Enabled = strings.ToLower(v) == "true" || v == "1"
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_FILE_PATH"); v != "" {
+		c.Security.Audit.Outputs.File.Path = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_FILE_FORMAT"); v != "" {
+		c.Security.Audit.Outputs.File.FormatType = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_FILE_MAX_SIZE_MB"); v != "" {
+		if n, ok := envInt("SCHEMA_REGISTRY_AUDIT_FILE_MAX_SIZE_MB", v); ok {
+			c.Security.Audit.Outputs.File.MaxSizeMB = n
+		}
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_FILE_MAX_BACKUPS"); v != "" {
+		if n, ok := envInt("SCHEMA_REGISTRY_AUDIT_FILE_MAX_BACKUPS", v); ok {
+			c.Security.Audit.Outputs.File.MaxBackups = n
+		}
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_FILE_MAX_AGE_DAYS"); v != "" {
+		if n, ok := envInt("SCHEMA_REGISTRY_AUDIT_FILE_MAX_AGE_DAYS", v); ok {
+			c.Security.Audit.Outputs.File.MaxAgeDays = n
+		}
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_FILE_COMPRESS"); v != "" {
+		b := strings.ToLower(v) == "true" || v == "1"
+		c.Security.Audit.Outputs.File.Compress = &b
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_FILE_PERMISSIONS"); v != "" {
+		c.Security.Audit.Outputs.File.Permissions = v
+	}
+
+	// Audit syslog output overrides
+	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_SYSLOG_ENABLED"); v != "" {
+		c.Security.Audit.Outputs.Syslog.Enabled = strings.ToLower(v) == "true" || v == "1"
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_SYSLOG_NETWORK"); v != "" {
+		c.Security.Audit.Outputs.Syslog.Network = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_SYSLOG_ADDRESS"); v != "" {
+		c.Security.Audit.Outputs.Syslog.Address = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_SYSLOG_APP_NAME"); v != "" {
+		c.Security.Audit.Outputs.Syslog.AppName = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_SYSLOG_FACILITY"); v != "" {
+		c.Security.Audit.Outputs.Syslog.Facility = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_SYSLOG_FORMAT"); v != "" {
+		c.Security.Audit.Outputs.Syslog.FormatType = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_SYSLOG_TLS_CERT"); v != "" {
+		c.Security.Audit.Outputs.Syslog.TLSCert = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_SYSLOG_TLS_KEY"); v != "" {
+		c.Security.Audit.Outputs.Syslog.TLSKey = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_SYSLOG_TLS_CA"); v != "" {
+		c.Security.Audit.Outputs.Syslog.TLSCA = v
+	}
+
+	// Audit webhook output overrides
+	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_WEBHOOK_ENABLED"); v != "" {
+		c.Security.Audit.Outputs.Webhook.Enabled = strings.ToLower(v) == "true" || v == "1"
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_WEBHOOK_URL"); v != "" {
+		c.Security.Audit.Outputs.Webhook.URL = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_WEBHOOK_FORMAT"); v != "" {
+		c.Security.Audit.Outputs.Webhook.FormatType = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_WEBHOOK_BATCH_SIZE"); v != "" {
+		if n, ok := envInt("SCHEMA_REGISTRY_AUDIT_WEBHOOK_BATCH_SIZE", v); ok {
+			c.Security.Audit.Outputs.Webhook.BatchSize = n
+		}
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_WEBHOOK_FLUSH_INTERVAL"); v != "" {
+		c.Security.Audit.Outputs.Webhook.FlushInterval = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_WEBHOOK_TIMEOUT"); v != "" {
+		c.Security.Audit.Outputs.Webhook.Timeout = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_WEBHOOK_MAX_RETRIES"); v != "" {
+		if n, ok := envInt("SCHEMA_REGISTRY_AUDIT_WEBHOOK_MAX_RETRIES", v); ok {
+			c.Security.Audit.Outputs.Webhook.MaxRetries = n
+		}
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_WEBHOOK_BUFFER_SIZE"); v != "" {
+		if n, ok := envInt("SCHEMA_REGISTRY_AUDIT_WEBHOOK_BUFFER_SIZE", v); ok {
+			c.Security.Audit.Outputs.Webhook.BufferSize = n
+		}
+	}
 }
 
 // Validate validates the configuration.
@@ -747,6 +910,48 @@ func (c *Config) Validate() error {
 	level := strings.ToUpper(c.Compatibility.DefaultLevel)
 	if !validCompatibility[level] {
 		return fmt.Errorf("invalid compatibility level: %s", c.Compatibility.DefaultLevel)
+	}
+
+	// Validate audit config
+	if err := c.validateAuditConfig(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// validateAuditConfig validates the audit configuration.
+func (c *Config) validateAuditConfig() error {
+	audit := &c.Security.Audit
+
+	// Validate format types
+	validFormats := map[string]bool{"": true, "json": true, "cef": true}
+	if !validFormats[audit.Outputs.Stdout.FormatType] {
+		return fmt.Errorf("invalid audit stdout format: %q (must be \"json\" or \"cef\")", audit.Outputs.Stdout.FormatType)
+	}
+	if !validFormats[audit.Outputs.File.FormatType] {
+		return fmt.Errorf("invalid audit file format: %q (must be \"json\" or \"cef\")", audit.Outputs.File.FormatType)
+	}
+	if !validFormats[audit.Outputs.Syslog.FormatType] {
+		return fmt.Errorf("invalid audit syslog format: %q (must be \"json\" or \"cef\")", audit.Outputs.Syslog.FormatType)
+	}
+	if !validFormats[audit.Outputs.Webhook.FormatType] {
+		return fmt.Errorf("invalid audit webhook format: %q (must be \"json\" or \"cef\")", audit.Outputs.Webhook.FormatType)
+	}
+
+	// File output requires a path when enabled
+	if audit.Outputs.File.Enabled && audit.Outputs.File.Path == "" {
+		return fmt.Errorf("audit file output enabled but no path specified")
+	}
+
+	// Syslog output requires an address when enabled
+	if audit.Outputs.Syslog.Enabled && audit.Outputs.Syslog.Address == "" {
+		return fmt.Errorf("audit syslog output enabled but no address specified")
+	}
+
+	// Webhook output requires a URL when enabled
+	if audit.Outputs.Webhook.Enabled && audit.Outputs.Webhook.URL == "" {
+		return fmt.Errorf("audit webhook output enabled but no URL specified")
 	}
 
 	return nil

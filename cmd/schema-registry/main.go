@@ -149,7 +149,10 @@ func main() {
 		}
 		serverOpts = append(serverOpts, api.WithAuditLogger(auditLogger))
 		logger.Info("audit logging enabled",
-			slog.String("log_file", cfg.Security.Audit.LogFile),
+			slog.Bool("stdout", cfg.Security.Audit.Outputs.Stdout.Enabled),
+			slog.Bool("file", cfg.Security.Audit.Outputs.File.Enabled || cfg.Security.Audit.LogFile != ""),
+			slog.Bool("syslog", cfg.Security.Audit.Outputs.Syslog.Enabled),
+			slog.Bool("webhook", cfg.Security.Audit.Outputs.Webhook.Enabled),
 			slog.Bool("include_body", cfg.Security.Audit.IncludeBody),
 		)
 	}
