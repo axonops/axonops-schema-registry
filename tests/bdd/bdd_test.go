@@ -256,7 +256,7 @@ func TestAuthFeatures(t *testing.T) {
 		Format:   "pretty",
 		Output:   colors.Colored(os.Stdout),
 		Paths:    []string{"features"},
-		Tags:     "@auth && ~@pending-impl",
+		Tags:     "@auth && ~@ldap && ~@pending-impl",
 		Strict:   true,
 		TestingT: t,
 	}

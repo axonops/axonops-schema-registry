@@ -37,6 +37,7 @@ services:
   schema-registry:
     command: ["--config", "/etc/schema-registry/config.memory-auth-ldap.yaml"]
     environment:
+      REGISTRY_CONFIG: /etc/schema-registry/config.memory-auth-ldap.yaml
       SCHEMA_REGISTRY_LDAP_URL: "ldaps://ldap:636"
       SCHEMA_REGISTRY_LDAP_BIND_PASSWORD: "adminpassword"
     volumes:
