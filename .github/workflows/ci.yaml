@@ -2010,12 +2010,84 @@ jobs:
       - name: Run BDD LDAP tests (Docker)
         run: make test-bdd-ldap
 
-      - name: Show container logs on failure
+      - name: Show BDD container logs on failure
         if: failure()
         working-directory: tests/bdd
         run: docker compose -p bdd-ldap -f docker-compose.base.yml -f docker-compose.ldap.yml logs --tail=100 || true
 
+      # --- Client SerDe tests against LDAP-authenticated registry ---
+      # Start a fresh compose stack (BDD test cleans up its own) and run
+      # Go, Java, Python compatibility tests with LDAP admin credentials.
+
+      - name: Start LDAP compose stack for client SerDe tests
+        working-directory: tests/bdd
+        run: |
+          REGISTRY_PORT=18092 docker compose -p ldap-serde \
+            -f docker-compose.base.yml -f docker-compose.ldap.yml \
+            up -d --build --wait --wait-timeout 120
+
+      - name: Wait for registry health
+        run: |
+          for i in $(seq 1 60); do
+            if curl -sf -u admin:adminpass http://localhost:18092/subjects > /dev/null 2>&1; then
+              echo "Registry is healthy"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Registry did not become healthy"
+          exit 1
+
+      - name: Run Go compatibility tests with LDAP auth
+        env:
+          SCHEMA_REGISTRY_URL: http://localhost:18092
+          SCHEMA_REGISTRY_USERNAME: admin
+          SCHEMA_REGISTRY_PASSWORD: adminpass
+        run: cd tests/compatibility/go && go test -v -timeout 5m ./...
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Run Java compatibility tests with LDAP auth
+        env:
+          SCHEMA_REGISTRY_URL: http://localhost:18092
+          SCHEMA_REGISTRY_USERNAME: admin
+          SCHEMA_REGISTRY_PASSWORD: adminpass
+        run: |
+          cd tests/compatibility/java
+          mvn test -P confluent-8.1 \
+            -Dschema.registry.url=http://localhost:18092 \
+            -Dschema.registry.username=admin \
+            -Dschema.registry.password=adminpass -q
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Run Python compatibility tests with LDAP auth
+        env:
+          SCHEMA_REGISTRY_URL: http://localhost:18092
+          SCHEMA_REGISTRY_USERNAME: admin
+          SCHEMA_REGISTRY_PASSWORD: adminpass
+        run: |
+          cd tests/compatibility/python
+          python3 -m venv .venv && . .venv/bin/activate
+          pip install --quiet --upgrade pip
+          pip install --quiet "confluent-kafka[avro,json,protobuf]==2.8.0" pytest
+          pytest -v --tb=short
+
+      - name: Show SerDe container logs on failure
+        if: failure()
+        working-directory: tests/bdd
+        run: docker compose -p ldap-serde -f docker-compose.base.yml -f docker-compose.ldap.yml logs --tail=100 || true
+
       - name: Cleanup containers
         if: always()
         working-directory: tests/bdd
-        run: docker compose -p bdd-ldap -f docker-compose.base.yml -f docker-compose.ldap.yml down -v || true
+        run: |
+          docker compose -p bdd-ldap -f docker-compose.base.yml -f docker-compose.ldap.yml down -v || true
+          docker compose -p ldap-serde -f docker-compose.base.yml -f docker-compose.ldap.yml down -v || true
