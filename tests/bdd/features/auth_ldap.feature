@@ -477,6 +477,7 @@ Feature: LDAP Authentication and RBAC
 
   @ldap
   Scenario: Failed LDAP login produces auth_failure event
+    # admin exists in LDAP — wrong password is rejected immediately (no fallback).
     Given I authenticate as "admin" with password "wrongpassword"
     When I GET "/subjects"
     Then the response status should be 401
@@ -577,10 +578,12 @@ Feature: LDAP Authentication and RBAC
   # Section 10: LDAP fallback to database authentication
   # ---------------------------------------------------------------------------
   # The config has allow_fallback: true and a bootstrap user (localadmin/localadminpass)
-  # that exists only in the database, not in LDAP. This tests that:
-  # 1. User not in LDAP but in DB authenticates via fallback
-  # 2. An auth_ldap_fallback audit event is emitted with the username
-  # 3. User not in LDAP or DB still gets 401
+  # that exists only in the database, not in LDAP.
+  #
+  # Fallback policy:
+  #   - "user not found" in LDAP → fall back to DB/htpasswd (the user may be local-only)
+  #   - "invalid credentials" in LDAP → reject immediately, NO fallback (prevents
+  #     bypassing LDAP password policies: complexity, expiry, lockout, MFA)
 
   @ldap
   Scenario: User not in LDAP falls back to DB bootstrap user and authenticates
@@ -590,25 +593,26 @@ Feature: LDAP Authentication and RBAC
     When I GET "/subjects"
     Then the response status should be 200
     And the audit log should contain an event:
-      | event_type | auth_ldap_fallback                |
-      | outcome    | warning                           |
-      | actor_id   | localadmin                        |
-      | actor_type | user                              |
-      | reason     | ldap_auth_failed_fallback_to_db   |
-      | path       | /subjects                         |
+      | event_type | auth_ldap_fallback                  |
+      | outcome    | warning                             |
+      | actor_id   | localadmin                          |
+      | actor_type | user                                |
+      | reason     | ldap_user_not_found_fallback_to_db  |
+      | path       | /subjects                           |
 
   @ldap
-  Scenario: LDAP user with wrong password falls back but has no DB match — returns 401
-    # admin exists in LDAP but not in DB. Wrong LDAP password triggers fallback,
-    # but DB also has no matching user, so authentication fails completely.
+  Scenario: LDAP user with wrong password is rejected immediately — no fallback
+    # admin exists in LDAP. Wrong password returns "invalid credentials".
+    # Fallback is NOT attempted — this prevents bypassing LDAP password policies.
     Given I authenticate as "admin" with password "wrongpassword"
     When I GET "/subjects"
     Then the response status should be 401
     And the audit log should contain an event:
-      | event_type | auth_ldap_fallback                |
-      | outcome    | warning                           |
-      | actor_id   | admin                             |
-      | reason     | ldap_auth_failed_fallback_to_db   |
+      | event_type  | auth_failure         |
+      | outcome     | failure              |
+      | actor_type  | anonymous            |
+      | reason      | no_valid_credentials |
+      | status_code | 401                  |
 
   @ldap
   Scenario: User not in LDAP or DB returns 401 with fallback audit event
@@ -618,10 +622,10 @@ Feature: LDAP Authentication and RBAC
     When I GET "/subjects"
     Then the response status should be 401
     And the audit log should contain an event:
-      | event_type | auth_ldap_fallback                |
-      | outcome    | warning                           |
-      | actor_id   | unknownuser                       |
-      | reason     | ldap_auth_failed_fallback_to_db   |
+      | event_type | auth_ldap_fallback                  |
+      | outcome    | warning                             |
+      | actor_id   | unknownuser                         |
+      | reason     | ldap_user_not_found_fallback_to_db  |
     And the audit log should contain an event:
       | event_type  | auth_failure         |
       | outcome     | failure              |

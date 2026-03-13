@@ -266,10 +266,10 @@ func main() {
 
 			// Warn if LDAP fallback to DB/htpasswd is enabled (default)
 			if cfg.Security.Auth.LDAP.AllowFallback == nil || *cfg.Security.Auth.LDAP.AllowFallback {
-				logger.Warn("LDAP allow_fallback is enabled — if LDAP authentication fails, "+
-					"credentials will be tried against database/htpasswd users. This means an "+
-					"attacker who knows a local database password can authenticate even when LDAP "+
-					"is the intended auth source. Set allow_fallback: false for strict LDAP-only auth.",
+				logger.Warn("LDAP allow_fallback is enabled — users not found in LDAP will be "+
+					"tried against database/htpasswd users. Users that exist in LDAP but provide "+
+					"wrong passwords are always rejected (no fallback). "+
+					"Set allow_fallback: false for strict LDAP-only auth.",
 					slog.String("setting", "security.auth.ldap.allow_fallback"),
 					slog.Bool("current_value", true),
 				)

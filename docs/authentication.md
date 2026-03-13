@@ -156,7 +156,7 @@ This approach is useful when you want to create the admin user before starting t
 
 ## Basic Authentication
 
-Basic Auth validates credentials against the database using bcrypt-hashed passwords. If LDAP is configured and `allow_fallback` is `true` (the default), credentials that fail LDAP authentication are tried against the database as a fallback. Set `allow_fallback: false` to disable this behavior.
+Basic Auth validates credentials against the database using bcrypt-hashed passwords. If LDAP is configured and `allow_fallback` is `true` (the default), credentials for users **not found** in LDAP are tried against the database as a fallback. Users that **exist** in LDAP but provide the wrong password are rejected immediately — no fallback occurs. Set `allow_fallback: false` to disable fallback entirely.
 
 ### Configuration
 
@@ -358,15 +358,17 @@ Both methods support custom CA certificates via `ca_cert_file` and client certif
 | `client_cert_file` | Path to client certificate for mTLS | `""` |
 | `client_key_file` | Path to client private key for mTLS | `""` |
 | `insecure_skip_verify` | Skip TLS certificate verification | `false` |
-| `allow_fallback` | Allow fallback to DB/htpasswd when LDAP bind fails | `true` |
+| `allow_fallback` | Allow fallback to DB/htpasswd when user is not found in LDAP | `true` |
 | `connection_timeout` | Connection timeout in seconds | `10` |
 | `request_timeout` | Search request timeout in seconds | `30` |
 
 ### Fallback Behavior
 
-By default (`allow_fallback: true`), when an LDAP bind fails the registry falls back to other configured authentication methods (database users, htpasswd). This allows mixed environments where some users are in LDAP and others are local accounts.
+By default (`allow_fallback: true`), when an LDAP user search returns "user not found", the registry falls back to other configured authentication methods (database users, htpasswd). This allows mixed environments where some users are in LDAP and others are local accounts (e.g. a bootstrap admin user).
 
-Set `allow_fallback: false` for strict LDAP-only authentication. In this mode, if LDAP authentication fails (wrong password, user not found, server unreachable), the request is immediately rejected with HTTP 401 — no fallback to database or htpasswd users occurs.
+> **Security note:** Fallback only occurs when the user does **not exist** in LDAP. If the user **exists** in LDAP but provides the wrong password, the request is rejected immediately with HTTP 401 — no fallback occurs. This prevents users from bypassing LDAP password policies (complexity requirements, expiry, account lockout, MFA) by authenticating against a local database password instead.
+
+Set `allow_fallback: false` for strict LDAP-only authentication. In this mode, all LDAP failures (user not found, wrong password, server unreachable) result in an immediate HTTP 401 — no fallback to database or htpasswd users occurs.
 
 ### Audit Logging
 

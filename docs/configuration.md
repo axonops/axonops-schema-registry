@@ -459,7 +459,7 @@ security:
 | `security.auth.ldap.ca_cert_file` | string | `""` | Path to CA certificate for verifying the LDAP server. |
 | `security.auth.ldap.client_cert_file` | string | `""` | Path to client certificate for mTLS authentication to the LDAP server. |
 | `security.auth.ldap.client_key_file` | string | `""` | Path to client private key for mTLS authentication to the LDAP server. |
-| `security.auth.ldap.allow_fallback` | bool | `true` | When `true`, a failed LDAP bind falls back to other configured auth methods (basic/API key). Set to `false` for strict LDAP-only authentication. |
+| `security.auth.ldap.allow_fallback` | bool | `true` | When `true`, users not found in LDAP fall back to other configured auth methods (basic/API key). Users that exist in LDAP but provide wrong passwords are always rejected (no fallback). Set to `false` for strict LDAP-only authentication. |
 | `security.auth.ldap.connection_timeout` | int | `10` | Connection timeout in seconds. |
 | `security.auth.ldap.request_timeout` | int | `30` | Request timeout in seconds. |
 
@@ -1053,7 +1053,7 @@ security:
       ca_cert_file: ""
       client_cert_file: ""            # Client cert for mTLS to LDAP server
       client_key_file: ""             # Client key for mTLS to LDAP server
-      allow_fallback: true            # false = strict LDAP-only (no DB/htpasswd fallback)
+      allow_fallback: true            # false = strict LDAP-only; true = fallback for user-not-found only
       connection_timeout: 10          # seconds
       request_timeout: 30             # seconds
 

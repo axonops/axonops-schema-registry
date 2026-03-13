@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/subtle"
 	"encoding/base64"
+	"errors"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -232,13 +233,31 @@ func (a *Authenticator) authenticateBasic(r *http.Request) (*User, bool) {
 		if err == nil && user != nil {
 			return user, true
 		}
-		// LDAP failed — check if fallback to other auth methods is allowed.
-		// Default is true (allow fallback) for backward compatibility.
+
+		// LDAP failed — decide whether to fall back based on the error type.
+		//
+		// Security policy: only fall back for "user not found" (user doesn't exist
+		// in LDAP, may exist in DB). Never fall back for "invalid credentials"
+		// (user exists in LDAP but password is wrong) — this would bypass LDAP
+		// password policies (complexity, expiry, lockout, MFA).
+		//
+		// If allow_fallback is explicitly false, never fall back regardless of error.
 		if a.config.LDAP.AllowFallback != nil && !*a.config.LDAP.AllowFallback {
 			return nil, false
 		}
-		// LDAP failed but fallback is allowed — log warning, record metric, emit audit event.
-		slog.Warn("LDAP authentication failed, falling back to database/htpasswd auth",
+
+		// Only fall back when the user was not found in LDAP.
+		// For invalid credentials (user exists, wrong password), reject immediately.
+		if errors.Is(err, ErrLDAPInvalidCredentials) {
+			slog.Warn("LDAP authentication failed: invalid credentials, no fallback to database",
+				slog.String("username", username),
+				slog.String("source_ip", r.RemoteAddr),
+			)
+			return nil, false
+		}
+
+		// User not found in LDAP — fallback to DB/htpasswd.
+		slog.Warn("LDAP user not found, falling back to database/htpasswd auth",
 			slog.String("username", username),
 			slog.String("source_ip", r.RemoteAddr),
 		)
@@ -255,7 +274,7 @@ func (a *Authenticator) authenticateBasic(r *http.Request) (*User, bool) {
 				Outcome:    "warning",
 				TargetType: "user",
 				TargetID:   username,
-				Reason:     "ldap_auth_failed_fallback_to_db",
+				Reason:     "ldap_user_not_found_fallback_to_db",
 				SourceIP:   r.RemoteAddr,
 				UserAgent:  r.UserAgent(),
 				Method:     r.Method,

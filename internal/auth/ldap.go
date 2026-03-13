@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -14,6 +15,17 @@ import (
 	"github.com/go-ldap/ldap/v3"
 
 	"github.com/axonops/axonops-schema-registry/internal/config"
+)
+
+// Sentinel errors for LDAP authentication outcomes.
+// These allow callers to distinguish "user not found" from "wrong password"
+// so that fallback behavior can be scoped appropriately.
+var (
+	// ErrLDAPUserNotFound indicates the user does not exist in LDAP.
+	ErrLDAPUserNotFound = errors.New("ldap: user not found")
+
+	// ErrLDAPInvalidCredentials indicates the user exists in LDAP but the password is wrong.
+	ErrLDAPInvalidCredentials = errors.New("ldap: invalid credentials")
 )
 
 // LDAPProvider handles LDAP authentication.
@@ -91,13 +103,13 @@ func (p *LDAPProvider) Authenticate(ctx context.Context, username, password stri
 		return nil, fmt.Errorf("user search failed: %w", err)
 	}
 	if userEntry == nil {
-		return nil, fmt.Errorf("user not found")
+		return nil, ErrLDAPUserNotFound
 	}
 
 	// Re-bind with user's credentials to verify password
 	userDN := userEntry.DN
 	if err := conn.Bind(userDN, password); err != nil {
-		return nil, fmt.Errorf("invalid credentials")
+		return nil, ErrLDAPInvalidCredentials
 	}
 
 	// Get user's groups from memberOf attribute
