@@ -889,6 +889,7 @@ func TestActorTypeFromAuthMethod(t *testing.T) {
 		{"jwt", "user"},
 		{"oidc", "user"},
 		{"ldap", "user"},
+		{"ldap_fallback", "user"},
 		{"mtls", "user"},
 		{"api_key", "api_key"},
 		{"", "anonymous"},

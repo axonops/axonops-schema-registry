@@ -589,6 +589,7 @@ Feature: LDAP Authentication and RBAC
   Scenario: User not in LDAP falls back to DB bootstrap user and authenticates
     # localadmin exists only in the database (via bootstrap), not in LDAP.
     # LDAP returns "user not found", fallback to DB succeeds.
+    # The auth_method on subsequent requests is "ldap_fallback" (not "basic").
     Given I authenticate as "localadmin" with password "localadminpass"
     When I GET "/subjects"
     Then the response status should be 200
@@ -599,6 +600,11 @@ Feature: LDAP Authentication and RBAC
       | actor_type | user                                |
       | reason     | ldap_user_not_found_fallback_to_db  |
       | path       | /subjects                           |
+    And the audit log should contain an event:
+      | event_type  | subject_list    |
+      | actor_id    | localadmin      |
+      | auth_method | ldap_fallback   |
+      | status_code | 200             |
 
   @ldap
   Scenario: LDAP user with wrong password is rejected immediately — no fallback

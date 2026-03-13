@@ -925,7 +925,7 @@ func actorTypeFromAuthMethod(method string) string {
 	switch method {
 	case "api_key":
 		return "api_key"
-	case "basic", "jwt", "oidc", "ldap", "mtls":
+	case "basic", "jwt", "oidc", "ldap", "ldap_fallback", "mtls":
 		return "user"
 	default:
 		return "anonymous"

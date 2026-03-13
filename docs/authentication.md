@@ -372,7 +372,7 @@ Set `allow_fallback: false` for strict LDAP-only authentication. In this mode, a
 
 ### Audit Logging
 
-LDAP-authenticated requests use `auth_method: ldap` in audit events, distinguishing them from database-based basic authentication (`auth_method: basic`). See [Audit Logging](auditing.md#actor-types-and-authentication-methods) for details.
+LDAP-authenticated requests use `auth_method: ldap` in audit events. Users who authenticated via DB/htpasswd fallback (not found in LDAP) use `auth_method: ldap_fallback`, distinguishing them from direct database authentication (`auth_method: basic`). See [Audit Logging](auditing.md#actor-types-and-authentication-methods) for details.
 
 ## OIDC (OpenID Connect)
 

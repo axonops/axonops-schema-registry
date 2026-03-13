@@ -228,6 +228,7 @@ func (a *Authenticator) authenticateBasic(r *http.Request) (*User, bool) {
 	}
 
 	// Try LDAP authentication first if enabled
+	ldapFallback := false
 	if a.ldapProvider != nil {
 		user, err := a.ldapProvider.Authenticate(r.Context(), username, password)
 		if err == nil && user != nil {
@@ -257,6 +258,7 @@ func (a *Authenticator) authenticateBasic(r *http.Request) (*User, bool) {
 		}
 
 		// User not found in LDAP — fallback to DB/htpasswd.
+		ldapFallback = true
 		slog.Warn("LDAP user not found, falling back to database/htpasswd auth",
 			slog.String("username", username),
 			slog.String("source_ip", r.RemoteAddr),
@@ -283,6 +285,13 @@ func (a *Authenticator) authenticateBasic(r *http.Request) (*User, bool) {
 		}
 	}
 
+	// Determine the auth method — "ldap_fallback" if we arrived here after
+	// LDAP user-not-found, "basic" for normal DB/htpasswd auth.
+	authMethod := "basic"
+	if ldapFallback {
+		authMethod = "ldap_fallback"
+	}
+
 	// Try database-backed authentication
 	if a.service != nil {
 		user, err := a.service.ValidateCredentials(r.Context(), username, password)
@@ -291,7 +300,7 @@ func (a *Authenticator) authenticateBasic(r *http.Request) (*User, bool) {
 				ID:       user.ID,
 				Username: user.Username,
 				Role:     user.Role,
-				Method:   "basic",
+				Method:   authMethod,
 			}, true
 		}
 	}
@@ -302,7 +311,7 @@ func (a *Authenticator) authenticateBasic(r *http.Request) (*User, bool) {
 			return &User{
 				Username: username,
 				Role:     a.config.RBAC.DefaultRole,
-				Method:   "basic",
+				Method:   authMethod,
 			}, true
 		}
 	}
@@ -312,7 +321,7 @@ func (a *Authenticator) authenticateBasic(r *http.Request) (*User, bool) {
 		return &User{
 			Username: username,
 			Role:     a.config.RBAC.DefaultRole,
-			Method:   "basic",
+			Method:   authMethod,
 		}, true
 	}
 

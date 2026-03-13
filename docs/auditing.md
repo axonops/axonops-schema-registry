@@ -40,7 +40,7 @@
 
 ## Overview
 
-The audit logger records security-relevant events to a structured JSON log. Each event captures **who** performed an action, **what** was affected, **how** the actor authenticated, and **whether** the action succeeded or failed. Events are emitted for both the REST API and the MCP (Model Context Protocol) server.
+The audit logger records security-relevant events in structured JSON or CEF (Common Event Format) to one or more outputs (stdout, file, syslog, webhook). Each event captures **who** performed an action, **what** was affected, **how** the actor authenticated, and **whether** the action succeeded or failed. Events are emitted for both the REST API and the MCP (Model Context Protocol) server.
 
 Audit events follow industry-standard practices:
 
@@ -442,6 +442,7 @@ For MCP events, the same `reason` codes apply. Since MCP events do not have HTTP
 | `jwt` | JSON Web Token (Bearer token validated against signing key). |
 | `oidc` | OpenID Connect (Bearer token validated against OIDC provider). |
 | `ldap` | LDAP bind authentication (username + password via Basic Auth). |
+| `ldap_fallback` | User not found in LDAP; authenticated via database/htpasswd fallback. |
 | `mtls` | Mutual TLS (client certificate CN used as identity). |
 | `bearer_token` | MCP static bearer token authentication. |
 
