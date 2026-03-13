@@ -490,7 +490,7 @@ Feature: LDAP Authentication and RBAC
       | status_code | 401                  |
 
   @ldap
-  Scenario: LDAP admin schema register produces audit event with correct actor and role
+  Scenario: LDAP developer schema register produces audit event with correct actor and role
     Given I authenticate as "developer" with password "devpass"
     When I register a "AVRO" schema under subject "ldap-audit-dev":
       """
@@ -526,14 +526,105 @@ Feature: LDAP Authentication and RBAC
       | method      | POST              |
       | status_code | 403               |
 
-  # ---------------------------------------------------------------------------
-  # Section 10: LDAP-specific — fallback disabled
-  # ---------------------------------------------------------------------------
+  @ldap
+  Scenario: No credentials produces auth_failure audit event
+    Given I clear authentication
+    When I GET "/subjects"
+    Then the response status should be 401
+    And the audit log should contain an event:
+      | event_type  | auth_failure         |
+      | outcome     | failure              |
+      | actor_type  | anonymous            |
+      | reason      | no_valid_credentials |
+      | method      | GET                  |
+      | path        | /subjects            |
+      | status_code | 401                  |
 
   @ldap
-  Scenario: LDAP fallback to DB is disabled — wrong LDAP password does not try other auth methods
-    # The config has allow_fallback: false, so even if a DB user existed with the
-    # same username and password, the LDAP failure should be final.
+  Scenario: Non-existent user produces auth_failure audit event
+    Given I authenticate as "nonexistent" with password "anypassword"
+    When I GET "/subjects"
+    Then the response status should be 401
+    And the audit log should contain an event:
+      | event_type  | auth_failure         |
+      | outcome     | failure              |
+      | actor_type  | anonymous            |
+      | reason      | no_valid_credentials |
+      | method      | GET                  |
+      | path        | /subjects            |
+      | status_code | 401                  |
+
+  @ldap
+  Scenario: LDAP admin delete produces audit event with correct actor
+    Given I authenticate as "admin" with password "adminpass"
+    And I register a "AVRO" schema under subject "ldap-audit-del":
+      """
+      {"type":"record","name":"LdapAuditDel","fields":[{"name":"id","type":"int"}]}
+      """
+    When I DELETE "/subjects/ldap-audit-del/versions/1"
+    Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type  | schema_delete |
+      | outcome     | success       |
+      | actor_id    | admin         |
+      | actor_type  | user          |
+      | auth_method | ldap          |
+      | role        | admin         |
+      | method      | DELETE        |
+      | status_code | 200           |
+
+  # ---------------------------------------------------------------------------
+  # Section 10: LDAP fallback to database authentication
+  # ---------------------------------------------------------------------------
+  # The config has allow_fallback: true and a bootstrap user (localadmin/localadminpass)
+  # that exists only in the database, not in LDAP. This tests that:
+  # 1. User not in LDAP but in DB authenticates via fallback
+  # 2. An auth_ldap_fallback audit event is emitted with the username
+  # 3. User not in LDAP or DB still gets 401
+
+  @ldap
+  Scenario: User not in LDAP falls back to DB bootstrap user and authenticates
+    # localadmin exists only in the database (via bootstrap), not in LDAP.
+    # LDAP returns "user not found", fallback to DB succeeds.
+    Given I authenticate as "localadmin" with password "localadminpass"
+    When I GET "/subjects"
+    Then the response status should be 200
+    And the audit log should contain an event:
+      | event_type | auth_ldap_fallback                |
+      | outcome    | warning                           |
+      | actor_id   | localadmin                        |
+      | actor_type | user                              |
+      | reason     | ldap_auth_failed_fallback_to_db   |
+      | path       | /subjects                         |
+
+  @ldap
+  Scenario: LDAP user with wrong password falls back but has no DB match — returns 401
+    # admin exists in LDAP but not in DB. Wrong LDAP password triggers fallback,
+    # but DB also has no matching user, so authentication fails completely.
     Given I authenticate as "admin" with password "wrongpassword"
     When I GET "/subjects"
     Then the response status should be 401
+    And the audit log should contain an event:
+      | event_type | auth_ldap_fallback                |
+      | outcome    | warning                           |
+      | actor_id   | admin                             |
+      | reason     | ldap_auth_failed_fallback_to_db   |
+
+  @ldap
+  Scenario: User not in LDAP or DB returns 401 with fallback audit event
+    # unknownuser doesn't exist in LDAP or DB. LDAP fails with "user not found",
+    # fallback is attempted but also fails.
+    Given I authenticate as "unknownuser" with password "somepassword"
+    When I GET "/subjects"
+    Then the response status should be 401
+    And the audit log should contain an event:
+      | event_type | auth_ldap_fallback                |
+      | outcome    | warning                           |
+      | actor_id   | unknownuser                       |
+      | reason     | ldap_auth_failed_fallback_to_db   |
+    And the audit log should contain an event:
+      | event_type  | auth_failure         |
+      | outcome     | failure              |
+      | actor_type  | anonymous            |
+      | reason      | no_valid_credentials |
+      | status_code | 401                  |

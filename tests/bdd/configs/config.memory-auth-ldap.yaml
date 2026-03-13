@@ -15,7 +15,13 @@ security:
   auth:
     enabled: true
     methods:
-      - ldap
+      - basic
+    bootstrap:
+      enabled: true
+      username: "localadmin"
+      password: "localadminpass"
+    basic:
+      htpasswd_file: ""
     ldap:
       enabled: true
       url: "ldaps://ldap:636"
@@ -32,7 +38,7 @@ security:
         "cn=Developers,ou=Groups,dc=example,dc=org": "developer"
         "cn=ReadonlyUsers,ou=Groups,dc=example,dc=org": "readonly"
       default_role: "readonly"
-      allow_fallback: false
+      allow_fallback: true
       ca_cert_file: "/etc/ldap-certs/ca.pem"
       client_cert_file: "/etc/ldap-certs/client.pem"
       client_key_file: "/etc/ldap-certs/client-key.pem"

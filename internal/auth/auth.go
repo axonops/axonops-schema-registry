@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/subtle"
 	"encoding/base64"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -46,6 +47,7 @@ type Authenticator struct {
 	memoryAPIKeys *MemoryAPIKeyStore // config-defined API keys (memory storage_type)
 	htpasswdStore *HTPasswdStore     // htpasswd file entries (optional)
 	metrics       *metrics.Metrics   // Prometheus metrics (optional)
+	auditLogger   *AuditLogger       // Audit logger for fallback events (optional)
 }
 
 // APIKey represents an API key.
@@ -98,6 +100,11 @@ func (a *Authenticator) SetHTPasswdStore(store *HTPasswdStore) {
 // SetMemoryAPIKeyStore sets the config-defined API key store.
 func (a *Authenticator) SetMemoryAPIKeyStore(store *MemoryAPIKeyStore) {
 	a.memoryAPIKeys = store
+}
+
+// SetAuditLogger sets the audit logger for recording auth fallback events.
+func (a *Authenticator) SetAuditLogger(al *AuditLogger) {
+	a.auditLogger = al
 }
 
 // AddAPIKey adds an API key (for legacy/config-based auth).
@@ -229,6 +236,31 @@ func (a *Authenticator) authenticateBasic(r *http.Request) (*User, bool) {
 		// Default is true (allow fallback) for backward compatibility.
 		if a.config.LDAP.AllowFallback != nil && !*a.config.LDAP.AllowFallback {
 			return nil, false
+		}
+		// LDAP failed but fallback is allowed — log warning, record metric, emit audit event.
+		slog.Warn("LDAP authentication failed, falling back to database/htpasswd auth",
+			slog.String("username", username),
+			slog.String("source_ip", r.RemoteAddr),
+		)
+		if a.metrics != nil {
+			a.metrics.RecordAuthLDAPFallback(username)
+		}
+		if a.auditLogger != nil {
+			a.auditLogger.Log(&AuditEvent{
+				EventType:  AuditEventAuthLDAPFallback,
+				Timestamp:  time.Now(),
+				ActorID:    username,
+				ActorType:  "user",
+				AuthMethod: "ldap",
+				Outcome:    "warning",
+				TargetType: "user",
+				TargetID:   username,
+				Reason:     "ldap_auth_failed_fallback_to_db",
+				SourceIP:   r.RemoteAddr,
+				UserAgent:  r.UserAgent(),
+				Method:     r.Method,
+				Path:       r.URL.Path,
+			})
 		}
 	}
 

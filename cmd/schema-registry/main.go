@@ -260,6 +260,20 @@ func main() {
 				os.Exit(1)
 			}
 			authenticator.SetLDAPProvider(ldapProvider)
+			if auditLogger != nil {
+				authenticator.SetAuditLogger(auditLogger)
+			}
+
+			// Warn if LDAP fallback to DB/htpasswd is enabled (default)
+			if cfg.Security.Auth.LDAP.AllowFallback == nil || *cfg.Security.Auth.LDAP.AllowFallback {
+				logger.Warn("LDAP allow_fallback is enabled — if LDAP authentication fails, "+
+					"credentials will be tried against database/htpasswd users. This means an "+
+					"attacker who knows a local database password can authenticate even when LDAP "+
+					"is the intended auth source. Set allow_fallback: false for strict LDAP-only auth.",
+					slog.String("setting", "security.auth.ldap.allow_fallback"),
+					slog.Bool("current_value", true),
+				)
+			}
 
 			// Emit audit event if LDAP is configured without TLS
 			if auditLogger != nil && !ldapProvider.IsSecure() {

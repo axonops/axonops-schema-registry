@@ -39,9 +39,10 @@ type Metrics struct {
 	CacheSize   *prometheus.GaugeVec
 
 	// Auth metrics
-	AuthAttempts *prometheus.CounterVec
-	AuthFailures *prometheus.CounterVec
-	AuthLatency  *prometheus.HistogramVec
+	AuthAttempts      *prometheus.CounterVec
+	AuthFailures      *prometheus.CounterVec
+	AuthLatency       *prometheus.HistogramVec
+	AuthLDAPFallbacks *prometheus.CounterVec
 
 	// Rate limit metrics
 	RateLimitHits *prometheus.CounterVec
@@ -238,6 +239,14 @@ func New() *Metrics {
 			Buckets: prometheus.DefBuckets,
 		},
 		[]string{"method"},
+	)
+
+	m.AuthLDAPFallbacks = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "schema_registry_auth_ldap_fallbacks_total",
+			Help: "Total number of LDAP authentication failures that fell back to database/htpasswd auth",
+		},
+		[]string{"username"},
 	)
 
 	// Rate limit metrics
@@ -462,6 +471,7 @@ func New() *Metrics {
 		m.AuthAttempts,
 		m.AuthFailures,
 		m.AuthLatency,
+		m.AuthLDAPFallbacks,
 		m.RateLimitHits,
 		m.MCPToolCallsTotal,
 		m.MCPToolCallDuration,
@@ -774,6 +784,12 @@ func (m *Metrics) RecordAuthAttempt(method string, success bool, reason string, 
 	if !success {
 		m.AuthFailures.WithLabelValues(method, reason).Inc()
 	}
+}
+
+// RecordAuthLDAPFallback records an LDAP authentication failure that fell back
+// to database/htpasswd authentication.
+func (m *Metrics) RecordAuthLDAPFallback(username string) {
+	m.AuthLDAPFallbacks.WithLabelValues(username).Inc()
 }
 
 // RecordRateLimitHit records a rate limit hit.

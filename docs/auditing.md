@@ -335,6 +335,7 @@ When the `events` list is empty in configuration, all events marked with **[defa
 | `auth_success` | Successful authentication | |
 | `auth_failure` | HTTP 401 (authentication failed) | **[default]** |
 | `auth_forbidden` | HTTP 403 (authorization failed) | **[default]** |
+| `auth_ldap_fallback` | LDAP authentication failed, falling back to database/htpasswd auth | **[default]** |
 
 ### Admin Events
 
@@ -417,6 +418,7 @@ For failure events, the `reason` field provides a machine-parseable classificati
 | `rate_limited` | Request rejected by rate limiter. | 429 |
 | `internal_error` | Unexpected server error. | 500 |
 | `ldap_no_tls` | LDAP configured without TLS encryption. | — |
+| `ldap_auth_failed_fallback_to_db` | LDAP authentication failed and request is falling back to database/htpasswd auth. | — |
 
 For MCP events, the same `reason` codes apply. Since MCP events do not have HTTP status codes, the `reason` field is the primary way to classify MCP failures.
 

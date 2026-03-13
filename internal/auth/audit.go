@@ -143,7 +143,8 @@ const (
 	AuditEventMCPConfirmed       AuditEventType = "mcp_confirmed"
 
 	// Security events
-	AuditEventSecurityWarning AuditEventType = "security_warning"
+	AuditEventSecurityWarning  AuditEventType = "security_warning"
+	AuditEventAuthLDAPFallback AuditEventType = "auth_ldap_fallback"
 )
 
 // AuditEvent represents an audit log entry following industry-standard audit
@@ -445,6 +446,7 @@ func setDefaultEnabledEvents(m map[AuditEventType]bool) {
 
 	// Security events
 	m[AuditEventSecurityWarning] = true
+	m[AuditEventAuthLDAPFallback] = true
 }
 
 // Log logs an audit event. When async mode is active (ch != nil), events are
