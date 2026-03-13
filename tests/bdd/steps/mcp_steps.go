@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/cucumber/godog"
 	gomcp "github.com/modelcontextprotocol/go-sdk/mcp"
@@ -765,14 +766,6 @@ func RegisterMCPSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 	// A value ending with "*" uses prefix matching (e.g., | after_hash | sha256:* |).
 	// An empty value (e.g., | actor_id | |) matches the empty string.
 	ctx.Step(`^the audit log should contain an event:$`, func(table *godog.Table) error {
-		logStr, available, err := getAuditLog()
-		if err != nil {
-			return err
-		}
-		if !available {
-			return nil // No audit infrastructure configured; skip assertion.
-		}
-
 		// Build expected field map from the table.
 		expected := make(map[string]string)
 		for _, row := range table.Rows {
@@ -785,57 +778,77 @@ func RegisterMCPSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 			return fmt.Errorf("audit assertion table must include event_type")
 		}
 
-		events := parseAuditEvents(logStr)
+		// matchEvents checks the audit log for a matching event.
+		matchEvents := func(events []map[string]interface{}) (bool, map[string]interface{}, int) {
+			var bestMatch map[string]interface{}
+			bestMatchCount := 0
+			for _, event := range events {
+				matchCount := 0
+				allMatch := true
+				for field, wantVal := range expected {
+					rawVal := event[field]
+					gotVal := fmt.Sprintf("%v", rawVal)
+					if field == "status_code" {
+						if num, ok := rawVal.(float64); ok {
+							gotVal = fmt.Sprintf("%d", int(num))
+						}
+					}
+					if rawVal == nil && wantVal == "" {
+						matchCount++
+					} else if field == "path" {
+						if path, ok := event["path"].(string); ok && strings.Contains(path, wantVal) {
+							matchCount++
+						} else {
+							allMatch = false
+						}
+					} else if strings.HasSuffix(wantVal, "*") {
+						prefix := strings.TrimSuffix(wantVal, "*")
+						if strings.HasPrefix(gotVal, prefix) {
+							matchCount++
+						} else {
+							allMatch = false
+						}
+					} else {
+						if gotVal == wantVal {
+							matchCount++
+						} else {
+							allMatch = false
+						}
+					}
+				}
+				if allMatch {
+					return true, nil, 0
+				}
+				if matchCount > bestMatchCount {
+					bestMatchCount = matchCount
+					bestMatch = event
+				}
+			}
+			return false, bestMatch, bestMatchCount
+		}
 
-		// Find an event matching ALL specified fields.
+		// Retry up to 500ms to handle async audit log flush timing.
+		var logStr string
+		var events []map[string]interface{}
 		var bestMatch map[string]interface{}
-		bestMatchCount := 0
-		for _, event := range events {
-			matchCount := 0
-			allMatch := true
-			for field, wantVal := range expected {
-				rawVal := event[field]
-				gotVal := fmt.Sprintf("%v", rawVal)
-				// Handle numeric fields that JSON decodes as float64.
-				if field == "status_code" {
-					if num, ok := rawVal.(float64); ok {
-						gotVal = fmt.Sprintf("%d", int(num))
-					}
-				}
-				// Treat missing (nil) field as empty string for matching —
-				// contextual fields use omitempty and are absent when zero.
-				if rawVal == nil && wantVal == "" {
-					matchCount++
-				} else if field == "path" {
-					// Path uses contains matching.
-					if path, ok := event["path"].(string); ok && strings.Contains(path, wantVal) {
-						matchCount++
-					} else {
-						allMatch = false
-					}
-				} else if strings.HasSuffix(wantVal, "*") {
-					// Prefix matching: "sha256:*" matches any value starting with "sha256:".
-					prefix := strings.TrimSuffix(wantVal, "*")
-					if strings.HasPrefix(gotVal, prefix) {
-						matchCount++
-					} else {
-						allMatch = false
-					}
-				} else {
-					if gotVal == wantVal {
-						matchCount++
-					} else {
-						allMatch = false
-					}
-				}
+		for attempt := 0; attempt < 5; attempt++ {
+			var available bool
+			var err error
+			logStr, available, err = getAuditLog()
+			if err != nil {
+				return err
 			}
-			if allMatch {
-				return nil // All fields match.
+			if !available {
+				return nil
 			}
-			if matchCount > bestMatchCount {
-				bestMatchCount = matchCount
-				bestMatch = event
+
+			events = parseAuditEvents(logStr)
+			found, bm, _ := matchEvents(events)
+			if found {
+				return nil
 			}
+			bestMatch = bm
+			time.Sleep(100 * time.Millisecond)
 		}
 
 		// Build a helpful error message showing the best partial match.
