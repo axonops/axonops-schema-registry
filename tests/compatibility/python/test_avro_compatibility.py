@@ -57,9 +57,9 @@ VALID_COMPATIBILITY_LEVELS = {
 class TestAvroSchemaRegistration:
     """Test schema registration produces consistent fingerprints."""
 
-    def test_register_user_schema(self, schema_registry_url, confluent_version):
+    def test_register_user_schema(self, schema_registry_conf, confluent_version):
         """Test that User schema registration produces consistent schema ID."""
-        client = SchemaRegistryClient({"url": schema_registry_url})
+        client = SchemaRegistryClient(schema_registry_conf)
 
         schema = Schema(USER_SCHEMA, "AVRO")
 
@@ -76,9 +76,9 @@ class TestAvroSchemaRegistration:
 
         print(f"Confluent Python {confluent_version}: User schema registered with ID {schema_id}")
 
-    def test_register_simple_schema(self, schema_registry_url, confluent_version):
+    def test_register_simple_schema(self, schema_registry_conf, confluent_version):
         """Test that SimpleRecord schema registration produces consistent schema ID."""
-        client = SchemaRegistryClient({"url": schema_registry_url})
+        client = SchemaRegistryClient(schema_registry_conf)
 
         schema = Schema(SIMPLE_SCHEMA, "AVRO")
 
@@ -88,9 +88,9 @@ class TestAvroSchemaRegistration:
         assert schema_id > 0
         print(f"Confluent Python {confluent_version}: Simple schema registered with ID {schema_id}")
 
-    def test_schema_deduplication(self, schema_registry_url, confluent_version):
+    def test_schema_deduplication(self, schema_registry_conf, confluent_version):
         """Test that registering the same schema twice returns the same ID."""
-        client = SchemaRegistryClient({"url": schema_registry_url})
+        client = SchemaRegistryClient(schema_registry_conf)
 
         schema = Schema(USER_SCHEMA, "AVRO")
 
@@ -107,9 +107,9 @@ class TestAvroSchemaRegistration:
 class TestAvroSerialization:
     """Test serialization produces correct wire format."""
 
-    def test_wire_format_structure(self, schema_registry_url, confluent_version):
+    def test_wire_format_structure(self, schema_registry_conf, confluent_version):
         """Test that serialized data follows Confluent wire format."""
-        client = SchemaRegistryClient({"url": schema_registry_url})
+        client = SchemaRegistryClient(schema_registry_conf)
 
         def user_to_dict(user, ctx):
             return user
@@ -140,9 +140,9 @@ class TestAvroSerialization:
 
         print(f"Wire format verified: magic=0x{magic_byte:02x}, schema_id={schema_id}, total_len={len(serialized)}")
 
-    def test_serialization_roundtrip(self, schema_registry_url, confluent_version):
+    def test_serialization_roundtrip(self, schema_registry_conf, confluent_version):
         """Test that data can be serialized and deserialized correctly."""
-        client = SchemaRegistryClient({"url": schema_registry_url})
+        client = SchemaRegistryClient(schema_registry_conf)
 
         def user_to_dict(user, ctx):
             return user
@@ -170,9 +170,9 @@ class TestAvroSerialization:
 
         print(f"Roundtrip verified for user: {original['name']}")
 
-    def test_null_handling(self, schema_registry_url, confluent_version):
+    def test_null_handling(self, schema_registry_conf, confluent_version):
         """Test that null values are handled correctly."""
-        client = SchemaRegistryClient({"url": schema_registry_url})
+        client = SchemaRegistryClient(schema_registry_conf)
 
         def user_to_dict(user, ctx):
             return user
@@ -198,9 +198,9 @@ class TestAvroSerialization:
 class TestAvroSchemaEvolution:
     """Test schema evolution compatibility."""
 
-    def test_backward_compatible_schema(self, schema_registry_url, confluent_version):
+    def test_backward_compatible_schema(self, schema_registry_conf, confluent_version):
         """Test registering a backward-compatible schema evolution."""
-        client = SchemaRegistryClient({"url": schema_registry_url})
+        client = SchemaRegistryClient(schema_registry_conf)
 
         # Original schema
         v1_schema = """{
@@ -244,9 +244,9 @@ class TestAvroSchemaEvolution:
 class TestAvroPaymentSchema:
     """Test complex schema with enum type."""
 
-    def test_payment_serialization(self, schema_registry_url, confluent_version):
+    def test_payment_serialization(self, schema_registry_conf, confluent_version):
         """Test serialization of schema with enum type."""
-        client = SchemaRegistryClient({"url": schema_registry_url})
+        client = SchemaRegistryClient(schema_registry_conf)
 
         def payment_to_dict(payment, ctx):
             return payment
@@ -274,9 +274,9 @@ class TestAvroPaymentSchema:
 class TestAvroGlobalSchemaID:
     """Test global schema ID behavior (Confluent-compatible)."""
 
-    def test_same_schema_across_subjects(self, schema_registry_url, confluent_version):
+    def test_same_schema_across_subjects(self, schema_registry_conf, confluent_version):
         """Test that same schema under different subjects returns same global ID."""
-        client = SchemaRegistryClient({"url": schema_registry_url})
+        client = SchemaRegistryClient(schema_registry_conf)
 
         schema = Schema(USER_SCHEMA, "AVRO")
 
@@ -302,7 +302,7 @@ class TestAvroGlobalSchemaID:
 class TestAvroConcurrentRegistration:
     """Test concurrent schema registration."""
 
-    def test_concurrent_registration_returns_consistent_ids(self, schema_registry_url, confluent_version):
+    def test_concurrent_registration_returns_consistent_ids(self, schema_registry_conf, confluent_version):
         """Test that concurrent registrations return the same schema ID."""
         subject = f"python-avro-concurrent-{int(time.time() * 1000)}-value"
         num_threads = 10
@@ -315,7 +315,7 @@ class TestAvroConcurrentRegistration:
         def register_schema(thread_id):
             try:
                 # Each thread gets its own client
-                thread_client = SchemaRegistryClient({"url": schema_registry_url})
+                thread_client = SchemaRegistryClient(schema_registry_conf)
 
                 # Wait for all threads to be ready
                 barrier.wait()
@@ -343,7 +343,7 @@ class TestAvroConcurrentRegistration:
             f"All concurrent registrations should return the same schema ID, got: {unique_ids}"
 
         # Verify only one version was created
-        client = SchemaRegistryClient({"url": schema_registry_url})
+        client = SchemaRegistryClient(schema_registry_conf)
         versions = client.get_versions(subject)
         assert len(versions) == 1, \
             f"Only one version should exist after concurrent registration, got: {len(versions)}"
@@ -354,9 +354,9 @@ class TestAvroConcurrentRegistration:
 class TestAvroConfigEndpoints:
     """Test config endpoints."""
 
-    def test_get_global_compatibility(self, schema_registry_url):
+    def test_get_global_compatibility(self, schema_registry_url, schema_registry_auth):
         """Test that global compatibility returns a valid Confluent level."""
-        response = requests.get(f"{schema_registry_url}/config")
+        response = requests.get(f"{schema_registry_url}/config", auth=schema_registry_auth)
         assert response.status_code == 200
 
         config = response.json()
@@ -371,10 +371,10 @@ class TestAvroConfigEndpoints:
 class TestAvroIncompatibleSchemaEvolution:
     """Test incompatible schema evolution fails correctly."""
 
-    def test_incompatible_schema_rejected(self, schema_registry_url, confluent_version):
+    def test_incompatible_schema_rejected(self, schema_registry_url, schema_registry_conf, schema_registry_auth, confluent_version):
         """Test that incompatible schema evolution fails with correct error."""
         subject = f"python-avro-incompat-{int(time.time() * 1000)}-value"
-        client = SchemaRegistryClient({"url": schema_registry_url})
+        client = SchemaRegistryClient(schema_registry_conf)
 
         # Register v1 schema
         schema = Schema(USER_SCHEMA, "AVRO")
@@ -384,12 +384,13 @@ class TestAvroIncompatibleSchemaEvolution:
         response = requests.put(
             f"{schema_registry_url}/config/{subject}",
             json={"compatibility": "BACKWARD"},
-            headers={"Content-Type": "application/json"}
+            headers={"Content-Type": "application/json"},
+            auth=schema_registry_auth
         )
         assert response.status_code == 200
 
         # Verify compatibility was set
-        response = requests.get(f"{schema_registry_url}/config/{subject}")
+        response = requests.get(f"{schema_registry_url}/config/{subject}", auth=schema_registry_auth)
         assert response.status_code == 200
         assert response.json().get("compatibilityLevel") == "BACKWARD"
 
@@ -425,17 +426,17 @@ class TestAvroIncompatibleSchemaEvolution:
 class TestAvroCacheBehavior:
     """Test cache behavior with fresh clients."""
 
-    def test_fresh_client_cache_miss(self, schema_registry_url, confluent_version):
+    def test_fresh_client_cache_miss(self, schema_registry_conf, confluent_version):
         """Test that a fresh client can fetch schema after cache bypass."""
         subject = f"python-avro-cache-{int(time.time() * 1000)}-value"
 
         # Register schema with first client
-        client1 = SchemaRegistryClient({"url": schema_registry_url})
+        client1 = SchemaRegistryClient(schema_registry_conf)
         schema = Schema(USER_SCHEMA, "AVRO")
         schema_id = client1.register_schema(subject, schema)
 
         # Create a completely new client (empty cache)
-        client2 = SchemaRegistryClient({"url": schema_registry_url})
+        client2 = SchemaRegistryClient(schema_registry_conf)
 
         # Fetch schema with fresh client (cache miss, must hit registry)
         fetched = client2.get_schema(schema_id)
@@ -449,7 +450,7 @@ class TestAvroCacheBehavior:
 class TestAvroSchemaCanonicalisation:
     """Test schema canonicalization."""
 
-    def test_same_schema_different_formatting(self, schema_registry_url, confluent_version):
+    def test_same_schema_different_formatting(self, schema_registry_conf, confluent_version):
         """Test that same schema with different formatting returns same ID."""
         # Same Avro schema content but with different formatting
         # This tests that the registry canonicalizes schemas before comparison
@@ -475,7 +476,7 @@ class TestAvroSchemaCanonicalisation:
         subject1 = f"python-avro-canon1-{int(time.time() * 1000)}-value"
         subject2 = f"python-avro-canon2-{int(time.time() * 1000)}-value"
 
-        client = SchemaRegistryClient({"url": schema_registry_url})
+        client = SchemaRegistryClient(schema_registry_conf)
 
         # Register compact schema
         schema1 = Schema(compact_schema, "AVRO")

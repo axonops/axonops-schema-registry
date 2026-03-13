@@ -51,7 +51,7 @@ const orderJSONSchema = `{
 }`
 
 func TestJSONSchemaRegistration(t *testing.T) {
-	client := srclient.CreateSchemaRegistryClient(getSchemaRegistryURL())
+	client := newSchemaRegistryClient()
 
 	t.Run("RegisterUserJSONSchema", func(t *testing.T) {
 		subject := "go-json-user-value"
@@ -89,7 +89,7 @@ func TestJSONSchemaRegistration(t *testing.T) {
 }
 
 func TestJSONSchemaSerialization(t *testing.T) {
-	client := srclient.CreateSchemaRegistryClient(getSchemaRegistryURL())
+	client := newSchemaRegistryClient()
 
 	t.Run("WireFormatStructure", func(t *testing.T) {
 		subject := "go-json-wire-value"
@@ -214,7 +214,7 @@ func TestJSONSchemaSerialization(t *testing.T) {
 }
 
 func TestJSONSchemaEvolution(t *testing.T) {
-	client := srclient.CreateSchemaRegistryClient(getSchemaRegistryURL())
+	client := newSchemaRegistryClient()
 
 	t.Run("AddOptionalProperty", func(t *testing.T) {
 		v1Schema := `{
@@ -259,7 +259,7 @@ func TestJSONSchemaEvolution(t *testing.T) {
 }
 
 func TestJSONSchemaGlobalSchemaID(t *testing.T) {
-	client := srclient.CreateSchemaRegistryClient(getSchemaRegistryURL())
+	client := newSchemaRegistryClient()
 
 	t.Run("SameSchemaAcrossSubjects", func(t *testing.T) {
 		subject1 := "go-json-global1-value"
@@ -305,7 +305,7 @@ func TestJSONSchemaConcurrentRegistration(t *testing.T) {
 			defer wg.Done()
 
 			// Each goroutine gets its own client
-			client := srclient.CreateSchemaRegistryClient(getSchemaRegistryURL())
+			client := newSchemaRegistryClient()
 
 			// Wait for start signal
 			<-readyChan
@@ -346,7 +346,7 @@ func TestJSONSchemaConcurrentRegistration(t *testing.T) {
 		"All concurrent registrations should return the same schema ID, got %d different IDs", len(schemaIDs))
 
 	// Verify only one version was created
-	client := srclient.CreateSchemaRegistryClient(getSchemaRegistryURL())
+	client := newSchemaRegistryClient()
 	versions, err := client.GetSchemaVersions(subject)
 	require.NoError(t, err)
 	assert.Equal(t, 1, len(versions),
@@ -358,7 +358,7 @@ func TestJSONSchemaConcurrentRegistration(t *testing.T) {
 func TestJSONSchemaConfigEndpoints(t *testing.T) {
 	t.Run("GetGlobalCompatibility", func(t *testing.T) {
 		// Use HTTP client directly since srclient may not expose config APIs
-		resp, err := http.Get(getSchemaRegistryURL() + "/config")
+		resp, err := authGet(getSchemaRegistryURL() + "/config")
 		require.NoError(t, err)
 		defer resp.Body.Close()
 
@@ -381,7 +381,7 @@ func TestJSONSchemaIncompatibleSchemaEvolution(t *testing.T) {
 	subject := fmt.Sprintf("go-json-incompat-%d-value", time.Now().UnixNano())
 
 	// First, register v1 schema
-	client := srclient.CreateSchemaRegistryClient(getSchemaRegistryURL())
+	client := newSchemaRegistryClient()
 	_, err := client.CreateSchema(subject, userJSONSchema, srclient.Json)
 	require.NoError(t, err)
 
@@ -391,12 +391,12 @@ func TestJSONSchemaIncompatibleSchemaEvolution(t *testing.T) {
 	require.NoError(t, err)
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := doRequest(req)
 	require.NoError(t, err)
 	resp.Body.Close()
 
 	// Verify compatibility was set
-	resp, err = http.Get(getSchemaRegistryURL() + "/config/" + subject)
+	resp, err = authGet(getSchemaRegistryURL() + "/config/" + subject)
 	require.NoError(t, err)
 	defer resp.Body.Close()
 
@@ -441,12 +441,12 @@ func TestJSONSchemaCacheBehavior(t *testing.T) {
 	subject := fmt.Sprintf("go-json-cache-%d-value", time.Now().UnixNano())
 
 	// Register schema with first client
-	client1 := srclient.CreateSchemaRegistryClient(getSchemaRegistryURL())
+	client1 := newSchemaRegistryClient()
 	schema, err := client1.CreateSchema(subject, userJSONSchema, srclient.Json)
 	require.NoError(t, err)
 
 	// Create a completely new client (empty cache)
-	client2 := srclient.CreateSchemaRegistryClient(getSchemaRegistryURL())
+	client2 := newSchemaRegistryClient()
 
 	// Fetch schema with fresh client (cache miss, must hit registry)
 	fetchedSchema, err := client2.GetSchema(schema.ID())
@@ -484,7 +484,7 @@ func TestJSONSchemaCanonicalisation(t *testing.T) {
 	subject1 := fmt.Sprintf("go-json-canon1-%d-value", time.Now().UnixNano())
 	subject2 := fmt.Sprintf("go-json-canon2-%d-value", time.Now().UnixNano())
 
-	client := srclient.CreateSchemaRegistryClient(getSchemaRegistryURL())
+	client := newSchemaRegistryClient()
 
 	// Register compact schema
 	schema1, err := client.CreateSchema(subject1, compactSchema, srclient.Json)

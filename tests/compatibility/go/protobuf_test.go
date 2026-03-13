@@ -39,7 +39,7 @@ message Event {
 `
 
 func TestProtobufSchemaRegistration(t *testing.T) {
-	client := srclient.CreateSchemaRegistryClient(getSchemaRegistryURL())
+	client := newSchemaRegistryClient()
 
 	t.Run("RegisterUserProto", func(t *testing.T) {
 		subject := "go-proto-user-value"
@@ -77,7 +77,7 @@ func TestProtobufSchemaRegistration(t *testing.T) {
 }
 
 func TestProtobufSchemaEvolution(t *testing.T) {
-	client := srclient.CreateSchemaRegistryClient(getSchemaRegistryURL())
+	client := newSchemaRegistryClient()
 
 	t.Run("AddOptionalField", func(t *testing.T) {
 		v1Proto := `
@@ -118,7 +118,7 @@ message Record {
 }
 
 func TestProtobufWireFormat(t *testing.T) {
-	client := srclient.CreateSchemaRegistryClient(getSchemaRegistryURL())
+	client := newSchemaRegistryClient()
 
 	t.Run("WireFormatHeader", func(t *testing.T) {
 		subject := "go-proto-wire-value"
@@ -140,7 +140,7 @@ func TestProtobufWireFormat(t *testing.T) {
 }
 
 func TestProtobufGlobalSchemaID(t *testing.T) {
-	client := srclient.CreateSchemaRegistryClient(getSchemaRegistryURL())
+	client := newSchemaRegistryClient()
 
 	t.Run("SameSchemaAcrossSubjects", func(t *testing.T) {
 		subject1 := "go-proto-global1-value"
@@ -186,7 +186,7 @@ func TestProtobufConcurrentRegistration(t *testing.T) {
 			defer wg.Done()
 
 			// Each goroutine gets its own client
-			client := srclient.CreateSchemaRegistryClient(getSchemaRegistryURL())
+			client := newSchemaRegistryClient()
 
 			// Wait for start signal
 			<-readyChan
@@ -227,7 +227,7 @@ func TestProtobufConcurrentRegistration(t *testing.T) {
 		"All concurrent registrations should return the same schema ID, got %d different IDs", len(schemaIDs))
 
 	// Verify only one version was created
-	client := srclient.CreateSchemaRegistryClient(getSchemaRegistryURL())
+	client := newSchemaRegistryClient()
 	versions, err := client.GetSchemaVersions(subject)
 	require.NoError(t, err)
 	assert.Equal(t, 1, len(versions),
@@ -239,7 +239,7 @@ func TestProtobufConcurrentRegistration(t *testing.T) {
 func TestProtobufConfigEndpoints(t *testing.T) {
 	t.Run("GetGlobalCompatibility", func(t *testing.T) {
 		// Use HTTP client directly since srclient may not expose config APIs
-		resp, err := http.Get(getSchemaRegistryURL() + "/config")
+		resp, err := authGet(getSchemaRegistryURL() + "/config")
 		require.NoError(t, err)
 		defer resp.Body.Close()
 
@@ -262,7 +262,7 @@ func TestProtobufIncompatibleSchemaEvolution(t *testing.T) {
 	subject := fmt.Sprintf("go-proto-incompat-%d-value", time.Now().UnixNano())
 
 	// First, register v1 schema
-	client := srclient.CreateSchemaRegistryClient(getSchemaRegistryURL())
+	client := newSchemaRegistryClient()
 	_, err := client.CreateSchema(subject, userProtoSchema, srclient.Protobuf)
 	require.NoError(t, err)
 
@@ -272,12 +272,12 @@ func TestProtobufIncompatibleSchemaEvolution(t *testing.T) {
 	require.NoError(t, err)
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := doRequest(req)
 	require.NoError(t, err)
 	resp.Body.Close()
 
 	// Verify compatibility was set
-	resp, err = http.Get(getSchemaRegistryURL() + "/config/" + subject)
+	resp, err = authGet(getSchemaRegistryURL() + "/config/" + subject)
 	require.NoError(t, err)
 	defer resp.Body.Close()
 
@@ -321,12 +321,12 @@ func TestProtobufCacheBehavior(t *testing.T) {
 	subject := fmt.Sprintf("go-proto-cache-%d-value", time.Now().UnixNano())
 
 	// Register schema with first client
-	client1 := srclient.CreateSchemaRegistryClient(getSchemaRegistryURL())
+	client1 := newSchemaRegistryClient()
 	schema, err := client1.CreateSchema(subject, userProtoSchema, srclient.Protobuf)
 	require.NoError(t, err)
 
 	// Create a completely new client (empty cache)
-	client2 := srclient.CreateSchemaRegistryClient(getSchemaRegistryURL())
+	client2 := newSchemaRegistryClient()
 
 	// Fetch schema with fresh client (cache miss, must hit registry)
 	fetchedSchema, err := client2.GetSchema(schema.ID())
@@ -364,7 +364,7 @@ message Canonical {
 	subject1 := fmt.Sprintf("go-proto-canon1-%d-value", time.Now().UnixNano())
 	subject2 := fmt.Sprintf("go-proto-canon2-%d-value", time.Now().UnixNano())
 
-	client := srclient.CreateSchemaRegistryClient(getSchemaRegistryURL())
+	client := newSchemaRegistryClient()
 
 	// Register compact schema
 	schema1, err := client.CreateSchema(subject1, compactProto, srclient.Protobuf)

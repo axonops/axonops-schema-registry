@@ -26,15 +26,50 @@ public class TestHelper {
     private static final String CONTENT_TYPE = "application/vnd.schemaregistry.v1+json";
 
     /**
+     * Get the schema registry username from system property or environment variable.
+     * Returns null if not set.
+     */
+    private static String getUsername() {
+        String u = System.getProperty("schema.registry.username");
+        if (u != null && !u.isEmpty()) return u;
+        u = System.getenv("SCHEMA_REGISTRY_USERNAME");
+        return (u != null && !u.isEmpty()) ? u : null;
+    }
+
+    /**
+     * Get the schema registry password from system property or environment variable.
+     * Returns empty string if not set.
+     */
+    private static String getPassword() {
+        String p = System.getProperty("schema.registry.password");
+        if (p != null && !p.isEmpty()) return p;
+        p = System.getenv("SCHEMA_REGISTRY_PASSWORD");
+        return (p != null && !p.isEmpty()) ? p : "";
+    }
+
+    /**
+     * Add Basic Auth header to request builder if credentials are configured.
+     */
+    private static HttpRequest.Builder withAuth(HttpRequest.Builder builder) {
+        String username = getUsername();
+        if (username != null) {
+            String credentials = username + ":" + getPassword();
+            String encoded = java.util.Base64.getEncoder().encodeToString(credentials.getBytes());
+            builder.header("Authorization", "Basic " + encoded);
+        }
+        return builder;
+    }
+
+    /**
      * Register a schema with metadata and ruleSet via REST API.
      * Returns the global schema ID.
      */
     static int registerSchemaWithRules(String registryUrl, String subject, String body) {
         String url = registryUrl + "/subjects/" + subject + "/versions";
-        HttpRequest request = HttpRequest.newBuilder()
+        HttpRequest request = withAuth(HttpRequest.newBuilder()
                 .uri(URI.create(url))
                 .header("Content-Type", CONTENT_TYPE)
-                .POST(HttpRequest.BodyPublishers.ofString(body))
+                .POST(HttpRequest.BodyPublishers.ofString(body)))
                 .build();
         try {
             HttpResponse<String> response = HTTP.send(request, HttpResponse.BodyHandlers.ofString());
@@ -58,10 +93,10 @@ public class TestHelper {
      */
     static void setSubjectConfig(String registryUrl, String subject, String body) {
         String url = registryUrl + "/config/" + subject;
-        HttpRequest request = HttpRequest.newBuilder()
+        HttpRequest request = withAuth(HttpRequest.newBuilder()
                 .uri(URI.create(url))
                 .header("Content-Type", CONTENT_TYPE)
-                .PUT(HttpRequest.BodyPublishers.ofString(body))
+                .PUT(HttpRequest.BodyPublishers.ofString(body)))
                 .build();
         try {
             HttpResponse<String> response = HTTP.send(request, HttpResponse.BodyHandlers.ofString());
@@ -79,10 +114,10 @@ public class TestHelper {
      */
     static void setGlobalConfig(String registryUrl, String body) {
         String url = registryUrl + "/config";
-        HttpRequest request = HttpRequest.newBuilder()
+        HttpRequest request = withAuth(HttpRequest.newBuilder()
                 .uri(URI.create(url))
                 .header("Content-Type", CONTENT_TYPE)
-                .PUT(HttpRequest.BodyPublishers.ofString(body))
+                .PUT(HttpRequest.BodyPublishers.ofString(body)))
                 .build();
         try {
             HttpResponse<String> response = HTTP.send(request, HttpResponse.BodyHandlers.ofString());
@@ -100,10 +135,10 @@ public class TestHelper {
      */
     static String getSchemaVersion(String registryUrl, String subject, int version) {
         String url = registryUrl + "/subjects/" + subject + "/versions/" + version;
-        HttpRequest request = HttpRequest.newBuilder()
+        HttpRequest request = withAuth(HttpRequest.newBuilder()
                 .uri(URI.create(url))
                 .header("Accept", CONTENT_TYPE)
-                .GET()
+                .GET())
                 .build();
         try {
             HttpResponse<String> response = HTTP.send(request, HttpResponse.BodyHandlers.ofString());
@@ -122,10 +157,10 @@ public class TestHelper {
      */
     static String getKEK(String registryUrl, String kekName) {
         String url = registryUrl + "/dek-registry/v1/keks/" + kekName;
-        HttpRequest request = HttpRequest.newBuilder()
+        HttpRequest request = withAuth(HttpRequest.newBuilder()
                 .uri(URI.create(url))
                 .header("Accept", CONTENT_TYPE)
-                .GET()
+                .GET())
                 .build();
         try {
             HttpResponse<String> response = HTTP.send(request, HttpResponse.BodyHandlers.ofString());
@@ -140,10 +175,10 @@ public class TestHelper {
      */
     static String getDEK(String registryUrl, String kekName, String subject) {
         String url = registryUrl + "/dek-registry/v1/keks/" + kekName + "/deks/" + subject;
-        HttpRequest request = HttpRequest.newBuilder()
+        HttpRequest request = withAuth(HttpRequest.newBuilder()
                 .uri(URI.create(url))
                 .header("Accept", CONTENT_TYPE)
-                .GET()
+                .GET())
                 .build();
         try {
             HttpResponse<String> response = HTTP.send(request, HttpResponse.BodyHandlers.ofString());
@@ -160,16 +195,16 @@ public class TestHelper {
         try {
             // Soft delete first
             String url = registryUrl + "/subjects/" + subject;
-            HttpRequest softDelete = HttpRequest.newBuilder()
+            HttpRequest softDelete = withAuth(HttpRequest.newBuilder()
                     .uri(URI.create(url))
-                    .DELETE()
+                    .DELETE())
                     .build();
             HTTP.send(softDelete, HttpResponse.BodyHandlers.ofString());
 
             // Then permanent delete
-            HttpRequest hardDelete = HttpRequest.newBuilder()
+            HttpRequest hardDelete = withAuth(HttpRequest.newBuilder()
                     .uri(URI.create(url + "?permanent=true"))
-                    .DELETE()
+                    .DELETE())
                     .build();
             HTTP.send(hardDelete, HttpResponse.BodyHandlers.ofString());
         } catch (IOException | InterruptedException e) {
@@ -181,11 +216,17 @@ public class TestHelper {
      * Create a SchemaRegistryClient with all providers registered.
      */
     static SchemaRegistryClient createClient(String registryUrl) {
+        Map<String, Object> configs = new HashMap<>();
+        String username = getUsername();
+        if (username != null) {
+            configs.put("basic.auth.credentials.source", "USER_INFO");
+            configs.put("basic.auth.user.info", username + ":" + getPassword());
+        }
         return new CachedSchemaRegistryClient(
                 Collections.singletonList(registryUrl),
                 100,
                 Arrays.asList(new AvroSchemaProvider(), new JsonSchemaProvider(), new ProtobufSchemaProvider()),
-                Collections.emptyMap(),
+                configs,
                 Collections.emptyMap()
         );
     }

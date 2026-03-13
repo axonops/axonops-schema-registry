@@ -72,6 +72,8 @@ except ImportError as e:
 # Constants
 # ---------------------------------------------------------------------------
 REGISTRY_URL = os.environ.get("SCHEMA_REGISTRY_URL", "http://localhost:8081")
+REGISTRY_USERNAME = os.environ.get("SCHEMA_REGISTRY_USERNAME")
+REGISTRY_PASSWORD = os.environ.get("SCHEMA_REGISTRY_PASSWORD", "")
 VAULT_URL = os.environ.get("VAULT_URL", "http://localhost:18200")
 VAULT_TOKEN = os.environ.get("VAULT_TOKEN", "test-root-token")
 
@@ -80,6 +82,9 @@ HEADERS = {
     "Content-Type": CONTENT_TYPE,
     "Accept": CONTENT_TYPE,
 }
+
+# Optional Basic Auth for requests calls
+_AUTH = (REGISTRY_USERNAME, REGISTRY_PASSWORD) if REGISTRY_USERNAME else None
 
 
 # ===========================================================================
@@ -129,7 +134,7 @@ PAYMENT_EVENT_SCHEMA = json.dumps({
 def register_schema(subject, body):
     """Register a schema via the REST API and return the global schema ID."""
     url = f"{REGISTRY_URL}/subjects/{subject}/versions"
-    resp = requests.post(url, headers=HEADERS, data=body)
+    resp = requests.post(url, headers=HEADERS, data=body, auth=_AUTH)
     assert resp.status_code == 200, (
         f"Failed to register schema for {subject}: "
         f"HTTP {resp.status_code} - {resp.text}"
@@ -141,11 +146,11 @@ def delete_subject(subject):
     """Permanently delete a subject (soft then hard). Errors are ignored."""
     url = f"{REGISTRY_URL}/subjects/{subject}"
     try:
-        requests.delete(url, headers={"Accept": CONTENT_TYPE})
+        requests.delete(url, headers={"Accept": CONTENT_TYPE}, auth=_AUTH)
     except Exception:
         pass
     try:
-        requests.delete(f"{url}?permanent=true", headers={"Accept": CONTENT_TYPE})
+        requests.delete(f"{url}?permanent=true", headers={"Accept": CONTENT_TYPE}, auth=_AUTH)
     except Exception:
         pass
 
@@ -164,7 +169,7 @@ def get_kek(kek_name):
     """Fetch a KEK from the DEK Registry. Returns empty string if not found."""
     url = f"{REGISTRY_URL}/dek-registry/v1/keks/{kek_name}"
     try:
-        resp = requests.get(url, headers={"Accept": CONTENT_TYPE})
+        resp = requests.get(url, headers={"Accept": CONTENT_TYPE}, auth=_AUTH)
         if resp.status_code != 200:
             return ""
         return resp.text
@@ -176,7 +181,7 @@ def get_dek(kek_name, subject):
     """Fetch a DEK from the DEK Registry. Returns empty string if not found."""
     url = f"{REGISTRY_URL}/dek-registry/v1/keks/{kek_name}/deks/{subject}"
     try:
-        resp = requests.get(url, headers={"Accept": CONTENT_TYPE})
+        resp = requests.get(url, headers={"Accept": CONTENT_TYPE}, auth=_AUTH)
         if resp.status_code != 200:
             return ""
         return resp.text
@@ -217,8 +222,11 @@ def build_schema_with_encrypt_rule(avro_schema, kek_name):
 # ===========================================================================
 
 def new_client():
-    """Create a SchemaRegistryClient."""
-    return SchemaRegistryClient({"url": REGISTRY_URL})
+    """Create a SchemaRegistryClient with optional Basic Auth."""
+    conf = {"url": REGISTRY_URL}
+    if REGISTRY_USERNAME:
+        conf["basic.auth.user.info"] = f"{REGISTRY_USERNAME}:{REGISTRY_PASSWORD}"
+    return SchemaRegistryClient(conf)
 
 
 def new_csfle_serializer(client, schema_str):

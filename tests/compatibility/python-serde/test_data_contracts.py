@@ -52,12 +52,17 @@ except ImportError as e:
 # Constants
 # ---------------------------------------------------------------------------
 REGISTRY_URL = os.environ.get("SCHEMA_REGISTRY_URL", "http://localhost:8081")
+REGISTRY_USERNAME = os.environ.get("SCHEMA_REGISTRY_USERNAME")
+REGISTRY_PASSWORD = os.environ.get("SCHEMA_REGISTRY_PASSWORD", "")
 
 CONTENT_TYPE = "application/vnd.schemaregistry.v1+json"
 HEADERS = {
     "Content-Type": CONTENT_TYPE,
     "Accept": CONTENT_TYPE,
 }
+
+# Optional Basic Auth for requests calls
+_AUTH = (REGISTRY_USERNAME, REGISTRY_PASSWORD) if REGISTRY_USERNAME else None
 
 
 # ===========================================================================
@@ -67,7 +72,7 @@ HEADERS = {
 def register_schema(subject, body):
     """Register a schema via the REST API and return the global schema ID."""
     url = f"{REGISTRY_URL}/subjects/{subject}/versions"
-    resp = requests.post(url, headers=HEADERS, data=body)
+    resp = requests.post(url, headers=HEADERS, data=body, auth=_AUTH)
     assert resp.status_code == 200, (
         f"Failed to register schema for {subject}: "
         f"HTTP {resp.status_code} - {resp.text}"
@@ -78,7 +83,7 @@ def register_schema(subject, body):
 def get_schema_version(subject, version):
     """Fetch a schema version and return the raw JSON response string."""
     url = f"{REGISTRY_URL}/subjects/{subject}/versions/{version}"
-    resp = requests.get(url, headers={"Accept": CONTENT_TYPE})
+    resp = requests.get(url, headers={"Accept": CONTENT_TYPE}, auth=_AUTH)
     assert resp.status_code == 200, (
         f"Failed to get {subject} v{version}: "
         f"HTTP {resp.status_code} - {resp.text}"
@@ -90,12 +95,12 @@ def delete_subject(subject):
     """Permanently delete a subject (soft then hard). Errors are ignored."""
     url = f"{REGISTRY_URL}/subjects/{subject}"
     try:
-        requests.delete(url, headers={"Accept": CONTENT_TYPE})
+        requests.delete(url, headers={"Accept": CONTENT_TYPE}, auth=_AUTH)
     except Exception:
         pass
     try:
         requests.delete(
-            f"{url}?permanent=true", headers={"Accept": CONTENT_TYPE}
+            f"{url}?permanent=true", headers={"Accept": CONTENT_TYPE}, auth=_AUTH
         )
     except Exception:
         pass
@@ -104,7 +109,7 @@ def delete_subject(subject):
 def set_subject_config(subject, body):
     """Set subject-level config (compatibility, defaultRuleSet, etc.)."""
     url = f"{REGISTRY_URL}/config/{subject}"
-    resp = requests.put(url, headers=HEADERS, data=body)
+    resp = requests.put(url, headers=HEADERS, data=body, auth=_AUTH)
     assert resp.status_code == 200, (
         f"Failed to set config for {subject}: "
         f"HTTP {resp.status_code} - {resp.text}"
@@ -144,8 +149,11 @@ def escape_json(s):
 # ===========================================================================
 
 def new_client():
-    """Create a SchemaRegistryClient."""
-    return SchemaRegistryClient({"url": REGISTRY_URL})
+    """Create a SchemaRegistryClient with optional Basic Auth."""
+    conf = {"url": REGISTRY_URL}
+    if REGISTRY_USERNAME:
+        conf["basic.auth.user.info"] = f"{REGISTRY_USERNAME}:{REGISTRY_PASSWORD}"
+    return SchemaRegistryClient(conf)
 
 
 def new_rule_serializer(client, schema_str):

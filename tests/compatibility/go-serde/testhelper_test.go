@@ -35,6 +35,14 @@ func getRegistryURL() string {
 	return "http://localhost:8081"
 }
 
+func getRegistryUsername() string {
+	return os.Getenv("SCHEMA_REGISTRY_USERNAME")
+}
+
+func getRegistryPassword() string {
+	return os.Getenv("SCHEMA_REGISTRY_PASSWORD")
+}
+
 func getVaultURL() string {
 	if url := os.Getenv("VAULT_URL"); url != "" {
 		return url
@@ -99,6 +107,9 @@ func httpDo(t *testing.T, method, url, body string) (*http.Response, error) {
 		req.Header.Set("Content-Type", schemaRegistryContentType)
 	}
 	req.Header.Set("Accept", schemaRegistryContentType)
+	if u := getRegistryUsername(); u != "" {
+		req.SetBasicAuth(u, getRegistryPassword())
+	}
 	return http.DefaultClient.Do(req)
 }
 
@@ -200,7 +211,12 @@ func getDEK(t *testing.T, kekName, subject string) string {
 
 func newClient(t *testing.T) schemaregistry.Client {
 	t.Helper()
-	conf := schemaregistry.NewConfig(getRegistryURL())
+	var conf *schemaregistry.Config
+	if u := getRegistryUsername(); u != "" {
+		conf = schemaregistry.NewConfigWithBasicAuthentication(getRegistryURL(), u, getRegistryPassword())
+	} else {
+		conf = schemaregistry.NewConfig(getRegistryURL())
+	}
 	client, err := schemaregistry.NewClient(conf)
 	require.NoError(t, err, "failed to create schema registry client")
 	return client

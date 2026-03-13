@@ -44,6 +44,31 @@ def schema_registry_url():
 
 
 @pytest.fixture(scope="session")
+def schema_registry_auth():
+    """Return optional Basic Auth credentials from environment.
+
+    Returns (username, password) tuple if SCHEMA_REGISTRY_USERNAME is set,
+    otherwise returns None. Pass to requests calls as auth= parameter.
+    """
+    username = os.environ.get("SCHEMA_REGISTRY_USERNAME")
+    if username:
+        password = os.environ.get("SCHEMA_REGISTRY_PASSWORD", "")
+        return (username, password)
+    return None
+
+
+@pytest.fixture(scope="session")
+def schema_registry_conf(schema_registry_url):
+    """Return SchemaRegistryClient config dict with optional Basic Auth."""
+    conf = {"url": schema_registry_url}
+    username = os.environ.get("SCHEMA_REGISTRY_USERNAME")
+    if username:
+        password = os.environ.get("SCHEMA_REGISTRY_PASSWORD", "")
+        conf["basic.auth.user.info"] = f"{username}:{password}"
+    return conf
+
+
+@pytest.fixture(scope="session")
 def vault_url():
     """Return the Vault URL from environment or default."""
     return os.environ.get("VAULT_URL", "http://localhost:18200")

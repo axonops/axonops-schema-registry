@@ -75,17 +75,17 @@ public class AvroCompatibilityTest {
         System.out.println("Running Avro compatibility tests with Confluent version: " + CONFLUENT_VERSION);
         System.out.println("Schema Registry URL: " + SCHEMA_REGISTRY_URL);
 
-        schemaRegistryClient = new CachedSchemaRegistryClient(
-            Collections.singletonList(SCHEMA_REGISTRY_URL),
-            100,
-            Arrays.asList(new AvroSchemaProvider(), new JsonSchemaProvider(), new ProtobufSchemaProvider()),
-            Collections.emptyMap(),
-            Collections.emptyMap()
-        );
+        schemaRegistryClient = TestHelper.createClient(SCHEMA_REGISTRY_URL);
 
         Map<String, Object> serializerConfig = new HashMap<>();
         serializerConfig.put("schema.registry.url", SCHEMA_REGISTRY_URL);
         serializerConfig.put("auto.register.schemas", true);
+
+        String username = System.getenv("SCHEMA_REGISTRY_USERNAME");
+        if (username != null && !username.isEmpty()) {
+            serializerConfig.put("basic.auth.credentials.source", "USER_INFO");
+            serializerConfig.put("basic.auth.user.info", username + ":" + System.getenv().getOrDefault("SCHEMA_REGISTRY_PASSWORD", ""));
+        }
 
         serializer = new KafkaAvroSerializer(schemaRegistryClient);
         serializer.configure(serializerConfig, false);
@@ -346,17 +346,17 @@ public class AvroCompatibilityTest {
             final int idx = i;
             futures.add(executor.submit(() -> {
                 // Create thread-local client and serializer for true concurrent HTTP requests
-                SchemaRegistryClient threadClient = new CachedSchemaRegistryClient(
-                    Collections.singletonList(SCHEMA_REGISTRY_URL),
-                    100,
-                    Arrays.asList(new AvroSchemaProvider(), new JsonSchemaProvider(), new ProtobufSchemaProvider()),
-                    Collections.emptyMap(),
-                    Collections.emptyMap()
-                );
+                SchemaRegistryClient threadClient = TestHelper.createClient(SCHEMA_REGISTRY_URL);
 
                 Map<String, Object> config = new HashMap<>();
                 config.put("schema.registry.url", SCHEMA_REGISTRY_URL);
                 config.put("auto.register.schemas", true);
+
+                String threadUsername = System.getenv("SCHEMA_REGISTRY_USERNAME");
+                if (threadUsername != null && !threadUsername.isEmpty()) {
+                    config.put("basic.auth.credentials.source", "USER_INFO");
+                    config.put("basic.auth.user.info", threadUsername + ":" + System.getenv().getOrDefault("SCHEMA_REGISTRY_PASSWORD", ""));
+                }
 
                 KafkaAvroSerializer threadSerializer = new KafkaAvroSerializer(threadClient);
                 threadSerializer.configure(config, false);
@@ -477,17 +477,17 @@ public class AvroCompatibilityTest {
             """;
 
         // Create a new serializer that won't use cached schemas
-        SchemaRegistryClient freshClient = new CachedSchemaRegistryClient(
-            Collections.singletonList(SCHEMA_REGISTRY_URL),
-            100,
-            Arrays.asList(new AvroSchemaProvider(), new JsonSchemaProvider(), new ProtobufSchemaProvider()),
-            Collections.emptyMap(),
-            Collections.emptyMap()
-        );
+        SchemaRegistryClient freshClient = TestHelper.createClient(SCHEMA_REGISTRY_URL);
 
         Map<String, Object> config = new HashMap<>();
         config.put("schema.registry.url", SCHEMA_REGISTRY_URL);
         config.put("auto.register.schemas", true);
+
+        String freshUsername = System.getenv("SCHEMA_REGISTRY_USERNAME");
+        if (freshUsername != null && !freshUsername.isEmpty()) {
+            config.put("basic.auth.credentials.source", "USER_INFO");
+            config.put("basic.auth.user.info", freshUsername + ":" + System.getenv().getOrDefault("SCHEMA_REGISTRY_PASSWORD", ""));
+        }
 
         KafkaAvroSerializer freshSerializer = new KafkaAvroSerializer(freshClient);
         freshSerializer.configure(config, false);
@@ -566,13 +566,7 @@ public class AvroCompatibilityTest {
         int schemaId = extractSchemaId(serialized);
 
         // Create a completely new client (empty cache)
-        SchemaRegistryClient freshClient = new CachedSchemaRegistryClient(
-            Collections.singletonList(SCHEMA_REGISTRY_URL),
-            100,
-            Arrays.asList(new AvroSchemaProvider(), new JsonSchemaProvider(), new ProtobufSchemaProvider()),
-            Collections.emptyMap(),
-            Collections.emptyMap()
-        );
+        SchemaRegistryClient freshClient = TestHelper.createClient(SCHEMA_REGISTRY_URL);
 
         // Fetch schema with fresh client (cache miss, must hit registry)
         Schema fetchedSchema = freshClient.getById(schemaId);
@@ -585,6 +579,13 @@ public class AvroCompatibilityTest {
         KafkaAvroDeserializer freshDeserializer = new KafkaAvroDeserializer(freshClient);
         Map<String, Object> config = new HashMap<>();
         config.put("schema.registry.url", SCHEMA_REGISTRY_URL);
+
+        String cacheUsername = System.getenv("SCHEMA_REGISTRY_USERNAME");
+        if (cacheUsername != null && !cacheUsername.isEmpty()) {
+            config.put("basic.auth.credentials.source", "USER_INFO");
+            config.put("basic.auth.user.info", cacheUsername + ":" + System.getenv().getOrDefault("SCHEMA_REGISTRY_PASSWORD", ""));
+        }
+
         freshDeserializer.configure(config, false);
 
         GenericRecord deserialized = (GenericRecord) freshDeserializer.deserialize(topic, serialized);

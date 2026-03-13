@@ -25,7 +25,7 @@ func setSubjectCompatibility(t *testing.T, subject, level string) {
 	require.NoError(t, err)
 	req.Header.Set("Content-Type", "application/vnd.schemaregistry.v1+json")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := doRequest(req)
 	require.NoError(t, err)
 	defer resp.Body.Close()
 	body, _ := io.ReadAll(resp.Body)
@@ -46,7 +46,7 @@ func registerSchemaRaw(t *testing.T, subject, schemaJSON string) int {
 	require.NoError(t, err)
 	req.Header.Set("Content-Type", "application/vnd.schemaregistry.v1+json")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := doRequest(req)
 	require.NoError(t, err)
 	defer resp.Body.Close()
 
@@ -75,7 +75,7 @@ func assertRegistrationRejected(t *testing.T, subject, schemaJSON string) {
 	require.NoError(t, err)
 	req.Header.Set("Content-Type", "application/vnd.schemaregistry.v1+json")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := doRequest(req)
 	require.NoError(t, err)
 	defer resp.Body.Close()
 
@@ -98,14 +98,14 @@ func deleteSubject(t *testing.T, subject string) {
 
 	// Soft delete
 	req, _ := http.NewRequest(http.MethodDelete, url, nil)
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := doRequest(req)
 	if err == nil {
 		resp.Body.Close()
 	}
 
 	// Permanent delete
 	req, _ = http.NewRequest(http.MethodDelete, url+"?permanent=true", nil)
-	resp, err = http.DefaultClient.Do(req)
+	resp, err = doRequest(req)
 	if err == nil {
 		resp.Body.Close()
 	}
@@ -114,7 +114,7 @@ func deleteSubject(t *testing.T, subject string) {
 // ==================== FORWARD Compatibility Tests ====================
 
 func TestForwardCompatibility(t *testing.T) {
-	client := srclient.CreateSchemaRegistryClient(getSchemaRegistryURL())
+	client := newSchemaRegistryClient()
 
 	t.Run("AcceptsFieldAdditionWithDefault", func(t *testing.T) {
 		subject := fmt.Sprintf("go-compat-fwd-add-%d-value", time.Now().UnixNano())
@@ -249,7 +249,7 @@ func TestForwardCompatibility(t *testing.T) {
 // ==================== FULL Compatibility Tests ====================
 
 func TestFullCompatibility(t *testing.T) {
-	client := srclient.CreateSchemaRegistryClient(getSchemaRegistryURL())
+	client := newSchemaRegistryClient()
 
 	t.Run("AcceptsBidirectionalChange", func(t *testing.T) {
 		subject := fmt.Sprintf("go-compat-full-bidir-%d-value", time.Now().UnixNano())

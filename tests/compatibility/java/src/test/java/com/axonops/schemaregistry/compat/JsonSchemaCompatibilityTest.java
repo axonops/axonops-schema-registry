@@ -79,19 +79,19 @@ public class JsonSchemaCompatibilityTest {
         System.out.println("Running JSON Schema compatibility tests with Confluent version: " + CONFLUENT_VERSION);
         System.out.println("Schema Registry URL: " + SCHEMA_REGISTRY_URL);
 
-        schemaRegistryClient = new CachedSchemaRegistryClient(
-            Collections.singletonList(SCHEMA_REGISTRY_URL),
-            100,
-            Arrays.asList(new AvroSchemaProvider(), new JsonSchemaProvider(), new ProtobufSchemaProvider()),
-            Collections.emptyMap(),
-            Collections.emptyMap()
-        );
+        schemaRegistryClient = TestHelper.createClient(SCHEMA_REGISTRY_URL);
         objectMapper = new ObjectMapper();
 
         Map<String, Object> serializerConfig = new HashMap<>();
         serializerConfig.put("schema.registry.url", SCHEMA_REGISTRY_URL);
         serializerConfig.put("auto.register.schemas", true);
         serializerConfig.put("json.fail.invalid.schema", true);
+
+        String username = System.getenv("SCHEMA_REGISTRY_USERNAME");
+        if (username != null && !username.isEmpty()) {
+            serializerConfig.put("basic.auth.credentials.source", "USER_INFO");
+            serializerConfig.put("basic.auth.user.info", username + ":" + System.getenv().getOrDefault("SCHEMA_REGISTRY_PASSWORD", ""));
+        }
 
         serializer = new KafkaJsonSchemaSerializer<>(schemaRegistryClient);
         serializer.configure(serializerConfig, false);
@@ -385,18 +385,18 @@ public class JsonSchemaCompatibilityTest {
         for (int i = 0; i < numThreads; i++) {
             final int idx = i;
             futures.add(executor.submit(() -> {
-                SchemaRegistryClient threadClient = new CachedSchemaRegistryClient(
-                    Collections.singletonList(SCHEMA_REGISTRY_URL),
-                    100,
-                    Arrays.asList(new AvroSchemaProvider(), new JsonSchemaProvider(), new ProtobufSchemaProvider()),
-                    Collections.emptyMap(),
-                    Collections.emptyMap()
-                );
+                SchemaRegistryClient threadClient = TestHelper.createClient(SCHEMA_REGISTRY_URL);
 
                 Map<String, Object> config = new HashMap<>();
                 config.put("schema.registry.url", SCHEMA_REGISTRY_URL);
                 config.put("auto.register.schemas", true);
                 config.put("json.fail.invalid.schema", true);
+
+                String threadUsername = System.getenv("SCHEMA_REGISTRY_USERNAME");
+                if (threadUsername != null && !threadUsername.isEmpty()) {
+                    config.put("basic.auth.credentials.source", "USER_INFO");
+                    config.put("basic.auth.user.info", threadUsername + ":" + System.getenv().getOrDefault("SCHEMA_REGISTRY_PASSWORD", ""));
+                }
 
                 KafkaJsonSchemaSerializer<JsonNode> threadSerializer = new KafkaJsonSchemaSerializer<>(threadClient);
                 threadSerializer.configure(config, false);
@@ -555,13 +555,7 @@ public class JsonSchemaCompatibilityTest {
         int schemaId = extractSchemaId(serialized);
 
         // Create a completely new client (empty cache)
-        SchemaRegistryClient freshClient = new CachedSchemaRegistryClient(
-            Collections.singletonList(SCHEMA_REGISTRY_URL),
-            100,
-            Arrays.asList(new AvroSchemaProvider(), new JsonSchemaProvider(), new ProtobufSchemaProvider()),
-            Collections.emptyMap(),
-            Collections.emptyMap()
-        );
+        SchemaRegistryClient freshClient = TestHelper.createClient(SCHEMA_REGISTRY_URL);
 
         // Fetch schema with fresh client (cache miss, must hit registry)
         var fetchedSchema = freshClient.getSchemaById(schemaId);
@@ -573,6 +567,13 @@ public class JsonSchemaCompatibilityTest {
         KafkaJsonSchemaDeserializer<Object> freshDeserializer = new KafkaJsonSchemaDeserializer<>(freshClient);
         Map<String, Object> config = new HashMap<>();
         config.put("schema.registry.url", SCHEMA_REGISTRY_URL);
+
+        String cacheUsername = System.getenv("SCHEMA_REGISTRY_USERNAME");
+        if (cacheUsername != null && !cacheUsername.isEmpty()) {
+            config.put("basic.auth.credentials.source", "USER_INFO");
+            config.put("basic.auth.user.info", cacheUsername + ":" + System.getenv().getOrDefault("SCHEMA_REGISTRY_PASSWORD", ""));
+        }
+
         freshDeserializer.configure(config, false);
 
         Object deserializedObj = freshDeserializer.deserialize(topic, serialized);
