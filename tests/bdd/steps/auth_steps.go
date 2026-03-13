@@ -6,6 +6,9 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/cucumber/godog"
@@ -22,6 +25,70 @@ func RegisterAuthSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 	ctx.Step(`^I authenticate with API key "([^"]*)"$`, func(key string) error {
 		key = tc.resolveVars(key)
 		tc.AuthHeader = "Basic " + base64.StdEncoding.EncodeToString([]byte(key+":ignored"))
+		return nil
+	})
+
+	ctx.Step(`^I authenticate with bearer token "([^"]*)"$`, func(token string) error {
+		token = tc.resolveVars(token)
+		tc.AuthHeader = "Bearer " + token
+		return nil
+	})
+
+	ctx.Step(`^I obtain an OIDC token for "([^"]*)" with password "([^"]*)"$`, func(username, password string) error {
+		tokenURL, ok := tc.StoredValues["_oidc_token_url"]
+		if !ok {
+			return fmt.Errorf("_oidc_token_url not set in StoredValues")
+		}
+		clientID, _ := tc.StoredValues["_oidc_client_id"]
+		if clientID == nil {
+			clientID = "schema-registry"
+		}
+		clientSecret, _ := tc.StoredValues["_oidc_client_secret"]
+		if clientSecret == nil {
+			clientSecret = "schema-registry-secret"
+		}
+
+		resp, err := http.PostForm(fmt.Sprintf("%v", tokenURL), url.Values{
+			"grant_type":    {"password"},
+			"client_id":     {fmt.Sprintf("%v", clientID)},
+			"client_secret": {fmt.Sprintf("%v", clientSecret)},
+			"username":      {username},
+			"password":      {password},
+			"scope":         {"openid"},
+		})
+		if err != nil {
+			return fmt.Errorf("OIDC token request failed: %w", err)
+		}
+		defer resp.Body.Close()
+
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return fmt.Errorf("read OIDC token response: %w", err)
+		}
+
+		if resp.StatusCode != 200 {
+			return fmt.Errorf("OIDC token request returned %d: %s", resp.StatusCode, string(body))
+		}
+
+		var tokenResp map[string]interface{}
+		if err := json.Unmarshal(body, &tokenResp); err != nil {
+			return fmt.Errorf("parse OIDC token response: %w", err)
+		}
+
+		// Use id_token for OIDC authentication (contains correct aud claim).
+		// Fall back to access_token if id_token is not present.
+		token := ""
+		if idToken, ok := tokenResp["id_token"].(string); ok && idToken != "" {
+			token = idToken
+		} else if accessToken, ok := tokenResp["access_token"].(string); ok && accessToken != "" {
+			token = accessToken
+		}
+		if token == "" {
+			return fmt.Errorf("no id_token or access_token in OIDC response: %s", string(body))
+		}
+
+		tc.StoredValues["_oidc_token"] = token
+		tc.AuthHeader = "Bearer " + token
 		return nil
 	})
 

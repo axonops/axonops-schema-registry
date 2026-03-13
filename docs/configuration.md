@@ -886,6 +886,23 @@ The following environment variables override the corresponding configuration fil
 | `SCHEMA_REGISTRY_LDAP_CONNECTION_TIMEOUT` | `security.auth.ldap.connection_timeout` | int |
 | `SCHEMA_REGISTRY_LDAP_REQUEST_TIMEOUT` | `security.auth.ldap.request_timeout` | int |
 
+### OIDC (OpenID Connect)
+
+| Variable | Overrides | Type |
+|----------|-----------|------|
+| `SCHEMA_REGISTRY_OIDC_ENABLED` | `security.auth.oidc.enabled` | bool (`true`/`1`) |
+| `SCHEMA_REGISTRY_OIDC_ISSUER_URL` | `security.auth.oidc.issuer_url` | string |
+| `SCHEMA_REGISTRY_OIDC_CLIENT_ID` | `security.auth.oidc.client_id` | string |
+| `SCHEMA_REGISTRY_OIDC_CLIENT_SECRET` | `security.auth.oidc.client_secret` | string |
+| `SCHEMA_REGISTRY_OIDC_USERNAME_CLAIM` | `security.auth.oidc.username_claim` | string |
+| `SCHEMA_REGISTRY_OIDC_ROLES_CLAIM` | `security.auth.oidc.roles_claim` | string |
+| `SCHEMA_REGISTRY_OIDC_DEFAULT_ROLE` | `security.auth.oidc.default_role` | string |
+| `SCHEMA_REGISTRY_OIDC_REQUIRED_AUDIENCE` | `security.auth.oidc.required_audience` | string |
+| `SCHEMA_REGISTRY_OIDC_SKIP_ISSUER_CHECK` | `security.auth.oidc.skip_issuer_check` | bool (`true`/`1`) |
+| `SCHEMA_REGISTRY_OIDC_SKIP_EXPIRY_CHECK` | `security.auth.oidc.skip_expiry_check` | bool (`true`/`1`) |
+
+> **Note:** `role_mapping` (map type) and `allowed_algorithms` (slice type) cannot be set via environment variables. These MUST be configured in the YAML config file.
+
 ---
 
 ## Complete Configuration Example

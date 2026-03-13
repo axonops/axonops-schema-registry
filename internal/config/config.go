@@ -836,6 +836,38 @@ func (c *Config) applyEnvOverrides() {
 		c.Security.Auth.LDAP.AllowFallback = &b
 	}
 
+	// OIDC overrides
+	if v := os.Getenv("SCHEMA_REGISTRY_OIDC_ENABLED"); v != "" {
+		c.Security.Auth.OIDC.Enabled = strings.ToLower(v) == "true" || v == "1"
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_OIDC_ISSUER_URL"); v != "" {
+		c.Security.Auth.OIDC.IssuerURL = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_OIDC_CLIENT_ID"); v != "" {
+		c.Security.Auth.OIDC.ClientID = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_OIDC_CLIENT_SECRET"); v != "" {
+		c.Security.Auth.OIDC.ClientSecret = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_OIDC_USERNAME_CLAIM"); v != "" {
+		c.Security.Auth.OIDC.UsernameClaim = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_OIDC_ROLES_CLAIM"); v != "" {
+		c.Security.Auth.OIDC.RolesClaim = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_OIDC_DEFAULT_ROLE"); v != "" {
+		c.Security.Auth.OIDC.DefaultRole = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_OIDC_REQUIRED_AUDIENCE"); v != "" {
+		c.Security.Auth.OIDC.RequiredAudience = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_OIDC_SKIP_ISSUER_CHECK"); v != "" {
+		c.Security.Auth.OIDC.SkipIssuerCheck = strings.ToLower(v) == "true" || v == "1"
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_OIDC_SKIP_EXPIRY_CHECK"); v != "" {
+		c.Security.Auth.OIDC.SkipExpiryCheck = strings.ToLower(v) == "true" || v == "1"
+	}
+
 	// Audit overrides
 	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_ENABLED"); v != "" {
 		c.Security.Audit.Enabled = strings.ToLower(v) == "true" || v == "1"

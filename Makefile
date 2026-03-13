@@ -69,7 +69,7 @@ TIMEOUT_COMPAT         := 10m
 # Phony targets
 # =====================================================================
 .PHONY: all build build-all \
-        test test-unit test-bdd test-bdd-functional test-bdd-db test-bdd-auth test-bdd-ldap test-bdd-mcp test-bdd-mcp-metrics test-bdd-mcp-confirmations test-bdd-mcp-permissions test-bdd-mcp-audit test-bdd-rest-audit test-bdd-audit-outputs test-bdd-kms-docker test-bdd-mcp-kms test-bdd-kms \
+        test test-unit test-bdd test-bdd-functional test-bdd-db test-bdd-auth test-bdd-ldap test-bdd-oidc test-bdd-mcp test-bdd-mcp-metrics test-bdd-mcp-confirmations test-bdd-mcp-permissions test-bdd-mcp-audit test-bdd-rest-audit test-bdd-audit-outputs test-bdd-kms-docker test-bdd-mcp-kms test-bdd-kms \
         test-integration test-concurrency test-conformance \
         test-migration test-api test-ldap test-vault test-oidc test-auth \
         test-compatibility test-coverage \
@@ -268,6 +268,12 @@ test-bdd-ldap:
 	@echo "=== BDD LDAP Tests (Docker, memory + OpenLDAP, timeout $(TIMEOUT_BDD_POSTGRES)) ==="; \
 	BDD_BACKEND=memory CONTAINER_CMD=$(CONTAINER_CMD) \
 		$(GOTEST) -tags bdd -v -count=1 -timeout $(TIMEOUT_BDD_POSTGRES) -run TestLDAPFeatures ./tests/bdd/...
+
+## Run BDD OIDC tests (Docker, memory + Keycloak)
+test-bdd-oidc:
+	@echo "=== BDD OIDC Tests (Docker, memory + Keycloak, timeout $(TIMEOUT_BDD_POSTGRES)) ==="; \
+	BDD_BACKEND=memory CONTAINER_CMD=$(CONTAINER_CMD) \
+		$(GOTEST) -tags bdd -v -count=1 -timeout $(TIMEOUT_BDD_POSTGRES) -run TestOIDCFeatures ./tests/bdd/...
 
 ## Run BDD MCP confirmation tests (Docker, require_confirmations=true)
 test-bdd-mcp-confirmations:

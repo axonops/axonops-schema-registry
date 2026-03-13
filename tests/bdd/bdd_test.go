@@ -1336,6 +1336,95 @@ func TestLDAPFeatures(t *testing.T) {
 	}
 }
 
+func TestOIDCFeatures(t *testing.T) {
+	if bddBackend := os.Getenv("BDD_BACKEND"); bddBackend != "" && bddBackend != "memory" {
+		t.Skip("OIDC Docker tests only run on memory backend (they start their own compose stack)")
+	}
+	if containerCmd == "" {
+		containerCmd = findContainerCmd()
+	}
+	oidcFiles := []string{"docker-compose.base.yml", "docker-compose.oidc.yml"}
+	oidcEnv := []string{
+		"REGISTRY_PORT=18093",
+		"WEBHOOK_PORT=19011",
+		"KC_PORT=29080",
+	}
+	projectName := "bdd-oidc"
+
+	log.Printf("Starting OIDC compose stack...")
+	if err := composeUpWithProject(oidcFiles, projectName, oidcEnv); err != nil {
+		t.Fatalf("Failed to start OIDC compose: %v", err)
+	}
+	t.Cleanup(func() {
+		log.Println("Stopping OIDC compose stack...")
+		composeDownWithProject(oidcFiles, projectName)
+	})
+
+	oidcURL := "http://localhost:18093"
+	oidcWebhook := "http://localhost:19011"
+	kcTokenURL := "http://localhost:29080/realms/schema-registry/protocol/openid-connect/token"
+
+	log.Printf("Waiting for OIDC registry at %s ...", oidcURL)
+	if err := waitForURL(oidcURL+"/", 180*time.Second); err != nil {
+		composeLogsWithProject(oidcFiles, projectName)
+		t.Fatalf("OIDC registry did not become healthy: %v", err)
+	}
+	log.Println("OIDC registry is healthy.")
+
+	oidcAuditFetcher, clearOIDCAuditLog := makeAuditHelpers(oidcFiles, projectName)
+
+	opts := godog.Options{
+		Format:   "pretty",
+		Output:   colors.Colored(os.Stdout),
+		Paths:    []string{"features"},
+		Tags:     "@oidc && ~@pending-impl",
+		Strict:   true,
+		TestingT: t,
+	}
+
+	suite := godog.TestSuite{
+		ScenarioInitializer: func(ctx *godog.ScenarioContext) {
+			tc := steps.NewTestContext(oidcURL)
+			tc.WebhookURL = oidcWebhook
+			tc.StoredValues["_oidc_token_url"] = kcTokenURL
+			tc.StoredValues["_oidc_client_id"] = "schema-registry"
+			tc.StoredValues["_oidc_client_secret"] = "schema-registry-secret"
+			if oidcAuditFetcher != nil {
+				tc.StoredValues["_audit_fetcher"] = oidcAuditFetcher
+			}
+
+			ctx.Before(func(gctx context.Context, sc *godog.Scenario) (context.Context, error) {
+				if err := restartAuthRegistry(oidcURL, oidcWebhook); err != nil {
+					return gctx, fmt.Errorf("restart OIDC registry: %w", err)
+				}
+				if clearOIDCAuditLog != nil {
+					if err := clearOIDCAuditLog(); err != nil {
+						return gctx, fmt.Errorf("clear audit log: %w", err)
+					}
+				}
+				return gctx, nil
+			})
+
+			steps.RegisterSchemaSteps(ctx, tc)
+			steps.RegisterImportSteps(ctx, tc)
+			steps.RegisterModeSteps(ctx, tc)
+			steps.RegisterReferenceSteps(ctx, tc)
+			steps.RegisterInfraSteps(ctx, tc)
+			steps.RegisterAuthSteps(ctx, tc)
+			steps.RegisterEncryptionSteps(ctx, tc)
+			steps.RegisterConcurrencySteps(ctx, tc)
+			steps.RegisterRateLimitSteps(ctx, tc)
+			steps.RegisterMetricsSteps(ctx, tc)
+			steps.RegisterMCPSteps(ctx, tc)
+		},
+		Options: &opts,
+	}
+
+	if suite.Run() != 0 {
+		t.Fatal("OIDC BDD tests failed")
+	}
+}
+
 // makeSyslogFetcherFile creates a function that reads a syslog-ng log file from the container.
 func makeSyslogFetcherFile(files []string, project, logPath string) func() (string, error) {
 	if containerCmd == "" {

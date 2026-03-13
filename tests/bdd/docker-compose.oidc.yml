@@ -1,0 +1,44 @@
+# OIDC overlay for BDD tests.
+# Layers on top of docker-compose.base.yml to enable OIDC authentication
+# with Keycloak 24.0 and RBAC.
+#
+# Usage:
+#   docker compose -f docker-compose.base.yml -f docker-compose.oidc.yml up -d --build --wait
+
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0
+    command: start-dev
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_HTTP_PORT: 8080
+      KC_HEALTH_ENABLED: "true"
+    ports:
+      - "${KC_PORT:-29080}:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/8080 && echo -e 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\n\\r\\n' >&3 && timeout 1 cat <&3 | grep -q '\"UP\"'"]
+      interval: 5s
+      timeout: 5s
+      start_period: 60s
+      retries: 20
+
+  keycloak-setup:
+    image: curlimages/curl:8.5.0
+    depends_on:
+      keycloak:
+        condition: service_healthy
+    volumes:
+      - ./scripts/setup-keycloak.sh:/setup-keycloak.sh:ro
+    entrypoint: ["/bin/sh", "/setup-keycloak.sh"]
+    environment:
+      KC_BASE: "http://keycloak:8080"
+
+  schema-registry:
+    command: ["--config", "/etc/schema-registry/config.memory-auth-oidc.yaml"]
+    environment:
+      REGISTRY_CONFIG: /etc/schema-registry/config.memory-auth-oidc.yaml
+      SCHEMA_REGISTRY_OIDC_ISSUER_URL: "http://keycloak:8080/realms/schema-registry"
+    depends_on:
+      keycloak-setup:
+        condition: service_completed_successfully
