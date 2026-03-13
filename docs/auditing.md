@@ -662,7 +662,7 @@ Audit events can be delivered directly to external systems using the built-in ou
 - **Elasticsearch / OpenSearch**: Use the webhook output pointing to the bulk API endpoint.
 - **Syslog (SIEM)**: Use the syslog output with `tcp+tls` for encrypted delivery to your SIEM.
 - **File + Fluentd/Logstash**: Use the file output with rotation, then ship with a sidecar agent.
-- **Grafana Loki**: Use label extraction on `event_type` and `outcome` from the file output.
+
 
 Audit log entries are single-line JSON (or CEF), making them compatible with standard log aggregation tools. For file-based forwarding:
 
