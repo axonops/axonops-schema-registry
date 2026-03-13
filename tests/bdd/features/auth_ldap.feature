@@ -590,8 +590,12 @@ Feature: LDAP Authentication and RBAC
     # localadmin exists only in the database (via bootstrap), not in LDAP.
     # LDAP returns "user not found", fallback to DB succeeds.
     # The auth_method on subsequent requests is "ldap_fallback" (not "basic").
+    # We use PUT /config (a default audit event) so we can assert auth_method.
     Given I authenticate as "localadmin" with password "localadminpass"
-    When I GET "/subjects"
+    When I PUT "/config" with body:
+      """
+      {"compatibility":"NONE"}
+      """
     Then the response status should be 200
     And the audit log should contain an event:
       | event_type | auth_ldap_fallback                  |
@@ -599,9 +603,10 @@ Feature: LDAP Authentication and RBAC
       | actor_id   | localadmin                          |
       | actor_type | user                                |
       | reason     | ldap_user_not_found_fallback_to_db  |
-      | path       | /subjects                           |
+      | path       | /config                             |
     And the audit log should contain an event:
-      | event_type  | subject_list    |
+      | event_type  | config_update   |
+      | outcome     | success         |
       | actor_id    | localadmin      |
       | auth_method | ldap_fallback   |
       | status_code | 200             |

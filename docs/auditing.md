@@ -471,8 +471,9 @@ Write operations on schemas, configuration, and mode include `before_hash` and `
 | Schema | SHA-256 canonical fingerprint (stored in DB). | `before_hash` is the previous version's fingerprint. `after_hash` is the new version's fingerprint. For first versions (v1), `before_hash` is absent. |
 | Config | SHA-256 of the compatibility level string. | e.g., `sha256:` + SHA-256(`"BACKWARD"`). |
 | Mode | SHA-256 of the mode string. | e.g., `sha256:` + SHA-256(`"READWRITE"`). |
-| KEK/DEK | Not yet implemented. | See issue #344. |
-| Exporter | Not yet implemented. | See issue #345. |
+| KEK | SHA-256 of JSON-serialized `{name, kmsType, kmsKeyId, doc, shared, deleted}`. | `before_hash` present on update/delete; `after_hash` on create/update/undelete. |
+| DEK | SHA-256 of JSON-serialized `{subject, version, algorithm, deleted}`. Excludes key material. | `before_hash` present on delete; `after_hash` on create/undelete. |
+| Exporter | SHA-256 of JSON-serialized `{name, contextType, context, subjects, subjectRenameFormat}`. Excludes config map (MAY contain credentials). | `before_hash` present on update/delete/pause/resume/reset; `after_hash` on create/update. |
 
 Hashes are prefixed with `sha256:` for forward compatibility with other hash algorithms.
 
