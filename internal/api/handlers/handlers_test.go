@@ -1509,8 +1509,9 @@ func TestImportSchemas_DuplicateID(t *testing.T) {
 	w2 := httptest.NewRecorder()
 	r.ServeHTTP(w2, req2)
 
-	if w2.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d", w2.Code)
+	// Total failure (0 imported, 1 error) returns 422
+	if w2.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422, got %d", w2.Code)
 	}
 
 	var resp types.ImportSchemasResponse
