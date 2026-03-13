@@ -54,7 +54,7 @@ Feature: Import with Conflicting IDs
   # Import with an ID that already exists but same schema content
   # ---------------------------------------------------------------------------
 
-  Scenario: Import identical schema with same ID is idempotent
+  Scenario: Import identical schema with same ID and subject/version is rejected
     Given the global mode is "IMPORT"
     When I import a schema with ID 1100 under subject "import-idem" version 1:
       """
@@ -62,13 +62,17 @@ Feature: Import with Conflicting IDs
       """
     Then the response status should be 200
     And the import should have 1 imported and 0 errors
-    # Import the same schema with the same ID again — should succeed or be ignored
+    # Re-importing the same subject/version returns a conflict error even
+    # when the schema content is identical — subject/version uniqueness is
+    # enforced by the storage layer.
     When I import a schema with ID 1100 under subject "import-idem" version 1:
       """
       {"type":"record","name":"Idem","fields":[{"name":"id","type":"int"}]}
       """
-    Then the response status should be 200
+    Then the response status should be 422
+    And the import should have 0 imported and 1 errors
     When I set the global mode to "READWRITE"
+    # First import succeeded
     And the audit log should contain an event:
       | event_type  | schema_import   |
       | outcome     | success         |
@@ -77,6 +81,15 @@ Feature: Import with Conflicting IDs
       | method      | POST            |
       | path        | /import/schemas |
       | status_code | 200             |
+    # Re-import returns 422
+    And the audit log should contain an event:
+      | event_type  | schema_import   |
+      | outcome     | failure         |
+      | actor_type  | anonymous       |
+      | target_id   | import-idem     |
+      | method      | POST            |
+      | path        | /import/schemas |
+      | status_code | 422             |
 
   # ---------------------------------------------------------------------------
   # Import requires IMPORT mode
