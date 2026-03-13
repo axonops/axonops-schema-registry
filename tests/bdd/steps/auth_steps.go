@@ -3,16 +3,55 @@
 package steps
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/cucumber/godog"
+	"github.com/golang-jwt/jwt/v5"
 )
+
+// jwtPrivateKey is the cached RSA private key for signing JWT tokens in BDD tests.
+// Loaded once per test process from tests/bdd/certs/jwt/jwt-private.pem.
+var (
+	jwtPrivateKey     *rsa.PrivateKey
+	jwtPrivateKeyOnce sync.Once
+	jwtPrivateKeyErr  error
+)
+
+// loadJWTPrivateKey loads and caches the RSA private key from the test fixtures directory.
+func loadJWTPrivateKey() (*rsa.PrivateKey, error) {
+	jwtPrivateKeyOnce.Do(func() {
+		// Find the key relative to this source file.
+		_, filename, _, _ := runtime.Caller(0)
+		stepsDir := filepath.Dir(filename)
+		keyPath := filepath.Join(stepsDir, "..", "certs", "jwt", "jwt-private.pem")
+
+		keyData, err := os.ReadFile(keyPath)
+		if err != nil {
+			jwtPrivateKeyErr = fmt.Errorf("read JWT private key: %w", err)
+			return
+		}
+		key, err := jwt.ParseRSAPrivateKeyFromPEM(keyData)
+		if err != nil {
+			jwtPrivateKeyErr = fmt.Errorf("parse JWT private key: %w", err)
+			return
+		}
+		jwtPrivateKey = key
+	})
+	return jwtPrivateKey, jwtPrivateKeyErr
+}
 
 // RegisterAuthSteps registers authentication and admin-related step definitions.
 func RegisterAuthSteps(ctx *godog.ScenarioContext, tc *TestContext) {
@@ -89,6 +128,89 @@ func RegisterAuthSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 
 		tc.StoredValues["_oidc_token"] = token
 		tc.AuthHeader = "Bearer " + token
+		return nil
+	})
+
+	// --- JWT token generation steps ---
+	ctx.Step(`^I generate a JWT token with claims:$`, func(table *godog.Table) error {
+		privateKey, err := loadJWTPrivateKey()
+		if err != nil {
+			return fmt.Errorf("load JWT private key: %w", err)
+		}
+		claims := jwt.MapClaims{
+			"iat": time.Now().Unix(),
+			"exp": time.Now().Add(5 * time.Minute).Unix(),
+		}
+		for _, row := range table.Rows {
+			if len(row.Cells) != 2 {
+				continue
+			}
+			key := row.Cells[0].Value
+			val := row.Cells[1].Value
+			claims[key] = val
+		}
+		token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+		signed, err := token.SignedString(privateKey)
+		if err != nil {
+			return fmt.Errorf("sign JWT: %w", err)
+		}
+		tc.StoredValues["_jwt_token"] = signed
+		tc.AuthHeader = "Bearer " + signed
+		return nil
+	})
+
+	ctx.Step(`^I generate an expired JWT token with claims:$`, func(table *godog.Table) error {
+		privateKey, err := loadJWTPrivateKey()
+		if err != nil {
+			return fmt.Errorf("load JWT private key: %w", err)
+		}
+		claims := jwt.MapClaims{
+			"iat": time.Now().Add(-2 * time.Hour).Unix(),
+			"exp": time.Now().Add(-1 * time.Hour).Unix(),
+		}
+		for _, row := range table.Rows {
+			if len(row.Cells) != 2 {
+				continue
+			}
+			key := row.Cells[0].Value
+			val := row.Cells[1].Value
+			claims[key] = val
+		}
+		token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+		signed, err := token.SignedString(privateKey)
+		if err != nil {
+			return fmt.Errorf("sign expired JWT: %w", err)
+		}
+		tc.StoredValues["_jwt_token"] = signed
+		tc.AuthHeader = "Bearer " + signed
+		return nil
+	})
+
+	ctx.Step(`^I generate a JWT token signed with wrong key with claims:$`, func(table *godog.Table) error {
+		// Generate an ephemeral RSA key that doesn't match the registry's public key.
+		wrongKey, err := rsa.GenerateKey(rand.Reader, 2048)
+		if err != nil {
+			return fmt.Errorf("generate wrong RSA key: %w", err)
+		}
+		claims := jwt.MapClaims{
+			"iat": time.Now().Unix(),
+			"exp": time.Now().Add(5 * time.Minute).Unix(),
+		}
+		for _, row := range table.Rows {
+			if len(row.Cells) != 2 {
+				continue
+			}
+			key := row.Cells[0].Value
+			val := row.Cells[1].Value
+			claims[key] = val
+		}
+		token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+		signed, err := token.SignedString(wrongKey)
+		if err != nil {
+			return fmt.Errorf("sign JWT with wrong key: %w", err)
+		}
+		tc.StoredValues["_jwt_token"] = signed
+		tc.AuthHeader = "Bearer " + signed
 		return nil
 	})
 

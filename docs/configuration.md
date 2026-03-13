@@ -849,9 +849,16 @@ The following environment variables override the corresponding configuration fil
 
 | Variable | Overrides | Type |
 |----------|-----------|------|
+| `SCHEMA_REGISTRY_JWT_ISSUER` | `security.auth.jwt.issuer` | string |
+| `SCHEMA_REGISTRY_JWT_AUDIENCE` | `security.auth.jwt.audience` | string |
+| `SCHEMA_REGISTRY_JWT_JWKS_URL` | `security.auth.jwt.jwks_url` | string |
+| `SCHEMA_REGISTRY_JWT_PUBLIC_KEY_FILE` | `security.auth.jwt.public_key_file` | string |
+| `SCHEMA_REGISTRY_JWT_ALGORITHM` | `security.auth.jwt.algorithm` | string |
 | `SCHEMA_REGISTRY_JWT_DEFAULT_ROLE` | `security.auth.jwt.default_role` | string |
 | `SCHEMA_REGISTRY_JWT_JWKS_CACHE_TTL` | `security.auth.jwt.jwks_cache_ttl` | int |
 | `SCHEMA_REGISTRY_JWT_HTTP_TIMEOUT` | `security.auth.jwt.http_timeout` | int |
+
+> **Note:** `claims_mapping` (map type) cannot be set via environment variables. It MUST be configured in the YAML config file.
 
 ### Authentication
 

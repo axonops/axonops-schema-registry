@@ -115,12 +115,12 @@ func TestFeatures(t *testing.T) {
 	if envTags := os.Getenv("BDD_TAGS"); envTags != "" {
 		tags = envTags
 	} else if backend == "confluent" {
-		tags = "~@operational && ~@import && ~@axonops-only && ~@contexts && ~@pending-impl && ~@data-contracts && ~@auth && ~@oidc && ~@kms && ~@mcp && ~@analysis && ~@audit && ~@audit-outputs && ~@memory && ~@postgres && ~@mysql && ~@cassandra"
+		tags = "~@operational && ~@import && ~@axonops-only && ~@contexts && ~@pending-impl && ~@data-contracts && ~@auth && ~@oidc && ~@jwt && ~@kms && ~@mcp && ~@analysis && ~@audit && ~@audit-outputs && ~@memory && ~@postgres && ~@mysql && ~@cassandra"
 	} else {
 		// Docker mode: run operational + functional scenarios for this backend.
 		// Auth, MCP, audit, KMS are handled by their own test functions with separate stacks.
 		allBackends := []string{"memory", "postgres", "mysql", "cassandra"}
-		excludes := []string{"~@pending-impl", "~@auth", "~@ldap", "~@oidc", "~@mcp", "~@audit", "~@audit-outputs"}
+		excludes := []string{"~@pending-impl", "~@auth", "~@ldap", "~@oidc", "~@jwt", "~@mcp", "~@audit", "~@audit-outputs"}
 		if os.Getenv("BDD_KMS") != "true" {
 			excludes = append(excludes, "~@kms")
 		}
@@ -256,7 +256,7 @@ func TestAuthFeatures(t *testing.T) {
 		Format:   "pretty",
 		Output:   colors.Colored(os.Stdout),
 		Paths:    []string{"features"},
-		Tags:     "@auth && ~@ldap && ~@oidc && ~@pending-impl",
+		Tags:     "@auth && ~@ldap && ~@oidc && ~@jwt && ~@pending-impl",
 		Strict:   true,
 		TestingT: t,
 	}
@@ -1422,6 +1422,93 @@ func TestOIDCFeatures(t *testing.T) {
 
 	if suite.Run() != 0 {
 		t.Fatal("OIDC BDD tests failed")
+	}
+}
+
+// TestJWTFeatures runs JWT authentication BDD tests against a Docker-deployed binary.
+// No external services needed — tokens are generated in Go test code using a pre-generated
+// RSA key pair. The registry verifies tokens using the mounted public key.
+func TestJWTFeatures(t *testing.T) {
+	if bddBackend := os.Getenv("BDD_BACKEND"); bddBackend != "" && bddBackend != "memory" {
+		t.Skip("JWT Docker tests only run on memory backend (they start their own compose stack)")
+	}
+	if containerCmd == "" {
+		containerCmd = findContainerCmd()
+	}
+	jwtFiles := []string{"docker-compose.base.yml", "docker-compose.jwt.yml"}
+	jwtEnv := []string{
+		"REGISTRY_PORT=18094",
+		"WEBHOOK_PORT=19014",
+	}
+	projectName := "bdd-jwt"
+
+	log.Printf("Starting JWT compose stack...")
+	if err := composeUpWithProject(jwtFiles, projectName, jwtEnv); err != nil {
+		t.Fatalf("Failed to start JWT compose: %v", err)
+	}
+	t.Cleanup(func() {
+		log.Println("Stopping JWT compose stack...")
+		composeDownWithProject(jwtFiles, projectName)
+	})
+
+	jwtURL := "http://localhost:18094"
+	jwtWebhook := "http://localhost:19014"
+
+	log.Printf("Waiting for JWT registry at %s ...", jwtURL)
+	if err := waitForURL(jwtURL+"/", 120*time.Second); err != nil {
+		composeLogsWithProject(jwtFiles, projectName)
+		t.Fatalf("JWT registry did not become healthy: %v", err)
+	}
+	log.Println("JWT registry is healthy.")
+
+	jwtAuditFetcher, clearJWTAuditLog := makeAuditHelpers(jwtFiles, projectName)
+
+	opts := godog.Options{
+		Format:   "pretty",
+		Output:   colors.Colored(os.Stdout),
+		Paths:    []string{"features"},
+		Tags:     "@jwt && ~@pending-impl",
+		Strict:   true,
+		TestingT: t,
+	}
+
+	suite := godog.TestSuite{
+		ScenarioInitializer: func(ctx *godog.ScenarioContext) {
+			tc := steps.NewTestContext(jwtURL)
+			tc.WebhookURL = jwtWebhook
+			if jwtAuditFetcher != nil {
+				tc.StoredValues["_audit_fetcher"] = jwtAuditFetcher
+			}
+
+			ctx.Before(func(gctx context.Context, sc *godog.Scenario) (context.Context, error) {
+				if err := restartAuthRegistry(jwtURL, jwtWebhook); err != nil {
+					return gctx, fmt.Errorf("restart JWT registry: %w", err)
+				}
+				if clearJWTAuditLog != nil {
+					if err := clearJWTAuditLog(); err != nil {
+						return gctx, fmt.Errorf("clear audit log: %w", err)
+					}
+				}
+				return gctx, nil
+			})
+
+			steps.RegisterSchemaSteps(ctx, tc)
+			steps.RegisterImportSteps(ctx, tc)
+			steps.RegisterModeSteps(ctx, tc)
+			steps.RegisterReferenceSteps(ctx, tc)
+			steps.RegisterInfraSteps(ctx, tc)
+			steps.RegisterAuthSteps(ctx, tc)
+			steps.RegisterEncryptionSteps(ctx, tc)
+			steps.RegisterConcurrencySteps(ctx, tc)
+			steps.RegisterRateLimitSteps(ctx, tc)
+			steps.RegisterMetricsSteps(ctx, tc)
+			steps.RegisterMCPSteps(ctx, tc)
+		},
+		Options: &opts,
+	}
+
+	if suite.Run() != 0 {
+		t.Fatal("JWT BDD tests failed")
 	}
 }
 

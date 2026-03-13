@@ -2121,3 +2121,33 @@ jobs:
         working-directory: tests/bdd
         run: |
           docker compose -p bdd-oidc -f docker-compose.base.yml -f docker-compose.oidc.yml down -v || true
+
+  # BDD JWT authentication tests — Docker-deployed binary with RSA key pair (no external services)
+  bdd-jwt-tests:
+    name: BDD Tests (JWT)
+    runs-on: ubuntu-latest
+    needs: [bdd-functional-tests]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run BDD JWT tests (Docker)
+        run: make test-bdd-jwt
+
+      - name: Show BDD container logs on failure
+        if: failure()
+        working-directory: tests/bdd
+        run: docker compose -p bdd-jwt -f docker-compose.base.yml -f docker-compose.jwt.yml logs --tail=100 || true
+
+      - name: Cleanup containers
+        if: always()
+        working-directory: tests/bdd
+        run: |
+          docker compose -p bdd-jwt -f docker-compose.base.yml -f docker-compose.jwt.yml down -v || true

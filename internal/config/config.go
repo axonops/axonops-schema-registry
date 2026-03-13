@@ -740,6 +740,21 @@ func (c *Config) applyEnvOverrides() {
 	}
 
 	// JWT overrides
+	if v := os.Getenv("SCHEMA_REGISTRY_JWT_ISSUER"); v != "" {
+		c.Security.Auth.JWT.Issuer = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_JWT_AUDIENCE"); v != "" {
+		c.Security.Auth.JWT.Audience = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_JWT_JWKS_URL"); v != "" {
+		c.Security.Auth.JWT.JWKSURL = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_JWT_PUBLIC_KEY_FILE"); v != "" {
+		c.Security.Auth.JWT.PublicKeyFile = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_JWT_ALGORITHM"); v != "" {
+		c.Security.Auth.JWT.Algorithm = v
+	}
 	if v := os.Getenv("SCHEMA_REGISTRY_JWT_DEFAULT_ROLE"); v != "" {
 		c.Security.Auth.JWT.DefaultRole = v
 	}

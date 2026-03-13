@@ -1,0 +1,15 @@
+# JWT overlay for BDD tests.
+# Layers on top of docker-compose.base.yml to enable JWT authentication
+# with a pre-generated RSA key pair (no external services needed).
+#
+# Usage:
+#   docker compose -f docker-compose.base.yml -f docker-compose.jwt.yml up -d --build --wait
+
+services:
+  schema-registry:
+    command: ["--config", "/etc/schema-registry/config.memory-auth-jwt.yaml"]
+    environment:
+      REGISTRY_CONFIG: /etc/schema-registry/config.memory-auth-jwt.yaml
+      SCHEMA_REGISTRY_JWT_PUBLIC_KEY_FILE: "/etc/jwt/jwt-public.pem"
+    volumes:
+      - ./certs/jwt/jwt-public.pem:/etc/jwt/jwt-public.pem:ro
