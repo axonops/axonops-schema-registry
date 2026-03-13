@@ -45,7 +45,7 @@ Audit events follow industry-standard practices:
 
 - **Actor identification**: Every event records the actor's identity, type (user, API key, MCP client, or anonymous), RBAC role, and authentication method.
 - **Target identification**: Every event records what resource was affected (subject, schema, config, KEK, user, etc.) and its identifier.
-- **Outcome classification**: Every event has a structured `outcome` (`success` or `failure`) and, for failures, a machine-parseable `reason` code.
+- **Outcome classification**: Every event has a structured `outcome` (`success`, `failure`, or `partial_failure`) and, for failures, a machine-parseable `reason` code.
 - **Change integrity**: Write operations on schemas, configuration, and modes include `before_hash` and `after_hash` fields — SHA-256 fingerprints of the object before and after the change — enabling integrity verification without logging sensitive content.
 - **Cross-protocol consistency**: The same event schema is used for both REST and MCP operations, with `method` distinguishing the protocol (`GET`/`POST`/`PUT`/`DELETE` for REST, `MCP` for MCP tool calls).
 
@@ -232,7 +232,7 @@ Each audit entry is a single-line JSON object. All fields use underscore-separat
 | Field | Type | Description |
 |-------|------|-------------|
 | `event_type` | string | Stable event type identifier (see [Event Types](#event-types)). |
-| `outcome` | string | `success` or `failure`. |
+| `outcome` | string | `success`, `failure`, or `partial_failure`. |
 
 ### Actor (Who)
 
@@ -384,7 +384,15 @@ When the `events` list is empty in configuration, all events marked with **[defa
 
 ## Outcome and Reason Codes
 
-Every audit event has an `outcome` field with value `success` or `failure`.
+Every audit event has an `outcome` field:
+
+| Outcome | Description |
+|---------|-------------|
+| `success` | The operation completed successfully. |
+| `failure` | The operation failed entirely. |
+| `partial_failure` | A bulk operation partially succeeded (e.g., `/import/schemas` imported some schemas but not all). |
+
+> **Note:** The `/import/schemas` endpoint returns HTTP 422 when **all** schemas in a batch fail (0 imported, errors > 0), and HTTP 200 with `outcome: partial_failure` when some schemas succeed and others fail. This ensures audit events accurately reflect the actual result of bulk operations.
 
 For failure events, the `reason` field provides a machine-parseable classification:
 
@@ -648,7 +656,7 @@ Audit log entries are single-line JSON (or CEF), making them compatible with sta
 
 Useful queries:
 
-- All failures: `jq 'select(.outcome == "failure")'`
+- All failures: `jq 'select(.outcome == "failure" or .outcome == "partial_failure")'`
 - All admin actions: `jq 'select(.event_type | startswith("user_") or startswith("apikey_"))'`
 - All actions by a specific user: `jq 'select(.actor_id == "jane")'`
 - All permission denials: `jq 'select(.reason == "permission_denied")'`
