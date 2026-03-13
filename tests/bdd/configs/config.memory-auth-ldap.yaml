@@ -1,0 +1,43 @@
+server:
+  host: "0.0.0.0"
+  port: 8081
+storage:
+  type: memory
+compatibility:
+  default_level: BACKWARD
+logging:
+  level: info
+  format: json
+security:
+  audit:
+    enabled: true
+    log_file: /tmp/audit.log
+  auth:
+    enabled: true
+    methods:
+      - ldap
+    ldap:
+      enabled: true
+      url: "ldaps://ldap:636"
+      bind_dn: "cn=admin,dc=example,dc=org"
+      bind_password: "adminpassword"
+      base_dn: "dc=example,dc=org"
+      user_search_base: "ou=Users,dc=example,dc=org"
+      user_search_filter: "(uid=%s)"
+      username_attribute: "uid"
+      email_attribute: "mail"
+      group_attribute: "memberOf"
+      role_mapping:
+        "cn=SchemaRegistryAdmins,ou=Groups,dc=example,dc=org": "admin"
+        "cn=Developers,ou=Groups,dc=example,dc=org": "developer"
+        "cn=ReadonlyUsers,ou=Groups,dc=example,dc=org": "readonly"
+      default_role: "readonly"
+      allow_fallback: false
+      ca_cert_file: "/etc/ldap-certs/ca.pem"
+      client_cert_file: "/etc/ldap-certs/client.pem"
+      client_key_file: "/etc/ldap-certs/client-key.pem"
+      connection_timeout: 10
+      request_timeout: 30
+    rbac:
+      enabled: true
+      default_role: readonly

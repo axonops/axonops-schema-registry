@@ -120,7 +120,7 @@ func TestFeatures(t *testing.T) {
 		// Docker mode: run operational + functional scenarios for this backend.
 		// Auth, MCP, audit, KMS are handled by their own test functions with separate stacks.
 		allBackends := []string{"memory", "postgres", "mysql", "cassandra"}
-		excludes := []string{"~@pending-impl", "~@auth", "~@mcp", "~@audit", "~@audit-outputs"}
+		excludes := []string{"~@pending-impl", "~@auth", "~@ldap", "~@mcp", "~@audit", "~@audit-outputs"}
 		if os.Getenv("BDD_KMS") != "true" {
 			excludes = append(excludes, "~@kms")
 		}
@@ -1243,6 +1243,96 @@ func TestAuditOutputsFeatures(t *testing.T) {
 
 	if suite.Run() != 0 {
 		t.Fatal("Audit outputs BDD tests failed")
+	}
+}
+
+// TestLDAPFeatures runs LDAP authentication BDD tests against a Docker-deployed binary
+// with OpenLDAP for authentication and RBAC.
+func TestLDAPFeatures(t *testing.T) {
+	if bddBackend := os.Getenv("BDD_BACKEND"); bddBackend != "" && bddBackend != "memory" {
+		t.Skip("LDAP Docker tests only run on memory backend (they start their own compose stack)")
+	}
+	if containerCmd == "" {
+		containerCmd = findContainerCmd()
+	}
+	ldapFiles := []string{"docker-compose.base.yml", "docker-compose.ldap.yml"}
+	ldapEnv := []string{
+		"REGISTRY_PORT=18092",
+		"WEBHOOK_PORT=19010",
+		"LDAP_PORT=20636",
+	}
+	projectName := "bdd-ldap"
+
+	log.Printf("Starting LDAP compose stack...")
+	if err := composeUpWithProject(ldapFiles, projectName, ldapEnv); err != nil {
+		t.Fatalf("Failed to start LDAP compose: %v", err)
+	}
+	t.Cleanup(func() {
+		log.Println("Stopping LDAP compose stack...")
+		composeDownWithProject(ldapFiles, projectName)
+	})
+
+	ldapURL := "http://localhost:18092"
+	ldapWebhook := "http://localhost:19010"
+
+	log.Printf("Waiting for LDAP registry at %s ...", ldapURL)
+	if err := waitForURL(ldapURL+"/", 120*time.Second); err != nil {
+		composeLogsWithProject(ldapFiles, projectName)
+		t.Fatalf("LDAP registry did not become healthy: %v", err)
+	}
+	log.Println("LDAP registry is healthy.")
+
+	ldapAuditFetcher, clearLDAPAuditLog := makeAuditHelpers(ldapFiles, projectName)
+
+	opts := godog.Options{
+		Format:   "pretty",
+		Output:   colors.Colored(os.Stdout),
+		Paths:    []string{"features"},
+		Tags:     "@ldap && ~@pending-impl",
+		Strict:   true,
+		TestingT: t,
+	}
+
+	suite := godog.TestSuite{
+		ScenarioInitializer: func(ctx *godog.ScenarioContext) {
+			tc := steps.NewTestContext(ldapURL)
+			tc.WebhookURL = ldapWebhook
+			if ldapAuditFetcher != nil {
+				tc.StoredValues["_audit_fetcher"] = ldapAuditFetcher
+			}
+
+			ctx.Before(func(gctx context.Context, sc *godog.Scenario) (context.Context, error) {
+				// Restart registry to reset in-memory state between scenarios.
+				// LDAP users are external (in OpenLDAP), so the restart only
+				// clears the in-memory storage, rate limiter, etc.
+				if err := restartAuthRegistry(ldapURL, ldapWebhook); err != nil {
+					return gctx, fmt.Errorf("restart LDAP registry: %w", err)
+				}
+				if clearLDAPAuditLog != nil {
+					if err := clearLDAPAuditLog(); err != nil {
+						return gctx, fmt.Errorf("clear audit log: %w", err)
+					}
+				}
+				return gctx, nil
+			})
+
+			steps.RegisterSchemaSteps(ctx, tc)
+			steps.RegisterImportSteps(ctx, tc)
+			steps.RegisterModeSteps(ctx, tc)
+			steps.RegisterReferenceSteps(ctx, tc)
+			steps.RegisterInfraSteps(ctx, tc)
+			steps.RegisterAuthSteps(ctx, tc)
+			steps.RegisterEncryptionSteps(ctx, tc)
+			steps.RegisterConcurrencySteps(ctx, tc)
+			steps.RegisterRateLimitSteps(ctx, tc)
+			steps.RegisterMetricsSteps(ctx, tc)
+			steps.RegisterMCPSteps(ctx, tc)
+		},
+		Options: &opts,
+	}
+
+	if suite.Run() != 0 {
+		t.Fatal("LDAP BDD tests failed")
 	}
 }
 

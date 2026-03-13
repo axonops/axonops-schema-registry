@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"log/slog"
 	"os"
 	"strings"
 	"time"
@@ -28,6 +29,9 @@ func NewLDAPProvider(cfg config.LDAPConfig) (*LDAPProvider, error) {
 	if cfg.BindDN == "" {
 		return nil, fmt.Errorf("LDAP bind DN is required")
 	}
+	if cfg.BindPassword == "" {
+		return nil, fmt.Errorf("LDAP bind password is required")
+	}
 	if cfg.UserSearchFilter == "" {
 		cfg.UserSearchFilter = "(sAMAccountName=%s)"
 	}
@@ -48,6 +52,14 @@ func NewLDAPProvider(cfg config.LDAPConfig) (*LDAPProvider, error) {
 	}
 	if cfg.DefaultRole == "" {
 		cfg.DefaultRole = "readonly"
+	}
+
+	// Warn if LDAP connection is not encrypted — credentials will be in plaintext.
+	if !strings.HasPrefix(cfg.URL, "ldaps://") && !cfg.StartTLS {
+		slog.Warn("LDAP configured without TLS — bind credentials and user passwords will be transmitted in plaintext",
+			slog.String("url", cfg.URL),
+			slog.String("recommendation", "use ldaps:// URL or enable start_tls"),
+		)
 	}
 
 	return &LDAPProvider{
@@ -114,7 +126,7 @@ func (p *LDAPProvider) Authenticate(ctx context.Context, username, password stri
 	return &User{
 		Username: actualUsername,
 		Role:     role,
-		Method:   "basic", // LDAP is used via basic auth
+		Method:   "ldap",
 	}, nil
 }
 
@@ -159,6 +171,11 @@ func (p *LDAPProvider) connect() (*ldap.Conn, error) {
 	return conn, nil
 }
 
+// IsSecure returns true if the LDAP connection uses TLS (LDAPS or StartTLS).
+func (p *LDAPProvider) IsSecure() bool {
+	return strings.HasPrefix(p.config.URL, "ldaps://") || p.config.StartTLS
+}
+
 // getTLSConfig returns TLS configuration for LDAP connection.
 func (p *LDAPProvider) getTLSConfig() (*tls.Config, error) {
 	tlsConfig := &tls.Config{
@@ -177,6 +194,15 @@ func (p *LDAPProvider) getTLSConfig() (*tls.Config, error) {
 			return nil, fmt.Errorf("failed to parse CA cert")
 		}
 		tlsConfig.RootCAs = caCertPool
+	}
+
+	// Load client certificate for mTLS if provided
+	if p.config.ClientCertFile != "" && p.config.ClientKeyFile != "" {
+		clientCert, err := tls.LoadX509KeyPair(p.config.ClientCertFile, p.config.ClientKeyFile)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load LDAP client certificate: %w", err)
+		}
+		tlsConfig.Certificates = []tls.Certificate{clientCert}
 	}
 
 	return tlsConfig, nil

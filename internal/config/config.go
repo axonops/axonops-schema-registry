@@ -224,8 +224,11 @@ type LDAPConfig struct {
 	StartTLS           bool              `yaml:"start_tls"`            // Use STARTTLS
 	InsecureSkipVerify bool              `yaml:"insecure_skip_verify"` // Skip TLS verification
 	CACertFile         string            `yaml:"ca_cert_file"`         // CA cert for TLS
+	ClientCertFile     string            `yaml:"client_cert_file"`     // Client cert for mTLS
+	ClientKeyFile      string            `yaml:"client_key_file"`      // Client key for mTLS
 	ConnectionTimeout  int               `yaml:"connection_timeout"`   // Seconds, default 10
 	RequestTimeout     int               `yaml:"request_timeout"`      // Seconds, default 30
+	AllowFallback      *bool             `yaml:"allow_fallback"`       // Allow fallback to DB/htpasswd when LDAP fails (default: true)
 }
 
 // OIDCConfig represents OpenID Connect authentication configuration.
@@ -749,6 +752,88 @@ func (c *Config) applyEnvOverrides() {
 		if n, ok := envInt("SCHEMA_REGISTRY_JWT_HTTP_TIMEOUT", v); ok {
 			c.Security.Auth.JWT.HTTPTimeout = n
 		}
+	}
+
+	// Auth overrides
+	if v := os.Getenv("SCHEMA_REGISTRY_AUTH_ENABLED"); v != "" {
+		c.Security.Auth.Enabled = strings.ToLower(v) == "true" || v == "1"
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_AUTH_METHODS"); v != "" {
+		methods := strings.Split(v, ",")
+		for i := range methods {
+			methods[i] = strings.TrimSpace(methods[i])
+		}
+		c.Security.Auth.Methods = methods
+	}
+
+	// LDAP overrides
+	if v := os.Getenv("SCHEMA_REGISTRY_LDAP_ENABLED"); v != "" {
+		c.Security.Auth.LDAP.Enabled = strings.ToLower(v) == "true" || v == "1"
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_LDAP_URL"); v != "" {
+		c.Security.Auth.LDAP.URL = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_LDAP_BIND_DN"); v != "" {
+		c.Security.Auth.LDAP.BindDN = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_LDAP_BIND_PASSWORD"); v != "" {
+		c.Security.Auth.LDAP.BindPassword = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_LDAP_BASE_DN"); v != "" {
+		c.Security.Auth.LDAP.BaseDN = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_LDAP_USER_SEARCH_FILTER"); v != "" {
+		c.Security.Auth.LDAP.UserSearchFilter = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_LDAP_USER_SEARCH_BASE"); v != "" {
+		c.Security.Auth.LDAP.UserSearchBase = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_LDAP_GROUP_SEARCH_FILTER"); v != "" {
+		c.Security.Auth.LDAP.GroupSearchFilter = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_LDAP_GROUP_SEARCH_BASE"); v != "" {
+		c.Security.Auth.LDAP.GroupSearchBase = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_LDAP_USERNAME_ATTRIBUTE"); v != "" {
+		c.Security.Auth.LDAP.UsernameAttribute = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_LDAP_EMAIL_ATTRIBUTE"); v != "" {
+		c.Security.Auth.LDAP.EmailAttribute = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_LDAP_GROUP_ATTRIBUTE"); v != "" {
+		c.Security.Auth.LDAP.GroupAttribute = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_LDAP_DEFAULT_ROLE"); v != "" {
+		c.Security.Auth.LDAP.DefaultRole = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_LDAP_START_TLS"); v != "" {
+		c.Security.Auth.LDAP.StartTLS = strings.ToLower(v) == "true" || v == "1"
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_LDAP_INSECURE_SKIP_VERIFY"); v != "" {
+		c.Security.Auth.LDAP.InsecureSkipVerify = strings.ToLower(v) == "true" || v == "1"
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_LDAP_CA_CERT_FILE"); v != "" {
+		c.Security.Auth.LDAP.CACertFile = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_LDAP_CLIENT_CERT_FILE"); v != "" {
+		c.Security.Auth.LDAP.ClientCertFile = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_LDAP_CLIENT_KEY_FILE"); v != "" {
+		c.Security.Auth.LDAP.ClientKeyFile = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_LDAP_CONNECTION_TIMEOUT"); v != "" {
+		if n, ok := envInt("SCHEMA_REGISTRY_LDAP_CONNECTION_TIMEOUT", v); ok {
+			c.Security.Auth.LDAP.ConnectionTimeout = n
+		}
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_LDAP_REQUEST_TIMEOUT"); v != "" {
+		if n, ok := envInt("SCHEMA_REGISTRY_LDAP_REQUEST_TIMEOUT", v); ok {
+			c.Security.Auth.LDAP.RequestTimeout = n
+		}
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_LDAP_ALLOW_FALLBACK"); v != "" {
+		b := strings.ToLower(v) == "true" || v == "1"
+		c.Security.Auth.LDAP.AllowFallback = &b
 	}
 
 	// Audit overrides

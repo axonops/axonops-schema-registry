@@ -457,6 +457,9 @@ security:
 | `security.auth.ldap.start_tls` | bool | `false` | Upgrade an unencrypted connection using STARTTLS. |
 | `security.auth.ldap.insecure_skip_verify` | bool | `false` | Skip TLS certificate verification. Not recommended for production. |
 | `security.auth.ldap.ca_cert_file` | string | `""` | Path to CA certificate for verifying the LDAP server. |
+| `security.auth.ldap.client_cert_file` | string | `""` | Path to client certificate for mTLS authentication to the LDAP server. |
+| `security.auth.ldap.client_key_file` | string | `""` | Path to client private key for mTLS authentication to the LDAP server. |
+| `security.auth.ldap.allow_fallback` | bool | `true` | When `true`, a failed LDAP bind falls back to other configured auth methods (basic/API key). Set to `false` for strict LDAP-only authentication. |
 | `security.auth.ldap.connection_timeout` | int | `10` | Connection timeout in seconds. |
 | `security.auth.ldap.request_timeout` | int | `30` | Request timeout in seconds. |
 
@@ -481,6 +484,9 @@ security:
         "CN=SchemaDevelopers,OU=Groups,DC=example,DC=com": readwrite
       default_role: readonly
       ca_cert_file: /etc/ssl/certs/ldap-ca.pem
+      client_cert_file: /etc/ssl/certs/ldap-client.pem
+      client_key_file: /etc/ssl/private/ldap-client-key.pem
+      allow_fallback: true            # Set to false for strict LDAP-only auth
       connection_timeout: 10
       request_timeout: 30
 ```
@@ -847,6 +853,39 @@ The following environment variables override the corresponding configuration fil
 | `SCHEMA_REGISTRY_JWT_JWKS_CACHE_TTL` | `security.auth.jwt.jwks_cache_ttl` | int |
 | `SCHEMA_REGISTRY_JWT_HTTP_TIMEOUT` | `security.auth.jwt.http_timeout` | int |
 
+### Authentication
+
+| Variable | Overrides | Type |
+|----------|-----------|------|
+| `SCHEMA_REGISTRY_AUTH_ENABLED` | `security.auth.enabled` | bool (`true`/`1`) |
+| `SCHEMA_REGISTRY_AUTH_METHODS` | `security.auth.methods` | comma-separated string |
+
+### LDAP
+
+| Variable | Overrides | Type |
+|----------|-----------|------|
+| `SCHEMA_REGISTRY_LDAP_ENABLED` | `security.auth.ldap.enabled` | bool (`true`/`1`) |
+| `SCHEMA_REGISTRY_LDAP_URL` | `security.auth.ldap.url` | string |
+| `SCHEMA_REGISTRY_LDAP_BIND_DN` | `security.auth.ldap.bind_dn` | string |
+| `SCHEMA_REGISTRY_LDAP_BIND_PASSWORD` | `security.auth.ldap.bind_password` | string |
+| `SCHEMA_REGISTRY_LDAP_BASE_DN` | `security.auth.ldap.base_dn` | string |
+| `SCHEMA_REGISTRY_LDAP_USER_SEARCH_FILTER` | `security.auth.ldap.user_search_filter` | string |
+| `SCHEMA_REGISTRY_LDAP_USER_SEARCH_BASE` | `security.auth.ldap.user_search_base` | string |
+| `SCHEMA_REGISTRY_LDAP_GROUP_SEARCH_FILTER` | `security.auth.ldap.group_search_filter` | string |
+| `SCHEMA_REGISTRY_LDAP_GROUP_SEARCH_BASE` | `security.auth.ldap.group_search_base` | string |
+| `SCHEMA_REGISTRY_LDAP_USERNAME_ATTRIBUTE` | `security.auth.ldap.username_attribute` | string |
+| `SCHEMA_REGISTRY_LDAP_EMAIL_ATTRIBUTE` | `security.auth.ldap.email_attribute` | string |
+| `SCHEMA_REGISTRY_LDAP_GROUP_ATTRIBUTE` | `security.auth.ldap.group_attribute` | string |
+| `SCHEMA_REGISTRY_LDAP_DEFAULT_ROLE` | `security.auth.ldap.default_role` | string |
+| `SCHEMA_REGISTRY_LDAP_START_TLS` | `security.auth.ldap.start_tls` | bool (`true`/`1`) |
+| `SCHEMA_REGISTRY_LDAP_INSECURE_SKIP_VERIFY` | `security.auth.ldap.insecure_skip_verify` | bool (`true`/`1`) |
+| `SCHEMA_REGISTRY_LDAP_CA_CERT_FILE` | `security.auth.ldap.ca_cert_file` | string |
+| `SCHEMA_REGISTRY_LDAP_CLIENT_CERT_FILE` | `security.auth.ldap.client_cert_file` | string |
+| `SCHEMA_REGISTRY_LDAP_CLIENT_KEY_FILE` | `security.auth.ldap.client_key_file` | string |
+| `SCHEMA_REGISTRY_LDAP_ALLOW_FALLBACK` | `security.auth.ldap.allow_fallback` | bool (`true`/`1`) |
+| `SCHEMA_REGISTRY_LDAP_CONNECTION_TIMEOUT` | `security.auth.ldap.connection_timeout` | int |
+| `SCHEMA_REGISTRY_LDAP_REQUEST_TIMEOUT` | `security.auth.ldap.request_timeout` | int |
+
 ---
 
 ## Complete Configuration Example
@@ -1012,6 +1051,9 @@ security:
       start_tls: false
       insecure_skip_verify: false
       ca_cert_file: ""
+      client_cert_file: ""            # Client cert for mTLS to LDAP server
+      client_key_file: ""             # Client key for mTLS to LDAP server
+      allow_fallback: true            # false = strict LDAP-only (no DB/htpasswd fallback)
       connection_timeout: 10          # seconds
       request_timeout: 30             # seconds
 

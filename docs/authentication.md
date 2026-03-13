@@ -156,7 +156,7 @@ This approach is useful when you want to create the admin user before starting t
 
 ## Basic Authentication
 
-Basic Auth validates credentials against the database using bcrypt-hashed passwords. If LDAP is configured, it is tried as a fallback when database authentication fails.
+Basic Auth validates credentials against the database using bcrypt-hashed passwords. If LDAP is configured and `allow_fallback` is `true` (the default), credentials that fail LDAP authentication are tried against the database as a fallback. Set `allow_fallback: false` to disable this behavior.
 
 ### Configuration
 
@@ -312,6 +312,9 @@ security:
       default_role: "readonly"
       start_tls: true
       ca_cert_file: "/etc/ssl/certs/ldap-ca.pem"
+      client_cert_file: "/etc/ssl/certs/ldap-client.pem"
+      client_key_file: "/etc/ssl/private/ldap-client-key.pem"
+      allow_fallback: true            # Set to false for strict LDAP-only auth
       connection_timeout: 10
       request_timeout: 30
 ```
@@ -331,7 +334,9 @@ For encrypted connections:
 - **LDAPS** -- use `ldaps://` in the URL (e.g., `ldaps://ldap.example.com:636`)
 - **StartTLS** -- set `start_tls: true` with a plain `ldap://` URL
 
-Both methods support custom CA certificates via `ca_cert_file`. For development and testing environments, `insecure_skip_verify: true` disables certificate validation (not recommended for production).
+Both methods support custom CA certificates via `ca_cert_file` and client certificate authentication (mTLS) via `client_cert_file` / `client_key_file`. For development and testing environments, `insecure_skip_verify: true` disables certificate validation (not recommended for production).
+
+> **Security warning:** If LDAP is configured without TLS (`ldap://` URL and `start_tls: false`), the registry logs a warning at startup and emits a `security_warning` audit event with `reason: ldap_no_tls`. Bind credentials and user passwords are transmitted in plaintext over non-TLS connections, which MUST be avoided in production.
 
 ### Configuration Reference
 
@@ -350,9 +355,22 @@ Both methods support custom CA certificates via `ca_cert_file`. For development 
 | `default_role` | Role assigned when no group mapping matches | `readonly` |
 | `start_tls` | Upgrade connection to TLS via StartTLS | `false` |
 | `ca_cert_file` | Path to CA certificate for TLS verification | `""` |
+| `client_cert_file` | Path to client certificate for mTLS | `""` |
+| `client_key_file` | Path to client private key for mTLS | `""` |
 | `insecure_skip_verify` | Skip TLS certificate verification | `false` |
+| `allow_fallback` | Allow fallback to DB/htpasswd when LDAP bind fails | `true` |
 | `connection_timeout` | Connection timeout in seconds | `10` |
 | `request_timeout` | Search request timeout in seconds | `30` |
+
+### Fallback Behavior
+
+By default (`allow_fallback: true`), when an LDAP bind fails the registry falls back to other configured authentication methods (database users, htpasswd). This allows mixed environments where some users are in LDAP and others are local accounts.
+
+Set `allow_fallback: false` for strict LDAP-only authentication. In this mode, if LDAP authentication fails (wrong password, user not found, server unreachable), the request is immediately rejected with HTTP 401 — no fallback to database or htpasswd users occurs.
+
+### Audit Logging
+
+LDAP-authenticated requests use `auth_method: ldap` in audit events, distinguishing them from database-based basic authentication (`auth_method: basic`). See [Audit Logging](auditing.md#actor-types-and-authentication-methods) for details.
 
 ## OIDC (OpenID Connect)
 

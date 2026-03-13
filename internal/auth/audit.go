@@ -141,6 +141,9 @@ const (
 	AuditEventMCPConfirmIssued   AuditEventType = "mcp_confirm_issued"
 	AuditEventMCPConfirmRejected AuditEventType = "mcp_confirm_rejected"
 	AuditEventMCPConfirmed       AuditEventType = "mcp_confirmed"
+
+	// Security events
+	AuditEventSecurityWarning AuditEventType = "security_warning"
 )
 
 // AuditEvent represents an audit log entry following industry-standard audit
@@ -439,6 +442,9 @@ func setDefaultEnabledEvents(m map[AuditEventType]bool) {
 	m[AuditEventMCPConfirmIssued] = true
 	m[AuditEventMCPConfirmRejected] = true
 	m[AuditEventMCPConfirmed] = true
+
+	// Security events
+	m[AuditEventSecurityWarning] = true
 }
 
 // Log logs an audit event. When async mode is active (ch != nil), events are

@@ -225,7 +225,11 @@ func (a *Authenticator) authenticateBasic(r *http.Request) (*User, bool) {
 		if err == nil && user != nil {
 			return user, true
 		}
-		// LDAP failed, continue to other auth methods
+		// LDAP failed — check if fallback to other auth methods is allowed.
+		// Default is true (allow fallback) for backward compatibility.
+		if a.config.LDAP.AllowFallback != nil && !*a.config.LDAP.AllowFallback {
+			return nil, false
+		}
 	}
 
 	// Try database-backed authentication

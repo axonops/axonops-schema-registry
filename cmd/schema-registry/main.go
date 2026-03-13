@@ -251,6 +251,8 @@ func main() {
 			logger.Info("LDAP authentication enabled",
 				slog.String("url", cfg.Security.Auth.LDAP.URL),
 				slog.String("user_search_base", cfg.Security.Auth.LDAP.UserSearchBase),
+				slog.Bool("tls", strings.HasPrefix(cfg.Security.Auth.LDAP.URL, "ldaps://") || cfg.Security.Auth.LDAP.StartTLS),
+				slog.Bool("mtls", cfg.Security.Auth.LDAP.ClientCertFile != ""),
 			)
 			ldapProvider, err := auth.NewLDAPProvider(cfg.Security.Auth.LDAP)
 			if err != nil {
@@ -258,6 +260,21 @@ func main() {
 				os.Exit(1)
 			}
 			authenticator.SetLDAPProvider(ldapProvider)
+
+			// Emit audit event if LDAP is configured without TLS
+			if auditLogger != nil && !ldapProvider.IsSecure() {
+				auditLogger.Log(&auth.AuditEvent{
+					EventType:  auth.AuditEventSecurityWarning,
+					Timestamp:  time.Now(),
+					Method:     "STARTUP",
+					ActorID:    "system",
+					ActorType:  "system",
+					Outcome:    "warning",
+					TargetType: "config",
+					TargetID:   "security.auth.ldap",
+					Reason:     "ldap_no_tls",
+				})
+			}
 		}
 
 		// Setup OIDC provider if enabled

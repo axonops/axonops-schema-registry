@@ -29,6 +29,7 @@
   - [Encryption Events (KEK/DEK)](#encryption-events-kekdek)
   - [Exporter Events](#exporter-events)
   - [MCP Events](#mcp-events)
+  - [Security Events](#security-events)
 - [Outcome and Reason Codes](#outcome-and-reason-codes)
 - [Actor Types and Authentication Methods](#actor-types-and-authentication-methods)
 - [Target Types](#target-types)
@@ -382,6 +383,12 @@ When the `events` list is empty in configuration, all events marked with **[defa
 | `mcp_confirm_rejected` | Confirmation token validation failed | **[default]** |
 | `mcp_confirmed` | Destructive operation confirmed and executed | **[default]** |
 
+### Security Events
+
+| Event Type | Trigger | Default |
+|------------|---------|---------|
+| `security_warning` | Insecure configuration detected at startup (e.g., LDAP without TLS) | **[default]** |
+
 ## Outcome and Reason Codes
 
 Every audit event has an `outcome` field:
@@ -391,6 +398,7 @@ Every audit event has an `outcome` field:
 | `success` | The operation completed successfully. |
 | `failure` | The operation failed entirely. |
 | `partial_failure` | A bulk operation partially succeeded (e.g., `/import/schemas` imported some schemas but not all). |
+| `warning` | A security configuration issue was detected (e.g., LDAP without TLS). |
 
 > **Note:** The `/import/schemas` endpoint returns HTTP 422 when **all** schemas in a batch fail (0 imported, errors > 0), and HTTP 200 with `outcome: partial_failure` when some schemas succeed and others fail. This ensures audit events accurately reflect the actual result of bulk operations.
 
@@ -408,6 +416,7 @@ For failure events, the `reason` field provides a machine-parseable classificati
 | `invalid_schema` | Schema validation or parsing failed. | 422 |
 | `rate_limited` | Request rejected by rate limiter. | 429 |
 | `internal_error` | Unexpected server error. | 500 |
+| `ldap_no_tls` | LDAP configured without TLS encryption. | — |
 
 For MCP events, the same `reason` codes apply. Since MCP events do not have HTTP status codes, the `reason` field is the primary way to classify MCP failures.
 

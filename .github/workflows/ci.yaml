@@ -1990,3 +1990,32 @@ jobs:
         if: always()
         working-directory: tests/bdd
         run: docker compose -f docker-compose.confluent.yml down -v || true
+
+  # BDD LDAP authentication tests — Docker-deployed binary with OpenLDAP
+  bdd-ldap-tests:
+    name: BDD Tests (LDAP)
+    runs-on: ubuntu-latest
+    needs: [bdd-functional-tests]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run BDD LDAP tests (Docker)
+        run: make test-bdd-ldap
+
+      - name: Show container logs on failure
+        if: failure()
+        working-directory: tests/bdd
+        run: docker compose -p bdd-ldap -f docker-compose.base.yml -f docker-compose.ldap.yml logs --tail=100 || true
+
+      - name: Cleanup containers
+        if: always()
+        working-directory: tests/bdd
+        run: docker compose -p bdd-ldap -f docker-compose.base.yml -f docker-compose.ldap.yml down -v || true
