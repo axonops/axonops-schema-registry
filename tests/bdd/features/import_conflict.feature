@@ -26,7 +26,7 @@ Feature: Import with Conflicting IDs
       """
       {"type":"record","name":"Conflict","fields":[{"name":"name","type":"string"}]}
       """
-    Then the response status should be 200
+    Then the response status should be 422
     # The import should report an error for the conflicting ID
     And the import should have 0 imported and 1 errors
     # Reset mode
@@ -40,16 +40,15 @@ Feature: Import with Conflicting IDs
       | method      | POST              |
       | path        | /import/schemas   |
       | status_code | 200               |
-    # Second import (conflicting ID, 0 imported / 1 error) — still audits as
-    # "success" because the HTTP status is 200 (errors are in the response body)
+    # Second import (conflicting ID, 0 imported / 1 error) — returns 422
     And the audit log should contain an event:
       | event_type  | schema_import     |
-      | outcome     | success           |
+      | outcome     | failure           |
       | actor_type  | anonymous         |
       | target_id   | import-conflict   |
       | method      | POST              |
       | path        | /import/schemas   |
-      | status_code | 200               |
+      | status_code | 422               |
 
   # ---------------------------------------------------------------------------
   # Import with an ID that already exists but same schema content
@@ -118,12 +117,10 @@ Feature: Import with Conflicting IDs
       """
       {"type":"record","name":"VerDup2","fields":[{"name":"name","type":"string"}]}
       """
-    Then the response status should be 200
+    Then the response status should be 422
     And the import should have 0 imported and 1 errors
     When I set the global mode to "READWRITE"
-    # Both imports target the same subject so both audit entries share the same
-    # target_id.  The second import (0 imported / 1 error) still audits as
-    # "success" because the HTTP status is 200.
+    # First import succeeded
     And the audit log should contain an event:
       | event_type  | schema_import    |
       | outcome     | success          |
@@ -132,6 +129,15 @@ Feature: Import with Conflicting IDs
       | method      | POST             |
       | path        | /import/schemas  |
       | status_code | 200              |
+    # Second import (0 imported / 1 error) returns 422 and audits as failure
+    And the audit log should contain an event:
+      | event_type  | schema_import    |
+      | outcome     | failure          |
+      | actor_type  | anonymous        |
+      | target_id   | import-ver-dup   |
+      | method      | POST             |
+      | path        | /import/schemas  |
+      | status_code | 422              |
 
   # ---------------------------------------------------------------------------
   # Import Protobuf and JSON Schema with conflicting IDs
@@ -155,7 +161,7 @@ Feature: Import with Conflicting IDs
         int32 id = 1;
       }
       """
-    Then the response status should be 200
+    Then the response status should be 422
     And the import should have 0 imported and 1 errors
     When I set the global mode to "READWRITE"
     # First import (succeeded)
@@ -167,15 +173,15 @@ Feature: Import with Conflicting IDs
       | method      | POST                   |
       | path        | /import/schemas        |
       | status_code | 200                    |
-    # Second import (conflicting ID, 0 imported / 1 error) — still HTTP 200
+    # Second import (conflicting ID, 0 imported / 1 error) — returns 422
     And the audit log should contain an event:
       | event_type  | schema_import          |
-      | outcome     | success                |
+      | outcome     | failure                |
       | actor_type  | anonymous              |
       | target_id   | import-proto-conflict  |
       | method      | POST                   |
       | path        | /import/schemas        |
-      | status_code | 200                    |
+      | status_code | 422                    |
 
   # ---------------------------------------------------------------------------
   # IDs after import continue above highest imported

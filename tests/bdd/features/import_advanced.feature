@@ -19,7 +19,7 @@ Feature: Advanced Schema Import
       """
       {"type":"record","name":"Second","fields":[{"name":"name","type":"string"}]}
       """
-    Then the response status should be 200
+    Then the response status should be 422
     And the import should have 0 imported and 1 errors
     When I set the global mode to "READWRITE"
     # First import (succeeded) — audit entry for imp-conflict-a
@@ -31,16 +31,15 @@ Feature: Advanced Schema Import
       | method      | POST             |
       | path        | /import/schemas  |
       | status_code | 200              |
-    # Second import (conflict, 0 imported / 1 error) — still audits as "success"
-    # because the HTTP status is 200 (errors are in the response body, not status code)
+    # Second import (conflict, 0 imported / 1 error) — returns 422 and audits as failure
     And the audit log should contain an event:
       | event_type  | schema_import    |
-      | outcome     | success          |
+      | outcome     | failure          |
       | actor_type  | anonymous        |
       | target_id   | imp-conflict-b   |
       | method      | POST             |
       | path        | /import/schemas  |
-      | status_code | 200              |
+      | status_code | 422              |
 
   Scenario: Import with conflicting subject and version fails
     Given the global mode is "IMPORT"
@@ -54,12 +53,10 @@ Feature: Advanced Schema Import
       """
       {"type":"record","name":"Replacement","fields":[{"name":"name","type":"string"}]}
       """
-    Then the response status should be 200
+    Then the response status should be 422
     And the import should have 0 imported and 1 errors
     When I set the global mode to "READWRITE"
-    # Both imports target the same subject so both audit entries share the same
-    # target_id.  The second import (0 imported / 1 error) still audits as
-    # "success" because the HTTP status is 200.
+    # First import succeeded
     And the audit log should contain an event:
       | event_type  | schema_import    |
       | outcome     | success          |
@@ -68,6 +65,15 @@ Feature: Advanced Schema Import
       | method      | POST             |
       | path        | /import/schemas  |
       | status_code | 200              |
+    # Second import (0 imported / 1 error) returns 422 and audits as failure
+    And the audit log should contain an event:
+      | event_type  | schema_import    |
+      | outcome     | failure          |
+      | actor_type  | anonymous        |
+      | target_id   | imp-sv-conflict  |
+      | method      | POST             |
+      | path        | /import/schemas  |
+      | status_code | 422              |
 
   # --------------------------------------------------------------------------
   # PARTIAL IMPORT
@@ -92,13 +98,14 @@ Feature: Advanced Schema Import
     When I get schema by ID 302
     Then the response status should be 200
     And the response should contain "Good2"
+    # Partial success (2 imported / 1 error) — HTTP 200 with partial_failure outcome
     And the audit log should contain an event:
-      | event_type  | schema_import   |
-      | outcome     | success         |
-      | actor_type  | anonymous       |
-      | method      | POST            |
-      | path        | /import/schemas |
-      | status_code | 200             |
+      | event_type  | schema_import    |
+      | outcome     | partial_failure  |
+      | actor_type  | anonymous        |
+      | method      | POST             |
+      | path        | /import/schemas  |
+      | status_code | 200              |
 
   # --------------------------------------------------------------------------
   # ID SEQUENCING
