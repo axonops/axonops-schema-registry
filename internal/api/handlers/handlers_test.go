@@ -2055,3 +2055,27 @@ func TestHashExporter(t *testing.T) {
 		t.Error("different Subjects should produce different hash")
 	}
 }
+
+func TestImportStatusCode(t *testing.T) {
+	tests := []struct {
+		name     string
+		imported int
+		errors   int
+		want     int
+	}{
+		{"all success", 3, 0, 200},
+		{"total failure", 0, 2, 422},
+		{"partial failure", 2, 1, 200},
+		{"empty import", 0, 0, 200},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := &registry.ImportResult{Imported: tt.imported, Errors: tt.errors}
+			got := importStatusCode(result)
+			if got != tt.want {
+				t.Errorf("importStatusCode(imported=%d, errors=%d) = %d, want %d",
+					tt.imported, tt.errors, got, tt.want)
+			}
+		})
+	}
+}

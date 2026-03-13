@@ -1525,30 +1525,25 @@ func (h *Handler) ImportSchemas(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		// Even on error, we might have partial results
 		if result != nil {
-			resp := types.ImportSchemasResponse{
-				Imported: result.Imported,
-				Errors:   result.Errors,
-				Results:  make([]types.ImportSchemaResult, len(result.Results)),
-			}
-			for i, r := range result.Results {
-				resp.Results[i] = types.ImportSchemaResult{
-					ID:      r.ID,
-					Subject: r.Subject,
-					Version: r.Version,
-					Success: r.Success,
-					Error:   r.Error,
-				}
-			}
-			// Return partial success with warning
+			resp := importResultToResponse(result)
 			w.Header().Set("X-Warning", err.Error())
-			writeJSON(w, http.StatusOK, resp)
+			statusCode := importStatusCode(result)
+			setImportOutcomeHint(r, result)
+			writeJSON(w, statusCode, resp)
 			return
 		}
 		writeInternalError(w, err)
 		return
 	}
 
-	// Convert result to response
+	resp := importResultToResponse(result)
+	statusCode := importStatusCode(result)
+	setImportOutcomeHint(r, result)
+	writeJSON(w, statusCode, resp)
+}
+
+// importResultToResponse converts a registry.ImportResult to an API response type.
+func importResultToResponse(result *registry.ImportResult) types.ImportSchemasResponse {
 	resp := types.ImportSchemasResponse{
 		Imported: result.Imported,
 		Errors:   result.Errors,
@@ -1563,8 +1558,30 @@ func (h *Handler) ImportSchemas(w http.ResponseWriter, r *http.Request) {
 			Error:   r.Error,
 		}
 	}
+	return resp
+}
 
-	writeJSON(w, http.StatusOK, resp)
+// importStatusCode returns the appropriate HTTP status code for an import result.
+// Total failure (0 imported, errors > 0) returns 422; otherwise 200.
+func importStatusCode(result *registry.ImportResult) int {
+	if result.Imported == 0 && result.Errors > 0 {
+		return http.StatusUnprocessableEntity // 422
+	}
+	return http.StatusOK
+}
+
+// setImportOutcomeHint sets the audit outcome hint based on import results.
+// Total failure → "failure", partial success → "partial_failure", full success → left unset.
+func setImportOutcomeHint(r *http.Request, result *registry.ImportResult) {
+	hints := auth.GetAuditHints(r.Context())
+	if hints == nil {
+		return
+	}
+	if result.Imported == 0 && result.Errors > 0 {
+		hints.Outcome = "failure"
+	} else if result.Errors > 0 {
+		hints.Outcome = "partial_failure"
+	}
 }
 
 // GetRawSchemaByVersion handles GET /subjects/{subject}/versions/{version}/schema

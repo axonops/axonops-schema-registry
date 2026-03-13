@@ -550,6 +550,12 @@ type AuditHints struct {
 	Version    int
 	Context    string // registry context namespace
 
+	// Outcome override — when set by a handler, the audit middleware uses this
+	// instead of deriving the outcome from the HTTP status code. Useful for
+	// bulk operations where HTTP 200 may mask partial failures.
+	// Valid values: "success", "failure", "partial_failure".
+	Outcome string
+
 	// Target fields — populated by handlers when the URL path alone is not
 	// sufficient to determine the target (e.g., bulk import where subjects
 	// are in the request body, not the URL).
@@ -637,6 +643,9 @@ func (al *AuditLogger) Middleware(next http.Handler) http.Handler {
 		}
 
 		outcome := outcomeFromStatusCode(rw.statusCode)
+		if hints.Outcome != "" {
+			outcome = hints.Outcome
+		}
 		reason := reasonFromStatusCode(rw.statusCode)
 		targetType, targetID := extractTarget(r.URL.Path, eventType)
 

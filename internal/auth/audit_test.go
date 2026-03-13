@@ -1518,6 +1518,49 @@ func TestAuditLogger_Middleware_PropagatesHints(t *testing.T) {
 	}
 }
 
+func TestAuditLogger_Middleware_OutcomeOverride(t *testing.T) {
+	var buf bytes.Buffer
+	al := NewAuditLoggerWithWriter(config.AuditConfig{Enabled: true}, &buf)
+	defer al.Close()
+
+	handler := al.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Handler overrides the outcome even though status is 200.
+		if hints := GetAuditHints(r.Context()); hints != nil {
+			hints.Outcome = "partial_failure"
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	r := httptest.NewRequest("POST", "/import/schemas", nil)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+
+	content := buf.String()
+	if !strings.Contains(content, `"outcome":"partial_failure"`) {
+		t.Errorf("expected outcome=partial_failure in audit output, got: %s", content)
+	}
+}
+
+func TestAuditLogger_Middleware_OutcomeDefaultFromStatus(t *testing.T) {
+	var buf bytes.Buffer
+	al := NewAuditLoggerWithWriter(config.AuditConfig{Enabled: true}, &buf)
+	defer al.Close()
+
+	handler := al.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Handler does NOT set outcome — middleware should derive from 422.
+		w.WriteHeader(http.StatusUnprocessableEntity)
+	}))
+
+	r := httptest.NewRequest("POST", "/import/schemas", nil)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+
+	content := buf.String()
+	if !strings.Contains(content, `"outcome":"failure"`) {
+		t.Errorf("expected outcome=failure from 422 status, got: %s", content)
+	}
+}
+
 func TestLogMCPConfirmationEvent_ActorFields(t *testing.T) {
 	var buf bytes.Buffer
 	al := NewAuditLoggerWithWriter(config.AuditConfig{Enabled: true}, &buf)
