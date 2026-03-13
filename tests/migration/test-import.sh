@@ -156,7 +156,7 @@ curl -sf -X PUT "http://localhost:$TEST_PORT/mode?force=true" \
 
 echo ""
 echo "=== Test 5: Duplicate ID rejected ==="
-DUP_RESPONSE=$(curl -sf -X POST http://localhost:$TEST_PORT/import/schemas \
+DUP_HTTP_CODE=$(curl -s -o /tmp/dup_response.json -w "%{http_code}" -X POST http://localhost:$TEST_PORT/import/schemas \
     -H "Content-Type: application/json" \
     -d '{
         "schemas": [
@@ -169,15 +169,21 @@ DUP_RESPONSE=$(curl -sf -X POST http://localhost:$TEST_PORT/import/schemas \
             }
         ]
     }')
+DUP_RESPONSE=$(cat /tmp/dup_response.json)
 
-echo "Duplicate import response: $DUP_RESPONSE"
+echo "Duplicate import response (HTTP $DUP_HTTP_CODE): $DUP_RESPONSE"
+
+if [[ "$DUP_HTTP_CODE" != "422" ]]; then
+    echo "FAIL: Expected HTTP 422 for total import failure, got $DUP_HTTP_CODE"
+    exit 1
+fi
 
 DUP_ERRORS=$(echo "$DUP_RESPONSE" | jq -r '.errors')
 if [[ "$DUP_ERRORS" != "1" ]]; then
     echo "FAIL: Duplicate ID should be rejected"
     exit 1
 fi
-echo "PASS: Duplicate ID correctly rejected"
+echo "PASS: Duplicate ID correctly rejected (HTTP 422)"
 
 echo ""
 echo "=== Restoring READWRITE mode ==="
