@@ -13,12 +13,33 @@ Feature: MCP Audit Logging
     When I call MCP tool "health_check"
     Then the MCP result should contain "healthy"
     And the audit log should contain an event:
-      | event_type  | mcp_tool_call  |
-      | outcome     | success        |
-      | actor_id    | mcp-anonymous  |
-      | actor_type  | anonymous      |
-      | method      | MCP            |
-      | path        | health_check   |
+      | timestamp          | *              |
+      | duration_ms        | *              |
+      | event_type         | mcp_tool_call  |
+      | outcome            | success        |
+      | actor_id           | mcp-anonymous  |
+      | actor_type         | anonymous      |
+      | role               |                |
+      | auth_method        |                |
+      | target_type        |                |
+      | target_id          |                |
+      | schema_id          |                |
+      | version            |                |
+      | schema_type        |                |
+      | before_hash        |                |
+      | after_hash         |                |
+      | context            |                |
+      | request_id         |                |
+      | transport_security |                |
+      | source_ip          |                |
+      | user_agent         |                |
+      | method             | MCP            |
+      | path               | health_check   |
+      | status_code        | 0              |
+      | reason             |                |
+      | error              |                |
+      | request_body       |                |
+      | metadata           |                |
 
   Scenario: Tool error emits mcp_tool_error audit event
     When I call MCP tool "get_schema_version" with input:
@@ -26,12 +47,33 @@ Feature: MCP Audit Logging
       | version | 1                   |
     Then the MCP result should contain "error"
     And the audit log should contain an event:
-      | event_type  | mcp_tool_error     |
-      | outcome     | failure            |
-      | actor_id    | mcp-anonymous      |
-      | actor_type  | anonymous          |
-      | method      | MCP                |
-      | path        | get_schema_version |
+      | timestamp          | *                    |
+      | duration_ms        | *                    |
+      | event_type         | mcp_tool_error       |
+      | outcome            | failure              |
+      | actor_id           | mcp-anonymous        |
+      | actor_type         | anonymous            |
+      | role               |                      |
+      | auth_method        |                      |
+      | target_type        | subject              |
+      | target_id          | nonexistent-subject  |
+      | schema_id          |                      |
+      | version            |                      |
+      | schema_type        |                      |
+      | before_hash        |                      |
+      | after_hash         |                      |
+      | context            |                      |
+      | request_id         |                      |
+      | transport_security |                      |
+      | source_ip          |                      |
+      | user_agent         |                      |
+      | method             | MCP                  |
+      | path               | get_schema_version   |
+      | status_code        | 0                    |
+      | reason             | internal_error       |
+      | error              | tool returned error  |
+      | request_body       |                      |
+      | metadata           |                      |
 
   Scenario: Schema registration audit includes subject name
     Given I register an Avro schema for subject "audit-subject-test"
@@ -50,12 +92,33 @@ Feature: MCP Audit Logging
       """
     Then the MCP result should contain "confirm_token"
     And the audit log should contain an event:
-      | event_type  | mcp_confirm_issued |
-      | outcome     | success            |
-      | actor_id    | mcp-anonymous      |
-      | actor_type  | anonymous          |
-      | method      | MCP                |
-      | path        | delete_subject     |
+      | timestamp          | *                  |
+      | duration_ms        | *                  |
+      | event_type         | mcp_confirm_issued |
+      | outcome            | success            |
+      | actor_id           | mcp-anonymous      |
+      | actor_type         | anonymous          |
+      | role               |                    |
+      | auth_method        |                    |
+      | target_type        |                    |
+      | target_id          |                    |
+      | schema_id          |                    |
+      | version            |                    |
+      | schema_type        |                    |
+      | before_hash        |                    |
+      | after_hash         |                    |
+      | context            |                    |
+      | request_id         |                    |
+      | transport_security |                    |
+      | source_ip          |                    |
+      | user_agent         |                    |
+      | method             | MCP                |
+      | path               | delete_subject     |
+      | status_code        | 0                  |
+      | reason             |                    |
+      | error              |                    |
+      | request_body       |                    |
+      | metadata           |                    |
 
   Scenario: Confirmation rejection emits mcp_confirm_rejected
     Given MCP confirmations are enabled
@@ -66,12 +129,33 @@ Feature: MCP Audit Logging
       """
     Then the MCP result should contain "error"
     And the audit log should contain an event:
-      | event_type  | mcp_confirm_rejected |
-      | outcome     | success              |
-      | actor_id    | mcp-anonymous        |
-      | actor_type  | anonymous            |
-      | method      | MCP                  |
-      | path        | delete_subject       |
+      | timestamp          | *                    |
+      | duration_ms        | *                    |
+      | event_type         | mcp_confirm_rejected |
+      | outcome            | success              |
+      | actor_id           | mcp-anonymous        |
+      | actor_type         | anonymous            |
+      | role               |                      |
+      | auth_method        |                      |
+      | target_type        |                      |
+      | target_id          |                      |
+      | schema_id          |                      |
+      | version            |                      |
+      | schema_type        |                      |
+      | before_hash        |                      |
+      | after_hash         |                      |
+      | context            |                      |
+      | request_id         |                      |
+      | transport_security |                      |
+      | source_ip          |                      |
+      | user_agent         |                      |
+      | method             | MCP                  |
+      | path               | delete_subject       |
+      | status_code        | 0                    |
+      | reason             |                      |
+      | error              |                      |
+      | request_body       |                      |
+      | metadata           |                      |
 
   # --- Principal Identification ---
 
@@ -79,10 +163,33 @@ Feature: MCP Audit Logging
     When I call MCP tool "health_check"
     Then the MCP result should contain "healthy"
     And the audit log should contain an event:
-      | event_type  | mcp_tool_call  |
-      | actor_id    | mcp-anonymous  |
-      | actor_type  | anonymous      |
-      | outcome     | success        |
+      | timestamp          | *              |
+      | duration_ms        | *              |
+      | event_type         | mcp_tool_call  |
+      | outcome            | success        |
+      | actor_id           | mcp-anonymous  |
+      | actor_type         | anonymous      |
+      | role               |                |
+      | auth_method        |                |
+      | target_type        |                |
+      | target_id          |                |
+      | schema_id          |                |
+      | version            |                |
+      | schema_type        |                |
+      | before_hash        |                |
+      | after_hash         |                |
+      | context            |                |
+      | request_id         |                |
+      | transport_security |                |
+      | source_ip          |                |
+      | user_agent         |                |
+      | method             | MCP            |
+      | path               | health_check   |
+      | status_code        | 0              |
+      | reason             |                |
+      | error              |                |
+      | request_body       |                |
+      | metadata           |                |
 
   Scenario: Tool error records mcp-anonymous as user
     When I call MCP tool "get_schema_version" with input:
@@ -90,10 +197,33 @@ Feature: MCP Audit Logging
       | version | 1                    |
     Then the MCP result should contain "error"
     And the audit log should contain an event:
-      | event_type  | mcp_tool_error |
-      | actor_id    | mcp-anonymous  |
-      | actor_type  | anonymous      |
-      | outcome     | failure        |
+      | timestamp          | *                    |
+      | duration_ms        | *                    |
+      | event_type         | mcp_tool_error       |
+      | outcome            | failure              |
+      | actor_id           | mcp-anonymous        |
+      | actor_type         | anonymous            |
+      | role               |                      |
+      | auth_method        |                      |
+      | target_type        | subject              |
+      | target_id          | nonexistent-user-sub |
+      | schema_id          |                      |
+      | version            |                      |
+      | schema_type        |                      |
+      | before_hash        |                      |
+      | after_hash         |                      |
+      | context            |                      |
+      | request_id         |                      |
+      | transport_security |                      |
+      | source_ip          |                      |
+      | user_agent         |                      |
+      | method             | MCP                  |
+      | path               | get_schema_version   |
+      | status_code        | 0                    |
+      | reason             | internal_error       |
+      | error              | tool returned error  |
+      | request_body       |                      |
+      | metadata           |                      |
 
   # --- Event Filtering ---
 
@@ -119,13 +249,33 @@ Feature: MCP Audit Logging
       """
     Then the MCP result should not be an error
     And the audit log should contain an event:
-      | event_type  | mcp_tool_call      |
-      | outcome     | success            |
-      | actor_id    | mcp-anonymous      |
-      | actor_type  | anonymous          |
-      | method      | MCP                |
-      | path        | register_schema    |
-      | target_id   | audit-mcp-register |
+      | timestamp          | *                  |
+      | duration_ms        | *                  |
+      | event_type         | mcp_tool_call      |
+      | outcome            | success            |
+      | actor_id           | mcp-anonymous      |
+      | actor_type         | anonymous          |
+      | role               |                    |
+      | auth_method        |                    |
+      | target_type        | subject            |
+      | target_id          | audit-mcp-register |
+      | schema_id          |                    |
+      | version            |                    |
+      | schema_type        |                    |
+      | before_hash        |                    |
+      | after_hash         |                    |
+      | context            |                    |
+      | request_id         |                    |
+      | transport_security |                    |
+      | source_ip          |                    |
+      | user_agent         |                    |
+      | method             | MCP                |
+      | path               | register_schema    |
+      | status_code        | 0                  |
+      | reason             |                    |
+      | error              |                    |
+      | request_body       |                    |
+      | metadata           |                    |
 
   Scenario: Delete subject via MCP emits mcp_tool_call
     Given I register an Avro schema for subject "audit-mcp-delsub"
@@ -135,12 +285,33 @@ Feature: MCP Audit Logging
       """
     Then the MCP result should not be an error
     And the audit log should contain an event:
-      | event_type  | mcp_tool_call    |
-      | outcome     | success          |
-      | actor_id    | mcp-anonymous    |
-      | actor_type  | anonymous        |
-      | method      | MCP              |
-      | path        | delete_subject   |
+      | timestamp          | *                |
+      | duration_ms        | *                |
+      | event_type         | mcp_tool_call    |
+      | outcome            | success          |
+      | actor_id           | mcp-anonymous    |
+      | actor_type         | anonymous        |
+      | role               |                  |
+      | auth_method        |                  |
+      | target_type        | subject          |
+      | target_id          | audit-mcp-delsub |
+      | schema_id          |                  |
+      | version            |                  |
+      | schema_type        |                  |
+      | before_hash        |                  |
+      | after_hash         |                  |
+      | context            |                  |
+      | request_id         |                  |
+      | transport_security |                  |
+      | source_ip          |                  |
+      | user_agent         |                  |
+      | method             | MCP              |
+      | path               | delete_subject   |
+      | status_code        | 0                |
+      | reason             |                  |
+      | error              |                  |
+      | request_body       |                  |
+      | metadata           |                  |
 
   # --- Config Tools ---
 
@@ -151,12 +322,33 @@ Feature: MCP Audit Logging
       """
     Then the MCP result should not be an error
     And the audit log should contain an event:
-      | event_type  | mcp_tool_call  |
-      | outcome     | success        |
-      | actor_id    | mcp-anonymous  |
-      | actor_type  | anonymous      |
-      | method      | MCP            |
-      | path        | set_config     |
+      | timestamp          | *              |
+      | duration_ms        | *              |
+      | event_type         | mcp_tool_call  |
+      | outcome            | success        |
+      | actor_id           | mcp-anonymous  |
+      | actor_type         | anonymous      |
+      | role               |                |
+      | auth_method        |                |
+      | target_type        |                |
+      | target_id          |                |
+      | schema_id          |                |
+      | version            |                |
+      | schema_type        |                |
+      | before_hash        |                |
+      | after_hash         |                |
+      | context            |                |
+      | request_id         |                |
+      | transport_security |                |
+      | source_ip          |                |
+      | user_agent         |                |
+      | method             | MCP            |
+      | path               | set_config     |
+      | status_code        | 0              |
+      | reason             |                |
+      | error              |                |
+      | request_body       |                |
+      | metadata           |                |
 
   # --- Read Tools ---
 
@@ -164,9 +356,30 @@ Feature: MCP Audit Logging
     When I call MCP tool "list_subjects"
     Then the MCP result should not be an error
     And the audit log should contain an event:
-      | event_type  | mcp_tool_call  |
-      | outcome     | success        |
-      | actor_id    | mcp-anonymous  |
-      | actor_type  | anonymous      |
-      | method      | MCP            |
-      | path        | list_subjects  |
+      | timestamp          | *              |
+      | duration_ms        | *              |
+      | event_type         | mcp_tool_call  |
+      | outcome            | success        |
+      | actor_id           | mcp-anonymous  |
+      | actor_type         | anonymous      |
+      | role               |                |
+      | auth_method        |                |
+      | target_type        |                |
+      | target_id          |                |
+      | schema_id          |                |
+      | version            |                |
+      | schema_type        |                |
+      | before_hash        |                |
+      | after_hash         |                |
+      | context            |                |
+      | request_id         |                |
+      | transport_security |                |
+      | source_ip          |                |
+      | user_agent         |                |
+      | method             | MCP            |
+      | path               | list_subjects  |
+      | status_code        | 0              |
+      | reason             |                |
+      | error              |                |
+      | request_body       |                |
+      | metadata           |                |

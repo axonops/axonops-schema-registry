@@ -466,14 +466,33 @@ Feature: LDAP Authentication and RBAC
       """
     Then the response status should be 200
     And the audit log should contain an event:
-      | event_type  | schema_register |
-      | outcome     | success         |
-      | actor_id    | admin           |
-      | actor_type  | user            |
-      | auth_method | ldap            |
-      | role        | admin           |
-      | method      | POST            |
-      | status_code | 200             |
+      | event_type           | schema_register  |
+      | outcome              | success          |
+      | actor_id             | admin            |
+      | actor_type           | user             |
+      | auth_method          | ldap             |
+      | role                 | admin            |
+      | target_type          | subject          |
+      | target_id            | ldap-audit-subj  |
+      | schema_id            | *                |
+      | version              |                  |
+      | schema_type          | AVRO             |
+      | before_hash          |                  |
+      | after_hash           | sha256:*         |
+      | context              | .                |
+      | transport_security   | tls              |
+      | method               | POST             |
+      | path                 | /subjects        |
+      | status_code          | 200              |
+      | reason               |                  |
+      | error                |                  |
+      | request_body         |                  |
+      | metadata             |                  |
+      | timestamp            | *                |
+      | duration_ms          | *                |
+      | request_id           | *                |
+      | source_ip            | *                |
+      | user_agent           | *                |
 
   @ldap
   Scenario: Failed LDAP login produces auth_failure event
@@ -482,13 +501,33 @@ Feature: LDAP Authentication and RBAC
     When I GET "/subjects"
     Then the response status should be 401
     And the audit log should contain an event:
-      | event_type  | auth_failure         |
-      | outcome     | failure              |
-      | actor_type  | anonymous            |
-      | reason      | no_valid_credentials |
-      | method      | GET                  |
-      | path        | /subjects            |
-      | status_code | 401                  |
+      | event_type           | auth_failure         |
+      | outcome              | failure              |
+      | actor_id             |                      |
+      | actor_type           | anonymous            |
+      | auth_method          |                      |
+      | role                 |                      |
+      | target_type          |                      |
+      | target_id            |                      |
+      | schema_id            |                      |
+      | version              |                      |
+      | schema_type          |                      |
+      | before_hash          |                      |
+      | after_hash           |                      |
+      | context              |                      |
+      | transport_security   | tls                  |
+      | method               | GET                  |
+      | path                 | /subjects            |
+      | status_code          | 401                  |
+      | reason               | no_valid_credentials |
+      | error                |                      |
+      | request_body         |                      |
+      | metadata             |                      |
+      | timestamp            | *                    |
+      | duration_ms          | *                    |
+      | request_id           | *                    |
+      | source_ip            | *                    |
+      | user_agent           | *                    |
 
   @ldap
   Scenario: LDAP developer schema register produces audit event with correct actor and role
@@ -499,14 +538,33 @@ Feature: LDAP Authentication and RBAC
       """
     Then the response status should be 200
     And the audit log should contain an event:
-      | event_type  | schema_register |
-      | outcome     | success         |
-      | actor_id    | developer       |
-      | actor_type  | user            |
-      | auth_method | ldap            |
-      | role        | developer       |
-      | method      | POST            |
-      | status_code | 200             |
+      | event_type           | schema_register  |
+      | outcome              | success          |
+      | actor_id             | developer        |
+      | actor_type           | user             |
+      | auth_method          | ldap             |
+      | role                 | developer        |
+      | target_type          | subject          |
+      | target_id            | ldap-audit-dev   |
+      | schema_id            | *                |
+      | version              |                  |
+      | schema_type          | AVRO             |
+      | before_hash          |                  |
+      | after_hash           | sha256:*         |
+      | context              | .                |
+      | transport_security   | tls              |
+      | method               | POST             |
+      | path                 | /subjects        |
+      | status_code          | 200              |
+      | reason               |                  |
+      | error                |                  |
+      | request_body         |                  |
+      | metadata             |                  |
+      | timestamp            | *                |
+      | duration_ms          | *                |
+      | request_id           | *                |
+      | source_ip            | *                |
+      | user_agent           | *                |
 
   @ldap
   Scenario: LDAP forbidden action produces auth_forbidden event
@@ -517,15 +575,33 @@ Feature: LDAP Authentication and RBAC
       """
     Then the response status should be 403
     And the audit log should contain an event:
-      | event_type  | auth_forbidden    |
-      | outcome     | failure           |
-      | actor_id    | readonly          |
-      | actor_type  | user              |
-      | auth_method | ldap              |
-      | role        | readonly          |
-      | reason      | permission_denied |
-      | method      | POST              |
-      | status_code | 403               |
+      | event_type           | auth_forbidden    |
+      | outcome              | failure           |
+      | actor_id             | readonly          |
+      | actor_type           | user              |
+      | auth_method          | ldap              |
+      | role                 | readonly          |
+      | target_type          |                   |
+      | target_id            |                   |
+      | schema_id            |                   |
+      | version              |                   |
+      | schema_type          |                   |
+      | before_hash          |                   |
+      | after_hash           |                   |
+      | context              |                   |
+      | transport_security   | tls               |
+      | method               | POST              |
+      | path                 | /subjects         |
+      | status_code          | 403               |
+      | reason               | permission_denied |
+      | error                |                   |
+      | request_body         |                   |
+      | metadata             |                   |
+      | timestamp            | *                 |
+      | duration_ms          | *                 |
+      | request_id           | *                 |
+      | source_ip            | *                 |
+      | user_agent           | *                 |
 
   @ldap
   Scenario: No credentials produces auth_failure audit event
@@ -533,13 +609,33 @@ Feature: LDAP Authentication and RBAC
     When I GET "/subjects"
     Then the response status should be 401
     And the audit log should contain an event:
-      | event_type  | auth_failure         |
-      | outcome     | failure              |
-      | actor_type  | anonymous            |
-      | reason      | no_valid_credentials |
-      | method      | GET                  |
-      | path        | /subjects            |
-      | status_code | 401                  |
+      | event_type           | auth_failure         |
+      | outcome              | failure              |
+      | actor_id             |                      |
+      | actor_type           | anonymous            |
+      | auth_method          |                      |
+      | role                 |                      |
+      | target_type          |                      |
+      | target_id            |                      |
+      | schema_id            |                      |
+      | version              |                      |
+      | schema_type          |                      |
+      | before_hash          |                      |
+      | after_hash           |                      |
+      | context              |                      |
+      | transport_security   | tls                  |
+      | method               | GET                  |
+      | path                 | /subjects            |
+      | status_code          | 401                  |
+      | reason               | no_valid_credentials |
+      | error                |                      |
+      | request_body         |                      |
+      | metadata             |                      |
+      | timestamp            | *                    |
+      | duration_ms          | *                    |
+      | request_id           | *                    |
+      | source_ip            | *                    |
+      | user_agent           | *                    |
 
   @ldap
   Scenario: Non-existent user produces auth_failure audit event
@@ -547,13 +643,33 @@ Feature: LDAP Authentication and RBAC
     When I GET "/subjects"
     Then the response status should be 401
     And the audit log should contain an event:
-      | event_type  | auth_failure         |
-      | outcome     | failure              |
-      | actor_type  | anonymous            |
-      | reason      | no_valid_credentials |
-      | method      | GET                  |
-      | path        | /subjects            |
-      | status_code | 401                  |
+      | event_type           | auth_failure         |
+      | outcome              | failure              |
+      | actor_id             |                      |
+      | actor_type           | anonymous            |
+      | auth_method          |                      |
+      | role                 |                      |
+      | target_type          |                      |
+      | target_id            |                      |
+      | schema_id            |                      |
+      | version              |                      |
+      | schema_type          |                      |
+      | before_hash          |                      |
+      | after_hash           |                      |
+      | context              |                      |
+      | transport_security   | tls                  |
+      | method               | GET                  |
+      | path                 | /subjects            |
+      | status_code          | 401                  |
+      | reason               | no_valid_credentials |
+      | error                |                      |
+      | request_body         |                      |
+      | metadata             |                      |
+      | timestamp            | *                    |
+      | duration_ms          | *                    |
+      | request_id           | *                    |
+      | source_ip            | *                    |
+      | user_agent           | *                    |
 
   @ldap
   Scenario: LDAP admin delete produces audit event with correct actor
@@ -565,14 +681,33 @@ Feature: LDAP Authentication and RBAC
     When I DELETE "/subjects/ldap-audit-del/versions/1"
     Then the response status should be 200
     And the audit log should contain an event:
-      | event_type  | schema_delete_soft |
-      | outcome     | success       |
-      | actor_id    | admin         |
-      | actor_type  | user          |
-      | auth_method | ldap          |
-      | role        | admin         |
-      | method      | DELETE        |
-      | status_code | 200           |
+      | event_type           | schema_delete_soft |
+      | outcome              | success            |
+      | actor_id             | admin              |
+      | actor_type           | user               |
+      | auth_method          | ldap               |
+      | role                 | admin              |
+      | target_type          | subject            |
+      | target_id            | ldap-audit-del     |
+      | schema_id            |                    |
+      | version              |                    |
+      | schema_type          |                    |
+      | before_hash          | sha256:*           |
+      | after_hash           |                    |
+      | context              | .                  |
+      | transport_security   | tls                |
+      | method               | DELETE             |
+      | path                 | /subjects          |
+      | status_code          | 200                |
+      | reason               |                    |
+      | error                |                    |
+      | request_body         |                    |
+      | metadata             |                    |
+      | timestamp            | *                  |
+      | duration_ms          | *                  |
+      | request_id           | *                  |
+      | source_ip            | *                  |
+      | user_agent           | *                  |
 
   # ---------------------------------------------------------------------------
   # Section 10: LDAP fallback to database authentication
@@ -598,18 +733,61 @@ Feature: LDAP Authentication and RBAC
       """
     Then the response status should be 200
     And the audit log should contain an event:
-      | event_type | auth_ldap_fallback                  |
-      | outcome    | warning                             |
-      | actor_id   | localadmin                          |
-      | actor_type | user                                |
-      | reason     | ldap_user_not_found_fallback_to_db  |
-      | path       | /config                             |
+      | event_type           | auth_ldap_fallback                 |
+      | outcome              | warning                            |
+      | actor_id             | localadmin                         |
+      | actor_type           | user                               |
+      | auth_method          |                                    |
+      | role                 |                                    |
+      | target_type          |                                    |
+      | target_id            |                                    |
+      | schema_id            |                                    |
+      | version              |                                    |
+      | schema_type          |                                    |
+      | before_hash          |                                    |
+      | after_hash           |                                    |
+      | context              |                                    |
+      | transport_security   | tls                                |
+      | method               | PUT                                |
+      | path                 | /config                            |
+      | status_code          |                                    |
+      | reason               | ldap_user_not_found_fallback_to_db |
+      | error                |                                    |
+      | request_body         |                                    |
+      | metadata             |                                    |
+      | timestamp            | *                                  |
+      | duration_ms          | *                                  |
+      | request_id           | *                                  |
+      | source_ip            | *                                  |
+      | user_agent           | *                                  |
     And the audit log should contain an event:
-      | event_type  | config_update   |
-      | outcome     | success         |
-      | actor_id    | localadmin      |
-      | auth_method | ldap_fallback   |
-      | status_code | 200             |
+      | event_type           | config_update   |
+      | outcome              | success         |
+      | actor_id             | localadmin      |
+      | actor_type           | user            |
+      | auth_method          | ldap_fallback   |
+      | role                 | super_admin     |
+      | target_type          | config          |
+      | target_id            |                 |
+      | schema_id            |                 |
+      | version              |                 |
+      | schema_type          |                 |
+      | before_hash          | *               |
+      | after_hash           | sha256:*        |
+      | context              | .               |
+      | transport_security   | tls             |
+      | method               | PUT             |
+      | path                 | /config         |
+      | status_code          | 200             |
+      | reason               |                 |
+      | error                |                 |
+      | request_body         |                 |
+      | metadata             |                 |
+      | timestamp            | *               |
+      | duration_ms          | *               |
+      | request_id           | *               |
+      | source_ip            | *               |
+      | user_agent           | *               |
 
   @ldap
   Scenario: LDAP user with wrong password is rejected immediately — no fallback
@@ -619,11 +797,33 @@ Feature: LDAP Authentication and RBAC
     When I GET "/subjects"
     Then the response status should be 401
     And the audit log should contain an event:
-      | event_type  | auth_failure         |
-      | outcome     | failure              |
-      | actor_type  | anonymous            |
-      | reason      | no_valid_credentials |
-      | status_code | 401                  |
+      | event_type           | auth_failure         |
+      | outcome              | failure              |
+      | actor_id             |                      |
+      | actor_type           | anonymous            |
+      | auth_method          |                      |
+      | role                 |                      |
+      | target_type          |                      |
+      | target_id            |                      |
+      | schema_id            |                      |
+      | version              |                      |
+      | schema_type          |                      |
+      | before_hash          |                      |
+      | after_hash           |                      |
+      | context              |                      |
+      | transport_security   | tls                  |
+      | method               | GET                  |
+      | path                 | /subjects            |
+      | status_code          | 401                  |
+      | reason               | no_valid_credentials |
+      | error                |                      |
+      | request_body         |                      |
+      | metadata             |                      |
+      | timestamp            | *                    |
+      | duration_ms          | *                    |
+      | request_id           | *                    |
+      | source_ip            | *                    |
+      | user_agent           | *                    |
 
   @ldap
   Scenario: User not in LDAP or DB returns 401 with fallback audit event
@@ -633,13 +833,58 @@ Feature: LDAP Authentication and RBAC
     When I GET "/subjects"
     Then the response status should be 401
     And the audit log should contain an event:
-      | event_type | auth_ldap_fallback                  |
-      | outcome    | warning                             |
-      | actor_id   | unknownuser                         |
-      | reason     | ldap_user_not_found_fallback_to_db  |
+      | event_type           | auth_ldap_fallback                 |
+      | outcome              | warning                            |
+      | actor_id             | unknownuser                        |
+      | actor_type           | user                               |
+      | auth_method          |                                    |
+      | role                 |                                    |
+      | target_type          |                                    |
+      | target_id            |                                    |
+      | schema_id            |                                    |
+      | version              |                                    |
+      | schema_type          |                                    |
+      | before_hash          |                                    |
+      | after_hash           |                                    |
+      | context              |                                    |
+      | transport_security   | tls                                |
+      | method               | GET                                |
+      | path                 | /subjects                          |
+      | status_code          |                                    |
+      | reason               | ldap_user_not_found_fallback_to_db |
+      | error                |                                    |
+      | request_body         |                                    |
+      | metadata             |                                    |
+      | timestamp            | *                                  |
+      | duration_ms          | *                                  |
+      | request_id           | *                                  |
+      | source_ip            | *                                  |
+      | user_agent           | *                                  |
     And the audit log should contain an event:
-      | event_type  | auth_failure         |
-      | outcome     | failure              |
-      | actor_type  | anonymous            |
-      | reason      | no_valid_credentials |
-      | status_code | 401                  |
+      | event_type           | auth_failure         |
+      | outcome              | failure              |
+      | actor_id             |                      |
+      | actor_type           | anonymous            |
+      | auth_method          |                      |
+      | role                 |                      |
+      | target_type          |                      |
+      | target_id            |                      |
+      | schema_id            |                      |
+      | version              |                      |
+      | schema_type          |                      |
+      | before_hash          |                      |
+      | after_hash           |                      |
+      | context              |                      |
+      | transport_security   | tls                  |
+      | method               | GET                  |
+      | path                 | /subjects            |
+      | status_code          | 401                  |
+      | reason               | no_valid_credentials |
+      | error                |                      |
+      | request_body         |                      |
+      | metadata             |                      |
+      | timestamp            | *                    |
+      | duration_ms          | *                    |
+      | request_id           | *                    |
+      | source_ip            | *                    |
+      | user_agent           | *                    |

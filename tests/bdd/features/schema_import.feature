@@ -15,13 +15,33 @@ Feature: Schema Import
     And the response should contain "Imported"
     When I set the global mode to "READWRITE"
     And the audit log should contain an event:
-      | event_type  | schema_import    |
-      | outcome     | success          |
-      | actor_type  | anonymous        |
-      | target_id   | imported-value   |
-      | method      | POST             |
-      | path        | /import/schemas  |
-      | status_code | 200              |
+      | event_type          | schema_import    |
+      | outcome             | success          |
+      | actor_id            |                  |
+      | actor_type          | anonymous        |
+      | auth_method         |                  |
+      | role                |                  |
+      | target_type         | subject          |
+      | target_id           | imported-value   |
+      | schema_id           | *                |
+      | version             |                  |
+      | schema_type         | AVRO             |
+      | method              | POST             |
+      | path                | /import/schemas  |
+      | status_code         | 200              |
+      | before_hash         |                  |
+      | after_hash          | sha256:*         |
+      | context             |                  |
+      | transport_security  | tls              |
+      | reason              |                  |
+      | error               |                  |
+      | request_body        |                  |
+      | metadata            |                  |
+      | timestamp           | *                |
+      | duration_ms         | *                |
+      | request_id          | *                |
+      | source_ip           | *                |
+      | user_agent          | *                |
 
   Scenario: Import schema and retrieve by subject/version
     Given the global mode is "IMPORT"
@@ -36,13 +56,33 @@ Feature: Schema Import
     And the response field "subject" should be "import-subj"
     And the response field "version" should be 1
     And the audit log should contain an event:
-      | event_type  | schema_import    |
-      | outcome     | success          |
-      | actor_type  | anonymous        |
-      | target_id   | import-subj      |
-      | method      | POST             |
-      | path        | /import/schemas  |
-      | status_code | 200              |
+      | event_type          | schema_import    |
+      | outcome             | success          |
+      | actor_id            |                  |
+      | actor_type          | anonymous        |
+      | auth_method         |                  |
+      | role                |                  |
+      | target_type         | subject          |
+      | target_id           | import-subj      |
+      | schema_id           | *                |
+      | version             |                  |
+      | schema_type         | AVRO             |
+      | method              | POST             |
+      | path                | /import/schemas  |
+      | status_code         | 200              |
+      | before_hash         |                  |
+      | after_hash          | sha256:*         |
+      | context             |                  |
+      | transport_security  | tls              |
+      | reason              |                  |
+      | error               |                  |
+      | request_body        |                  |
+      | metadata            |                  |
+      | timestamp           | *                |
+      | duration_ms         | *                |
+      | request_id          | *                |
+      | source_ip           | *                |
+      | user_agent          | *                |
 
   Scenario: Import multiple schemas in one request
     Given the global mode is "IMPORT"
@@ -64,12 +104,33 @@ Feature: Schema Import
     When I get schema by ID 302
     Then the response status should be 200
     And the audit log should contain an event:
-      | event_type  | schema_import   |
-      | outcome     | success         |
-      | actor_type  | anonymous       |
-      | method      | POST            |
-      | path        | /import/schemas |
-      | status_code | 200             |
+      | event_type          | schema_import   |
+      | outcome             | success         |
+      | actor_id            |                 |
+      | actor_type          | anonymous       |
+      | auth_method         |                 |
+      | role                |                 |
+      | target_type         | subject         |
+      | target_id           |                 |
+      | schema_id           | *               |
+      | version             |                 |
+      | schema_type         | AVRO            |
+      | method              | POST            |
+      | path                | /import/schemas |
+      | status_code         | 200             |
+      | before_hash         |                 |
+      | after_hash          | sha256:*        |
+      | context             |                 |
+      | transport_security  | tls             |
+      | reason              |                 |
+      | error               |                 |
+      | request_body        |                 |
+      | metadata            |                 |
+      | timestamp           | *               |
+      | duration_ms         | *               |
+      | request_id          | *               |
+      | source_ip           | *               |
+      | user_agent          | *               |
 
   Scenario: IDs after import continue above highest imported
     Given the global mode is "IMPORT"
@@ -86,13 +147,33 @@ Feature: Schema Import
     Then the response status should be 200
     And I store the response field "id" as "new_id"
     And the audit log should contain an event:
-      | event_type  | schema_import    |
-      | outcome     | success          |
-      | actor_type  | anonymous        |
-      | target_id   | import-seq       |
-      | method      | POST             |
-      | path        | /import/schemas  |
-      | status_code | 200              |
+      | event_type          | schema_import    |
+      | outcome             | success          |
+      | actor_id            |                  |
+      | actor_type          | anonymous        |
+      | auth_method         |                  |
+      | role                |                  |
+      | target_type         | subject          |
+      | target_id           | import-seq       |
+      | schema_id           | *                |
+      | version             |                  |
+      | schema_type         | AVRO             |
+      | method              | POST             |
+      | path                | /import/schemas  |
+      | status_code         | 200              |
+      | before_hash         |                  |
+      | after_hash          | sha256:*         |
+      | context             |                  |
+      | transport_security  | tls              |
+      | reason              |                  |
+      | error               |                  |
+      | request_body        |                  |
+      | metadata            |                  |
+      | timestamp           | *                |
+      | duration_ms         | *                |
+      | request_id          | *                |
+      | source_ip           | *                |
+      | user_agent          | *                |
 
   Scenario: Import Protobuf schema with specific ID
     Given the global mode is "IMPORT"
@@ -109,13 +190,33 @@ Feature: Schema Import
     Then the response status should be 200
     And the response field "schemaType" should be "PROTOBUF"
     And the audit log should contain an event:
-      | event_type  | schema_import    |
-      | outcome     | success          |
-      | actor_type  | anonymous        |
-      | target_id   | import-proto     |
-      | method      | POST             |
-      | path        | /import/schemas  |
-      | status_code | 200              |
+      | event_type          | schema_import    |
+      | outcome             | success          |
+      | actor_id            |                  |
+      | actor_type          | anonymous        |
+      | auth_method         |                  |
+      | role                |                  |
+      | target_type         | subject          |
+      | target_id           | import-proto     |
+      | schema_id           | *                |
+      | version             |                  |
+      | schema_type         | PROTOBUF         |
+      | method              | POST             |
+      | path                | /import/schemas  |
+      | status_code         | 200              |
+      | before_hash         |                  |
+      | after_hash          | sha256:*         |
+      | context             |                  |
+      | transport_security  | tls              |
+      | reason              |                  |
+      | error               |                  |
+      | request_body        |                  |
+      | metadata            |                  |
+      | timestamp           | *                |
+      | duration_ms         | *                |
+      | request_id          | *                |
+      | source_ip           | *                |
+      | user_agent          | *                |
 
   Scenario: Import JSON Schema with specific ID
     Given the global mode is "IMPORT"
@@ -129,10 +230,30 @@ Feature: Schema Import
     Then the response status should be 200
     And the response field "schemaType" should be "JSON"
     And the audit log should contain an event:
-      | event_type  | schema_import    |
-      | outcome     | success          |
-      | actor_type  | anonymous        |
-      | target_id   | import-json      |
-      | method      | POST             |
-      | path        | /import/schemas  |
-      | status_code | 200              |
+      | event_type          | schema_import    |
+      | outcome             | success          |
+      | actor_id            |                  |
+      | actor_type          | anonymous        |
+      | auth_method         |                  |
+      | role                |                  |
+      | target_type         | subject          |
+      | target_id           | import-json      |
+      | schema_id           | *                |
+      | version             |                  |
+      | schema_type         | JSON             |
+      | method              | POST             |
+      | path                | /import/schemas  |
+      | status_code         | 200              |
+      | before_hash         |                  |
+      | after_hash          | sha256:*         |
+      | context             |                  |
+      | transport_security  | tls              |
+      | reason              |                  |
+      | error               |                  |
+      | request_body        |                  |
+      | metadata            |                  |
+      | timestamp           | *                |
+      | duration_ms         | *                |
+      | request_id          | *                |
+      | source_ip           | *                |
+      | user_agent          | *                |

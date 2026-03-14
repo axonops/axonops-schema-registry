@@ -17,11 +17,33 @@ Feature: Delete Global Compatibility Configuration
     Then the response status should be 200
     And the response field "compatibilityLevel" should be "BACKWARD"
     And the audit log should contain an event:
-      | event_type  | config_delete |
-      | outcome     | success       |
-      | actor_type  | anonymous     |
-      | method      | DELETE        |
-      | path        | /config       |
+      | event_type           | config_delete                 |
+      | outcome              | success                       |
+      | actor_id             |                               |
+      | actor_type           | anonymous                     |
+      | auth_method          |                               |
+      | role                 |                               |
+      | target_type          | config                        |
+      | target_id            |                               |
+      | schema_id            |                               |
+      | version              |                               |
+      | schema_type          |                               |
+      | before_hash          | sha256:*                      |
+      | after_hash           |                               |
+      | context              | .                             |
+      | transport_security   | tls                           |
+      | method               | DELETE                        |
+      | path                 | /config                       |
+      | status_code          | 200                           |
+      | reason               |                               |
+      | error                |                               |
+      | request_body         |                               |
+      | metadata             |                               |
+      | timestamp            | *                             |
+      | duration_ms          | *                             |
+      | request_id           | *                             |
+      | source_ip            | *                             |
+      | user_agent           | *                             |
 
   Scenario: DELETE /config response contains previous compatibility level
     Given I set the global config to "FORWARD"
@@ -29,11 +51,33 @@ Feature: Delete Global Compatibility Configuration
     Then the response status should be 200
     And the response field "compatibilityLevel" should be "FORWARD"
     And the audit log should contain an event:
-      | event_type  | config_delete |
-      | outcome     | success       |
-      | actor_type  | anonymous     |
-      | method      | DELETE        |
-      | path        | /config       |
+      | event_type           | config_delete                 |
+      | outcome              | success                       |
+      | actor_id             |                               |
+      | actor_type           | anonymous                     |
+      | auth_method          |                               |
+      | role                 |                               |
+      | target_type          | config                        |
+      | target_id            |                               |
+      | schema_id            |                               |
+      | version              |                               |
+      | schema_type          |                               |
+      | before_hash          | sha256:*                      |
+      | after_hash           |                               |
+      | context              | .                             |
+      | transport_security   | tls                           |
+      | method               | DELETE                        |
+      | path                 | /config                       |
+      | status_code          | 200                           |
+      | reason               |                               |
+      | error                |                               |
+      | request_body         |                               |
+      | metadata             |                               |
+      | timestamp            | *                             |
+      | duration_ms          | *                             |
+      | request_id           | *                             |
+      | source_ip            | *                             |
+      | user_agent           | *                             |
 
   Scenario: Subject-level config NOT affected by global reset
     Given I set the global config to "FULL"
@@ -46,11 +90,33 @@ Feature: Delete Global Compatibility Configuration
     Then the response status should be 200
     And the response field "compatibilityLevel" should be "NONE"
     And the audit log should contain an event:
-      | event_type  | config_delete |
-      | outcome     | success       |
-      | actor_type  | anonymous     |
-      | method      | DELETE        |
-      | path        | /config       |
+      | event_type           | config_delete                 |
+      | outcome              | success                       |
+      | actor_id             |                               |
+      | actor_type           | anonymous                     |
+      | auth_method          |                               |
+      | role                 |                               |
+      | target_type          | config                        |
+      | target_id            |                               |
+      | schema_id            |                               |
+      | version              |                               |
+      | schema_type          |                               |
+      | before_hash          | sha256:*                      |
+      | after_hash           |                               |
+      | context              | .                             |
+      | transport_security   | tls                           |
+      | method               | DELETE                        |
+      | path                 | /config                       |
+      | status_code          | 200                           |
+      | reason               |                               |
+      | error                |                               |
+      | request_body         |                               |
+      | metadata             |                               |
+      | timestamp            | *                             |
+      | duration_ms          | *                             |
+      | request_id           | *                             |
+      | source_ip            | *                             |
+      | user_agent           | *                             |
 
   Scenario: DELETE /config when already BACKWARD is idempotent
     Given I get the global config
@@ -62,11 +128,33 @@ Feature: Delete Global Compatibility Configuration
     Then the response status should be 200
     And the response field "compatibilityLevel" should be "BACKWARD"
     And the audit log should contain an event:
-      | event_type  | config_delete |
-      | outcome     | success       |
-      | actor_type  | anonymous     |
-      | method      | DELETE        |
-      | path        | /config       |
+      | event_type           | config_delete                 |
+      | outcome              | success                       |
+      | actor_id             |                               |
+      | actor_type           | anonymous                     |
+      | auth_method          |                               |
+      | role                 |                               |
+      | target_type          | config                        |
+      | target_id            |                               |
+      | schema_id            |                               |
+      | version              |                               |
+      | schema_type          |                               |
+      | before_hash          | sha256:*                      |
+      | after_hash           |                               |
+      | context              | .                             |
+      | transport_security   | tls                           |
+      | method               | DELETE                        |
+      | path                 | /config                       |
+      | status_code          | 200                           |
+      | reason               |                               |
+      | error                |                               |
+      | request_body         |                               |
+      | metadata             |                               |
+      | timestamp            | *                             |
+      | duration_ms          | *                             |
+      | request_id           | *                             |
+      | source_ip            | *                             |
+      | user_agent           | *                             |
 
   Scenario: DELETE /config after setting advanced configuration
     Given I PUT "/config" with body:
@@ -84,8 +172,30 @@ Feature: Delete Global Compatibility Configuration
     Then the response status should be 200
     And the response field "compatibilityLevel" should be "BACKWARD"
     And the audit log should contain an event:
-      | event_type  | config_delete |
-      | outcome     | success       |
-      | actor_type  | anonymous     |
-      | method      | DELETE        |
-      | path        | /config       |
+      | event_type           | config_delete                 |
+      | outcome              | success                       |
+      | actor_id             |                               |
+      | actor_type           | anonymous                     |
+      | auth_method          |                               |
+      | role                 |                               |
+      | target_type          | config                        |
+      | target_id            |                               |
+      | schema_id            |                               |
+      | version              |                               |
+      | schema_type          |                               |
+      | before_hash          | sha256:*                      |
+      | after_hash           |                               |
+      | context              | .                             |
+      | transport_security   | tls                           |
+      | method               | DELETE                        |
+      | path                 | /config                       |
+      | status_code          | 200                           |
+      | reason               |                               |
+      | error                |                               |
+      | request_body         |                               |
+      | metadata             |                               |
+      | timestamp            | *                             |
+      | duration_ms          | *                             |
+      | request_id           | *                             |
+      | source_ip            | *                             |
+      | user_agent           | *                             |

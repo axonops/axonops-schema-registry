@@ -355,6 +355,34 @@ Feature: Internal User Authentication and RBAC
       """
     Then the response status should be 200
     And the response body should contain "is_compatible"
+    And the audit log should contain an event:
+      | event_type           | compatibility_check                              |
+      | outcome              | success                                          |
+      | actor_id             | admin                                            |
+      | actor_type           | user                                             |
+      | auth_method          | basic                                            |
+      | role                 | super_admin                                      |
+      | target_type          | subject                                          |
+      | target_id            | ba-compat                                        |
+      | schema_id            |                                                  |
+      | version              |                                                  |
+      | schema_type          |                                                  |
+      | before_hash          |                                                  |
+      | after_hash           |                                                  |
+      | context              |                                                  |
+      | transport_security   | tls                                              |
+      | method               | POST                                             |
+      | path                 | /compatibility/subjects/ba-compat/versions/latest |
+      | status_code          | 200                                              |
+      | reason               |                                                  |
+      | error                |                                                  |
+      | request_body         |                                                  |
+      | metadata             |                                                  |
+      | timestamp            | *                                                |
+      | duration_ms          | *                                                |
+      | request_id           | *                                                |
+      | source_ip            | *                                                |
+      | user_agent           | *                                                |
 
   Scenario: Developer can check compatibility
     Given I authenticate as "admin" with password "admin-password"
@@ -502,33 +530,66 @@ Feature: Internal User Authentication and RBAC
       """
     Then the response status should be 200
     And the audit log should contain an event:
-      | event_type         | schema_register |
-      | outcome            | success         |
-      | actor_id           | admin           |
-      | actor_type         | user            |
-      | auth_method        | basic           |
-      | role               | super_admin     |
-      | target_type        | subject         |
-      | target_id          | ba-audit-reg    |
-      | transport_security | tls             |
-      | method             | POST            |
-      | status_code        | 200             |
-      | schema_type        | AVRO            |
-      | after_hash         | sha256:*        |
+      | event_type           | schema_register |
+      | outcome              | success         |
+      | actor_id             | admin           |
+      | actor_type           | user            |
+      | auth_method          | basic           |
+      | role                 | super_admin     |
+      | target_type          | subject         |
+      | target_id            | ba-audit-reg    |
+      | schema_id            | *               |
+      | version              |                 |
+      | schema_type          | AVRO            |
+      | before_hash          |                 |
+      | after_hash           | sha256:*        |
+      | context              | .               |
+      | transport_security   | tls             |
+      | method               | POST            |
+      | path                 | /subjects       |
+      | status_code          | 200             |
+      | reason               |                 |
+      | error                |                 |
+      | request_body         |                 |
+      | metadata             |                 |
+      | timestamp            | *               |
+      | duration_ms          | *               |
+      | request_id           | *               |
+      | source_ip            | *               |
+      | user_agent           | *               |
 
   Scenario: Failed basic auth login produces auth_failure event
     Given I authenticate as "admin" with password "wrongpassword"
     When I GET "/subjects"
     Then the response status should be 401
     And the audit log should contain an event:
-      | event_type         | auth_failure         |
-      | outcome            | failure              |
-      | actor_type         | anonymous            |
-      | reason             | no_valid_credentials |
-      | transport_security | tls                  |
-      | method             | GET                  |
-      | path               | /subjects            |
-      | status_code        | 401                  |
+      | event_type           | auth_failure         |
+      | outcome              | failure              |
+      | actor_id             |                      |
+      | actor_type           | anonymous            |
+      | auth_method          |                      |
+      | role                 |                      |
+      | target_type          |                      |
+      | target_id            |                      |
+      | schema_id            |                      |
+      | version              |                      |
+      | schema_type          |                      |
+      | before_hash          |                      |
+      | after_hash           |                      |
+      | context              |                      |
+      | transport_security   | tls                  |
+      | method               | GET                  |
+      | path                 | /subjects            |
+      | status_code          | 401                  |
+      | reason               | no_valid_credentials |
+      | error                |                      |
+      | request_body         |                      |
+      | metadata             |                      |
+      | timestamp            | *                    |
+      | duration_ms          | *                    |
+      | request_id           | *                    |
+      | source_ip            | *                    |
+      | user_agent           | *                    |
 
   Scenario: Developer schema register produces audit event with correct actor and role
     Given I authenticate as "admin" with password "admin-password"
@@ -540,17 +601,33 @@ Feature: Internal User Authentication and RBAC
       """
     Then the response status should be 200
     And the audit log should contain an event:
-      | event_type         | schema_register |
-      | outcome            | success         |
-      | actor_id           | ba-aud-dev      |
-      | actor_type         | user            |
-      | auth_method        | basic           |
-      | role               | developer       |
-      | target_type        | subject         |
-      | target_id          | ba-audit-dev    |
-      | transport_security | tls             |
-      | method             | POST            |
-      | status_code        | 200             |
+      | event_type           | schema_register |
+      | outcome              | success         |
+      | actor_id             | ba-aud-dev      |
+      | actor_type           | user            |
+      | auth_method          | basic           |
+      | role                 | developer       |
+      | target_type          | subject         |
+      | target_id            | ba-audit-dev    |
+      | schema_id            | *               |
+      | version              |                 |
+      | schema_type          | AVRO            |
+      | before_hash          |                 |
+      | after_hash           | sha256:*        |
+      | context              | .               |
+      | transport_security   | tls             |
+      | method               | POST            |
+      | path                 | /subjects       |
+      | status_code          | 200             |
+      | reason               |                 |
+      | error                |                 |
+      | request_body         |                 |
+      | metadata             |                 |
+      | timestamp            | *               |
+      | duration_ms          | *               |
+      | request_id           | *               |
+      | source_ip            | *               |
+      | user_agent           | *               |
 
   Scenario: Forbidden action produces auth_forbidden event
     Given I authenticate as "admin" with password "admin-password"
@@ -562,30 +639,66 @@ Feature: Internal User Authentication and RBAC
       """
     Then the response status should be 403
     And the audit log should contain an event:
-      | event_type         | auth_forbidden    |
-      | outcome            | failure           |
-      | actor_id           | ba-aud-ro         |
-      | actor_type         | user              |
-      | auth_method        | basic             |
-      | role               | readonly          |
-      | reason             | permission_denied |
-      | transport_security | tls               |
-      | method             | POST              |
-      | status_code        | 403               |
+      | event_type           | auth_forbidden    |
+      | outcome              | failure           |
+      | actor_id             | ba-aud-ro         |
+      | actor_type           | user              |
+      | auth_method          | basic             |
+      | role                 | readonly          |
+      | target_type          |                   |
+      | target_id            |                   |
+      | schema_id            |                   |
+      | version              |                   |
+      | schema_type          |                   |
+      | before_hash          |                   |
+      | after_hash           |                   |
+      | context              |                   |
+      | transport_security   | tls               |
+      | method               | POST              |
+      | path                 | /subjects         |
+      | status_code          | 403               |
+      | reason               | permission_denied |
+      | error                |                   |
+      | request_body         |                   |
+      | metadata             |                   |
+      | timestamp            | *                 |
+      | duration_ms          | *                 |
+      | request_id           | *                 |
+      | source_ip            | *                 |
+      | user_agent           | *                 |
 
   Scenario: No credentials produces auth_failure audit event
     Given I clear authentication
     When I GET "/subjects"
     Then the response status should be 401
     And the audit log should contain an event:
-      | event_type         | auth_failure         |
-      | outcome            | failure              |
-      | actor_type         | anonymous            |
-      | reason             | no_valid_credentials |
-      | transport_security | tls                  |
-      | method             | GET                  |
-      | path               | /subjects            |
-      | status_code        | 401                  |
+      | event_type           | auth_failure         |
+      | outcome              | failure              |
+      | actor_id             |                      |
+      | actor_type           | anonymous            |
+      | auth_method          |                      |
+      | role                 |                      |
+      | target_type          |                      |
+      | target_id            |                      |
+      | schema_id            |                      |
+      | version              |                      |
+      | schema_type          |                      |
+      | before_hash          |                      |
+      | after_hash           |                      |
+      | context              |                      |
+      | transport_security   | tls                  |
+      | method               | GET                  |
+      | path                 | /subjects            |
+      | status_code          | 401                  |
+      | reason               | no_valid_credentials |
+      | error                |                      |
+      | request_body         |                      |
+      | metadata             |                      |
+      | timestamp            | *                    |
+      | duration_ms          | *                    |
+      | request_id           | *                    |
+      | source_ip            | *                    |
+      | user_agent           | *                    |
 
   Scenario: Admin delete produces audit event with correct actor
     Given I authenticate as "admin" with password "admin-password"
@@ -596,15 +709,33 @@ Feature: Internal User Authentication and RBAC
     When I DELETE "/subjects/ba-audit-del/versions/1"
     Then the response status should be 200
     And the audit log should contain an event:
-      | event_type         | schema_delete_soft |
-      | outcome            | success       |
-      | actor_id           | admin         |
-      | actor_type         | user          |
-      | auth_method        | basic         |
-      | role               | super_admin   |
-      | transport_security | tls           |
-      | method             | DELETE        |
-      | status_code        | 200           |
+      | event_type           | schema_delete_soft |
+      | outcome              | success            |
+      | actor_id             | admin              |
+      | actor_type           | user               |
+      | auth_method          | basic              |
+      | role                 | super_admin        |
+      | target_type          | subject            |
+      | target_id            | ba-audit-del       |
+      | schema_id            |                    |
+      | version              |                    |
+      | schema_type          |                    |
+      | before_hash          | sha256:*           |
+      | after_hash           |                    |
+      | context              | .                  |
+      | transport_security   | tls                |
+      | method               | DELETE             |
+      | path                 | /subjects          |
+      | status_code          | 200                |
+      | reason               |                    |
+      | error                |                    |
+      | request_body         |                    |
+      | metadata             |                    |
+      | timestamp            | *                  |
+      | duration_ms          | *                  |
+      | request_id           | *                  |
+      | source_ip            | *                  |
+      | user_agent           | *                  |
 
   Scenario: Config update produces audit event with correct actor
     Given I authenticate as "admin" with password "admin-password"
@@ -614,16 +745,33 @@ Feature: Internal User Authentication and RBAC
       """
     Then the response status should be 200
     And the audit log should contain an event:
-      | event_type         | config_update |
-      | outcome            | success       |
-      | actor_id           | admin         |
-      | actor_type         | user          |
-      | auth_method        | basic         |
-      | role               | super_admin   |
-      | transport_security | tls           |
-      | method             | PUT           |
-      | path               | /config       |
-      | status_code        | 200           |
+      | event_type           | config_update |
+      | outcome              | success       |
+      | actor_id             | admin         |
+      | actor_type           | user          |
+      | auth_method          | basic         |
+      | role                 | super_admin   |
+      | target_type          | config        |
+      | target_id            |               |
+      | schema_id            |               |
+      | version              |               |
+      | schema_type          |               |
+      | before_hash          | *             |
+      | after_hash           | sha256:*      |
+      | context              | .             |
+      | transport_security   | tls           |
+      | method               | PUT           |
+      | path                 | /config       |
+      | status_code          | 200           |
+      | reason               |               |
+      | error                |               |
+      | request_body         |               |
+      | metadata             |               |
+      | timestamp            | *             |
+      | duration_ms          | *             |
+      | request_id           | *             |
+      | source_ip            | *             |
+      | user_agent           | *             |
 
   # ===================================================================
   # Section 10: User lifecycle
@@ -686,14 +834,33 @@ Feature: Internal User Authentication and RBAC
       """
     Then the response status should be 403
     And the audit log should contain an event:
-      | event_type         | auth_forbidden    |
-      | outcome            | failure           |
-      | actor_type         | api_key           |
-      | role               | readonly          |
-      | reason             | permission_denied |
-      | transport_security | tls               |
-      | method             | POST              |
-      | status_code        | 403               |
+      | event_type           | auth_forbidden    |
+      | outcome              | failure           |
+      | actor_id             | *                 |
+      | actor_type           | api_key           |
+      | auth_method          | api_key           |
+      | role                 | readonly          |
+      | target_type          |                   |
+      | target_id            |                   |
+      | schema_id            |                   |
+      | version              |                   |
+      | schema_type          |                   |
+      | before_hash          |                   |
+      | after_hash           |                   |
+      | context              |                   |
+      | transport_security   | tls               |
+      | method               | POST              |
+      | path                 | /subjects         |
+      | status_code          | 403               |
+      | reason               | permission_denied |
+      | error                |                   |
+      | request_body         |                   |
+      | metadata             |                   |
+      | timestamp            | *                 |
+      | duration_ms          | *                 |
+      | request_id           | *                 |
+      | source_ip            | *                 |
+      | user_agent           | *                 |
 
   Scenario: Super admin can create users but admin role cannot
     Given I authenticate as "admin" with password "admin-password"
@@ -705,14 +872,30 @@ Feature: Internal User Authentication and RBAC
     And I create a user with username "ba-should-fail" password "fail" role "readonly"
     Then the response status should be 403
     And the audit log should contain an event:
-      | event_type         | auth_forbidden    |
-      | outcome            | failure           |
-      | actor_id           | ba-admin-test     |
-      | actor_type         | user              |
-      | auth_method        | basic             |
-      | role               | admin             |
-      | reason             | permission_denied |
-      | transport_security | tls               |
-      | method             | POST              |
-      | path               | /admin/users      |
-      | status_code        | 403               |
+      | event_type           | auth_forbidden    |
+      | outcome              | failure           |
+      | actor_id             | ba-admin-test     |
+      | actor_type           | user              |
+      | auth_method          | basic             |
+      | role                 | admin             |
+      | target_type          |                   |
+      | target_id            |                   |
+      | schema_id            |                   |
+      | version              |                   |
+      | schema_type          |                   |
+      | before_hash          |                   |
+      | after_hash           |                   |
+      | context              |                   |
+      | transport_security   | tls               |
+      | method               | POST              |
+      | path                 | /admin/users      |
+      | status_code          | 403               |
+      | reason               | permission_denied |
+      | error                |                   |
+      | request_body         |                   |
+      | metadata             |                   |
+      | timestamp            | *                 |
+      | duration_ms          | *                 |
+      | request_id           | *                 |
+      | source_ip            | *                 |
+      | user_agent           | *                 |

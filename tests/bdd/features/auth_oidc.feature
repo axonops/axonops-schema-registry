@@ -417,19 +417,66 @@ Feature: OIDC Authentication and RBAC
       """
     Then the response status should be 200
     And the audit log should contain an event:
-      | event_type  | config_update |
-      | outcome     | success       |
-      | actor_id    | admin         |
-      | auth_method | oidc          |
-      | status_code | 200           |
+      | event_type           | config_update |
+      | outcome              | success       |
+      | actor_id             | admin         |
+      | actor_type           | user          |
+      | auth_method          | oidc          |
+      | role                 | admin         |
+      | target_type          | config        |
+      | target_id            |               |
+      | schema_id            |               |
+      | version              |               |
+      | schema_type          |               |
+      | before_hash          | *             |
+      | after_hash           | sha256:*      |
+      | context              | .             |
+      | transport_security   | tls           |
+      | method               | PUT           |
+      | path                 | /config       |
+      | status_code          | 200           |
+      | reason               |               |
+      | error                |               |
+      | request_body         |               |
+      | metadata             |               |
+      | timestamp            | *             |
+      | duration_ms          | *             |
+      | request_id           | *             |
+      | source_ip            | *             |
+      | user_agent           | *             |
 
   Scenario: Failed OIDC login produces auth_failure event
     Given I authenticate with bearer token "invalid-token"
     When I GET "/subjects"
     Then the response status should be 401
     And the audit log should contain an event:
-      | event_type | auth_failure |
-      | outcome    | failure      |
+      | event_type           | auth_failure         |
+      | outcome              | failure              |
+      | actor_id             |                      |
+      | actor_type           | anonymous            |
+      | auth_method          |                      |
+      | role                 |                      |
+      | target_type          |                      |
+      | target_id            |                      |
+      | schema_id            |                      |
+      | version              |                      |
+      | schema_type          |                      |
+      | before_hash          |                      |
+      | after_hash           |                      |
+      | context              |                      |
+      | transport_security   | tls                  |
+      | method               | GET                  |
+      | path                 | /subjects            |
+      | status_code          | 401                  |
+      | reason               | no_valid_credentials |
+      | error                |                      |
+      | request_body         |                      |
+      | metadata             |                      |
+      | timestamp            | *                    |
+      | duration_ms          | *                    |
+      | request_id           | *                    |
+      | source_ip            | *                    |
+      | user_agent           | *                    |
 
   Scenario: OIDC admin schema register produces audit event with correct actor and role
     Given I obtain an OIDC token for "admin" with password "adminpass"
@@ -439,12 +486,33 @@ Feature: OIDC Authentication and RBAC
       """
     Then the response status should be 200
     And the audit log should contain an event:
-      | event_type  | schema_register    |
-      | outcome     | success            |
-      | actor_id    | admin              |
-      | auth_method | oidc               |
-      | target_id   | oidc-audit-subject |
-      | status_code | 200                |
+      | event_type           | schema_register    |
+      | outcome              | success            |
+      | actor_id             | admin              |
+      | actor_type           | user               |
+      | auth_method          | oidc               |
+      | role                 | admin              |
+      | target_type          | subject            |
+      | target_id            | oidc-audit-subject |
+      | schema_id            | *                  |
+      | version              |                    |
+      | schema_type          | AVRO               |
+      | before_hash          |                    |
+      | after_hash           | sha256:*           |
+      | context              | .                  |
+      | transport_security   | tls                |
+      | method               | POST               |
+      | path                 | /subjects          |
+      | status_code          | 200                |
+      | reason               |                    |
+      | error                |                    |
+      | request_body         |                    |
+      | metadata             |                    |
+      | timestamp            | *                  |
+      | duration_ms          | *                  |
+      | request_id           | *                  |
+      | source_ip            | *                  |
+      | user_agent           | *                  |
 
   Scenario: OIDC forbidden action produces auth_forbidden event
     Given I obtain an OIDC token for "readonly" with password "readonlypass"
@@ -454,15 +522,63 @@ Feature: OIDC Authentication and RBAC
       """
     Then the response status should be 403
     And the audit log should contain an event:
-      | event_type  | auth_forbidden |
-      | outcome     | failure        |
-      | actor_id    | readonly       |
-      | auth_method | oidc           |
+      | event_type           | auth_forbidden    |
+      | outcome              | failure           |
+      | actor_id             | readonly          |
+      | actor_type           | user              |
+      | auth_method          | oidc              |
+      | role                 | readonly          |
+      | target_type          |                   |
+      | target_id            |                   |
+      | schema_id            |                   |
+      | version              |                   |
+      | schema_type          |                   |
+      | before_hash          |                   |
+      | after_hash           |                   |
+      | context              |                   |
+      | transport_security   | tls               |
+      | method               | POST              |
+      | path                 | /subjects         |
+      | status_code          | 403               |
+      | reason               | permission_denied |
+      | error                |                   |
+      | request_body         |                   |
+      | metadata             |                   |
+      | timestamp            | *                 |
+      | duration_ms          | *                 |
+      | request_id           | *                 |
+      | source_ip            | *                 |
+      | user_agent           | *                 |
 
   Scenario: No credentials produces auth_failure audit event
     Given I clear authentication
     When I GET "/subjects"
     Then the response status should be 401
     And the audit log should contain an event:
-      | event_type | auth_failure |
-      | outcome    | failure      |
+      | event_type           | auth_failure         |
+      | outcome              | failure              |
+      | actor_id             |                      |
+      | actor_type           | anonymous            |
+      | auth_method          |                      |
+      | role                 |                      |
+      | target_type          |                      |
+      | target_id            |                      |
+      | schema_id            |                      |
+      | version              |                      |
+      | schema_type          |                      |
+      | before_hash          |                      |
+      | after_hash           |                      |
+      | context              |                      |
+      | transport_security   | tls                  |
+      | method               | GET                  |
+      | path                 | /subjects            |
+      | status_code          | 401                  |
+      | reason               | no_valid_credentials |
+      | error                |                      |
+      | request_body         |                      |
+      | metadata             |                      |
+      | timestamp            | *                    |
+      | duration_ms          | *                    |
+      | request_id           | *                    |
+      | source_ip            | *                    |
+      | user_agent           | *                    |

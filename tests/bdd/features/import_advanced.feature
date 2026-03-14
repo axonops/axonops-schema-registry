@@ -24,22 +24,62 @@ Feature: Advanced Schema Import
     When I set the global mode to "READWRITE"
     # First import (succeeded) — audit entry for imp-conflict-a
     And the audit log should contain an event:
-      | event_type  | schema_import    |
-      | outcome     | success          |
-      | actor_type  | anonymous        |
-      | target_id   | imp-conflict-a   |
-      | method      | POST             |
-      | path        | /import/schemas  |
-      | status_code | 200              |
+      | event_type          | schema_import    |
+      | outcome             | success          |
+      | actor_id            |                  |
+      | actor_type          | anonymous        |
+      | auth_method         |                  |
+      | role                |                  |
+      | target_type         | subject          |
+      | target_id           | imp-conflict-a   |
+      | schema_id           | *                |
+      | version             |                  |
+      | schema_type         | AVRO             |
+      | method              | POST             |
+      | path                | /import/schemas  |
+      | status_code         | 200              |
+      | before_hash         |                  |
+      | after_hash          | sha256:*         |
+      | context             |                  |
+      | transport_security  | tls              |
+      | reason              |                  |
+      | error               |                  |
+      | request_body        |                  |
+      | metadata            |                  |
+      | timestamp           | *                |
+      | duration_ms         | *                |
+      | request_id          | *                |
+      | source_ip           | *                |
+      | user_agent          | *                |
     # Second import (conflict, 0 imported / 1 error) — returns 422 and audits as failure
     And the audit log should contain an event:
-      | event_type  | schema_import    |
-      | outcome     | failure          |
-      | actor_type  | anonymous        |
-      | target_id   | imp-conflict-b   |
-      | method      | POST             |
-      | path        | /import/schemas  |
-      | status_code | 422              |
+      | event_type          | schema_import    |
+      | outcome             | failure          |
+      | actor_id            |                  |
+      | actor_type          | anonymous        |
+      | auth_method         |                  |
+      | role                |                  |
+      | target_type         | subject          |
+      | target_id           | imp-conflict-b   |
+      | schema_id           | *                |
+      | version             |                  |
+      | schema_type         | AVRO             |
+      | method              | POST             |
+      | path                | /import/schemas  |
+      | status_code         | 422              |
+      | before_hash         |                  |
+      | after_hash          |                  |
+      | context             |                  |
+      | transport_security  | tls              |
+      | reason              | schema_id_conflict |
+      | error               |                  |
+      | request_body        |                  |
+      | metadata            |                  |
+      | timestamp           | *                |
+      | duration_ms         | *                |
+      | request_id          | *                |
+      | source_ip           | *                |
+      | user_agent          | *                |
 
   Scenario: Import with conflicting subject and version fails
     Given the global mode is "IMPORT"
@@ -58,22 +98,62 @@ Feature: Advanced Schema Import
     When I set the global mode to "READWRITE"
     # First import succeeded
     And the audit log should contain an event:
-      | event_type  | schema_import    |
-      | outcome     | success          |
-      | actor_type  | anonymous        |
-      | target_id   | imp-sv-conflict  |
-      | method      | POST             |
-      | path        | /import/schemas  |
-      | status_code | 200              |
+      | event_type          | schema_import    |
+      | outcome             | success          |
+      | actor_id            |                  |
+      | actor_type          | anonymous        |
+      | auth_method         |                  |
+      | role                |                  |
+      | target_type         | subject          |
+      | target_id           | imp-sv-conflict  |
+      | schema_id           | *                |
+      | version             |                  |
+      | schema_type         | AVRO             |
+      | method              | POST             |
+      | path                | /import/schemas  |
+      | status_code         | 200              |
+      | before_hash         |                  |
+      | after_hash          | sha256:*         |
+      | context             |                  |
+      | transport_security  | tls              |
+      | reason              |                  |
+      | error               |                  |
+      | request_body        |                  |
+      | metadata            |                  |
+      | timestamp           | *                |
+      | duration_ms         | *                |
+      | request_id          | *                |
+      | source_ip           | *                |
+      | user_agent          | *                |
     # Second import (0 imported / 1 error) returns 422 and audits as failure
     And the audit log should contain an event:
-      | event_type  | schema_import    |
-      | outcome     | failure          |
-      | actor_type  | anonymous        |
-      | target_id   | imp-sv-conflict  |
-      | method      | POST             |
-      | path        | /import/schemas  |
-      | status_code | 422              |
+      | event_type          | schema_import    |
+      | outcome             | failure          |
+      | actor_id            |                  |
+      | actor_type          | anonymous        |
+      | auth_method         |                  |
+      | role                |                  |
+      | target_type         | subject          |
+      | target_id           | imp-sv-conflict  |
+      | schema_id           | *                |
+      | version             |                  |
+      | schema_type         | AVRO             |
+      | method              | POST             |
+      | path                | /import/schemas  |
+      | status_code         | 422              |
+      | before_hash         |                  |
+      | after_hash          |                  |
+      | context             |                  |
+      | transport_security  | tls              |
+      | reason              | schema_id_conflict |
+      | error               |                  |
+      | request_body        |                  |
+      | metadata            |                  |
+      | timestamp           | *                |
+      | duration_ms         | *                |
+      | request_id          | *                |
+      | source_ip           | *                |
+      | user_agent          | *                |
 
   # --------------------------------------------------------------------------
   # PARTIAL IMPORT
@@ -100,12 +180,33 @@ Feature: Advanced Schema Import
     And the response should contain "Good2"
     # Partial success (2 imported / 1 error) — HTTP 200 with partial_failure outcome
     And the audit log should contain an event:
-      | event_type  | schema_import    |
-      | outcome     | partial_failure  |
-      | actor_type  | anonymous        |
-      | method      | POST             |
-      | path        | /import/schemas  |
-      | status_code | 200              |
+      | event_type          | schema_import    |
+      | outcome             | partial_failure  |
+      | actor_id            |                  |
+      | actor_type          | anonymous        |
+      | auth_method         |                  |
+      | role                |                  |
+      | target_type         | subject          |
+      | target_id           |                  |
+      | schema_id           | *                |
+      | version             |                  |
+      | schema_type         |                  |
+      | method              | POST             |
+      | path                | /import/schemas  |
+      | status_code         | 200              |
+      | before_hash         |                  |
+      | after_hash          |                  |
+      | context             |                  |
+      | transport_security  | tls              |
+      | reason              |                  |
+      | error               |                  |
+      | request_body        |                  |
+      | metadata            |                  |
+      | timestamp           | *                |
+      | duration_ms         | *                |
+      | request_id          | *                |
+      | source_ip           | *                |
+      | user_agent          | *                |
 
   # --------------------------------------------------------------------------
   # ID SEQUENCING
@@ -128,13 +229,33 @@ Feature: Advanced Schema Import
     And I store the response field "id" as "new_id"
     And the response should have field "id"
     And the audit log should contain an event:
-      | event_type  | schema_import      |
-      | outcome     | success            |
-      | actor_type  | anonymous          |
-      | target_id   | imp-seq-imported   |
-      | method      | POST               |
-      | path        | /import/schemas    |
-      | status_code | 200                |
+      | event_type          | schema_import      |
+      | outcome             | success            |
+      | actor_id            |                    |
+      | actor_type          | anonymous          |
+      | auth_method         |                    |
+      | role                |                    |
+      | target_type         | subject            |
+      | target_id           | imp-seq-imported   |
+      | schema_id           | *                  |
+      | version             |                    |
+      | schema_type         | AVRO               |
+      | method              | POST               |
+      | path                | /import/schemas    |
+      | status_code         | 200                |
+      | before_hash         |                    |
+      | after_hash          | sha256:*           |
+      | context             |                    |
+      | transport_security  | tls                |
+      | reason              |                    |
+      | error               |                    |
+      | request_body        |                    |
+      | metadata            |                    |
+      | timestamp           | *                  |
+      | duration_ms         | *                  |
+      | request_id          | *                  |
+      | source_ip           | *                  |
+      | user_agent          | *                  |
 
   # --------------------------------------------------------------------------
   # IMPORT WITH REFERENCES
@@ -161,13 +282,33 @@ Feature: Advanced Schema Import
     Then the response status should be 200
     And the response should contain "Person"
     And the audit log should contain an event:
-      | event_type  | schema_import    |
-      | outcome     | success          |
-      | actor_type  | anonymous        |
-      | target_id   | imp-ref-base     |
-      | method      | POST             |
-      | path        | /import/schemas  |
-      | status_code | 200              |
+      | event_type          | schema_import    |
+      | outcome             | success          |
+      | actor_id            |                  |
+      | actor_type          | anonymous        |
+      | auth_method         |                  |
+      | role                |                  |
+      | target_type         | subject          |
+      | target_id           | imp-ref-base     |
+      | schema_id           | *                |
+      | version             |                  |
+      | schema_type         | AVRO             |
+      | method              | POST             |
+      | path                | /import/schemas  |
+      | status_code         | 200              |
+      | before_hash         |                  |
+      | after_hash          | sha256:*         |
+      | context             |                  |
+      | transport_security  | tls              |
+      | reason              |                  |
+      | error               |                  |
+      | request_body        |                  |
+      | metadata            |                  |
+      | timestamp           | *                |
+      | duration_ms         | *                |
+      | request_id          | *                |
+      | source_ip           | *                |
+      | user_agent          | *                |
 
   # --------------------------------------------------------------------------
   # SCHEMA TYPE PRESERVATION
@@ -195,13 +336,33 @@ Feature: Advanced Schema Import
     And the response field "subject" should be "imp-type-proto"
     And the response field "version" should be 1
     And the audit log should contain an event:
-      | event_type  | schema_import    |
-      | outcome     | success          |
-      | actor_type  | anonymous        |
-      | target_id   | imp-type-proto   |
-      | method      | POST             |
-      | path        | /import/schemas  |
-      | status_code | 200              |
+      | event_type          | schema_import    |
+      | outcome             | success          |
+      | actor_id            |                  |
+      | actor_type          | anonymous        |
+      | auth_method         |                  |
+      | role                |                  |
+      | target_type         | subject          |
+      | target_id           | imp-type-proto   |
+      | schema_id           | *                |
+      | version             |                  |
+      | schema_type         | PROTOBUF         |
+      | method              | POST             |
+      | path                | /import/schemas  |
+      | status_code         | 200              |
+      | before_hash         |                  |
+      | after_hash          | sha256:*         |
+      | context             |                  |
+      | transport_security  | tls              |
+      | reason              |                  |
+      | error               |                  |
+      | request_body        |                  |
+      | metadata            |                  |
+      | timestamp           | *                |
+      | duration_ms         | *                |
+      | request_id          | *                |
+      | source_ip           | *                |
+      | user_agent          | *                |
 
   # --------------------------------------------------------------------------
   # RETRIEVAL BY SUBJECT AND VERSION
@@ -225,13 +386,33 @@ Feature: Advanced Schema Import
     Then the response status should be 200
     And the response should contain "Retrievable"
     And the audit log should contain an event:
-      | event_type  | schema_import    |
-      | outcome     | success          |
-      | actor_type  | anonymous        |
-      | target_id   | imp-retrieve     |
-      | method      | POST             |
-      | path        | /import/schemas  |
-      | status_code | 200              |
+      | event_type          | schema_import    |
+      | outcome             | success          |
+      | actor_id            |                  |
+      | actor_type          | anonymous        |
+      | auth_method         |                  |
+      | role                |                  |
+      | target_type         | subject          |
+      | target_id           | imp-retrieve     |
+      | schema_id           | *                |
+      | version             |                  |
+      | schema_type         | AVRO             |
+      | method              | POST             |
+      | path                | /import/schemas  |
+      | status_code         | 200              |
+      | before_hash         |                  |
+      | after_hash          | sha256:*         |
+      | context             |                  |
+      | transport_security  | tls              |
+      | reason              |                  |
+      | error               |                  |
+      | request_body        |                  |
+      | metadata            |                  |
+      | timestamp           | *                |
+      | duration_ms         | *                |
+      | request_id          | *                |
+      | source_ip           | *                |
+      | user_agent          | *                |
 
   # --------------------------------------------------------------------------
   # MULTIPLE VERSIONS OF SAME SUBJECT
@@ -262,13 +443,33 @@ Feature: Advanced Schema Import
     And the response field "version" should be 3
     And the response should contain "email"
     And the audit log should contain an event:
-      | event_type  | schema_import   |
-      | outcome     | success         |
-      | actor_type  | anonymous       |
-      | target_id   | imp-multi-ver   |
-      | method      | POST            |
-      | path        | /import/schemas |
-      | status_code | 200             |
+      | event_type          | schema_import   |
+      | outcome             | success         |
+      | actor_id            |                 |
+      | actor_type          | anonymous       |
+      | auth_method         |                 |
+      | role                |                 |
+      | target_type         | subject         |
+      | target_id           | imp-multi-ver   |
+      | schema_id           | *               |
+      | version             |                 |
+      | schema_type         | AVRO            |
+      | method              | POST            |
+      | path                | /import/schemas |
+      | status_code         | 200             |
+      | before_hash         |                 |
+      | after_hash          | sha256:*        |
+      | context             |                 |
+      | transport_security  | tls             |
+      | reason              |                 |
+      | error               |                 |
+      | request_body        |                 |
+      | metadata            |                 |
+      | timestamp           | *               |
+      | duration_ms         | *               |
+      | request_id          | *               |
+      | source_ip           | *               |
+      | user_agent          | *               |
 
   # ==========================================================================
   # Bulk import requires IMPORT mode — /import/schemas must reject requests
@@ -285,13 +486,33 @@ Feature: Advanced Schema Import
     And the response should have error code 42205
     # No target_id — the handler rejects before parsing the body
     And the audit log should contain an event:
-      | event_type  | schema_import   |
-      | outcome     | failure         |
-      | reason      | invalid_schema  |
-      | actor_type  | anonymous       |
-      | method      | POST            |
-      | path        | /import/schemas |
-      | status_code | 422             |
+      | event_type          | schema_import   |
+      | outcome             | failure         |
+      | actor_id            |                 |
+      | actor_type          | anonymous       |
+      | auth_method         |                 |
+      | role                |                 |
+      | target_type         | subject         |
+      | target_id           |                 |
+      | schema_id           |                 |
+      | version             |                 |
+      | schema_type         |                 |
+      | method              | POST            |
+      | path                | /import/schemas |
+      | status_code         | 422             |
+      | before_hash         |                 |
+      | after_hash          |                 |
+      | context             |                 |
+      | transport_security  | tls             |
+      | reason              | invalid_schema  |
+      | error               |                 |
+      | request_body        |                 |
+      | metadata            |                 |
+      | timestamp           | *               |
+      | duration_ms         | *               |
+      | request_id          | *               |
+      | source_ip           | *               |
+      | user_agent          | *               |
 
   Scenario: Bulk import succeeds in IMPORT mode
     Given the global mode is "IMPORT"
@@ -306,10 +527,30 @@ Feature: Advanced Schema Import
     And the response should contain "BulkImp"
     When I set the global mode to "READWRITE"
     And the audit log should contain an event:
-      | event_type  | schema_import     |
-      | outcome     | success           |
-      | actor_type  | anonymous         |
-      | target_id   | imp-bulk-import   |
-      | method      | POST              |
-      | path        | /import/schemas   |
-      | status_code | 200               |
+      | event_type          | schema_import     |
+      | outcome             | success           |
+      | actor_id            |                   |
+      | actor_type          | anonymous         |
+      | auth_method         |                   |
+      | role                |                   |
+      | target_type         | subject           |
+      | target_id           | imp-bulk-import   |
+      | schema_id           | *                 |
+      | version             |                   |
+      | schema_type         | AVRO              |
+      | method              | POST              |
+      | path                | /import/schemas   |
+      | status_code         | 200               |
+      | before_hash         |                   |
+      | after_hash          | sha256:*          |
+      | context             |                   |
+      | transport_security  | tls               |
+      | reason              |                   |
+      | error               |                   |
+      | request_body        |                   |
+      | metadata            |                   |
+      | timestamp           | *                 |
+      | duration_ms         | *                 |
+      | request_id          | *                 |
+      | source_ip           | *                 |
+      | user_agent          | *                 |

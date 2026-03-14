@@ -23,13 +23,33 @@ Feature: Authentication flows and RBAC
     When I GET "/subjects"
     Then the response status should be 401
     And the audit log should contain an event:
-      | event_type  | auth_failure         |
-      | outcome     | failure              |
-      | actor_type  | anonymous            |
-      | reason      | no_valid_credentials |
-      | method      | GET                  |
-      | path        | /subjects            |
-      | status_code | 401                  |
+      | event_type           | auth_failure         |
+      | outcome              | failure              |
+      | actor_id             |                      |
+      | actor_type           | anonymous            |
+      | auth_method          |                      |
+      | role                 |                      |
+      | target_type          |                      |
+      | target_id            |                      |
+      | schema_id            |                      |
+      | version              |                      |
+      | schema_type          |                      |
+      | before_hash          |                      |
+      | after_hash           |                      |
+      | context              |                      |
+      | transport_security   | tls                  |
+      | method               | GET                  |
+      | path                 | /subjects            |
+      | status_code          | 401                  |
+      | reason               | no_valid_credentials |
+      | error                |                      |
+      | request_body         |                      |
+      | metadata             |                      |
+      | timestamp            | *                    |
+      | duration_ms          | *                    |
+      | request_id           | *                    |
+      | source_ip            | *                    |
+      | user_agent           | *                    |
 
   @auth
   Scenario: Non-existent user returns 401
@@ -37,13 +57,33 @@ Feature: Authentication flows and RBAC
     When I GET "/subjects"
     Then the response status should be 401
     And the audit log should contain an event:
-      | event_type  | auth_failure         |
-      | outcome     | failure              |
-      | actor_type  | anonymous            |
-      | reason      | no_valid_credentials |
-      | method      | GET                  |
-      | path        | /subjects            |
-      | status_code | 401                  |
+      | event_type           | auth_failure         |
+      | outcome              | failure              |
+      | actor_id             |                      |
+      | actor_type           | anonymous            |
+      | auth_method          |                      |
+      | role                 |                      |
+      | target_type          |                      |
+      | target_id            |                      |
+      | schema_id            |                      |
+      | version              |                      |
+      | schema_type          |                      |
+      | before_hash          |                      |
+      | after_hash           |                      |
+      | context              |                      |
+      | transport_security   | tls                  |
+      | method               | GET                  |
+      | path                 | /subjects            |
+      | status_code          | 401                  |
+      | reason               | no_valid_credentials |
+      | error                |                      |
+      | request_body         |                      |
+      | metadata             |                      |
+      | timestamp            | *                    |
+      | duration_ms          | *                    |
+      | request_id           | *                    |
+      | source_ip            | *                    |
+      | user_agent           | *                    |
 
   @auth
   Scenario: No auth header on protected endpoint returns 401
@@ -51,13 +91,33 @@ Feature: Authentication flows and RBAC
     When I GET "/subjects"
     Then the response status should be 401
     And the audit log should contain an event:
-      | event_type  | auth_failure         |
-      | outcome     | failure              |
-      | actor_type  | anonymous            |
-      | reason      | no_valid_credentials |
-      | method      | GET                  |
-      | path        | /subjects            |
-      | status_code | 401                  |
+      | event_type           | auth_failure         |
+      | outcome              | failure              |
+      | actor_id             |                      |
+      | actor_type           | anonymous            |
+      | auth_method          |                      |
+      | role                 |                      |
+      | target_type          |                      |
+      | target_id            |                      |
+      | schema_id            |                      |
+      | version              |                      |
+      | schema_type          |                      |
+      | before_hash          |                      |
+      | after_hash           |                      |
+      | context              |                      |
+      | transport_security   | tls                  |
+      | method               | GET                  |
+      | path                 | /subjects            |
+      | status_code          | 401                  |
+      | reason               | no_valid_credentials |
+      | error                |                      |
+      | request_body         |                      |
+      | metadata             |                      |
+      | timestamp            | *                    |
+      | duration_ms          | *                    |
+      | request_id           | *                    |
+      | source_ip            | *                    |
+      | user_agent           | *                    |
 
   @auth
   Scenario: Public health endpoint works without auth
@@ -100,16 +160,33 @@ Feature: Authentication flows and RBAC
       """
     Then the response status should be 403
     And the audit log should contain an event:
-      | event_type  | auth_forbidden    |
-      | outcome     | failure           |
-      | actor_id    | viewer2           |
-      | actor_type  | user              |
-      | auth_method | basic             |
-      | role        | readonly          |
-      | reason      | permission_denied |
-      | method      | POST              |
-      | path        | /subjects/test-value/versions |
-      | status_code | 403               |
+      | event_type           | auth_forbidden                |
+      | outcome              | failure                       |
+      | actor_id             | viewer2                       |
+      | actor_type           | user                          |
+      | auth_method          | basic                         |
+      | role                 | readonly                      |
+      | target_type          |                               |
+      | target_id            |                               |
+      | schema_id            |                               |
+      | version              |                               |
+      | schema_type          |                               |
+      | before_hash          |                               |
+      | after_hash           |                               |
+      | context              |                               |
+      | transport_security   | tls                           |
+      | method               | POST                          |
+      | path                 | /subjects/test-value/versions |
+      | status_code          | 403                           |
+      | reason               | permission_denied             |
+      | error                |                               |
+      | request_body         |                               |
+      | metadata             |                               |
+      | timestamp            | *                             |
+      | duration_ms          | *                             |
+      | request_id           | *                             |
+      | source_ip            | *                             |
+      | user_agent           | *                             |
 
   @auth
   Scenario: Readonly user cannot DELETE subject
@@ -127,16 +204,33 @@ Feature: Authentication flows and RBAC
     And I DELETE "/subjects/to-delete-value"
     Then the response status should be 403
     And the audit log should contain an event:
-      | event_type  | auth_forbidden    |
-      | outcome     | failure           |
-      | actor_id    | viewer3           |
-      | actor_type  | user              |
-      | auth_method | basic             |
-      | role        | readonly          |
-      | reason      | permission_denied |
-      | method      | DELETE            |
-      | path        | /subjects/to-delete-value |
-      | status_code | 403               |
+      | event_type           | auth_forbidden            |
+      | outcome              | failure                   |
+      | actor_id             | viewer3                   |
+      | actor_type           | user                      |
+      | auth_method          | basic                     |
+      | role                 | readonly                  |
+      | target_type          |                           |
+      | target_id            |                           |
+      | schema_id            |                           |
+      | version              |                           |
+      | schema_type          |                           |
+      | before_hash          |                           |
+      | after_hash           |                           |
+      | context              |                           |
+      | transport_security   | tls                       |
+      | method               | DELETE                    |
+      | path                 | /subjects/to-delete-value |
+      | status_code          | 403                       |
+      | reason               | permission_denied         |
+      | error                |                           |
+      | request_body         |                           |
+      | metadata             |                           |
+      | timestamp            | *                         |
+      | duration_ms          | *                         |
+      | request_id           | *                         |
+      | source_ip            | *                         |
+      | user_agent           | *                         |
 
   @auth
   Scenario: Readonly user can GET /config
@@ -159,16 +253,33 @@ Feature: Authentication flows and RBAC
       """
     Then the response status should be 403
     And the audit log should contain an event:
-      | event_type  | auth_forbidden    |
-      | outcome     | failure           |
-      | actor_id    | viewer5           |
-      | actor_type  | user              |
-      | auth_method | basic             |
-      | role        | readonly          |
-      | reason      | permission_denied |
-      | method      | PUT               |
-      | path        | /config           |
-      | status_code | 403               |
+      | event_type           | auth_forbidden    |
+      | outcome              | failure           |
+      | actor_id             | viewer5           |
+      | actor_type           | user              |
+      | auth_method          | basic             |
+      | role                 | readonly          |
+      | target_type          |                   |
+      | target_id            |                   |
+      | schema_id            |                   |
+      | version              |                   |
+      | schema_type          |                   |
+      | before_hash          |                   |
+      | after_hash           |                   |
+      | context              |                   |
+      | transport_security   | tls               |
+      | method               | PUT               |
+      | path                 | /config           |
+      | status_code          | 403               |
+      | reason               | permission_denied |
+      | error                |                   |
+      | request_body         |                   |
+      | metadata             |                   |
+      | timestamp            | *                 |
+      | duration_ms          | *                 |
+      | request_id           | *                 |
+      | source_ip            | *                 |
+      | user_agent           | *                 |
 
   # ---------------------------------------------------------------------------
   # RBAC - developer role
@@ -195,16 +306,33 @@ Feature: Authentication flows and RBAC
       """
     Then the response status should be 200
     And the audit log should contain an event:
-      | event_type  | schema_register   |
-      | outcome     | success           |
-      | actor_id    | dev2              |
-      | actor_type  | user              |
-      | auth_method | basic             |
-      | role        | developer         |
-      | target_id   | dev-test-value    |
-      | method      | POST              |
-      | path        | /subjects/dev-test-value/versions |
-      | status_code | 200               |
+      | event_type           | schema_register                   |
+      | outcome              | success                           |
+      | actor_id             | dev2                              |
+      | actor_type           | user                              |
+      | auth_method          | basic                             |
+      | role                 | developer                         |
+      | target_type          | subject                           |
+      | target_id            | dev-test-value                    |
+      | schema_id            | *                                 |
+      | version              |                                   |
+      | schema_type          | AVRO                              |
+      | before_hash          |                                   |
+      | after_hash           | sha256:*                          |
+      | context              | .                                 |
+      | transport_security   | tls                               |
+      | method               | POST                              |
+      | path                 | /subjects/dev-test-value/versions |
+      | status_code          | 200                               |
+      | reason               |                                   |
+      | error                |                                   |
+      | request_body         |                                   |
+      | metadata             |                                   |
+      | timestamp            | *                                 |
+      | duration_ms          | *                                 |
+      | request_id           | *                                 |
+      | source_ip            | *                                 |
+      | user_agent           | *                                 |
 
   @auth
   Scenario: Developer cannot DELETE subject
@@ -221,16 +349,33 @@ Feature: Authentication flows and RBAC
     And I DELETE "/subjects/dev-nodelete-value"
     Then the response status should be 403
     And the audit log should contain an event:
-      | event_type  | auth_forbidden    |
-      | outcome     | failure           |
-      | actor_id    | dev3              |
-      | actor_type  | user              |
-      | auth_method | basic             |
-      | role        | developer         |
-      | reason      | permission_denied |
-      | method      | DELETE            |
-      | path        | /subjects/dev-nodelete-value |
-      | status_code | 403               |
+      | event_type           | auth_forbidden               |
+      | outcome              | failure                      |
+      | actor_id             | dev3                         |
+      | actor_type           | user                         |
+      | auth_method          | basic                        |
+      | role                 | developer                    |
+      | target_type          |                              |
+      | target_id            |                              |
+      | schema_id            |                              |
+      | version              |                              |
+      | schema_type          |                              |
+      | before_hash          |                              |
+      | after_hash           |                              |
+      | context              |                              |
+      | transport_security   | tls                          |
+      | method               | DELETE                       |
+      | path                 | /subjects/dev-nodelete-value |
+      | status_code          | 403                          |
+      | reason               | permission_denied            |
+      | error                |                              |
+      | request_body         |                              |
+      | metadata             |                              |
+      | timestamp            | *                            |
+      | duration_ms          | *                            |
+      | request_id           | *                            |
+      | source_ip            | *                            |
+      | user_agent           | *                            |
 
   @auth
   Scenario: Developer can GET /config
@@ -259,16 +404,33 @@ Feature: Authentication flows and RBAC
     When I DELETE "/subjects/admin-test-value"
     Then the response status should be 200
     And the audit log should contain an event:
-      | event_type  | subject_delete_soft |
-      | outcome     | success           |
-      | actor_id    | mgr1              |
-      | actor_type  | user              |
-      | auth_method | basic             |
-      | role        | admin             |
-      | target_id   | admin-test-value  |
-      | method      | DELETE            |
-      | path        | /subjects/admin-test-value |
-      | status_code | 200               |
+      | event_type           | subject_delete_soft        |
+      | outcome              | success                    |
+      | actor_id             | mgr1                       |
+      | actor_type           | user                       |
+      | auth_method          | basic                      |
+      | role                 | admin                      |
+      | target_type          | subject                    |
+      | target_id            | admin-test-value           |
+      | schema_id            |                            |
+      | version              |                            |
+      | schema_type          |                            |
+      | before_hash          | sha256:*                   |
+      | after_hash           |                            |
+      | context              | .                          |
+      | transport_security   | tls                        |
+      | method               | DELETE                     |
+      | path                 | /subjects/admin-test-value |
+      | status_code          | 200                        |
+      | reason               |                            |
+      | error                |                            |
+      | request_body         |                            |
+      | metadata             |                            |
+      | timestamp            | *                          |
+      | duration_ms          | *                          |
+      | request_id           | *                          |
+      | source_ip            | *                          |
+      | user_agent           | *                          |
 
   @auth
   Scenario: Admin can read admin endpoints
@@ -288,16 +450,33 @@ Feature: Authentication flows and RBAC
     And I create a user with username "should-fail" password "nope" role "readonly"
     Then the response status should be 403
     And the audit log should contain an event:
-      | event_type  | auth_forbidden    |
-      | outcome     | failure           |
-      | actor_id    | mgr3              |
-      | actor_type  | user              |
-      | auth_method | basic             |
-      | role        | admin             |
-      | reason      | permission_denied |
-      | method      | POST              |
-      | path        | /admin/users      |
-      | status_code | 403               |
+      | event_type           | auth_forbidden    |
+      | outcome              | failure           |
+      | actor_id             | mgr3              |
+      | actor_type           | user              |
+      | auth_method          | basic             |
+      | role                 | admin             |
+      | target_type          |                   |
+      | target_id            |                   |
+      | schema_id            |                   |
+      | version              |                   |
+      | schema_type          |                   |
+      | before_hash          |                   |
+      | after_hash           |                   |
+      | context              |                   |
+      | transport_security   | tls               |
+      | method               | POST              |
+      | path                 | /admin/users      |
+      | status_code          | 403               |
+      | reason               | permission_denied |
+      | error                |                   |
+      | request_body         |                   |
+      | metadata             |                   |
+      | timestamp            | *                 |
+      | duration_ms          | *                 |
+      | request_id           | *                 |
+      | source_ip            | *                 |
+      | user_agent           | *                 |
 
   # ---------------------------------------------------------------------------
   # RBAC - DEK Registry (encryption) endpoints
@@ -324,16 +503,33 @@ Feature: Authentication flows and RBAC
       """
     Then the response status should be 403
     And the audit log should contain an event:
-      | event_type  | auth_forbidden       |
-      | outcome     | failure              |
-      | actor_id    | enc-viewer2          |
-      | actor_type  | user                 |
-      | auth_method | basic                |
-      | role        | readonly             |
-      | reason      | permission_denied    |
-      | method      | POST                 |
-      | path        | /dek-registry/v1/keks |
-      | status_code | 403                  |
+      | event_type           | auth_forbidden        |
+      | outcome              | failure               |
+      | actor_id             | enc-viewer2           |
+      | actor_type           | user                  |
+      | auth_method          | basic                 |
+      | role                 | readonly              |
+      | target_type          |                       |
+      | target_id            |                       |
+      | schema_id            |                       |
+      | version              |                       |
+      | schema_type          |                       |
+      | before_hash          |                       |
+      | after_hash           |                       |
+      | context              |                       |
+      | transport_security   | tls                   |
+      | method               | POST                  |
+      | path                 | /dek-registry/v1/keks |
+      | status_code          | 403                   |
+      | reason               | permission_denied     |
+      | error                |                       |
+      | request_body         |                       |
+      | metadata             |                       |
+      | timestamp            | *                     |
+      | duration_ms          | *                     |
+      | request_id           | *                     |
+      | source_ip            | *                     |
+      | user_agent           | *                     |
 
   @auth
   Scenario: Developer can GET /dek-registry/v1/keks
@@ -356,16 +552,33 @@ Feature: Authentication flows and RBAC
       """
     Then the response status should be 403
     And the audit log should contain an event:
-      | event_type  | auth_forbidden       |
-      | outcome     | failure              |
-      | actor_id    | enc-dev2             |
-      | actor_type  | user                 |
-      | auth_method | basic                |
-      | role        | developer            |
-      | reason      | permission_denied    |
-      | method      | POST                 |
-      | path        | /dek-registry/v1/keks |
-      | status_code | 403                  |
+      | event_type           | auth_forbidden        |
+      | outcome              | failure               |
+      | actor_id             | enc-dev2              |
+      | actor_type           | user                  |
+      | auth_method          | basic                 |
+      | role                 | developer             |
+      | target_type          |                       |
+      | target_id            |                       |
+      | schema_id            |                       |
+      | version              |                       |
+      | schema_type          |                       |
+      | before_hash          |                       |
+      | after_hash           |                       |
+      | context              |                       |
+      | transport_security   | tls                   |
+      | method               | POST                  |
+      | path                 | /dek-registry/v1/keks |
+      | status_code          | 403                   |
+      | reason               | permission_denied     |
+      | error                |                       |
+      | request_body         |                       |
+      | metadata             |                       |
+      | timestamp            | *                     |
+      | duration_ms          | *                     |
+      | request_id           | *                     |
+      | source_ip            | *                     |
+      | user_agent           | *                     |
 
   @auth
   Scenario: Admin can create and read KEK
@@ -420,16 +633,33 @@ Feature: Authentication flows and RBAC
       """
     Then the response status should be 403
     And the audit log should contain an event:
-      | event_type  | auth_forbidden    |
-      | outcome     | failure           |
-      | actor_id    | exp-viewer2       |
-      | actor_type  | user              |
-      | auth_method | basic             |
-      | role        | readonly          |
-      | reason      | permission_denied |
-      | method      | POST              |
-      | path        | /exporters        |
-      | status_code | 403               |
+      | event_type           | auth_forbidden    |
+      | outcome              | failure           |
+      | actor_id             | exp-viewer2       |
+      | actor_type           | user              |
+      | auth_method          | basic             |
+      | role                 | readonly          |
+      | target_type          |                   |
+      | target_id            |                   |
+      | schema_id            |                   |
+      | version              |                   |
+      | schema_type          |                   |
+      | before_hash          |                   |
+      | after_hash           |                   |
+      | context              |                   |
+      | transport_security   | tls               |
+      | method               | POST              |
+      | path                 | /exporters        |
+      | status_code          | 403               |
+      | reason               | permission_denied |
+      | error                |                   |
+      | request_body         |                   |
+      | metadata             |                   |
+      | timestamp            | *                 |
+      | duration_ms          | *                 |
+      | request_id           | *                 |
+      | source_ip            | *                 |
+      | user_agent           | *                 |
 
   @auth
   Scenario: Developer cannot POST exporter
@@ -443,16 +673,33 @@ Feature: Authentication flows and RBAC
       """
     Then the response status should be 403
     And the audit log should contain an event:
-      | event_type  | auth_forbidden    |
-      | outcome     | failure           |
-      | actor_id    | exp-dev1          |
-      | actor_type  | user              |
-      | auth_method | basic             |
-      | role        | developer         |
-      | reason      | permission_denied |
-      | method      | POST              |
-      | path        | /exporters        |
-      | status_code | 403               |
+      | event_type           | auth_forbidden    |
+      | outcome              | failure           |
+      | actor_id             | exp-dev1          |
+      | actor_type           | user              |
+      | auth_method          | basic             |
+      | role                 | developer         |
+      | target_type          |                   |
+      | target_id            |                   |
+      | schema_id            |                   |
+      | version              |                   |
+      | schema_type          |                   |
+      | before_hash          |                   |
+      | after_hash           |                   |
+      | context              |                   |
+      | transport_security   | tls               |
+      | method               | POST              |
+      | path                 | /exporters        |
+      | status_code          | 403               |
+      | reason               | permission_denied |
+      | error                |                   |
+      | request_body         |                   |
+      | metadata             |                   |
+      | timestamp            | *                 |
+      | duration_ms          | *                 |
+      | request_id           | *                 |
+      | source_ip            | *                 |
+      | user_agent           | *                 |
 
   @auth
   Scenario: Admin can create and list exporters

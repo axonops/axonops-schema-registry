@@ -19,10 +19,33 @@ Feature: Enterprise Audit Log Outputs
       """
     Then the response status should be 200
     And the audit log should contain an event:
-      | event_type | schema_register |
-      | outcome    | success         |
-      | target_id  | audit-file-test |
-      | method     | POST            |
+      | timestamp          | *                                    |
+      | duration_ms        | *                                    |
+      | event_type         | schema_register                      |
+      | outcome            | success                              |
+      | actor_id           |                                      |
+      | actor_type         | anonymous                            |
+      | role               |                                      |
+      | auth_method        |                                      |
+      | target_type        | subject                              |
+      | target_id          | audit-file-test                      |
+      | schema_id          | *                                    |
+      | version            | *                                    |
+      | schema_type        | AVRO                                 |
+      | before_hash        |                                      |
+      | after_hash         | sha256:*                             |
+      | context            | .                                    |
+      | request_id         | *                                    |
+      | transport_security | tls                                  |
+      | source_ip          | *                                    |
+      | user_agent         | *                                    |
+      | method             | POST                                 |
+      | path               | /subjects/audit-file-test/versions   |
+      | status_code        | 200                                  |
+      | reason             |                                      |
+      | error              |                                      |
+      | request_body       |                                      |
+      | metadata           |                                      |
 
   @audit-outputs @file
   Scenario: File output includes all standard audit fields
@@ -32,11 +55,33 @@ Feature: Enterprise Audit Log Outputs
       """
     Then the response status should be 200
     And the audit log should contain an event:
-      | event_type  | schema_register    |
-      | outcome     | success            |
-      | target_id   | audit-file-fields  |
-      | actor_type  | anonymous          |
-      | method      | POST               |
+      | timestamp          | *                                      |
+      | duration_ms        | *                                      |
+      | event_type         | schema_register                        |
+      | outcome            | success                                |
+      | actor_id           |                                        |
+      | actor_type         | anonymous                              |
+      | role               |                                        |
+      | auth_method        |                                        |
+      | target_type        | subject                                |
+      | target_id          | audit-file-fields                      |
+      | schema_id          | *                                      |
+      | version            | *                                      |
+      | schema_type        | AVRO                                   |
+      | before_hash        |                                        |
+      | after_hash         | sha256:*                               |
+      | context            | .                                      |
+      | request_id         | *                                      |
+      | transport_security | tls                                    |
+      | source_ip          | *                                      |
+      | user_agent         | *                                      |
+      | method             | POST                                   |
+      | path               | /subjects/audit-file-fields/versions   |
+      | status_code        | 200                                    |
+      | reason             |                                        |
+      | error              |                                        |
+      | request_body       |                                        |
+      | metadata           |                                        |
 
   # ──────────────────────────────────────────────────────────
   # Webhook output
@@ -113,8 +158,33 @@ Feature: Enterprise Audit Log Outputs
       """
     Then the response status should be 200
     And the audit log should contain an event:
-      | event_type | schema_register  |
-      | target_id  | audit-multi-test |
+      | timestamp          | *                                     |
+      | duration_ms        | *                                     |
+      | event_type         | schema_register                       |
+      | outcome            | success                               |
+      | actor_id           |                                       |
+      | actor_type         | anonymous                             |
+      | role               |                                       |
+      | auth_method        |                                       |
+      | target_type        | subject                               |
+      | target_id          | audit-multi-test                      |
+      | schema_id          | *                                     |
+      | version            | *                                     |
+      | schema_type        | AVRO                                  |
+      | before_hash        |                                       |
+      | after_hash         | sha256:*                              |
+      | context            | .                                     |
+      | request_id         | *                                     |
+      | transport_security | tls                                   |
+      | source_ip          | *                                     |
+      | user_agent         | *                                     |
+      | method             | POST                                  |
+      | path               | /subjects/audit-multi-test/versions   |
+      | status_code        | 200                                   |
+      | reason             |                                       |
+      | error              |                                       |
+      | request_body       |                                       |
+      | metadata           |                                       |
     And the webhook receiver should have received an event with event_type "schema_register"
     And the syslog TLS receiver should have received a message containing "schema_register"
 
@@ -144,8 +214,33 @@ Feature: Enterprise Audit Log Outputs
       """
     Then the response status should be 200
     And the audit log should contain an event:
-      | event_type | schema_register     |
-      | target_id  | audit-shutdown-test |
+      | timestamp          | *                                       |
+      | duration_ms        | *                                       |
+      | event_type         | schema_register                         |
+      | outcome            | success                                 |
+      | actor_id           |                                         |
+      | actor_type         | anonymous                               |
+      | role               |                                         |
+      | auth_method        |                                         |
+      | target_type        | subject                                 |
+      | target_id          | audit-shutdown-test                     |
+      | schema_id          | *                                       |
+      | version            | *                                       |
+      | schema_type        | AVRO                                    |
+      | before_hash        |                                         |
+      | after_hash         | sha256:*                                |
+      | context            | .                                       |
+      | request_id         | *                                       |
+      | transport_security | tls                                     |
+      | source_ip          | *                                       |
+      | user_agent         | *                                       |
+      | method             | POST                                    |
+      | path               | /subjects/audit-shutdown-test/versions  |
+      | status_code        | 200                                     |
+      | reason             |                                         |
+      | error              |                                         |
+      | request_body       |                                         |
+      | metadata           |                                         |
 
   # ──────────────────────────────────────────────────────────
   # Event field verification across outputs
@@ -159,19 +254,50 @@ Feature: Enterprise Audit Log Outputs
       """
     Then the response status should be 200
     And the webhook receiver should have received an event matching:
-      | event_type | schema_register   |
-      | outcome    | success           |
-      | target_id  | audit-fields-test |
-      | method     | POST              |
-      | actor_type | anonymous         |
+      | event_type         | schema_register   |
+      | outcome            | success           |
+      | actor_id           |                   |
+      | actor_type         | anonymous         |
+      | target_type        | subject           |
+      | target_id          | audit-fields-test |
+      | schema_type        | AVRO              |
+      | context            | .                 |
+      | transport_security | tls               |
+      | method             | POST              |
+      | status_code        | 200               |
 
   @audit-outputs @fields
   Scenario: Failure events are recorded across outputs
     When I set the global config to "INVALID_LEVEL"
     Then the response status should be 422
     And the audit log should contain an event:
-      | event_type | config_update |
-      | outcome    | failure       |
+      | timestamp          | *             |
+      | duration_ms        | *             |
+      | event_type         | config_update |
+      | outcome            | failure       |
+      | actor_id           |               |
+      | actor_type         | anonymous     |
+      | role               |               |
+      | auth_method        |               |
+      | target_type        | config        |
+      | target_id          | _global       |
+      | schema_id          |               |
+      | version            |               |
+      | schema_type        |               |
+      | before_hash        |               |
+      | after_hash         |               |
+      | context            |               |
+      | request_id         | *             |
+      | transport_security | tls           |
+      | source_ip          | *             |
+      | user_agent         | *             |
+      | method             | PUT           |
+      | path               | /config       |
+      | status_code        | 422           |
+      | reason             | invalid_schema |
+      | error              |               |
+      | request_body       |               |
+      | metadata           |               |
     And the webhook receiver should have received an event with event_type "config_update"
 
   @audit-outputs @fields
@@ -184,7 +310,13 @@ Feature: Enterprise Audit Log Outputs
     When I delete subject "audit-delete-target"
     Then the response status should be 200
     And the webhook receiver should have received an event matching:
-      | event_type  | subject_delete_soft      |
-      | outcome     | success             |
-      | target_id   | audit-delete-target |
-      | target_type | subject             |
+      | event_type         | subject_delete_soft |
+      | outcome            | success             |
+      | actor_id           |                     |
+      | actor_type         | anonymous           |
+      | target_type        | subject             |
+      | target_id          | audit-delete-target |
+      | context            | .                   |
+      | transport_security | tls                 |
+      | method             | DELETE              |
+      | status_code        | 200                 |

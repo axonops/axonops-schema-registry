@@ -47,12 +47,33 @@ Feature: Exporters API
     And the response array should contain "exporter-2"
     And the response array should contain "exporter-3"
     And the audit log should contain an event:
-      | event_type  | exporter_create |
-      | outcome     | success         |
-      | actor_type  | anonymous       |
-      | method      | POST            |
-      | path        | /exporters      |
-      | after_hash  | sha256:*        |
+      | event_type          | exporter_create |
+      | outcome             | success         |
+      | actor_id            |                 |
+      | actor_type          | anonymous       |
+      | auth_method         |                 |
+      | role                |                 |
+      | method              | POST            |
+      | path                | /exporters      |
+      | status_code         | 200             |
+      | target_type         | exporter        |
+      | target_id           | exporter-1      |
+      | schema_id           |                 |
+      | version             |                 |
+      | schema_type         |                 |
+      | context             |                 |
+      | before_hash         |                 |
+      | after_hash          | sha256:*        |
+      | transport_security  | tls             |
+      | reason              |                 |
+      | error               |                 |
+      | request_body        |                 |
+      | metadata            |                 |
+      | timestamp           | *               |
+      | duration_ms         | *               |
+      | request_id          | *               |
+      | source_ip           | *               |
+      | user_agent          | *               |
 
   # Create Operations
   Scenario: Create exporter with all fields
@@ -75,12 +96,33 @@ Feature: Exporters API
     And the response should be valid JSON
     And the response field "name" should be "full-exporter"
     And the audit log should contain an event:
-      | event_type  | exporter_create |
-      | outcome     | success         |
-      | actor_type  | anonymous       |
-      | method      | POST            |
-      | path        | /exporters      |
-      | after_hash  | sha256:*        |
+      | event_type          | exporter_create |
+      | outcome             | success         |
+      | actor_id            |                 |
+      | actor_type          | anonymous       |
+      | auth_method         |                 |
+      | role                |                 |
+      | method              | POST            |
+      | path                | /exporters      |
+      | status_code         | 200             |
+      | target_type         | exporter        |
+      | target_id           | full-exporter   |
+      | schema_id           |                 |
+      | version             |                 |
+      | schema_type         |                 |
+      | context             |                 |
+      | before_hash         |                 |
+      | after_hash          | sha256:*        |
+      | transport_security  | tls             |
+      | reason              |                 |
+      | error               |                 |
+      | request_body        |                 |
+      | metadata            |                 |
+      | timestamp           | *               |
+      | duration_ms         | *               |
+      | request_id          | *               |
+      | source_ip           | *               |
+      | user_agent          | *               |
 
   Scenario: Create exporter with minimal fields
     When I POST "/exporters" with body:
@@ -93,12 +135,33 @@ Feature: Exporters API
     And the response should be valid JSON
     And the response field "name" should be "minimal-exporter"
     And the audit log should contain an event:
-      | event_type  | exporter_create |
-      | outcome     | success         |
-      | actor_type  | anonymous       |
-      | method      | POST            |
-      | path        | /exporters      |
-      | after_hash  | sha256:*        |
+      | event_type          | exporter_create    |
+      | outcome             | success            |
+      | actor_id            |                    |
+      | actor_type          | anonymous          |
+      | auth_method         |                    |
+      | role                |                    |
+      | method              | POST               |
+      | path                | /exporters         |
+      | status_code         | 200                |
+      | target_type         | exporter           |
+      | target_id           | minimal-exporter   |
+      | schema_id           |                    |
+      | version             |                    |
+      | schema_type         |                    |
+      | context             |                    |
+      | before_hash         |                    |
+      | after_hash          | sha256:*           |
+      | transport_security  | tls                |
+      | reason              |                    |
+      | error               |                    |
+      | request_body        |                    |
+      | metadata            |                    |
+      | timestamp           | *                  |
+      | duration_ms         | *                  |
+      | request_id          | *                  |
+      | source_ip           | *                  |
+      | user_agent          | *                  |
 
   Scenario: Create exporter with contextType AUTO
     When I POST "/exporters" with body:
@@ -113,12 +176,33 @@ Feature: Exporters API
     And the response should be valid JSON
     And the response field "name" should be "auto-exporter"
     And the audit log should contain an event:
-      | event_type  | exporter_create |
-      | outcome     | success         |
-      | actor_type  | anonymous       |
-      | method      | POST            |
-      | path        | /exporters      |
-      | after_hash  | sha256:*        |
+      | event_type          | exporter_create |
+      | outcome             | success         |
+      | actor_id            |                 |
+      | actor_type          | anonymous       |
+      | auth_method         |                 |
+      | role                |                 |
+      | method              | POST            |
+      | path                | /exporters      |
+      | status_code         | 200             |
+      | target_type         | exporter        |
+      | target_id           | auto-exporter   |
+      | schema_id           |                 |
+      | version             |                 |
+      | schema_type         |                 |
+      | context             |                 |
+      | before_hash         |                 |
+      | after_hash          | sha256:*        |
+      | transport_security  | tls             |
+      | reason              |                 |
+      | error               |                 |
+      | request_body        |                 |
+      | metadata            |                 |
+      | timestamp           | *               |
+      | duration_ms         | *               |
+      | request_id          | *               |
+      | source_ip           | *               |
+      | user_agent          | *               |
 
   Scenario: Create exporter with contextType CUSTOM and context
     When I POST "/exporters" with body:
@@ -134,12 +218,33 @@ Feature: Exporters API
     And the response should be valid JSON
     And the response field "name" should be "custom-exporter"
     And the audit log should contain an event:
-      | event_type  | exporter_create |
-      | outcome     | success         |
-      | actor_type  | anonymous       |
-      | method      | POST            |
-      | path        | /exporters      |
-      | after_hash  | sha256:*        |
+      | event_type          | exporter_create  |
+      | outcome             | success          |
+      | actor_id            |                  |
+      | actor_type          | anonymous        |
+      | auth_method         |                  |
+      | role                |                  |
+      | method              | POST             |
+      | path                | /exporters       |
+      | status_code         | 200              |
+      | target_type         | exporter         |
+      | target_id           | custom-exporter  |
+      | schema_id           |                  |
+      | version             |                  |
+      | schema_type         |                  |
+      | context             |                  |
+      | before_hash         |                  |
+      | after_hash          | sha256:*         |
+      | transport_security  | tls              |
+      | reason              |                  |
+      | error               |                  |
+      | request_body        |                  |
+      | metadata            |                  |
+      | timestamp           | *                |
+      | duration_ms         | *                |
+      | request_id          | *                |
+      | source_ip           | *                |
+      | user_agent          | *                |
 
   Scenario: Create exporter with contextType NONE
     When I POST "/exporters" with body:
@@ -154,12 +259,33 @@ Feature: Exporters API
     And the response should be valid JSON
     And the response field "name" should be "none-exporter"
     And the audit log should contain an event:
-      | event_type  | exporter_create |
-      | outcome     | success         |
-      | actor_type  | anonymous       |
-      | method      | POST            |
-      | path        | /exporters      |
-      | after_hash  | sha256:*        |
+      | event_type          | exporter_create |
+      | outcome             | success         |
+      | actor_id            |                 |
+      | actor_type          | anonymous       |
+      | auth_method         |                 |
+      | role                |                 |
+      | method              | POST            |
+      | path                | /exporters      |
+      | status_code         | 200             |
+      | target_type         | exporter        |
+      | target_id           | none-exporter   |
+      | schema_id           |                 |
+      | version             |                 |
+      | schema_type         |                 |
+      | context             |                 |
+      | before_hash         |                 |
+      | after_hash          | sha256:*        |
+      | transport_security  | tls             |
+      | reason              |                 |
+      | error               |                 |
+      | request_body        |                 |
+      | metadata            |                 |
+      | timestamp           | *               |
+      | duration_ms         | *               |
+      | request_id          | *               |
+      | source_ip           | *               |
+      | user_agent          | *               |
 
   Scenario: Create exporter with subject filters
     When I POST "/exporters" with body:
@@ -174,12 +300,33 @@ Feature: Exporters API
     And the response should be valid JSON
     And the response field "name" should be "filtered-exporter"
     And the audit log should contain an event:
-      | event_type  | exporter_create |
-      | outcome     | success         |
-      | actor_type  | anonymous       |
-      | method      | POST            |
-      | path        | /exporters      |
-      | after_hash  | sha256:*        |
+      | event_type          | exporter_create    |
+      | outcome             | success            |
+      | actor_id            |                    |
+      | actor_type          | anonymous          |
+      | auth_method         |                    |
+      | role                |                    |
+      | method              | POST               |
+      | path                | /exporters         |
+      | status_code         | 200                |
+      | target_type         | exporter           |
+      | target_id           | filtered-exporter  |
+      | schema_id           |                    |
+      | version             |                    |
+      | schema_type         |                    |
+      | context             |                    |
+      | before_hash         |                    |
+      | after_hash          | sha256:*           |
+      | transport_security  | tls                |
+      | reason              |                    |
+      | error               |                    |
+      | request_body        |                    |
+      | metadata            |                    |
+      | timestamp           | *                  |
+      | duration_ms         | *                  |
+      | request_id          | *                  |
+      | source_ip           | *                  |
+      | user_agent          | *                  |
 
   Scenario: Create exporter with multiple subjects
     When I POST "/exporters" with body:
@@ -194,12 +341,33 @@ Feature: Exporters API
     And the response should be valid JSON
     And the response field "name" should be "multi-subject-exporter"
     And the audit log should contain an event:
-      | event_type  | exporter_create |
-      | outcome     | success         |
-      | actor_type  | anonymous       |
-      | method      | POST            |
-      | path        | /exporters      |
-      | after_hash  | sha256:*        |
+      | event_type          | exporter_create          |
+      | outcome             | success                  |
+      | actor_id            |                          |
+      | actor_type          | anonymous                |
+      | auth_method         |                          |
+      | role                |                          |
+      | method              | POST                     |
+      | path                | /exporters               |
+      | status_code         | 200                      |
+      | target_type         | exporter                 |
+      | target_id           | multi-subject-exporter   |
+      | schema_id           |                          |
+      | version             |                          |
+      | schema_type         |                          |
+      | context             |                          |
+      | before_hash         |                          |
+      | after_hash          | sha256:*                 |
+      | transport_security  | tls                      |
+      | reason              |                          |
+      | error               |                          |
+      | request_body        |                          |
+      | metadata            |                          |
+      | timestamp           | *                        |
+      | duration_ms         | *                        |
+      | request_id          | *                        |
+      | source_ip           | *                        |
+      | user_agent          | *                        |
 
   Scenario: Create exporter with empty config
     When I POST "/exporters" with body:
@@ -215,12 +383,33 @@ Feature: Exporters API
     And the response should be valid JSON
     And the response field "name" should be "empty-config-exporter"
     And the audit log should contain an event:
-      | event_type  | exporter_create |
-      | outcome     | success         |
-      | actor_type  | anonymous       |
-      | method      | POST            |
-      | path        | /exporters      |
-      | after_hash  | sha256:*        |
+      | event_type          | exporter_create        |
+      | outcome             | success                |
+      | actor_id            |                        |
+      | actor_type          | anonymous              |
+      | auth_method         |                        |
+      | role                |                        |
+      | method              | POST                   |
+      | path                | /exporters             |
+      | status_code         | 200                    |
+      | target_type         | exporter               |
+      | target_id           | empty-config-exporter  |
+      | schema_id           |                        |
+      | version             |                        |
+      | schema_type         |                        |
+      | context             |                        |
+      | before_hash         |                        |
+      | after_hash          | sha256:*               |
+      | transport_security  | tls                    |
+      | reason              |                        |
+      | error               |                        |
+      | request_body        |                        |
+      | metadata            |                        |
+      | timestamp           | *                      |
+      | duration_ms         | *                      |
+      | request_id          | *                      |
+      | source_ip           | *                      |
+      | user_agent          | *                      |
 
   Scenario: Create exporter returns name in response
     When I POST "/exporters" with body:
@@ -235,12 +424,33 @@ Feature: Exporters API
     And the response should be valid JSON
     And the response field "name" should be "response-check-exporter"
     And the audit log should contain an event:
-      | event_type  | exporter_create |
-      | outcome     | success         |
-      | actor_type  | anonymous       |
-      | method      | POST            |
-      | path        | /exporters      |
-      | after_hash  | sha256:*        |
+      | event_type          | exporter_create            |
+      | outcome             | success                    |
+      | actor_id            |                            |
+      | actor_type          | anonymous                  |
+      | auth_method         |                            |
+      | role                |                            |
+      | method              | POST                       |
+      | path                | /exporters                 |
+      | status_code         | 200                        |
+      | target_type         | exporter                   |
+      | target_id           | response-check-exporter    |
+      | schema_id           |                            |
+      | version             |                            |
+      | schema_type         |                            |
+      | context             |                            |
+      | before_hash         |                            |
+      | after_hash          | sha256:*                   |
+      | transport_security  | tls                        |
+      | reason              |                            |
+      | error               |                            |
+      | request_body        |                            |
+      | metadata            |                            |
+      | timestamp           | *                          |
+      | duration_ms         | *                          |
+      | request_id          | *                          |
+      | source_ip           | *                          |
+      | user_agent          | *                          |
 
   Scenario: Create duplicate exporter
     When I POST "/exporters" with body:
@@ -263,11 +473,33 @@ Feature: Exporters API
     And the response should be valid JSON
     And the response should have error code 40950
     And the audit log should contain an event:
-      | event_type  | exporter_create |
-      | outcome     | failure         |
-      | actor_type  | anonymous       |
-      | method      | POST            |
-      | path        | /exporters      |
+      | event_type          | exporter_create    |
+      | outcome             | failure            |
+      | actor_id            |                    |
+      | actor_type          | anonymous          |
+      | auth_method         |                    |
+      | role                |                    |
+      | method              | POST               |
+      | path                | /exporters         |
+      | status_code         | 409                |
+      | target_type         | exporter           |
+      | target_id           | duplicate-exporter |
+      | schema_id           |                    |
+      | version             |                    |
+      | schema_type         |                    |
+      | context             |                    |
+      | before_hash         |                    |
+      | after_hash          |                    |
+      | transport_security  | tls                |
+      | reason              |                    |
+      | error               |                    |
+      | request_body        |                    |
+      | metadata            |                    |
+      | timestamp           | *                  |
+      | duration_ms         | *                  |
+      | request_id          | *                  |
+      | source_ip           | *                  |
+      | user_agent          | *                  |
 
   Scenario: Create exporter with invalid contextType
     When I POST "/exporters" with body:
@@ -343,13 +575,33 @@ Feature: Exporters API
     And the response should be valid JSON
     And the response field "name" should be "update-test-exporter"
     And the audit log should contain an event:
-      | event_type   | exporter_update                 |
-      | outcome      | success                         |
-      | actor_type   | anonymous                       |
-      | method       | PUT                             |
-      | path         | /exporters/update-test-exporter |
-      | before_hash  | sha256:*                        |
-      | after_hash   | sha256:*                        |
+      | event_type          | exporter_update                 |
+      | outcome             | success                         |
+      | actor_id            |                                 |
+      | actor_type          | anonymous                       |
+      | auth_method         |                                 |
+      | role                |                                 |
+      | method              | PUT                             |
+      | path                | /exporters/update-test-exporter |
+      | status_code         | 200                             |
+      | target_type         | exporter                        |
+      | target_id           | update-test-exporter            |
+      | schema_id           |                                 |
+      | version             |                                 |
+      | schema_type         |                                 |
+      | context             |                                 |
+      | before_hash         | sha256:*                        |
+      | after_hash          | sha256:*                        |
+      | transport_security  | tls                             |
+      | reason              |                                 |
+      | error               |                                 |
+      | request_body        |                                 |
+      | metadata            |                                 |
+      | timestamp           | *                               |
+      | duration_ms         | *                               |
+      | request_id          | *                               |
+      | source_ip           | *                               |
+      | user_agent          | *                               |
 
   Scenario: Update exporter subjects
     When I POST "/exporters" with body:
@@ -369,13 +621,33 @@ Feature: Exporters API
     Then the response status should be 200
     And the response should be valid JSON
     And the audit log should contain an event:
-      | event_type   | exporter_update                    |
-      | outcome      | success                            |
-      | actor_type   | anonymous                          |
-      | method       | PUT                                |
-      | path         | /exporters/subject-update-exporter |
-      | before_hash  | sha256:*                           |
-      | after_hash   | sha256:*                           |
+      | event_type          | exporter_update                    |
+      | outcome             | success                            |
+      | actor_id            |                                    |
+      | actor_type          | anonymous                          |
+      | auth_method         |                                    |
+      | role                |                                    |
+      | method              | PUT                                |
+      | path                | /exporters/subject-update-exporter |
+      | status_code         | 200                                |
+      | target_type         | exporter                           |
+      | target_id           | subject-update-exporter            |
+      | schema_id           |                                    |
+      | version             |                                    |
+      | schema_type         |                                    |
+      | context             |                                    |
+      | before_hash         | sha256:*                           |
+      | after_hash          | sha256:*                           |
+      | transport_security  | tls                                |
+      | reason              |                                    |
+      | error               |                                    |
+      | request_body        |                                    |
+      | metadata            |                                    |
+      | timestamp           | *                                  |
+      | duration_ms         | *                                  |
+      | request_id          | *                                  |
+      | source_ip           | *                                  |
+      | user_agent          | *                                  |
 
   Scenario: Update exporter without changing all fields
     When I POST "/exporters" with body:
@@ -396,13 +668,33 @@ Feature: Exporters API
     Then the response status should be 200
     And the response should be valid JSON
     And the audit log should contain an event:
-      | event_type   | exporter_update                    |
-      | outcome      | success                            |
-      | actor_type   | anonymous                          |
-      | method       | PUT                                |
-      | path         | /exporters/partial-update-exporter |
-      | before_hash  | sha256:*                           |
-      | after_hash   | sha256:*                           |
+      | event_type          | exporter_update                    |
+      | outcome             | success                            |
+      | actor_id            |                                    |
+      | actor_type          | anonymous                          |
+      | auth_method         |                                    |
+      | role                |                                    |
+      | method              | PUT                                |
+      | path                | /exporters/partial-update-exporter |
+      | status_code         | 200                                |
+      | target_type         | exporter                           |
+      | target_id           | partial-update-exporter            |
+      | schema_id           |                                    |
+      | version             |                                    |
+      | schema_type         |                                    |
+      | context             |                                    |
+      | before_hash         | sha256:*                           |
+      | after_hash          | sha256:*                           |
+      | transport_security  | tls                                |
+      | reason              |                                    |
+      | error               |                                    |
+      | request_body        |                                    |
+      | metadata            |                                    |
+      | timestamp           | *                                  |
+      | duration_ms         | *                                  |
+      | request_id          | *                                  |
+      | source_ip           | *                                  |
+      | user_agent          | *                                  |
 
   # Delete Operations
   Scenario: Delete exporter
@@ -417,12 +709,33 @@ Feature: Exporters API
     And I DELETE "/exporters/delete-test-exporter"
     Then the response status should be 200
     And the audit log should contain an event:
-      | event_type   | exporter_delete                 |
-      | outcome      | success                         |
-      | actor_type   | anonymous                       |
-      | method       | DELETE                          |
-      | path         | /exporters/delete-test-exporter |
-      | before_hash  | sha256:*                        |
+      | event_type          | exporter_delete                 |
+      | outcome             | success                         |
+      | actor_id            |                                 |
+      | actor_type          | anonymous                       |
+      | auth_method         |                                 |
+      | role                |                                 |
+      | method              | DELETE                          |
+      | path                | /exporters/delete-test-exporter |
+      | status_code         | 200                             |
+      | target_type         | exporter                        |
+      | target_id           | delete-test-exporter            |
+      | schema_id           |                                 |
+      | version             |                                 |
+      | schema_type         |                                 |
+      | context             |                                 |
+      | before_hash         | sha256:*                        |
+      | after_hash          |                                 |
+      | transport_security  | tls                             |
+      | reason              |                                 |
+      | error               |                                 |
+      | request_body        |                                 |
+      | metadata            |                                 |
+      | timestamp           | *                               |
+      | duration_ms         | *                               |
+      | request_id          | *                               |
+      | source_ip           | *                               |
+      | user_agent          | *                               |
 
   Scenario: Delete exporter returns name in response
     When I POST "/exporters" with body:
@@ -436,12 +749,33 @@ Feature: Exporters API
     And I DELETE "/exporters/delete-response-exporter"
     Then the response status should be 200
     And the audit log should contain an event:
-      | event_type   | exporter_delete                     |
-      | outcome      | success                             |
-      | actor_type   | anonymous                           |
-      | method       | DELETE                              |
-      | path         | /exporters/delete-response-exporter |
-      | before_hash  | sha256:*                            |
+      | event_type          | exporter_delete                     |
+      | outcome             | success                             |
+      | actor_id            |                                     |
+      | actor_type          | anonymous                           |
+      | auth_method         |                                     |
+      | role                |                                     |
+      | method              | DELETE                              |
+      | path                | /exporters/delete-response-exporter |
+      | status_code         | 200                                 |
+      | target_type         | exporter                            |
+      | target_id           | delete-response-exporter            |
+      | schema_id           |                                     |
+      | version             |                                     |
+      | schema_type         |                                     |
+      | context             |                                     |
+      | before_hash         | sha256:*                            |
+      | after_hash          |                                     |
+      | transport_security  | tls                                 |
+      | reason              |                                     |
+      | error               |                                     |
+      | request_body        |                                     |
+      | metadata            |                                     |
+      | timestamp           | *                                   |
+      | duration_ms         | *                                   |
+      | request_id          | *                                   |
+      | source_ip           | *                                   |
+      | user_agent          | *                                   |
 
   Scenario: Delete non-existent exporter
     When I DELETE "/exporters/non-existent-delete-exporter"
@@ -465,11 +799,33 @@ Feature: Exporters API
       """
     Then the response status should be 200
     And the audit log should contain an event:
-      | event_type  | exporter_pause                        |
-      | outcome     | success                               |
-      | actor_type  | anonymous                             |
-      | method      | PUT                                   |
-      | path        | /exporters/pause-test-exporter/pause  |
+      | event_type          | exporter_pause                       |
+      | outcome             | success                              |
+      | actor_id            |                                      |
+      | actor_type          | anonymous                            |
+      | auth_method         |                                      |
+      | role                |                                      |
+      | method              | PUT                                  |
+      | path                | /exporters/pause-test-exporter/pause |
+      | status_code         | 200                                  |
+      | target_type         | exporter                             |
+      | target_id           | pause-test-exporter                  |
+      | schema_id           |                                      |
+      | version             |                                      |
+      | schema_type         |                                      |
+      | context             |                                      |
+      | before_hash         | sha256:*                             |
+      | after_hash          | sha256:*                             |
+      | transport_security  | tls                                  |
+      | reason              |                                      |
+      | error               |                                      |
+      | request_body        |                                      |
+      | metadata            |                                      |
+      | timestamp           | *                                    |
+      | duration_ms         | *                                    |
+      | request_id          | *                                    |
+      | source_ip           | *                                    |
+      | user_agent          | *                                    |
 
   Scenario: Resume exporter
     When I POST "/exporters" with body:
@@ -490,11 +846,33 @@ Feature: Exporters API
       """
     Then the response status should be 200
     And the audit log should contain an event:
-      | event_type  | exporter_resume                          |
-      | outcome     | success                                  |
-      | actor_type  | anonymous                                |
-      | method      | PUT                                      |
-      | path        | /exporters/resume-test-exporter/resume   |
+      | event_type          | exporter_resume                         |
+      | outcome             | success                                 |
+      | actor_id            |                                         |
+      | actor_type          | anonymous                               |
+      | auth_method         |                                         |
+      | role                |                                         |
+      | method              | PUT                                     |
+      | path                | /exporters/resume-test-exporter/resume  |
+      | status_code         | 200                                     |
+      | target_type         | exporter                                |
+      | target_id           | resume-test-exporter                    |
+      | schema_id           |                                         |
+      | version             |                                         |
+      | schema_type         |                                         |
+      | context             |                                         |
+      | before_hash         | sha256:*                                |
+      | after_hash          | sha256:*                                |
+      | transport_security  | tls                                     |
+      | reason              |                                         |
+      | error               |                                         |
+      | request_body        |                                         |
+      | metadata            |                                         |
+      | timestamp           | *                                       |
+      | duration_ms         | *                                       |
+      | request_id          | *                                       |
+      | source_ip           | *                                       |
+      | user_agent          | *                                       |
 
   Scenario: Reset exporter
     When I POST "/exporters" with body:
@@ -511,11 +889,33 @@ Feature: Exporters API
       """
     Then the response status should be 200
     And the audit log should contain an event:
-      | event_type  | exporter_reset                        |
-      | outcome     | success                               |
-      | actor_type  | anonymous                             |
-      | method      | PUT                                   |
-      | path        | /exporters/reset-test-exporter/reset  |
+      | event_type          | exporter_reset                       |
+      | outcome             | success                              |
+      | actor_id            |                                      |
+      | actor_type          | anonymous                            |
+      | auth_method         |                                      |
+      | role                |                                      |
+      | method              | PUT                                  |
+      | path                | /exporters/reset-test-exporter/reset |
+      | status_code         | 200                                  |
+      | target_type         | exporter                             |
+      | target_id           | reset-test-exporter                  |
+      | schema_id           |                                      |
+      | version             |                                      |
+      | schema_type         |                                      |
+      | context             |                                      |
+      | before_hash         | sha256:*                             |
+      | after_hash          | sha256:*                             |
+      | transport_security  | tls                                  |
+      | reason              |                                      |
+      | error               |                                      |
+      | request_body        |                                      |
+      | metadata            |                                      |
+      | timestamp           | *                                    |
+      | duration_ms         | *                                    |
+      | request_id          | *                                    |
+      | source_ip           | *                                    |
+      | user_agent          | *                                    |
 
   Scenario: Pause non-existent exporter
     When I PUT "/exporters/non-existent-pause/pause" with body:
@@ -607,13 +1007,33 @@ Feature: Exporters API
     Then the response status should be 200
     And the response should be valid JSON
     And the audit log should contain an event:
-      | event_type   | exporter_config_update                   |
-      | outcome      | success                                  |
-      | actor_type   | anonymous                                |
-      | method       | PUT                                      |
-      | path         | /exporters/config-update-exporter/config |
-      | before_hash  | sha256:*                                 |
-      | after_hash   | sha256:*                                 |
+      | event_type          | exporter_config_update                   |
+      | outcome             | success                                  |
+      | actor_id            |                                          |
+      | actor_type          | anonymous                                |
+      | auth_method         |                                          |
+      | role                |                                          |
+      | method              | PUT                                      |
+      | path                | /exporters/config-update-exporter/config |
+      | status_code         | 200                                      |
+      | target_type         | exporter                                 |
+      | target_id           | config-update-exporter                   |
+      | schema_id           |                                          |
+      | version             |                                          |
+      | schema_type         |                                          |
+      | context             |                                          |
+      | before_hash         | sha256:*                                 |
+      | after_hash          | sha256:*                                 |
+      | transport_security  | tls                                      |
+      | reason              |                                          |
+      | error               |                                          |
+      | request_body        |                                          |
+      | metadata            |                                          |
+      | timestamp           | *                                        |
+      | duration_ms         | *                                        |
+      | request_id          | *                                        |
+      | source_ip           | *                                        |
+      | user_agent          | *                                        |
 
   Scenario: Get config of non-existent exporter
     When I GET "/exporters/non-existent-config/config"
@@ -679,34 +1099,142 @@ Feature: Exporters API
     Then the response status should be 404
     And the response should have error code 40450
     And the audit log should contain an event:
-      | event_type  | exporter_create |
-      | outcome     | success         |
-      | actor_type  | anonymous       |
-      | method      | POST            |
-      | path        | /exporters      |
-      | after_hash  | sha256:*        |
+      | event_type          | exporter_create      |
+      | outcome             | success              |
+      | actor_id            |                      |
+      | actor_type          | anonymous            |
+      | auth_method         |                      |
+      | role                |                      |
+      | method              | POST                 |
+      | path                | /exporters           |
+      | status_code         | 200                  |
+      | target_type         | exporter             |
+      | target_id           | lifecycle-exporter   |
+      | schema_id           |                      |
+      | version             |                      |
+      | schema_type         |                      |
+      | context             |                      |
+      | before_hash         |                      |
+      | after_hash          | sha256:*             |
+      | transport_security  | tls                  |
+      | reason              |                      |
+      | error               |                      |
+      | request_body        |                      |
+      | metadata            |                      |
+      | timestamp           | *                    |
+      | duration_ms         | *                    |
+      | request_id          | *                    |
+      | source_ip           | *                    |
+      | user_agent          | *                    |
     And the audit log should contain an event:
-      | event_type  | exporter_pause                          |
-      | outcome     | success                                 |
-      | actor_type  | anonymous                               |
-      | method      | PUT                                     |
-      | path        | /exporters/lifecycle-exporter/pause     |
+      | event_type          | exporter_pause                      |
+      | outcome             | success                             |
+      | actor_id            |                                     |
+      | actor_type          | anonymous                           |
+      | auth_method         |                                     |
+      | role                |                                     |
+      | method              | PUT                                 |
+      | path                | /exporters/lifecycle-exporter/pause |
+      | status_code         | 200                                 |
+      | target_type         | exporter                            |
+      | target_id           | lifecycle-exporter                  |
+      | schema_id           |                                     |
+      | version             |                                     |
+      | schema_type         |                                     |
+      | context             |                                     |
+      | before_hash         | sha256:*                            |
+      | after_hash          | sha256:*                            |
+      | transport_security  | tls                                 |
+      | reason              |                                     |
+      | error               |                                     |
+      | request_body        |                                     |
+      | metadata            |                                     |
+      | timestamp           | *                                   |
+      | duration_ms         | *                                   |
+      | request_id          | *                                   |
+      | source_ip           | *                                   |
+      | user_agent          | *                                   |
     And the audit log should contain an event:
-      | event_type  | exporter_resume                         |
-      | outcome     | success                                 |
-      | actor_type  | anonymous                               |
-      | method      | PUT                                     |
-      | path        | /exporters/lifecycle-exporter/resume    |
+      | event_type          | exporter_resume                      |
+      | outcome             | success                              |
+      | actor_id            |                                      |
+      | actor_type          | anonymous                            |
+      | auth_method         |                                      |
+      | role                |                                      |
+      | method              | PUT                                  |
+      | path                | /exporters/lifecycle-exporter/resume |
+      | status_code         | 200                                  |
+      | target_type         | exporter                             |
+      | target_id           | lifecycle-exporter                   |
+      | schema_id           |                                      |
+      | version             |                                      |
+      | schema_type         |                                      |
+      | context             |                                      |
+      | before_hash         | sha256:*                             |
+      | after_hash          | sha256:*                             |
+      | transport_security  | tls                                  |
+      | reason              |                                      |
+      | error               |                                      |
+      | request_body        |                                      |
+      | metadata            |                                      |
+      | timestamp           | *                                    |
+      | duration_ms         | *                                    |
+      | request_id          | *                                    |
+      | source_ip           | *                                    |
+      | user_agent          | *                                    |
     And the audit log should contain an event:
-      | event_type  | exporter_reset                          |
-      | outcome     | success                                 |
-      | actor_type  | anonymous                               |
-      | method      | PUT                                     |
-      | path        | /exporters/lifecycle-exporter/reset     |
+      | event_type          | exporter_reset                      |
+      | outcome             | success                             |
+      | actor_id            |                                     |
+      | actor_type          | anonymous                           |
+      | auth_method         |                                     |
+      | role                |                                     |
+      | method              | PUT                                 |
+      | path                | /exporters/lifecycle-exporter/reset |
+      | status_code         | 200                                 |
+      | target_type         | exporter                            |
+      | target_id           | lifecycle-exporter                  |
+      | schema_id           |                                     |
+      | version             |                                     |
+      | schema_type         |                                     |
+      | context             |                                     |
+      | before_hash         | sha256:*                            |
+      | after_hash          | sha256:*                            |
+      | transport_security  | tls                                 |
+      | reason              |                                     |
+      | error               |                                     |
+      | request_body        |                                     |
+      | metadata            |                                     |
+      | timestamp           | *                                   |
+      | duration_ms         | *                                   |
+      | request_id          | *                                   |
+      | source_ip           | *                                   |
+      | user_agent          | *                                   |
     And the audit log should contain an event:
-      | event_type   | exporter_delete               |
-      | outcome      | success                       |
-      | actor_type   | anonymous                     |
-      | method       | DELETE                        |
-      | path         | /exporters/lifecycle-exporter |
-      | before_hash  | sha256:*                      |
+      | event_type          | exporter_delete               |
+      | outcome             | success                       |
+      | actor_id            |                               |
+      | actor_type          | anonymous                     |
+      | auth_method         |                               |
+      | role                |                               |
+      | method              | DELETE                        |
+      | path                | /exporters/lifecycle-exporter |
+      | status_code         | 200                           |
+      | target_type         | exporter                      |
+      | target_id           | lifecycle-exporter            |
+      | schema_id           |                               |
+      | version             |                               |
+      | schema_type         |                               |
+      | context             |                               |
+      | before_hash         | sha256:*                      |
+      | after_hash          |                               |
+      | transport_security  | tls                           |
+      | reason              |                               |
+      | error               |                               |
+      | request_body        |                               |
+      | metadata            |                               |
+      | timestamp           | *                             |
+      | duration_ms         | *                             |
+      | request_id          | *                             |
+      | source_ip           | *                             |
+      | user_agent          | *                             |

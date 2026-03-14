@@ -19,12 +19,33 @@ Feature: Deletion Lifecycle (Two-Step Delete)
     When I list all subjects
     Then the response should be an array of length 0
     And the audit log should contain an event:
-      | event_type  | subject_delete_soft           |
-      | outcome     | success                       |
-      | actor_type  | anonymous                     |
-      | target_id   | del-lifecycle-1               |
-      | method      | DELETE                        |
-      | path        | /subjects/del-lifecycle-1     |
+      | event_type          | subject_delete_soft           |
+      | outcome             | success                       |
+      | actor_id            |                               |
+      | actor_type          | anonymous                     |
+      | auth_method         |                               |
+      | role                |                               |
+      | target_type         | subject                       |
+      | target_id           | del-lifecycle-1               |
+      | schema_id           |                               |
+      | version             |                               |
+      | schema_type         |                               |
+      | method              | DELETE                        |
+      | path                | /subjects/del-lifecycle-1     |
+      | status_code         | 200                           |
+      | before_hash         | sha256:*                      |
+      | after_hash          |                               |
+      | context             | .                             |
+      | transport_security  | tls                           |
+      | reason              |                               |
+      | error               |                               |
+      | request_body        |                               |
+      | metadata            |                               |
+      | timestamp           | *                             |
+      | duration_ms         | *                             |
+      | request_id          | *                             |
+      | source_ip           | *                             |
+      | user_agent          | *                             |
 
   Scenario: Soft-deleted subject visible with deleted=true
     Given subject "del-lifecycle-2" has schema:
@@ -37,12 +58,33 @@ Feature: Deletion Lifecycle (Two-Step Delete)
     Then the response status should be 200
     And the response should contain "del-lifecycle-2"
     And the audit log should contain an event:
-      | event_type  | subject_delete_soft           |
-      | outcome     | success                       |
-      | actor_type  | anonymous                     |
-      | target_id   | del-lifecycle-2               |
-      | method      | DELETE                        |
-      | path        | /subjects/del-lifecycle-2     |
+      | event_type          | subject_delete_soft           |
+      | outcome             | success                       |
+      | actor_id            |                               |
+      | actor_type          | anonymous                     |
+      | auth_method         |                               |
+      | role                |                               |
+      | target_type         | subject                       |
+      | target_id           | del-lifecycle-2               |
+      | schema_id           |                               |
+      | version             |                               |
+      | schema_type         |                               |
+      | method              | DELETE                        |
+      | path                | /subjects/del-lifecycle-2     |
+      | status_code         | 200                           |
+      | before_hash         | sha256:*                      |
+      | after_hash          |                               |
+      | context             | .                             |
+      | transport_security  | tls                           |
+      | reason              |                               |
+      | error               |                               |
+      | request_body        |                               |
+      | metadata            |                               |
+      | timestamp           | *                             |
+      | duration_ms         | *                             |
+      | request_id          | *                             |
+      | source_ip           | *                             |
+      | user_agent          | *                             |
 
   Scenario: Permanent delete without soft-delete first returns 40405
     Given subject "del-lifecycle-3" has schema:
@@ -65,12 +107,33 @@ Feature: Deletion Lifecycle (Two-Step Delete)
     When I list subjects with deleted
     Then the response body should not contain "del-lifecycle-4"
     And the audit log should contain an event:
-      | event_type  | subject_delete_permanent      |
-      | outcome     | success                       |
-      | actor_type  | anonymous                     |
-      | target_id   | del-lifecycle-4               |
-      | method      | DELETE                        |
-      | path        | /subjects/del-lifecycle-4     |
+      | event_type          | subject_delete_permanent      |
+      | outcome             | success                       |
+      | actor_id            |                               |
+      | actor_type          | anonymous                     |
+      | auth_method         |                               |
+      | role                |                               |
+      | target_type         | subject                       |
+      | target_id           | del-lifecycle-4               |
+      | schema_id           |                               |
+      | version             |                               |
+      | schema_type         |                               |
+      | method              | DELETE                        |
+      | path                | /subjects/del-lifecycle-4     |
+      | status_code         | 200                           |
+      | before_hash         | sha256:*                      |
+      | after_hash          |                               |
+      | context             | .                             |
+      | transport_security  | tls                           |
+      | reason              |                               |
+      | error               |                               |
+      | request_body        |                               |
+      | metadata            |                               |
+      | timestamp           | *                             |
+      | duration_ms         | *                             |
+      | request_id          | *                             |
+      | source_ip           | *                             |
+      | user_agent          | *                             |
 
   # ==========================================================================
   # TWO-STEP DELETION — VERSION LEVEL
@@ -105,12 +168,33 @@ Feature: Deletion Lifecycle (Two-Step Delete)
     When I DELETE "/subjects/del-ver-lifecycle-2/versions/1?permanent=true"
     Then the response status should be 200
     And the audit log should contain an event:
-      | event_type  | schema_delete_permanent                  |
-      | outcome     | success                                  |
-      | actor_type  | anonymous                                |
-      | target_id   | del-ver-lifecycle-2                      |
-      | method      | DELETE                                   |
-      | path        | /subjects/del-ver-lifecycle-2/versions   |
+      | event_type          | schema_delete_permanent                  |
+      | outcome             | success                                  |
+      | actor_id            |                                          |
+      | actor_type          | anonymous                                |
+      | auth_method         |                                          |
+      | role                |                                          |
+      | target_type         | subject                                  |
+      | target_id           | del-ver-lifecycle-2                      |
+      | schema_id           |                                          |
+      | version             |                                          |
+      | schema_type         |                                          |
+      | method              | DELETE                                   |
+      | path                | /subjects/del-ver-lifecycle-2/versions   |
+      | status_code         | 200                                      |
+      | before_hash         | sha256:*                                 |
+      | after_hash          |                                          |
+      | context             | .                                        |
+      | transport_security  | tls                                      |
+      | reason              |                                          |
+      | error               |                                          |
+      | request_body        |                                          |
+      | metadata            |                                          |
+      | timestamp           | *                                        |
+      | duration_ms         | *                                        |
+      | request_id          | *                                        |
+      | source_ip           | *                                        |
+      | user_agent          | *                                        |
 
   # ==========================================================================
   # SOFT-DELETED VERSION VISIBILITY
@@ -132,12 +216,33 @@ Feature: Deletion Lifecycle (Two-Step Delete)
     Then the response status should be 200
     And the response should be an array of length 1
     And the audit log should contain an event:
-      | event_type  | schema_delete_soft               |
-      | outcome     | success                          |
-      | actor_type  | anonymous                        |
-      | target_id   | del-vis-1                        |
-      | method      | DELETE                           |
-      | path        | /subjects/del-vis-1/versions     |
+      | event_type          | schema_delete_soft               |
+      | outcome             | success                          |
+      | actor_id            |                                  |
+      | actor_type          | anonymous                        |
+      | auth_method         |                                  |
+      | role                |                                  |
+      | target_type         | subject                          |
+      | target_id           | del-vis-1                        |
+      | schema_id           |                                  |
+      | version             |                                  |
+      | schema_type         |                                  |
+      | method              | DELETE                           |
+      | path                | /subjects/del-vis-1/versions     |
+      | status_code         | 200                              |
+      | before_hash         | sha256:*                         |
+      | after_hash          |                                  |
+      | context             | .                                |
+      | transport_security  | tls                              |
+      | reason              |                                  |
+      | error               |                                  |
+      | request_body        |                                  |
+      | metadata            |                                  |
+      | timestamp           | *                                |
+      | duration_ms         | *                                |
+      | request_id          | *                                |
+      | source_ip           | *                                |
+      | user_agent          | *                                |
 
   Scenario: Soft-deleted version visible with deleted=true param
     Given the global compatibility level is "NONE"
@@ -155,12 +260,33 @@ Feature: Deletion Lifecycle (Two-Step Delete)
     Then the response status should be 200
     And the response should be an array of length 2
     And the audit log should contain an event:
-      | event_type  | schema_delete_soft               |
-      | outcome     | success                          |
-      | actor_type  | anonymous                        |
-      | target_id   | del-vis-2                        |
-      | method      | DELETE                           |
-      | path        | /subjects/del-vis-2/versions     |
+      | event_type          | schema_delete_soft               |
+      | outcome             | success                          |
+      | actor_id            |                                  |
+      | actor_type          | anonymous                        |
+      | auth_method         |                                  |
+      | role                |                                  |
+      | target_type         | subject                          |
+      | target_id           | del-vis-2                        |
+      | schema_id           |                                  |
+      | version             |                                  |
+      | schema_type         |                                  |
+      | method              | DELETE                           |
+      | path                | /subjects/del-vis-2/versions     |
+      | status_code         | 200                              |
+      | before_hash         | sha256:*                         |
+      | after_hash          |                                  |
+      | context             | .                                |
+      | transport_security  | tls                              |
+      | reason              |                                  |
+      | error               |                                  |
+      | request_body        |                                  |
+      | metadata            |                                  |
+      | timestamp           | *                                |
+      | duration_ms         | *                                |
+      | request_id          | *                                |
+      | source_ip           | *                                |
+      | user_agent          | *                                |
 
   Scenario: GET soft-deleted version without deleted param returns 404
     Given subject "del-vis-3" has schema:
@@ -172,12 +298,33 @@ Feature: Deletion Lifecycle (Two-Step Delete)
     When I GET "/subjects/del-vis-3/versions/1"
     Then the response status should be 404
     And the audit log should contain an event:
-      | event_type  | schema_delete_soft               |
-      | outcome     | success                          |
-      | actor_type  | anonymous                        |
-      | target_id   | del-vis-3                        |
-      | method      | DELETE                           |
-      | path        | /subjects/del-vis-3/versions     |
+      | event_type          | schema_delete_soft               |
+      | outcome             | success                          |
+      | actor_id            |                                  |
+      | actor_type          | anonymous                        |
+      | auth_method         |                                  |
+      | role                |                                  |
+      | target_type         | subject                          |
+      | target_id           | del-vis-3                        |
+      | schema_id           |                                  |
+      | version             |                                  |
+      | schema_type         |                                  |
+      | method              | DELETE                           |
+      | path                | /subjects/del-vis-3/versions     |
+      | status_code         | 200                              |
+      | before_hash         | sha256:*                         |
+      | after_hash          |                                  |
+      | context             | .                                |
+      | transport_security  | tls                              |
+      | reason              |                                  |
+      | error               |                                  |
+      | request_body        |                                  |
+      | metadata            |                                  |
+      | timestamp           | *                                |
+      | duration_ms         | *                                |
+      | request_id          | *                                |
+      | source_ip           | *                                |
+      | user_agent          | *                                |
 
   # ==========================================================================
   # RE-REGISTRATION AFTER DELETE
@@ -200,19 +347,61 @@ Feature: Deletion Lifecycle (Two-Step Delete)
     Then the response status should be 200
     And the response field "version" should be 2
     And the audit log should contain an event:
-      | event_type  | subject_delete_soft        |
-      | outcome     | success                    |
-      | actor_type  | anonymous                  |
-      | target_id   | del-rereg-1                |
-      | method      | DELETE                     |
-      | path        | /subjects/del-rereg-1      |
+      | event_type          | subject_delete_soft        |
+      | outcome             | success                    |
+      | actor_id            |                            |
+      | actor_type          | anonymous                  |
+      | auth_method         |                            |
+      | role                |                            |
+      | target_type         | subject                    |
+      | target_id           | del-rereg-1                |
+      | schema_id           |                            |
+      | version             |                            |
+      | schema_type         |                            |
+      | method              | DELETE                     |
+      | path                | /subjects/del-rereg-1      |
+      | status_code         | 200                        |
+      | before_hash         | sha256:*                   |
+      | after_hash          |                            |
+      | context             | .                          |
+      | transport_security  | tls                        |
+      | reason              |                            |
+      | error               |                            |
+      | request_body        |                            |
+      | metadata            |                            |
+      | timestamp           | *                          |
+      | duration_ms         | *                          |
+      | request_id          | *                          |
+      | source_ip           | *                          |
+      | user_agent          | *                          |
     And the audit log should contain an event:
-      | event_type  | schema_register                   |
-      | outcome     | success                           |
-      | actor_type  | anonymous                         |
-      | target_id   | del-rereg-1                       |
-      | method      | POST                              |
-      | path        | /subjects/del-rereg-1/versions    |
+      | event_type          | schema_register                   |
+      | outcome             | success                           |
+      | actor_id            |                                   |
+      | actor_type          | anonymous                         |
+      | auth_method         |                                   |
+      | role                |                                   |
+      | target_type         | subject                           |
+      | target_id           | del-rereg-1                       |
+      | schema_id           | *                                 |
+      | version             |                                   |
+      | schema_type         | AVRO                              |
+      | method              | POST                              |
+      | path                | /subjects/del-rereg-1/versions    |
+      | status_code         | 200                               |
+      | before_hash         |                                   |
+      | after_hash          | sha256:*                          |
+      | context             | .                                 |
+      | transport_security  | tls                               |
+      | reason              |                                   |
+      | error               |                                   |
+      | request_body        |                                   |
+      | metadata            |                                   |
+      | timestamp           | *                                 |
+      | duration_ms         | *                                 |
+      | request_id          | *                                 |
+      | source_ip           | *                                 |
+      | user_agent          | *                                 |
 
   Scenario: Re-register after permanent delete starts at version 1
     Given subject "del-rereg-2" has schema:
@@ -232,19 +421,61 @@ Feature: Deletion Lifecycle (Two-Step Delete)
     Then the response status should be 200
     And the response field "version" should be 1
     And the audit log should contain an event:
-      | event_type  | subject_delete_permanent   |
-      | outcome     | success                    |
-      | actor_type  | anonymous                  |
-      | target_id   | del-rereg-2                |
-      | method      | DELETE                     |
-      | path        | /subjects/del-rereg-2      |
+      | event_type          | subject_delete_permanent   |
+      | outcome             | success                    |
+      | actor_id            |                            |
+      | actor_type          | anonymous                  |
+      | auth_method         |                            |
+      | role                |                            |
+      | target_type         | subject                    |
+      | target_id           | del-rereg-2                |
+      | schema_id           |                            |
+      | version             |                            |
+      | schema_type         |                            |
+      | method              | DELETE                     |
+      | path                | /subjects/del-rereg-2      |
+      | status_code         | 200                        |
+      | before_hash         | sha256:*                   |
+      | after_hash          |                            |
+      | context             | .                          |
+      | transport_security  | tls                        |
+      | reason              |                            |
+      | error               |                            |
+      | request_body        |                            |
+      | metadata            |                            |
+      | timestamp           | *                          |
+      | duration_ms         | *                          |
+      | request_id          | *                          |
+      | source_ip           | *                          |
+      | user_agent          | *                          |
     And the audit log should contain an event:
-      | event_type  | schema_register                   |
-      | outcome     | success                           |
-      | actor_type  | anonymous                         |
-      | target_id   | del-rereg-2                       |
-      | method      | POST                              |
-      | path        | /subjects/del-rereg-2/versions    |
+      | event_type          | schema_register                   |
+      | outcome             | success                           |
+      | actor_id            |                                   |
+      | actor_type          | anonymous                         |
+      | auth_method         |                                   |
+      | role                |                                   |
+      | target_type         | subject                           |
+      | target_id           | del-rereg-2                       |
+      | schema_id           | *                                 |
+      | version             |                                   |
+      | schema_type         | AVRO                              |
+      | method              | POST                              |
+      | path                | /subjects/del-rereg-2/versions    |
+      | status_code         | 200                               |
+      | before_hash         |                                   |
+      | after_hash          | sha256:*                          |
+      | context             | .                                 |
+      | transport_security  | tls                               |
+      | reason              |                                   |
+      | error               |                                   |
+      | request_body        |                                   |
+      | metadata            |                                   |
+      | timestamp           | *                                 |
+      | duration_ms         | *                                 |
+      | request_id          | *                                 |
+      | source_ip           | *                                 |
+      | user_agent          | *                                 |
 
   # ==========================================================================
   # DELETE VERSION "latest"
@@ -266,12 +497,33 @@ Feature: Deletion Lifecycle (Two-Step Delete)
     Then the response status should be 200
     And the response field "version" should be 1
     And the audit log should contain an event:
-      | event_type  | schema_delete_soft                 |
-      | outcome     | success                            |
-      | actor_type  | anonymous                          |
-      | target_id   | del-latest-1                       |
-      | method      | DELETE                             |
-      | path        | /subjects/del-latest-1/versions    |
+      | event_type          | schema_delete_soft                 |
+      | outcome             | success                            |
+      | actor_id            |                                    |
+      | actor_type          | anonymous                          |
+      | auth_method         |                                    |
+      | role                |                                    |
+      | target_type         | subject                            |
+      | target_id           | del-latest-1                       |
+      | schema_id           |                                    |
+      | version             |                                    |
+      | schema_type         |                                    |
+      | method              | DELETE                             |
+      | path                | /subjects/del-latest-1/versions    |
+      | status_code         | 200                                |
+      | before_hash         | sha256:*                           |
+      | after_hash          |                                    |
+      | context             | .                                  |
+      | transport_security  | tls                                |
+      | reason              |                                    |
+      | error               |                                    |
+      | request_body        |                                    |
+      | metadata            |                                    |
+      | timestamp           | *                                  |
+      | duration_ms         | *                                  |
+      | request_id          | *                                  |
+      | source_ip           | *                                  |
+      | user_agent          | *                                  |
 
   Scenario: DELETE version -1 works like latest
     Given the global compatibility level is "NONE"
@@ -289,12 +541,33 @@ Feature: Deletion Lifecycle (Two-Step Delete)
     Then the response status should be 200
     And the response field "version" should be 1
     And the audit log should contain an event:
-      | event_type  | schema_delete_soft               |
-      | outcome     | success                          |
-      | actor_type  | anonymous                        |
-      | target_id   | del-minus1                       |
-      | method      | DELETE                           |
-      | path        | /subjects/del-minus1/versions    |
+      | event_type          | schema_delete_soft               |
+      | outcome             | success                          |
+      | actor_id            |                                  |
+      | actor_type          | anonymous                        |
+      | auth_method         |                                  |
+      | role                |                                  |
+      | target_type         | subject                          |
+      | target_id           | del-minus1                       |
+      | schema_id           |                                  |
+      | version             |                                  |
+      | schema_type         |                                  |
+      | method              | DELETE                           |
+      | path                | /subjects/del-minus1/versions    |
+      | status_code         | 200                              |
+      | before_hash         | sha256:*                         |
+      | after_hash          |                                  |
+      | context             | .                                |
+      | transport_security  | tls                              |
+      | reason              |                                  |
+      | error               |                                  |
+      | request_body        |                                  |
+      | metadata            |                                  |
+      | timestamp           | *                                |
+      | duration_ms         | *                                |
+      | request_id          | *                                |
+      | source_ip           | *                                |
+      | user_agent          | *                                |
 
   # ==========================================================================
   # LOOKUP AFTER DELETION
@@ -313,12 +586,33 @@ Feature: Deletion Lifecycle (Two-Step Delete)
       """
     Then the response status should be 404
     And the audit log should contain an event:
-      | event_type  | subject_delete_soft        |
-      | outcome     | success                    |
-      | actor_type  | anonymous                  |
-      | target_id   | del-lookup-1               |
-      | method      | DELETE                     |
-      | path        | /subjects/del-lookup-1     |
+      | event_type          | subject_delete_soft        |
+      | outcome             | success                    |
+      | actor_id            |                            |
+      | actor_type          | anonymous                  |
+      | auth_method         |                            |
+      | role                |                            |
+      | target_type         | subject                    |
+      | target_id           | del-lookup-1               |
+      | schema_id           |                            |
+      | version             |                            |
+      | schema_type         |                            |
+      | method              | DELETE                     |
+      | path                | /subjects/del-lookup-1     |
+      | status_code         | 200                        |
+      | before_hash         | sha256:*                   |
+      | after_hash          |                            |
+      | context             | .                          |
+      | transport_security  | tls                        |
+      | reason              |                            |
+      | error               |                            |
+      | request_body        |                            |
+      | metadata            |                            |
+      | timestamp           | *                          |
+      | duration_ms         | *                          |
+      | request_id          | *                          |
+      | source_ip           | *                          |
+      | user_agent          | *                          |
 
   # ==========================================================================
   # Re-register after version soft-delete — re-registering the same content
@@ -352,19 +646,61 @@ Feature: Deletion Lifecycle (Two-Step Delete)
     Then the response status should be 200
     And the response field "version" should be 3
     And the audit log should contain an event:
-      | event_type  | schema_delete_soft                       |
-      | outcome     | success                                  |
-      | actor_type  | anonymous                                |
-      | target_id   | del-ver-reregister                       |
-      | method      | DELETE                                   |
-      | path        | /subjects/del-ver-reregister/versions    |
+      | event_type          | schema_delete_soft                       |
+      | outcome             | success                                  |
+      | actor_id            |                                          |
+      | actor_type          | anonymous                                |
+      | auth_method         |                                          |
+      | role                |                                          |
+      | target_type         | subject                                  |
+      | target_id           | del-ver-reregister                       |
+      | schema_id           |                                          |
+      | version             |                                          |
+      | schema_type         |                                          |
+      | method              | DELETE                                   |
+      | path                | /subjects/del-ver-reregister/versions    |
+      | status_code         | 200                                      |
+      | before_hash         | sha256:*                                 |
+      | after_hash          |                                          |
+      | context             | .                                        |
+      | transport_security  | tls                                      |
+      | reason              |                                          |
+      | error               |                                          |
+      | request_body        |                                          |
+      | metadata            |                                          |
+      | timestamp           | *                                        |
+      | duration_ms         | *                                        |
+      | request_id          | *                                        |
+      | source_ip           | *                                        |
+      | user_agent          | *                                        |
     And the audit log should contain an event:
-      | event_type  | schema_register                            |
-      | outcome     | success                                    |
-      | actor_type  | anonymous                                  |
-      | target_id   | del-ver-reregister                         |
-      | method      | POST                                       |
-      | path        | /subjects/del-ver-reregister/versions      |
+      | event_type          | schema_register                            |
+      | outcome             | success                                    |
+      | actor_id            |                                            |
+      | actor_type          | anonymous                                  |
+      | auth_method         |                                            |
+      | role                |                                            |
+      | target_type         | subject                                    |
+      | target_id           | del-ver-reregister                         |
+      | schema_id           | *                                          |
+      | version             |                                            |
+      | schema_type         | AVRO                                       |
+      | method              | POST                                       |
+      | path                | /subjects/del-ver-reregister/versions      |
+      | status_code         | 200                                        |
+      | before_hash         |                                            |
+      | after_hash          | sha256:*                                   |
+      | context             | .                                          |
+      | transport_security  | tls                                        |
+      | reason              |                                            |
+      | error               |                                            |
+      | request_body        |                                            |
+      | metadata            |                                            |
+      | timestamp           | *                                          |
+      | duration_ms         | *                                          |
+      | request_id          | *                                          |
+      | source_ip           | *                                          |
+      | user_agent          | *                                          |
 
   Scenario: Re-register different content after version soft-delete
     Given the global compatibility level is "NONE"
@@ -390,16 +726,58 @@ Feature: Deletion Lifecycle (Two-Step Delete)
     And the response field "version" should be 3
     And the response should contain "D3"
     And the audit log should contain an event:
-      | event_type  | schema_delete_soft                         |
-      | outcome     | success                                    |
-      | actor_type  | anonymous                                  |
-      | target_id   | del-diff-reregister                        |
-      | method      | DELETE                                     |
-      | path        | /subjects/del-diff-reregister/versions     |
+      | event_type          | schema_delete_soft                         |
+      | outcome             | success                                    |
+      | actor_id            |                                            |
+      | actor_type          | anonymous                                  |
+      | auth_method         |                                            |
+      | role                |                                            |
+      | target_type         | subject                                    |
+      | target_id           | del-diff-reregister                        |
+      | schema_id           |                                            |
+      | version             |                                            |
+      | schema_type         |                                            |
+      | method              | DELETE                                     |
+      | path                | /subjects/del-diff-reregister/versions     |
+      | status_code         | 200                                        |
+      | before_hash         | sha256:*                                   |
+      | after_hash          |                                            |
+      | context             | .                                          |
+      | transport_security  | tls                                        |
+      | reason              |                                            |
+      | error               |                                            |
+      | request_body        |                                            |
+      | metadata            |                                            |
+      | timestamp           | *                                          |
+      | duration_ms         | *                                          |
+      | request_id          | *                                          |
+      | source_ip           | *                                          |
+      | user_agent          | *                                          |
     And the audit log should contain an event:
-      | event_type  | schema_register                              |
-      | outcome     | success                                      |
-      | actor_type  | anonymous                                    |
-      | target_id   | del-diff-reregister                          |
-      | method      | POST                                         |
-      | path        | /subjects/del-diff-reregister/versions       |
+      | event_type          | schema_register                              |
+      | outcome             | success                                      |
+      | actor_id            |                                              |
+      | actor_type          | anonymous                                    |
+      | auth_method         |                                              |
+      | role                |                                              |
+      | target_type         | subject                                      |
+      | target_id           | del-diff-reregister                          |
+      | schema_id           | *                                            |
+      | version             |                                              |
+      | schema_type         | AVRO                                         |
+      | method              | POST                                         |
+      | path                | /subjects/del-diff-reregister/versions       |
+      | status_code         | 200                                          |
+      | before_hash         |                                              |
+      | after_hash          | sha256:*                                     |
+      | context             | .                                            |
+      | transport_security  | tls                                          |
+      | reason              |                                              |
+      | error               |                                              |
+      | request_body        |                                              |
+      | metadata            |                                              |
+      | timestamp           | *                                            |
+      | duration_ms         | *                                            |
+      | request_id          | *                                            |
+      | source_ip           | *                                            |
+      | user_agent          | *                                            |

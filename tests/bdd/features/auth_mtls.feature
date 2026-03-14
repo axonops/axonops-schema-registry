@@ -22,17 +22,33 @@ Feature: mTLS Transport Security
       """
     Then the response status should be 200
     And the audit log should contain an event:
-      | event_type         | schema_register      |
-      | outcome            | success              |
-      | actor_type         | anonymous            |
-      | target_type        | subject              |
-      | target_id          | mtls-test-subject    |
-      | transport_security | mtls                 |
-      | method             | POST                 |
+      | event_type         | schema_register                      |
+      | outcome            | success                              |
+      | actor_id           |                                      |
+      | actor_type         | anonymous                            |
+      | auth_method        |                                      |
+      | role               |                                      |
+      | target_type        | subject                              |
+      | target_id          | mtls-test-subject                    |
+      | schema_id          | *                                    |
+      | version            |                                      |
+      | schema_type        | AVRO                                 |
+      | before_hash        |                                      |
+      | after_hash         | sha256:*                             |
+      | context            | .                                    |
+      | transport_security | mtls                                 |
+      | method             | POST                                 |
       | path               | /subjects/mtls-test-subject/versions |
-      | status_code        | 200                  |
-      | schema_type        | AVRO                 |
-      | after_hash         | sha256:*             |
+      | status_code        | 200                                  |
+      | reason             |                                      |
+      | error              |                                      |
+      | request_body       |                                      |
+      | metadata           |                                      |
+      | timestamp          | *                                    |
+      | duration_ms        | *                                    |
+      | request_id         | *                                    |
+      | source_ip          | *                                    |
+      | user_agent         | *                                    |
 
   Scenario: Valid client certificate can get schema by ID
     Given I connect with mTLS certificate "client-admin"
@@ -55,14 +71,33 @@ Feature: mTLS Transport Security
     When I DELETE "/subjects/mtls-del-test"
     Then the response status should be 200
     And the audit log should contain an event:
-      | event_type         | subject_delete_soft       |
+      | event_type         | subject_delete_soft  |
       | outcome            | success              |
+      | actor_id           |                      |
       | actor_type         | anonymous            |
+      | auth_method        |                      |
+      | role               |                      |
       | target_type        | subject              |
       | target_id          | mtls-del-test        |
+      | schema_id          |                      |
+      | version            |                      |
+      | schema_type        |                      |
+      | before_hash        | sha256:*             |
+      | after_hash         |                      |
+      | context            | .                    |
       | transport_security | mtls                 |
       | method             | DELETE               |
+      | path               | /subjects/mtls-del-test |
       | status_code        | 200                  |
+      | reason             |                      |
+      | error              |                      |
+      | request_body       |                      |
+      | metadata           |                      |
+      | timestamp          | *                    |
+      | duration_ms        | *                    |
+      | request_id         | *                    |
+      | source_ip          | *                    |
+      | user_agent         | *                    |
 
   Scenario: Valid client certificate can manage config
     Given I connect with mTLS certificate "client-admin"
@@ -74,10 +109,31 @@ Feature: mTLS Transport Security
     And the audit log should contain an event:
       | event_type         | config_update        |
       | outcome            | success              |
+      | actor_id           |                      |
       | actor_type         | anonymous            |
+      | auth_method        |                      |
+      | role               |                      |
+      | target_type        | config               |
+      | target_id          |                      |
+      | schema_id          |                      |
+      | version            |                      |
+      | schema_type        |                      |
+      | before_hash        | *                    |
+      | after_hash         | sha256:*             |
+      | context            | .                    |
       | transport_security | mtls                 |
       | method             | PUT                  |
+      | path               | /config              |
       | status_code        | 200                  |
+      | reason             |                      |
+      | error              |                      |
+      | request_body       |                      |
+      | metadata           |                      |
+      | timestamp          | *                    |
+      | duration_ms        | *                    |
+      | request_id         | *                    |
+      | source_ip          | *                    |
+      | user_agent         | *                    |
     When I GET "/config"
     Then the response status should be 200
     And the response field "compatibilityLevel" should be "FULL"
@@ -115,11 +171,31 @@ Feature: mTLS Transport Security
     And the audit log should contain an event:
       | event_type         | auth_failure         |
       | outcome            | failure              |
+      | actor_id           |                      |
+      | actor_type         | anonymous            |
+      | auth_method        |                      |
+      | role               |                      |
+      | target_type        |                      |
+      | target_id          |                      |
+      | schema_id          |                      |
+      | version            |                      |
+      | schema_type        |                      |
+      | before_hash        |                      |
+      | after_hash         |                      |
+      | context            |                      |
       | transport_security | mtls                 |
-      | reason             | no_valid_credentials |
       | method             | GET                  |
       | path               | /subjects            |
       | status_code        | 401                  |
+      | reason             | no_valid_credentials |
+      | error              |                      |
+      | request_body       |                      |
+      | metadata           |                      |
+      | timestamp          | *                    |
+      | duration_ms        | *                    |
+      | request_id         | *                    |
+      | source_ip          | *                    |
+      | user_agent         | *                    |
 
   @mtls-auth
   Scenario: Valid cert + wrong password returns 401
@@ -130,10 +206,31 @@ Feature: mTLS Transport Security
     And the audit log should contain an event:
       | event_type         | auth_failure         |
       | outcome            | failure              |
+      | actor_id           |                      |
+      | actor_type         | anonymous            |
+      | auth_method        |                      |
+      | role               |                      |
+      | target_type        |                      |
+      | target_id          |                      |
+      | schema_id          |                      |
+      | version            |                      |
+      | schema_type        |                      |
+      | before_hash        |                      |
+      | after_hash         |                      |
+      | context            |                      |
       | transport_security | mtls                 |
-      | reason             | no_valid_credentials |
       | method             | GET                  |
+      | path               | /subjects            |
       | status_code        | 401                  |
+      | reason             | no_valid_credentials |
+      | error              |                      |
+      | request_body       |                      |
+      | metadata           |                      |
+      | timestamp          | *                    |
+      | duration_ms        | *                    |
+      | request_id         | *                    |
+      | source_ip          | *                    |
+      | user_agent         | *                    |
 
   @mtls-auth
   Scenario: No client certificate is refused even with valid auth
@@ -161,20 +258,33 @@ Feature: mTLS Transport Security
       """
     Then the response status should be 200
     And the audit log should contain an event:
-      | event_type         | schema_register      |
-      | outcome            | success              |
-      | actor_id           | admin                |
-      | actor_type         | user                 |
-      | role               | super_admin          |
-      | auth_method        | basic                |
-      | target_type        | subject              |
-      | target_id          | mtls-rbac-test       |
-      | transport_security | mtls                 |
-      | method             | POST                 |
+      | event_type         | schema_register                   |
+      | outcome            | success                           |
+      | actor_id           | admin                             |
+      | actor_type         | user                              |
+      | auth_method        | basic                             |
+      | role               | super_admin                       |
+      | target_type        | subject                           |
+      | target_id          | mtls-rbac-test                    |
+      | schema_id          | *                                 |
+      | version            |                                   |
+      | schema_type        | AVRO                              |
+      | before_hash        |                                   |
+      | after_hash         | sha256:*                          |
+      | context            | .                                 |
+      | transport_security | mtls                              |
+      | method             | POST                              |
       | path               | /subjects/mtls-rbac-test/versions |
-      | status_code        | 200                  |
-      | schema_type        | AVRO                 |
-      | after_hash         | sha256:*             |
+      | status_code        | 200                               |
+      | reason             |                                   |
+      | error              |                                   |
+      | request_body       |                                   |
+      | metadata           |                                   |
+      | timestamp          | *                                 |
+      | duration_ms        | *                                 |
+      | request_id         | *                                 |
+      | source_ip          | *                                 |
+      | user_agent         | *                                 |
 
   @mtls-auth
   Scenario: Admin can read a schema over mTLS
@@ -200,17 +310,33 @@ Feature: mTLS Transport Security
     When I DELETE "/subjects/mtls-delvs-test/versions/1"
     Then the response status should be 200
     And the audit log should contain an event:
-      | event_type         | schema_delete_soft        |
-      | outcome            | success              |
-      | actor_id           | admin                |
-      | actor_type         | user                 |
-      | role               | super_admin          |
-      | auth_method        | basic                |
-      | target_type        | subject              |
-      | target_id          | mtls-delvs-test      |
-      | transport_security | mtls                 |
-      | method             | DELETE               |
-      | status_code        | 200                  |
+      | event_type         | schema_delete_soft                 |
+      | outcome            | success                            |
+      | actor_id           | admin                              |
+      | actor_type         | user                               |
+      | auth_method        | basic                              |
+      | role               | super_admin                        |
+      | target_type        | subject                            |
+      | target_id          | mtls-delvs-test                    |
+      | schema_id          |                                    |
+      | version            |                                    |
+      | schema_type        |                                    |
+      | before_hash        | sha256:*                           |
+      | after_hash         |                                    |
+      | context            | .                                  |
+      | transport_security | mtls                               |
+      | method             | DELETE                             |
+      | path               | /subjects/mtls-delvs-test/versions/1 |
+      | status_code        | 200                                |
+      | reason             |                                    |
+      | error              |                                    |
+      | request_body       |                                    |
+      | metadata           |                                    |
+      | timestamp          | *                                  |
+      | duration_ms        | *                                  |
+      | request_id         | *                                  |
+      | source_ip          | *                                  |
+      | user_agent         | *                                  |
 
   @mtls-auth
   Scenario: Admin can delete a subject over mTLS
@@ -224,17 +350,33 @@ Feature: mTLS Transport Security
     When I DELETE "/subjects/mtls-delsub-test"
     Then the response status should be 200
     And the audit log should contain an event:
-      | event_type         | subject_delete_soft       |
-      | outcome            | success              |
-      | actor_id           | admin                |
-      | actor_type         | user                 |
-      | role               | super_admin          |
-      | auth_method        | basic                |
-      | target_type        | subject              |
-      | target_id          | mtls-delsub-test     |
-      | transport_security | mtls                 |
-      | method             | DELETE               |
-      | status_code        | 200                  |
+      | event_type         | subject_delete_soft     |
+      | outcome            | success                 |
+      | actor_id           | admin                   |
+      | actor_type         | user                    |
+      | auth_method        | basic                   |
+      | role               | super_admin             |
+      | target_type        | subject                 |
+      | target_id          | mtls-delsub-test        |
+      | schema_id          |                         |
+      | version            |                         |
+      | schema_type        |                         |
+      | before_hash        | sha256:*                |
+      | after_hash         |                         |
+      | context            | .                       |
+      | transport_security | mtls                    |
+      | method             | DELETE                  |
+      | path               | /subjects/mtls-delsub-test |
+      | status_code        | 200                     |
+      | reason             |                         |
+      | error              |                         |
+      | request_body       |                         |
+      | metadata           |                         |
+      | timestamp          | *                       |
+      | duration_ms        | *                       |
+      | request_id         | *                       |
+      | source_ip          | *                       |
+      | user_agent         | *                       |
 
   @mtls-auth
   Scenario: Readonly user can read schemas but not write over mTLS
@@ -255,10 +397,30 @@ Feature: mTLS Transport Security
       | event_type         | user_create          |
       | outcome            | success              |
       | actor_id           | admin                |
+      | actor_type         | user                 |
       | auth_method        | basic                |
+      | role               | super_admin          |
+      | target_type        | user                 |
+      | target_id          | reader               |
+      | schema_id          |                      |
+      | version            |                      |
+      | schema_type        |                      |
+      | before_hash        |                      |
+      | after_hash         | sha256:*             |
+      | context            |                      |
       | transport_security | mtls                 |
       | method             | POST                 |
+      | path               | /admin/users         |
       | status_code        | 201                  |
+      | reason             |                      |
+      | error              |                      |
+      | request_body       |                      |
+      | metadata           |                      |
+      | timestamp          | *                    |
+      | duration_ms        | *                    |
+      | request_id         | *                    |
+      | source_ip          | *                    |
+      | user_agent         | *                    |
     # Switch to readonly user
     Given I authenticate as "reader" with password "reader-pass"
     When I GET "/subjects/mtls-ro-test/versions/1"
@@ -273,12 +435,29 @@ Feature: mTLS Transport Security
       | outcome            | failure              |
       | actor_id           | reader               |
       | actor_type         | user                 |
-      | role               | readonly             |
       | auth_method        | basic                |
+      | role               | readonly             |
+      | target_type        |                      |
+      | target_id          |                      |
+      | schema_id          |                      |
+      | version            |                      |
+      | schema_type        |                      |
+      | before_hash        |                      |
+      | after_hash         |                      |
+      | context            |                      |
       | transport_security | mtls                 |
-      | reason             | permission_denied    |
       | method             | POST                 |
+      | path               | /subjects/mtls-ro-write/versions |
       | status_code        | 403                  |
+      | reason             | permission_denied    |
+      | error              |                      |
+      | request_body       |                      |
+      | metadata           |                      |
+      | timestamp          | *                    |
+      | duration_ms        | *                    |
+      | request_id         | *                    |
+      | source_ip          | *                    |
+      | user_agent         | *                    |
 
   @mtls-auth
   Scenario: Readonly user cannot delete schemas over mTLS
@@ -302,14 +481,29 @@ Feature: mTLS Transport Security
       | outcome            | failure              |
       | actor_id           | reader2              |
       | actor_type         | user                 |
-      | role               | readonly             |
       | auth_method        | basic                |
+      | role               | readonly             |
       | target_type        | subject              |
       | target_id          | mtls-ro-del          |
+      | schema_id          |                      |
+      | version            |                      |
+      | schema_type        |                      |
+      | before_hash        |                      |
+      | after_hash         |                      |
+      | context            |                      |
       | transport_security | mtls                 |
-      | reason             | permission_denied    |
       | method             | DELETE               |
+      | path               | /subjects/mtls-ro-del |
       | status_code        | 403                  |
+      | reason             | permission_denied    |
+      | error              |                      |
+      | request_body       |                      |
+      | metadata           |                      |
+      | timestamp          | *                    |
+      | duration_ms        | *                    |
+      | request_id         | *                    |
+      | source_ip          | *                    |
+      | user_agent         | *                    |
 
   @mtls-auth
   Scenario: Unauthenticated user cannot read schemas over mTLS
@@ -319,11 +513,31 @@ Feature: mTLS Transport Security
     And the audit log should contain an event:
       | event_type         | auth_failure         |
       | outcome            | failure              |
+      | actor_id           |                      |
+      | actor_type         | anonymous            |
+      | auth_method        |                      |
+      | role               |                      |
+      | target_type        |                      |
+      | target_id          |                      |
+      | schema_id          |                      |
+      | version            |                      |
+      | schema_type        |                      |
+      | before_hash        |                      |
+      | after_hash         |                      |
+      | context            |                      |
       | transport_security | mtls                 |
-      | reason             | no_valid_credentials |
       | method             | GET                  |
       | path               | /subjects            |
       | status_code        | 401                  |
+      | reason             | no_valid_credentials |
+      | error              |                      |
+      | request_body       |                      |
+      | metadata           |                      |
+      | timestamp          | *                    |
+      | duration_ms        | *                    |
+      | request_id         | *                    |
+      | source_ip          | *                    |
+      | user_agent         | *                    |
 
   # --- Section 4: mTLS + Basic Auth — RBAC Config operations ---
 
@@ -341,12 +555,29 @@ Feature: mTLS Transport Security
       | outcome            | success              |
       | actor_id           | admin                |
       | actor_type         | user                 |
-      | role               | super_admin          |
       | auth_method        | basic                |
+      | role               | super_admin          |
+      | target_type        | config               |
+      | target_id          |                      |
+      | schema_id          |                      |
+      | version            |                      |
+      | schema_type        |                      |
+      | before_hash        | *                    |
+      | after_hash         | sha256:*             |
+      | context            | .                    |
       | transport_security | mtls                 |
       | method             | PUT                  |
       | path               | /config              |
       | status_code        | 200                  |
+      | reason             |                      |
+      | error              |                      |
+      | request_body       |                      |
+      | metadata           |                      |
+      | timestamp          | *                    |
+      | duration_ms        | *                    |
+      | request_id         | *                    |
+      | source_ip          | *                    |
+      | user_agent         | *                    |
 
   @mtls-auth
   Scenario: Admin can read global config over mTLS
@@ -375,13 +606,29 @@ Feature: mTLS Transport Security
       | outcome            | failure              |
       | actor_id           | configro             |
       | actor_type         | user                 |
-      | role               | readonly             |
       | auth_method        | basic                |
+      | role               | readonly             |
+      | target_type        |                      |
+      | target_id          |                      |
+      | schema_id          |                      |
+      | version            |                      |
+      | schema_type        |                      |
+      | before_hash        |                      |
+      | after_hash         |                      |
+      | context            |                      |
       | transport_security | mtls                 |
-      | reason             | permission_denied    |
       | method             | PUT                  |
       | path               | /config              |
       | status_code        | 403                  |
+      | reason             | permission_denied    |
+      | error              |                      |
+      | request_body       |                      |
+      | metadata           |                      |
+      | timestamp          | *                    |
+      | duration_ms        | *                    |
+      | request_id         | *                    |
+      | source_ip          | *                    |
+      | user_agent         | *                    |
 
   # --- Section 5: mTLS + Basic Auth — RBAC Mode operations ---
 
@@ -399,12 +646,29 @@ Feature: mTLS Transport Security
       | outcome            | success              |
       | actor_id           | admin                |
       | actor_type         | user                 |
-      | role               | super_admin          |
       | auth_method        | basic                |
+      | role               | super_admin          |
+      | target_type        | mode                 |
+      | target_id          |                      |
+      | schema_id          |                      |
+      | version            |                      |
+      | schema_type        |                      |
+      | before_hash        | *                    |
+      | after_hash         | sha256:*             |
+      | context            | .                    |
       | transport_security | mtls                 |
       | method             | PUT                  |
       | path               | /mode                |
       | status_code        | 200                  |
+      | reason             |                      |
+      | error              |                      |
+      | request_body       |                      |
+      | metadata           |                      |
+      | timestamp          | *                    |
+      | duration_ms        | *                    |
+      | request_id         | *                    |
+      | source_ip          | *                    |
+      | user_agent         | *                    |
     # Reset back
     When I PUT "/mode" with body:
       """
@@ -432,13 +696,29 @@ Feature: mTLS Transport Security
       | outcome            | failure              |
       | actor_id           | modero               |
       | actor_type         | user                 |
-      | role               | readonly             |
       | auth_method        | basic                |
+      | role               | readonly             |
+      | target_type        |                      |
+      | target_id          |                      |
+      | schema_id          |                      |
+      | version            |                      |
+      | schema_type        |                      |
+      | before_hash        |                      |
+      | after_hash         |                      |
+      | context            |                      |
       | transport_security | mtls                 |
-      | reason             | permission_denied    |
       | method             | PUT                  |
       | path               | /mode                |
       | status_code        | 403                  |
+      | reason             | permission_denied    |
+      | error              |                      |
+      | request_body       |                      |
+      | metadata           |                      |
+      | timestamp          | *                    |
+      | duration_ms        | *                    |
+      | request_id         | *                    |
+      | source_ip          | *                    |
+      | user_agent         | *                    |
 
   # --- Section 6: Comprehensive audit assertions for transport_security ---
 
@@ -452,20 +732,33 @@ Feature: mTLS Transport Security
       """
     Then the response status should be 200
     And the audit log should contain an event:
-      | event_type         | schema_register      |
-      | outcome            | success              |
-      | actor_id           | admin                |
-      | actor_type         | user                 |
-      | role               | super_admin          |
-      | auth_method        | basic                |
-      | target_type        | subject              |
-      | target_id          | mtls-audit-test      |
-      | transport_security | mtls                 |
-      | schema_type        | AVRO                 |
-      | after_hash         | sha256:*             |
-      | method             | POST                 |
+      | event_type         | schema_register                    |
+      | outcome            | success                            |
+      | actor_id           | admin                              |
+      | actor_type         | user                               |
+      | auth_method        | basic                              |
+      | role               | super_admin                        |
+      | target_type        | subject                            |
+      | target_id          | mtls-audit-test                    |
+      | schema_id          | *                                  |
+      | version            |                                    |
+      | schema_type        | AVRO                               |
+      | before_hash        |                                    |
+      | after_hash         | sha256:*                           |
+      | context            | .                                  |
+      | transport_security | mtls                               |
+      | method             | POST                               |
       | path               | /subjects/mtls-audit-test/versions |
-      | status_code        | 200                  |
+      | status_code        | 200                                |
+      | reason             |                                    |
+      | error              |                                    |
+      | request_body       |                                    |
+      | metadata           |                                    |
+      | timestamp          | *                                  |
+      | duration_ms        | *                                  |
+      | request_id         | *                                  |
+      | source_ip          | *                                  |
+      | user_agent         | *                                  |
 
   @mtls-auth
   Scenario: Auth failure audit event has full transport_security context
@@ -476,11 +769,31 @@ Feature: mTLS Transport Security
     And the audit log should contain an event:
       | event_type         | auth_failure         |
       | outcome            | failure              |
+      | actor_id           |                      |
+      | actor_type         | anonymous            |
+      | auth_method        |                      |
+      | role               |                      |
+      | target_type        |                      |
+      | target_id          |                      |
+      | schema_id          |                      |
+      | version            |                      |
+      | schema_type        |                      |
+      | before_hash        |                      |
+      | after_hash         |                      |
+      | context            |                      |
       | transport_security | mtls                 |
-      | reason             | no_valid_credentials |
       | method             | GET                  |
       | path               | /subjects            |
       | status_code        | 401                  |
+      | reason             | no_valid_credentials |
+      | error              |                      |
+      | request_body       |                      |
+      | metadata           |                      |
+      | timestamp          | *                    |
+      | duration_ms        | *                    |
+      | request_id         | *                    |
+      | source_ip          | *                    |
+      | user_agent         | *                    |
 
   @mtls-auth
   Scenario: RBAC forbidden audit event has full transport_security context
@@ -498,14 +811,30 @@ Feature: mTLS Transport Security
       """
     Then the response status should be 403
     And the audit log should contain an event:
-      | event_type         | auth_forbidden       |
-      | outcome            | failure              |
-      | actor_id           | auditro              |
-      | actor_type         | user                 |
-      | role               | readonly             |
-      | auth_method        | basic                |
-      | transport_security | mtls                 |
-      | reason             | permission_denied    |
-      | method             | POST                 |
+      | event_type         | auth_forbidden                    |
+      | outcome            | failure                           |
+      | actor_id           | auditro                           |
+      | actor_type         | user                              |
+      | auth_method        | basic                             |
+      | role               | readonly                          |
+      | target_type        |                                   |
+      | target_id          |                                   |
+      | schema_id          |                                   |
+      | version            |                                   |
+      | schema_type        |                                   |
+      | before_hash        |                                   |
+      | after_hash         |                                   |
+      | context            |                                   |
+      | transport_security | mtls                              |
+      | method             | POST                              |
       | path               | /subjects/mtls-forbidden/versions |
-      | status_code        | 403                  |
+      | status_code        | 403                               |
+      | reason             | permission_denied                 |
+      | error              |                                   |
+      | request_body       |                                   |
+      | metadata           |                                   |
+      | timestamp          | *                                 |
+      | duration_ms        | *                                 |
+      | request_id         | *                                 |
+      | source_ip          | *                                 |
+      | user_agent         | *                                 |

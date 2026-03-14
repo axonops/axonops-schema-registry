@@ -33,22 +33,62 @@ Feature: Import with Conflicting IDs
     When I set the global mode to "READWRITE"
     # First import (succeeded) — audit entry for the successful import
     And the audit log should contain an event:
-      | event_type  | schema_import     |
-      | outcome     | success           |
-      | actor_type  | anonymous         |
-      | target_id   | import-existing   |
-      | method      | POST              |
-      | path        | /import/schemas   |
-      | status_code | 200               |
+      | event_type          | schema_import     |
+      | outcome             | success           |
+      | actor_id            |                   |
+      | actor_type          | anonymous         |
+      | auth_method         |                   |
+      | role                |                   |
+      | target_type         | subject           |
+      | target_id           | import-existing   |
+      | schema_id           | *                 |
+      | version             |                   |
+      | schema_type         | AVRO              |
+      | method              | POST              |
+      | path                | /import/schemas   |
+      | status_code         | 200               |
+      | before_hash         |                   |
+      | after_hash          | sha256:*          |
+      | context             |                   |
+      | transport_security  | tls               |
+      | reason              |                   |
+      | error               |                   |
+      | request_body        |                   |
+      | metadata            |                   |
+      | timestamp           | *                 |
+      | duration_ms         | *                 |
+      | request_id          | *                 |
+      | source_ip           | *                 |
+      | user_agent          | *                 |
     # Second import (conflicting ID, 0 imported / 1 error) — returns 422
     And the audit log should contain an event:
-      | event_type  | schema_import     |
-      | outcome     | failure           |
-      | actor_type  | anonymous         |
-      | target_id   | import-conflict   |
-      | method      | POST              |
-      | path        | /import/schemas   |
-      | status_code | 422               |
+      | event_type          | schema_import     |
+      | outcome             | failure           |
+      | actor_id            |                   |
+      | actor_type          | anonymous         |
+      | auth_method         |                   |
+      | role                |                   |
+      | target_type         | subject           |
+      | target_id           | import-conflict   |
+      | schema_id           | *                 |
+      | version             |                   |
+      | schema_type         | AVRO              |
+      | method              | POST              |
+      | path                | /import/schemas   |
+      | status_code         | 422               |
+      | before_hash         |                   |
+      | after_hash          |                   |
+      | context             |                   |
+      | transport_security  | tls               |
+      | reason              | schema_id_conflict |
+      | error               |                   |
+      | request_body        |                   |
+      | metadata            |                   |
+      | timestamp           | *                 |
+      | duration_ms         | *                 |
+      | request_id          | *                 |
+      | source_ip           | *                 |
+      | user_agent          | *                 |
 
   # ---------------------------------------------------------------------------
   # Import with an ID that already exists but same schema content
@@ -74,22 +114,62 @@ Feature: Import with Conflicting IDs
     When I set the global mode to "READWRITE"
     # First import succeeded
     And the audit log should contain an event:
-      | event_type  | schema_import   |
-      | outcome     | success         |
-      | actor_type  | anonymous       |
-      | target_id   | import-idem     |
-      | method      | POST            |
-      | path        | /import/schemas |
-      | status_code | 200             |
+      | event_type          | schema_import   |
+      | outcome             | success         |
+      | actor_id            |                 |
+      | actor_type          | anonymous       |
+      | auth_method         |                 |
+      | role                |                 |
+      | target_type         | subject         |
+      | target_id           | import-idem     |
+      | schema_id           | *               |
+      | version             |                 |
+      | schema_type         | AVRO            |
+      | method              | POST            |
+      | path                | /import/schemas |
+      | status_code         | 200             |
+      | before_hash         |                 |
+      | after_hash          | sha256:*        |
+      | context             |                 |
+      | transport_security  | tls             |
+      | reason              |                 |
+      | error               |                 |
+      | request_body        |                 |
+      | metadata            |                 |
+      | timestamp           | *               |
+      | duration_ms         | *               |
+      | request_id          | *               |
+      | source_ip           | *               |
+      | user_agent          | *               |
     # Re-import returns 422
     And the audit log should contain an event:
-      | event_type  | schema_import   |
-      | outcome     | failure         |
-      | actor_type  | anonymous       |
-      | target_id   | import-idem     |
-      | method      | POST            |
-      | path        | /import/schemas |
-      | status_code | 422             |
+      | event_type          | schema_import   |
+      | outcome             | failure         |
+      | actor_id            |                 |
+      | actor_type          | anonymous       |
+      | auth_method         |                 |
+      | role                |                 |
+      | target_type         | subject         |
+      | target_id           | import-idem     |
+      | schema_id           | *               |
+      | version             |                 |
+      | schema_type         | AVRO            |
+      | method              | POST            |
+      | path                | /import/schemas |
+      | status_code         | 422             |
+      | before_hash         |                 |
+      | after_hash          |                 |
+      | context             |                 |
+      | transport_security  | tls             |
+      | reason              | schema_id_conflict |
+      | error               |                 |
+      | request_body        |                 |
+      | metadata            |                 |
+      | timestamp           | *               |
+      | duration_ms         | *               |
+      | request_id          | *               |
+      | source_ip           | *               |
+      | user_agent          | *               |
 
   # ---------------------------------------------------------------------------
   # Import requires IMPORT mode
@@ -105,13 +185,33 @@ Feature: Import with Conflicting IDs
     # No target_id — the handler rejects before parsing the body, so the
     # subject is never extracted from the request.
     And the audit log should contain an event:
-      | event_type  | schema_import     |
-      | outcome     | failure           |
-      | reason      | invalid_schema    |
-      | actor_type  | anonymous         |
-      | method      | POST              |
-      | path        | /import/schemas   |
-      | status_code | 422               |
+      | event_type          | schema_import     |
+      | outcome             | failure           |
+      | actor_id            |                   |
+      | actor_type          | anonymous         |
+      | auth_method         |                   |
+      | role                |                   |
+      | target_type         | subject           |
+      | target_id           |                   |
+      | schema_id           |                   |
+      | version             |                   |
+      | schema_type         |                   |
+      | method              | POST              |
+      | path                | /import/schemas   |
+      | status_code         | 422               |
+      | before_hash         |                   |
+      | after_hash          |                   |
+      | context             |                   |
+      | transport_security  | tls               |
+      | reason              | invalid_schema    |
+      | error               |                   |
+      | request_body        |                   |
+      | metadata            |                   |
+      | timestamp           | *                 |
+      | duration_ms         | *                 |
+      | request_id          | *                 |
+      | source_ip           | *                 |
+      | user_agent          | *                 |
 
   # ---------------------------------------------------------------------------
   # Import with version that already exists under same subject
@@ -135,22 +235,62 @@ Feature: Import with Conflicting IDs
     When I set the global mode to "READWRITE"
     # First import succeeded
     And the audit log should contain an event:
-      | event_type  | schema_import    |
-      | outcome     | success          |
-      | actor_type  | anonymous        |
-      | target_id   | import-ver-dup   |
-      | method      | POST             |
-      | path        | /import/schemas  |
-      | status_code | 200              |
+      | event_type          | schema_import    |
+      | outcome             | success          |
+      | actor_id            |                  |
+      | actor_type          | anonymous        |
+      | auth_method         |                  |
+      | role                |                  |
+      | target_type         | subject          |
+      | target_id           | import-ver-dup   |
+      | schema_id           | *                |
+      | version             |                  |
+      | schema_type         | AVRO             |
+      | method              | POST             |
+      | path                | /import/schemas  |
+      | status_code         | 200              |
+      | before_hash         |                  |
+      | after_hash          | sha256:*         |
+      | context             |                  |
+      | transport_security  | tls              |
+      | reason              |                  |
+      | error               |                  |
+      | request_body        |                  |
+      | metadata            |                  |
+      | timestamp           | *                |
+      | duration_ms         | *                |
+      | request_id          | *                |
+      | source_ip           | *                |
+      | user_agent          | *                |
     # Second import (0 imported / 1 error) returns 422 and audits as failure
     And the audit log should contain an event:
-      | event_type  | schema_import    |
-      | outcome     | failure          |
-      | actor_type  | anonymous        |
-      | target_id   | import-ver-dup   |
-      | method      | POST             |
-      | path        | /import/schemas  |
-      | status_code | 422              |
+      | event_type          | schema_import    |
+      | outcome             | failure          |
+      | actor_id            |                  |
+      | actor_type          | anonymous        |
+      | auth_method         |                  |
+      | role                |                  |
+      | target_type         | subject          |
+      | target_id           | import-ver-dup   |
+      | schema_id           | *                |
+      | version             |                  |
+      | schema_type         | AVRO             |
+      | method              | POST             |
+      | path                | /import/schemas  |
+      | status_code         | 422              |
+      | before_hash         |                  |
+      | after_hash          |                  |
+      | context             |                  |
+      | transport_security  | tls              |
+      | reason              | schema_id_conflict |
+      | error               |                  |
+      | request_body        |                  |
+      | metadata            |                  |
+      | timestamp           | *                |
+      | duration_ms         | *                |
+      | request_id          | *                |
+      | source_ip           | *                |
+      | user_agent          | *                |
 
   # ---------------------------------------------------------------------------
   # Import Protobuf and JSON Schema with conflicting IDs
@@ -179,22 +319,62 @@ Feature: Import with Conflicting IDs
     When I set the global mode to "READWRITE"
     # First import (succeeded)
     And the audit log should contain an event:
-      | event_type  | schema_import          |
-      | outcome     | success                |
-      | actor_type  | anonymous              |
-      | target_id   | import-proto-1         |
-      | method      | POST                   |
-      | path        | /import/schemas        |
-      | status_code | 200                    |
+      | event_type          | schema_import          |
+      | outcome             | success                |
+      | actor_id            |                        |
+      | actor_type          | anonymous              |
+      | auth_method         |                        |
+      | role                |                        |
+      | target_type         | subject                |
+      | target_id           | import-proto-1         |
+      | schema_id           | *                      |
+      | version             |                        |
+      | schema_type         | PROTOBUF               |
+      | method              | POST                   |
+      | path                | /import/schemas        |
+      | status_code         | 200                    |
+      | before_hash         |                        |
+      | after_hash          | sha256:*               |
+      | context             |                        |
+      | transport_security  | tls                    |
+      | reason              |                        |
+      | error               |                        |
+      | request_body        |                        |
+      | metadata            |                        |
+      | timestamp           | *                      |
+      | duration_ms         | *                      |
+      | request_id          | *                      |
+      | source_ip           | *                      |
+      | user_agent          | *                      |
     # Second import (conflicting ID, 0 imported / 1 error) — returns 422
     And the audit log should contain an event:
-      | event_type  | schema_import          |
-      | outcome     | failure                |
-      | actor_type  | anonymous              |
-      | target_id   | import-proto-conflict  |
-      | method      | POST                   |
-      | path        | /import/schemas        |
-      | status_code | 422                    |
+      | event_type          | schema_import          |
+      | outcome             | failure                |
+      | actor_id            |                        |
+      | actor_type          | anonymous              |
+      | auth_method         |                        |
+      | role                |                        |
+      | target_type         | subject                |
+      | target_id           | import-proto-conflict  |
+      | schema_id           | *                      |
+      | version             |                        |
+      | schema_type         | PROTOBUF               |
+      | method              | POST                   |
+      | path                | /import/schemas        |
+      | status_code         | 422                    |
+      | before_hash         |                        |
+      | after_hash          |                        |
+      | context             |                        |
+      | transport_security  | tls                    |
+      | reason              | schema_id_conflict     |
+      | error               |                        |
+      | request_body        |                        |
+      | metadata            |                        |
+      | timestamp           | *                      |
+      | duration_ms         | *                      |
+      | request_id          | *                      |
+      | source_ip           | *                      |
+      | user_agent          | *                      |
 
   # ---------------------------------------------------------------------------
   # IDs after import continue above highest imported
@@ -218,10 +398,30 @@ Feature: Import with Conflicting IDs
     And I store the response field "id" as "new_id"
     And the stored "new_id" should be greater than 50000
     And the audit log should contain an event:
-      | event_type  | schema_import    |
-      | outcome     | success          |
-      | actor_type  | anonymous        |
-      | target_id   | import-high-id   |
-      | method      | POST             |
-      | path        | /import/schemas  |
-      | status_code | 200              |
+      | event_type          | schema_import    |
+      | outcome             | success          |
+      | actor_id            |                  |
+      | actor_type          | anonymous        |
+      | auth_method         |                  |
+      | role                |                  |
+      | target_type         | subject          |
+      | target_id           | import-high-id   |
+      | schema_id           | *                |
+      | version             |                  |
+      | schema_type         | AVRO             |
+      | method              | POST             |
+      | path                | /import/schemas  |
+      | status_code         | 200              |
+      | before_hash         |                  |
+      | after_hash          | sha256:*         |
+      | context             |                  |
+      | transport_security  | tls              |
+      | reason              |                  |
+      | error               |                  |
+      | request_body        |                  |
+      | metadata            |                  |
+      | timestamp           | *                |
+      | duration_ms         | *                |
+      | request_id          | *                |
+      | source_ip           | *                |
+      | user_agent          | *                |
