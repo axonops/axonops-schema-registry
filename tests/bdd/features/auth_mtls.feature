@@ -29,7 +29,8 @@ Feature: mTLS Transport Security
       {"schema": "{\"type\":\"record\",\"name\":\"MtlsGet\",\"fields\":[{\"name\":\"id\",\"type\":\"int\"}]}"}
       """
     Then the response status should be 200
-    When I GET "/schemas/ids/1"
+    And I store the response field "id" as "schema_id"
+    When I get the stored schema by ID
     Then the response status should be 200
 
   Scenario: Valid client certificate can delete a subject

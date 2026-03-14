@@ -11,6 +11,7 @@ services:
   schema-registry:
     command: ["--config", "/etc/schema-registry/config.memory-auth-mtls.yaml"]
     environment:
+      REGISTRY_CONFIG: /etc/schema-registry/config.memory-auth-mtls.yaml
       SCHEMA_REGISTRY_TLS_CA_FILE: "/etc/tls/ca.pem"
       SCHEMA_REGISTRY_TLS_CLIENT_AUTH: "verify"
     healthcheck:
