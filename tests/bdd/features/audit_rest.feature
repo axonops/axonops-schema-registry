@@ -16,13 +16,17 @@ Feature: REST API Audit Logging
       """
     Then the response status should be 200
     And the audit log should contain an event:
-      | event_type  | schema_register   |
-      | outcome     | success           |
-      | actor_type  | anonymous         |
-      | target_id   | audit-rest-register |
-      | method      | POST              |
-      | path        | /subjects/audit-rest-register/versions |
-      | status_code | 200               |
+      | event_type         | schema_register   |
+      | outcome            | success           |
+      | actor_type         | anonymous         |
+      | target_type        | subject           |
+      | target_id          | audit-rest-register |
+      | transport_security | tls               |
+      | method             | POST              |
+      | path               | /subjects/audit-rest-register/versions |
+      | status_code        | 200               |
+      | schema_type        | AVRO              |
+      | after_hash         | sha256:*          |
 
   Scenario: Schema version deletion emits schema_delete audit event
     Given I register a schema under subject "audit-rest-verdel":
@@ -69,13 +73,15 @@ Feature: REST API Audit Logging
     When I delete subject "audit-rest-delete"
     Then the response status should be 200
     And the audit log should contain an event:
-      | event_type  | subject_delete    |
-      | outcome     | success           |
-      | actor_type  | anonymous         |
-      | target_id   | audit-rest-delete |
-      | method      | DELETE            |
-      | path        | /subjects/audit-rest-delete |
-      | status_code | 200               |
+      | event_type         | subject_delete    |
+      | outcome            | success           |
+      | actor_type         | anonymous         |
+      | target_type        | subject           |
+      | target_id          | audit-rest-delete |
+      | transport_security | tls               |
+      | method             | DELETE            |
+      | path               | /subjects/audit-rest-delete |
+      | status_code        | 200               |
 
   Scenario: Permanent subject deletion emits subject_delete audit event
     Given I register a schema under subject "audit-rest-permdel":
@@ -100,12 +106,13 @@ Feature: REST API Audit Logging
     When I set the global compatibility level to "FULL"
     Then the response status should be 200
     And the audit log should contain an event:
-      | event_type  | config_update |
-      | outcome     | success       |
-      | actor_type  | anonymous     |
-      | method      | PUT           |
-      | path        | /config       |
-      | status_code | 200           |
+      | event_type         | config_update |
+      | outcome            | success       |
+      | actor_type         | anonymous     |
+      | transport_security | tls           |
+      | method             | PUT           |
+      | path               | /config       |
+      | status_code        | 200           |
 
   Scenario: Subject config update emits config_update audit event
     Given I register a schema under subject "audit-rest-cfgupd":
@@ -155,12 +162,13 @@ Feature: REST API Audit Logging
       """
     Then the response status should be 200
     And the audit log should contain an event:
-      | event_type  | mode_update   |
-      | outcome     | success       |
-      | actor_type  | anonymous     |
-      | method      | PUT           |
-      | path        | /mode         |
-      | status_code | 200           |
+      | event_type         | mode_update   |
+      | outcome            | success       |
+      | actor_type         | anonymous     |
+      | transport_security | tls           |
+      | method             | PUT           |
+      | path               | /mode         |
+      | status_code        | 200           |
 
   Scenario: Subject mode update emits mode_update audit event
     Given I register a schema under subject "audit-rest-modeupd":
@@ -244,13 +252,14 @@ Feature: REST API Audit Logging
       """
     Then the response status should be 200
     And the audit log should contain an event:
-      | event_type  | exporter_create  |
-      | outcome     | success          |
-      | actor_type  | anonymous        |
-      | method      | POST             |
-      | path        | /exporters       |
-      | status_code | 200              |
-      | after_hash  | sha256:*         |
+      | event_type         | exporter_create  |
+      | outcome            | success          |
+      | actor_type         | anonymous        |
+      | transport_security | tls              |
+      | method             | POST             |
+      | path               | /exporters       |
+      | status_code        | 200              |
+      | after_hash         | sha256:*         |
 
   Scenario: Exporter update emits exporter_update audit event
     Given I POST "/exporters" with body:
@@ -392,11 +401,13 @@ Feature: REST API Audit Logging
       """
     Then the response status should be 200
     And the audit log should contain an event:
-      | event_type  | schema_register    |
-      | actor_id    |                    |
-      | actor_type  | anonymous          |
-      | target_id   | audit-rest-nouser  |
-      | status_code | 200                |
+      | event_type         | schema_register    |
+      | actor_id           |                    |
+      | actor_type         | anonymous          |
+      | target_type        | subject            |
+      | target_id          | audit-rest-nouser  |
+      | transport_security | tls                |
+      | status_code        | 200                |
 
   Scenario: Read-only operations are not audited by default
     Given I register a schema under subject "audit-rest-readonly":
