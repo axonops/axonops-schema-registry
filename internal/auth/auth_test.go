@@ -2,9 +2,6 @@ package auth
 
 import (
 	"context"
-	"crypto/tls"
-	"crypto/x509"
-	"crypto/x509/pkix"
 	"encoding/base64"
 	"net/http"
 	"net/http/httptest"
@@ -286,104 +283,6 @@ func TestGetUserID(t *testing.T) {
 	if id := GetUserID(context.Background()); id != 0 {
 		t.Errorf("Expected 0 for missing ID, got %d", id)
 	}
-}
-
-func TestAuthenticator_MTLSAuth(t *testing.T) {
-	cfg := config.AuthConfig{
-		Enabled: true,
-		Methods: []string{"mtls"},
-		RBAC: config.RBACConfig{
-			DefaultRole: "developer",
-		},
-	}
-
-	auth := NewAuthenticator(cfg)
-
-	t.Run("valid client cert", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/subjects", nil)
-		req.TLS = &tls.ConnectionState{
-			PeerCertificates: []*x509.Certificate{
-				{Subject: pkix.Name{CommonName: "client-app"}},
-			},
-		}
-
-		var capturedUser *User
-		handler := auth.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			capturedUser = GetUser(r.Context())
-			w.WriteHeader(http.StatusOK)
-		}))
-
-		rr := httptest.NewRecorder()
-		handler.ServeHTTP(rr, req)
-
-		if rr.Code != http.StatusOK {
-			t.Errorf("Expected 200, got %d", rr.Code)
-		}
-		if capturedUser == nil {
-			t.Fatal("Expected user in context")
-		}
-		if capturedUser.Username != "client-app" {
-			t.Errorf("Expected username 'client-app', got %s", capturedUser.Username)
-		}
-		if capturedUser.Method != "mtls" {
-			t.Errorf("Expected method 'mtls', got %s", capturedUser.Method)
-		}
-		if capturedUser.Role != "developer" {
-			t.Errorf("Expected role 'developer', got %s", capturedUser.Role)
-		}
-	})
-
-	t.Run("no TLS", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/subjects", nil)
-		// req.TLS is nil
-
-		handler := auth.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusOK)
-		}))
-
-		rr := httptest.NewRecorder()
-		handler.ServeHTTP(rr, req)
-
-		if rr.Code != http.StatusUnauthorized {
-			t.Errorf("Expected 401, got %d", rr.Code)
-		}
-	})
-
-	t.Run("TLS but no peer certs", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/subjects", nil)
-		req.TLS = &tls.ConnectionState{}
-
-		handler := auth.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusOK)
-		}))
-
-		rr := httptest.NewRecorder()
-		handler.ServeHTTP(rr, req)
-
-		if rr.Code != http.StatusUnauthorized {
-			t.Errorf("Expected 401, got %d", rr.Code)
-		}
-	})
-
-	t.Run("empty CN", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/subjects", nil)
-		req.TLS = &tls.ConnectionState{
-			PeerCertificates: []*x509.Certificate{
-				{Subject: pkix.Name{CommonName: ""}},
-			},
-		}
-
-		handler := auth.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusOK)
-		}))
-
-		rr := httptest.NewRecorder()
-		handler.ServeHTTP(rr, req)
-
-		if rr.Code != http.StatusUnauthorized {
-			t.Errorf("Expected 401 for empty CN, got %d", rr.Code)
-		}
-	})
 }
 
 func TestAuthenticator_Unauthorized_ChallengeHeaders(t *testing.T) {

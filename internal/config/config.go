@@ -157,19 +157,21 @@ type SecurityMetrics struct {
 
 // TLSConfig represents TLS configuration.
 type TLSConfig struct {
-	Enabled    bool   `yaml:"enabled"`
-	CertFile   string `yaml:"cert_file"`
-	KeyFile    string `yaml:"key_file"`
-	CAFile     string `yaml:"ca_file"`     // For client cert verification
-	MinVersion string `yaml:"min_version"` // TLS1.2, TLS1.3
-	ClientAuth string `yaml:"client_auth"` // none, request, require, verify
-	AutoReload bool   `yaml:"auto_reload"` // Reload certs via SIGHUP without restart
+	Enabled              bool     `yaml:"enabled"`
+	CertFile             string   `yaml:"cert_file"`
+	KeyFile              string   `yaml:"key_file"`
+	CAFile               string   `yaml:"ca_file"`                // For client cert verification
+	MinVersion           string   `yaml:"min_version"`            // TLS1.2, TLS1.3 (default: TLS1.3, minimum: TLS1.2)
+	ClientAuth           string   `yaml:"client_auth"`            // none, request, require, verify
+	AutoReload           bool     `yaml:"auto_reload"`            // Reload certs via SIGHUP without restart
+	CipherSuites         []string `yaml:"cipher_suites"`          // Explicit cipher suite names; omit for Go's safe defaults
+	AllowInsecureCiphers bool     `yaml:"allow_insecure_ciphers"` // Allow ciphers from tls.InsecureCipherSuites() (default: false)
 }
 
 // AuthConfig represents authentication configuration.
 type AuthConfig struct {
 	Enabled   bool            `yaml:"enabled"`
-	Methods   []string        `yaml:"methods"` // basic, api_key, jwt, oidc, mtls
+	Methods   []string        `yaml:"methods"` // basic, api_key, jwt, oidc
 	Bootstrap BootstrapConfig `yaml:"bootstrap"`
 	Basic     BasicAuthConfig `yaml:"basic"`
 	LDAP      LDAPConfig      `yaml:"ldap"`
@@ -881,6 +883,36 @@ func (c *Config) applyEnvOverrides() {
 	}
 	if v := os.Getenv("SCHEMA_REGISTRY_OIDC_SKIP_EXPIRY_CHECK"); v != "" {
 		c.Security.Auth.OIDC.SkipExpiryCheck = strings.ToLower(v) == "true" || v == "1"
+	}
+
+	// TLS overrides
+	if v := os.Getenv("SCHEMA_REGISTRY_TLS_ENABLED"); v != "" {
+		c.Security.TLS.Enabled = strings.ToLower(v) == "true" || v == "1"
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_TLS_CERT_FILE"); v != "" {
+		c.Security.TLS.CertFile = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_TLS_KEY_FILE"); v != "" {
+		c.Security.TLS.KeyFile = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_TLS_CA_FILE"); v != "" {
+		c.Security.TLS.CAFile = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_TLS_MIN_VERSION"); v != "" {
+		c.Security.TLS.MinVersion = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_TLS_CLIENT_AUTH"); v != "" {
+		c.Security.TLS.ClientAuth = v
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_TLS_CIPHER_SUITES"); v != "" {
+		suites := strings.Split(v, ",")
+		for i := range suites {
+			suites[i] = strings.TrimSpace(suites[i])
+		}
+		c.Security.TLS.CipherSuites = suites
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_TLS_ALLOW_INSECURE_CIPHERS"); v != "" {
+		c.Security.TLS.AllowInsecureCiphers = strings.ToLower(v) == "true" || v == "1"
 	}
 
 	// Audit overrides

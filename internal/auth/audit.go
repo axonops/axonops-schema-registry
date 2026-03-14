@@ -162,7 +162,7 @@ type AuditEvent struct {
 	ActorID    string `json:"actor_id"`              // username, key name, or MCP principal
 	ActorType  string `json:"actor_type"`            // user, api_key, mcp_client, anonymous
 	Role       string `json:"role,omitempty"`        // admin, developer, readonly
-	AuthMethod string `json:"auth_method,omitempty"` // basic, api_key, jwt, oidc, ldap, mtls, bearer_token
+	AuthMethod string `json:"auth_method,omitempty"` // basic, api_key, jwt, oidc, ldap, bearer_token
 
 	// Target (what was affected)
 	TargetType string `json:"target_type"` // subject, schema, config, mode, kek, dek, exporter, user, apikey
@@ -180,11 +180,12 @@ type AuditEvent struct {
 	RequestID string `json:"request_id,omitempty"`
 
 	// Transport
-	SourceIP   string `json:"source_ip"`   // client IP address
-	UserAgent  string `json:"user_agent"`  // client user-agent header
-	Method     string `json:"method"`      // HTTP method or "MCP"
-	Path       string `json:"path"`        // HTTP path or MCP tool name
-	StatusCode int    `json:"status_code"` // HTTP status (REST only, 0 for MCP)
+	TransportSecurity string `json:"transport_security,omitempty"` // none, tls, mtls
+	SourceIP          string `json:"source_ip"`                    // client IP address
+	UserAgent         string `json:"user_agent"`                   // client user-agent header
+	Method            string `json:"method"`                       // HTTP method or "MCP"
+	Path              string `json:"path"`                         // HTTP path or MCP tool name
+	StatusCode        int    `json:"status_code"`                  // HTTP status (REST only, 0 for MCP)
 
 	// Detail
 	Reason      string            `json:"reason,omitempty"`       // structured failure reason
@@ -578,7 +579,7 @@ type AuditHints struct {
 	ActorID    string // username, key name, or MCP principal
 	ActorType  string // user, api_key, mcp_client, anonymous
 	Role       string // admin, developer, readonly
-	AuthMethod string // basic, api_key, jwt, oidc, ldap, mtls, bearer_token
+	AuthMethod string // basic, api_key, jwt, oidc, ldap, bearer_token
 }
 
 type auditHintsKey struct{}
@@ -667,31 +668,35 @@ func (al *AuditLogger) Middleware(next http.Handler) http.Handler {
 			targetType = hints.TargetType
 		}
 
+		// Detect transport security from TLS connection state.
+		transportSecurity := transportSecurityFromRequest(r)
+
 		event := &AuditEvent{
-			Timestamp:   start,
-			Duration:    time.Since(start),
-			EventType:   eventType,
-			Outcome:     outcome,
-			ActorID:     actorID,
-			ActorType:   actorType,
-			Role:        role,
-			AuthMethod:  authMethod,
-			TargetType:  targetType,
-			TargetID:    targetID,
-			BeforeHash:  hints.BeforeHash,
-			AfterHash:   hints.AfterHash,
-			SchemaType:  hints.SchemaType,
-			SchemaID:    hints.SchemaID,
-			Version:     hints.Version,
-			Context:     hints.Context,
-			SourceIP:    getClientIP(r),
-			UserAgent:   r.UserAgent(),
-			Method:      r.Method,
-			Path:        r.URL.Path,
-			StatusCode:  rw.statusCode,
-			Reason:      reason,
-			RequestBody: requestBody,
-			RequestID:   middleware.GetReqID(r.Context()),
+			Timestamp:         start,
+			Duration:          time.Since(start),
+			EventType:         eventType,
+			Outcome:           outcome,
+			ActorID:           actorID,
+			ActorType:         actorType,
+			Role:              role,
+			AuthMethod:        authMethod,
+			TargetType:        targetType,
+			TargetID:          targetID,
+			BeforeHash:        hints.BeforeHash,
+			AfterHash:         hints.AfterHash,
+			SchemaType:        hints.SchemaType,
+			SchemaID:          hints.SchemaID,
+			Version:           hints.Version,
+			Context:           hints.Context,
+			TransportSecurity: transportSecurity,
+			SourceIP:          getClientIP(r),
+			UserAgent:         r.UserAgent(),
+			Method:            r.Method,
+			Path:              r.URL.Path,
+			StatusCode:        rw.statusCode,
+			Reason:            reason,
+			RequestBody:       requestBody,
+			RequestID:         middleware.GetReqID(r.Context()),
 		}
 
 		al.Log(event)
@@ -920,12 +925,24 @@ func extractSubject(path string) string {
 	return ""
 }
 
+// transportSecurityFromRequest derives the transport security level from the TLS state.
+// Returns "none" (no TLS), "tls" (TLS without client cert), or "mtls" (TLS with client cert).
+func transportSecurityFromRequest(r *http.Request) string {
+	if r.TLS == nil {
+		return "none"
+	}
+	if len(r.TLS.PeerCertificates) > 0 {
+		return "mtls"
+	}
+	return "tls"
+}
+
 // actorTypeFromAuthMethod derives the actor type from the authentication method.
 func actorTypeFromAuthMethod(method string) string {
 	switch method {
 	case "api_key":
 		return "api_key"
-	case "basic", "jwt", "oidc", "ldap", "ldap_fallback", "mtls":
+	case "basic", "jwt", "oidc", "ldap", "ldap_fallback":
 		return "user"
 	default:
 		return "anonymous"
@@ -1147,22 +1164,23 @@ func (al *AuditLogger) LogEvent(eventType AuditEventType, r *http.Request, statu
 	targetType, targetID := extractTarget(r.URL.Path, eventType)
 
 	event := &AuditEvent{
-		Timestamp:  time.Now(),
-		EventType:  eventType,
-		Outcome:    outcome,
-		ActorID:    actorID,
-		ActorType:  actorType,
-		Role:       role,
-		AuthMethod: authMethod,
-		TargetType: targetType,
-		TargetID:   targetID,
-		SourceIP:   getClientIP(r),
-		UserAgent:  r.UserAgent(),
-		Method:     r.Method,
-		Path:       r.URL.Path,
-		StatusCode: statusCode,
-		Reason:     reason,
-		Error:      errStr,
+		Timestamp:         time.Now(),
+		EventType:         eventType,
+		Outcome:           outcome,
+		ActorID:           actorID,
+		ActorType:         actorType,
+		Role:              role,
+		AuthMethod:        authMethod,
+		TargetType:        targetType,
+		TargetID:          targetID,
+		TransportSecurity: transportSecurityFromRequest(r),
+		SourceIP:          getClientIP(r),
+		UserAgent:         r.UserAgent(),
+		Method:            r.Method,
+		Path:              r.URL.Path,
+		StatusCode:        statusCode,
+		Reason:            reason,
+		Error:             errStr,
 	}
 
 	al.Log(event)

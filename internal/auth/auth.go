@@ -34,7 +34,7 @@ type User struct {
 	ID       int64
 	Username string
 	Role     string
-	Method   string // basic, api_key, jwt, oidc, mtls
+	Method   string // basic, api_key, jwt, oidc
 }
 
 // Authenticator handles authentication.
@@ -183,8 +183,6 @@ func (a *Authenticator) authenticate(r *http.Request, method string) (*User, boo
 		return a.authenticateJWT(r)
 	case "oidc":
 		return a.authenticateOIDC(r)
-	case "mtls":
-		return a.authenticateMTLS(r)
 	default:
 		return nil, false
 	}
@@ -432,26 +430,6 @@ func (a *Authenticator) authenticateOIDC(r *http.Request) (*User, bool) {
 	}
 
 	return a.oidcProvider.VerifyToken(r.Context(), token)
-}
-
-// authenticateMTLS handles mutual TLS authentication.
-func (a *Authenticator) authenticateMTLS(r *http.Request) (*User, bool) {
-	if r.TLS == nil || len(r.TLS.PeerCertificates) == 0 {
-		return nil, false
-	}
-
-	cert := r.TLS.PeerCertificates[0]
-	username := cert.Subject.CommonName
-
-	if username == "" {
-		return nil, false
-	}
-
-	return &User{
-		Username: username,
-		Role:     a.config.RBAC.DefaultRole,
-		Method:   "mtls",
-	}, true
 }
 
 // unauthorized sends an authentication challenge.

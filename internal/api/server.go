@@ -3,6 +3,7 @@ package api
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -34,7 +35,8 @@ type Server struct {
 	authService   *auth.Service
 	rateLimiter   *auth.RateLimiter
 	auditLogger   *auth.AuditLogger
-	tlsManager    *auth.TLSManager
+	tlsConfig     *tls.Config      // pre-built TLS config (nil = no TLS)
+	tlsManager    *auth.TLSManager // for certificate reloading
 	version       string
 	commit        string
 }
@@ -70,6 +72,16 @@ func WithRateLimiter(rateLimiter *auth.RateLimiter) ServerOption {
 func WithAuditLogger(al *auth.AuditLogger) ServerOption {
 	return func(s *Server) {
 		s.auditLogger = al
+	}
+}
+
+// WithTLS configures pre-built TLS for the server.
+// The TLS config and manager are created in main.go so that startup
+// validation (min version, cipher suites) happens before the server starts.
+func WithTLS(tlsConfig *tls.Config, tm *auth.TLSManager) ServerOption {
+	return func(s *Server) {
+		s.tlsConfig = tlsConfig
+		s.tlsManager = tm
 	}
 }
 
@@ -425,14 +437,9 @@ func (s *Server) Start() error {
 		WriteTimeout: time.Duration(s.config.Server.WriteTimeout) * time.Second,
 	}
 
-	// Configure TLS if enabled
-	if s.config.Security.TLS.Enabled {
-		tlsConfig, tm, err := auth.CreateServerTLSConfig(s.config.Security.TLS)
-		if err != nil {
-			return fmt.Errorf("failed to configure TLS: %w", err)
-		}
-		s.server.TLSConfig = tlsConfig
-		s.tlsManager = tm
+	// Use pre-built TLS config if provided (validated in main.go)
+	if s.tlsConfig != nil {
+		s.server.TLSConfig = s.tlsConfig
 		s.logger.Info("starting server with TLS", slog.String("address", addr))
 		return s.server.ListenAndServeTLS("", "") // Certs loaded via GetCertificate
 	}

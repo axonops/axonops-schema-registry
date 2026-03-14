@@ -11,6 +11,7 @@ import (
 	"math/big"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -178,40 +179,360 @@ func TestTLSManager_Reload(t *testing.T) {
 	}
 }
 
-func TestTLSManager_GetMinVersion(t *testing.T) {
-	dir := t.TempDir()
-	certFile, keyFile := generateTestCert(t, dir)
+// --- parseMinVersion tests ---
 
-	tests := []struct {
-		version  string
-		expected uint16
-	}{
-		{"TLS1.0", tls.VersionTLS10},
-		{"1.0", tls.VersionTLS10},
-		{"TLS1.1", tls.VersionTLS11},
-		{"1.1", tls.VersionTLS11},
-		{"TLS1.2", tls.VersionTLS12},
-		{"1.2", tls.VersionTLS12},
-		{"TLS1.3", tls.VersionTLS13},
-		{"1.3", tls.VersionTLS13},
-		{"", tls.VersionTLS12},        // default
-		{"invalid", tls.VersionTLS12}, // default
+func TestParseMinVersion_Default(t *testing.T) {
+	v, err := parseMinVersion("")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
+	if v != tls.VersionTLS13 {
+		t.Errorf("expected TLS 1.3 default, got %d", v)
+	}
+}
 
-	for _, tt := range tests {
-		tm, _ := NewTLSManager(config.TLSConfig{
-			CertFile:   certFile,
-			KeyFile:    keyFile,
-			MinVersion: tt.version,
-		})
-		got := tm.getMinVersion()
-		if got != tt.expected {
-			t.Errorf("getMinVersion(%q) = %d, want %d", tt.version, got, tt.expected)
+func TestParseMinVersion_TLS12(t *testing.T) {
+	for _, input := range []string{"TLS1.2", "1.2"} {
+		v, err := parseMinVersion(input)
+		if err != nil {
+			t.Fatalf("parseMinVersion(%q) unexpected error: %v", input, err)
+		}
+		if v != tls.VersionTLS12 {
+			t.Errorf("parseMinVersion(%q) = %d, want TLS 1.2", input, v)
 		}
 	}
 }
 
-func TestTLSManager_TLSConfig_ClientAuth(t *testing.T) {
+func TestParseMinVersion_TLS13(t *testing.T) {
+	for _, input := range []string{"TLS1.3", "1.3"} {
+		v, err := parseMinVersion(input)
+		if err != nil {
+			t.Fatalf("parseMinVersion(%q) unexpected error: %v", input, err)
+		}
+		if v != tls.VersionTLS13 {
+			t.Errorf("parseMinVersion(%q) = %d, want TLS 1.3", input, v)
+		}
+	}
+}
+
+func TestParseMinVersion_RejectTLS10(t *testing.T) {
+	for _, input := range []string{"TLS1.0", "1.0"} {
+		_, err := parseMinVersion(input)
+		if err == nil {
+			t.Errorf("parseMinVersion(%q) expected fatal error, got nil", input)
+		}
+		if !strings.Contains(err.Error(), "not supported") {
+			t.Errorf("parseMinVersion(%q) error = %q, want 'not supported'", input, err.Error())
+		}
+	}
+}
+
+func TestParseMinVersion_RejectTLS11(t *testing.T) {
+	for _, input := range []string{"TLS1.1", "1.1"} {
+		_, err := parseMinVersion(input)
+		if err == nil {
+			t.Errorf("parseMinVersion(%q) expected fatal error, got nil", input)
+		}
+		if !strings.Contains(err.Error(), "not supported") {
+			t.Errorf("parseMinVersion(%q) error = %q, want 'not supported'", input, err.Error())
+		}
+	}
+}
+
+func TestParseMinVersion_RejectUnknown(t *testing.T) {
+	for _, input := range []string{"SSLv3", "TLS1.4", "bogus"} {
+		_, err := parseMinVersion(input)
+		if err == nil {
+			t.Errorf("parseMinVersion(%q) expected fatal error, got nil", input)
+		}
+		if !strings.Contains(err.Error(), "unrecognised") {
+			t.Errorf("parseMinVersion(%q) error = %q, want 'unrecognised'", input, err.Error())
+		}
+	}
+}
+
+// --- resolveCipherSuites tests ---
+
+func TestResolveCipherSuites_AllSecure(t *testing.T) {
+	// Use two known-good cipher suite names from tls.CipherSuites()
+	suites := tls.CipherSuites()
+	if len(suites) < 2 {
+		t.Skip("not enough cipher suites available")
+	}
+	names := []string{suites[0].Name, suites[1].Name}
+	ids, insecure, err := resolveCipherSuites(names)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(ids) != 2 {
+		t.Errorf("expected 2 IDs, got %d", len(ids))
+	}
+	if len(insecure) != 0 {
+		t.Errorf("expected 0 insecure, got %v", insecure)
+	}
+}
+
+func TestResolveCipherSuites_UnknownName(t *testing.T) {
+	_, _, err := resolveCipherSuites([]string{"TLS_FAKE_CIPHER_SUITE"})
+	if err == nil {
+		t.Error("expected error for unknown cipher suite")
+	}
+	if !strings.Contains(err.Error(), "unknown cipher suite") {
+		t.Errorf("error = %q, want 'unknown cipher suite'", err.Error())
+	}
+}
+
+func TestResolveCipherSuites_InsecureDetected(t *testing.T) {
+	insecureSuites := tls.InsecureCipherSuites()
+	if len(insecureSuites) == 0 {
+		t.Skip("no insecure cipher suites available")
+	}
+	names := []string{insecureSuites[0].Name}
+	ids, insecure, err := resolveCipherSuites(names)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(ids) != 1 {
+		t.Errorf("expected 1 ID, got %d", len(ids))
+	}
+	if len(insecure) != 1 {
+		t.Errorf("expected 1 insecure name, got %v", insecure)
+	}
+	if insecure[0] != insecureSuites[0].Name {
+		t.Errorf("insecure[0] = %q, want %q", insecure[0], insecureSuites[0].Name)
+	}
+}
+
+func TestResolveCipherSuites_MixedSecureAndInsecure(t *testing.T) {
+	secureSuites := tls.CipherSuites()
+	insecureSuites := tls.InsecureCipherSuites()
+	if len(secureSuites) == 0 || len(insecureSuites) == 0 {
+		t.Skip("need at least one secure and one insecure suite")
+	}
+	names := []string{secureSuites[0].Name, insecureSuites[0].Name}
+	ids, insecure, err := resolveCipherSuites(names)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(ids) != 2 {
+		t.Errorf("expected 2 IDs, got %d", len(ids))
+	}
+	// Only the insecure one should be reported
+	if len(insecure) != 1 {
+		t.Errorf("expected 1 insecure, got %v", insecure)
+	}
+}
+
+// --- BuildTLSConfig tests ---
+
+func TestBuildTLSConfig_DefaultCiphers_TLS13(t *testing.T) {
+	dir := t.TempDir()
+	certFile, keyFile := generateTestCert(t, dir)
+
+	tm, _ := NewTLSManager(config.TLSConfig{
+		CertFile:   certFile,
+		KeyFile:    keyFile,
+		MinVersion: "TLS1.3",
+	})
+	tlsCfg, err := tm.BuildTLSConfig()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// TLS 1.3 cipher suites are not configurable — CipherSuites should be nil
+	if tlsCfg.CipherSuites != nil {
+		t.Error("expected nil CipherSuites for TLS 1.3 minimum")
+	}
+	if tlsCfg.MinVersion != tls.VersionTLS13 {
+		t.Errorf("expected TLS 1.3, got %d", tlsCfg.MinVersion)
+	}
+}
+
+func TestBuildTLSConfig_DefaultCiphers_TLS12(t *testing.T) {
+	dir := t.TempDir()
+	certFile, keyFile := generateTestCert(t, dir)
+
+	tm, _ := NewTLSManager(config.TLSConfig{
+		CertFile:   certFile,
+		KeyFile:    keyFile,
+		MinVersion: "TLS1.2",
+	})
+	tlsCfg, err := tm.BuildTLSConfig()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// Should use Go's secure defaults
+	expected := defaultSecureCipherSuites()
+	if len(tlsCfg.CipherSuites) != len(expected) {
+		t.Errorf("expected %d cipher suites, got %d", len(expected), len(tlsCfg.CipherSuites))
+	}
+}
+
+func TestBuildTLSConfig_CustomSecureCiphers(t *testing.T) {
+	dir := t.TempDir()
+	certFile, keyFile := generateTestCert(t, dir)
+
+	suites := tls.CipherSuites()
+	if len(suites) == 0 {
+		t.Skip("no secure cipher suites available")
+	}
+
+	tm, _ := NewTLSManager(config.TLSConfig{
+		CertFile:     certFile,
+		KeyFile:      keyFile,
+		MinVersion:   "TLS1.2",
+		CipherSuites: []string{suites[0].Name},
+	})
+	tlsCfg, err := tm.BuildTLSConfig()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(tlsCfg.CipherSuites) != 1 {
+		t.Errorf("expected 1 cipher suite, got %d", len(tlsCfg.CipherSuites))
+	}
+	if len(tm.InsecureCipherNames()) != 0 {
+		t.Error("expected no insecure cipher names")
+	}
+}
+
+func TestBuildTLSConfig_InsecureCiphers_Rejected(t *testing.T) {
+	dir := t.TempDir()
+	certFile, keyFile := generateTestCert(t, dir)
+
+	insecureSuites := tls.InsecureCipherSuites()
+	if len(insecureSuites) == 0 {
+		t.Skip("no insecure cipher suites available")
+	}
+
+	tm, _ := NewTLSManager(config.TLSConfig{
+		CertFile:             certFile,
+		KeyFile:              keyFile,
+		MinVersion:           "TLS1.2",
+		CipherSuites:         []string{insecureSuites[0].Name},
+		AllowInsecureCiphers: false,
+	})
+	_, err := tm.BuildTLSConfig()
+	if err == nil {
+		t.Fatal("expected fatal error for insecure cipher without allow_insecure_ciphers")
+	}
+	if !strings.Contains(err.Error(), "refusing to start") {
+		t.Errorf("error = %q, want 'refusing to start'", err.Error())
+	}
+	if !strings.Contains(err.Error(), insecureSuites[0].Name) {
+		t.Errorf("error should list insecure cipher name %q, got: %q", insecureSuites[0].Name, err.Error())
+	}
+}
+
+func TestBuildTLSConfig_InsecureCiphers_Allowed(t *testing.T) {
+	dir := t.TempDir()
+	certFile, keyFile := generateTestCert(t, dir)
+
+	insecureSuites := tls.InsecureCipherSuites()
+	secureSuites := tls.CipherSuites()
+	if len(insecureSuites) == 0 || len(secureSuites) == 0 {
+		t.Skip("need at least one secure and one insecure suite")
+	}
+
+	tm, _ := NewTLSManager(config.TLSConfig{
+		CertFile:             certFile,
+		KeyFile:              keyFile,
+		MinVersion:           "TLS1.2",
+		CipherSuites:         []string{secureSuites[0].Name, insecureSuites[0].Name},
+		AllowInsecureCiphers: true,
+	})
+	tlsCfg, err := tm.BuildTLSConfig()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(tlsCfg.CipherSuites) != 2 {
+		t.Errorf("expected 2 cipher suites, got %d", len(tlsCfg.CipherSuites))
+	}
+	insecureNames := tm.InsecureCipherNames()
+	if len(insecureNames) != 1 {
+		t.Errorf("expected 1 insecure cipher name, got %v", insecureNames)
+	}
+	if insecureNames[0] != insecureSuites[0].Name {
+		t.Errorf("insecure name = %q, want %q", insecureNames[0], insecureSuites[0].Name)
+	}
+}
+
+func TestBuildTLSConfig_UnknownCipherName(t *testing.T) {
+	dir := t.TempDir()
+	certFile, keyFile := generateTestCert(t, dir)
+
+	tm, _ := NewTLSManager(config.TLSConfig{
+		CertFile:     certFile,
+		KeyFile:      keyFile,
+		MinVersion:   "TLS1.2",
+		CipherSuites: []string{"TLS_NONEXISTENT_CIPHER"},
+	})
+	_, err := tm.BuildTLSConfig()
+	if err == nil {
+		t.Fatal("expected error for unknown cipher suite name")
+	}
+	if !strings.Contains(err.Error(), "unknown cipher suite") {
+		t.Errorf("error = %q, want 'unknown cipher suite'", err.Error())
+	}
+}
+
+func TestBuildTLSConfig_RejectTLS10(t *testing.T) {
+	dir := t.TempDir()
+	certFile, keyFile := generateTestCert(t, dir)
+
+	tm, _ := NewTLSManager(config.TLSConfig{
+		CertFile:   certFile,
+		KeyFile:    keyFile,
+		MinVersion: "TLS1.0",
+	})
+	_, err := tm.BuildTLSConfig()
+	if err == nil {
+		t.Fatal("expected fatal error for TLS 1.0")
+	}
+	if !strings.Contains(err.Error(), "not supported") {
+		t.Errorf("error = %q, want 'not supported'", err.Error())
+	}
+}
+
+func TestBuildTLSConfig_RejectTLS11(t *testing.T) {
+	dir := t.TempDir()
+	certFile, keyFile := generateTestCert(t, dir)
+
+	tm, _ := NewTLSManager(config.TLSConfig{
+		CertFile:   certFile,
+		KeyFile:    keyFile,
+		MinVersion: "TLS1.1",
+	})
+	_, err := tm.BuildTLSConfig()
+	if err == nil {
+		t.Fatal("expected fatal error for TLS 1.1")
+	}
+}
+
+func TestBuildTLSConfig_AllowInsecureTrue_NoInsecureCiphers_NoWarning(t *testing.T) {
+	dir := t.TempDir()
+	certFile, keyFile := generateTestCert(t, dir)
+
+	suites := tls.CipherSuites()
+	if len(suites) == 0 {
+		t.Skip("no secure cipher suites available")
+	}
+
+	tm, _ := NewTLSManager(config.TLSConfig{
+		CertFile:             certFile,
+		KeyFile:              keyFile,
+		MinVersion:           "TLS1.2",
+		CipherSuites:         []string{suites[0].Name},
+		AllowInsecureCiphers: true, // Flag set but no insecure ciphers in list
+	})
+	_, err := tm.BuildTLSConfig()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(tm.InsecureCipherNames()) != 0 {
+		t.Error("expected no insecure cipher names when list is all safe")
+	}
+}
+
+func TestBuildTLSConfig_ClientAuth(t *testing.T) {
 	dir := t.TempDir()
 	certFile, keyFile := generateTestCert(t, dir)
 
@@ -233,14 +554,17 @@ func TestTLSManager_TLSConfig_ClientAuth(t *testing.T) {
 			CAFile:     certFile, // Needed for "verify" mode
 			ClientAuth: tt.clientAuth,
 		})
-		tlsCfg := tm.TLSConfig()
+		tlsCfg, err := tm.BuildTLSConfig()
+		if err != nil {
+			t.Fatalf("BuildTLSConfig(%q) unexpected error: %v", tt.clientAuth, err)
+		}
 		if tlsCfg.ClientAuth != tt.expected {
 			t.Errorf("ClientAuth(%q) = %v, want %v", tt.clientAuth, tlsCfg.ClientAuth, tt.expected)
 		}
 	}
 }
 
-func TestTLSManager_TLSConfig_VerifyHasClientCAs(t *testing.T) {
+func TestBuildTLSConfig_VerifyHasClientCAs(t *testing.T) {
 	dir := t.TempDir()
 	certFile, keyFile := generateTestCert(t, dir)
 
@@ -250,11 +574,31 @@ func TestTLSManager_TLSConfig_VerifyHasClientCAs(t *testing.T) {
 		CAFile:     certFile,
 		ClientAuth: "verify",
 	})
-	tlsCfg := tm.TLSConfig()
+	tlsCfg, err := tm.BuildTLSConfig()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 	if tlsCfg.ClientCAs == nil {
 		t.Error("expected ClientCAs to be set for verify mode")
 	}
 }
+
+// --- defaultSecureCipherSuites tests ---
+
+func TestDefaultSecureCipherSuites(t *testing.T) {
+	ids := defaultSecureCipherSuites()
+	expected := tls.CipherSuites()
+	if len(ids) != len(expected) {
+		t.Errorf("expected %d suites, got %d", len(expected), len(ids))
+	}
+	for i, cs := range expected {
+		if ids[i] != cs.ID {
+			t.Errorf("suite[%d] = %d, want %d (%s)", i, ids[i], cs.ID, cs.Name)
+		}
+	}
+}
+
+// --- CreateServerTLSConfig tests ---
 
 func TestCreateServerTLSConfig_Disabled(t *testing.T) {
 	cfg, tm, err := CreateServerTLSConfig(config.TLSConfig{Enabled: false})
@@ -287,6 +631,10 @@ func TestCreateServerTLSConfig_Enabled(t *testing.T) {
 	if tm == nil {
 		t.Error("expected non-nil TLSManager")
 	}
+	// Default min version should be TLS 1.3
+	if cfg.MinVersion != tls.VersionTLS13 {
+		t.Errorf("expected TLS 1.3 default, got %d", cfg.MinVersion)
+	}
 }
 
 func TestCreateServerTLSConfig_InvalidCert(t *testing.T) {
@@ -297,6 +645,42 @@ func TestCreateServerTLSConfig_InvalidCert(t *testing.T) {
 	})
 	if err == nil {
 		t.Error("expected error for invalid certs")
+	}
+}
+
+func TestCreateServerTLSConfig_InvalidMinVersion(t *testing.T) {
+	dir := t.TempDir()
+	certFile, keyFile := generateTestCert(t, dir)
+
+	_, _, err := CreateServerTLSConfig(config.TLSConfig{
+		Enabled:    true,
+		CertFile:   certFile,
+		KeyFile:    keyFile,
+		MinVersion: "TLS1.0",
+	})
+	if err == nil {
+		t.Error("expected error for TLS 1.0")
+	}
+}
+
+func TestCreateServerTLSConfig_InsecureCiphersRejected(t *testing.T) {
+	dir := t.TempDir()
+	certFile, keyFile := generateTestCert(t, dir)
+
+	insecureSuites := tls.InsecureCipherSuites()
+	if len(insecureSuites) == 0 {
+		t.Skip("no insecure cipher suites")
+	}
+
+	_, _, err := CreateServerTLSConfig(config.TLSConfig{
+		Enabled:      true,
+		CertFile:     certFile,
+		KeyFile:      keyFile,
+		MinVersion:   "TLS1.2",
+		CipherSuites: []string{insecureSuites[0].Name},
+	})
+	if err == nil {
+		t.Error("expected error for insecure ciphers without allow_insecure_ciphers")
 	}
 }
 
@@ -327,6 +711,8 @@ func TestCreateServerTLSConfig_ReloadViaTLSManager(t *testing.T) {
 		t.Error("expected non-nil certificate after reload")
 	}
 }
+
+// --- CreateClientTLSConfig tests ---
 
 func TestCreateClientTLSConfig_Minimal(t *testing.T) {
 	cfg, err := CreateClientTLSConfig("", "", "", false)

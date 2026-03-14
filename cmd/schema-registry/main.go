@@ -158,6 +158,65 @@ func main() {
 		)
 	}
 
+	// Configure TLS if enabled — validate before the server starts listening.
+	// This exits immediately if the TLS config is invalid (bad min_version,
+	// insecure ciphers without allow_insecure_ciphers, etc.).
+	if cfg.Security.TLS.Enabled {
+		tlsConfig, tlsManager, err := auth.CreateServerTLSConfig(cfg.Security.TLS)
+		if err != nil {
+			logger.Error("failed to configure TLS", slog.String("error", err.Error()))
+			os.Exit(1)
+		}
+		serverOpts = append(serverOpts, api.WithTLS(tlsConfig, tlsManager))
+		logger.Info("TLS enabled",
+			slog.String("min_version", cfg.Security.TLS.MinVersion),
+			slog.String("client_auth", cfg.Security.TLS.ClientAuth),
+		)
+
+		// Warn if insecure cipher suites have been explicitly allowed.
+		if insecure := tlsManager.InsecureCipherNames(); len(insecure) > 0 {
+			logger.Error("server has been explicitly configured to allow insecure TLS cipher suites",
+				slog.Any("insecure_ciphers", insecure),
+				slog.String("setting", "security.tls.allow_insecure_ciphers"),
+			)
+			if auditLogger != nil {
+				auditLogger.Log(&auth.AuditEvent{
+					EventType:  auth.AuditEventSecurityWarning,
+					Timestamp:  time.Now(),
+					Method:     "STARTUP",
+					ActorID:    "system",
+					ActorType:  "system",
+					Outcome:    "warning",
+					TargetType: "config",
+					TargetID:   "security.tls.cipher_suites",
+					Reason:     "insecure_ciphers_allowed",
+					Metadata: map[string]string{
+						"insecure_ciphers": strings.Join(insecure, ","),
+					},
+				})
+			}
+		}
+	} else {
+		// Warn when TLS is not enabled — traffic is unencrypted.
+		logger.Warn("server TLS is not enabled — HTTP traffic is unencrypted",
+			slog.String("setting", "security.tls.enabled"),
+			slog.Bool("current_value", false),
+		)
+		if auditLogger != nil {
+			auditLogger.Log(&auth.AuditEvent{
+				EventType:  auth.AuditEventSecurityWarning,
+				Timestamp:  time.Now(),
+				Method:     "STARTUP",
+				ActorID:    "system",
+				ActorType:  "system",
+				Outcome:    "warning",
+				TargetType: "config",
+				TargetID:   "security.tls",
+				Reason:     "server_tls_disabled",
+			})
+		}
+	}
+
 	var authService *auth.Service
 	var vaultStore *vault.Store
 

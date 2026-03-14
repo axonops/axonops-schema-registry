@@ -3,6 +3,8 @@ package auth
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -890,7 +892,6 @@ func TestActorTypeFromAuthMethod(t *testing.T) {
 		{"oidc", "user"},
 		{"ldap", "user"},
 		{"ldap_fallback", "user"},
-		{"mtls", "user"},
 		{"api_key", "api_key"},
 		{"", "anonymous"},
 		{"unknown", "anonymous"},
@@ -900,6 +901,34 @@ func TestActorTypeFromAuthMethod(t *testing.T) {
 		if got != tt.expected {
 			t.Errorf("actorTypeFromAuthMethod(%q) = %q, want %q", tt.method, got, tt.expected)
 		}
+	}
+}
+
+func TestTransportSecurityFromRequest(t *testing.T) {
+	tests := []struct {
+		name     string
+		setupTLS func(r *http.Request)
+		expected string
+	}{
+		{"no TLS", func(r *http.Request) {}, "none"},
+		{"TLS without client cert", func(r *http.Request) {
+			r.TLS = &tls.ConnectionState{}
+		}, "tls"},
+		{"mTLS with client cert", func(r *http.Request) {
+			r.TLS = &tls.ConnectionState{
+				PeerCertificates: []*x509.Certificate{{}},
+			}
+		}, "mtls"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest("GET", "/", nil)
+			tt.setupTLS(req)
+			got := transportSecurityFromRequest(req)
+			if got != tt.expected {
+				t.Errorf("transportSecurityFromRequest() = %q, want %q", got, tt.expected)
+			}
+		})
 	}
 }
 
