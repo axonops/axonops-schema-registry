@@ -641,7 +641,7 @@ func (h *Handler) RegisterSchema(w http.ResponseWriter, r *http.Request) {
 			hints.AfterHash = "sha256:" + schema.Fingerprint
 		}
 		hints.TargetType = "subject"
-		hints.TargetID = subject
+		hints.TargetID = chi.URLParam(r, "subject")
 		hints.SchemaType = string(schema.SchemaType)
 		hints.SchemaID = schema.ID
 		hints.Version = schema.Version
@@ -734,12 +734,12 @@ func (h *Handler) DeleteSubject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Capture schema type before deletion for metrics (best-effort).
+	// Capture schema type and fingerprint before deletion for metrics and audit.
 	var deletionSchemaType string
-	if h.metrics != nil {
-		if latest, err := h.registry.GetLatestSchema(r.Context(), registryCtx, subject); err == nil {
-			deletionSchemaType = schemaTypeForResponse(latest.SchemaType)
-		}
+	var beforeFingerprint string
+	if latest, err := h.registry.GetLatestSchema(r.Context(), registryCtx, subject); err == nil {
+		deletionSchemaType = schemaTypeForResponse(latest.SchemaType)
+		beforeFingerprint = latest.Fingerprint
 	}
 
 	versions, err := h.registry.DeleteSubject(r.Context(), registryCtx, subject, permanent)
@@ -774,7 +774,11 @@ func (h *Handler) DeleteSubject(w http.ResponseWriter, r *http.Request) {
 
 	if hints := auth.GetAuditHints(r.Context()); hints != nil {
 		hints.TargetType = "subject"
-		hints.TargetID = subject
+		hints.TargetID = chi.URLParam(r, "subject")
+		hints.Context = registryCtx
+		if beforeFingerprint != "" {
+			hints.BeforeHash = "sha256:" + beforeFingerprint
+		}
 	}
 
 	writeJSON(w, http.StatusOK, versions)
@@ -807,12 +811,16 @@ func (h *Handler) DeleteVersion(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Capture schema type before deletion for metrics (best-effort).
+	// Capture schema details before deletion for metrics and audit.
 	var deletionSchemaType string
-	if h.metrics != nil {
-		if schema, err := h.registry.GetSchemaBySubjectVersion(r.Context(), registryCtx, subject, version); err == nil {
-			deletionSchemaType = schemaTypeForResponse(schema.SchemaType)
-		}
+	var beforeFingerprint string
+	var beforeSchemaType string
+	var beforeSchemaID int64
+	if schema, err := h.registry.GetSchemaBySubjectVersion(r.Context(), registryCtx, subject, version); err == nil {
+		deletionSchemaType = schemaTypeForResponse(schema.SchemaType)
+		beforeFingerprint = schema.Fingerprint
+		beforeSchemaType = schemaTypeForResponse(schema.SchemaType)
+		beforeSchemaID = schema.ID
 	}
 
 	deletedVersion, err := h.registry.DeleteVersion(r.Context(), registryCtx, subject, version, permanent)
@@ -844,7 +852,18 @@ func (h *Handler) DeleteVersion(w http.ResponseWriter, r *http.Request) {
 
 	if hints := auth.GetAuditHints(r.Context()); hints != nil {
 		hints.TargetType = "subject"
-		hints.TargetID = subject
+		hints.TargetID = chi.URLParam(r, "subject")
+		hints.Context = registryCtx
+		hints.Version = deletedVersion
+		if beforeFingerprint != "" {
+			hints.BeforeHash = "sha256:" + beforeFingerprint
+		}
+		if beforeSchemaType != "" {
+			hints.SchemaType = beforeSchemaType
+		}
+		if beforeSchemaID != 0 {
+			hints.SchemaID = beforeSchemaID
+		}
 	}
 
 	writeJSON(w, http.StatusOK, deletedVersion)
@@ -947,14 +966,14 @@ func (h *Handler) SetConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Set audit hints for config change integrity.
+	// Set audit hints for config change integrity — hash full config struct.
 	if hints := auth.GetAuditHints(r.Context()); hints != nil {
 		if prevConfig != "" {
 			hints.BeforeHash = hashString(prevConfig)
 		}
-		hints.AfterHash = hashString(strings.ToUpper(req.Compatibility))
+		hints.AfterHash = hashConfigRequest(&req)
 		hints.TargetType = "config"
-		hints.TargetID = subject
+		hints.TargetID = chi.URLParam(r, "subject")
 		hints.Context = registryCtx
 	}
 
@@ -1000,7 +1019,11 @@ func (h *Handler) DeleteConfig(w http.ResponseWriter, r *http.Request) {
 
 	if hints := auth.GetAuditHints(r.Context()); hints != nil {
 		hints.TargetType = "config"
-		hints.TargetID = subject
+		hints.TargetID = chi.URLParam(r, "subject")
+		hints.Context = registryCtx
+		if level != "" {
+			hints.BeforeHash = hashString(level)
+		}
 	}
 
 	writeJSON(w, http.StatusOK, types.ConfigResponse{
@@ -1231,7 +1254,7 @@ func (h *Handler) SetMode(w http.ResponseWriter, r *http.Request) {
 		}
 		hints.AfterHash = hashString(strings.ToUpper(req.Mode))
 		hints.TargetType = "mode"
-		hints.TargetID = subject
+		hints.TargetID = chi.URLParam(r, "subject")
 		hints.Context = registryCtx
 	}
 
@@ -1680,6 +1703,10 @@ func (h *Handler) DeleteGlobalConfig(w http.ResponseWriter, r *http.Request) {
 	if hints := auth.GetAuditHints(r.Context()); hints != nil {
 		hints.TargetType = "config"
 		hints.TargetID = ""
+		hints.Context = registryCtx
+		if level != "" {
+			hints.BeforeHash = hashString(level)
+		}
 	}
 
 	writeJSON(w, http.StatusOK, types.ConfigResponse{
@@ -1703,7 +1730,11 @@ func (h *Handler) DeleteMode(w http.ResponseWriter, r *http.Request) {
 
 	if hints := auth.GetAuditHints(r.Context()); hints != nil {
 		hints.TargetType = "mode"
-		hints.TargetID = subject
+		hints.TargetID = chi.URLParam(r, "subject")
+		hints.Context = registryCtx
+		if mode != "" {
+			hints.BeforeHash = hashString(mode)
+		}
 	}
 
 	writeJSON(w, http.StatusOK, types.ModeResponse{
@@ -1724,6 +1755,10 @@ func (h *Handler) DeleteGlobalMode(w http.ResponseWriter, r *http.Request) {
 	if hints := auth.GetAuditHints(r.Context()); hints != nil {
 		hints.TargetType = "mode"
 		hints.TargetID = ""
+		hints.Context = registryCtx
+		if mode != "" {
+			hints.BeforeHash = hashString(mode)
+		}
 	}
 
 	writeJSON(w, http.StatusOK, types.ModeResponse{
@@ -1946,6 +1981,87 @@ func hashExporter(exp *storage.ExporterRecord) string {
 		Context:             exp.Context,
 		Subjects:            exp.Subjects,
 		SubjectRenameFormat: exp.SubjectRenameFormat,
+	}
+	data, _ := json.Marshal(obj)
+	return hashString(string(data))
+}
+
+// hashExporterStatus returns a sha256 hash of the exporter status state.
+func hashExporterStatus(status *storage.ExporterStatusRecord) string {
+	obj := struct {
+		State  string `json:"state"`
+		Offset int64  `json:"offset"`
+	}{
+		State:  status.State,
+		Offset: status.Offset,
+	}
+	data, _ := json.Marshal(obj)
+	return hashString(string(data))
+}
+
+// hashUser returns a sha256 hash of the user's non-sensitive metadata.
+// Excludes PasswordHash which MUST NOT appear in audit logs.
+func hashUser(user *storage.UserRecord) string {
+	obj := struct {
+		Username string `json:"username"`
+		Email    string `json:"email"`
+		Role     string `json:"role"`
+		Enabled  bool   `json:"enabled"`
+	}{
+		Username: user.Username,
+		Email:    user.Email,
+		Role:     user.Role,
+		Enabled:  user.Enabled,
+	}
+	data, _ := json.Marshal(obj)
+	return hashString(string(data))
+}
+
+// hashAPIKey returns a sha256 hash of the API key's non-sensitive metadata.
+// Excludes KeyHash and full key material which MUST NOT appear in audit logs.
+func hashAPIKey(key *storage.APIKeyRecord) string {
+	obj := struct {
+		Name      string `json:"name"`
+		Role      string `json:"role"`
+		UserID    int64  `json:"userId"`
+		Enabled   bool   `json:"enabled"`
+		KeyPrefix string `json:"keyPrefix"`
+	}{
+		Name:      key.Name,
+		Role:      key.Role,
+		UserID:    key.UserID,
+		Enabled:   key.Enabled,
+		KeyPrefix: key.KeyPrefix,
+	}
+	data, _ := json.Marshal(obj)
+	return hashString(string(data))
+}
+
+// hashConfigRequest returns a sha256 hash of the full config request struct.
+// Hashes all config fields, not just the compatibility level.
+func hashConfigRequest(req *types.ConfigRequest) string {
+	obj := struct {
+		Compatibility       string            `json:"compatibility"`
+		Alias               string            `json:"alias,omitempty"`
+		CompatibilityGroup  string            `json:"compatibilityGroup,omitempty"`
+		ValidateFields      *bool             `json:"validateFields,omitempty"`
+		DefaultMetadata     *storage.Metadata `json:"defaultMetadata,omitempty"`
+		OverrideMetadata    *storage.Metadata `json:"overrideMetadata,omitempty"`
+		DefaultRuleSet      *storage.RuleSet  `json:"defaultRuleSet,omitempty"`
+		OverrideRuleSet     *storage.RuleSet  `json:"overrideRuleSet,omitempty"`
+		AliasForDeks        string            `json:"aliasForDeks,omitempty"`
+		CompatibilityPolicy string            `json:"compatibilityPolicy,omitempty"`
+	}{
+		Compatibility:       strings.ToUpper(req.Compatibility),
+		Alias:               req.Alias,
+		CompatibilityGroup:  req.CompatibilityGroup,
+		ValidateFields:      req.ValidateFields,
+		DefaultMetadata:     req.DefaultMetadata,
+		OverrideMetadata:    req.OverrideMetadata,
+		DefaultRuleSet:      req.DefaultRuleSet,
+		OverrideRuleSet:     req.OverrideRuleSet,
+		AliasForDeks:        req.AliasForDeks,
+		CompatibilityPolicy: req.CompatibilityPolicy,
 	}
 	data, _ := json.Marshal(obj)
 	return hashString(string(data))
