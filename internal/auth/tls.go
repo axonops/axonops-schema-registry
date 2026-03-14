@@ -133,7 +133,7 @@ func (tm *TLSManager) BuildTLSConfig() (*tls.Config, error) {
 }
 
 // parseMinVersion validates and returns the minimum TLS version.
-// Returns an error for TLS versions below 1.2 or unrecognised values.
+// Returns an error for TLS versions below 1.2 or unrecognized values.
 func parseMinVersion(v string) (uint16, error) {
 	switch v {
 	case "TLS1.2", "1.2":
@@ -143,7 +143,7 @@ func parseMinVersion(v string) (uint16, error) {
 	case "TLS1.0", "1.0", "TLS1.1", "1.1":
 		return 0, fmt.Errorf("TLS versions below 1.2 are not supported (configured: %q)", v)
 	default:
-		return 0, fmt.Errorf("unrecognised min_version: %q (supported values: TLS1.2, TLS1.3)", v)
+		return 0, fmt.Errorf("unrecognized min_version: %q (supported values: TLS1.2, TLS1.3)", v)
 	}
 }
 

@@ -245,8 +245,8 @@ func TestParseMinVersion_RejectUnknown(t *testing.T) {
 		if err == nil {
 			t.Errorf("parseMinVersion(%q) expected fatal error, got nil", input)
 		}
-		if !strings.Contains(err.Error(), "unrecognised") {
-			t.Errorf("parseMinVersion(%q) error = %q, want 'unrecognised'", input, err.Error())
+		if !strings.Contains(err.Error(), "unrecognized") {
+			t.Errorf("parseMinVersion(%q) error = %q, want 'unrecognized'", input, err.Error())
 		}
 	}
 }
