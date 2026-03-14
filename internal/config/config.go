@@ -915,6 +915,21 @@ func (c *Config) applyEnvOverrides() {
 		c.Security.TLS.AllowInsecureCiphers = strings.ToLower(v) == "true" || v == "1"
 	}
 
+	// Rate limiting overrides
+	if v := os.Getenv("SCHEMA_REGISTRY_RATE_LIMIT_ENABLED"); v != "" {
+		c.Security.RateLimiting.Enabled = strings.ToLower(v) == "true" || v == "1"
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_RATE_LIMIT_RPS"); v != "" {
+		if n, ok := envInt("SCHEMA_REGISTRY_RATE_LIMIT_RPS", v); ok {
+			c.Security.RateLimiting.RequestsPerSecond = n
+		}
+	}
+	if v := os.Getenv("SCHEMA_REGISTRY_RATE_LIMIT_BURST"); v != "" {
+		if n, ok := envInt("SCHEMA_REGISTRY_RATE_LIMIT_BURST", v); ok {
+			c.Security.RateLimiting.BurstSize = n
+		}
+	}
+
 	// Audit overrides
 	if v := os.Getenv("SCHEMA_REGISTRY_AUDIT_ENABLED"); v != "" {
 		c.Security.Audit.Enabled = strings.ToLower(v) == "true" || v == "1"

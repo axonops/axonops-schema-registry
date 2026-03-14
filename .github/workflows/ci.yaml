@@ -1556,7 +1556,7 @@ jobs:
         run: |
           REGISTRY_PORT=18098 docker compose -p basic-auth-serde \
             -f docker-compose.base.yml -f docker-compose.auth.yml \
-            -f docker-compose.no-tls.yml \
+            -f docker-compose.no-tls.yml -f docker-compose.no-ratelimit.yml \
             up -d --build --wait --wait-timeout 120
 
       - name: Wait for registry health
@@ -1616,14 +1616,14 @@ jobs:
       - name: Show SerDe container logs on failure
         if: failure()
         working-directory: tests/bdd
-        run: docker compose -p basic-auth-serde -f docker-compose.base.yml -f docker-compose.auth.yml -f docker-compose.no-tls.yml logs --tail=100 || true
+        run: docker compose -p basic-auth-serde -f docker-compose.base.yml -f docker-compose.auth.yml -f docker-compose.no-tls.yml -f docker-compose.no-ratelimit.yml logs --tail=100 || true
 
       - name: Cleanup containers
         if: always()
         working-directory: tests/bdd
         run: |
           docker compose -p bdd-auth -f docker-compose.base.yml -f docker-compose.auth.yml down -v || true
-          docker compose -p basic-auth-serde -f docker-compose.base.yml -f docker-compose.auth.yml -f docker-compose.no-tls.yml down -v || true
+          docker compose -p basic-auth-serde -f docker-compose.base.yml -f docker-compose.auth.yml -f docker-compose.no-tls.yml -f docker-compose.no-ratelimit.yml down -v || true
 
   # BDD tests — Auth scenarios against PostgreSQL (Docker Compose with DB overlay)
   bdd-auth-postgres-tests:
