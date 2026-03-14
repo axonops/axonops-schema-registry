@@ -607,7 +607,7 @@ Feature: Exporters API
     Then the response status should be 200
     And the response should be valid JSON
     And the audit log should contain an event:
-      | event_type   | exporter_update                          |
+      | event_type   | exporter_config_update                   |
       | outcome      | success                                  |
       | actor_type   | anonymous                                |
       | method       | PUT                                      |
