@@ -2024,6 +2024,7 @@ jobs:
         run: |
           REGISTRY_PORT=18092 docker compose -p ldap-serde \
             -f docker-compose.base.yml -f docker-compose.ldap.yml \
+            -f docker-compose.no-tls.yml \
             up -d --build --wait --wait-timeout 120
 
       - name: Wait for registry health
@@ -2083,14 +2084,14 @@ jobs:
       - name: Show SerDe container logs on failure
         if: failure()
         working-directory: tests/bdd
-        run: docker compose -p ldap-serde -f docker-compose.base.yml -f docker-compose.ldap.yml logs --tail=100 || true
+        run: docker compose -p ldap-serde -f docker-compose.base.yml -f docker-compose.ldap.yml -f docker-compose.no-tls.yml logs --tail=100 || true
 
       - name: Cleanup containers
         if: always()
         working-directory: tests/bdd
         run: |
           docker compose -p bdd-ldap -f docker-compose.base.yml -f docker-compose.ldap.yml down -v || true
-          docker compose -p ldap-serde -f docker-compose.base.yml -f docker-compose.ldap.yml down -v || true
+          docker compose -p ldap-serde -f docker-compose.base.yml -f docker-compose.ldap.yml -f docker-compose.no-tls.yml down -v || true
 
   # BDD OIDC tests — Docker-deployed binary with Keycloak OIDC provider
   bdd-oidc-tests:

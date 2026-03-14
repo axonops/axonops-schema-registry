@@ -1,9 +1,20 @@
 # Docker Compose overlay for mTLS transport tests.
 # Layers on docker-compose.base.yml which already has TLS enabled.
 # This overlay adds client certificate verification.
+#
+# The base healthcheck uses wget without a client certificate, which fails
+# when client_auth=verify.  We switch to a process check so Docker marks
+# the container healthy, and rely on the Go test's waitForMTLSURL() for
+# actual HTTPS+mTLS readiness.
 
 services:
   schema-registry:
     environment:
       SCHEMA_REGISTRY_TLS_CA_FILE: "/etc/tls/ca.pem"
       SCHEMA_REGISTRY_TLS_CLIENT_AUTH: "verify"
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "schema-registry"]
+      interval: 5s
+      timeout: 3s
+      start_period: 10s
+      retries: 5
