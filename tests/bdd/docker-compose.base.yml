@@ -1,6 +1,7 @@
 # Base Docker Compose for BDD tests.
 # The schema-registry container includes webhook for process control.
-# TLS is enabled by default using self-signed test certificates.
+# TLS and audit logging are enabled by default so every test stack can
+# assert on transport_security and audit events without extra overlays.
 # Usage:
 #   docker compose -f docker-compose.base.yml -f docker-compose.memory.yml up -d --build --wait
 
@@ -23,6 +24,9 @@ services:
       SCHEMA_REGISTRY_TLS_CERT_FILE: "/etc/tls/server.pem"
       SCHEMA_REGISTRY_TLS_KEY_FILE: "/etc/tls/server-key.pem"
       SCHEMA_REGISTRY_TLS_MIN_VERSION: "TLS1.3"
+      SCHEMA_REGISTRY_AUDIT_ENABLED: "true"
+      SCHEMA_REGISTRY_AUDIT_FILE_ENABLED: "true"
+      SCHEMA_REGISTRY_AUDIT_FILE_PATH: "/tmp/audit.log"
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "--no-check-certificate", "https://localhost:8081/"]
       interval: 5s
