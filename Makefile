@@ -202,16 +202,13 @@ _test-bdd-db-single:
 ## Run BDD auth tests with DB backend [BACKEND=postgres|mysql|cassandra|all]
 test-bdd-auth:
 ifeq ($(BACKEND),all)
-	@for b in postgres mysql cassandra; do \
+	@for b in memory postgres mysql cassandra; do \
 		echo ""; \
 		echo "==================================================="; \
 		echo "=== BDD Auth Tests: $$b backend"; \
 		echo "==================================================="; \
 		$(MAKE) --no-print-directory _test-bdd-auth-single BACKEND=$$b || exit 1; \
 	done
-else ifeq ($(BACKEND),memory)
-	@echo "SKIP: BDD auth tests require a database backend (postgres, mysql, cassandra)."
-	@echo "      Run with: make test-bdd-auth BACKEND=postgres|mysql|cassandra|all"
 else
 	@$(MAKE) --no-print-directory _test-bdd-auth-single BACKEND=$(BACKEND)
 endif
@@ -220,6 +217,7 @@ endif
 _test-bdd-auth-single:
 	@TIMEOUT=""; \
 	case "$(BACKEND)" in \
+		memory)    TIMEOUT=$(TIMEOUT_BDD_MEMORY) ;; \
 		postgres)  TIMEOUT=$(TIMEOUT_BDD_POSTGRES) ;; \
 		mysql)     TIMEOUT=$(TIMEOUT_BDD_MYSQL) ;; \
 		cassandra) TIMEOUT=$(TIMEOUT_BDD_CASSANDRA) ;; \
