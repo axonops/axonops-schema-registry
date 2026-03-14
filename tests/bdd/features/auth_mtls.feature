@@ -118,7 +118,6 @@ Feature: mTLS Transport Security
       """
     Then the response status should be 200
     And the audit log should contain an event:
-      | field             | value          |
       | event_type        | schema_register|
       | outcome           | success        |
       | actor_id          | admin          |
@@ -149,7 +148,6 @@ Feature: mTLS Transport Security
     When I DELETE "/subjects/mtls-delvs-test/versions/1"
     Then the response status should be 200
     And the audit log should contain an event:
-      | field             | value          |
       | event_type        | schema_delete  |
       | outcome           | success        |
       | actor_id          | admin          |
@@ -211,7 +209,6 @@ Feature: mTLS Transport Security
     When I DELETE "/subjects/mtls-ro-del"
     Then the response status should be 403
     And the audit log should contain an event:
-      | field             | value          |
       | event_type        | subject_delete |
       | outcome           | failure        |
       | actor_id          | reader2        |
@@ -236,7 +233,6 @@ Feature: mTLS Transport Security
       """
     Then the response status should be 200
     And the audit log should contain an event:
-      | field             | value          |
       | event_type        | config_update  |
       | outcome           | success        |
       | actor_id          | admin          |
@@ -311,7 +307,6 @@ Feature: mTLS Transport Security
       """
     Then the response status should be 200
     And the audit log should contain an event:
-      | field             | value            |
       | event_type        | schema_register  |
       | outcome           | success          |
       | transport_security| mtls             |
@@ -326,7 +321,6 @@ Feature: mTLS Transport Security
     When I GET "/subjects"
     Then the response status should be 401
     And the audit log should contain an event:
-      | field             | value            |
       | event_type        | auth_failure     |
       | outcome           | failure          |
       | transport_security| mtls             |
@@ -348,7 +342,6 @@ Feature: mTLS Transport Security
       """
     Then the response status should be 403
     And the audit log should contain an event:
-      | field             | value            |
       | event_type        | schema_register  |
       | outcome           | failure          |
       | transport_security| mtls             |
