@@ -754,7 +754,7 @@ help:
 	@echo "  test-bdd            BDD/Gherkin tests (TestFeatures only) [BACKEND=]"
 	@echo "  test-bdd-functional BDD functional tests (TestFeatures, Docker, memory)"
 	@echo "  test-bdd-db         BDD tests with real DB (TestFeatures) [BACKEND=]"
-	@echo "  test-bdd-auth       BDD auth tests with real DB           [BACKEND=]"
+	@echo "  test-bdd-auth       BDD auth tests (internal users)       [BACKEND=]"
 	@echo "  test-bdd-mcp        BDD MCP core tests (Docker, memory)"
 	@echo "  test-bdd-mcp-metrics        BDD MCP metrics tests (Docker)"
 	@echo "  test-bdd-mcp-confirmations  BDD MCP confirmation tests (Docker)"

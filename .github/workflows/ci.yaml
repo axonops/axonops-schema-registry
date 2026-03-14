@@ -1523,6 +1523,108 @@ jobs:
           docker compose -p bdd-rest-kms -f docker-compose.base.yml -f docker-compose.memory.yml -f docker-compose.kms-overlay.yml -f docker-compose.db-cassandra.yml down -v || true
           docker compose -p bdd-mcp-kms -f docker-compose.base.yml -f docker-compose.mcp.yml -f docker-compose.kms-overlay.yml -f docker-compose.db-cassandra.yml down -v || true
 
+  # BDD tests — Internal user (basic) auth with memory backend + client SerDe tests
+  bdd-basic-auth-tests:
+    name: BDD Tests (Basic Auth + SerDe)
+    runs-on: ubuntu-latest
+    needs: [bdd-functional-tests]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run BDD basic auth tests (memory backend, Docker)
+        run: make test-bdd-auth
+
+      - name: Show BDD container logs on failure
+        if: failure()
+        working-directory: tests/bdd
+        run: docker compose -p bdd-auth -f docker-compose.base.yml -f docker-compose.auth.yml logs --tail=100 || true
+
+      # --- Client SerDe tests against basic-auth registry ---
+      # Start a fresh compose stack and run Go, Java, Python compatibility
+      # tests with bootstrap admin credentials (admin / admin-password).
+
+      - name: Start basic-auth compose stack for client SerDe tests
+        working-directory: tests/bdd
+        run: |
+          REGISTRY_PORT=18098 docker compose -p basic-auth-serde \
+            -f docker-compose.base.yml -f docker-compose.auth.yml \
+            -f docker-compose.no-tls.yml \
+            up -d --build --wait --wait-timeout 120
+
+      - name: Wait for registry health
+        run: |
+          for i in $(seq 1 60); do
+            if curl -sf -u admin:admin-password http://localhost:18098/subjects > /dev/null 2>&1; then
+              echo "Registry is healthy"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Registry did not become healthy"
+          exit 1
+
+      - name: Run Go compatibility tests with basic auth
+        env:
+          SCHEMA_REGISTRY_URL: http://localhost:18098
+          SCHEMA_REGISTRY_USERNAME: admin
+          SCHEMA_REGISTRY_PASSWORD: admin-password
+        run: cd tests/compatibility/go && go test -v -timeout 5m ./...
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Run Java compatibility tests with basic auth
+        env:
+          SCHEMA_REGISTRY_URL: http://localhost:18098
+          SCHEMA_REGISTRY_USERNAME: admin
+          SCHEMA_REGISTRY_PASSWORD: admin-password
+        run: |
+          cd tests/compatibility/java
+          mvn test -P confluent-8.1 \
+            -Dschema.registry.url=http://localhost:18098 \
+            -Dschema.registry.username=admin \
+            -Dschema.registry.password=admin-password -q
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Run Python compatibility tests with basic auth
+        env:
+          SCHEMA_REGISTRY_URL: http://localhost:18098
+          SCHEMA_REGISTRY_USERNAME: admin
+          SCHEMA_REGISTRY_PASSWORD: admin-password
+        run: |
+          cd tests/compatibility/python
+          python3 -m venv .venv && . .venv/bin/activate
+          pip install --quiet --upgrade pip
+          pip install --quiet "confluent-kafka[avro,json,protobuf]==2.8.0" pytest
+          pytest -v --tb=short
+
+      - name: Show SerDe container logs on failure
+        if: failure()
+        working-directory: tests/bdd
+        run: docker compose -p basic-auth-serde -f docker-compose.base.yml -f docker-compose.auth.yml -f docker-compose.no-tls.yml logs --tail=100 || true
+
+      - name: Cleanup containers
+        if: always()
+        working-directory: tests/bdd
+        run: |
+          docker compose -p bdd-auth -f docker-compose.base.yml -f docker-compose.auth.yml down -v || true
+          docker compose -p basic-auth-serde -f docker-compose.base.yml -f docker-compose.auth.yml -f docker-compose.no-tls.yml down -v || true
+
   # BDD tests — Auth scenarios against PostgreSQL (Docker Compose with DB overlay)
   bdd-auth-postgres-tests:
     name: BDD Tests (Auth + PostgreSQL)
