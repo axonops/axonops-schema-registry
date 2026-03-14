@@ -257,7 +257,7 @@ Feature: KMS Server-Side Field-Level Encryption
     When I GET "/dek-registry/v1/keks/permdelete-enc-kek/deks/permdelete.encrypted.field?deleted=true"
     Then the response status should be 404
     And the audit log should contain an event:
-      | event_type  | dek_delete                                                              |
+      | event_type  | dek_delete_permanent                                                    |
       | outcome     | success                                                                 |
       | actor_type  | anonymous                                                               |
       | method      | DELETE                                                                  |

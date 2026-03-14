@@ -184,7 +184,7 @@ Feature: Contexts — Schema Evolution Workflows
     When I GET "/subjects/:.evo5:Data/versions/2"
     Then the response status should be 200
     And the response body should contain "Data"
-    And the audit log should contain event "schema_delete" with subject ":.evo5:Data"
+    And the audit log should contain event "schema_delete_soft" with subject ":.evo5:Data"
 
   # ==========================================================================
   # PERMANENT VERSION DELETION
@@ -214,7 +214,7 @@ Feature: Contexts — Schema Evolution Workflows
     When I GET "/subjects/:.evo6:Entry/versions/2"
     Then the response status should be 200
     And the response body should contain "Entry"
-    And the audit log should contain event "schema_delete" with subject ":.evo6:Entry"
+    And the audit log should contain event "schema_delete_permanent" with subject ":.evo6:Entry"
 
   # ==========================================================================
   # INDEPENDENT EVOLUTION ACROSS CONTEXTS

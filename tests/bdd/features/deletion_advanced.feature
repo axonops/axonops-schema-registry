@@ -24,7 +24,7 @@ Feature: Advanced Schema Deletion
     Then the response status should be 200
     And the response should be an array of length 1
     And the audit log should contain an event:
-      | event_type  | schema_delete                        |
+      | event_type  | schema_delete_soft                   |
       | outcome     | success                              |
       | actor_type  | anonymous                            |
       | target_id   | del-adv-vis                          |
@@ -47,7 +47,7 @@ Feature: Advanced Schema Deletion
     Then the response status should be 200
     And the response should be an array of length 2
     And the audit log should contain an event:
-      | event_type  | schema_delete                        |
+      | event_type  | schema_delete_soft                   |
       | outcome     | success                              |
       | actor_type  | anonymous                            |
       | target_id   | del-adv-vis-del                      |
@@ -81,7 +81,7 @@ Feature: Advanced Schema Deletion
     Then the response should be an array of length 3
     And the response array should contain "del-adv-multi-b"
     And the audit log should contain an event:
-      | event_type  | subject_delete                       |
+      | event_type  | subject_delete_soft                  |
       | outcome     | success                              |
       | actor_type  | anonymous                            |
       | target_id   | del-adv-multi-b                      |
@@ -110,7 +110,7 @@ Feature: Advanced Schema Deletion
     Then the response status should be 200
     And the response should be an array of length 1
     And the audit log should contain an event:
-      | event_type  | schema_delete                        |
+      | event_type  | schema_delete_permanent              |
       | outcome     | success                              |
       | actor_type  | anonymous                            |
       | target_id   | del-adv-perm-ver                     |
@@ -129,7 +129,7 @@ Feature: Advanced Schema Deletion
     When I list subjects with deleted
     Then the response should be an array of length 0
     And the audit log should contain an event:
-      | event_type  | subject_delete                       |
+      | event_type  | subject_delete_permanent             |
       | outcome     | success                              |
       | actor_type  | anonymous                            |
       | target_id   | del-adv-perm-sub                     |
@@ -161,7 +161,7 @@ Feature: Advanced Schema Deletion
     Then the response status should be 200
     And the response field "version" should be 3
     And the audit log should contain an event:
-      | event_type  | subject_delete                       |
+      | event_type  | subject_delete_soft                  |
       | outcome     | success                              |
       | actor_type  | anonymous                            |
       | target_id   | del-adv-reregister                   |
@@ -198,7 +198,7 @@ Feature: Advanced Schema Deletion
     Then the response status should be 200
     And the response field "version" should be 1
     And the audit log should contain an event:
-      | event_type  | subject_delete                       |
+      | event_type  | subject_delete_permanent             |
       | outcome     | success                              |
       | actor_type  | anonymous                            |
       | target_id   | del-adv-fresh                        |
@@ -281,7 +281,7 @@ Feature: Advanced Schema Deletion
     Then the response status should be 200
     And the response should be an array of length 1
     And the audit log should contain an event:
-      | event_type  | schema_delete                              |
+      | event_type  | schema_delete_permanent                    |
       | outcome     | success                                    |
       | actor_type  | anonymous                                  |
       | target_id   | del-adv-two-step-ver                       |
@@ -300,7 +300,7 @@ Feature: Advanced Schema Deletion
     When I list subjects with deleted
     Then the response should be an array of length 0
     And the audit log should contain an event:
-      | event_type  | subject_delete                       |
+      | event_type  | subject_delete_permanent             |
       | outcome     | success                              |
       | actor_type  | anonymous                            |
       | target_id   | del-adv-two-step-sub                 |
@@ -344,7 +344,7 @@ Feature: Advanced Schema Deletion
     Then the response status should be 200
     And the response should contain "ByID"
     And the audit log should contain an event:
-      | event_type  | subject_delete                       |
+      | event_type  | subject_delete_soft                  |
       | outcome     | success                              |
       | actor_type  | anonymous                            |
       | target_id   | del-adv-id-lookup                    |
@@ -367,7 +367,7 @@ Feature: Advanced Schema Deletion
     When I get the subjects for schema ID {{gone_id}}
     Then the response status should be 404
     And the audit log should contain an event:
-      | event_type  | subject_delete                       |
+      | event_type  | subject_delete_permanent             |
       | outcome     | success                              |
       | actor_type  | anonymous                            |
       | target_id   | del-adv-id-gone                      |

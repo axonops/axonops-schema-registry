@@ -111,18 +111,26 @@ func cefSeverity(event *AuditEvent) int {
 	switch event.EventType {
 	case AuditEventAuthFailure, AuditEventAuthForbidden:
 		return 8
-	case AuditEventSchemaRegister, AuditEventSchemaDelete, AuditEventSubjectDelete,
+	case AuditEventSchemaRegister,
+		AuditEventSchemaDeleteSoft, AuditEventSchemaDeletePermanent,
+		AuditEventSubjectDeleteSoft, AuditEventSubjectDeletePermanent,
 		AuditEventConfigUpdate, AuditEventConfigDelete,
 		AuditEventModeUpdate, AuditEventModeDelete,
-		AuditEventSchemaImport,
+		AuditEventSchemaImport, AuditEventCompatibilityCheck,
 		AuditEventUserCreate, AuditEventUserUpdate, AuditEventUserDelete,
 		AuditEventPasswordChange,
 		AuditEventAPIKeyCreate, AuditEventAPIKeyUpdate, AuditEventAPIKeyDelete,
 		AuditEventAPIKeyRevoke, AuditEventAPIKeyRotate,
-		AuditEventKEKCreate, AuditEventKEKUpdate, AuditEventKEKDelete, AuditEventKEKTest,
-		AuditEventDEKCreate, AuditEventDEKDelete,
+		AuditEventKEKCreate, AuditEventKEKUpdate,
+		AuditEventKEKDeleteSoft, AuditEventKEKDeletePermanent,
+		AuditEventKEKUndelete, AuditEventKEKTest,
+		AuditEventDEKCreate,
+		AuditEventDEKDeleteSoft, AuditEventDEKDeletePermanent,
+		AuditEventDEKUndelete,
 		AuditEventExporterCreate, AuditEventExporterUpdate, AuditEventExporterDelete,
-		AuditEventExporterPause, AuditEventExporterResume, AuditEventExporterReset:
+		AuditEventExporterPause, AuditEventExporterResume, AuditEventExporterReset,
+		AuditEventExporterConfigUpdate,
+		AuditEventServerStartup, AuditEventServerShutdown:
 		return 5
 	case AuditEventMCPToolCall, AuditEventMCPToolError, AuditEventMCPAdminAction,
 		AuditEventMCPConfirmIssued, AuditEventMCPConfirmRejected, AuditEventMCPConfirmed:
@@ -140,8 +148,10 @@ func cefDescription(event *AuditEvent) string {
 	switch event.EventType {
 	case AuditEventSchemaRegister:
 		return "Schema registered"
-	case AuditEventSchemaDelete:
-		return "Schema deleted"
+	case AuditEventSchemaDeleteSoft:
+		return "Schema soft-deleted"
+	case AuditEventSchemaDeletePermanent:
+		return "Schema permanently deleted"
 	case AuditEventSchemaGet:
 		return "Schema retrieved"
 	case AuditEventSchemaLookup:
@@ -166,8 +176,10 @@ func cefDescription(event *AuditEvent) string {
 		return "Authentication failed"
 	case AuditEventAuthForbidden:
 		return "Access forbidden"
-	case AuditEventSubjectDelete:
-		return "Subject deleted"
+	case AuditEventSubjectDeleteSoft:
+		return "Subject soft-deleted"
+	case AuditEventSubjectDeletePermanent:
+		return "Subject permanently deleted"
 	case AuditEventSubjectList:
 		return "Subjects listed"
 	case AuditEventUserCreate:
@@ -192,14 +204,22 @@ func cefDescription(event *AuditEvent) string {
 		return "KEK created"
 	case AuditEventKEKUpdate:
 		return "KEK updated"
-	case AuditEventKEKDelete:
-		return "KEK deleted"
+	case AuditEventKEKDeleteSoft:
+		return "KEK soft-deleted"
+	case AuditEventKEKDeletePermanent:
+		return "KEK permanently deleted"
+	case AuditEventKEKUndelete:
+		return "KEK undeleted"
 	case AuditEventKEKTest:
 		return "KEK tested"
 	case AuditEventDEKCreate:
 		return "DEK created"
-	case AuditEventDEKDelete:
-		return "DEK deleted"
+	case AuditEventDEKDeleteSoft:
+		return "DEK soft-deleted"
+	case AuditEventDEKDeletePermanent:
+		return "DEK permanently deleted"
+	case AuditEventDEKUndelete:
+		return "DEK undeleted"
 	case AuditEventExporterCreate:
 		return "Exporter created"
 	case AuditEventExporterUpdate:
@@ -212,6 +232,14 @@ func cefDescription(event *AuditEvent) string {
 		return "Exporter resumed"
 	case AuditEventExporterReset:
 		return "Exporter reset"
+	case AuditEventExporterConfigUpdate:
+		return "Exporter config updated"
+	case AuditEventCompatibilityCheck:
+		return "Compatibility check"
+	case AuditEventServerStartup:
+		return "Server started"
+	case AuditEventServerShutdown:
+		return "Server stopped"
 	case AuditEventMCPToolCall:
 		return "MCP tool call"
 	case AuditEventMCPToolError:

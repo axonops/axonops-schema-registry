@@ -174,7 +174,7 @@ Feature: Error Handling & Edge Cases — Exhaustive (Confluent v8.1.1 Compatibil
     When I get version 1 of subject "err-40406-sub"
     Then the response status should be 404
     And the response should have error code 40406
-    And the audit log should contain event "schema_delete" with subject "err-40406-sub"
+    And the audit log should contain event "schema_delete_soft" with subject "err-40406-sub"
 
   @axonops-only
   Scenario: GET soft-deleted version with deleted=true still returns 200
@@ -191,7 +191,7 @@ Feature: Error Handling & Edge Cases — Exhaustive (Confluent v8.1.1 Compatibil
     Then the response status should be 200
     When I GET "/subjects/err-40406-del/versions/1?deleted=true"
     Then the response status should be 200
-    And the audit log should contain event "schema_delete" with subject "err-40406-del"
+    And the audit log should contain event "schema_delete_soft" with subject "err-40406-del"
 
   @axonops-only
   Scenario: GET raw schema of individually soft-deleted version returns 40406
@@ -209,4 +209,4 @@ Feature: Error Handling & Edge Cases — Exhaustive (Confluent v8.1.1 Compatibil
     When I GET "/subjects/err-40406-raw/versions/1/schema"
     Then the response status should be 404
     And the response should have error code 40406
-    And the audit log should contain event "schema_delete" with subject "err-40406-raw"
+    And the audit log should contain event "schema_delete_soft" with subject "err-40406-raw"

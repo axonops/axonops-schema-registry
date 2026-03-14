@@ -168,7 +168,7 @@ Feature: Schema Lookup & Retrieval — Exhaustive (Confluent v8.1.1 Compatibilit
     Then the response status should be 200
     And the response array should contain "lookup-delsub-s1"
     And the response array should contain "lookup-delsub-s2"
-    And the audit log should contain event "subject_delete" with subject "lookup-delsub-s2"
+    And the audit log should contain event "subject_delete_soft" with subject "lookup-delsub-s2"
 
   Scenario: Get subjects for non-existent schema ID returns 404
     When I GET "/schemas/ids/99999/subjects"

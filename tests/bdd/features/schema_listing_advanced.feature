@@ -97,7 +97,7 @@ Feature: Schema Listing, Querying, and Raw Schema Endpoints
     And the response should be an array of length 2
     And the response body should contain "Active"
     And the response body should contain "Deleted"
-    And the audit log should contain event "subject_delete" with subject "deleted-subj"
+    And the audit log should contain event "subject_delete_soft" with subject "deleted-subj"
 
   # -----------------------------------------------------------------------
   # Scenario 5: GET /schemas?offset=N&limit=M paginates results
@@ -239,7 +239,7 @@ Feature: Schema Listing, Querying, and Raw Schema Endpoints
     And the response should be an array of length 2
     And the response array should contain "keep-subj"
     And the response array should contain "drop-subj"
-    And the audit log should contain event "subject_delete" with subject "drop-subj"
+    And the audit log should contain event "subject_delete_soft" with subject "drop-subj"
 
   # -----------------------------------------------------------------------
   # Scenario 11: GET /schemas/ids/{id}/versions with multiple subjects

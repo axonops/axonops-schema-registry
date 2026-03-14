@@ -565,7 +565,7 @@ Feature: LDAP Authentication and RBAC
     When I DELETE "/subjects/ldap-audit-del/versions/1"
     Then the response status should be 200
     And the audit log should contain an event:
-      | event_type  | schema_delete |
+      | event_type  | schema_delete_soft |
       | outcome     | success       |
       | actor_id    | admin         |
       | actor_type  | user          |

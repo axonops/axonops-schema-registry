@@ -379,7 +379,7 @@ Feature: Contexts — Real-World Usage Patterns
     When I GET "/subjects/cleanup-proof-s8/versions"
     Then the response status should be 200
     And the response should be an array of length 1
-    And the audit log should contain event "subject_delete" with subject ":.cleanup-ctx:metrics"
+    And the audit log should contain event "subject_delete_permanent" with subject ":.cleanup-ctx:metrics"
 
   # ==========================================================================
   # SCENARIO 9: Cross-context schema comparison — different evolution speed

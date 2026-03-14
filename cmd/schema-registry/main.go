@@ -470,6 +470,23 @@ func main() {
 		}
 	}()
 
+	// Emit server startup audit event
+	if auditLogger != nil {
+		auditLogger.Log(&auth.AuditEvent{
+			EventType:  auth.AuditEventServerStartup,
+			Timestamp:  time.Now(),
+			Method:     "STARTUP",
+			ActorID:    "system",
+			ActorType:  "system",
+			Outcome:    "success",
+			TargetType: "server",
+			Metadata: map[string]string{
+				"version": version,
+				"storage": cfg.Storage.Type,
+			},
+		})
+	}
+
 	// Start servers in goroutines — both feed into the same error channel.
 	serverErr := make(chan error, 2)
 	go func() {
@@ -513,8 +530,17 @@ func main() {
 			}
 		}
 
-		// Close audit logger
+		// Emit server shutdown audit event before closing the audit logger
 		if auditLogger != nil {
+			auditLogger.Log(&auth.AuditEvent{
+				EventType:  auth.AuditEventServerShutdown,
+				Timestamp:  time.Now(),
+				Method:     "SHUTDOWN",
+				ActorID:    "system",
+				ActorType:  "system",
+				Outcome:    "success",
+				TargetType: "server",
+			})
 			if err := auditLogger.Close(); err != nil {
 				logger.Error("audit logger close error", slog.String("error", err.Error()))
 			}

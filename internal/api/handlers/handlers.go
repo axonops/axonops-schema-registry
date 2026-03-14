@@ -640,6 +640,8 @@ func (h *Handler) RegisterSchema(w http.ResponseWriter, r *http.Request) {
 		if schema.Fingerprint != "" {
 			hints.AfterHash = "sha256:" + schema.Fingerprint
 		}
+		hints.TargetType = "subject"
+		hints.TargetID = subject
 		hints.SchemaType = string(schema.SchemaType)
 		hints.SchemaID = schema.ID
 		hints.Version = schema.Version
@@ -770,6 +772,11 @@ func (h *Handler) DeleteSubject(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "subject"
+		hints.TargetID = subject
+	}
+
 	writeJSON(w, http.StatusOK, versions)
 }
 
@@ -833,6 +840,11 @@ func (h *Handler) DeleteVersion(w http.ResponseWriter, r *http.Request) {
 
 	if h.metrics != nil {
 		h.metrics.RecordSchemaDeletion(deletionSchemaType)
+	}
+
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "subject"
+		hints.TargetID = subject
 	}
 
 	writeJSON(w, http.StatusOK, deletedVersion)
@@ -941,6 +953,8 @@ func (h *Handler) SetConfig(w http.ResponseWriter, r *http.Request) {
 			hints.BeforeHash = hashString(prevConfig)
 		}
 		hints.AfterHash = hashString(strings.ToUpper(req.Compatibility))
+		hints.TargetType = "config"
+		hints.TargetID = subject
 		hints.Context = registryCtx
 	}
 
@@ -982,6 +996,11 @@ func (h *Handler) DeleteConfig(w http.ResponseWriter, r *http.Request) {
 		}
 		writeInternalError(w, err)
 		return
+	}
+
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "config"
+		hints.TargetID = subject
 	}
 
 	writeJSON(w, http.StatusOK, types.ConfigResponse{
@@ -1211,6 +1230,8 @@ func (h *Handler) SetMode(w http.ResponseWriter, r *http.Request) {
 			hints.BeforeHash = hashString(prevMode)
 		}
 		hints.AfterHash = hashString(strings.ToUpper(req.Mode))
+		hints.TargetType = "mode"
+		hints.TargetID = subject
 		hints.Context = registryCtx
 	}
 
@@ -1656,6 +1677,11 @@ func (h *Handler) DeleteGlobalConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "config"
+		hints.TargetID = ""
+	}
+
 	writeJSON(w, http.StatusOK, types.ConfigResponse{
 		CompatibilityLevel: level,
 	})
@@ -1675,6 +1701,11 @@ func (h *Handler) DeleteMode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "mode"
+		hints.TargetID = subject
+	}
+
 	writeJSON(w, http.StatusOK, types.ModeResponse{
 		Mode: mode,
 	})
@@ -1688,6 +1719,11 @@ func (h *Handler) DeleteGlobalMode(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writeInternalError(w, err)
 		return
+	}
+
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "mode"
+		hints.TargetID = ""
 	}
 
 	writeJSON(w, http.StatusOK, types.ModeResponse{

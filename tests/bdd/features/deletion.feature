@@ -11,7 +11,7 @@ Feature: Schema Deletion
     Then the response status should be 200
     When I get version 1 of subject "user-value"
     Then the response status should be 404
-    And the audit log should contain event "schema_delete" with subject "user-value"
+    And the audit log should contain event "schema_delete_soft" with subject "user-value"
 
   Scenario: Soft-delete subject hides it from list
     Given subject "temp-value" has schema:
@@ -22,7 +22,7 @@ Feature: Schema Deletion
     Then the response status should be 200
     When I list all subjects
     Then the response should be an array of length 0
-    And the audit log should contain event "subject_delete" with subject "temp-value"
+    And the audit log should contain event "subject_delete_soft" with subject "temp-value"
 
   Scenario: Soft-deleted subject visible with deleted=true
     Given subject "soft-del-vis" has schema:
@@ -34,7 +34,7 @@ Feature: Schema Deletion
     When I list subjects with deleted
     Then the response should be an array of length 1
     And the response array should contain "soft-del-vis"
-    And the audit log should contain event "subject_delete" with subject "soft-del-vis"
+    And the audit log should contain event "subject_delete_soft" with subject "soft-del-vis"
 
   Scenario: Permanent delete removes subject completely (two-step)
     Given subject "perm-value" has schema:
@@ -47,7 +47,7 @@ Feature: Schema Deletion
     Then the response status should be 200
     When I list all subjects
     Then the response should be an array of length 0
-    And the audit log should contain event "subject_delete" with subject "perm-value"
+    And the audit log should contain event "subject_delete_permanent" with subject "perm-value"
 
   Scenario: Re-register after soft-delete creates new version
     Given the global compatibility level is "NONE"
@@ -61,7 +61,7 @@ Feature: Schema Deletion
       {"type":"record","name":"User","fields":[{"name":"name","type":"string"},{"name":"age","type":"int"}]}
       """
     Then the response status should be 200
-    And the audit log should contain event "subject_delete" with subject "user-value"
+    And the audit log should contain event "subject_delete_soft" with subject "user-value"
     And the audit log should contain event "schema_register" with subject "user-value"
 
   Scenario: Delete specific version leaves other versions intact
@@ -81,4 +81,4 @@ Feature: Schema Deletion
     When I get the latest version of subject "multi-ver-del"
     Then the response status should be 200
     And the response field "version" should be 2
-    And the audit log should contain event "schema_delete" with subject "multi-ver-del"
+    And the audit log should contain event "schema_delete_soft" with subject "multi-ver-del"

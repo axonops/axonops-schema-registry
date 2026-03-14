@@ -107,7 +107,7 @@ Feature: Wire-Compatible Metrics
     When I delete subject "metrics-del-test"
     Then the response status should be 200
     And the Prometheus metric "kafka_schema_registry_deleted_count" should have increased from "before"
-    And the audit log should contain event "subject_delete" with subject "metrics-del-test"
+    And the audit log should contain event "subject_delete_soft" with subject "metrics-del-test"
 
   @axonops-only
   Scenario: schemas_deleted counter tracks deletions by type
@@ -118,7 +118,7 @@ Feature: Wire-Compatible Metrics
     When I delete subject "metrics-del-type-test"
     Then the response status should be 200
     And the Prometheus metric "kafka_schema_registry_schemas_deleted" with labels "schema_type=\"avro\"" should exist
-    And the audit log should contain event "subject_delete" with subject "metrics-del-type-test"
+    And the audit log should contain event "subject_delete_soft" with subject "metrics-del-type-test"
 
   @axonops-only
   Scenario: deleted_count increments when a version is deleted
@@ -135,7 +135,7 @@ Feature: Wire-Compatible Metrics
     Then the response status should be 200
     And the Prometheus metric "kafka_schema_registry_deleted_count" should have increased from "before"
     And the Prometheus metric "kafka_schema_registry_schemas_deleted" with labels "schema_type=\"avro\"" should exist
-    And the audit log should contain event "schema_delete" with subject "metrics-ver-del"
+    And the audit log should contain event "schema_delete_soft" with subject "metrics-ver-del"
 
   # ---------------------------------------------------------------------------
   # Per-endpoint Confluent-compatible metrics

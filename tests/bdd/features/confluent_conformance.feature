@@ -217,7 +217,7 @@ Feature: Confluent Conformance
     When I GET "/subjects/conf-all-del/versions?deleted=true"
     Then the response status should be 200
     And the response should contain "1"
-    And the audit log should contain event "subject_delete" with subject "conf-all-del"
+    And the audit log should contain event "subject_delete_soft" with subject "conf-all-del"
 
   # ==========================================================================
   # REGISTER WITH VERSION -1 IN REQUEST BODY
@@ -265,4 +265,4 @@ Feature: Confluent Conformance
     Then the response status should be 200
     And the response should contain "1"
     And the response should contain "2"
-    And the audit log should contain event "subject_delete" with subject "conf-perm-list"
+    And the audit log should contain event "subject_delete_permanent" with subject "conf-perm-list"

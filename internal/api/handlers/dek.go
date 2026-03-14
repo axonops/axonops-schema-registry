@@ -59,6 +59,8 @@ func (h *Handler) CreateKEK(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "kek"
+		hints.TargetID = req.Name
 		hints.AfterHash = hashKEK(kek)
 	}
 
@@ -123,6 +125,8 @@ func (h *Handler) UpdateKEK(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "kek"
+		hints.TargetID = name
 		hints.BeforeHash = beforeHash
 		hints.AfterHash = hashKEK(existing)
 	}
@@ -147,8 +151,12 @@ func (h *Handler) DeleteKEK(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if hints := auth.GetAuditHints(r.Context()); hints != nil && existing != nil {
-		hints.BeforeHash = hashKEK(existing)
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "kek"
+		hints.TargetID = name
+		if existing != nil {
+			hints.BeforeHash = hashKEK(existing)
+		}
 	}
 
 	w.WriteHeader(http.StatusNoContent)
@@ -171,6 +179,8 @@ func (h *Handler) UndeleteKEK(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "kek"
+		hints.TargetID = name
 		if existing != nil {
 			hints.BeforeHash = hashKEK(existing)
 		}
@@ -237,6 +247,8 @@ func (h *Handler) CreateDEK(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "dek"
+		hints.TargetID = kekName
 		hints.AfterHash = hashDEK(dek)
 	}
 
@@ -349,8 +361,12 @@ func (h *Handler) DeleteDEK(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if hints := auth.GetAuditHints(r.Context()); hints != nil && existing != nil {
-		hints.BeforeHash = hashDEK(existing)
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "dek"
+		hints.TargetID = kekName
+		if existing != nil {
+			hints.BeforeHash = hashDEK(existing)
+		}
 	}
 
 	w.WriteHeader(http.StatusNoContent)
@@ -379,6 +395,8 @@ func (h *Handler) UndeleteDEK(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "dek"
+		hints.TargetID = kekName
 		if existing != nil {
 			hints.BeforeHash = hashDEK(existing)
 		}
@@ -424,8 +442,12 @@ func (h *Handler) DeleteDEKVersion(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if hints := auth.GetAuditHints(r.Context()); hints != nil && existing != nil {
-		hints.BeforeHash = hashDEK(existing)
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "dek"
+		hints.TargetID = kekName
+		if existing != nil {
+			hints.BeforeHash = hashDEK(existing)
+		}
 	}
 
 	w.WriteHeader(http.StatusNoContent)
@@ -465,6 +487,8 @@ func (h *Handler) UndeleteDEKVersion(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "dek"
+		hints.TargetID = kekName
 		if existing != nil {
 			hints.BeforeHash = hashDEK(existing)
 		}
@@ -519,6 +543,8 @@ func (h *Handler) CreateDEKWithSubject(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "dek"
+		hints.TargetID = kekName
 		hints.AfterHash = hashDEK(dek)
 	}
 

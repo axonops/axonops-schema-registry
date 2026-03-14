@@ -19,7 +19,7 @@ Feature: Deletion Lifecycle (Two-Step Delete)
     When I list all subjects
     Then the response should be an array of length 0
     And the audit log should contain an event:
-      | event_type  | subject_delete                |
+      | event_type  | subject_delete_soft           |
       | outcome     | success                       |
       | actor_type  | anonymous                     |
       | target_id   | del-lifecycle-1               |
@@ -37,7 +37,7 @@ Feature: Deletion Lifecycle (Two-Step Delete)
     Then the response status should be 200
     And the response should contain "del-lifecycle-2"
     And the audit log should contain an event:
-      | event_type  | subject_delete                |
+      | event_type  | subject_delete_soft           |
       | outcome     | success                       |
       | actor_type  | anonymous                     |
       | target_id   | del-lifecycle-2               |
@@ -65,7 +65,7 @@ Feature: Deletion Lifecycle (Two-Step Delete)
     When I list subjects with deleted
     Then the response body should not contain "del-lifecycle-4"
     And the audit log should contain an event:
-      | event_type  | subject_delete                |
+      | event_type  | subject_delete_permanent      |
       | outcome     | success                       |
       | actor_type  | anonymous                     |
       | target_id   | del-lifecycle-4               |
@@ -105,7 +105,7 @@ Feature: Deletion Lifecycle (Two-Step Delete)
     When I DELETE "/subjects/del-ver-lifecycle-2/versions/1?permanent=true"
     Then the response status should be 200
     And the audit log should contain an event:
-      | event_type  | schema_delete                            |
+      | event_type  | schema_delete_permanent                  |
       | outcome     | success                                  |
       | actor_type  | anonymous                                |
       | target_id   | del-ver-lifecycle-2                      |
@@ -132,7 +132,7 @@ Feature: Deletion Lifecycle (Two-Step Delete)
     Then the response status should be 200
     And the response should be an array of length 1
     And the audit log should contain an event:
-      | event_type  | schema_delete                    |
+      | event_type  | schema_delete_soft               |
       | outcome     | success                          |
       | actor_type  | anonymous                        |
       | target_id   | del-vis-1                        |
@@ -155,7 +155,7 @@ Feature: Deletion Lifecycle (Two-Step Delete)
     Then the response status should be 200
     And the response should be an array of length 2
     And the audit log should contain an event:
-      | event_type  | schema_delete                    |
+      | event_type  | schema_delete_soft               |
       | outcome     | success                          |
       | actor_type  | anonymous                        |
       | target_id   | del-vis-2                        |
@@ -172,7 +172,7 @@ Feature: Deletion Lifecycle (Two-Step Delete)
     When I GET "/subjects/del-vis-3/versions/1"
     Then the response status should be 404
     And the audit log should contain an event:
-      | event_type  | schema_delete                    |
+      | event_type  | schema_delete_soft               |
       | outcome     | success                          |
       | actor_type  | anonymous                        |
       | target_id   | del-vis-3                        |
@@ -200,7 +200,7 @@ Feature: Deletion Lifecycle (Two-Step Delete)
     Then the response status should be 200
     And the response field "version" should be 2
     And the audit log should contain an event:
-      | event_type  | subject_delete             |
+      | event_type  | subject_delete_soft        |
       | outcome     | success                    |
       | actor_type  | anonymous                  |
       | target_id   | del-rereg-1                |
@@ -232,7 +232,7 @@ Feature: Deletion Lifecycle (Two-Step Delete)
     Then the response status should be 200
     And the response field "version" should be 1
     And the audit log should contain an event:
-      | event_type  | subject_delete             |
+      | event_type  | subject_delete_permanent   |
       | outcome     | success                    |
       | actor_type  | anonymous                  |
       | target_id   | del-rereg-2                |
@@ -266,7 +266,7 @@ Feature: Deletion Lifecycle (Two-Step Delete)
     Then the response status should be 200
     And the response field "version" should be 1
     And the audit log should contain an event:
-      | event_type  | schema_delete                      |
+      | event_type  | schema_delete_soft                 |
       | outcome     | success                            |
       | actor_type  | anonymous                          |
       | target_id   | del-latest-1                       |
@@ -289,7 +289,7 @@ Feature: Deletion Lifecycle (Two-Step Delete)
     Then the response status should be 200
     And the response field "version" should be 1
     And the audit log should contain an event:
-      | event_type  | schema_delete                    |
+      | event_type  | schema_delete_soft               |
       | outcome     | success                          |
       | actor_type  | anonymous                        |
       | target_id   | del-minus1                       |
@@ -313,7 +313,7 @@ Feature: Deletion Lifecycle (Two-Step Delete)
       """
     Then the response status should be 404
     And the audit log should contain an event:
-      | event_type  | subject_delete             |
+      | event_type  | subject_delete_soft        |
       | outcome     | success                    |
       | actor_type  | anonymous                  |
       | target_id   | del-lookup-1               |
@@ -352,7 +352,7 @@ Feature: Deletion Lifecycle (Two-Step Delete)
     Then the response status should be 200
     And the response field "version" should be 3
     And the audit log should contain an event:
-      | event_type  | schema_delete                            |
+      | event_type  | schema_delete_soft                       |
       | outcome     | success                                  |
       | actor_type  | anonymous                                |
       | target_id   | del-ver-reregister                       |
@@ -390,7 +390,7 @@ Feature: Deletion Lifecycle (Two-Step Delete)
     And the response field "version" should be 3
     And the response should contain "D3"
     And the audit log should contain an event:
-      | event_type  | schema_delete                              |
+      | event_type  | schema_delete_soft                         |
       | outcome     | success                                    |
       | actor_type  | anonymous                                  |
       | target_id   | del-diff-reregister                        |

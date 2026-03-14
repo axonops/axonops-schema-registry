@@ -173,7 +173,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
     When I DELETE "/dek-registry/v1/keks/soft-delete-kek"
     Then the response status should be 204
     And the audit log should contain an event:
-      | event_type   | kek_delete                            |
+      | event_type   | kek_delete_soft                       |
       | outcome      | success                               |
       | actor_type   | anonymous                             |
       | method       | DELETE                                |
@@ -244,7 +244,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
     And I GET "/dek-registry/v1/keks/permanent-delete-kek?deleted=true"
     And the response status should be 404
     And the audit log should contain an event:
-      | event_type   | kek_delete                                    |
+      | event_type   | kek_delete_permanent                          |
       | outcome      | success                                       |
       | actor_type   | anonymous                                     |
       | method       | DELETE                                        |
@@ -543,7 +543,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
     When I DELETE "/dek-registry/v1/keks/delete-dek-kek/deks/delete.subject"
     Then the response status should be 204
     And the audit log should contain an event:
-      | event_type   | dek_delete                                               |
+      | event_type   | dek_delete_soft                                          |
       | outcome      | success                                                  |
       | actor_type   | anonymous                                                |
       | method       | DELETE                                                   |
@@ -915,7 +915,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
     When I DELETE "/dek-registry/v1/keks/delver-kek/deks/delver.subject/versions/1"
     Then the response status should be 204
     And the audit log should contain an event:
-      | event_type   | dek_delete                                                      |
+      | event_type   | dek_delete_soft                                                 |
       | outcome      | success                                                         |
       | actor_type   | anonymous                                                       |
       | method       | DELETE                                                          |
@@ -1099,7 +1099,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
     When I GET "/dek-registry/v1/keks/permdel-dek-kek/deks/permdel.subject?deleted=true"
     Then the response status should be 404
     And the audit log should contain an event:
-      | event_type   | dek_delete                                                 |
+      | event_type   | dek_delete_permanent                                       |
       | outcome      | success                                                    |
       | actor_type   | anonymous                                                  |
       | method       | DELETE                                                     |
@@ -1122,7 +1122,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
     When I GET "/dek-registry/v1/keks/permdel-ver-kek/deks/permdel.ver.subject/versions/1?deleted=true"
     Then the response status should be 404
     And the audit log should contain an event:
-      | event_type   | dek_delete                                                                |
+      | event_type   | dek_delete_permanent                                                      |
       | outcome      | success                                                                   |
       | actor_type   | anonymous                                                                 |
       | method       | DELETE                                                                    |
@@ -1141,7 +1141,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
     When I DELETE "/dek-registry/v1/keks/permdel-direct-kek/deks/permdel.direct.subject?permanent=true"
     Then the response status should be 204
     And the audit log should contain an event:
-      | event_type   | dek_delete                                                           |
+      | event_type   | dek_delete_permanent                                                 |
       | outcome      | success                                                              |
       | actor_type   | anonymous                                                            |
       | method       | DELETE                                                               |
@@ -1178,7 +1178,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
     When I DELETE "/dek-registry/v1/keks/algo-del-kek/deks/algo.del.subject?algorithm=AES256_GCM"
     Then the response status should be 204
     And the audit log should contain an event:
-      | event_type   | dek_delete                                               |
+      | event_type   | dek_delete_soft                                          |
       | outcome      | success                                                  |
       | actor_type   | anonymous                                                |
       | method       | DELETE                                                   |

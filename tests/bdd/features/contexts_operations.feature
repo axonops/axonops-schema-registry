@@ -102,7 +102,7 @@ Feature: Contexts — Full API Operations
     Then the response status should be 200
     When I GET "/subjects/:.ops-ctx6:to-delete/versions"
     Then the response status should be 404
-    And the audit log should contain event "subject_delete" with subject ":.ops-ctx6:to-delete"
+    And the audit log should contain event "subject_delete_soft" with subject ":.ops-ctx6:to-delete"
 
   Scenario: Permanently delete subject via qualified subject
     When I POST "/subjects/:.ops-ctx7:to-perm-del/versions" with body:
@@ -114,7 +114,7 @@ Feature: Contexts — Full API Operations
     Then the response status should be 200
     When I DELETE "/subjects/:.ops-ctx7:to-perm-del?permanent=true"
     Then the response status should be 200
-    And the audit log should contain event "subject_delete" with subject ":.ops-ctx7:to-perm-del"
+    And the audit log should contain event "subject_delete_permanent" with subject ":.ops-ctx7:to-perm-del"
 
   Scenario: Delete specific version via qualified subject
     When I POST "/subjects/:.ops-ctx8:ver-del/versions" with body:
@@ -132,7 +132,7 @@ Feature: Contexts — Full API Operations
     # Version 2 still exists
     When I GET "/subjects/:.ops-ctx8:ver-del/versions/2"
     Then the response status should be 200
-    And the audit log should contain event "schema_delete" with subject ":.ops-ctx8:ver-del"
+    And the audit log should contain event "schema_delete_soft" with subject ":.ops-ctx8:ver-del"
 
   # ==========================================================================
   # COMPATIBILITY

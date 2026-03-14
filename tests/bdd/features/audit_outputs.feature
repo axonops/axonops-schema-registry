@@ -60,7 +60,7 @@ Feature: Enterprise Audit Log Outputs
     And the response status should be 200
     When I delete subject "audit-webhook-delete"
     Then the response status should be 200
-    And the webhook receiver should have received an event with event_type "subject_delete"
+    And the webhook receiver should have received an event with event_type "subject_delete_soft"
 
   @audit-outputs @webhook
   Scenario: Webhook output delivers config update events
@@ -99,7 +99,7 @@ Feature: Enterprise Audit Log Outputs
     And the response status should be 200
     When I delete subject "audit-syslog-del"
     Then the response status should be 200
-    And the syslog TLS receiver should have received a message containing "subject_delete"
+    And the syslog TLS receiver should have received a message containing "subject_delete_soft"
 
   # ──────────────────────────────────────────────────────────
   # Multi-output fan-out
@@ -184,7 +184,7 @@ Feature: Enterprise Audit Log Outputs
     When I delete subject "audit-delete-target"
     Then the response status should be 200
     And the webhook receiver should have received an event matching:
-      | event_type  | subject_delete      |
+      | event_type  | subject_delete_soft      |
       | outcome     | success             |
       | target_id   | audit-delete-target |
       | target_type | subject             |

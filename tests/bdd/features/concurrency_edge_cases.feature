@@ -76,7 +76,7 @@ Feature: Concurrency Edge Cases
     When 5 goroutines each soft-delete their own subject
     Then all concurrent results should succeed
     And GET /subjects should return an empty array
-    And the audit log should contain event "subject_delete"
+    And the audit log should contain event "subject_delete_soft"
 
   # ---------------------------------------------------------------------------
   # Concurrent writes produce sequential version numbers

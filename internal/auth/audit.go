@@ -80,11 +80,12 @@ type AuditEventType string
 
 const (
 	// Schema events
-	AuditEventSchemaRegister AuditEventType = "schema_register"
-	AuditEventSchemaDelete   AuditEventType = "schema_delete"
-	AuditEventSchemaGet      AuditEventType = "schema_get"
-	AuditEventSchemaLookup   AuditEventType = "schema_lookup"
-	AuditEventSchemaImport   AuditEventType = "schema_import"
+	AuditEventSchemaRegister        AuditEventType = "schema_register"
+	AuditEventSchemaDeleteSoft      AuditEventType = "schema_delete_soft"
+	AuditEventSchemaDeletePermanent AuditEventType = "schema_delete_permanent"
+	AuditEventSchemaGet             AuditEventType = "schema_get"
+	AuditEventSchemaLookup          AuditEventType = "schema_lookup"
+	AuditEventSchemaImport          AuditEventType = "schema_import"
 
 	// Config events
 	AuditEventConfigGet    AuditEventType = "config_get"
@@ -102,8 +103,9 @@ const (
 	AuditEventAuthForbidden AuditEventType = "auth_forbidden"
 
 	// Subject events
-	AuditEventSubjectDelete AuditEventType = "subject_delete"
-	AuditEventSubjectList   AuditEventType = "subject_list"
+	AuditEventSubjectDeleteSoft      AuditEventType = "subject_delete_soft"
+	AuditEventSubjectDeletePermanent AuditEventType = "subject_delete_permanent"
+	AuditEventSubjectList            AuditEventType = "subject_list"
 
 	// Admin events
 	AuditEventUserCreate     AuditEventType = "user_create"
@@ -117,20 +119,32 @@ const (
 	AuditEventAPIKeyRotate   AuditEventType = "apikey_rotate"
 
 	// Encryption events (KEK/DEK)
-	AuditEventKEKCreate AuditEventType = "kek_create"
-	AuditEventKEKUpdate AuditEventType = "kek_update"
-	AuditEventKEKDelete AuditEventType = "kek_delete"
-	AuditEventKEKTest   AuditEventType = "kek_test"
-	AuditEventDEKCreate AuditEventType = "dek_create"
-	AuditEventDEKDelete AuditEventType = "dek_delete"
+	AuditEventKEKCreate          AuditEventType = "kek_create"
+	AuditEventKEKUpdate          AuditEventType = "kek_update"
+	AuditEventKEKDeleteSoft      AuditEventType = "kek_delete_soft"
+	AuditEventKEKDeletePermanent AuditEventType = "kek_delete_permanent"
+	AuditEventKEKUndelete        AuditEventType = "kek_undelete"
+	AuditEventKEKTest            AuditEventType = "kek_test"
+	AuditEventDEKCreate          AuditEventType = "dek_create"
+	AuditEventDEKDeleteSoft      AuditEventType = "dek_delete_soft"
+	AuditEventDEKDeletePermanent AuditEventType = "dek_delete_permanent"
+	AuditEventDEKUndelete        AuditEventType = "dek_undelete"
+
+	// Compatibility events
+	AuditEventCompatibilityCheck AuditEventType = "compatibility_check"
 
 	// Exporter events
-	AuditEventExporterCreate AuditEventType = "exporter_create"
-	AuditEventExporterUpdate AuditEventType = "exporter_update"
-	AuditEventExporterDelete AuditEventType = "exporter_delete"
-	AuditEventExporterPause  AuditEventType = "exporter_pause"
-	AuditEventExporterResume AuditEventType = "exporter_resume"
-	AuditEventExporterReset  AuditEventType = "exporter_reset"
+	AuditEventExporterCreate       AuditEventType = "exporter_create"
+	AuditEventExporterUpdate       AuditEventType = "exporter_update"
+	AuditEventExporterDelete       AuditEventType = "exporter_delete"
+	AuditEventExporterPause        AuditEventType = "exporter_pause"
+	AuditEventExporterResume       AuditEventType = "exporter_resume"
+	AuditEventExporterReset        AuditEventType = "exporter_reset"
+	AuditEventExporterConfigUpdate AuditEventType = "exporter_config_update"
+
+	// Server lifecycle events
+	AuditEventServerStartup  AuditEventType = "server_startup"
+	AuditEventServerShutdown AuditEventType = "server_shutdown"
 
 	// MCP events
 	AuditEventMCPToolCall    AuditEventType = "mcp_tool_call"
@@ -393,9 +407,13 @@ func (al *AuditLogger) Close() error {
 func setDefaultEnabledEvents(m map[AuditEventType]bool) {
 	// Schema write operations
 	m[AuditEventSchemaRegister] = true
-	m[AuditEventSchemaDelete] = true
+	m[AuditEventSchemaDeleteSoft] = true
+	m[AuditEventSchemaDeletePermanent] = true
 	m[AuditEventSchemaImport] = true
 	m[AuditEventSchemaLookup] = true
+
+	// Compatibility check
+	m[AuditEventCompatibilityCheck] = true
 
 	// Config/mode write operations
 	m[AuditEventConfigUpdate] = true
@@ -408,7 +426,8 @@ func setDefaultEnabledEvents(m map[AuditEventType]bool) {
 	m[AuditEventAuthForbidden] = true
 
 	// Subject events
-	m[AuditEventSubjectDelete] = true
+	m[AuditEventSubjectDeleteSoft] = true
+	m[AuditEventSubjectDeletePermanent] = true
 
 	// Admin events
 	m[AuditEventUserCreate] = true
@@ -424,10 +443,14 @@ func setDefaultEnabledEvents(m map[AuditEventType]bool) {
 	// Encryption events
 	m[AuditEventKEKCreate] = true
 	m[AuditEventKEKUpdate] = true
-	m[AuditEventKEKDelete] = true
+	m[AuditEventKEKDeleteSoft] = true
+	m[AuditEventKEKDeletePermanent] = true
+	m[AuditEventKEKUndelete] = true
 	m[AuditEventKEKTest] = true
 	m[AuditEventDEKCreate] = true
-	m[AuditEventDEKDelete] = true
+	m[AuditEventDEKDeleteSoft] = true
+	m[AuditEventDEKDeletePermanent] = true
+	m[AuditEventDEKUndelete] = true
 
 	// Exporter events
 	m[AuditEventExporterCreate] = true
@@ -436,6 +459,11 @@ func setDefaultEnabledEvents(m map[AuditEventType]bool) {
 	m[AuditEventExporterPause] = true
 	m[AuditEventExporterResume] = true
 	m[AuditEventExporterReset] = true
+	m[AuditEventExporterConfigUpdate] = true
+
+	// Server lifecycle events
+	m[AuditEventServerStartup] = true
+	m[AuditEventServerShutdown] = true
 
 	// MCP events
 	m[AuditEventMCPToolCall] = true
@@ -720,13 +748,21 @@ func (al *AuditLogger) determineEventType(r *http.Request, statusCode int) Audit
 		return AuditEventSchemaImport
 	}
 
+	// Compatibility check
+	if contains(path, "/compatibility/") && r.Method == "POST" {
+		return AuditEventCompatibilityCheck
+	}
+
 	// Schema operations — registration, deletion, retrieval via versioned paths
 	if contains(path, "/subjects/") && contains(path, "/versions") {
 		switch r.Method {
 		case "POST":
 			return AuditEventSchemaRegister
 		case "DELETE":
-			return AuditEventSchemaDelete
+			if r.URL.Query().Get("permanent") == "true" {
+				return AuditEventSchemaDeletePermanent
+			}
+			return AuditEventSchemaDeleteSoft
 		case "GET":
 			return AuditEventSchemaGet
 		}
@@ -744,7 +780,10 @@ func (al *AuditLogger) determineEventType(r *http.Request, statusCode int) Audit
 
 	// Subject delete
 	if contains(path, "/subjects/") && !contains(path, "/versions") && r.Method == "DELETE" {
-		return AuditEventSubjectDelete
+		if r.URL.Query().Get("permanent") == "true" {
+			return AuditEventSubjectDeletePermanent
+		}
+		return AuditEventSubjectDeleteSoft
 	}
 
 	// Subject list
@@ -794,11 +833,14 @@ func (al *AuditLogger) determineEventType(r *http.Request, statusCode int) Audit
 			switch r.Method {
 			case "POST":
 				if contains(path, "/undelete") {
-					return AuditEventDEKCreate // undelete restores a DEK
+					return AuditEventDEKUndelete
 				}
 				return AuditEventDEKCreate
 			case "DELETE":
-				return AuditEventDEKDelete
+				if r.URL.Query().Get("permanent") == "true" {
+					return AuditEventDEKDeletePermanent
+				}
+				return AuditEventDEKDeleteSoft
 			}
 		} else if contains(path, "/deks") && r.Method == "POST" {
 			return AuditEventDEKCreate
@@ -813,13 +855,16 @@ func (al *AuditLogger) determineEventType(r *http.Request, statusCode int) Audit
 			switch r.Method {
 			case "POST":
 				if contains(path, "/undelete") {
-					return AuditEventKEKCreate // undelete restores a KEK
+					return AuditEventKEKUndelete
 				}
 				return AuditEventKEKCreate
 			case "PUT":
 				return AuditEventKEKUpdate
 			case "DELETE":
-				return AuditEventKEKDelete
+				if r.URL.Query().Get("permanent") == "true" {
+					return AuditEventKEKDeletePermanent
+				}
+				return AuditEventKEKDeleteSoft
 			}
 		}
 	}
@@ -834,6 +879,9 @@ func (al *AuditLogger) determineEventType(r *http.Request, statusCode int) Audit
 		}
 		if contains(path, "/reset") && r.Method == "PUT" {
 			return AuditEventExporterReset
+		}
+		if contains(path, "/config") && r.Method == "PUT" {
+			return AuditEventExporterConfigUpdate
 		}
 		switch r.Method {
 		case "POST":

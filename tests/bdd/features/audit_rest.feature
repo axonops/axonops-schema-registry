@@ -36,10 +36,10 @@ Feature: REST API Audit Logging
     When I delete version 1 of subject "audit-rest-verdel"
     Then the response status should be 200
     And the audit log should contain an event:
-      | event_type  | schema_delete     |
-      | outcome     | success           |
-      | actor_type  | anonymous         |
-      | target_id   | audit-rest-verdel |
+      | event_type  | schema_delete_soft |
+      | outcome     | success            |
+      | actor_type  | anonymous          |
+      | target_id   | audit-rest-verdel  |
       | method      | DELETE            |
       | path        | /subjects/audit-rest-verdel/versions/1 |
       | status_code | 200               |
@@ -73,11 +73,11 @@ Feature: REST API Audit Logging
     When I delete subject "audit-rest-delete"
     Then the response status should be 200
     And the audit log should contain an event:
-      | event_type         | subject_delete    |
-      | outcome            | success           |
-      | actor_type         | anonymous         |
-      | target_type        | subject           |
-      | target_id          | audit-rest-delete |
+      | event_type         | subject_delete_soft |
+      | outcome            | success             |
+      | actor_type         | anonymous           |
+      | target_type        | subject             |
+      | target_id          | audit-rest-delete   |
       | transport_security | tls               |
       | method             | DELETE            |
       | path               | /subjects/audit-rest-delete |
@@ -92,10 +92,10 @@ Feature: REST API Audit Logging
     When I permanently delete subject "audit-rest-permdel"
     Then the response status should be 200
     And the audit log should contain an event:
-      | event_type  | subject_delete      |
-      | outcome     | success             |
-      | actor_type  | anonymous           |
-      | target_id   | audit-rest-permdel  |
+      | event_type  | subject_delete_permanent |
+      | outcome     | success                  |
+      | actor_type  | anonymous                |
+      | target_id   | audit-rest-permdel       |
       | method      | DELETE              |
       | path        | /subjects/audit-rest-permdel |
       | status_code | 200                 |

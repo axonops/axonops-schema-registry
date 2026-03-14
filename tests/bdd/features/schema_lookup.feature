@@ -116,7 +116,7 @@ Feature: Schema Lookup
       {"type":"record","name":"Session","fields":[{"name":"session_id","type":"string"},{"name":"user_id","type":"string"},{"name":"started_at","type":"long"}]}
       """
     Then the response status should be 404
-    And the audit log should contain event "subject_delete" with subject "del-lookup"
+    And the audit log should contain event "subject_delete_soft" with subject "del-lookup"
 
   Scenario: Lookup after soft-delete with deleted flag returns the schema
     Given subject "del-lookup-recover" has schema:
@@ -133,7 +133,7 @@ Feature: Schema Lookup
     And the response field "subject" should be "del-lookup-recover"
     And the response field "version" should be 1
     And the response should have field "id"
-    And the audit log should contain event "subject_delete" with subject "del-lookup-recover"
+    And the audit log should contain event "subject_delete_soft" with subject "del-lookup-recover"
     And the audit log should contain event "schema_lookup" with subject "del-lookup-recover"
 
   Scenario: Lookup does not create a new version

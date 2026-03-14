@@ -154,7 +154,7 @@ Feature: Contexts — Cross-Context Isolation
     # Context A is deleted
     When I GET "/subjects/:.del-iso-a:shared/versions"
     Then the response status should be 404
-    And the audit log should contain event "subject_delete" with subject ":.del-iso-a:shared"
+    And the audit log should contain event "subject_delete_soft" with subject ":.del-iso-a:shared"
 
   Scenario: Permanent delete in one context does not affect another
     When I POST "/subjects/:.pdel-a:shared/versions" with body:
@@ -176,7 +176,7 @@ Feature: Contexts — Cross-Context Isolation
     When I GET "/subjects/:.pdel-b:shared/versions/1"
     Then the response status should be 200
     And the response body should contain "PDelB"
-    And the audit log should contain event "subject_delete" with subject ":.pdel-a:shared"
+    And the audit log should contain event "subject_delete_permanent" with subject ":.pdel-a:shared"
 
   # ==========================================================================
   # LOOKUP ISOLATION
@@ -223,7 +223,7 @@ Feature: Contexts — Cross-Context Isolation
     When I GET "/subjects/:.soft-b:s1/versions"
     Then the response status should be 200
     And the response should be an array of length 1
-    And the audit log should contain event "subject_delete" with subject ":.soft-a:s1"
+    And the audit log should contain event "subject_delete_soft" with subject ":.soft-a:s1"
 
   Scenario: Schema fingerprint dedup is per-context
     # Same schema content in two contexts should each get their own ID

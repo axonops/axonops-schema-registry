@@ -55,7 +55,7 @@ Feature: mTLS Transport Security
     When I DELETE "/subjects/mtls-del-test"
     Then the response status should be 200
     And the audit log should contain an event:
-      | event_type         | subject_delete       |
+      | event_type         | subject_delete_soft       |
       | outcome            | success              |
       | actor_type         | anonymous            |
       | target_type        | subject              |
@@ -200,7 +200,7 @@ Feature: mTLS Transport Security
     When I DELETE "/subjects/mtls-delvs-test/versions/1"
     Then the response status should be 200
     And the audit log should contain an event:
-      | event_type         | schema_delete        |
+      | event_type         | schema_delete_soft        |
       | outcome            | success              |
       | actor_id           | admin                |
       | actor_type         | user                 |
@@ -224,7 +224,7 @@ Feature: mTLS Transport Security
     When I DELETE "/subjects/mtls-delsub-test"
     Then the response status should be 200
     And the audit log should contain an event:
-      | event_type         | subject_delete       |
+      | event_type         | subject_delete_soft       |
       | outcome            | success              |
       | actor_id           | admin                |
       | actor_type         | user                 |

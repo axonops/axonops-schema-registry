@@ -57,6 +57,8 @@ func (h *Handler) CreateExporter(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "exporter"
+		hints.TargetID = req.Name
 		hints.AfterHash = hashExporter(exporter)
 	}
 
@@ -119,6 +121,8 @@ func (h *Handler) UpdateExporter(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "exporter"
+		hints.TargetID = name
 		if existing != nil {
 			hints.BeforeHash = hashExporter(existing)
 		}
@@ -144,8 +148,12 @@ func (h *Handler) DeleteExporter(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if hints := auth.GetAuditHints(r.Context()); hints != nil && existing != nil {
-		hints.BeforeHash = hashExporter(existing)
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "exporter"
+		hints.TargetID = name
+		if existing != nil {
+			hints.BeforeHash = hashExporter(existing)
+		}
 	}
 
 	writeJSON(w, http.StatusOK, types.ExporterNameResponse{Name: name})
@@ -164,6 +172,11 @@ func (h *Handler) PauseExporter(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "exporter"
+		hints.TargetID = name
+	}
+
 	writeJSON(w, http.StatusOK, types.ExporterNameResponse{Name: name})
 }
 
@@ -180,6 +193,11 @@ func (h *Handler) ResumeExporter(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "exporter"
+		hints.TargetID = name
+	}
+
 	writeJSON(w, http.StatusOK, types.ExporterNameResponse{Name: name})
 }
 
@@ -194,6 +212,11 @@ func (h *Handler) ResetExporter(w http.ResponseWriter, r *http.Request) {
 		}
 		writeInternalError(w, err)
 		return
+	}
+
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "exporter"
+		hints.TargetID = name
 	}
 
 	writeJSON(w, http.StatusOK, types.ExporterNameResponse{Name: name})
@@ -265,6 +288,8 @@ func (h *Handler) UpdateExporterConfig(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "exporter"
+		hints.TargetID = name
 		if existing != nil {
 			hints.BeforeHash = hashExporter(existing)
 		}

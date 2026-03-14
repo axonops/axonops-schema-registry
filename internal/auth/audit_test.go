@@ -29,10 +29,11 @@ func TestNewAuditLogger_DefaultEvents(t *testing.T) {
 
 	// Default events should include write operations and auth failures
 	expectedEnabled := []AuditEventType{
-		AuditEventSchemaRegister, AuditEventSchemaDelete,
+		AuditEventSchemaRegister,
+		AuditEventSchemaDeleteSoft, AuditEventSchemaDeletePermanent,
 		AuditEventConfigUpdate, AuditEventModeUpdate,
 		AuditEventAuthFailure, AuditEventAuthForbidden,
-		AuditEventSubjectDelete,
+		AuditEventSubjectDeleteSoft, AuditEventSubjectDeletePermanent,
 	}
 	for _, evt := range expectedEnabled {
 		if !al.enabledEvents[evt] {
@@ -65,8 +66,8 @@ func TestNewAuditLogger_CustomEvents(t *testing.T) {
 	if !al.enabledEvents[AuditEventConfigGet] {
 		t.Error("expected config_get enabled")
 	}
-	if al.enabledEvents[AuditEventSchemaDelete] {
-		t.Error("expected schema_delete not enabled")
+	if al.enabledEvents[AuditEventSchemaDeleteSoft] {
+		t.Error("expected schema_delete_soft not enabled")
 	}
 }
 
@@ -213,14 +214,19 @@ func TestDetermineEventType_SchemaOps(t *testing.T) {
 	}{
 		// Schema operations
 		{"POST", "/subjects/test/versions", AuditEventSchemaRegister},
-		{"DELETE", "/subjects/test/versions/1", AuditEventSchemaDelete},
+		{"DELETE", "/subjects/test/versions/1", AuditEventSchemaDeleteSoft},
+		{"DELETE", "/subjects/test/versions/1?permanent=true", AuditEventSchemaDeletePermanent},
 		{"GET", "/subjects/test/versions/1", AuditEventSchemaGet},
 		{"GET", "/schemas/ids/1", AuditEventSchemaGet},
 		{"POST", "/subjects/test", AuditEventSchemaLookup},
-		{"DELETE", "/subjects/test", AuditEventSubjectDelete},
+		{"DELETE", "/subjects/test", AuditEventSubjectDeleteSoft},
+		{"DELETE", "/subjects/test?permanent=true", AuditEventSubjectDeletePermanent},
 		{"GET", "/subjects", AuditEventSubjectList},
 		// Import
 		{"POST", "/import/schemas", AuditEventSchemaImport},
+		// Compatibility check
+		{"POST", "/compatibility/subjects/test/versions/1", AuditEventCompatibilityCheck},
+		{"POST", "/compatibility/subjects/test/versions", AuditEventCompatibilityCheck},
 		// Config operations
 		{"GET", "/config", AuditEventConfigGet},
 		{"PUT", "/config", AuditEventConfigUpdate},
@@ -245,17 +251,20 @@ func TestDetermineEventType_SchemaOps(t *testing.T) {
 		// KEK operations
 		{"POST", "/dek-registry/v1/keks", AuditEventKEKCreate},
 		{"PUT", "/dek-registry/v1/keks/my-kek", AuditEventKEKUpdate},
-		{"DELETE", "/dek-registry/v1/keks/my-kek", AuditEventKEKDelete},
-		{"POST", "/dek-registry/v1/keks/my-kek/undelete", AuditEventKEKCreate},
+		{"DELETE", "/dek-registry/v1/keks/my-kek", AuditEventKEKDeleteSoft},
+		{"DELETE", "/dek-registry/v1/keks/my-kek?permanent=true", AuditEventKEKDeletePermanent},
+		{"POST", "/dek-registry/v1/keks/my-kek/undelete", AuditEventKEKUndelete},
 		{"POST", "/dek-registry/v1/keks/my-kek/test", AuditEventKEKTest},
 		// DEK operations
 		{"POST", "/dek-registry/v1/keks/my-kek/deks", AuditEventDEKCreate},
 		{"POST", "/dek-registry/v1/keks/my-kek/deks/my-subject", AuditEventDEKCreate},
-		{"DELETE", "/dek-registry/v1/keks/my-kek/deks/my-subject", AuditEventDEKDelete},
-		{"POST", "/dek-registry/v1/keks/my-kek/deks/my-subject/undelete", AuditEventDEKCreate},
+		{"DELETE", "/dek-registry/v1/keks/my-kek/deks/my-subject", AuditEventDEKDeleteSoft},
+		{"DELETE", "/dek-registry/v1/keks/my-kek/deks/my-subject?permanent=true", AuditEventDEKDeletePermanent},
+		{"POST", "/dek-registry/v1/keks/my-kek/deks/my-subject/undelete", AuditEventDEKUndelete},
 		// DEK version operations
-		{"DELETE", "/dek-registry/v1/keks/my-kek/deks/my-subject/versions/1", AuditEventDEKDelete},
-		{"POST", "/dek-registry/v1/keks/my-kek/deks/my-subject/versions/1/undelete", AuditEventDEKCreate},
+		{"DELETE", "/dek-registry/v1/keks/my-kek/deks/my-subject/versions/1", AuditEventDEKDeleteSoft},
+		{"DELETE", "/dek-registry/v1/keks/my-kek/deks/my-subject/versions/1?permanent=true", AuditEventDEKDeletePermanent},
+		{"POST", "/dek-registry/v1/keks/my-kek/deks/my-subject/versions/1/undelete", AuditEventDEKUndelete},
 		// Exporter operations
 		{"POST", "/exporters", AuditEventExporterCreate},
 		{"PUT", "/exporters/my-export", AuditEventExporterUpdate},
@@ -263,6 +272,7 @@ func TestDetermineEventType_SchemaOps(t *testing.T) {
 		{"PUT", "/exporters/my-export/pause", AuditEventExporterPause},
 		{"PUT", "/exporters/my-export/resume", AuditEventExporterResume},
 		{"PUT", "/exporters/my-export/reset", AuditEventExporterReset},
+		{"PUT", "/exporters/my-export/config", AuditEventExporterConfigUpdate},
 	}
 
 	for _, tt := range tests {
@@ -1045,7 +1055,7 @@ func TestExtractTarget(t *testing.T) {
 		// Subject operations
 		{"/subjects/payments-value/versions", AuditEventSchemaRegister, "subject", "payments-value"},
 		{"/subjects/my-topic/versions/1", AuditEventSchemaGet, "subject", "my-topic"},
-		{"/subjects/my-topic", AuditEventSubjectDelete, "subject", "my-topic"},
+		{"/subjects/my-topic", AuditEventSubjectDeleteSoft, "subject", "my-topic"},
 		// Schema by ID
 		{"/schemas/ids/42", AuditEventSchemaGet, "schema", "42"},
 		{"/schemas/ids/100/schema", AuditEventSchemaGet, "schema", "100"},

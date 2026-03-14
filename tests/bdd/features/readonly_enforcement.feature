@@ -101,7 +101,7 @@ Feature: READONLY Enforcement and Permanent Delete Restrictions
     # Permanent delete of "latest" — Confluent resolves to actual version and proceeds
     When I DELETE "/subjects/perm-del-latest/versions/latest?permanent=true"
     Then the response status should be 200
-    And the audit log should contain event "schema_delete" with subject "perm-del-latest"
+    And the audit log should contain event "schema_delete_permanent" with subject "perm-del-latest"
 
   Scenario: Permanent delete with explicit version number works
     Given subject "perm-del-explicit" has schema:
@@ -114,4 +114,4 @@ Feature: READONLY Enforcement and Permanent Delete Restrictions
     # Permanent delete with explicit version — should succeed
     When I DELETE "/subjects/perm-del-explicit/versions/1?permanent=true"
     Then the response status should be 200
-    And the audit log should contain event "schema_delete" with subject "perm-del-explicit"
+    And the audit log should contain event "schema_delete_permanent" with subject "perm-del-explicit"

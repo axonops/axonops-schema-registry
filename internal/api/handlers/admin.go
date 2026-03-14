@@ -105,6 +105,11 @@ func (h *AdminHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "user"
+		hints.TargetID = req.Username
+	}
+
 	writeAdminJSON(w, http.StatusCreated, userToResponse(user))
 }
 
@@ -181,6 +186,11 @@ func (h *AdminHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "user"
+		hints.TargetID = chi.URLParam(r, "id")
+	}
+
 	writeAdminJSON(w, http.StatusOK, userToResponse(user))
 }
 
@@ -204,6 +214,11 @@ func (h *AdminHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 		slog.Error("internal server error", "error", err)
 		writeAdminError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, "Internal server error")
 		return
+	}
+
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "user"
+		hints.TargetID = chi.URLParam(r, "id")
 	}
 
 	w.WriteHeader(http.StatusNoContent)
@@ -344,6 +359,11 @@ func (h *AdminHandler) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 		ExpiresAt: result.ExpiresAt.Format(time.RFC3339),
 	}
 
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "apikey"
+		hints.TargetID = req.Name
+	}
+
 	writeAdminJSON(w, http.StatusCreated, resp)
 }
 
@@ -417,6 +437,11 @@ func (h *AdminHandler) UpdateAPIKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "apikey"
+		hints.TargetID = chi.URLParam(r, "id")
+	}
+
 	writeAdminJSON(w, http.StatusOK, h.apiKeyToResponse(r.Context(), key))
 }
 
@@ -440,6 +465,11 @@ func (h *AdminHandler) DeleteAPIKey(w http.ResponseWriter, r *http.Request) {
 		slog.Error("internal server error", "error", err)
 		writeAdminError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, "Internal server error")
 		return
+	}
+
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "apikey"
+		hints.TargetID = chi.URLParam(r, "id")
 	}
 
 	w.WriteHeader(http.StatusNoContent)
@@ -472,6 +502,11 @@ func (h *AdminHandler) RevokeAPIKey(w http.ResponseWriter, r *http.Request) {
 		slog.Error("internal server error", "error", err)
 		writeAdminError(w, http.StatusInternalServerError, types.ErrorCodeInternalServerError, "Internal server error")
 		return
+	}
+
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "apikey"
+		hints.TargetID = chi.URLParam(r, "id")
 	}
 
 	writeAdminJSON(w, http.StatusOK, h.apiKeyToResponse(r.Context(), key))
@@ -540,6 +575,11 @@ func (h *AdminHandler) RotateAPIKey(w http.ResponseWriter, r *http.Request) {
 	resp := types.RotateAPIKeyResponse{
 		NewKey:    newKeyResp,
 		RevokedID: id,
+	}
+
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "apikey"
+		hints.TargetID = chi.URLParam(r, "id")
 	}
 
 	writeAdminJSON(w, http.StatusOK, resp)

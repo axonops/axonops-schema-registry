@@ -45,7 +45,7 @@ Feature: Subject Operations
     Then the response status should be 200
     When I list all subjects
     Then the response should be an array of length 0
-    And the audit log should contain event "subject_delete" with subject "temp-value"
+    And the audit log should contain event "subject_delete_soft" with subject "temp-value"
 
   Scenario: Delete a specific version
     Given subject "user-value" has schema:
@@ -61,7 +61,7 @@ Feature: Subject Operations
     Then the response status should be 200
     When I get the latest version of subject "user-value"
     Then the response field "version" should be 2
-    And the audit log should contain event "schema_delete" with subject "user-value"
+    And the audit log should contain event "schema_delete_soft" with subject "user-value"
 
   Scenario: Delete non-existent subject returns 404
     When I delete subject "ghost"

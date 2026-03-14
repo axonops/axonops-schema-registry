@@ -259,7 +259,7 @@ Feature: Authentication flows and RBAC
     When I DELETE "/subjects/admin-test-value"
     Then the response status should be 200
     And the audit log should contain an event:
-      | event_type  | subject_delete    |
+      | event_type  | subject_delete_soft |
       | outcome     | success           |
       | actor_id    | mgr1              |
       | actor_type  | user              |

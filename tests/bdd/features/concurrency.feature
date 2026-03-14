@@ -27,7 +27,7 @@ Feature: Concurrent Operations Safety
     When 10 goroutines each soft-delete their own subject
     Then all concurrent results should succeed
     And GET /subjects should return an empty array
-    And the audit log should contain event "subject_delete"
+    And the audit log should contain event "subject_delete_soft"
 
   Scenario: Concurrent reads during writes return consistent data
     Given subject "rw-subject" has schema:

@@ -38,7 +38,7 @@ Feature: Subject & Version Management — Exhaustive (Confluent v8.1.1 Compatibi
     When I GET "/subjects?deleted=true"
     Then the response status should be 200
     And the response array should contain "sv-softdel"
-    And the audit log should contain event "subject_delete" with subject "sv-softdel"
+    And the audit log should contain event "subject_delete_soft" with subject "sv-softdel"
 
   # ==========================================================================
   # VERSION LISTING
@@ -91,7 +91,7 @@ Feature: Subject & Version Management — Exhaustive (Confluent v8.1.1 Compatibi
     When I get the latest version of subject "sv-del-older"
     Then the response status should be 200
     And the response field "version" should be 2
-    And the audit log should contain event "schema_delete" with subject "sv-del-older"
+    And the audit log should contain event "schema_delete_soft" with subject "sv-del-older"
 
   Scenario: Get latest version for non-existent subject returns 404
     When I get the latest version of subject "sv-nonexist-latest"

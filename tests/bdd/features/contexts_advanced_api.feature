@@ -108,7 +108,7 @@ Feature: Contexts — Advanced API Surface Coverage
     When I GET "/subjects?deleted=true"
     Then the response status should be 200
     And the response array should contain "default-api5-subj"
-    And the audit log should contain event "subject_delete" with subject "default-api5-subj"
+    And the audit log should contain event "subject_delete_soft" with subject "default-api5-subj"
 
   # ==========================================================================
   # SOFT DELETE — VERSION ACCESS
@@ -125,7 +125,7 @@ Feature: Contexts — Advanced API Surface Coverage
     # After soft delete, versions are not accessible
     When I GET "/subjects/:.api6:soft-del/versions/1"
     Then the response status should be 404
-    And the audit log should contain event "subject_delete" with subject ":.api6:soft-del"
+    And the audit log should contain event "subject_delete_soft" with subject ":.api6:soft-del"
 
   # ==========================================================================
   # PERMANENT DELETE — FULL LIFECYCLE
@@ -146,7 +146,7 @@ Feature: Contexts — Advanced API Surface Coverage
     # Subject should be completely gone
     When I GET "/subjects/:.api7:perm-del/versions"
     Then the response status should be 404
-    And the audit log should contain event "subject_delete" with subject ":.api7:perm-del"
+    And the audit log should contain event "subject_delete_permanent" with subject ":.api7:perm-del"
 
   # ==========================================================================
   # SCHEMA FINGERPRINT DEDUP WITHIN CONTEXT

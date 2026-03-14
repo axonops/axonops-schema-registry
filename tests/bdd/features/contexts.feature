@@ -149,4 +149,4 @@ Feature: Contexts — Core Behavior
     Then the response status should be 200
     When I GET "/subjects/:.del-ctx:to-delete/versions"
     Then the response status should be 404
-    And the audit log should contain event "subject_delete" with subject ":.del-ctx:to-delete"
+    And the audit log should contain event "subject_delete_soft" with subject ":.del-ctx:to-delete"

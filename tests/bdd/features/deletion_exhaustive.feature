@@ -22,7 +22,7 @@ Feature: Schema & Subject Deletion — Exhaustive (Confluent v8.1.1 Compatibilit
     When I list versions of subject "del-ex-soft"
     Then the response should be an array of length 1
     And the audit log should contain an event:
-      | event_type  | schema_delete                    |
+      | event_type  | schema_delete_soft               |
       | outcome     | success                          |
       | actor_type  | anonymous                        |
       | target_id   | del-ex-soft                      |
@@ -40,7 +40,7 @@ Feature: Schema & Subject Deletion — Exhaustive (Confluent v8.1.1 Compatibilit
     Then the response status should be 404
     And the response should have error code 40401
     And the audit log should contain an event:
-      | event_type  | schema_delete                    |
+      | event_type  | schema_delete_soft               |
       | outcome     | success                          |
       | actor_type  | anonymous                        |
       | target_id   | del-ex-flag                      |
@@ -58,7 +58,7 @@ Feature: Schema & Subject Deletion — Exhaustive (Confluent v8.1.1 Compatibilit
     Then the response status should be 200
     And the response should contain "GetDel"
     And the audit log should contain an event:
-      | event_type  | schema_delete                      |
+      | event_type  | schema_delete_soft                 |
       | outcome     | success                            |
       | actor_type  | anonymous                          |
       | target_id   | del-ex-getdel                      |
@@ -78,7 +78,7 @@ Feature: Schema & Subject Deletion — Exhaustive (Confluent v8.1.1 Compatibilit
       """
     Then the response status should be 404
     And the audit log should contain an event:
-      | event_type  | schema_delete                      |
+      | event_type  | schema_delete_soft                 |
       | outcome     | success                            |
       | actor_type  | anonymous                          |
       | target_id   | del-ex-lookup                      |
@@ -98,7 +98,7 @@ Feature: Schema & Subject Deletion — Exhaustive (Confluent v8.1.1 Compatibilit
       """
     Then the response status should be 200
     And the audit log should contain an event:
-      | event_type  | schema_delete                       |
+      | event_type  | schema_delete_soft                  |
       | outcome     | success                             |
       | actor_type  | anonymous                           |
       | target_id   | del-ex-lookup2                      |
@@ -121,7 +121,7 @@ Feature: Schema & Subject Deletion — Exhaustive (Confluent v8.1.1 Compatibilit
     When I GET "/subjects/del-ex-hard/versions/1?deleted=true"
     Then the response status should be 404
     And the audit log should contain an event:
-      | event_type  | schema_delete                    |
+      | event_type  | schema_delete_permanent          |
       | outcome     | success                          |
       | actor_type  | anonymous                        |
       | target_id   | del-ex-hard                      |
@@ -144,7 +144,7 @@ Feature: Schema & Subject Deletion — Exhaustive (Confluent v8.1.1 Compatibilit
     Then the response status should be 200
     And the response field "version" should be 1
     And the audit log should contain an event:
-      | event_type  | schema_delete                      |
+      | event_type  | schema_delete_soft                 |
       | outcome     | success                            |
       | actor_type  | anonymous                          |
       | target_id   | del-ex-latest                      |
@@ -182,7 +182,7 @@ Feature: Schema & Subject Deletion — Exhaustive (Confluent v8.1.1 Compatibilit
     When I delete subject "del-ex-subj"
     Then the response status should be 200
     And the audit log should contain an event:
-      | event_type  | subject_delete          |
+      | event_type  | subject_delete_soft     |
       | outcome     | success                 |
       | actor_type  | anonymous               |
       | target_id   | del-ex-subj             |
@@ -210,7 +210,7 @@ Feature: Schema & Subject Deletion — Exhaustive (Confluent v8.1.1 Compatibilit
     When I GET "/subjects?deleted=true"
     Then the response status should be 200
     And the audit log should contain an event:
-      | event_type  | subject_delete               |
+      | event_type  | subject_delete_permanent     |
       | outcome     | success                      |
       | actor_type  | anonymous                    |
       | target_id   | del-ex-subj-hard             |
@@ -241,7 +241,7 @@ Feature: Schema & Subject Deletion — Exhaustive (Confluent v8.1.1 Compatibilit
     When I list versions of subject "del-ex-rereg"
     Then the response status should be 200
     And the audit log should contain an event:
-      | event_type  | subject_delete            |
+      | event_type  | subject_delete_soft       |
       | outcome     | success                   |
       | actor_type  | anonymous                 |
       | target_id   | del-ex-rereg              |
@@ -286,7 +286,7 @@ Feature: Schema & Subject Deletion — Exhaustive (Confluent v8.1.1 Compatibilit
       """
     Then the response status should be 200
     And the audit log should contain an event:
-      | event_type  | schema_delete                            |
+      | event_type  | schema_delete_soft                       |
       | outcome     | success                                  |
       | actor_type  | anonymous                                |
       | target_id   | del-ex-lookup-rereg                      |
@@ -323,7 +323,7 @@ Feature: Schema & Subject Deletion — Exhaustive (Confluent v8.1.1 Compatibilit
       """
     Then the response status should be 200
     And the audit log should contain an event:
-      | event_type  | schema_delete                      |
+      | event_type  | schema_delete_soft                 |
       | outcome     | success                            |
       | actor_type  | anonymous                          |
       | target_id   | del-ex-compat                      |
@@ -367,7 +367,7 @@ Feature: Schema & Subject Deletion — Exhaustive (Confluent v8.1.1 Compatibilit
     # Reset global config
     When I set the global config to "NONE"
     And the audit log should contain an event:
-      | event_type  | subject_delete          |
+      | event_type  | subject_delete_permanent |
       | outcome     | success                 |
       | actor_type  | anonymous               |
       | target_id   | del-ex-cfg              |
@@ -392,7 +392,7 @@ Feature: Schema & Subject Deletion — Exhaustive (Confluent v8.1.1 Compatibilit
     When I get the config for subject "del-ex-cfg-ver"
     Then the response status should be 200
     And the audit log should contain an event:
-      | event_type  | schema_delete                        |
+      | event_type  | schema_delete_soft                   |
       | outcome     | success                              |
       | actor_type  | anonymous                            |
       | target_id   | del-ex-cfg-ver                       |
@@ -425,7 +425,7 @@ Feature: Schema & Subject Deletion — Exhaustive (Confluent v8.1.1 Compatibilit
     And the response field "version" should be 2
     And the response should contain "LatDel2"
     And the audit log should contain an event:
-      | event_type  | subject_delete                 |
+      | event_type  | subject_delete_soft            |
       | outcome     | success                        |
       | actor_type  | anonymous                      |
       | target_id   | del-ex-latest-del              |
@@ -446,7 +446,7 @@ Feature: Schema & Subject Deletion — Exhaustive (Confluent v8.1.1 Compatibilit
     And the response field "version" should be 1
     And the response should contain "SpecDel"
     And the audit log should contain an event:
-      | event_type  | subject_delete                   |
+      | event_type  | subject_delete_soft              |
       | outcome     | success                          |
       | actor_type  | anonymous                        |
       | target_id   | del-ex-specific-del              |
@@ -473,7 +473,7 @@ Feature: Schema & Subject Deletion — Exhaustive (Confluent v8.1.1 Compatibilit
     And the response field "version" should be 2
     And the response should contain "PD2"
     And the audit log should contain an event:
-      | event_type  | schema_delete                          |
+      | event_type  | schema_delete_soft                     |
       | outcome     | success                                |
       | actor_type  | anonymous                              |
       | target_id   | del-ex-partial-del                     |

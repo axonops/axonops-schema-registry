@@ -209,7 +209,7 @@ Feature: Response Shapes — Confluent Wire Compatibility
     Then the response status should be 200
     And the response should be an array of length 1
     And the response array should contain integer 1
-    And the audit log should contain event "subject_delete" with subject "resp-del-sub-1"
+    And the audit log should contain event "subject_delete_soft" with subject "resp-del-sub-1"
 
   Scenario: DELETE subject with 3 versions returns array with all version numbers
     Given the global compatibility level is "NONE"
@@ -231,7 +231,7 @@ Feature: Response Shapes — Confluent Wire Compatibility
     And the response array should contain integer 1
     And the response array should contain integer 2
     And the response array should contain integer 3
-    And the audit log should contain event "subject_delete" with subject "resp-del-sub-3"
+    And the audit log should contain event "subject_delete_soft" with subject "resp-del-sub-3"
 
   # ==========================================================================
   # DELETE VERSION RESPONSE BODY
@@ -250,7 +250,7 @@ Feature: Response Shapes — Confluent Wire Compatibility
     When I delete version 1 of subject "resp-del-ver"
     Then the response status should be 200
     And the response should be an integer with value 1
-    And the audit log should contain event "schema_delete" with subject "resp-del-ver"
+    And the audit log should contain event "schema_delete_soft" with subject "resp-del-ver"
 
   Scenario: DELETE version 2 returns integer 2
     Given the global compatibility level is "NONE"
@@ -265,7 +265,7 @@ Feature: Response Shapes — Confluent Wire Compatibility
     When I delete version 2 of subject "resp-del-ver2"
     Then the response status should be 200
     And the response should be an integer with value 2
-    And the audit log should contain event "schema_delete" with subject "resp-del-ver2"
+    And the audit log should contain event "schema_delete_soft" with subject "resp-del-ver2"
 
   # ==========================================================================
   # DELETE CONFIG RESPONSE

@@ -186,7 +186,7 @@ message B {
     Then the response status should be 200
     When I delete subject "lifecycle-cross-json"
     Then the response status should be 200
-    And the audit log should contain event "subject_delete" with subject "lifecycle-cross-json"
+    And the audit log should contain event "subject_delete_soft" with subject "lifecycle-cross-json"
 
   # ==========================================================================
   # 5. SCHEMA WITH REFERENCES LIFECYCLE
