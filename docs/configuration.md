@@ -302,14 +302,20 @@ The `security` section contains TLS, authentication, rate limiting, and audit co
 
 ### TLS
 
+TLS provides transport-level security for the HTTP server. The default minimum version is **TLS 1.3**. TLS 1.2 is accepted when explicitly configured. TLS versions below 1.2 are **NOT supported** — the server MUST NOT start if a version below 1.2 is configured.
+
+> **Security:** When TLS is not enabled, the server logs a warning and emits a `security_warning` audit event with reason `server_tls_disabled`.
+
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | `security.tls.enabled` | bool | `false` | Enable TLS on the HTTP server. |
 | `security.tls.cert_file` | string | `""` | Path to the server TLS certificate. |
 | `security.tls.key_file` | string | `""` | Path to the server TLS private key. |
 | `security.tls.ca_file` | string | `""` | Path to a CA certificate for verifying client certificates (mTLS). |
-| `security.tls.min_version` | string | `""` | Minimum TLS version. Values: `TLS1.2`, `TLS1.3`. |
+| `security.tls.min_version` | string | `"TLS1.3"` | Minimum TLS version. Values: `TLS1.2`, `TLS1.3`. Versions below 1.2 cause a fatal exit. |
 | `security.tls.client_auth` | string | `"none"` | Client certificate policy. Values: `none`, `request`, `require`, `verify`. |
+| `security.tls.cipher_suites` | list of strings | `[]` | Explicit cipher suite names for TLS 1.2 connections. When empty, uses Go's secure defaults (`tls.CipherSuites()`). TLS 1.3 cipher suites are managed by the Go runtime and cannot be configured. |
+| `security.tls.allow_insecure_ciphers` | bool | `false` | When `true`, allows cipher suites from `tls.InsecureCipherSuites()`. When `false` (default), insecure ciphers cause a fatal exit. If enabled with insecure ciphers present, the server logs an error and emits a `security_warning` audit event. |
 | `security.tls.auto_reload` | bool | `false` | When `true`, sending `SIGHUP` to the process reloads TLS certificates from disk without restarting. New connections use the updated certificates; existing connections are unaffected. |
 
 ```yaml
@@ -318,9 +324,42 @@ security:
     enabled: true
     cert_file: /etc/ssl/certs/registry.pem
     key_file: /etc/ssl/private/registry-key.pem
-    min_version: "TLS1.2"
+    min_version: "TLS1.3"
     auto_reload: true
 ```
+
+#### mTLS (Mutual TLS)
+
+mTLS is **transport-level security only** — it verifies that connecting clients present a valid certificate signed by a trusted CA. It is NOT an authentication method. To combine mTLS with user identity and RBAC, layer it with an authentication method such as `basic`, `jwt`, or `oidc`.
+
+```yaml
+security:
+  tls:
+    enabled: true
+    cert_file: /etc/ssl/certs/registry.pem
+    key_file: /etc/ssl/private/registry-key.pem
+    ca_file: /etc/ssl/certs/ca.pem
+    client_auth: verify
+  auth:
+    enabled: true
+    methods:
+      - basic
+    rbac:
+      enabled: true
+```
+
+#### TLS Environment Variable Overrides
+
+| Environment Variable | Config Key | Type |
+|-----|------|------|
+| `SCHEMA_REGISTRY_TLS_ENABLED` | `security.tls.enabled` | bool |
+| `SCHEMA_REGISTRY_TLS_CERT_FILE` | `security.tls.cert_file` | string |
+| `SCHEMA_REGISTRY_TLS_KEY_FILE` | `security.tls.key_file` | string |
+| `SCHEMA_REGISTRY_TLS_CA_FILE` | `security.tls.ca_file` | string |
+| `SCHEMA_REGISTRY_TLS_MIN_VERSION` | `security.tls.min_version` | string |
+| `SCHEMA_REGISTRY_TLS_CLIENT_AUTH` | `security.tls.client_auth` | string |
+| `SCHEMA_REGISTRY_TLS_CIPHER_SUITES` | `security.tls.cipher_suites` | comma-separated |
+| `SCHEMA_REGISTRY_TLS_ALLOW_INSECURE_CIPHERS` | `security.tls.allow_insecure_ciphers` | bool |
 
 ### Authentication
 
@@ -329,7 +368,7 @@ Top-level authentication settings. See [Authentication](authentication.md) for a
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | `security.auth.enabled` | bool | `false` | Enable authentication middleware. When `false`, all requests are unauthenticated. |
-| `security.auth.methods` | list of strings | `[]` | Authentication methods to try, in order. Values: `basic`, `api_key`, `jwt`, `oidc`, `mtls`. |
+| `security.auth.methods` | list of strings | `[]` | Authentication methods to try, in order. Values: `basic`, `api_key`, `jwt`, `oidc`. |
 
 ```yaml
 security:

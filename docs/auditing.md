@@ -278,6 +278,7 @@ For schemas, the hash is the schema's canonical fingerprint (already computed an
 |-------|------|-------------|
 | `source_ip` | string | Client IP address (supports `X-Forwarded-For` for proxied requests). |
 | `user_agent` | string | Client `User-Agent` header value. |
+| `transport_security` | string | TLS transport state: `none` (no TLS), `tls` (TLS without client cert), or `mtls` (TLS with verified client cert). Empty for startup events. |
 | `method` | string | HTTP method (`GET`, `POST`, `PUT`, `DELETE`) for REST, or `MCP` for MCP tool calls. |
 | `path` | string | HTTP request path for REST, or MCP tool name for MCP events. |
 | `status_code` | integer | HTTP response status code. Only present for REST events (omitted for MCP). |
@@ -388,7 +389,7 @@ When the `events` list is empty in configuration, all events marked with **[defa
 
 | Event Type | Trigger | Default |
 |------------|---------|---------|
-| `security_warning` | Insecure configuration detected at startup (e.g., LDAP without TLS) | **[default]** |
+| `security_warning` | Insecure configuration detected at startup (e.g., LDAP without TLS, server TLS disabled, insecure cipher suites) | **[default]** |
 
 ## Outcome and Reason Codes
 
@@ -419,6 +420,8 @@ For failure events, the `reason` field provides a machine-parseable classificati
 | `internal_error` | Unexpected server error. | 500 |
 | `ldap_no_tls` | LDAP configured without TLS encryption. | — |
 | `ldap_user_not_found_fallback_to_db` | User not found in LDAP; falling back to database/htpasswd auth. Fallback does NOT occur for invalid credentials (wrong password). | — |
+| `server_tls_disabled` | Server TLS is not enabled — HTTP traffic is unencrypted. | — |
+| `insecure_ciphers_allowed` | Server configured with `allow_insecure_ciphers: true` and insecure cipher suites are present. The `metadata.insecure_ciphers` field lists the insecure cipher names. | — |
 
 For MCP events, the same `reason` codes apply. Since MCP events do not have HTTP status codes, the `reason` field is the primary way to classify MCP failures.
 

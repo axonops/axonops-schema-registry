@@ -2151,3 +2151,63 @@ jobs:
         working-directory: tests/bdd
         run: |
           docker compose -p bdd-jwt -f docker-compose.base.yml -f docker-compose.jwt.yml down -v || true
+
+  # BDD mTLS transport tests — Docker-deployed binary with client certificate verification
+  bdd-mtls-tests:
+    name: BDD Tests (mTLS Transport)
+    runs-on: ubuntu-latest
+    needs: [bdd-functional-tests]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run BDD mTLS tests (Docker)
+        run: make test-bdd-mtls
+
+      - name: Show BDD container logs on failure
+        if: failure()
+        working-directory: tests/bdd
+        run: docker compose -p bdd-mtls -f docker-compose.base.yml -f docker-compose.mtls.yml logs --tail=100 || true
+
+      - name: Cleanup containers
+        if: always()
+        working-directory: tests/bdd
+        run: |
+          docker compose -p bdd-mtls -f docker-compose.base.yml -f docker-compose.mtls.yml down -v || true
+
+  # BDD mTLS + Basic auth tests — Docker-deployed binary with client cert + auth + RBAC
+  bdd-mtls-auth-tests:
+    name: BDD Tests (mTLS + Auth)
+    runs-on: ubuntu-latest
+    needs: [bdd-functional-tests]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run BDD mTLS + auth tests (Docker)
+        run: make test-bdd-mtls-auth
+
+      - name: Show BDD container logs on failure
+        if: failure()
+        working-directory: tests/bdd
+        run: docker compose -p bdd-mtls-auth -f docker-compose.base.yml -f docker-compose.mtls-auth.yml logs --tail=100 || true
+
+      - name: Cleanup containers
+        if: always()
+        working-directory: tests/bdd
+        run: |
+          docker compose -p bdd-mtls-auth -f docker-compose.base.yml -f docker-compose.mtls-auth.yml down -v || true

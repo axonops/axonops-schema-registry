@@ -71,7 +71,7 @@ Authentication is optional but recommended for production deployments. When enab
 2. **Basic Auth** -- database users with bcrypt-hashed passwords, with LDAP fallback if configured
 3. **OIDC Bearer Token** -- OpenID Connect token validation
 4. **JWT Bearer Token** -- static key or JWKS-based token validation
-5. **mTLS Client Certificate** -- client certificate Common Name used as identity
+5. **mTLS (Transport Only)** -- client certificate verification at the transport layer (not an auth method)
 
 When authentication is disabled (the default), all endpoints are accessible without credentials. The health check (`/`) and metrics (`/metrics`) endpoints are always unauthenticated regardless of configuration.
 
@@ -95,7 +95,7 @@ security:
       default_role: readonly
 ```
 
-The `methods` list defines which authentication methods are active and the order in which they are tried. Valid values are `api_key`, `basic`, `jwt`, `oidc`, and `mtls`.
+The `methods` list defines which authentication methods are active and the order in which they are tried. Valid values are `api_key`, `basic`, `jwt`, and `oidc`. mTLS is transport-level security configured via `security.tls.*`, not an auth method.
 
 When a request fails all configured methods, the registry returns `401 Unauthorized` with appropriate `WWW-Authenticate` headers for each enabled method.
 
@@ -505,13 +505,15 @@ curl -H "Authorization: Bearer eyJhbGciOiJSUzI1NiIs..." \
 | `audience` | Expected token audience (`aud` claim) | `""` |
 | `claims_mapping` | Map of standard claim names to custom claim names | `{}` |
 
-## mTLS (Mutual TLS)
+## mTLS (Mutual TLS) — Transport Security
 
-Mutual TLS authentication uses client certificates to identify users. The Common Name (CN) from the client certificate's subject is used as the username.
+mTLS is **transport-level security only**. It verifies that connecting clients present a valid certificate signed by a trusted CA, but it does NOT provide authentication or authorization. To get user identity and RBAC, layer mTLS with an authentication method such as `basic`, `jwt`, or `oidc`.
+
+> **Important:** `mtls` is NOT a valid value for `security.auth.methods`. It is configured exclusively via `security.tls.*` settings.
 
 ### Configuration
 
-First, enable TLS on the server:
+Enable TLS with client certificate verification:
 
 ```yaml
 security:
@@ -521,19 +523,26 @@ security:
     key_file: "/etc/schema-registry/server.key"
     ca_file: "/etc/schema-registry/ca.crt"
     client_auth: "verify"
-    min_version: "TLS1.2"
+    min_version: "TLS1.3"
 ```
 
-Then enable mTLS as an authentication method:
+To combine mTLS with authentication and RBAC:
 
 ```yaml
 security:
+  tls:
+    enabled: true
+    cert_file: "/etc/schema-registry/server.crt"
+    key_file: "/etc/schema-registry/server.key"
+    ca_file: "/etc/schema-registry/ca.crt"
+    client_auth: "verify"
   auth:
     enabled: true
     methods:
-      - mtls
+      - basic
     rbac:
-      default_role: developer
+      enabled: true
+      default_role: readonly
 ```
 
 ### Client Auth Modes
@@ -545,7 +554,7 @@ security:
 | `require` | Client certificate required but not verified against CA |
 | `verify` | Client certificate required and verified against the CA in `ca_file` |
 
-For mTLS authentication, use `verify` to ensure clients present valid certificates signed by your CA.
+For mTLS transport security, use `verify` to ensure clients present valid certificates signed by your CA.
 
 ### Usage
 
@@ -554,7 +563,9 @@ curl --cert client.crt --key client.key --cacert ca.crt \
   https://localhost:8081/subjects
 ```
 
-The authenticated username is the CN from the client certificate. Users authenticated via mTLS are assigned the `default_role` from the RBAC configuration.
+### Audit Events
+
+When mTLS is active, all audit events include `"transport_security": "mtls"`. When TLS is used without client certificates, audit events include `"transport_security": "tls"`. Without TLS, events include `"transport_security": "none"`.
 
 ## Roles and Permissions
 
@@ -580,7 +591,7 @@ security:
         - ops-lead
 ```
 
-Users listed in `super_admins` have all permissions regardless of their assigned role. The `default_role` is applied when an authentication method does not provide a role (e.g., mTLS, config-based basic auth).
+Users listed in `super_admins` have all permissions regardless of their assigned role. The `default_role` is applied when an authentication method does not provide a role (e.g., config-based basic auth).
 
 ## User Management API
 

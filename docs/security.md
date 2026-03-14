@@ -33,7 +33,7 @@
 
 Security in AxonOps Schema Registry spans authentication, authorization, transport encryption, rate limiting, and audit logging. All security features are optional and can be enabled independently. When no security configuration is present, the registry operates in open mode with all endpoints accessible without credentials.
 
-For detailed coverage of authentication methods (Basic Auth, API keys, LDAP, OIDC, JWT, mTLS), user management, and the admin CLI, see the [Authentication](authentication.md) guide. This document focuses on transport security, access control policies, rate limiting, audit logging, and operational hardening.
+For detailed coverage of authentication methods (Basic Auth, API keys, LDAP, OIDC, JWT), user management, and the admin CLI, see the [Authentication](authentication.md) guide. mTLS is transport-level security (not an auth method) and is documented in [Configuration](configuration.md#tls). This document focuses on transport security, access control policies, rate limiting, audit logging, and operational hardening.
 
 ## Transport Layer Security (TLS)
 
@@ -129,7 +129,7 @@ security:
 | `default_role` | Role assigned when an authentication method does not provide one | `""` |
 | `super_admins` | Usernames with full access to all operations including user management | `[]` |
 
-When RBAC is disabled, all authenticated users have unrestricted access. When enabled, users listed in `super_admins` bypass all permission checks. The `default_role` is applied to users authenticated via methods that do not inherently assign a role (e.g., mTLS, config-based basic auth).
+When RBAC is disabled, all authenticated users have unrestricted access. When enabled, users listed in `super_admins` bypass all permission checks. The `default_role` is applied to users authenticated via methods that do not inherently assign a role (e.g., config-based basic auth).
 
 ## Credential Storage
 
@@ -308,7 +308,7 @@ The MCP server has its own security controls, independent from the REST API. For
 ## Security Hardening Checklist
 
 1. **Enable TLS** with a minimum version of TLS 1.2 (`min_version: "TLS1.2"`), or terminate TLS at a load balancer and restrict the registry to private network traffic.
-2. **Enable authentication** with at least one method (`basic`, `api_key`, `jwt`, `oidc`, or `mtls`).
+2. **Enable authentication** with at least one method (`basic`, `api_key`, `jwt`, or `oidc`).
 3. **Enable RBAC** with a restrictive `default_role` (e.g., `readonly`) and explicitly assign higher-privilege roles only where needed.
 4. **Use API keys with expiration** for programmatic access. Rotate keys regularly via the admin API or CLI.
 5. **Configure the API key HMAC secret** (`api_key.secret`) on all registry instances and store it in an environment variable or secrets manager.
