@@ -1,0 +1,9 @@
+# Docker Compose overlay for mTLS transport tests.
+# Layers on docker-compose.base.yml which already has TLS enabled.
+# This overlay adds client certificate verification.
+
+services:
+  schema-registry:
+    environment:
+      SCHEMA_REGISTRY_TLS_CA_FILE: "/etc/tls/ca.pem"
+      SCHEMA_REGISTRY_TLS_CLIENT_AUTH: "verify"

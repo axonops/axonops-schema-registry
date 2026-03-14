@@ -448,6 +448,53 @@ func RegisterAuthSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 		}
 		return nil
 	})
+
+	// --- mTLS client certificate steps ---
+	ctx.Step(`^I connect with mTLS certificate "([^"]*)"$`, func(certName string) error {
+		_, filename, _, _ := runtime.Caller(0)
+		stepsDir := filepath.Dir(filename)
+		certsDir := filepath.Join(stepsDir, "..", "certs", "mtls")
+		certFile := filepath.Join(certsDir, certName+".pem")
+		keyFile := filepath.Join(certsDir, certName+"-key.pem")
+		caFile := filepath.Join(certsDir, "ca.pem")
+		return tc.SetMTLSClient(certFile, keyFile, caFile)
+	})
+
+	ctx.Step(`^I connect without a client certificate$`, func() error {
+		tc.SetTLSOnlyClient()
+		return nil
+	})
+
+	ctx.Step(`^the connection should be refused$`, func() error {
+		if LastError == nil {
+			return fmt.Errorf("expected connection error but request succeeded with status %d", tc.LastStatusCode)
+		}
+		return nil
+	})
+
+	ctx.Step(`^I attempt a GET request to "([^"]*)"$`, func(path string) error {
+		return tc.DoRequestAllowError("GET", path, nil)
+	})
+
+	ctx.Step(`^I attempt a POST request to "([^"]*)" with body:$`, func(path string, body *godog.DocString) error {
+		var parsed interface{}
+		if err := json.Unmarshal([]byte(body.Content), &parsed); err != nil {
+			return fmt.Errorf("parse body: %w", err)
+		}
+		return tc.DoRequestAllowError("POST", path, parsed)
+	})
+
+	ctx.Step(`^I attempt a DELETE request to "([^"]*)"$`, func(path string) error {
+		return tc.DoRequestAllowError("DELETE", path, nil)
+	})
+
+	ctx.Step(`^I attempt a PUT request to "([^"]*)" with body:$`, func(path string, body *godog.DocString) error {
+		var parsed interface{}
+		if err := json.Unmarshal([]byte(body.Content), &parsed); err != nil {
+			return fmt.Errorf("parse body: %w", err)
+		}
+		return tc.DoRequestAllowError("PUT", path, parsed)
+	})
 }
 
 func truncate(s string, maxLen int) string {

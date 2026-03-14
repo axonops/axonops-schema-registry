@@ -1,0 +1,10 @@
+# Docker Compose overlay for mTLS + Basic auth tests.
+# Layers on docker-compose.base.yml which already has TLS enabled.
+# Adds client certificate verification and Basic auth with RBAC.
+
+services:
+  schema-registry:
+    command: ["--config", "/etc/schema-registry/config.memory-auth-mtls.yaml"]
+    environment:
+      SCHEMA_REGISTRY_TLS_CA_FILE: "/etc/tls/ca.pem"
+      SCHEMA_REGISTRY_TLS_CLIENT_AUTH: "verify"

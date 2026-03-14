@@ -15,6 +15,8 @@ package bdd
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
@@ -38,6 +40,19 @@ import (
 
 	"github.com/axonops/axonops-schema-registry/tests/bdd/steps"
 )
+
+// tlsHTTPClient returns an HTTP client that accepts self-signed TLS certificates.
+// Used for all BDD test HTTP operations against the registry REST API.
+func tlsHTTPClient(timeout time.Duration) *http.Client {
+	return &http.Client{
+		Timeout: timeout,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true,
+			},
+		},
+	}
+}
 
 var (
 	registryURL  string
@@ -73,12 +88,15 @@ func TestMain(m *testing.M) {
 			log.Fatalf("Failed to start compose: %v", err)
 		}
 
-		registryURL = fmt.Sprintf("http://localhost:%s", envOrDefault("REGISTRY_PORT", "18081"))
 		webhookURL = fmt.Sprintf("http://localhost:%s", envOrDefault("WEBHOOK_PORT", "19000"))
 
-		// Confluent: JMX exporter sidecar exposes metrics on a separate port.
 		if backend == "confluent" {
+			// Confluent does not use our TLS config — stays on HTTP.
+			registryURL = fmt.Sprintf("http://localhost:%s", envOrDefault("REGISTRY_PORT", "18081"))
 			metricsURL = fmt.Sprintf("http://localhost:%s/metrics", envOrDefault("JMX_METRICS_PORT", "19090"))
+		} else {
+			// Our registry runs with TLS enabled (docker-compose.base.yml).
+			registryURL = fmt.Sprintf("https://localhost:%s", envOrDefault("REGISTRY_PORT", "18081"))
 		}
 
 		waitTimeout := 120 * time.Second
@@ -115,12 +133,12 @@ func TestFeatures(t *testing.T) {
 	if envTags := os.Getenv("BDD_TAGS"); envTags != "" {
 		tags = envTags
 	} else if backend == "confluent" {
-		tags = "~@operational && ~@import && ~@axonops-only && ~@contexts && ~@pending-impl && ~@data-contracts && ~@auth && ~@oidc && ~@jwt && ~@kms && ~@mcp && ~@analysis && ~@audit && ~@audit-outputs && ~@memory && ~@postgres && ~@mysql && ~@cassandra"
+		tags = "~@operational && ~@import && ~@axonops-only && ~@contexts && ~@pending-impl && ~@data-contracts && ~@auth && ~@oidc && ~@jwt && ~@mtls && ~@kms && ~@mcp && ~@analysis && ~@audit && ~@audit-outputs && ~@memory && ~@postgres && ~@mysql && ~@cassandra"
 	} else {
 		// Docker mode: run operational + functional scenarios for this backend.
 		// Auth, MCP, audit, KMS are handled by their own test functions with separate stacks.
 		allBackends := []string{"memory", "postgres", "mysql", "cassandra"}
-		excludes := []string{"~@pending-impl", "~@auth", "~@ldap", "~@oidc", "~@jwt", "~@mcp", "~@audit", "~@audit-outputs"}
+		excludes := []string{"~@pending-impl", "~@auth", "~@ldap", "~@oidc", "~@jwt", "~@mtls", "~@mcp", "~@audit", "~@audit-outputs"}
 		if os.Getenv("BDD_KMS") != "true" {
 			excludes = append(excludes, "~@kms")
 		}
@@ -236,7 +254,7 @@ func TestAuthFeatures(t *testing.T) {
 		composeDownWithProject(authFiles, "bdd-auth")
 	})
 
-	authURL := "http://localhost:18082"
+	authURL := "https://localhost:18082"
 	authWebhook := "http://localhost:19001"
 
 	waitTimeout := 120 * time.Second
@@ -256,7 +274,7 @@ func TestAuthFeatures(t *testing.T) {
 		Format:   "pretty",
 		Output:   colors.Colored(os.Stdout),
 		Paths:    []string{"features"},
-		Tags:     "@auth && ~@ldap && ~@oidc && ~@jwt && ~@pending-impl",
+		Tags:     "@auth && ~@ldap && ~@oidc && ~@jwt && ~@mtls && ~@pending-impl",
 		Strict:   true,
 		TestingT: t,
 	}
@@ -336,7 +354,7 @@ func TestMCPFeatures(t *testing.T) {
 		composeDownWithProject(mcpFiles, "bdd-mcp")
 	})
 
-	mcpRESTURL := "http://localhost:18083"
+	mcpRESTURL := "https://localhost:18083"
 	mcpURL := "http://localhost:19081/mcp"
 	mcpWebhook := "http://localhost:19002"
 
@@ -448,7 +466,7 @@ func TestMCPKMSFeatures(t *testing.T) {
 		composeDownWithProject(mcpFiles, "bdd-mcp-kms")
 	})
 
-	mcpRESTURL := "http://localhost:18085"
+	mcpRESTURL := "https://localhost:18085"
 	mcpURL := "http://localhost:19083/mcp"
 	mcpWebhook := "http://localhost:19004"
 
@@ -556,7 +574,7 @@ func TestMCPMetricsFeatures(t *testing.T) {
 		composeDownWithProject(mcpFiles, "bdd-mcp-metrics")
 	})
 
-	mcpRESTURL := "http://localhost:18086"
+	mcpRESTURL := "https://localhost:18086"
 	mcpURL := "http://localhost:19084/mcp"
 	mcpWebhook := "http://localhost:19005"
 
@@ -654,7 +672,7 @@ func TestMCPConfirmationFeatures(t *testing.T) {
 		composeDownWithProject(mcpFiles, "bdd-mcp-confirm")
 	})
 
-	mcpRESTURL := "http://localhost:18087"
+	mcpRESTURL := "https://localhost:18087"
 	mcpURL := "http://localhost:19085/mcp"
 	mcpWebhook := "http://localhost:19006"
 
@@ -783,7 +801,7 @@ func TestMCPPermissionsFeatures(t *testing.T) {
 				composeDownWithProject(mcpFiles, projectName)
 			})
 
-			mcpRESTURL := fmt.Sprintf("http://localhost:%d", restPort)
+			mcpRESTURL := fmt.Sprintf("https://localhost:%d", restPort)
 			mcpURL := fmt.Sprintf("http://localhost:%d/mcp", mcpPort)
 			mcpWebhook := fmt.Sprintf("http://localhost:%d", webhookPort)
 
@@ -882,7 +900,7 @@ func TestMCPAuditFeatures(t *testing.T) {
 		composeDownWithProject(auditFiles, projectName)
 	})
 
-	mcpRESTURL := "http://localhost:18089"
+	mcpRESTURL := "https://localhost:18089"
 	mcpURL := "http://localhost:19086/mcp"
 	mcpWebhook := "http://localhost:19008"
 
@@ -995,7 +1013,7 @@ func TestKMSFeatures(t *testing.T) {
 		composeDownWithProject(kmsFiles, "bdd-rest-kms")
 	})
 
-	restURL := "http://localhost:18088"
+	restURL := "https://localhost:18088"
 
 	log.Printf("Waiting for KMS registry at %s ...", restURL)
 	if err := waitForURL(restURL+"/", waitTimeout); err != nil {
@@ -1086,7 +1104,7 @@ func TestRESTAuditFeatures(t *testing.T) {
 		composeDownWithProject(auditFiles, projectName)
 	})
 
-	restURL := "http://localhost:18091"
+	restURL := "https://localhost:18091"
 
 	log.Printf("Waiting for audit registry at %s ...", restURL)
 	if err := waitForURL(restURL+"/", 120*time.Second); err != nil {
@@ -1168,7 +1186,7 @@ func TestAuditOutputsFeatures(t *testing.T) {
 		composeDownWithProject(composeFiles, projectName)
 	})
 
-	restURL := "http://localhost:18110"
+	restURL := "https://localhost:18110"
 	webhookReceiverURL := "http://localhost:19013"
 
 	log.Printf("Waiting for audit outputs registry at %s ...", restURL)
@@ -1272,7 +1290,7 @@ func TestLDAPFeatures(t *testing.T) {
 		composeDownWithProject(ldapFiles, projectName)
 	})
 
-	ldapURL := "http://localhost:18092"
+	ldapURL := "https://localhost:18092"
 	ldapWebhook := "http://localhost:19010"
 
 	log.Printf("Waiting for LDAP registry at %s ...", ldapURL)
@@ -1360,7 +1378,7 @@ func TestOIDCFeatures(t *testing.T) {
 		composeDownWithProject(oidcFiles, projectName)
 	})
 
-	oidcURL := "http://localhost:18093"
+	oidcURL := "https://localhost:18093"
 	oidcWebhook := "http://localhost:19011"
 	kcTokenURL := "http://localhost:29080/realms/schema-registry/protocol/openid-connect/token"
 
@@ -1451,7 +1469,7 @@ func TestJWTFeatures(t *testing.T) {
 		composeDownWithProject(jwtFiles, projectName)
 	})
 
-	jwtURL := "http://localhost:18094"
+	jwtURL := "https://localhost:18094"
 	jwtWebhook := "http://localhost:19014"
 
 	log.Printf("Waiting for JWT registry at %s ...", jwtURL)
@@ -1510,6 +1528,324 @@ func TestJWTFeatures(t *testing.T) {
 	if suite.Run() != 0 {
 		t.Fatal("JWT BDD tests failed")
 	}
+}
+
+// TestMTLSFeatures runs mTLS transport BDD tests — client certificate verification without auth.
+func TestMTLSFeatures(t *testing.T) {
+	if bddBackend := os.Getenv("BDD_BACKEND"); bddBackend != "" && bddBackend != "memory" {
+		t.Skip("mTLS Docker tests only run on memory backend (they start their own compose stack)")
+	}
+	if containerCmd == "" {
+		containerCmd = findContainerCmd()
+	}
+	mtlsFiles := []string{"docker-compose.base.yml", "docker-compose.mtls.yml"}
+	mtlsEnv := []string{
+		"REGISTRY_PORT=18096",
+		"WEBHOOK_PORT=19015",
+	}
+	projectName := "bdd-mtls"
+
+	log.Printf("Starting mTLS compose stack...")
+	if err := composeUpWithProject(mtlsFiles, projectName, mtlsEnv); err != nil {
+		t.Fatalf("Failed to start mTLS compose: %v", err)
+	}
+	t.Cleanup(func() {
+		log.Println("Stopping mTLS compose stack...")
+		composeDownWithProject(mtlsFiles, projectName)
+	})
+
+	mtlsURL := "https://localhost:18096"
+
+	log.Printf("Waiting for mTLS registry at %s ...", mtlsURL)
+	// Use mTLS client for health check since the server requires client certs.
+	if err := waitForMTLSURL(mtlsURL+"/", 120*time.Second); err != nil {
+		composeLogsWithProject(mtlsFiles, projectName)
+		t.Fatalf("mTLS registry did not become healthy: %v", err)
+	}
+	log.Println("mTLS registry is healthy.")
+
+	mtlsAuditFetcher, clearMTLSAuditLog := makeAuditHelpers(mtlsFiles, projectName)
+
+	opts := godog.Options{
+		Format:   "pretty",
+		Output:   colors.Colored(os.Stdout),
+		Paths:    []string{"features"},
+		Tags:     "@mtls && ~@mtls-auth && ~@pending-impl",
+		Strict:   true,
+		TestingT: t,
+	}
+
+	suite := godog.TestSuite{
+		ScenarioInitializer: func(ctx *godog.ScenarioContext) {
+			tc := steps.NewTestContext(mtlsURL)
+			if mtlsAuditFetcher != nil {
+				tc.StoredValues["_audit_fetcher"] = mtlsAuditFetcher
+			}
+
+			ctx.Before(func(gctx context.Context, sc *godog.Scenario) (context.Context, error) {
+				if clearMTLSAuditLog != nil {
+					if err := clearMTLSAuditLog(); err != nil {
+						return gctx, fmt.Errorf("clear audit log: %w", err)
+					}
+				}
+				if err := cleanViaAPIMTLS(mtlsURL, "", ""); err != nil {
+					return gctx, fmt.Errorf("clean mTLS registry: %w", err)
+				}
+				return gctx, nil
+			})
+
+			steps.RegisterSchemaSteps(ctx, tc)
+			steps.RegisterImportSteps(ctx, tc)
+			steps.RegisterModeSteps(ctx, tc)
+			steps.RegisterReferenceSteps(ctx, tc)
+			steps.RegisterInfraSteps(ctx, tc)
+			steps.RegisterAuthSteps(ctx, tc)
+			steps.RegisterEncryptionSteps(ctx, tc)
+			steps.RegisterConcurrencySteps(ctx, tc)
+			steps.RegisterRateLimitSteps(ctx, tc)
+			steps.RegisterMetricsSteps(ctx, tc)
+			steps.RegisterMCPSteps(ctx, tc)
+		},
+		Options: &opts,
+	}
+
+	if suite.Run() != 0 {
+		t.Fatal("mTLS BDD tests failed")
+	}
+}
+
+// TestMTLSAuthFeatures runs mTLS + Basic auth BDD tests — client cert + auth + RBAC.
+func TestMTLSAuthFeatures(t *testing.T) {
+	if bddBackend := os.Getenv("BDD_BACKEND"); bddBackend != "" && bddBackend != "memory" {
+		t.Skip("mTLS auth Docker tests only run on memory backend (they start their own compose stack)")
+	}
+	if containerCmd == "" {
+		containerCmd = findContainerCmd()
+	}
+	mtlsAuthFiles := []string{"docker-compose.base.yml", "docker-compose.mtls-auth.yml"}
+	mtlsAuthEnv := []string{
+		"REGISTRY_PORT=18097",
+		"WEBHOOK_PORT=19016",
+	}
+	projectName := "bdd-mtls-auth"
+
+	log.Printf("Starting mTLS + auth compose stack...")
+	if err := composeUpWithProject(mtlsAuthFiles, projectName, mtlsAuthEnv); err != nil {
+		t.Fatalf("Failed to start mTLS auth compose: %v", err)
+	}
+	t.Cleanup(func() {
+		log.Println("Stopping mTLS + auth compose stack...")
+		composeDownWithProject(mtlsAuthFiles, projectName)
+	})
+
+	mtlsAuthURL := "https://localhost:18097"
+	mtlsAuthWebhook := "http://localhost:19016"
+
+	log.Printf("Waiting for mTLS+auth registry at %s ...", mtlsAuthURL)
+	if err := waitForMTLSURL(mtlsAuthURL+"/", 120*time.Second); err != nil {
+		composeLogsWithProject(mtlsAuthFiles, projectName)
+		t.Fatalf("mTLS+auth registry did not become healthy: %v", err)
+	}
+	log.Println("mTLS+auth registry is healthy.")
+
+	mtlsAuthAuditFetcher, clearMTLSAuthAuditLog := makeAuditHelpers(mtlsAuthFiles, projectName)
+
+	opts := godog.Options{
+		Format:   "pretty",
+		Output:   colors.Colored(os.Stdout),
+		Paths:    []string{"features"},
+		Tags:     "@mtls-auth && ~@pending-impl",
+		Strict:   true,
+		TestingT: t,
+	}
+
+	suite := godog.TestSuite{
+		ScenarioInitializer: func(ctx *godog.ScenarioContext) {
+			tc := steps.NewTestContext(mtlsAuthURL)
+			tc.WebhookURL = mtlsAuthWebhook
+			if mtlsAuthAuditFetcher != nil {
+				tc.StoredValues["_audit_fetcher"] = mtlsAuthAuditFetcher
+			}
+
+			ctx.Before(func(gctx context.Context, sc *godog.Scenario) (context.Context, error) {
+				// Restart registry to reset in-memory state and re-bootstrap admin.
+				if err := restartMTLSAuthRegistry(mtlsAuthURL, mtlsAuthWebhook); err != nil {
+					return gctx, fmt.Errorf("restart mTLS auth registry: %w", err)
+				}
+				if clearMTLSAuthAuditLog != nil {
+					if err := clearMTLSAuthAuditLog(); err != nil {
+						return gctx, fmt.Errorf("clear audit log: %w", err)
+					}
+				}
+				return gctx, nil
+			})
+
+			steps.RegisterSchemaSteps(ctx, tc)
+			steps.RegisterImportSteps(ctx, tc)
+			steps.RegisterModeSteps(ctx, tc)
+			steps.RegisterReferenceSteps(ctx, tc)
+			steps.RegisterInfraSteps(ctx, tc)
+			steps.RegisterAuthSteps(ctx, tc)
+			steps.RegisterEncryptionSteps(ctx, tc)
+			steps.RegisterConcurrencySteps(ctx, tc)
+			steps.RegisterRateLimitSteps(ctx, tc)
+			steps.RegisterMetricsSteps(ctx, tc)
+			steps.RegisterMCPSteps(ctx, tc)
+		},
+		Options: &opts,
+	}
+
+	if suite.Run() != 0 {
+		t.Fatal("mTLS auth BDD tests failed")
+	}
+}
+
+// waitForMTLSURL waits for a URL that requires mTLS client certificates.
+// Uses the test client-admin certificate for the health check.
+func waitForMTLSURL(url string, timeout time.Duration) error {
+	tc := steps.NewTestContext("")
+	certsDir := "certs/mtls"
+	if err := tc.SetMTLSClient(
+		certsDir+"/client-admin.pem",
+		certsDir+"/client-admin-key.pem",
+		certsDir+"/ca.pem",
+	); err != nil {
+		return fmt.Errorf("configure mTLS client for health check: %w", err)
+	}
+
+	deadline := time.Now().Add(timeout)
+	var lastErr error
+	for time.Now().Before(deadline) {
+		req, _ := http.NewRequest("GET", url, nil)
+		resp, err := tc.Client().Do(req)
+		if err == nil {
+			resp.Body.Close()
+			if resp.StatusCode == 200 {
+				return nil
+			}
+			lastErr = fmt.Errorf("status %d", resp.StatusCode)
+		} else {
+			lastErr = err
+		}
+		time.Sleep(2 * time.Second)
+	}
+	return fmt.Errorf("timeout waiting for %s: %v", url, lastErr)
+}
+
+// mtlsHTTPClient returns an HTTP client configured with the test client-admin certificate.
+func mtlsHTTPClient(timeout time.Duration) *http.Client {
+	certsDir := "certs/mtls"
+	cert, err := tls.LoadX509KeyPair(certsDir+"/client-admin.pem", certsDir+"/client-admin-key.pem")
+	if err != nil {
+		log.Fatalf("load mTLS client cert: %v", err)
+	}
+	caCert, err := os.ReadFile(certsDir + "/ca.pem")
+	if err != nil {
+		log.Fatalf("read mTLS CA cert: %v", err)
+	}
+	caPool := x509.NewCertPool()
+	caPool.AppendCertsFromPEM(caCert)
+	return &http.Client{
+		Timeout: timeout,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				Certificates: []tls.Certificate{cert},
+				RootCAs:      caPool,
+			},
+		},
+	}
+}
+
+// cleanViaAPIMTLS resets all state via the REST API using mTLS client certificates.
+func cleanViaAPIMTLS(baseURL, username, password string) error {
+	client := mtlsHTTPClient(10 * time.Second)
+	var authHeader string
+	if username != "" {
+		authHeader = "Basic " + base64.StdEncoding.EncodeToString([]byte(username+":"+password))
+	}
+
+	doReq := func(method, path string, body io.Reader) (*http.Response, error) {
+		req, err := http.NewRequest(method, baseURL+path, body)
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Set("Content-Type", "application/vnd.schemaregistry.v1+json")
+		if authHeader != "" {
+			req.Header.Set("Authorization", authHeader)
+		}
+		return client.Do(req)
+	}
+
+	// 1. Reset global mode to READWRITE
+	r, err := doReq("PUT", "/mode", strings.NewReader(`{"mode":"READWRITE"}`))
+	if err != nil {
+		return fmt.Errorf("reset mode: %w", err)
+	}
+	r.Body.Close()
+
+	// 2. Soft-delete all active subjects
+	resp, err := doReq("GET", "/subjects", nil)
+	if err != nil {
+		return fmt.Errorf("list subjects: %w", err)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	resp.Body.Close()
+
+	var activeSubjects []string
+	if resp.StatusCode == 200 && len(body) > 0 {
+		json.Unmarshal(body, &activeSubjects)
+	}
+	for _, subj := range activeSubjects {
+		r, err := doReq("DELETE", "/subjects/"+url.PathEscape(subj), nil)
+		if err != nil {
+			return fmt.Errorf("soft-delete subject %s: %w", subj, err)
+		}
+		r.Body.Close()
+	}
+
+	// 3. Permanently delete all subjects
+	resp, err = doReq("GET", "/subjects?deleted=true", nil)
+	if err != nil {
+		return fmt.Errorf("list deleted subjects: %w", err)
+	}
+	body, _ = io.ReadAll(resp.Body)
+	resp.Body.Close()
+
+	var allSubjects []string
+	if resp.StatusCode == 200 && len(body) > 0 {
+		json.Unmarshal(body, &allSubjects)
+	}
+	for _, subj := range allSubjects {
+		r, err := doReq("DELETE", "/subjects/"+url.PathEscape(subj)+"?permanent=true", nil)
+		if err != nil {
+			return fmt.Errorf("hard-delete subject %s: %w", subj, err)
+		}
+		r.Body.Close()
+	}
+
+	// 4. Reset global config
+	r, err = doReq("DELETE", "/config", nil)
+	if err != nil {
+		return fmt.Errorf("reset config: %w", err)
+	}
+	r.Body.Close()
+
+	return nil
+}
+
+// restartMTLSAuthRegistry restarts the registry via webhook and waits for it using mTLS health check.
+func restartMTLSAuthRegistry(registryURL, webhookURL string) error {
+	// Webhook endpoint is NOT behind mTLS — use regular HTTP client.
+	webhookClient := &http.Client{Timeout: 5 * time.Second}
+	resp, err := webhookClient.Post(webhookURL+"/hooks/restart-service", "application/json", nil)
+	if err != nil {
+		return fmt.Errorf("restart webhook: %w", err)
+	}
+	resp.Body.Close()
+
+	time.Sleep(500 * time.Millisecond)
+
+	return waitForMTLSURL(registryURL+"/", 30*time.Second)
 }
 
 // makeSyslogFetcherFile creates a function that reads a syslog-ng log file from the container.
@@ -1602,7 +1938,7 @@ func waitForMCPEndpoint(mcpURL string, timeout time.Duration) error {
 // cleanViaAPIWithAuth resets all state via the REST API using optional Basic auth credentials.
 // When username is empty, no Authorization header is sent.
 func cleanViaAPIWithAuth(baseURL, username, password string) error {
-	client := &http.Client{Timeout: 10 * time.Second}
+	client := tlsHTTPClient(10 * time.Second)
 	var authHeader string
 	if username != "" {
 		authHeader = "Basic " + base64.StdEncoding.EncodeToString([]byte(username+":"+password))
@@ -2030,7 +2366,7 @@ func cleanCassandraPort(port string) error {
 // Order matters: reset mode first (READWRITE allows writes/deletes),
 // then delete subjects, then reset config.
 func cleanViaAPI() error {
-	client := &http.Client{Timeout: 10 * time.Second}
+	client := tlsHTTPClient(10 * time.Second)
 
 	// 1. Reset global mode to READWRITE first — a READONLY mode blocks DELETE operations.
 	modeBody := strings.NewReader(`{"mode":"READWRITE"}`)
@@ -2185,7 +2521,7 @@ func cleanViaAPI() error {
 // the rate limiter, in-memory storage, and credential cache are all reset on restart, and the
 // bootstrap config automatically re-creates the admin user.
 func restartAuthRegistry(registryURL, webhookURL string) error {
-	client := &http.Client{Timeout: 5 * time.Second}
+	client := tlsHTTPClient(5 * time.Second)
 
 	// Restart the service via webhook
 	resp, err := client.Post(webhookURL+"/hooks/restart-service", "application/json", nil)
@@ -2216,7 +2552,7 @@ func restartAuthRegistry(registryURL, webhookURL string) error {
 // This is used for Docker-mode auth tests where the registry requires authentication.
 // It cleans subjects, config, mode, KEKs, exporters, and non-admin users/API keys.
 func cleanAuthViaAPI(baseURL string) error {
-	client := &http.Client{Timeout: 10 * time.Second}
+	client := tlsHTTPClient(10 * time.Second)
 
 	doReq := func(method, url string, body io.Reader) (*http.Response, error) {
 		req, err := http.NewRequest(method, url, body)
@@ -2526,7 +2862,7 @@ func composeLogsWithProject(files []string, project string) {
 // cleanup between operational scenarios where a previous scenario may
 // have stopped or killed the registry.
 func ensureRegistryRunning() error {
-	client := &http.Client{Timeout: 3 * time.Second}
+	client := tlsHTTPClient(3 * time.Second)
 	resp, err := client.Get(registryURL + "/")
 	if err == nil {
 		resp.Body.Close()
@@ -2544,7 +2880,7 @@ func ensureRegistryRunning() error {
 }
 
 func waitForURL(url string, timeout time.Duration) error {
-	client := &http.Client{Timeout: 2 * time.Second}
+	client := tlsHTTPClient(2 * time.Second)
 	deadline := time.Now().Add(timeout)
 	var lastErr error
 	for time.Now().Before(deadline) {

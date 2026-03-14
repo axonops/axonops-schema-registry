@@ -3,6 +3,7 @@
 package steps
 
 import (
+	"crypto/tls"
 	"fmt"
 	"net/http"
 	"time"
@@ -37,7 +38,7 @@ func RegisterRateLimitSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 
 // sendRapidRequests fires count sequential GET requests as fast as possible and returns all status codes.
 func sendRapidRequests(tc *TestContext, count int, path string) []int {
-	client := &http.Client{Timeout: 5 * time.Second}
+	client := &http.Client{Timeout: 5 * time.Second, Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}}
 	url := tc.BaseURL + path
 
 	statuses := make([]int, 0, count)

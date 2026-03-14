@@ -4,6 +4,7 @@ package steps
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -80,7 +81,7 @@ func RegisterConcurrencySteps(ctx *godog.ScenarioContext, tc *TestContext) {
 
 	// N goroutines each register a unique Avro schema to separate subjects.
 	ctx.Step(`^(\d+) goroutines each register a unique Avro schema to separate subjects$`, func(n int) error {
-		client := &http.Client{Timeout: 10 * time.Second}
+		client := &http.Client{Timeout: 10 * time.Second, Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}}
 		results := make([]concResult, n)
 		var wg sync.WaitGroup
 		wg.Add(n)
@@ -105,7 +106,7 @@ func RegisterConcurrencySteps(ctx *godog.ScenarioContext, tc *TestContext) {
 
 	// N goroutines register the same Avro schema to a single subject.
 	ctx.Step(`^(\d+) goroutines register the same Avro schema to subject "([^"]*)"$`, func(n int, subject string) error {
-		client := &http.Client{Timeout: 10 * time.Second}
+		client := &http.Client{Timeout: 10 * time.Second, Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}}
 		schema := `{"type":"record","name":"Identical","fields":[{"name":"v","type":"string"}]}`
 		body := map[string]interface{}{"schema": schema}
 		results := make([]concResult, n)
@@ -163,7 +164,7 @@ func RegisterConcurrencySteps(ctx *godog.ScenarioContext, tc *TestContext) {
 		if len(subjects) < n {
 			return fmt.Errorf("expected at least %d subjects, got %d", n, len(subjects))
 		}
-		client := &http.Client{Timeout: 10 * time.Second}
+		client := &http.Client{Timeout: 10 * time.Second, Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}}
 		results := make([]concResult, n)
 		var wg sync.WaitGroup
 		wg.Add(n)
@@ -185,7 +186,7 @@ func RegisterConcurrencySteps(ctx *godog.ScenarioContext, tc *TestContext) {
 
 	// W writer goroutines add versions and R reader goroutines read latest from a subject.
 	ctx.Step(`^(\d+) writer goroutines add versions and (\d+) reader goroutines read latest from subject "([^"]*)"$`, func(writers, readers int, subject string) error {
-		client := &http.Client{Timeout: 10 * time.Second}
+		client := &http.Client{Timeout: 10 * time.Second, Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}}
 		total := writers + readers
 		results := make([]concResult, total)
 		var mu sync.Mutex
@@ -237,7 +238,7 @@ func RegisterConcurrencySteps(ctx *godog.ScenarioContext, tc *TestContext) {
 
 	// N goroutines attempt to register schemas to a subject (used for READONLY mode test).
 	ctx.Step(`^(\d+) goroutines attempt to register schemas to subject "([^"]*)"$`, func(n int, subject string) error {
-		client := &http.Client{Timeout: 10 * time.Second}
+		client := &http.Client{Timeout: 10 * time.Second, Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}}
 		results := make([]concResult, n)
 		var wg sync.WaitGroup
 		wg.Add(n)

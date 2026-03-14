@@ -281,6 +281,18 @@ test-bdd-jwt:
 	BDD_BACKEND=memory CONTAINER_CMD=$(CONTAINER_CMD) \
 		$(GOTEST) -tags bdd -v -count=1 -timeout $(TIMEOUT_BDD_POSTGRES) -run TestJWTFeatures ./tests/bdd/...
 
+## Run BDD mTLS transport tests (Docker, client cert verification)
+test-bdd-mtls:
+	@echo "=== BDD mTLS Transport Tests (Docker, memory, timeout $(TIMEOUT_BDD_POSTGRES)) ==="; \
+	BDD_BACKEND=memory CONTAINER_CMD=$(CONTAINER_CMD) \
+		$(GOTEST) -tags bdd -v -count=1 -timeout $(TIMEOUT_BDD_POSTGRES) -run TestMTLSFeatures ./tests/bdd/...
+
+## Run BDD mTLS + Basic auth tests (Docker, client cert + auth + RBAC)
+test-bdd-mtls-auth:
+	@echo "=== BDD mTLS + Auth Tests (Docker, memory, timeout $(TIMEOUT_BDD_POSTGRES)) ==="; \
+	BDD_BACKEND=memory CONTAINER_CMD=$(CONTAINER_CMD) \
+		$(GOTEST) -tags bdd -v -count=1 -timeout $(TIMEOUT_BDD_POSTGRES) -run TestMTLSAuthFeatures ./tests/bdd/...
+
 ## Run BDD MCP confirmation tests (Docker, require_confirmations=true)
 test-bdd-mcp-confirmations:
 	@echo "=== BDD MCP Confirmation Tests (Docker, memory, timeout $(TIMEOUT_BDD_POSTGRES)) ==="; \
