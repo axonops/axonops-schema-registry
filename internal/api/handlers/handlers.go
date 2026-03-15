@@ -1596,34 +1596,35 @@ func (h *Handler) ImportSchemas(w http.ResponseWriter, r *http.Request) {
 		if len(req.Schemas) > 0 {
 			hints.SchemaID = req.Schemas[0].ID
 		}
-		// Set schema_type when all schemas target a single subject with uniform type.
-		if len(subjects) == 1 {
-			schemaTypes := make(map[string]struct{})
-			for _, s := range req.Schemas {
-				st := strings.ToUpper(s.SchemaType)
-				if st == "" {
-					st = "AVRO"
-				}
-				schemaTypes[st] = struct{}{}
-			}
-			if len(schemaTypes) == 1 {
-				for t := range schemaTypes {
-					hints.SchemaType = t
-				}
-			}
-		}
 	}
 
 	// Convert API types to registry types
 	importReqs := make([]registry.ImportSchemaRequest, len(req.Schemas))
 	for i, s := range req.Schemas {
+		schemaType := storage.SchemaType(strings.ToUpper(s.SchemaType))
+		if schemaType == "" {
+			schemaType = storage.SchemaTypeAvro
+		}
 		importReqs[i] = registry.ImportSchemaRequest{
 			ID:         s.ID,
 			Subject:    s.Subject,
 			Version:    s.Version,
-			SchemaType: storage.SchemaType(strings.ToUpper(s.SchemaType)),
+			SchemaType: schemaType,
 			Schema:     s.Schema,
 			References: s.References,
+		}
+	}
+
+	// Set schema_type hint from the converted import requests (after defaulting).
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		schemaTypes := make(map[storage.SchemaType]struct{})
+		for _, req := range importReqs {
+			schemaTypes[req.SchemaType] = struct{}{}
+		}
+		if len(schemaTypes) == 1 {
+			for t := range schemaTypes {
+				hints.SchemaType = string(t)
+			}
 		}
 	}
 
