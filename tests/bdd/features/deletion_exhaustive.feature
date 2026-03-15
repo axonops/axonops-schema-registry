@@ -467,7 +467,7 @@ Feature: Schema & Subject Deletion — Exhaustive (Confluent v8.1.1 Compatibilit
       | target_type         | subject                            |
       | target_id           | del-ex-rereg                       |
       | schema_id           | *                                  |
-      | version             |                                    |
+      | version             | *                                  |
       | schema_type         | AVRO                               |
       | method              | POST                               |
       | path                | /subjects/del-ex-rereg/versions    |
@@ -554,7 +554,7 @@ Feature: Schema & Subject Deletion — Exhaustive (Confluent v8.1.1 Compatibilit
       | target_type         | subject                                    |
       | target_id           | del-ex-lookup-rereg                        |
       | schema_id           | *                                          |
-      | version             |                                            |
+      | version             | *                                          |
       | schema_type         | AVRO                                       |
       | method              | POST                                       |
       | path                | /subjects/del-ex-lookup-rereg/versions     |
@@ -661,7 +661,7 @@ Feature: Schema & Subject Deletion — Exhaustive (Confluent v8.1.1 Compatibilit
       | target_type         | subject                              |
       | target_id           | del-ex-compat                        |
       | schema_id           | *                                    |
-      | version             |                                      |
+      | version             | *                                    |
       | schema_type         | AVRO                                 |
       | method              | POST                                 |
       | path                | /subjects/del-ex-compat/versions     |

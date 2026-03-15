@@ -26,7 +26,7 @@ Feature: Mode Enforcement
       | auth_method          |                               |
       | role                 |                               |
       | target_type          | mode                          |
-      | target_id            |                               |
+      | target_id            | _global                       |
       | schema_id            |                               |
       | version              |                               |
       | schema_type          |                               |
@@ -66,7 +66,7 @@ Feature: Mode Enforcement
       | auth_method          |                               |
       | role                 |                               |
       | target_type          | mode                          |
-      | target_id            |                               |
+      | target_id            | _global                       |
       | schema_id            |                               |
       | version              |                               |
       | schema_type          |                               |
@@ -106,7 +106,7 @@ Feature: Mode Enforcement
       | auth_method          |                               |
       | role                 |                               |
       | target_type          | mode                          |
-      | target_id            |                               |
+      | target_id            | _global                       |
       | schema_id            |                               |
       | version              |                               |
       | schema_type          |                               |
@@ -147,7 +147,7 @@ Feature: Mode Enforcement
       | auth_method          |                               |
       | role                 |                               |
       | target_type          | mode                          |
-      | target_id            |                               |
+      | target_id            | _global                       |
       | schema_id            |                               |
       | version              |                               |
       | schema_type          |                               |
@@ -235,7 +235,7 @@ Feature: Mode Enforcement
       | auth_method          |                               |
       | role                 |                               |
       | target_type          | mode                          |
-      | target_id            |                               |
+      | target_id            | _global                       |
       | schema_id            |                               |
       | version              |                               |
       | schema_type          |                               |
@@ -273,7 +273,7 @@ Feature: Mode Enforcement
       | auth_method          |                               |
       | role                 |                               |
       | target_type          | mode                          |
-      | target_id            |                               |
+      | target_id            | _global                       |
       | schema_id            |                               |
       | version              |                               |
       | schema_type          |                               |
@@ -309,7 +309,7 @@ Feature: Mode Enforcement
       | auth_method          |                               |
       | role                 |                               |
       | target_type          | mode                          |
-      | target_id            |                               |
+      | target_id            | _global                       |
       | schema_id            |                               |
       | version              |                               |
       | schema_type          |                               |
@@ -389,12 +389,12 @@ Feature: Mode Enforcement
       | schema_type          |                               |
       | before_hash          |                               |
       | after_hash           |                               |
-      | context              | .                             |
+      | context              |                               |
       | transport_security   | tls                           |
       | method               | DELETE                        |
       | path                 | /mode/mode-del-nonexist       |
       | status_code          | 404                           |
-      | reason               |                               |
+      | reason               | not_found                     |
       | error                |                               |
       | request_body         |                               |
       | metadata             |                               |
@@ -428,7 +428,7 @@ Feature: Mode Enforcement
       | target_type          | subject                                 |
       | target_id            | mode-import-with-id                     |
       | schema_id            | *                                       |
-      | version              |                                         |
+      | version              | *                                       |
       | schema_type          | AVRO                                    |
       | before_hash          |                                         |
       | after_hash           | sha256:*                                |
@@ -475,7 +475,7 @@ Feature: Mode Enforcement
       | target_type          | subject                                |
       | target_id            | mode-import-dup1                       |
       | schema_id            | *                                      |
-      | version              |                                        |
+      | version              | *                                      |
       | schema_type          | AVRO                                   |
       | before_hash          |                                        |
       | after_hash           | sha256:*                               |
@@ -504,7 +504,7 @@ Feature: Mode Enforcement
       | target_type          | subject                                |
       | target_id            | mode-import-dup2                       |
       | schema_id            |                                        |
-      | version              |                                        |
+      | version              | *                                      |
       | schema_type          | AVRO                                   |
       | before_hash          |                                        |
       | after_hash           |                                        |
@@ -513,7 +513,7 @@ Feature: Mode Enforcement
       | method               | POST                                   |
       | path                 | /subjects/mode-import-dup2/versions    |
       | status_code          | 422                                    |
-      | reason               |                                        |
+      | reason               | invalid_schema                         |
       | error                |                                        |
       | request_body         |                                        |
       | metadata             |                                        |
@@ -550,7 +550,7 @@ Feature: Mode Enforcement
       | target_type          | subject                                  |
       | target_id            | mode-import-share2                       |
       | schema_id            | *                                        |
-      | version              |                                          |
+      | version              | *                                        |
       | schema_type          | AVRO                                     |
       | before_hash          |                                          |
       | after_hash           | sha256:*                                 |
@@ -587,7 +587,7 @@ Feature: Mode Enforcement
       | auth_method          |                               |
       | role                 |                               |
       | target_type          | mode                          |
-      | target_id            |                               |
+      | target_id            | _global                       |
       | schema_id            |                               |
       | version              |                               |
       | schema_type          |                               |
@@ -628,18 +628,18 @@ Feature: Mode Enforcement
       | auth_method          |                               |
       | role                 |                               |
       | target_type          | mode                          |
-      | target_id            |                               |
+      | target_id            | _global                       |
       | schema_id            |                               |
       | version              |                               |
       | schema_type          |                               |
       | before_hash          |                               |
       | after_hash           |                               |
-      | context              | .                             |
+      | context              |                               |
       | transport_security   | tls                           |
       | method               | PUT                           |
       | path                 | /mode                         |
       | status_code          | 422                           |
-      | reason               |                               |
+      | reason               | invalid_schema                |
       | error                |                               |
       | request_body         |                               |
       | metadata             |                               |
@@ -673,7 +673,7 @@ Feature: Mode Enforcement
       | target_type          | subject                                  |
       | target_id            | mode-rw-explicit                         |
       | schema_id            |                                          |
-      | version              |                                          |
+      | version              | *                                        |
       | schema_type          | AVRO                                     |
       | before_hash          |                                          |
       | after_hash           |                                          |
@@ -682,7 +682,7 @@ Feature: Mode Enforcement
       | method               | POST                                     |
       | path                 | /subjects/mode-rw-explicit/versions      |
       | status_code          | 422                                      |
-      | reason               |                                          |
+      | reason               | invalid_schema                           |
       | error                |                                          |
       | request_body         |                                          |
       | metadata             |                                          |
@@ -711,7 +711,7 @@ Feature: Mode Enforcement
       | target_type          | subject                                    |
       | target_id            | mode-import-explicit                       |
       | schema_id            | *                                          |
-      | version              |                                            |
+      | version              | *                                          |
       | schema_type          | AVRO                                       |
       | before_hash          |                                            |
       | after_hash           | sha256:*                                   |

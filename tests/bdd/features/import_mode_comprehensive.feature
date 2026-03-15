@@ -108,7 +108,7 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
       | auth_method         |             |
       | role                |             |
       | target_type         | mode        |
-      | target_id           |             |
+      | target_id           | _global     |
       | schema_id           |             |
       | version             |             |
       | schema_type         |             |
@@ -153,7 +153,7 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
       | target_type         | subject                             |
       | target_id           | imp-comp-per-imp                    |
       | schema_id           | *                                   |
-      | version             |                                     |
+      | version             | *                                   |
       | schema_type         | AVRO                                |
       | method              | POST                                |
       | path                | /subjects/imp-comp-per-imp/versions |
@@ -207,7 +207,7 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
       | target_type         | subject                               |
       | target_id           | imp-comp-per-other                    |
       | schema_id           | *                                     |
-      | version             |                                       |
+      | version             | *                                     |
       | schema_type         | AVRO                                  |
       | method              | POST                                  |
       | path                | /subjects/imp-comp-per-other/versions |
@@ -250,7 +250,7 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
       | target_type         | subject                                     |
       | target_id           | imp-comp-per-rw-override                    |
       | schema_id           | *                                           |
-      | version             |                                             |
+      | version             | *                                           |
       | schema_type         | AVRO                                        |
       | method              | POST                                        |
       | path                | /subjects/imp-comp-per-rw-override/versions |
@@ -294,7 +294,7 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
       | target_type         | subject                                      |
       | target_id           | imp-comp-per-imp-override                    |
       | schema_id           | *                                            |
-      | version             |                                              |
+      | version             | *                                            |
       | schema_type         | AVRO                                         |
       | method              | POST                                         |
       | path                | /subjects/imp-comp-per-imp-override/versions |
@@ -339,7 +339,7 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
       | target_type         | subject                            |
       | target_id           | imp-comp-ver1                      |
       | schema_id           | *                                  |
-      | version             |                                    |
+      | version             | *                                  |
       | schema_type         | AVRO                               |
       | method              | POST                               |
       | path                | /subjects/imp-comp-ver1/versions   |
@@ -379,7 +379,7 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
       | target_type         | subject                                |
       | target_id           | imp-comp-ver-high                      |
       | schema_id           | *                                      |
-      | version             |                                        |
+      | version             | *                                      |
       | schema_type         | AVRO                                   |
       | method              | POST                                   |
       | path                | /subjects/imp-comp-ver-high/versions   |
@@ -435,7 +435,7 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
       | target_type         | subject                               |
       | target_id           | imp-comp-ver-rev                      |
       | schema_id           | *                                     |
-      | version             |                                       |
+      | version             | *                                     |
       | schema_type         | AVRO                                  |
       | method              | POST                                  |
       | path                | /subjects/imp-comp-ver-rev/versions   |
@@ -488,7 +488,7 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
       | target_type         | subject                                |
       | target_id           | imp-comp-ver-gaps                      |
       | schema_id           | *                                      |
-      | version             |                                        |
+      | version             | *                                      |
       | schema_type         | AVRO                                   |
       | method              | POST                                   |
       | path                | /subjects/imp-comp-ver-gaps/versions   |
@@ -544,7 +544,7 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
       | target_type         | subject                                |
       | target_id           | imp-comp-ver-auto                      |
       | schema_id           | *                                      |
-      | version             |                                        |
+      | version             | *                                      |
       | schema_type         | AVRO                                   |
       | method              | POST                                   |
       | path                | /subjects/imp-comp-ver-auto/versions   |
@@ -594,7 +594,7 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
       | target_type         | subject                                 |
       | target_id           | imp-comp-ver-mixed                      |
       | schema_id           | *                                       |
-      | version             |                                         |
+      | version             | *                                       |
       | schema_type         | AVRO                                    |
       | method              | POST                                    |
       | path                | /subjects/imp-comp-ver-mixed/versions   |
@@ -637,7 +637,7 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
       | target_type         | subject                               |
       | target_id           | imp-comp-ver-dup                      |
       | schema_id           | *                                     |
-      | version             |                                       |
+      | version             | *                                     |
       | schema_type         | AVRO                                  |
       | method              | POST                                  |
       | path                | /subjects/imp-comp-ver-dup/versions   |
@@ -685,7 +685,7 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
       | target_type         | subject                                |
       | target_id           | imp-comp-ver-sub1                      |
       | schema_id           | *                                      |
-      | version             |                                        |
+      | version             | *                                      |
       | schema_type         | AVRO                                   |
       | method              | POST                                   |
       | path                | /subjects/imp-comp-ver-sub1/versions   |
@@ -727,7 +727,7 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
       | target_type         | subject                           |
       | target_id           | imp-comp-id1                      |
       | schema_id           | *                                 |
-      | version             |                                   |
+      | version             | *                                 |
       | schema_type         | AVRO                              |
       | method              | POST                              |
       | path                | /subjects/imp-comp-id1/versions   |
@@ -765,7 +765,7 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
       | target_type         | subject                                |
       | target_id           | imp-comp-id-large                      |
       | schema_id           | *                                      |
-      | version             |                                        |
+      | version             | *                                      |
       | schema_type         | AVRO                                   |
       | method              | POST                                   |
       | path                | /subjects/imp-comp-id-large/versions   |
@@ -822,7 +822,7 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
       | target_type         | subject                                  |
       | target_id           | imp-comp-idshare-a                       |
       | schema_id           | *                                        |
-      | version             |                                          |
+      | version             | *                                        |
       | schema_type         | AVRO                                     |
       | method              | POST                                     |
       | path                | /subjects/imp-comp-idshare-a/versions    |
@@ -866,7 +866,7 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
       | target_type         | subject                                      |
       | target_id           | imp-comp-idconflict-a                        |
       | schema_id           | *                                            |
-      | version             |                                              |
+      | version             | *                                            |
       | schema_type         | AVRO                                         |
       | method              | POST                                         |
       | path                | /subjects/imp-comp-idconflict-a/versions     |
@@ -895,7 +895,7 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
       | target_type         | subject                                      |
       | target_id           | imp-comp-idconflict-b                        |
       | schema_id           | *                                            |
-      | version             |                                              |
+      | version             | *                                            |
       | schema_type         | AVRO                                         |
       | method              | POST                                         |
       | path                | /subjects/imp-comp-idconflict-b/versions     |
@@ -940,7 +940,7 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
       | target_type         | subject                                 |
       | target_id           | imp-comp-seq-base                       |
       | schema_id           | *                                       |
-      | version             |                                         |
+      | version             | *                                       |
       | schema_type         | AVRO                                    |
       | method              | POST                                    |
       | path                | /subjects/imp-comp-seq-base/versions    |
@@ -995,7 +995,7 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
       | target_type         | subject                                   |
       | target_id           | imp-comp-seq-multi1                       |
       | schema_id           | *                                         |
-      | version             |                                           |
+      | version             | *                                         |
       | schema_type         | AVRO                                      |
       | method              | POST                                      |
       | path                | /subjects/imp-comp-seq-multi1/versions    |
@@ -1048,7 +1048,7 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
       | target_type         | subject                              |
       | target_id           | imp-comp-idemp                       |
       | schema_id           | *                                    |
-      | version             |                                      |
+      | version             | *                                    |
       | schema_type         | AVRO                                 |
       | method              | POST                                 |
       | path                | /subjects/imp-comp-idemp/versions    |
@@ -1097,7 +1097,7 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
       | target_type         | subject                                    |
       | target_id           | imp-comp-compat-skip                       |
       | schema_id           | *                                          |
-      | version             |                                            |
+      | version             | *                                          |
       | schema_type         | AVRO                                       |
       | method              | POST                                       |
       | path                | /subjects/imp-comp-compat-skip/versions    |
@@ -1142,7 +1142,7 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
       | target_type         | subject                                  |
       | target_id           | imp-comp-compat-re                       |
       | schema_id           | *                                        |
-      | version             |                                          |
+      | version             | *                                        |
       | schema_type         | AVRO                                     |
       | method              | POST                                     |
       | path                | /subjects/imp-comp-compat-re/versions    |
@@ -1171,7 +1171,7 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
       | target_type         | subject                                  |
       | target_id           | imp-comp-compat-re                       |
       | schema_id           |                                          |
-      | version             |                                          |
+      | version             | *                                        |
       | schema_type         | AVRO                                     |
       | method              | POST                                     |
       | path                | /subjects/imp-comp-compat-re/versions    |
@@ -1217,7 +1217,7 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
       | target_type         | subject                             |
       | target_id           | imp-comp-avro                       |
       | schema_id           | *                                   |
-      | version             |                                     |
+      | version             | *                                   |
       | schema_type         | AVRO                                |
       | method              | POST                                |
       | path                | /subjects/imp-comp-avro/versions    |
@@ -1259,7 +1259,7 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
       | target_type         | subject                             |
       | target_id           | imp-comp-json                       |
       | schema_id           | *                                   |
-      | version             |                                     |
+      | version             | *                                   |
       | schema_type         | JSON                                |
       | method              | POST                                |
       | path                | /subjects/imp-comp-json/versions    |
@@ -1301,7 +1301,7 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
       | target_type         | subject                              |
       | target_id           | imp-comp-proto                       |
       | schema_id           | *                                    |
-      | version             |                                      |
+      | version             | *                                    |
       | schema_type         | PROTOBUF                             |
       | method              | POST                                 |
       | path                | /subjects/imp-comp-proto/versions    |
@@ -1357,7 +1357,7 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
       | target_type         | subject                                 |
       | target_id           | imp-comp-mix-avro                       |
       | schema_id           | *                                       |
-      | version             |                                         |
+      | version             | *                                       |
       | schema_type         | AVRO                                    |
       | method              | POST                                    |
       | path                | /subjects/imp-comp-mix-avro/versions    |
@@ -1438,7 +1438,7 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
       | target_type         | subject                                      |
       | target_id           | imp-comp-migrate-users                       |
       | schema_id           | *                                            |
-      | version             |                                              |
+      | version             | *                                            |
       | schema_type         | AVRO                                         |
       | method              | POST                                         |
       | path                | /subjects/imp-comp-migrate-users/versions    |
@@ -1489,7 +1489,7 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
       | target_type         | subject                                 |
       | target_id           | imp-comp-existing                       |
       | schema_id           | *                                       |
-      | version             |                                         |
+      | version             | *                                       |
       | schema_type         | AVRO                                    |
       | method              | POST                                    |
       | path                | /subjects/imp-comp-existing/versions    |
@@ -1541,7 +1541,7 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
       | target_type         | subject                               |
       | target_id           | imp-comp-list-a                       |
       | schema_id           | *                                     |
-      | version             |                                       |
+      | version             | *                                     |
       | schema_type         | AVRO                                  |
       | method              | POST                                  |
       | path                | /subjects/imp-comp-list-a/versions    |
@@ -1585,7 +1585,7 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
       | target_type         | subject                                |
       | target_id           | imp-comp-ret-id                        |
       | schema_id           | *                                      |
-      | version             |                                        |
+      | version             | *                                      |
       | schema_type         | AVRO                                   |
       | method              | POST                                   |
       | path                | /subjects/imp-comp-ret-id/versions     |
@@ -1630,7 +1630,7 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
       | target_type         | subject                                  |
       | target_id           | imp-comp-ret-subj1                       |
       | schema_id           | *                                        |
-      | version             |                                          |
+      | version             | *                                        |
       | schema_type         | AVRO                                     |
       | method              | POST                                     |
       | path                | /subjects/imp-comp-ret-subj1/versions    |
@@ -1683,7 +1683,7 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
       | target_type         | subject                                   |
       | target_id           | imp-comp-ret-latest                       |
       | schema_id           | *                                         |
-      | version             |                                           |
+      | version             | *                                         |
       | schema_type         | AVRO                                      |
       | method              | POST                                      |
       | path                | /subjects/imp-comp-ret-latest/versions    |
@@ -1727,7 +1727,7 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
       | target_type         | subject                                    |
       | target_id           | imp-comp-ret-lookup                        |
       | schema_id           | *                                          |
-      | version             |                                            |
+      | version             | *                                          |
       | schema_type         | AVRO                                       |
       | method              | POST                                       |
       | path                | /subjects/imp-comp-ret-lookup/versions     |
@@ -1783,7 +1783,7 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
       | target_type         | subject                                 |
       | target_id           | imp-comp-del-soft                       |
       | schema_id           | *                                       |
-      | version             |                                         |
+      | version             | *                                       |
       | schema_type         | AVRO                                    |
       | method              | POST                                    |
       | path                | /subjects/imp-comp-del-soft/versions    |
@@ -1837,7 +1837,7 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
       | target_type         | subject                                |
       | target_id           | imp-comp-del-ver                       |
       | schema_id           | *                                      |
-      | version             |                                        |
+      | version             | *                                      |
       | schema_type         | AVRO                                   |
       | method              | POST                                   |
       | path                | /subjects/imp-comp-del-ver/versions    |
@@ -1889,7 +1889,7 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
       | target_type         | subject                                 |
       | target_id           | imp-comp-reimport                       |
       | schema_id           | *                                       |
-      | version             |                                         |
+      | version             | *                                       |
       | schema_type         | AVRO                                    |
       | method              | POST                                    |
       | path                | /subjects/imp-comp-reimport/versions    |
@@ -1940,7 +1940,7 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
       | target_type         | subject                                    |
       | target_id           | imp-comp-ref-person                        |
       | schema_id           | *                                          |
-      | version             |                                            |
+      | version             | *                                          |
       | schema_type         | AVRO                                       |
       | method              | POST                                       |
       | path                | /subjects/imp-comp-ref-person/versions     |
@@ -1987,7 +1987,7 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
       | target_type         | subject                                       |
       | target_id           | imp-comp-ref-ooo-child                        |
       | schema_id           | *                                             |
-      | version             |                                               |
+      | version             | *                                             |
       | schema_type         | AVRO                                          |
       | method              | POST                                          |
       | path                | /subjects/imp-comp-ref-ooo-child/versions     |
@@ -2063,7 +2063,7 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
       | target_type         | subject                                |
       | target_id           | imp-comp-evolve                        |
       | schema_id           | *                                      |
-      | version             |                                        |
+      | version             | *                                      |
       | schema_type         | AVRO                                   |
       | method              | POST                                   |
       | path                | /subjects/imp-comp-evolve/versions     |
@@ -2117,7 +2117,7 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
       | target_type         | subject                             |
       | target_id           | imp-comp-cont                       |
       | schema_id           | *                                   |
-      | version             |                                     |
+      | version             | *                                   |
       | schema_type         | AVRO                                |
       | method              | POST                                |
       | path                | /subjects/imp-comp-cont/versions    |

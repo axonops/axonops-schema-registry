@@ -320,7 +320,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       | schema_id            |                                               |
       | version              |                                               |
       | schema_type          |                                               |
-      | before_hash          |                                               |
+      | before_hash          | sha256:*                                      |
       | after_hash           | sha256:*                                      |
       | context              |                                               |
       | transport_security   | tls                                           |
@@ -453,7 +453,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       | path                | /dek-registry/v1/keks/dek-test-kek/deks |
       | status_code         | 200                                     |
       | target_type         | dek                                     |
-      | target_id           | user.email                              |
+      | target_id           | dek-test-kek                            |
       | schema_id           |                                         |
       | version             |                                         |
       | schema_type         |                                         |
@@ -496,7 +496,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       | path                | /dek-registry/v1/keks/default-algo-kek/deks |
       | status_code         | 200                                         |
       | target_type         | dek                                         |
-      | target_id           | order.total                                 |
+      | target_id           | default-algo-kek                            |
       | schema_id           |                                             |
       | version             |                                             |
       | schema_type         |                                             |
@@ -540,7 +540,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       | path                | /dek-registry/v1/keks/aes128-kek/deks |
       | status_code         | 200                                   |
       | target_type         | dek                                   |
-      | target_id           | payment.card                          |
+      | target_id           | aes128-kek                            |
       | schema_id           |                                       |
       | version             |                                       |
       | schema_type         |                                       |
@@ -584,7 +584,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       | path                | /dek-registry/v1/keks/aes256siv-kek/deks |
       | status_code         | 200                                      |
       | target_type         | dek                                      |
-      | target_id           | ssn                                      |
+      | target_id           | aes256siv-kek                            |
       | schema_id           |                                          |
       | version             |                                          |
       | schema_type         |                                          |
@@ -660,7 +660,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       | path                | /dek-registry/v1/keks/dup-dek-kek/deks |
       | status_code         | 200                                    |
       | target_type         | dek                                    |
-      | target_id           | duplicate.subject                      |
+      | target_id           | dup-dek-kek                            |
       | schema_id           |                                        |
       | version             |                                        |
       | schema_type         |                                        |
@@ -790,7 +790,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       | path                | /dek-registry/v1/keks/delete-dek-kek/deks/delete.subject |
       | status_code         | 204                                                      |
       | target_type         | dek                                                      |
-      | target_id           | delete.subject                                           |
+      | target_id           | delete-dek-kek                                           |
       | schema_id           |                                                          |
       | version             |                                                          |
       | schema_type         |                                                          |
@@ -1127,7 +1127,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       | path                | /dek-registry/v1/keks/deleted-kek-dek/deks |
       | status_code         | 200                                        |
       | target_type         | dek                                        |
-      | target_id           | blocked.subject                            |
+      | target_id           | deleted-kek-dek                            |
       | schema_id           |                                            |
       | version             |                                            |
       | schema_type         |                                            |
@@ -1251,7 +1251,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       | path                | /dek-registry/v1/keks/path-create-kek/deks/path.subject |
       | status_code         | 200                                                     |
       | target_type         | dek                                                     |
-      | target_id           | path.subject                                            |
+      | target_id           | path-create-kek                                         |
       | schema_id           |                                                         |
       | version             |                                                         |
       | schema_type         |                                                         |
@@ -1290,7 +1290,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       | path                | /dek-registry/v1/keks/empty-body-kek/deks/empty.subject |
       | status_code         | 200                                                     |
       | target_type         | dek                                                     |
-      | target_id           | empty.subject                                           |
+      | target_id           | empty-body-kek                                          |
       | schema_id           |                                                         |
       | version             |                                                         |
       | schema_type         |                                                         |
@@ -1330,7 +1330,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       | path                | /dek-registry/v1/keks/delver-kek/deks/delver.subject/versions/1 |
       | status_code         | 204                                                             |
       | target_type         | dek                                                             |
-      | target_id           | delver.subject                                                  |
+      | target_id           | delver-kek                                                      |
       | schema_id           |                                                                 |
       | version             |                                                                 |
       | schema_type         |                                                                 |
@@ -1535,7 +1535,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       | path                | /dek-registry/v1/keks/permdel-dek-kek/deks/permdel.subject |
       | status_code         | 204                                                        |
       | target_type         | dek                                                        |
-      | target_id           | permdel.subject                                            |
+      | target_id           | permdel-dek-kek                                            |
       | schema_id           |                                                            |
       | version             |                                                            |
       | schema_type         |                                                            |
@@ -1579,7 +1579,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       | path                | /dek-registry/v1/keks/permdel-ver-kek/deks/permdel.ver.subject/versions/1 |
       | status_code         | 204                                                                       |
       | target_type         | dek                                                                       |
-      | target_id           | permdel.ver.subject                                                       |
+      | target_id           | permdel-ver-kek                                                           |
       | schema_id           |                                                                           |
       | version             |                                                                           |
       | schema_type         |                                                                           |
@@ -1619,7 +1619,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       | path                | /dek-registry/v1/keks/permdel-direct-kek/deks/permdel.direct.subject  |
       | status_code         | 204                                                                   |
       | target_type         | dek                                                                   |
-      | target_id           | permdel.direct.subject                                                |
+      | target_id           | permdel-direct-kek                                                    |
       | schema_id           |                                                                       |
       | version             |                                                                       |
       | schema_type         |                                                                       |
@@ -1677,7 +1677,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       | path                | /dek-registry/v1/keks/algo-del-kek/deks/algo.del.subject |
       | status_code         | 204                                                      |
       | target_type         | dek                                                      |
-      | target_id           | algo.del.subject                                         |
+      | target_id           | algo-del-kek                                             |
       | schema_id           |                                                          |
       | version             |                                                          |
       | schema_type         |                                                          |

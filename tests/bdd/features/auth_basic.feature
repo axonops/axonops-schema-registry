@@ -539,7 +539,7 @@ Feature: Internal User Authentication and RBAC
       | target_type          | subject         |
       | target_id            | ba-audit-reg    |
       | schema_id            | *               |
-      | version              |                 |
+      | version              | *               |
       | schema_type          | AVRO            |
       | before_hash          |                 |
       | after_hash           | sha256:*        |
@@ -610,7 +610,7 @@ Feature: Internal User Authentication and RBAC
       | target_type          | subject         |
       | target_id            | ba-audit-dev    |
       | schema_id            | *               |
-      | version              |                 |
+      | version              | *               |
       | schema_type          | AVRO            |
       | before_hash          |                 |
       | after_hash           | sha256:*        |
@@ -752,7 +752,7 @@ Feature: Internal User Authentication and RBAC
       | auth_method          | basic         |
       | role                 | super_admin   |
       | target_type          | config        |
-      | target_id            |               |
+      | target_id            | _global       |
       | schema_id            |               |
       | version              |               |
       | schema_type          |               |

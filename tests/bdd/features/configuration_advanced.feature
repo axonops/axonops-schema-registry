@@ -69,7 +69,7 @@ Feature: Configuration and Mode Management Advanced
       | target_type          | subject                               |
       | target_id            | override-test                         |
       | schema_id            | *                                     |
-      | version              |                                       |
+      | version              | *                                     |
       | schema_type          | AVRO                                  |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -150,7 +150,7 @@ Feature: Configuration and Mode Management Advanced
       | auth_method          |                               |
       | role                 |                               |
       | target_type          | config                        |
-      | target_id            |                               |
+      | target_id            | _global                       |
       | schema_id            |                               |
       | version              |                               |
       | schema_type          |                               |
@@ -191,12 +191,12 @@ Feature: Configuration and Mode Management Advanced
       | schema_type          |                                       |
       | before_hash          |                                       |
       | after_hash           |                                       |
-      | context              | .                                     |
+      | context              |                                       |
       | transport_security   | tls                                   |
       | method               | DELETE                                |
       | path                 | /config/never-configured-subject      |
       | status_code          | 404                                   |
-      | reason               |                                       |
+      | reason               | not_found                             |
       | error                |                                       |
       | request_body         |                                       |
       | metadata             |                                       |
@@ -221,18 +221,18 @@ Feature: Configuration and Mode Management Advanced
       | auth_method          |                               |
       | role                 |                               |
       | target_type          | config                        |
-      | target_id            |                               |
+      | target_id            | _global                       |
       | schema_id            |                               |
       | version              |                               |
       | schema_type          |                               |
       | before_hash          |                               |
       | after_hash           |                               |
-      | context              | .                             |
+      | context              |                               |
       | transport_security   | tls                           |
       | method               | PUT                           |
       | path                 | /config                       |
       | status_code          | 422                           |
-      | reason               |                               |
+      | reason               | invalid_schema                |
       | error                |                               |
       | request_body         |                               |
       | metadata             |                               |
@@ -265,7 +265,7 @@ Feature: Configuration and Mode Management Advanced
       | auth_method          |                               |
       | role                 |                               |
       | target_type          | config                        |
-      | target_id            |                               |
+      | target_id            | _global                       |
       | schema_id            |                               |
       | version              |                               |
       | schema_type          |                               |
@@ -309,7 +309,7 @@ Feature: Configuration and Mode Management Advanced
       | auth_method          |                               |
       | role                 |                               |
       | target_type          | mode                          |
-      | target_id            |                               |
+      | target_id            | _global                       |
       | schema_id            |                               |
       | version              |                               |
       | schema_type          |                               |
@@ -348,18 +348,18 @@ Feature: Configuration and Mode Management Advanced
       | auth_method          |                               |
       | role                 |                               |
       | target_type          | mode                          |
-      | target_id            |                               |
+      | target_id            | _global                       |
       | schema_id            |                               |
       | version              |                               |
       | schema_type          |                               |
       | before_hash          |                               |
       | after_hash           |                               |
-      | context              | .                             |
+      | context              |                               |
       | transport_security   | tls                           |
       | method               | PUT                           |
       | path                 | /mode                         |
       | status_code          | 422                           |
-      | reason               |                               |
+      | reason               | invalid_schema                |
       | error                |                               |
       | request_body         |                               |
       | metadata             |                               |
@@ -389,12 +389,12 @@ Feature: Configuration and Mode Management Advanced
       | schema_type          |                                       |
       | before_hash          |                                       |
       | after_hash           |                                       |
-      | context              | .                                     |
+      | context              |                                       |
       | transport_security   | tls                                   |
       | method               | DELETE                                |
       | path                 | /mode/never-moded-subject             |
       | status_code          | 404                                   |
-      | reason               |                                       |
+      | reason               | not_found                             |
       | error                |                                       |
       | request_body         |                                       |
       | metadata             |                                       |
@@ -419,7 +419,7 @@ Feature: Configuration and Mode Management Advanced
       | auth_method          |                               |
       | role                 |                               |
       | target_type          | mode                          |
-      | target_id            |                               |
+      | target_id            | _global                       |
       | schema_id            |                               |
       | version              |                               |
       | schema_type          |                               |
@@ -454,7 +454,7 @@ Feature: Configuration and Mode Management Advanced
       | auth_method          |                               |
       | role                 |                               |
       | target_type          | mode                          |
-      | target_id            |                               |
+      | target_id            | _global                       |
       | schema_id            |                               |
       | version              |                               |
       | schema_type          |                               |

@@ -384,7 +384,7 @@ Feature: Deletion Lifecycle (Two-Step Delete)
       | target_type         | subject                           |
       | target_id           | del-rereg-1                       |
       | schema_id           | *                                 |
-      | version             |                                   |
+      | version             | *                                 |
       | schema_type         | AVRO                              |
       | method              | POST                              |
       | path                | /subjects/del-rereg-1/versions    |
@@ -458,7 +458,7 @@ Feature: Deletion Lifecycle (Two-Step Delete)
       | target_type         | subject                           |
       | target_id           | del-rereg-2                       |
       | schema_id           | *                                 |
-      | version             |                                   |
+      | version             | *                                 |
       | schema_type         | AVRO                              |
       | method              | POST                              |
       | path                | /subjects/del-rereg-2/versions    |
@@ -683,7 +683,7 @@ Feature: Deletion Lifecycle (Two-Step Delete)
       | target_type         | subject                                    |
       | target_id           | del-ver-reregister                         |
       | schema_id           | *                                          |
-      | version             |                                            |
+      | version             | *                                          |
       | schema_type         | AVRO                                       |
       | method              | POST                                       |
       | path                | /subjects/del-ver-reregister/versions      |
@@ -763,7 +763,7 @@ Feature: Deletion Lifecycle (Two-Step Delete)
       | target_type         | subject                                      |
       | target_id           | del-diff-reregister                          |
       | schema_id           | *                                            |
-      | version             |                                              |
+      | version             | *                                            |
       | schema_type         | AVRO                                         |
       | method              | POST                                         |
       | path                | /subjects/del-diff-reregister/versions       |

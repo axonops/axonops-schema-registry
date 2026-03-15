@@ -35,7 +35,7 @@ Feature: KMS Server-Side Field-Level Encryption
       | path                | /dek-registry/v1/keks/vault-kek-aes256gcm/deks |
       | status_code         | 200                                            |
       | target_type         | dek                                            |
-      | target_id           | vault.user.email                               |
+      | target_id           | vault-kek-aes256gcm                            |
       | schema_id           |                                                |
       | version             |                                                |
       | schema_type         |                                                |
@@ -72,7 +72,7 @@ Feature: KMS Server-Side Field-Level Encryption
       | path                | /dek-registry/v1/keks/vault-kek-aes128/deks |
       | status_code         | 200                                         |
       | target_type         | dek                                         |
-      | target_id           | vault.payment.card                          |
+      | target_id           | vault-kek-aes128                            |
       | schema_id           |                                             |
       | version             |                                             |
       | schema_type         |                                             |
@@ -109,7 +109,7 @@ Feature: KMS Server-Side Field-Level Encryption
       | path                | /dek-registry/v1/keks/vault-kek-aes256siv/deks |
       | status_code         | 200                                            |
       | target_type         | dek                                            |
-      | target_id           | vault.ssn.field                                |
+      | target_id           | vault-kek-aes256siv                            |
       | schema_id           |                                                |
       | version             |                                                |
       | schema_type         |                                                |
@@ -157,7 +157,7 @@ Feature: KMS Server-Side Field-Level Encryption
       | path                | /dek-registry/v1/keks/vault-kek-multiversion/deks |
       | status_code         | 200                                               |
       | target_type         | dek                                               |
-      | target_id           | vault.versioned.field                             |
+      | target_id           | vault-kek-multiversion                            |
       | schema_id           |                                                   |
       | version             |                                                   |
       | schema_type         |                                                   |
@@ -201,7 +201,7 @@ Feature: KMS Server-Side Field-Level Encryption
       | path                | /dek-registry/v1/keks/bao-kek-aes256gcm/deks |
       | status_code         | 200                                          |
       | target_type         | dek                                          |
-      | target_id           | bao.user.email                               |
+      | target_id           | bao-kek-aes256gcm                            |
       | schema_id           |                                              |
       | version             |                                              |
       | schema_type         |                                              |
@@ -238,7 +238,7 @@ Feature: KMS Server-Side Field-Level Encryption
       | path                | /dek-registry/v1/keks/bao-kek-aes128/deks |
       | status_code         | 200                                       |
       | target_type         | dek                                       |
-      | target_id           | bao.payment.card                          |
+      | target_id           | bao-kek-aes128                            |
       | schema_id           |                                           |
       | version             |                                           |
       | schema_type         |                                           |
@@ -275,7 +275,7 @@ Feature: KMS Server-Side Field-Level Encryption
       | path                | /dek-registry/v1/keks/bao-kek-aes256siv/deks |
       | status_code         | 200                                          |
       | target_type         | dek                                          |
-      | target_id           | bao.ssn.field                                |
+      | target_id           | bao-kek-aes256siv                            |
       | schema_id           |                                              |
       | version             |                                              |
       | schema_type         |                                              |
@@ -325,7 +325,7 @@ Feature: KMS Server-Side Field-Level Encryption
       | path                | /dek-registry/v1/keks/cross-bao-kek/deks |
       | status_code         | 200                                      |
       | target_type         | dek                                      |
-      | target_id           | cross.bao.subject                        |
+      | target_id           | cross-bao-kek                            |
       | schema_id           |                                          |
       | version             |                                          |
       | schema_type         |                                          |
@@ -376,7 +376,7 @@ Feature: KMS Server-Side Field-Level Encryption
       | path                | /dek-registry/v1/keks/non-shared-kek/deks |
       | status_code         | 200                                       |
       | target_type         | dek                                       |
-      | target_id           | nonshared.subject                         |
+      | target_id           | non-shared-kek                            |
       | schema_id           |                                           |
       | version             |                                           |
       | schema_type         |                                           |
@@ -412,7 +412,7 @@ Feature: KMS Server-Side Field-Level Encryption
       | path                | /dek-registry/v1/keks/client-material-kek/deks |
       | status_code         | 200                                            |
       | target_type         | dek                                            |
-      | target_id           | client.provided.field                          |
+      | target_id           | client-material-kek                            |
       | schema_id           |                                                |
       | version             |                                                |
       | schema_type         |                                                |
@@ -466,7 +466,7 @@ Feature: KMS Server-Side Field-Level Encryption
       | path                | /dek-registry/v1/keks/lifecycle-enc-kek/deks |
       | status_code         | 200                                          |
       | target_type         | dek                                          |
-      | target_id           | lifecycle.encrypted.field                    |
+      | target_id           | lifecycle-enc-kek                            |
       | schema_id           |                                              |
       | version             |                                              |
       | schema_type         |                                              |
@@ -509,7 +509,7 @@ Feature: KMS Server-Side Field-Level Encryption
       | path                | /dek-registry/v1/keks/permdelete-enc-kek/deks/permdelete.encrypted.field |
       | status_code         | 204                                                                      |
       | target_type         | dek                                                                      |
-      | target_id           | permdelete.encrypted.field                                               |
+      | target_id           | permdelete-enc-kek                                                       |
       | schema_id           |                                                                          |
       | version             |                                                                          |
       | schema_type         |                                                                          |
@@ -560,7 +560,7 @@ Feature: KMS Server-Side Field-Level Encryption
       | path                | /dek-registry/v1/keks/unknown-kms-kek/deks |
       | status_code         | 200                                        |
       | target_type         | dek                                        |
-      | target_id           | unknown.kms.field                          |
+      | target_id           | unknown-kms-kek                            |
       | schema_id           |                                            |
       | version             |                                            |
       | schema_type         |                                            |
@@ -599,7 +599,7 @@ Feature: KMS Server-Side Field-Level Encryption
       | path                | /dek-registry/v1/keks/vault-kek-retrieve/deks |
       | status_code         | 200                                           |
       | target_type         | dek                                           |
-      | target_id           | vault.retrieve.field                          |
+      | target_id           | vault-kek-retrieve                            |
       | schema_id           |                                               |
       | version             |                                               |
       | schema_type         |                                               |
@@ -648,7 +648,7 @@ Feature: KMS Server-Side Field-Level Encryption
       | path                | /dek-registry/v1/keks/vault-kek-no-plaintext/deks |
       | status_code         | 200                                               |
       | target_type         | dek                                               |
-      | target_id           | vault.no.plaintext                                |
+      | target_id           | vault-kek-no-plaintext                            |
       | schema_id           |                                                   |
       | version             |                                                   |
       | schema_type         |                                                   |
@@ -705,7 +705,7 @@ Feature: KMS Server-Side Field-Level Encryption
       | path                | /dek-registry/v1/keks/consumer-nonshared-kek/deks |
       | status_code         | 200                                               |
       | target_type         | dek                                               |
-      | target_id           | consumer.nonshared.field                          |
+      | target_id           | consumer-nonshared-kek                            |
       | schema_id           |                                                   |
       | version             |                                                   |
       | schema_type         |                                                   |
@@ -747,7 +747,7 @@ Feature: KMS Server-Side Field-Level Encryption
       | path                | /dek-registry/v1/keks/vault-kek-list-safe/deks |
       | status_code         | 200                                            |
       | target_type         | dek                                            |
-      | target_id           | vault.list.phone                               |
+      | target_id           | vault-kek-list-safe                            |
       | schema_id           |                                                |
       | version             |                                                |
       | schema_type         |                                                |
@@ -792,7 +792,7 @@ Feature: KMS Server-Side Field-Level Encryption
       | path                | /dek-registry/v1/keks/vault-kek-multi-subject/deks |
       | status_code         | 200                                                |
       | target_type         | dek                                                |
-      | target_id           | vault.multi.ssn                                    |
+      | target_id           | vault-kek-multi-subject                            |
       | schema_id           |                                                    |
       | version             |                                                    |
       | schema_type         |                                                    |

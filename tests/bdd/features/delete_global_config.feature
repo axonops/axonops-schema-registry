@@ -24,7 +24,7 @@ Feature: Delete Global Compatibility Configuration
       | auth_method          |                               |
       | role                 |                               |
       | target_type          | config                        |
-      | target_id            |                               |
+      | target_id            | _global                       |
       | schema_id            |                               |
       | version              |                               |
       | schema_type          |                               |
@@ -58,7 +58,7 @@ Feature: Delete Global Compatibility Configuration
       | auth_method          |                               |
       | role                 |                               |
       | target_type          | config                        |
-      | target_id            |                               |
+      | target_id            | _global                       |
       | schema_id            |                               |
       | version              |                               |
       | schema_type          |                               |
@@ -97,7 +97,7 @@ Feature: Delete Global Compatibility Configuration
       | auth_method          |                               |
       | role                 |                               |
       | target_type          | config                        |
-      | target_id            |                               |
+      | target_id            | _global                       |
       | schema_id            |                               |
       | version              |                               |
       | schema_type          |                               |
@@ -135,7 +135,7 @@ Feature: Delete Global Compatibility Configuration
       | auth_method          |                               |
       | role                 |                               |
       | target_type          | config                        |
-      | target_id            |                               |
+      | target_id            | _global                       |
       | schema_id            |                               |
       | version              |                               |
       | schema_type          |                               |
@@ -179,7 +179,7 @@ Feature: Delete Global Compatibility Configuration
       | auth_method          |                               |
       | role                 |                               |
       | target_type          | config                        |
-      | target_id            |                               |
+      | target_id            | _global                       |
       | schema_id            |                               |
       | version              |                               |
       | schema_type          |                               |

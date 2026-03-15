@@ -31,7 +31,7 @@ Feature: mTLS Transport Security
       | target_type        | subject                              |
       | target_id          | mtls-test-subject                    |
       | schema_id          | *                                    |
-      | version            |                                      |
+      | version            | *                                    |
       | schema_type        | AVRO                                 |
       | before_hash        |                                      |
       | after_hash         | sha256:*                             |
@@ -114,7 +114,7 @@ Feature: mTLS Transport Security
       | auth_method        |                      |
       | role               |                      |
       | target_type        | config               |
-      | target_id          |                      |
+      | target_id          | _global              |
       | schema_id          |                      |
       | version            |                      |
       | schema_type        |                      |
@@ -267,7 +267,7 @@ Feature: mTLS Transport Security
       | target_type        | subject                           |
       | target_id          | mtls-rbac-test                    |
       | schema_id          | *                                 |
-      | version            |                                   |
+      | version            | *                                 |
       | schema_type        | AVRO                              |
       | before_hash        |                                   |
       | after_hash         | sha256:*                          |
@@ -558,7 +558,7 @@ Feature: mTLS Transport Security
       | auth_method        | basic                |
       | role               | super_admin          |
       | target_type        | config               |
-      | target_id          |                      |
+      | target_id          | _global              |
       | schema_id          |                      |
       | version            |                      |
       | schema_type        |                      |
@@ -649,7 +649,7 @@ Feature: mTLS Transport Security
       | auth_method        | basic                |
       | role               | super_admin          |
       | target_type        | mode                 |
-      | target_id          |                      |
+      | target_id          | _global              |
       | schema_id          |                      |
       | version            |                      |
       | schema_type        |                      |
@@ -741,7 +741,7 @@ Feature: mTLS Transport Security
       | target_type        | subject                            |
       | target_id          | mtls-audit-test                    |
       | schema_id          | *                                  |
-      | version            |                                    |
+      | version            | *                                  |
       | schema_type        | AVRO                               |
       | before_hash        |                                    |
       | after_hash         | sha256:*                           |

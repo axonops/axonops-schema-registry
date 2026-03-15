@@ -33,7 +33,7 @@ Feature: Compare-and-Set (confluent:version)
       | target_type          | subject                            |
       | target_id            | cas-auto                           |
       | schema_id            | *                                  |
-      | version              |                                    |
+      | version              | *                                  |
       | schema_type          | AVRO                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -73,7 +73,7 @@ Feature: Compare-and-Set (confluent:version)
       | target_type          | subject                            |
       | target_id            | cas-zero                           |
       | schema_id            | *                                  |
-      | version              |                                    |
+      | version              | *                                  |
       | schema_type          | AVRO                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -113,7 +113,7 @@ Feature: Compare-and-Set (confluent:version)
       | target_type          | subject                            |
       | target_id            | cas-neg1                           |
       | schema_id            | *                                  |
-      | version              |                                    |
+      | version              | *                                  |
       | schema_type          | AVRO                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -157,7 +157,7 @@ Feature: Compare-and-Set (confluent:version)
       | target_type          | subject                            |
       | target_id            | cas-v1-new                         |
       | schema_id            | *                                  |
-      | version              |                                    |
+      | version              | *                                  |
       | schema_type          | AVRO                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -206,7 +206,7 @@ Feature: Compare-and-Set (confluent:version)
       | target_type          | subject                            |
       | target_id            | cas-v2-after-v1                    |
       | schema_id            | *                                  |
-      | version              |                                    |
+      | version              | *                                  |
       | schema_type          | AVRO                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -262,7 +262,7 @@ Feature: Compare-and-Set (confluent:version)
       | target_type          | subject                            |
       | target_id            | cas-conflict                       |
       | schema_id            | *                                  |
-      | version              |                                    |
+      | version              | *                                  |
       | schema_type          | AVRO                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -312,7 +312,7 @@ Feature: Compare-and-Set (confluent:version)
       | target_type          | subject                            |
       | target_id            | cas-gap                            |
       | schema_id            | *                                  |
-      | version              |                                    |
+      | version              | *                                  |
       | schema_type          | AVRO                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -358,7 +358,7 @@ Feature: Compare-and-Set (confluent:version)
       | target_type          | subject                            |
       | target_id            | cas-empty-v2                       |
       | schema_id            | *                                  |
-      | version              |                                    |
+      | version              | *                                  |
       | schema_type          | AVRO                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -404,7 +404,7 @@ Feature: Compare-and-Set (confluent:version)
       | target_type          | subject                            |
       | target_id            | cas-nonnumeric                     |
       | schema_id            | *                                  |
-      | version              |                                    |
+      | version              | *                                  |
       | schema_type          | AVRO                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -480,7 +480,7 @@ Feature: Compare-and-Set (confluent:version)
       | target_type          | subject                            |
       | target_id            | cas-sequential                     |
       | schema_id            | *                                  |
-      | version              |                                    |
+      | version              | *                                  |
       | schema_type          | AVRO                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -537,7 +537,7 @@ Feature: Compare-and-Set (confluent:version)
       | target_type          | subject                            |
       | target_id            | cas-softdel                        |
       | schema_id            | *                                  |
-      | version              |                                    |
+      | version              | *                                  |
       | schema_type          | AVRO                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -594,7 +594,7 @@ Feature: Compare-and-Set (confluent:version)
       | target_type          | subject                            |
       | target_id            | cas-meta-props                     |
       | schema_id            | *                                  |
-      | version              |                                    |
+      | version              | *                                  |
       | schema_type          | AVRO                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -641,7 +641,7 @@ Feature: Compare-and-Set (confluent:version)
       | target_type          | subject                            |
       | target_id            | cas-auto-pop                       |
       | schema_id            | *                                  |
-      | version              |                                    |
+      | version              | *                                  |
       | schema_type          | AVRO                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -699,7 +699,7 @@ Feature: Compare-and-Set (confluent:version)
       | target_type          | subject                            |
       | target_id            | cas-dedup                          |
       | schema_id            | *                                  |
-      | version              |                                    |
+      | version              | *                                  |
       | schema_type          | AVRO                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |

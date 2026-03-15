@@ -303,7 +303,7 @@ Feature: Advanced Schema Deletion
       | target_type         | subject                               |
       | target_id           | del-adv-reregister                    |
       | schema_id           | *                                     |
-      | version             |                                       |
+      | version             | *                                     |
       | schema_type         | AVRO                                  |
       | method              | POST                                  |
       | path                | /subjects/del-adv-reregister/versions |
@@ -382,7 +382,7 @@ Feature: Advanced Schema Deletion
       | target_type         | subject                              |
       | target_id           | del-adv-fresh                        |
       | schema_id           | *                                    |
-      | version             |                                      |
+      | version             | *                                    |
       | schema_type         | AVRO                                 |
       | method              | POST                                 |
       | path                | /subjects/del-adv-fresh/versions     |

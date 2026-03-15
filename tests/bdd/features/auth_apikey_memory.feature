@@ -72,7 +72,7 @@ Feature: Config-defined API key authentication (memory storage)
       | target_type          | subject                      |
       | target_id            | test-memory-apikey-admin     |
       | schema_id            | *                            |
-      | version              |                              |
+      | version              | *                            |
       | schema_type          | AVRO                         |
       | before_hash          |                              |
       | after_hash           | sha256:*                     |

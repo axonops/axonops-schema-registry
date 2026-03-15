@@ -475,7 +475,7 @@ Feature: LDAP Authentication and RBAC
       | target_type          | subject          |
       | target_id            | ldap-audit-subj  |
       | schema_id            | *                |
-      | version              |                  |
+      | version              | *                |
       | schema_type          | AVRO             |
       | before_hash          |                  |
       | after_hash           | sha256:*         |
@@ -547,7 +547,7 @@ Feature: LDAP Authentication and RBAC
       | target_type          | subject          |
       | target_id            | ldap-audit-dev   |
       | schema_id            | *                |
-      | version              |                  |
+      | version              | *                |
       | schema_type          | AVRO             |
       | before_hash          |                  |
       | after_hash           | sha256:*         |
@@ -768,7 +768,7 @@ Feature: LDAP Authentication and RBAC
       | auth_method          | ldap_fallback   |
       | role                 | super_admin     |
       | target_type          | config          |
-      | target_id            |                 |
+      | target_id            | _global         |
       | schema_id            |                 |
       | version              |                 |
       | schema_type          |                 |
