@@ -41,7 +41,34 @@ Feature: Contexts — __GLOBAL Config/Mode Inheritance (3-Tier)
     # Clean up
     When I DELETE "/config/:.__GLOBAL:"
     Then the response status should be 200
-    And the audit log should contain event "config_delete" with subject ":.__GLOBAL:"
+    And the audit log should contain an event:
+      | event_type           | config_delete                  |
+      | outcome              | success                        |
+      | actor_id             |                                |
+      | actor_type           | anonymous                      |
+      | auth_method          |                                |
+      | role                 |                                |
+      | target_type          | config                         |
+      | target_id            | :.__GLOBAL:                    |
+      | schema_id            |                                |
+      | version              |                                |
+      | schema_type          |                                |
+      | before_hash          | sha256:*                       |
+      | after_hash           |                                |
+      | context              | .__GLOBAL                      |
+      | transport_security   | tls                            |
+      | method               | DELETE                         |
+      | path                 | /config/:.__GLOBAL:            |
+      | status_code          | 200                            |
+      | reason               |                                |
+      | error                |                                |
+      | request_body         |                                |
+      | metadata             |                                |
+      | timestamp            | *                              |
+      | duration_ms          | *                              |
+      | request_id           | *                              |
+      | source_ip            | *                              |
+      | user_agent           | *                              |
 
   Scenario: Context-level config overrides __GLOBAL
     # Set __GLOBAL to FULL
@@ -69,7 +96,34 @@ Feature: Contexts — __GLOBAL Config/Mode Inheritance (3-Tier)
     # Clean up
     When I DELETE "/config/:.__GLOBAL:"
     Then the response status should be 200
-    And the audit log should contain event "config_delete" with subject ":.__GLOBAL:"
+    And the audit log should contain an event:
+      | event_type           | config_delete                  |
+      | outcome              | success                        |
+      | actor_id             |                                |
+      | actor_type           | anonymous                      |
+      | auth_method          |                                |
+      | role                 |                                |
+      | target_type          | config                         |
+      | target_id            | :.__GLOBAL:                    |
+      | schema_id            |                                |
+      | version              |                                |
+      | schema_type          |                                |
+      | before_hash          | sha256:*                       |
+      | after_hash           |                                |
+      | context              | .__GLOBAL                      |
+      | transport_security   | tls                            |
+      | method               | DELETE                         |
+      | path                 | /config/:.__GLOBAL:            |
+      | status_code          | 200                            |
+      | reason               |                                |
+      | error                |                                |
+      | request_body         |                                |
+      | metadata             |                                |
+      | timestamp            | *                              |
+      | duration_ms          | *                              |
+      | request_id           | *                              |
+      | source_ip            | *                              |
+      | user_agent           | *                              |
 
   Scenario: Per-subject config overrides both context-level and __GLOBAL
     # Set __GLOBAL to FULL
@@ -102,7 +156,34 @@ Feature: Contexts — __GLOBAL Config/Mode Inheritance (3-Tier)
     # Clean up
     When I DELETE "/config/:.__GLOBAL:"
     Then the response status should be 200
-    And the audit log should contain event "config_delete" with subject ":.__GLOBAL:"
+    And the audit log should contain an event:
+      | event_type           | config_delete                  |
+      | outcome              | success                        |
+      | actor_id             |                                |
+      | actor_type           | anonymous                      |
+      | auth_method          |                                |
+      | role                 |                                |
+      | target_type          | config                         |
+      | target_id            | :.__GLOBAL:                    |
+      | schema_id            |                                |
+      | version              |                                |
+      | schema_type          |                                |
+      | before_hash          | sha256:*                       |
+      | after_hash           |                                |
+      | context              | .__GLOBAL                      |
+      | transport_security   | tls                            |
+      | method               | DELETE                         |
+      | path                 | /config/:.__GLOBAL:            |
+      | status_code          | 200                            |
+      | reason               |                                |
+      | error                |                                |
+      | request_body         |                                |
+      | metadata             |                                |
+      | timestamp            | *                              |
+      | duration_ms          | *                              |
+      | request_id           | *                              |
+      | source_ip            | *                              |
+      | user_agent           | *                              |
 
   Scenario: Delete per-subject config falls back to context-level
     # Set context-level config
@@ -133,7 +214,34 @@ Feature: Contexts — __GLOBAL Config/Mode Inheritance (3-Tier)
     When I GET "/contexts/.gc-fallback/config/fb-topic?defaultToGlobal=true"
     Then the response status should be 200
     And the response field "compatibilityLevel" should be "FULL_TRANSITIVE"
-    And the audit log should contain event "config_delete"
+    And the audit log should contain an event:
+      | event_type           | config_delete                              |
+      | outcome              | success                                    |
+      | actor_id             |                                            |
+      | actor_type           | anonymous                                  |
+      | auth_method          |                                            |
+      | role                 |                                            |
+      | target_type          | config                                     |
+      | target_id            | fb-topic                                   |
+      | schema_id            |                                            |
+      | version              |                                            |
+      | schema_type          |                                            |
+      | before_hash          | sha256:*                                   |
+      | after_hash           |                                            |
+      | context              | .gc-fallback                               |
+      | transport_security   | tls                                        |
+      | method               | DELETE                                     |
+      | path                 | /contexts/.gc-fallback/config/fb-topic     |
+      | status_code          | 200                                        |
+      | reason               |                                            |
+      | error                |                                            |
+      | request_body         |                                            |
+      | metadata             |                                            |
+      | timestamp            | *                                          |
+      | duration_ms          | *                                          |
+      | request_id           | *                                          |
+      | source_ip            | *                                          |
+      | user_agent           | *                                          |
 
   Scenario: Delete context-level config falls back to __GLOBAL
     # Set __GLOBAL to FORWARD_TRANSITIVE
@@ -168,7 +276,34 @@ Feature: Contexts — __GLOBAL Config/Mode Inheritance (3-Tier)
     # Clean up
     When I DELETE "/config/:.__GLOBAL:"
     Then the response status should be 200
-    And the audit log should contain event "config_delete" with subject ":.__GLOBAL:"
+    And the audit log should contain an event:
+      | event_type           | config_delete                  |
+      | outcome              | success                        |
+      | actor_id             |                                |
+      | actor_type           | anonymous                      |
+      | auth_method          |                                |
+      | role                 |                                |
+      | target_type          | config                         |
+      | target_id            | :.__GLOBAL:                    |
+      | schema_id            |                                |
+      | version              |                                |
+      | schema_type          |                                |
+      | before_hash          | sha256:*                       |
+      | after_hash           |                                |
+      | context              | .__GLOBAL                      |
+      | transport_security   | tls                            |
+      | method               | DELETE                         |
+      | path                 | /config/:.__GLOBAL:            |
+      | status_code          | 200                            |
+      | reason               |                                |
+      | error                |                                |
+      | request_body         |                                |
+      | metadata             |                                |
+      | timestamp            | *                              |
+      | duration_ms          | *                              |
+      | request_id           | *                              |
+      | source_ip            | *                              |
+      | user_agent           | *                              |
 
   Scenario: Delete __GLOBAL config falls back to server default
     # Set __GLOBAL
@@ -194,7 +329,34 @@ Feature: Contexts — __GLOBAL Config/Mode Inheritance (3-Tier)
     When I GET "/contexts/.gc-srvdef/config/def-topic?defaultToGlobal=true"
     Then the response status should be 200
     And the response field "compatibilityLevel" should be "BACKWARD"
-    And the audit log should contain event "config_delete" with subject ":.__GLOBAL:"
+    And the audit log should contain an event:
+      | event_type           | config_delete                  |
+      | outcome              | success                        |
+      | actor_id             |                                |
+      | actor_type           | anonymous                      |
+      | auth_method          |                                |
+      | role                 |                                |
+      | target_type          | config                         |
+      | target_id            | :.__GLOBAL:                    |
+      | schema_id            |                                |
+      | version              |                                |
+      | schema_type          |                                |
+      | before_hash          | sha256:*                       |
+      | after_hash           |                                |
+      | context              | .__GLOBAL                      |
+      | transport_security   | tls                            |
+      | method               | DELETE                         |
+      | path                 | /config/:.__GLOBAL:            |
+      | status_code          | 200                            |
+      | reason               |                                |
+      | error                |                                |
+      | request_body         |                                |
+      | metadata             |                                |
+      | timestamp            | *                              |
+      | duration_ms          | *                              |
+      | request_id           | *                              |
+      | source_ip            | *                              |
+      | user_agent           | *                              |
 
   Scenario: PUT /config at root does NOT affect named contexts
     # Set root global config (default context only)
@@ -213,7 +375,34 @@ Feature: Contexts — __GLOBAL Config/Mode Inheritance (3-Tier)
     When I GET "/contexts/.gc-noroot/config/nr-topic?defaultToGlobal=true"
     Then the response status should be 200
     And the response field "compatibilityLevel" should be "BACKWARD"
-    And the audit log should contain event "config_update"
+    And the audit log should contain an event:
+      | event_type           | config_update                  |
+      | outcome              | success                        |
+      | actor_id             |                                |
+      | actor_type           | anonymous                      |
+      | auth_method          |                                |
+      | role                 |                                |
+      | target_type          | config                         |
+      | target_id            | _global                        |
+      | schema_id            |                                |
+      | version              |                                |
+      | schema_type          |                                |
+      | before_hash          | *                              |
+      | after_hash           | sha256:*                       |
+      | context              | .                              |
+      | transport_security   | tls                            |
+      | method               | PUT                            |
+      | path                 | /config                        |
+      | status_code          | 200                            |
+      | reason               |                                |
+      | error                |                                |
+      | request_body         |                                |
+      | metadata             |                                |
+      | timestamp            | *                              |
+      | duration_ms          | *                              |
+      | request_id           | *                              |
+      | source_ip            | *                              |
+      | user_agent           | *                              |
 
   # ==========================================================================
   # defaultToGlobal PARAMETER
@@ -243,7 +432,34 @@ Feature: Contexts — __GLOBAL Config/Mode Inheritance (3-Tier)
     # Clean up
     When I DELETE "/config/:.__GLOBAL:"
     Then the response status should be 200
-    And the audit log should contain event "config_delete" with subject ":.__GLOBAL:"
+    And the audit log should contain an event:
+      | event_type           | config_delete                  |
+      | outcome              | success                        |
+      | actor_id             |                                |
+      | actor_type           | anonymous                      |
+      | auth_method          |                                |
+      | role                 |                                |
+      | target_type          | config                         |
+      | target_id            | :.__GLOBAL:                    |
+      | schema_id            |                                |
+      | version              |                                |
+      | schema_type          |                                |
+      | before_hash          | sha256:*                       |
+      | after_hash           |                                |
+      | context              | .__GLOBAL                      |
+      | transport_security   | tls                            |
+      | method               | DELETE                         |
+      | path                 | /config/:.__GLOBAL:            |
+      | status_code          | 200                            |
+      | reason               |                                |
+      | error                |                                |
+      | request_body         |                                |
+      | metadata             |                                |
+      | timestamp            | *                              |
+      | duration_ms          | *                              |
+      | request_id           | *                              |
+      | source_ip            | *                              |
+      | user_agent           | *                              |
 
   Scenario: GET /config/{subject}?defaultToGlobal=true walks 4-tier chain
     # Set __GLOBAL
@@ -268,7 +484,34 @@ Feature: Contexts — __GLOBAL Config/Mode Inheritance (3-Tier)
     # Clean up
     When I DELETE "/config/:.__GLOBAL:"
     Then the response status should be 200
-    And the audit log should contain event "config_delete" with subject ":.__GLOBAL:"
+    And the audit log should contain an event:
+      | event_type           | config_delete                  |
+      | outcome              | success                        |
+      | actor_id             |                                |
+      | actor_type           | anonymous                      |
+      | auth_method          |                                |
+      | role                 |                                |
+      | target_type          | config                         |
+      | target_id            | :.__GLOBAL:                    |
+      | schema_id            |                                |
+      | version              |                                |
+      | schema_type          |                                |
+      | before_hash          | sha256:*                       |
+      | after_hash           |                                |
+      | context              | .__GLOBAL                      |
+      | transport_security   | tls                            |
+      | method               | DELETE                         |
+      | path                 | /config/:.__GLOBAL:            |
+      | status_code          | 200                            |
+      | reason               |                                |
+      | error                |                                |
+      | request_body         |                                |
+      | metadata             |                                |
+      | timestamp            | *                              |
+      | duration_ms          | *                              |
+      | request_id           | *                              |
+      | source_ip            | *                              |
+      | user_agent           | *                              |
 
   # ==========================================================================
   # MODE INHERITANCE — 4-TIER CHAIN
@@ -294,7 +537,34 @@ Feature: Contexts — __GLOBAL Config/Mode Inheritance (3-Tier)
       {"mode": "READWRITE"}
       """
     Then the response status should be 200
-    And the audit log should contain event "mode_update"
+    And the audit log should contain an event:
+      | event_type           | mode_update                    |
+      | outcome              | success                        |
+      | actor_id             |                                |
+      | actor_type           | anonymous                      |
+      | auth_method          |                                |
+      | role                 |                                |
+      | target_type          | mode                           |
+      | target_id            | :.__GLOBAL:                    |
+      | schema_id            |                                |
+      | version              |                                |
+      | schema_type          |                                |
+      | before_hash          | *                              |
+      | after_hash           | sha256:*                       |
+      | context              | .__GLOBAL                      |
+      | transport_security   | tls                            |
+      | method               | PUT                            |
+      | path                 | /mode/:.__GLOBAL:              |
+      | status_code          | 200                            |
+      | reason               |                                |
+      | error                |                                |
+      | request_body         |                                |
+      | metadata             |                                |
+      | timestamp            | *                              |
+      | duration_ms          | *                              |
+      | request_id           | *                              |
+      | source_ip            | *                              |
+      | user_agent           | *                              |
 
   Scenario: READONLY on __GLOBAL blocks writes in named contexts
     # Register first in a clean context
@@ -321,7 +591,34 @@ Feature: Contexts — __GLOBAL Config/Mode Inheritance (3-Tier)
       {"mode": "READWRITE"}
       """
     Then the response status should be 200
-    And the audit log should contain event "mode_update"
+    And the audit log should contain an event:
+      | event_type           | mode_update                    |
+      | outcome              | success                        |
+      | actor_id             |                                |
+      | actor_type           | anonymous                      |
+      | auth_method          |                                |
+      | role                 |                                |
+      | target_type          | mode                           |
+      | target_id            | :.__GLOBAL:                    |
+      | schema_id            |                                |
+      | version              |                                |
+      | schema_type          |                                |
+      | before_hash          | *                              |
+      | after_hash           | sha256:*                       |
+      | context              | .__GLOBAL                      |
+      | transport_security   | tls                            |
+      | method               | PUT                            |
+      | path                 | /mode/:.__GLOBAL:              |
+      | status_code          | 200                            |
+      | reason               |                                |
+      | error                |                                |
+      | request_body         |                                |
+      | metadata             |                                |
+      | timestamp            | *                              |
+      | duration_ms          | *                              |
+      | request_id           | *                              |
+      | source_ip            | *                              |
+      | user_agent           | *                              |
 
   Scenario: Per-context READWRITE overrides __GLOBAL READONLY
     # Set __GLOBAL to READONLY
@@ -348,7 +645,34 @@ Feature: Contexts — __GLOBAL Config/Mode Inheritance (3-Tier)
       {"mode": "READWRITE"}
       """
     Then the response status should be 200
-    And the audit log should contain event "mode_update"
+    And the audit log should contain an event:
+      | event_type           | mode_update                    |
+      | outcome              | success                        |
+      | actor_id             |                                |
+      | actor_type           | anonymous                      |
+      | auth_method          |                                |
+      | role                 |                                |
+      | target_type          | mode                           |
+      | target_id            | :.__GLOBAL:                    |
+      | schema_id            |                                |
+      | version              |                                |
+      | schema_type          |                                |
+      | before_hash          | *                              |
+      | after_hash           | sha256:*                       |
+      | context              | .__GLOBAL                      |
+      | transport_security   | tls                            |
+      | method               | PUT                            |
+      | path                 | /mode/:.__GLOBAL:              |
+      | status_code          | 200                            |
+      | reason               |                                |
+      | error                |                                |
+      | request_body         |                                |
+      | metadata             |                                |
+      | timestamp            | *                              |
+      | duration_ms          | *                              |
+      | request_id           | *                              |
+      | source_ip            | *                              |
+      | user_agent           | *                              |
 
   Scenario: Per-subject READWRITE overrides __GLOBAL READONLY
     # Register a schema first
@@ -381,7 +705,34 @@ Feature: Contexts — __GLOBAL Config/Mode Inheritance (3-Tier)
       {"mode": "READWRITE"}
       """
     Then the response status should be 200
-    And the audit log should contain event "mode_update"
+    And the audit log should contain an event:
+      | event_type           | mode_update                    |
+      | outcome              | success                        |
+      | actor_id             |                                |
+      | actor_type           | anonymous                      |
+      | auth_method          |                                |
+      | role                 |                                |
+      | target_type          | mode                           |
+      | target_id            | :.__GLOBAL:                    |
+      | schema_id            |                                |
+      | version              |                                |
+      | schema_type          |                                |
+      | before_hash          | *                              |
+      | after_hash           | sha256:*                       |
+      | context              | .__GLOBAL                      |
+      | transport_security   | tls                            |
+      | method               | PUT                            |
+      | path                 | /mode/:.__GLOBAL:              |
+      | status_code          | 200                            |
+      | reason               |                                |
+      | error                |                                |
+      | request_body         |                                |
+      | metadata             |                                |
+      | timestamp            | *                              |
+      | duration_ms          | *                              |
+      | request_id           | *                              |
+      | source_ip            | *                              |
+      | user_agent           | *                              |
 
   Scenario: READONLY_OVERRIDE on default context overrides everything
     # Register a schema first
@@ -414,7 +765,34 @@ Feature: Contexts — __GLOBAL Config/Mode Inheritance (3-Tier)
       {"mode": "READWRITE"}
       """
     Then the response status should be 200
-    And the audit log should contain event "mode_update"
+    And the audit log should contain an event:
+      | event_type           | mode_update                    |
+      | outcome              | success                        |
+      | actor_id             |                                |
+      | actor_type           | anonymous                      |
+      | auth_method          |                                |
+      | role                 |                                |
+      | target_type          | mode                           |
+      | target_id            | _global                        |
+      | schema_id            |                                |
+      | version              |                                |
+      | schema_type          |                                |
+      | before_hash          | *                              |
+      | after_hash           | sha256:*                       |
+      | context              | .                              |
+      | transport_security   | tls                            |
+      | method               | PUT                            |
+      | path                 | /mode                          |
+      | status_code          | 200                            |
+      | reason               |                                |
+      | error                |                                |
+      | request_body         |                                |
+      | metadata             |                                |
+      | timestamp            | *                              |
+      | duration_ms          | *                              |
+      | request_id           | *                              |
+      | source_ip            | *                              |
+      | user_agent           | *                              |
 
   # ==========================================================================
   # __GLOBAL CONTEXT — SCHEMA BLOCKING
@@ -453,7 +831,34 @@ Feature: Contexts — __GLOBAL Config/Mode Inheritance (3-Tier)
     # Delete config
     When I DELETE "/config/:.__GLOBAL:"
     Then the response status should be 200
-    And the audit log should contain event "config_delete" with subject ":.__GLOBAL:"
+    And the audit log should contain an event:
+      | event_type           | config_delete                  |
+      | outcome              | success                        |
+      | actor_id             |                                |
+      | actor_type           | anonymous                      |
+      | auth_method          |                                |
+      | role                 |                                |
+      | target_type          | config                         |
+      | target_id            | :.__GLOBAL:                    |
+      | schema_id            |                                |
+      | version              |                                |
+      | schema_type          |                                |
+      | before_hash          | sha256:*                       |
+      | after_hash           |                                |
+      | context              | .__GLOBAL                      |
+      | transport_security   | tls                            |
+      | method               | DELETE                         |
+      | path                 | /config/:.__GLOBAL:            |
+      | status_code          | 200                            |
+      | reason               |                                |
+      | error                |                                |
+      | request_body         |                                |
+      | metadata             |                                |
+      | timestamp            | *                              |
+      | duration_ms          | *                              |
+      | request_id           | *                              |
+      | source_ip            | *                              |
+      | user_agent           | *                              |
 
   Scenario: Mode operations on __GLOBAL work
     # Set mode
@@ -476,7 +881,34 @@ Feature: Contexts — __GLOBAL Config/Mode Inheritance (3-Tier)
       {"mode": "READWRITE"}
       """
     Then the response status should be 200
-    And the audit log should contain event "mode_update"
+    And the audit log should contain an event:
+      | event_type           | mode_update                    |
+      | outcome              | success                        |
+      | actor_id             |                                |
+      | actor_type           | anonymous                      |
+      | auth_method          |                                |
+      | role                 |                                |
+      | target_type          | mode                           |
+      | target_id            | :.__GLOBAL:                    |
+      | schema_id            |                                |
+      | version              |                                |
+      | schema_type          |                                |
+      | before_hash          | *                              |
+      | after_hash           | sha256:*                       |
+      | context              | .__GLOBAL                      |
+      | transport_security   | tls                            |
+      | method               | PUT                            |
+      | path                 | /mode/:.__GLOBAL:              |
+      | status_code          | 200                            |
+      | reason               |                                |
+      | error                |                                |
+      | request_body         |                                |
+      | metadata             |                                |
+      | timestamp            | *                              |
+      | duration_ms          | *                              |
+      | request_id           | *                              |
+      | source_ip            | *                              |
+      | user_agent           | *                              |
 
   # ==========================================================================
   # CONTEXT-LEVEL CONFIG VIA QUALIFIED SUBJECT
@@ -499,7 +931,34 @@ Feature: Contexts — __GLOBAL Config/Mode Inheritance (3-Tier)
     When I GET "/contexts/.gc-qualified/config/qual-topic?defaultToGlobal=true"
     Then the response status should be 200
     And the response field "compatibilityLevel" should be "FORWARD"
-    And the audit log should contain event "config_update" with subject ":.gc-qualified:"
+    And the audit log should contain an event:
+      | event_type           | config_update                  |
+      | outcome              | success                        |
+      | actor_id             |                                |
+      | actor_type           | anonymous                      |
+      | auth_method          |                                |
+      | role                 |                                |
+      | target_type          | config                         |
+      | target_id            | :.gc-qualified:                |
+      | schema_id            |                                |
+      | version              |                                |
+      | schema_type          |                                |
+      | before_hash          | *                              |
+      | after_hash           | sha256:*                       |
+      | context              | .gc-qualified                  |
+      | transport_security   | tls                            |
+      | method               | PUT                            |
+      | path                 | /config/:.gc-qualified:        |
+      | status_code          | 200                            |
+      | reason               |                                |
+      | error                |                                |
+      | request_body         |                                |
+      | metadata             |                                |
+      | timestamp            | *                              |
+      | duration_ms          | *                              |
+      | request_id           | *                              |
+      | source_ip            | *                              |
+      | user_agent           | *                              |
 
   Scenario: Delete context-level config via qualified subject
     # Set context-level config
@@ -511,7 +970,34 @@ Feature: Contexts — __GLOBAL Config/Mode Inheritance (3-Tier)
     # Delete it
     When I DELETE "/config/:.gc-dq:"
     Then the response status should be 200
-    And the audit log should contain event "config_delete" with subject ":.gc-dq:"
+    And the audit log should contain an event:
+      | event_type           | config_delete                  |
+      | outcome              | success                        |
+      | actor_id             |                                |
+      | actor_type           | anonymous                      |
+      | auth_method          |                                |
+      | role                 |                                |
+      | target_type          | config                         |
+      | target_id            | :.gc-dq:                       |
+      | schema_id            |                                |
+      | version              |                                |
+      | schema_type          |                                |
+      | before_hash          | sha256:*                       |
+      | after_hash           |                                |
+      | context              | .gc-dq                         |
+      | transport_security   | tls                            |
+      | method               | DELETE                         |
+      | path                 | /config/:.gc-dq:               |
+      | status_code          | 200                            |
+      | reason               |                                |
+      | error                |                                |
+      | request_body         |                                |
+      | metadata             |                                |
+      | timestamp            | *                              |
+      | duration_ms          | *                              |
+      | request_id           | *                              |
+      | source_ip            | *                              |
+      | user_agent           | *                              |
 
   Scenario: GET /contexts does NOT include __GLOBAL
     # Set some config on __GLOBAL to ensure it exists in storage
@@ -534,7 +1020,34 @@ Feature: Contexts — __GLOBAL Config/Mode Inheritance (3-Tier)
     # Clean up
     When I DELETE "/config/:.__GLOBAL:"
     Then the response status should be 200
-    And the audit log should contain event "config_delete" with subject ":.__GLOBAL:"
+    And the audit log should contain an event:
+      | event_type           | config_delete                  |
+      | outcome              | success                        |
+      | actor_id             |                                |
+      | actor_type           | anonymous                      |
+      | auth_method          |                                |
+      | role                 |                                |
+      | target_type          | config                         |
+      | target_id            | :.__GLOBAL:                    |
+      | schema_id            |                                |
+      | version              |                                |
+      | schema_type          |                                |
+      | before_hash          | sha256:*                       |
+      | after_hash           |                                |
+      | context              | .__GLOBAL                      |
+      | transport_security   | tls                            |
+      | method               | DELETE                         |
+      | path                 | /config/:.__GLOBAL:            |
+      | status_code          | 200                            |
+      | reason               |                                |
+      | error                |                                |
+      | request_body         |                                |
+      | metadata             |                                |
+      | timestamp            | *                              |
+      | duration_ms          | *                              |
+      | request_id           | *                              |
+      | source_ip            | *                              |
+      | user_agent           | *                              |
 
   # ==========================================================================
   # COMPAT ENFORCEMENT WITH __GLOBAL CONFIG
@@ -570,4 +1083,31 @@ Feature: Contexts — __GLOBAL Config/Mode Inheritance (3-Tier)
     # Clean up
     When I DELETE "/config/:.__GLOBAL:"
     Then the response status should be 200
-    And the audit log should contain event "config_delete" with subject ":.__GLOBAL:"
+    And the audit log should contain an event:
+      | event_type           | config_delete                  |
+      | outcome              | success                        |
+      | actor_id             |                                |
+      | actor_type           | anonymous                      |
+      | auth_method          |                                |
+      | role                 |                                |
+      | target_type          | config                         |
+      | target_id            | :.__GLOBAL:                    |
+      | schema_id            |                                |
+      | version              |                                |
+      | schema_type          |                                |
+      | before_hash          | sha256:*                       |
+      | after_hash           |                                |
+      | context              | .__GLOBAL                      |
+      | transport_security   | tls                            |
+      | method               | DELETE                         |
+      | path                 | /config/:.__GLOBAL:            |
+      | status_code          | 200                            |
+      | reason               |                                |
+      | error                |                                |
+      | request_body         |                                |
+      | metadata             |                                |
+      | timestamp            | *                              |
+      | duration_ms          | *                              |
+      | request_id           | *                              |
+      | source_ip            | *                              |
+      | user_agent           | *                              |

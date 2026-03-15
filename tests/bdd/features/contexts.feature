@@ -34,7 +34,34 @@ Feature: Contexts — Core Behavior
     When I GET "/contexts"
     Then the response status should be 200
     And the response array should contain ".testctx"
-    And the audit log should contain event "schema_register" with subject ":.testctx:ctx-subject1"
+    And the audit log should contain an event:
+      | event_type           | schema_register                           |
+      | outcome              | success                                   |
+      | actor_id             |                                           |
+      | actor_type           | anonymous                                 |
+      | auth_method          |                                           |
+      | role                 |                                           |
+      | target_type          | subject                                   |
+      | target_id            | :.testctx:ctx-subject1                    |
+      | schema_id            | *                                         |
+      | version              | *                                         |
+      | schema_type          | AVRO                                      |
+      | before_hash          |                                           |
+      | after_hash           | sha256:*                                  |
+      | context              | .testctx                                  |
+      | transport_security   | tls                                       |
+      | method               | POST                                      |
+      | path                 | /subjects/:.testctx:ctx-subject1/versions |
+      | status_code          | 200                                       |
+      | reason               |                                           |
+      | error                |                                           |
+      | request_body         |                                           |
+      | metadata             |                                           |
+      | timestamp            | *                                         |
+      | duration_ms          | *                                         |
+      | request_id           | *                                         |
+      | source_ip            | *                                         |
+      | user_agent           | *                                         |
 
   Scenario: Register schemas in multiple contexts — all contexts listed
     When I POST "/subjects/:.ctx-alpha:multi-ctx/versions" with body:
@@ -52,7 +79,34 @@ Feature: Contexts — Core Behavior
     And the response array should contain ".ctx-alpha"
     And the response array should contain ".ctx-beta"
     And the response array should contain "."
-    And the audit log should contain event "schema_register" with subject ":.ctx-beta:multi-ctx"
+    And the audit log should contain an event:
+      | event_type           | schema_register                           |
+      | outcome              | success                                   |
+      | actor_id             |                                           |
+      | actor_type           | anonymous                                 |
+      | auth_method          |                                           |
+      | role                 |                                           |
+      | target_type          | subject                                   |
+      | target_id            | :.ctx-beta:multi-ctx                      |
+      | schema_id            | *                                         |
+      | version              | *                                         |
+      | schema_type          | AVRO                                      |
+      | before_hash          |                                           |
+      | after_hash           | sha256:*                                  |
+      | context              | .ctx-beta                                 |
+      | transport_security   | tls                                       |
+      | method               | POST                                      |
+      | path                 | /subjects/:.ctx-beta:multi-ctx/versions   |
+      | status_code          | 200                                       |
+      | reason               |                                           |
+      | error                |                                           |
+      | request_body         |                                           |
+      | metadata             |                                           |
+      | timestamp            | *                                         |
+      | duration_ms          | *                                         |
+      | request_id           | *                                         |
+      | source_ip            | *                                         |
+      | user_agent           | *                                         |
 
   Scenario: Contexts are created implicitly on first schema registration
     # No explicit context creation API — contexts appear when schemas are registered
@@ -67,7 +121,34 @@ Feature: Contexts — Core Behavior
     When I GET "/contexts"
     Then the response status should be 200
     And the response array should contain ".newctx"
-    And the audit log should contain event "schema_register" with subject ":.newctx:first-schema"
+    And the audit log should contain an event:
+      | event_type           | schema_register                           |
+      | outcome              | success                                   |
+      | actor_id             |                                           |
+      | actor_type           | anonymous                                 |
+      | auth_method          |                                           |
+      | role                 |                                           |
+      | target_type          | subject                                   |
+      | target_id            | :.newctx:first-schema                     |
+      | schema_id            | *                                         |
+      | version              | *                                         |
+      | schema_type          | AVRO                                      |
+      | before_hash          |                                           |
+      | after_hash           | sha256:*                                  |
+      | context              | .newctx                                   |
+      | transport_security   | tls                                       |
+      | method               | POST                                      |
+      | path                 | /subjects/:.newctx:first-schema/versions  |
+      | status_code          | 200                                       |
+      | reason               |                                           |
+      | error                |                                           |
+      | request_body         |                                           |
+      | metadata             |                                           |
+      | timestamp            | *                                         |
+      | duration_ms          | *                                         |
+      | request_id           | *                                         |
+      | source_ip            | *                                         |
+      | user_agent           | *                                         |
 
   Scenario: GET /contexts returns sorted list
     When I POST "/subjects/:.zeta:s1/versions" with body:
@@ -85,7 +166,34 @@ Feature: Contexts — Core Behavior
     And the response array should contain "."
     And the response array should contain ".alpha"
     And the response array should contain ".zeta"
-    And the audit log should contain event "schema_register" with subject ":.alpha:s1"
+    And the audit log should contain an event:
+      | event_type           | schema_register                           |
+      | outcome              | success                                   |
+      | actor_id             |                                           |
+      | actor_type           | anonymous                                 |
+      | auth_method          |                                           |
+      | role                 |                                           |
+      | target_type          | subject                                   |
+      | target_id            | :.alpha:s1                                |
+      | schema_id            | *                                         |
+      | version              | *                                         |
+      | schema_type          | AVRO                                      |
+      | before_hash          |                                           |
+      | after_hash           | sha256:*                                  |
+      | context              | .alpha                                    |
+      | transport_security   | tls                                       |
+      | method               | POST                                      |
+      | path                 | /subjects/:.alpha:s1/versions             |
+      | status_code          | 200                                       |
+      | reason               |                                           |
+      | error                |                                           |
+      | request_body         |                                           |
+      | metadata             |                                           |
+      | timestamp            | *                                         |
+      | duration_ms          | *                                         |
+      | request_id           | *                                         |
+      | source_ip            | *                                         |
+      | user_agent           | *                                         |
 
   Scenario: Registering schema in default context via qualified subject
     # :.: prefix maps to the default context
@@ -97,7 +205,34 @@ Feature: Contexts — Core Behavior
     When I GET "/subjects"
     Then the response status should be 200
     And the response array should contain "mysubject"
-    And the audit log should contain event "schema_register" with subject "mysubject"
+    And the audit log should contain an event:
+      | event_type           | schema_register                           |
+      | outcome              | success                                   |
+      | actor_id             |                                           |
+      | actor_type           | anonymous                                 |
+      | auth_method          |                                           |
+      | role                 |                                           |
+      | target_type          | subject                                   |
+      | target_id            | mysubject                                 |
+      | schema_id            | *                                         |
+      | version              | *                                         |
+      | schema_type          | AVRO                                      |
+      | before_hash          |                                           |
+      | after_hash           | sha256:*                                  |
+      | context              | .                                         |
+      | transport_security   | tls                                       |
+      | method               | POST                                      |
+      | path                 | /subjects/mysubject/versions              |
+      | status_code          | 200                                       |
+      | reason               |                                           |
+      | error                |                                           |
+      | request_body         |                                           |
+      | metadata             |                                           |
+      | timestamp            | *                                         |
+      | duration_ms          | *                                         |
+      | request_id           | *                                         |
+      | source_ip            | *                                         |
+      | user_agent           | *                                         |
 
   Scenario: Context names are case-sensitive
     When I POST "/subjects/:.CaseSensitive:s1/versions" with body:
@@ -114,7 +249,34 @@ Feature: Contexts — Core Behavior
     Then the response status should be 200
     And the response array should contain ".CaseSensitive"
     And the response array should contain ".casesensitive"
-    And the audit log should contain event "schema_register" with subject ":.casesensitive:s1"
+    And the audit log should contain an event:
+      | event_type           | schema_register                           |
+      | outcome              | success                                   |
+      | actor_id             |                                           |
+      | actor_type           | anonymous                                 |
+      | auth_method          |                                           |
+      | role                 |                                           |
+      | target_type          | subject                                   |
+      | target_id            | :.casesensitive:s1                        |
+      | schema_id            | *                                         |
+      | version              | *                                         |
+      | schema_type          | AVRO                                      |
+      | before_hash          |                                           |
+      | after_hash           | sha256:*                                  |
+      | context              | .casesensitive                            |
+      | transport_security   | tls                                       |
+      | method               | POST                                      |
+      | path                 | /subjects/:.casesensitive:s1/versions     |
+      | status_code          | 200                                       |
+      | reason               |                                           |
+      | error                |                                           |
+      | request_body         |                                           |
+      | metadata             |                                           |
+      | timestamp            | *                                         |
+      | duration_ms          | *                                         |
+      | request_id           | *                                         |
+      | source_ip            | *                                         |
+      | user_agent           | *                                         |
 
   # ==========================================================================
   # CONTEXT ISOLATION — BASIC
@@ -137,7 +299,34 @@ Feature: Contexts — Core Behavior
     When I GET "/subjects/:.iso-b:shared-name/versions/1"
     Then the response status should be 200
     And the response body should contain "IsoB"
-    And the audit log should contain event "schema_register" with subject ":.iso-b:shared-name"
+    And the audit log should contain an event:
+      | event_type           | schema_register                           |
+      | outcome              | success                                   |
+      | actor_id             |                                           |
+      | actor_type           | anonymous                                 |
+      | auth_method          |                                           |
+      | role                 |                                           |
+      | target_type          | subject                                   |
+      | target_id            | :.iso-b:shared-name                       |
+      | schema_id            | *                                         |
+      | version              | *                                         |
+      | schema_type          | AVRO                                      |
+      | before_hash          |                                           |
+      | after_hash           | sha256:*                                  |
+      | context              | .iso-b                                    |
+      | transport_security   | tls                                       |
+      | method               | POST                                      |
+      | path                 | /subjects/:.iso-b:shared-name/versions    |
+      | status_code          | 200                                       |
+      | reason               |                                           |
+      | error                |                                           |
+      | request_body         |                                           |
+      | metadata             |                                           |
+      | timestamp            | *                                         |
+      | duration_ms          | *                                         |
+      | request_id           | *                                         |
+      | source_ip            | *                                         |
+      | user_agent           | *                                         |
 
   Scenario: Delete context-prefixed subject
     When I POST "/subjects/:.del-ctx:to-delete/versions" with body:
@@ -149,4 +338,31 @@ Feature: Contexts — Core Behavior
     Then the response status should be 200
     When I GET "/subjects/:.del-ctx:to-delete/versions"
     Then the response status should be 404
-    And the audit log should contain event "subject_delete_soft" with subject ":.del-ctx:to-delete"
+    And the audit log should contain an event:
+      | event_type           | subject_delete_soft                       |
+      | outcome              | success                                   |
+      | actor_id             |                                           |
+      | actor_type           | anonymous                                 |
+      | auth_method          |                                           |
+      | role                 |                                           |
+      | target_type          | subject                                   |
+      | target_id            | :.del-ctx:to-delete                       |
+      | schema_id            |                                           |
+      | version              |                                           |
+      | schema_type          | AVRO                                      |
+      | before_hash          | sha256:*                                  |
+      | after_hash           |                                           |
+      | context              | .del-ctx                                  |
+      | transport_security   | tls                                       |
+      | method               | DELETE                                    |
+      | path                 | /subjects/:.del-ctx:to-delete             |
+      | status_code          | 200                                       |
+      | reason               |                                           |
+      | error                |                                           |
+      | request_body         |                                           |
+      | metadata             |                                           |
+      | timestamp            | *                                         |
+      | duration_ms          | *                                         |
+      | request_id           | *                                         |
+      | source_ip            | *                                         |
+      | user_agent           | *                                         |
