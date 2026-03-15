@@ -51,7 +51,34 @@ Feature: MCP AI Data Modeling — Encryption Lifecycle (KEK/DEK)
       """
     Then the MCP result should contain "user-data"
     And the MCP result should contain "AES256_GCM"
-    And the audit log should contain event "mcp_tool_call"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_call          |
+      | outcome              | success                |
+      | actor_id             | mcp-anonymous          |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          | subject                |
+      | target_id            | user-data              |
+      | schema_id            |                        |
+      | version              |                        |
+      | schema_type          |                        |
+      | before_hash          |                        |
+      | after_hash           |                        |
+      | context              |                        |
+      | transport_security   |                        |
+      | source_ip            |                        |
+      | user_agent           |                        |
+      | method               | MCP                    |
+      | path                 | get_dek                |
+      | status_code          | 0                      |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           |                        |
 
   # ==========================================================================
   # 2. AI MANAGES MULTIPLE KEKS FOR DIFFERENT DOMAINS
@@ -82,7 +109,34 @@ Feature: MCP AI Data Modeling — Encryption Lifecycle (KEK/DEK)
     When I call MCP tool "list_keks"
     Then the MCP result should contain "enc-finance-kek"
     And the MCP result should contain "enc-health-kek"
-    And the audit log should contain event "mcp_tool_call"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_call          |
+      | outcome              | success                |
+      | actor_id             | mcp-anonymous          |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          |                        |
+      | target_id            |                        |
+      | schema_id            |                        |
+      | version              |                        |
+      | schema_type          |                        |
+      | before_hash          |                        |
+      | after_hash           |                        |
+      | context              |                        |
+      | transport_security   |                        |
+      | source_ip            |                        |
+      | user_agent           |                        |
+      | method               | MCP                    |
+      | path                 | list_keks              |
+      | status_code          | 0                      |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           |                        |
 
   # ==========================================================================
   # 3. AI MANAGES DEK VERSIONS
@@ -132,7 +186,34 @@ Feature: MCP AI Data Modeling — Encryption Lifecycle (KEK/DEK)
       """
     Then the MCP result should contain "1"
     And the MCP result should contain "2"
-    And the audit log should contain event "mcp_tool_call"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_call          |
+      | outcome              | success                |
+      | actor_id             | mcp-anonymous          |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          | subject                |
+      | target_id            | versioned-data         |
+      | schema_id            |                        |
+      | version              |                        |
+      | schema_type          |                        |
+      | before_hash          |                        |
+      | after_hash           |                        |
+      | context              |                        |
+      | transport_security   |                        |
+      | source_ip            |                        |
+      | user_agent           |                        |
+      | method               | MCP                    |
+      | path                 | list_dek_versions      |
+      | status_code          | 0                      |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           |                        |
 
   # ==========================================================================
   # 4. AI MANAGES DEK WITH DIFFERENT ALGORITHMS
@@ -187,7 +268,34 @@ Feature: MCP AI Data Modeling — Encryption Lifecycle (KEK/DEK)
     Then the MCP result should contain "algo-gcm256"
     And the MCP result should contain "algo-gcm128"
     And the MCP result should contain "algo-siv256"
-    And the audit log should contain event "mcp_tool_call"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_call          |
+      | outcome              | success                |
+      | actor_id             | mcp-anonymous          |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          |                        |
+      | target_id            |                        |
+      | schema_id            |                        |
+      | version              |                        |
+      | schema_type          |                        |
+      | before_hash          |                        |
+      | after_hash           |                        |
+      | context              |                        |
+      | transport_security   |                        |
+      | source_ip            |                        |
+      | user_agent           |                        |
+      | method               | MCP                    |
+      | path                 | list_deks              |
+      | status_code          | 0                      |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           |                        |
 
   # ==========================================================================
   # 5. AI MANAGES KEK SOFT-DELETE AND RESTORE
@@ -227,7 +335,34 @@ Feature: MCP AI Data Modeling — Encryption Lifecycle (KEK/DEK)
     # AI verifies it's back in the list
     When I call MCP tool "list_keks"
     Then the MCP result should contain "enc-delete-kek"
-    And the audit log should contain event "mcp_tool_call"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_call          |
+      | outcome              | success                |
+      | actor_id             | mcp-anonymous          |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          |                        |
+      | target_id            |                        |
+      | schema_id            |                        |
+      | version              |                        |
+      | schema_type          |                        |
+      | before_hash          |                        |
+      | after_hash           |                        |
+      | context              |                        |
+      | transport_security   |                        |
+      | source_ip            |                        |
+      | user_agent           |                        |
+      | method               | MCP                    |
+      | path                 | list_keks              |
+      | status_code          | 0                      |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           |                        |
 
   # ==========================================================================
   # 6. AI MANAGES DEK SOFT-DELETE
@@ -279,7 +414,34 @@ Feature: MCP AI Data Modeling — Encryption Lifecycle (KEK/DEK)
       }
       """
     Then the MCP result should contain "true"
-    And the audit log should contain event "mcp_tool_call"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_call          |
+      | outcome              | success                |
+      | actor_id             | mcp-anonymous          |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          | subject                |
+      | target_id            | deletable-data         |
+      | schema_id            |                        |
+      | version              |                        |
+      | schema_type          |                        |
+      | before_hash          |                        |
+      | after_hash           |                        |
+      | context              |                        |
+      | transport_security   |                        |
+      | source_ip            |                        |
+      | user_agent           |                        |
+      | method               | MCP                    |
+      | path                 | undelete_dek           |
+      | status_code          | 0                      |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           |                        |
 
   # ==========================================================================
   # 7. AI UPDATES KEK PROPERTIES
@@ -313,7 +475,34 @@ Feature: MCP AI Data Modeling — Encryption Lifecycle (KEK/DEK)
     When I call MCP tool "get_kek" with input:
       | name | enc-updatable-kek |
     Then the MCP result should contain "Updated documentation for rotation"
-    And the audit log should contain event "mcp_tool_call"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_call          |
+      | outcome              | success                |
+      | actor_id             | mcp-anonymous          |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          |                        |
+      | target_id            |                        |
+      | schema_id            |                        |
+      | version              |                        |
+      | schema_type          |                        |
+      | before_hash          |                        |
+      | after_hash           |                        |
+      | context              |                        |
+      | transport_security   |                        |
+      | source_ip            |                        |
+      | user_agent           |                        |
+      | method               | MCP                    |
+      | path                 | get_kek                |
+      | status_code          | 0                      |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           |                        |
 
   # ==========================================================================
   # 8. AI COMBINES SCHEMA REGISTRATION WITH ENCRYPTION SETUP
@@ -400,7 +589,34 @@ Feature: MCP AI Data Modeling — Encryption Lifecycle (KEK/DEK)
     When I call MCP tool "list_deks" with input:
       | kek_name | enc-pipeline-kek |
     Then the MCP result should contain "health-records-value"
-    And the audit log should contain event "mcp_tool_call"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_call          |
+      | outcome              | success                |
+      | actor_id             | mcp-anonymous          |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          |                        |
+      | target_id            |                        |
+      | schema_id            |                        |
+      | version              |                        |
+      | schema_type          |                        |
+      | before_hash          |                        |
+      | after_hash           |                        |
+      | context              |                        |
+      | transport_security   |                        |
+      | source_ip            |                        |
+      | user_agent           |                        |
+      | method               | MCP                    |
+      | path                 | list_deks              |
+      | status_code          | 0                      |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           |                        |
 
   # ==========================================================================
   # 9. AI HANDLES ENCRYPTION ERRORS GRACEFULLY
@@ -426,13 +642,67 @@ Feature: MCP AI Data Modeling — Encryption Lifecycle (KEK/DEK)
       }
       """
     Then the MCP result should contain "error"
-    And the audit log should contain event "mcp_tool_error"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_error         |
+      | outcome              | failure                |
+      | actor_id             | mcp-anonymous          |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          |                        |
+      | target_id            |                        |
+      | schema_id            |                        |
+      | version              |                        |
+      | schema_type          |                        |
+      | before_hash          |                        |
+      | after_hash           |                        |
+      | context              |                        |
+      | transport_security   |                        |
+      | source_ip            |                        |
+      | user_agent           |                        |
+      | method               | MCP                    |
+      | path                 | create_kek             |
+      | status_code          | 0                      |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           |                        |
 
   Scenario: AI handles non-existent KEK lookup
     When I call MCP tool "get_kek" with input:
       | name | enc-nonexistent-kek |
     Then the MCP result should contain "error"
-    And the audit log should contain event "mcp_tool_error"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_error         |
+      | outcome              | failure                |
+      | actor_id             | mcp-anonymous          |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          |                        |
+      | target_id            |                        |
+      | schema_id            |                        |
+      | version              |                        |
+      | schema_type          |                        |
+      | before_hash          |                        |
+      | after_hash           |                        |
+      | context              |                        |
+      | transport_security   |                        |
+      | source_ip            |                        |
+      | user_agent           |                        |
+      | method               | MCP                    |
+      | path                 | get_kek                |
+      | status_code          | 0                      |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           |                        |
 
   Scenario: AI handles DEK creation for non-existent KEK
     When I call MCP tool "create_dek" with JSON input:
@@ -444,4 +714,31 @@ Feature: MCP AI Data Modeling — Encryption Lifecycle (KEK/DEK)
       }
       """
     Then the MCP result should contain "error"
-    And the audit log should contain event "mcp_tool_error"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_error         |
+      | outcome              | failure                |
+      | actor_id             | mcp-anonymous          |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          | subject                |
+      | target_id            | some-data              |
+      | schema_id            |                        |
+      | version              |                        |
+      | schema_type          |                        |
+      | before_hash          |                        |
+      | after_hash           |                        |
+      | context              |                        |
+      | transport_security   |                        |
+      | source_ip            |                        |
+      | user_agent           |                        |
+      | method               | MCP                    |
+      | path                 | create_dek             |
+      | status_code          | 0                      |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           |                        |

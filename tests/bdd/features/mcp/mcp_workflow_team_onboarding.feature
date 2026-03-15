@@ -24,7 +24,34 @@ Feature: MCP Workflow — Team Onboarding
       {}
       """
     Then the MCP result should not contain "wf-team-test"
-    And the audit log should contain event "mcp_tool_call"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_call          |
+      | outcome              | success                |
+      | actor_id             | mcp-anonymous          |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          |                        |
+      | target_id            |                        |
+      | schema_id            |                        |
+      | version              |                        |
+      | schema_type          |                        |
+      | before_hash          |                        |
+      | after_hash           |                        |
+      | context              |                        |
+      | transport_security   |                        |
+      | source_ip            |                        |
+      | user_agent           |                        |
+      | method               | MCP                    |
+      | path                 | list_subjects          |
+      | status_code          | 0                      |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           |                        |
 
   # Validates: prompts/team-onboarding.md — Step 3, glossary/contexts 4-Tier Inheritance
   Scenario: Set context-level compatibility default
@@ -41,7 +68,34 @@ Feature: MCP Workflow — Team Onboarding
       {"context": ".team-beta"}
       """
     Then the MCP result should contain "FULL_TRANSITIVE"
-    And the audit log should contain event "mcp_tool_call"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_call          |
+      | outcome              | success                |
+      | actor_id             | mcp-anonymous          |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          |                        |
+      | target_id            |                        |
+      | schema_id            |                        |
+      | version              |                        |
+      | schema_type          |                        |
+      | before_hash          |                        |
+      | after_hash           |                        |
+      | context              |                        |
+      | transport_security   |                        |
+      | source_ip            |                        |
+      | user_agent           |                        |
+      | method               | MCP                    |
+      | path                 | get_config             |
+      | status_code          | 0                      |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           |                        |
 
   # Validates: prompts/team-onboarding.md — Step 4, glossary/auth-and-security
   Scenario: Create user with developer role
@@ -55,7 +109,34 @@ Feature: MCP Workflow — Team Onboarding
       """
     Then the MCP result should not be an error
     And the MCP result should contain "wf-team-user"
-    And the audit log should contain event "mcp_tool_call"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_call          |
+      | outcome              | success                |
+      | actor_id             | mcp-anonymous          |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          |                        |
+      | target_id            |                        |
+      | schema_id            |                        |
+      | version              |                        |
+      | schema_type          |                        |
+      | before_hash          |                        |
+      | after_hash           |                        |
+      | context              |                        |
+      | transport_security   |                        |
+      | source_ip            |                        |
+      | user_agent           |                        |
+      | method               | MCP                    |
+      | path                 | create_user            |
+      | status_code          | 0                      |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           |                        |
 
   # Validates: prompts/team-onboarding.md — Step 8
   Scenario: Context-scoped resources return only team data
@@ -79,7 +160,34 @@ Feature: MCP Workflow — Team Onboarding
     When I read MCP resource "schema://contexts/.team-gamma/subjects"
     Then the MCP resource result should contain "wf-team-gamma-schema"
     And the MCP resource result should not contain "wf-default-schema"
-    And the audit log should contain event "mcp_tool_call"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_call          |
+      | outcome              | success                |
+      | actor_id             | mcp-anonymous          |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          | subject                |
+      | target_id            | wf-default-schema      |
+      | schema_id            |                        |
+      | version              |                        |
+      | schema_type          |                        |
+      | before_hash          |                        |
+      | after_hash           |                        |
+      | context              |                        |
+      | transport_security   |                        |
+      | source_ip            |                        |
+      | user_agent           |                        |
+      | method               | MCP                    |
+      | path                 | register_schema        |
+      | status_code          | 0                      |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           |                        |
 
   # Validates: prompts/team-onboarding.md — Complete workflow
   Scenario: Full onboarding end-to-end
@@ -109,4 +217,31 @@ Feature: MCP Workflow — Team Onboarding
     Then the MCP result should contain "BACKWARD_TRANSITIVE"
     When I read MCP resource "schema://contexts/.team-delta/subjects"
     Then the MCP resource result should contain "wf-team-delta-events"
-    And the audit log should contain event "mcp_tool_call"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_call          |
+      | outcome              | success                |
+      | actor_id             | mcp-anonymous          |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          |                        |
+      | target_id            |                        |
+      | schema_id            |                        |
+      | version              |                        |
+      | schema_type          |                        |
+      | before_hash          |                        |
+      | after_hash           |                        |
+      | context              |                        |
+      | transport_security   |                        |
+      | source_ip            |                        |
+      | user_agent           |                        |
+      | method               | MCP                    |
+      | path                 | get_config             |
+      | status_code          | 0                      |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           |                        |

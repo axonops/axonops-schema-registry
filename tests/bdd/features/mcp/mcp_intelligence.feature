@@ -11,7 +11,34 @@ Feature: MCP AI Intelligence Tools
     When I call MCP tool "find_schemas_by_field" with input:
       | field | type |
     Then the MCP result should contain "matches"
-    And the audit log should contain event "mcp_tool_call"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_call          |
+      | outcome              | success                |
+      | actor_id             | mcp-anonymous          |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          |                        |
+      | target_id            |                        |
+      | schema_id            |                        |
+      | version              |                        |
+      | schema_type          |                        |
+      | before_hash          |                        |
+      | after_hash           |                        |
+      | context              |                        |
+      | transport_security   |                        |
+      | source_ip            |                        |
+      | user_agent           |                        |
+      | method               | MCP                    |
+      | path                 | find_schemas_by_field  |
+      | status_code          | 0                      |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           |                        |
 
   Scenario: Find schemas by field name - fuzzy match
     When I call MCP tool "find_schemas_by_field" with JSON input:
@@ -19,7 +46,34 @@ Feature: MCP AI Intelligence Tools
       {"field": "typ", "match_type": "fuzzy", "threshold": 0.5}
       """
     Then the MCP result should contain "matches"
-    And the audit log should contain event "mcp_tool_call"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_call          |
+      | outcome              | success                |
+      | actor_id             | mcp-anonymous          |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          |                        |
+      | target_id            |                        |
+      | schema_id            |                        |
+      | version              |                        |
+      | schema_type          |                        |
+      | before_hash          |                        |
+      | after_hash           |                        |
+      | context              |                        |
+      | transport_security   |                        |
+      | source_ip            |                        |
+      | user_agent           |                        |
+      | method               | MCP                    |
+      | path                 | find_schemas_by_field  |
+      | status_code          | 0                      |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           |                        |
 
   Scenario: Find schemas by field name - regex
     When I call MCP tool "find_schemas_by_field" with JSON input:
@@ -27,13 +81,67 @@ Feature: MCP AI Intelligence Tools
       {"field": "^ty.*", "match_type": "regex"}
       """
     Then the MCP result should contain "matches"
-    And the audit log should contain event "mcp_tool_call"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_call          |
+      | outcome              | success                |
+      | actor_id             | mcp-anonymous          |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          |                        |
+      | target_id            |                        |
+      | schema_id            |                        |
+      | version              |                        |
+      | schema_type          |                        |
+      | before_hash          |                        |
+      | after_hash           |                        |
+      | context              |                        |
+      | transport_security   |                        |
+      | source_ip            |                        |
+      | user_agent           |                        |
+      | method               | MCP                    |
+      | path                 | find_schemas_by_field  |
+      | status_code          | 0                      |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           |                        |
 
   Scenario: Find schemas by field name - no match
     When I call MCP tool "find_schemas_by_field" with input:
       | field | nonexistent_field_xyz |
     Then the MCP result should contain "\"count\":0"
-    And the audit log should contain event "mcp_tool_call"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_call          |
+      | outcome              | success                |
+      | actor_id             | mcp-anonymous          |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          |                        |
+      | target_id            |                        |
+      | schema_id            |                        |
+      | version              |                        |
+      | schema_type          |                        |
+      | before_hash          |                        |
+      | after_hash           |                        |
+      | context              |                        |
+      | transport_security   |                        |
+      | source_ip            |                        |
+      | user_agent           |                        |
+      | method               | MCP                    |
+      | path                 | find_schemas_by_field  |
+      | status_code          | 0                      |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           |                        |
 
   # --- find_schemas_by_type ---
 
@@ -41,7 +149,34 @@ Feature: MCP AI Intelligence Tools
     When I call MCP tool "find_schemas_by_type" with input:
       | type_pattern | string |
     Then the MCP result should contain "matches"
-    And the audit log should contain event "mcp_tool_call"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_call          |
+      | outcome              | success                |
+      | actor_id             | mcp-anonymous          |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          |                        |
+      | target_id            |                        |
+      | schema_id            |                        |
+      | version              |                        |
+      | schema_type          |                        |
+      | before_hash          |                        |
+      | after_hash           |                        |
+      | context              |                        |
+      | transport_security   |                        |
+      | source_ip            |                        |
+      | user_agent           |                        |
+      | method               | MCP                    |
+      | path                 | find_schemas_by_type   |
+      | status_code          | 0                      |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           |                        |
 
   Scenario: Find schemas by type with regex
     When I call MCP tool "find_schemas_by_type" with JSON input:
@@ -49,7 +184,34 @@ Feature: MCP AI Intelligence Tools
       {"type_pattern": "str.*", "regex": true}
       """
     Then the MCP result should contain "matches"
-    And the audit log should contain event "mcp_tool_call"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_call          |
+      | outcome              | success                |
+      | actor_id             | mcp-anonymous          |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          |                        |
+      | target_id            |                        |
+      | schema_id            |                        |
+      | version              |                        |
+      | schema_type          |                        |
+      | before_hash          |                        |
+      | after_hash           |                        |
+      | context              |                        |
+      | transport_security   |                        |
+      | source_ip            |                        |
+      | user_agent           |                        |
+      | method               | MCP                    |
+      | path                 | find_schemas_by_type   |
+      | status_code          | 0                      |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           |                        |
 
   # --- find_similar_schemas ---
 
@@ -61,7 +223,34 @@ Feature: MCP AI Intelligence Tools
       """
     Then the MCP result should contain "matches"
     And the MCP result should contain "intel-users-value"
-    And the audit log should contain event "mcp_tool_call"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_call          |
+      | outcome              | success                |
+      | actor_id             | mcp-anonymous          |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          | subject                |
+      | target_id            | intel-users-value      |
+      | schema_id            |                        |
+      | version              |                        |
+      | schema_type          |                        |
+      | before_hash          |                        |
+      | after_hash           |                        |
+      | context              |                        |
+      | transport_security   |                        |
+      | source_ip            |                        |
+      | user_agent           |                        |
+      | method               | MCP                    |
+      | path                 | find_similar_schemas   |
+      | status_code          | 0                      |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           |                        |
 
   # --- score_schema_quality ---
 
@@ -71,7 +260,34 @@ Feature: MCP AI Intelligence Tools
     Then the MCP result should contain "overall_score"
     And the MCP result should contain "grade"
     And the MCP result should contain "categories"
-    And the audit log should contain event "mcp_tool_call"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_call          |
+      | outcome              | success                |
+      | actor_id             | mcp-anonymous          |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          | subject                |
+      | target_id            | intel-users-value      |
+      | schema_id            |                        |
+      | version              |                        |
+      | schema_type          |                        |
+      | before_hash          |                        |
+      | after_hash           |                        |
+      | context              |                        |
+      | transport_security   |                        |
+      | source_ip            |                        |
+      | user_agent           |                        |
+      | method               | MCP                    |
+      | path                 | score_schema_quality   |
+      | status_code          | 0                      |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           |                        |
 
   Scenario: Score schema quality by inline schema
     When I call MCP tool "score_schema_quality" with JSON input:
@@ -83,7 +299,34 @@ Feature: MCP AI Intelligence Tools
       """
     Then the MCP result should contain "overall_score"
     And the MCP result should contain "grade"
-    And the audit log should contain event "mcp_tool_call"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_call          |
+      | outcome              | success                |
+      | actor_id             | mcp-anonymous          |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          |                        |
+      | target_id            |                        |
+      | schema_id            |                        |
+      | version              |                        |
+      | schema_type          |                        |
+      | before_hash          |                        |
+      | after_hash           |                        |
+      | context              |                        |
+      | transport_security   |                        |
+      | source_ip            |                        |
+      | user_agent           |                        |
+      | method               | MCP                    |
+      | path                 | score_schema_quality   |
+      | status_code          | 0                      |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           |                        |
 
   # --- check_field_consistency ---
 
@@ -93,7 +336,34 @@ Feature: MCP AI Intelligence Tools
       | field | type |
     Then the MCP result should contain "consistent"
     And the MCP result should contain "usages"
-    And the audit log should contain event "mcp_tool_call"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_call              |
+      | outcome              | success                    |
+      | actor_id             | mcp-anonymous              |
+      | actor_type           | anonymous                  |
+      | auth_method          |                            |
+      | role                 |                            |
+      | target_type          |                            |
+      | target_id            |                            |
+      | schema_id            |                            |
+      | version              |                            |
+      | schema_type          |                            |
+      | before_hash          |                            |
+      | after_hash           |                            |
+      | context              |                            |
+      | transport_security   |                            |
+      | source_ip            |                            |
+      | user_agent           |                            |
+      | method               | MCP                        |
+      | path                 | check_field_consistency    |
+      | status_code          | 0                          |
+      | reason               |                            |
+      | error                |                            |
+      | request_body         |                            |
+      | metadata             |                            |
+      | timestamp            | *                          |
+      | duration_ms          | *                          |
+      | request_id           |                            |
 
   # --- get_schema_complexity ---
 
@@ -102,7 +372,34 @@ Feature: MCP AI Intelligence Tools
       | subject | intel-users-value |
     Then the MCP result should contain "field_count"
     And the MCP result should contain "grade"
-    And the audit log should contain event "mcp_tool_call"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_call              |
+      | outcome              | success                    |
+      | actor_id             | mcp-anonymous              |
+      | actor_type           | anonymous                  |
+      | auth_method          |                            |
+      | role                 |                            |
+      | target_type          | subject                    |
+      | target_id            | intel-users-value          |
+      | schema_id            |                            |
+      | version              |                            |
+      | schema_type          |                            |
+      | before_hash          |                            |
+      | after_hash           |                            |
+      | context              |                            |
+      | transport_security   |                            |
+      | source_ip            |                            |
+      | user_agent           |                            |
+      | method               | MCP                        |
+      | path                 | get_schema_complexity      |
+      | status_code          | 0                          |
+      | reason               |                            |
+      | error                |                            |
+      | request_body         |                            |
+      | metadata             |                            |
+      | timestamp            | *                          |
+      | duration_ms          | *                          |
+      | request_id           |                            |
 
   Scenario: Get schema complexity by inline schema
     When I call MCP tool "get_schema_complexity" with JSON input:
@@ -114,7 +411,34 @@ Feature: MCP AI Intelligence Tools
       """
     Then the MCP result should contain "field_count"
     And the MCP result should contain "max_depth"
-    And the audit log should contain event "mcp_tool_call"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_call              |
+      | outcome              | success                    |
+      | actor_id             | mcp-anonymous              |
+      | actor_type           | anonymous                  |
+      | auth_method          |                            |
+      | role                 |                            |
+      | target_type          |                            |
+      | target_id            |                            |
+      | schema_id            |                            |
+      | version              |                            |
+      | schema_type          |                            |
+      | before_hash          |                            |
+      | after_hash           |                            |
+      | context              |                            |
+      | transport_security   |                            |
+      | source_ip            |                            |
+      | user_agent           |                            |
+      | method               | MCP                        |
+      | path                 | get_schema_complexity      |
+      | status_code          | 0                          |
+      | reason               |                            |
+      | error                |                            |
+      | request_body         |                            |
+      | metadata             |                            |
+      | timestamp            | *                          |
+      | duration_ms          | *                          |
+      | request_id           |                            |
 
   # --- detect_schema_patterns ---
 
@@ -124,4 +448,31 @@ Feature: MCP AI Intelligence Tools
     Then the MCP result should contain "total_subjects"
     And the MCP result should contain "schema_types"
     And the MCP result should contain "naming_suffixes"
-    And the audit log should contain event "mcp_tool_call"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_call              |
+      | outcome              | success                    |
+      | actor_id             | mcp-anonymous              |
+      | actor_type           | anonymous                  |
+      | auth_method          |                            |
+      | role                 |                            |
+      | target_type          |                            |
+      | target_id            |                            |
+      | schema_id            |                            |
+      | version              |                            |
+      | schema_type          |                            |
+      | before_hash          |                            |
+      | after_hash           |                            |
+      | context              |                            |
+      | transport_security   |                            |
+      | source_ip            |                            |
+      | user_agent           |                            |
+      | method               | MCP                        |
+      | path                 | detect_schema_patterns     |
+      | status_code          | 0                          |
+      | reason               |                            |
+      | error                |                            |
+      | request_body         |                            |
+      | metadata             |                            |
+      | timestamp            | *                          |
+      | duration_ms          | *                          |
+      | request_id           |                            |

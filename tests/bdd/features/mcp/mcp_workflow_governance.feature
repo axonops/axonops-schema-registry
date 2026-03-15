@@ -15,7 +15,34 @@ Feature: MCP Workflow — Governance Setup
       {}
       """
     Then the MCP result should contain "FULL"
-    And the audit log should contain event "mcp_tool_call"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_call          |
+      | outcome              | success                |
+      | actor_id             | mcp-anonymous          |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          |                        |
+      | target_id            |                        |
+      | schema_id            |                        |
+      | version              |                        |
+      | schema_type          |                        |
+      | before_hash          |                        |
+      | after_hash           |                        |
+      | context              |                        |
+      | transport_security   |                        |
+      | source_ip            |                        |
+      | user_agent           |                        |
+      | method               | MCP                    |
+      | path                 | get_config             |
+      | status_code          | 0                      |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           |                        |
 
   # Validates: prompts/governance-setup.md — Step 3
   Scenario: Score quality across subjects
@@ -33,7 +60,34 @@ Feature: MCP Workflow — Governance Setup
       """
     Then the MCP result should not be an error
     And the MCP result should contain "score"
-    And the audit log should contain event "mcp_tool_call"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_call          |
+      | outcome              | success                |
+      | actor_id             | mcp-anonymous          |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          | subject                |
+      | target_id            | wf-gov-quality         |
+      | schema_id            |                        |
+      | version              |                        |
+      | schema_type          |                        |
+      | before_hash          |                        |
+      | after_hash           |                        |
+      | context              |                        |
+      | transport_security   |                        |
+      | source_ip            |                        |
+      | user_agent           |                        |
+      | method               | MCP                    |
+      | path                 | score_schema_quality   |
+      | status_code          | 0                      |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           |                        |
 
   # Validates: prompts/governance-setup.md — Step 3
   Scenario: Check field consistency for type drift
@@ -61,7 +115,34 @@ Feature: MCP Workflow — Governance Setup
       """
     Then the MCP result should not be an error
     And the MCP result should contain "customer_id"
-    And the audit log should contain event "mcp_tool_call"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_call              |
+      | outcome              | success                    |
+      | actor_id             | mcp-anonymous              |
+      | actor_type           | anonymous                  |
+      | auth_method          |                            |
+      | role                 |                            |
+      | target_type          |                            |
+      | target_id            |                            |
+      | schema_id            |                            |
+      | version              |                            |
+      | schema_type          |                            |
+      | before_hash          |                            |
+      | after_hash           |                            |
+      | context              |                            |
+      | transport_security   |                            |
+      | source_ip            |                            |
+      | user_agent           |                            |
+      | method               | MCP                        |
+      | path                 | check_field_consistency    |
+      | status_code          | 0                          |
+      | reason               |                            |
+      | error                |                            |
+      | request_body         |                            |
+      | metadata             |                            |
+      | timestamp            | *                          |
+      | duration_ms          | *                          |
+      | request_id           |                            |
 
   # Validates: prompts/governance-setup.md — Step 4, glossary/data-contracts 3-Layer Merge
   Scenario: Data contract with override metadata for PII
@@ -90,4 +171,31 @@ Feature: MCP Workflow — Governance Setup
       """
     Then the MCP result should contain "pii"
     And the MCP result should contain "data-team"
-    And the audit log should contain event "mcp_tool_call"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_call              |
+      | outcome              | success                    |
+      | actor_id             | mcp-anonymous              |
+      | actor_type           | anonymous                  |
+      | auth_method          |                            |
+      | role                 |                            |
+      | target_type          | subject                    |
+      | target_id            | wf-gov-contract            |
+      | schema_id            |                            |
+      | version              |                            |
+      | schema_type          |                            |
+      | before_hash          |                            |
+      | after_hash           |                            |
+      | context              |                            |
+      | transport_security   |                            |
+      | source_ip            |                            |
+      | user_agent           |                            |
+      | method               | MCP                        |
+      | path                 | get_subject_config_full    |
+      | status_code          | 0                          |
+      | reason               |                            |
+      | error                |                            |
+      | request_body         |                            |
+      | metadata             |                            |
+      | timestamp            | *                          |
+      | duration_ms          | *                          |
+      | request_id           |                            |

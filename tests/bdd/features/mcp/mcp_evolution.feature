@@ -20,7 +20,34 @@ Feature: MCP Schema Evolution Tools
     Then the MCP result should contain "snippet"
     And the MCP result should contain "email"
     And the MCP result should contain "advice"
-    And the audit log should contain event "mcp_tool_call"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_call              |
+      | outcome              | success                    |
+      | actor_id             | mcp-anonymous              |
+      | actor_type           | anonymous                  |
+      | auth_method          |                            |
+      | role                 |                            |
+      | target_type          | subject                    |
+      | target_id            | evolve-test                |
+      | schema_id            |                            |
+      | version              |                            |
+      | schema_type          |                            |
+      | before_hash          |                            |
+      | after_hash           |                            |
+      | context              |                            |
+      | transport_security   |                            |
+      | source_ip            |                            |
+      | user_agent           |                            |
+      | method               | MCP                        |
+      | path                 | suggest_schema_evolution   |
+      | status_code          | 0                          |
+      | reason               |                            |
+      | error                |                            |
+      | request_body         |                            |
+      | metadata             |                            |
+      | timestamp            | *                          |
+      | duration_ms          | *                          |
+      | request_id           |                            |
 
   Scenario: Suggest deprecating a field
     When I call MCP tool "suggest_schema_evolution" with JSON input:
@@ -33,7 +60,34 @@ Feature: MCP Schema Evolution Tools
       """
     Then the MCP result should contain "steps"
     And the MCP result should contain "deprecate"
-    And the audit log should contain event "mcp_tool_call"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_call              |
+      | outcome              | success                    |
+      | actor_id             | mcp-anonymous              |
+      | actor_type           | anonymous                  |
+      | auth_method          |                            |
+      | role                 |                            |
+      | target_type          | subject                    |
+      | target_id            | evolve-test                |
+      | schema_id            |                            |
+      | version              |                            |
+      | schema_type          |                            |
+      | before_hash          |                            |
+      | after_hash           |                            |
+      | context              |                            |
+      | transport_security   |                            |
+      | source_ip            |                            |
+      | user_agent           |                            |
+      | method               | MCP                        |
+      | path                 | suggest_schema_evolution   |
+      | status_code          | 0                          |
+      | reason               |                            |
+      | error                |                            |
+      | request_body         |                            |
+      | metadata             |                            |
+      | timestamp            | *                          |
+      | duration_ms          | *                          |
+      | request_id           |                            |
 
   Scenario: Suggest adding an enum symbol
     When I call MCP tool "suggest_schema_evolution" with JSON input:
@@ -46,7 +100,34 @@ Feature: MCP Schema Evolution Tools
       """
     Then the MCP result should contain "NEW_STATUS"
     And the MCP result should contain "advice"
-    And the audit log should contain event "mcp_tool_call"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_call              |
+      | outcome              | success                    |
+      | actor_id             | mcp-anonymous              |
+      | actor_type           | anonymous                  |
+      | auth_method          |                            |
+      | role                 |                            |
+      | target_type          | subject                    |
+      | target_id            | evolve-test                |
+      | schema_id            |                            |
+      | version              |                            |
+      | schema_type          |                            |
+      | before_hash          |                            |
+      | after_hash           |                            |
+      | context              |                            |
+      | transport_security   |                            |
+      | source_ip            |                            |
+      | user_agent           |                            |
+      | method               | MCP                        |
+      | path                 | suggest_schema_evolution   |
+      | status_code          | 0                          |
+      | reason               |                            |
+      | error                |                            |
+      | request_body         |                            |
+      | metadata             |                            |
+      | timestamp            | *                          |
+      | duration_ms          | *                          |
+      | request_id           |                            |
 
   Scenario: Suggest evolution with unsupported change type
     When I call MCP tool "suggest_schema_evolution" with JSON input:
@@ -57,7 +138,34 @@ Feature: MCP Schema Evolution Tools
       }
       """
     Then the MCP result should contain "unsupported change_type"
-    And the audit log should contain event "mcp_tool_call"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_call              |
+      | outcome              | success                    |
+      | actor_id             | mcp-anonymous              |
+      | actor_type           | anonymous                  |
+      | auth_method          |                            |
+      | role                 |                            |
+      | target_type          | subject                    |
+      | target_id            | evolve-test                |
+      | schema_id            |                            |
+      | version              |                            |
+      | schema_type          |                            |
+      | before_hash          |                            |
+      | after_hash           |                            |
+      | context              |                            |
+      | transport_security   |                            |
+      | source_ip            |                            |
+      | user_agent           |                            |
+      | method               | MCP                        |
+      | path                 | suggest_schema_evolution   |
+      | status_code          | 0                          |
+      | reason               |                            |
+      | error                |                            |
+      | request_body         |                            |
+      | metadata             |                            |
+      | timestamp            | *                          |
+      | duration_ms          | *                          |
+      | request_id           |                            |
 
   # --- plan_migration_path ---
 
@@ -71,7 +179,34 @@ Feature: MCP Schema Evolution Tools
       """
     Then the MCP result should contain "steps"
     And the MCP result should contain "total_steps"
-    And the audit log should contain event "mcp_tool_call"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_call              |
+      | outcome              | success                    |
+      | actor_id             | mcp-anonymous              |
+      | actor_type           | anonymous                  |
+      | auth_method          |                            |
+      | role                 |                            |
+      | target_type          | subject                    |
+      | target_id            | evolve-test                |
+      | schema_id            |                            |
+      | version              |                            |
+      | schema_type          |                            |
+      | before_hash          |                            |
+      | after_hash           |                            |
+      | context              |                            |
+      | transport_security   |                            |
+      | source_ip            |                            |
+      | user_agent           |                            |
+      | method               | MCP                        |
+      | path                 | plan_migration_path        |
+      | status_code          | 0                          |
+      | reason               |                            |
+      | error                |                            |
+      | request_body         |                            |
+      | metadata             |                            |
+      | timestamp            | *                          |
+      | duration_ms          | *                          |
+      | request_id           |                            |
 
   Scenario: Plan migration with no changes needed
     When I call MCP tool "plan_migration_path" with JSON input:
@@ -82,7 +217,34 @@ Feature: MCP Schema Evolution Tools
       }
       """
     Then the MCP result should contain "total_steps"
-    And the audit log should contain event "mcp_tool_call"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_call              |
+      | outcome              | success                    |
+      | actor_id             | mcp-anonymous              |
+      | actor_type           | anonymous                  |
+      | auth_method          |                            |
+      | role                 |                            |
+      | target_type          | subject                    |
+      | target_id            | evolve-test                |
+      | schema_id            |                            |
+      | version              |                            |
+      | schema_type          |                            |
+      | before_hash          |                            |
+      | after_hash           |                            |
+      | context              |                            |
+      | transport_security   |                            |
+      | source_ip            |                            |
+      | user_agent           |                            |
+      | method               | MCP                        |
+      | path                 | plan_migration_path        |
+      | status_code          | 0                          |
+      | reason               |                            |
+      | error                |                            |
+      | request_body         |                            |
+      | metadata             |                            |
+      | timestamp            | *                          |
+      | duration_ms          | *                          |
+      | request_id           |                            |
 
   Scenario: Plan migration returns compatibility level
     When I call MCP tool "plan_migration_path" with JSON input:
@@ -94,4 +256,31 @@ Feature: MCP Schema Evolution Tools
       """
     Then the MCP result should contain "compatibility_level"
     And the MCP result should contain "current_version"
-    And the audit log should contain event "mcp_tool_call"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_call              |
+      | outcome              | success                    |
+      | actor_id             | mcp-anonymous              |
+      | actor_type           | anonymous                  |
+      | auth_method          |                            |
+      | role                 |                            |
+      | target_type          | subject                    |
+      | target_id            | evolve-test                |
+      | schema_id            |                            |
+      | version              |                            |
+      | schema_type          |                            |
+      | before_hash          |                            |
+      | after_hash           |                            |
+      | context              |                            |
+      | transport_security   |                            |
+      | source_ip            |                            |
+      | user_agent           |                            |
+      | method               | MCP                        |
+      | path                 | plan_migration_path        |
+      | status_code          | 0                          |
+      | reason               |                            |
+      | error                |                            |
+      | request_body         |                            |
+      | metadata             |                            |
+      | timestamp            | *                          |
+      | duration_ms          | *                          |
+      | request_id           |                            |

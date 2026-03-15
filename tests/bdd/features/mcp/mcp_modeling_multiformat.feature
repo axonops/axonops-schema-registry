@@ -50,7 +50,34 @@ Feature: MCP AI Data Modeling — Multi-Format Schema Design
     Then the MCP result should contain "cqrs.account-events-value"
     And the MCP result should contain "cqrs.account-commands-value"
     And the MCP result should contain "cqrs.account-query-response"
-    And the audit log should contain event "mcp_tool_call"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_call          |
+      | outcome              | success                |
+      | actor_id             | mcp-anonymous          |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          |                        |
+      | target_id            |                        |
+      | schema_id            |                        |
+      | version              |                        |
+      | schema_type          |                        |
+      | before_hash          |                        |
+      | after_hash           |                        |
+      | context              |                        |
+      | transport_security   |                        |
+      | source_ip            |                        |
+      | user_agent           |                        |
+      | method               | MCP                    |
+      | path                 | list_subjects          |
+      | status_code          | 0                      |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           |                        |
 
   # ==========================================================================
   # 2. AI DESIGNS A PROTOBUF MICROSERVICE WITH NESTED MESSAGES
@@ -85,7 +112,34 @@ Feature: MCP AI Data Modeling — Multi-Format Schema Design
     Then the MCP result should contain "Notification"
     And the MCP result should contain "Recipient"
     And the MCP result should contain "callback_url"
-    And the audit log should contain event "mcp_tool_call"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_call                  |
+      | outcome              | success                        |
+      | actor_id             | mcp-anonymous                  |
+      | actor_type           | anonymous                      |
+      | auth_method          |                                |
+      | role                 |                                |
+      | target_type          | subject                        |
+      | target_id            | notification-service-value     |
+      | schema_id            |                                |
+      | version              |                                |
+      | schema_type          |                                |
+      | before_hash          |                                |
+      | after_hash           |                                |
+      | context              |                                |
+      | transport_security   |                                |
+      | source_ip            |                                |
+      | user_agent           |                                |
+      | method               | MCP                            |
+      | path                 | get_latest_schema              |
+      | status_code          | 0                              |
+      | reason               |                                |
+      | error                |                                |
+      | request_body         |                                |
+      | metadata             |                                |
+      | timestamp            | *                              |
+      | duration_ms          | *                              |
+      | request_id           |                                |
 
   # ==========================================================================
   # 3. AI MODELS A JSON SCHEMA WITH COMPLEX VALIDATION
@@ -108,7 +162,34 @@ Feature: MCP AI Data Modeling — Multi-Format Schema Design
     Then the MCP result should contain "minLength"
     And the MCP result should contain "pattern"
     And the MCP result should contain "preferences"
-    And the audit log should contain event "mcp_tool_call"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_call              |
+      | outcome              | success                    |
+      | actor_id             | mcp-anonymous              |
+      | actor_type           | anonymous                  |
+      | auth_method          |                            |
+      | role                 |                            |
+      | target_type          | subject                    |
+      | target_id            | api-user-registration      |
+      | schema_id            |                            |
+      | version              |                            |
+      | schema_type          |                            |
+      | before_hash          |                            |
+      | after_hash           |                            |
+      | context              |                            |
+      | transport_security   |                            |
+      | source_ip            |                            |
+      | user_agent           |                            |
+      | method               | MCP                        |
+      | path                 | get_raw_schema_version     |
+      | status_code          | 0                          |
+      | reason               |                            |
+      | error                |                            |
+      | request_body         |                            |
+      | metadata             |                            |
+      | timestamp            | *                          |
+      | duration_ms          | *                          |
+      | request_id           |                            |
 
   # ==========================================================================
   # 4. AI USES FORMAT_SCHEMA TO REVIEW REGISTERED SCHEMAS
@@ -132,7 +213,34 @@ Feature: MCP AI Data Modeling — Multi-Format Schema Design
       }
       """
     Then the MCP result should contain "Review"
-    And the audit log should contain event "mcp_tool_call"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_call          |
+      | outcome              | success                |
+      | actor_id             | mcp-anonymous          |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          | subject                |
+      | target_id            | format-review-value    |
+      | schema_id            |                        |
+      | version              |                        |
+      | schema_type          |                        |
+      | before_hash          |                        |
+      | after_hash           |                        |
+      | context              |                        |
+      | transport_security   |                        |
+      | source_ip            |                        |
+      | user_agent           |                        |
+      | method               | MCP                    |
+      | path                 | format_schema          |
+      | status_code          | 0                      |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           |                        |
 
   # ==========================================================================
   # 5. AI DESIGNS AN AVRO SCHEMA WITH UNION TYPES
@@ -152,7 +260,34 @@ Feature: MCP AI Data Modeling — Multi-Format Schema Design
     Then the MCP result should contain "DomainEvent"
     And the MCP result should contain "metadata"
     And the MCP result should contain "payload"
-    And the audit log should contain event "mcp_tool_call"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_call              |
+      | outcome              | success                    |
+      | actor_id             | mcp-anonymous              |
+      | actor_type           | anonymous                  |
+      | auth_method          |                            |
+      | role                 |                            |
+      | target_type          | subject                    |
+      | target_id            | polymorphic-events-value   |
+      | schema_id            |                            |
+      | version              |                            |
+      | schema_type          |                            |
+      | before_hash          |                            |
+      | after_hash           |                            |
+      | context              |                            |
+      | transport_security   |                            |
+      | source_ip            |                            |
+      | user_agent           |                            |
+      | method               | MCP                        |
+      | path                 | get_latest_schema          |
+      | status_code          | 0                          |
+      | reason               |                            |
+      | error                |                            |
+      | request_body         |                            |
+      | metadata             |                            |
+      | timestamp            | *                          |
+      | duration_ms          | *                          |
+      | request_id           |                            |
 
   # ==========================================================================
   # 6. AI MODELS A PROTOBUF WITH ONEOF FOR VARIANT TYPES
@@ -174,4 +309,31 @@ Feature: MCP AI Data Modeling — Multi-Format Schema Design
     And the MCP result should contain "TextContent"
     And the MCP result should contain "ImageContent"
     And the MCP result should contain "oneof"
-    And the audit log should contain event "mcp_tool_call"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_call              |
+      | outcome              | success                    |
+      | actor_id             | mcp-anonymous              |
+      | actor_type           | anonymous                  |
+      | auth_method          |                            |
+      | role                 |                            |
+      | target_type          | subject                    |
+      | target_id            | variant-message-value      |
+      | schema_id            |                            |
+      | version              |                            |
+      | schema_type          |                            |
+      | before_hash          |                            |
+      | after_hash           |                            |
+      | context              |                            |
+      | transport_security   |                            |
+      | source_ip            |                            |
+      | user_agent           |                            |
+      | method               | MCP                        |
+      | path                 | get_latest_schema          |
+      | status_code          | 0                          |
+      | reason               |                            |
+      | error                |                            |
+      | request_body         |                            |
+      | metadata             |                            |
+      | timestamp            | *                          |
+      | duration_ms          | *                          |
+      | request_id           |                            |

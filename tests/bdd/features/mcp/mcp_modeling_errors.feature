@@ -28,7 +28,34 @@ Feature: MCP AI Data Modeling — Error Handling and Edge Cases
       """
     Then the MCP result should contain "\"version\":1"
     And the MCP result should contain "error-invalid-avro"
-    And the audit log should contain event "mcp_tool_call"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_call          |
+      | outcome              | success                |
+      | actor_id             | mcp-anonymous          |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          | subject                |
+      | target_id            | error-invalid-avro     |
+      | schema_id            |                        |
+      | version              |                        |
+      | schema_type          |                        |
+      | before_hash          |                        |
+      | after_hash           |                        |
+      | context              |                        |
+      | transport_security   |                        |
+      | source_ip            |                        |
+      | user_agent           |                        |
+      | method               | MCP                    |
+      | path                 | register_schema        |
+      | status_code          | 0                      |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           |                        |
 
   # ==========================================================================
   # 2. AI HANDLES READING NON-EXISTENT SCHEMAS
@@ -38,13 +65,67 @@ Feature: MCP AI Data Modeling — Error Handling and Edge Cases
     When I call MCP tool "get_schema_by_id" with input:
       | id | 999999 |
     Then the MCP result should contain "error"
-    And the audit log should contain event "mcp_tool_error"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_error         |
+      | outcome              | failure                |
+      | actor_id             | mcp-anonymous          |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          |                        |
+      | target_id            |                        |
+      | schema_id            |                        |
+      | version              |                        |
+      | schema_type          |                        |
+      | before_hash          |                        |
+      | after_hash           |                        |
+      | context              |                        |
+      | transport_security   |                        |
+      | source_ip            |                        |
+      | user_agent           |                        |
+      | method               | MCP                    |
+      | path                 | get_schema_by_id       |
+      | status_code          | 0                      |
+      | reason               | *                      |
+      | error                | *                      |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           |                        |
 
   Scenario: AI handles non-existent subject
     When I call MCP tool "get_latest_schema" with input:
       | subject | totally-nonexistent-subject |
     Then the MCP result should contain "error"
-    And the audit log should contain event "mcp_tool_error"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_error         |
+      | outcome              | failure                |
+      | actor_id             | mcp-anonymous          |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          | subject                |
+      | target_id            | totally-nonexistent-subject |
+      | schema_id            |                        |
+      | version              |                        |
+      | schema_type          |                        |
+      | before_hash          |                        |
+      | after_hash           |                        |
+      | context              |                        |
+      | transport_security   |                        |
+      | source_ip            |                        |
+      | user_agent           |                        |
+      | method               | MCP                    |
+      | path                 | get_latest_schema      |
+      | status_code          | 0                      |
+      | reason               | *                      |
+      | error                | *                      |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           |                        |
 
   Scenario: AI handles non-existent version
     When I call MCP tool "register_schema" with JSON input:
@@ -59,7 +140,34 @@ Feature: MCP AI Data Modeling — Error Handling and Edge Cases
       | subject | error-noversion-test |
       | version | 99                   |
     Then the MCP result should contain "error"
-    And the audit log should contain event "mcp_tool_error"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_error         |
+      | outcome              | failure                |
+      | actor_id             | mcp-anonymous          |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          | subject                |
+      | target_id            | error-noversion-test   |
+      | schema_id            |                        |
+      | version              |                        |
+      | schema_type          |                        |
+      | before_hash          |                        |
+      | after_hash           |                        |
+      | context              |                        |
+      | transport_security   |                        |
+      | source_ip            |                        |
+      | user_agent           |                        |
+      | method               | MCP                    |
+      | path                 | get_schema_version     |
+      | status_code          | 0                      |
+      | reason               | *                      |
+      | error                | *                      |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           |                        |
 
   # ==========================================================================
   # 3. AI HANDLES SCHEMA TYPE MISMATCH
@@ -85,7 +193,34 @@ Feature: MCP AI Data Modeling — Error Handling and Edge Cases
       }
       """
     Then the MCP result should contain "error"
-    And the audit log should contain event "mcp_tool_error"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_error         |
+      | outcome              | failure                |
+      | actor_id             | mcp-anonymous          |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          | subject                |
+      | target_id            | error-type-mismatch    |
+      | schema_id            |                        |
+      | version              |                        |
+      | schema_type          |                        |
+      | before_hash          |                        |
+      | after_hash           |                        |
+      | context              |                        |
+      | transport_security   |                        |
+      | source_ip            |                        |
+      | user_agent           |                        |
+      | method               | MCP                    |
+      | path                 | register_schema        |
+      | status_code          | 0                      |
+      | reason               | *                      |
+      | error                | *                      |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           |                        |
 
   # ==========================================================================
   # 4. AI HANDLES COMPATIBILITY REJECTION
@@ -139,7 +274,34 @@ Feature: MCP AI Data Modeling — Error Handling and Edge Cases
       }
       """
     Then the MCP result should contain "\"version\":2"
-    And the audit log should contain event "mcp_tool_call"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_call          |
+      | outcome              | success                |
+      | actor_id             | mcp-anonymous          |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          | subject                |
+      | target_id            | error-compat-path      |
+      | schema_id            |                        |
+      | version              |                        |
+      | schema_type          |                        |
+      | before_hash          |                        |
+      | after_hash           |                        |
+      | context              |                        |
+      | transport_security   |                        |
+      | source_ip            |                        |
+      | user_agent           |                        |
+      | method               | MCP                    |
+      | path                 | register_schema        |
+      | status_code          | 0                      |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           |                        |
 
   # ==========================================================================
   # 5. AI HANDLES EMPTY AND MINIMAL SCHEMAS
@@ -171,7 +333,34 @@ Feature: MCP AI Data Modeling — Error Handling and Edge Cases
       }
       """
     Then the MCP result should contain "\"version\":1"
-    And the audit log should contain event "mcp_tool_call"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_call          |
+      | outcome              | success                |
+      | actor_id             | mcp-anonymous          |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          | subject                |
+      | target_id            | minimal-proto-value    |
+      | schema_id            |                        |
+      | version              |                        |
+      | schema_type          |                        |
+      | before_hash          |                        |
+      | after_hash           |                        |
+      | context              |                        |
+      | transport_security   |                        |
+      | source_ip            |                        |
+      | user_agent           |                        |
+      | method               | MCP                    |
+      | path                 | register_schema        |
+      | status_code          | 0                      |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           |                        |
 
   # ==========================================================================
   # 6. AI HANDLES OPERATIONS ON DELETED SUBJECTS
@@ -193,7 +382,34 @@ Feature: MCP AI Data Modeling — Error Handling and Edge Cases
     When I call MCP tool "get_latest_schema" with input:
       | subject | error-deleted-lookup |
     Then the MCP result should contain "error"
-    And the audit log should contain event "mcp_tool_error"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_error         |
+      | outcome              | failure                |
+      | actor_id             | mcp-anonymous          |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          | subject                |
+      | target_id            | error-deleted-lookup   |
+      | schema_id            |                        |
+      | version              |                        |
+      | schema_type          |                        |
+      | before_hash          |                        |
+      | after_hash           |                        |
+      | context              |                        |
+      | transport_security   |                        |
+      | source_ip            |                        |
+      | user_agent           |                        |
+      | method               | MCP                    |
+      | path                 | get_latest_schema      |
+      | status_code          | 0                      |
+      | reason               | *                      |
+      | error                | *                      |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           |                        |
 
   # ==========================================================================
   # 7. AI VALIDATES COMPLEX NESTED AVRO SCHEMA
@@ -215,4 +431,31 @@ Feature: MCP AI Data Modeling — Error Handling and Edge Cases
     Then the MCP result should contain "AnalyticsEvent"
     And the MCP result should contain "properties"
     And the MCP result should contain "EventData"
-    And the audit log should contain event "mcp_tool_call"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_call          |
+      | outcome              | success                |
+      | actor_id             | mcp-anonymous          |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          | subject                |
+      | target_id            | complex-nested-value   |
+      | schema_id            |                        |
+      | version              |                        |
+      | schema_type          |                        |
+      | before_hash          |                        |
+      | after_hash           |                        |
+      | context              |                        |
+      | transport_security   |                        |
+      | source_ip            |                        |
+      | user_agent           |                        |
+      | method               | MCP                    |
+      | path                 | get_latest_schema      |
+      | status_code          | 0                      |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           |                        |

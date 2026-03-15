@@ -42,7 +42,34 @@ Feature: MCP Security — Tool Policy and Access Control
     When I call MCP tool "delete_subject" with input:
       | subject | security-test-write |
     Then the MCP result should contain "1"
-    And the audit log should contain event "mcp_tool_call"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_call           |
+      | outcome              | success                 |
+      | actor_id             | mcp-anonymous           |
+      | actor_type           | anonymous               |
+      | auth_method          |                         |
+      | role                 |                         |
+      | target_type          | subject                 |
+      | target_id            | security-test-write     |
+      | schema_id            |                         |
+      | version              |                         |
+      | schema_type          |                         |
+      | before_hash          |                         |
+      | after_hash           |                         |
+      | context              |                         |
+      | transport_security   |                         |
+      | source_ip            |                         |
+      | user_agent           |                         |
+      | method               | MCP                     |
+      | path                 | delete_subject          |
+      | status_code          | 0                       |
+      | reason               |                         |
+      | error                |                         |
+      | request_body         |                         |
+      | metadata             |                         |
+      | timestamp            | *                       |
+      | duration_ms          | *                       |
+      | request_id           |                         |
 
   Scenario: Config tools work under default policy
     When I call MCP tool "set_config" with input:
@@ -51,4 +78,31 @@ Feature: MCP Security — Tool Policy and Access Control
     When I call MCP tool "get_config" with input:
       | subject | security-config-test |
     Then the MCP result should contain "FULL"
-    And the audit log should contain event "mcp_tool_call"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_call            |
+      | outcome              | success                  |
+      | actor_id             | mcp-anonymous            |
+      | actor_type           | anonymous                |
+      | auth_method          |                          |
+      | role                 |                          |
+      | target_type          | subject                  |
+      | target_id            | security-config-test     |
+      | schema_id            |                          |
+      | version              |                          |
+      | schema_type          |                          |
+      | before_hash          |                          |
+      | after_hash           |                          |
+      | context              |                          |
+      | transport_security   |                          |
+      | source_ip            |                          |
+      | user_agent           |                          |
+      | method               | MCP                      |
+      | path                 | get_config               |
+      | status_code          | 0                        |
+      | reason               |                          |
+      | error                |                          |
+      | request_body         |                          |
+      | metadata             |                          |
+      | timestamp            | *                        |
+      | duration_ms          | *                        |
+      | request_id           |                          |

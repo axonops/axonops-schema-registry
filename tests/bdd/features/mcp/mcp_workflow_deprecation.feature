@@ -26,7 +26,34 @@ Feature: MCP Workflow — Subject Deprecation
       }
       """
     Then the MCP result should be an error
-    And the audit log should contain event "mcp_tool_error"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_error         |
+      | outcome              | failure                |
+      | actor_id             | mcp-anonymous          |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          | subject                |
+      | target_id            | wf-dep-lock            |
+      | schema_id            |                        |
+      | version              |                        |
+      | schema_type          |                        |
+      | before_hash          |                        |
+      | after_hash           |                        |
+      | context              |                        |
+      | transport_security   |                        |
+      | source_ip            |                        |
+      | user_agent           |                        |
+      | method               | MCP                    |
+      | path                 | register_schema        |
+      | status_code          | 0                      |
+      | reason               | *                      |
+      | error                | *                      |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           |                        |
 
   # Validates: prompts/deprecate-subject.md — Step 5, glossary/data-contracts Metadata
   Scenario: Add deprecation metadata via set_config_full
@@ -52,7 +79,34 @@ Feature: MCP Workflow — Subject Deprecation
       {"subject": "wf-dep-meta"}
       """
     Then the MCP result should contain "deprecated"
-    And the audit log should contain event "mcp_tool_call"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_call              |
+      | outcome              | success                    |
+      | actor_id             | mcp-anonymous              |
+      | actor_type           | anonymous                  |
+      | auth_method          |                            |
+      | role                 |                            |
+      | target_type          | subject                    |
+      | target_id            | wf-dep-meta                |
+      | schema_id            |                            |
+      | version              |                            |
+      | schema_type          |                            |
+      | before_hash          |                            |
+      | after_hash           |                            |
+      | context              |                            |
+      | transport_security   |                            |
+      | source_ip            |                            |
+      | user_agent           |                            |
+      | method               | MCP                        |
+      | path                 | get_subject_config_full    |
+      | status_code          | 0                          |
+      | reason               |                            |
+      | error                |                            |
+      | request_body         |                            |
+      | metadata             |                            |
+      | timestamp            | *                          |
+      | duration_ms          | *                          |
+      | request_id           |                            |
 
   # Validates: prompts/deprecate-subject.md — Step 7
   Scenario: Soft-delete hides from list but schema resolvable by ID
@@ -74,7 +128,34 @@ Feature: MCP Workflow — Subject Deprecation
       {}
       """
     Then the MCP result should not contain "wf-dep-soft"
-    And the audit log should contain event "mcp_tool_call"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_call          |
+      | outcome              | success                |
+      | actor_id             | mcp-anonymous          |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          |                        |
+      | target_id            |                        |
+      | schema_id            |                        |
+      | version              |                        |
+      | schema_type          |                        |
+      | before_hash          |                        |
+      | after_hash           |                        |
+      | context              |                        |
+      | transport_security   |                        |
+      | source_ip            |                        |
+      | user_agent           |                        |
+      | method               | MCP                    |
+      | path                 | list_subjects          |
+      | status_code          | 0                      |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           |                        |
 
   # Validates: prompts/deprecate-subject.md — Complete workflow
   Scenario: Full deprecation lifecycle
@@ -114,4 +195,31 @@ Feature: MCP Workflow — Subject Deprecation
       {}
       """
     Then the MCP result should not contain "wf-dep-full"
-    And the audit log should contain event "mcp_tool_call"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_call          |
+      | outcome              | success                |
+      | actor_id             | mcp-anonymous          |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          |                        |
+      | target_id            |                        |
+      | schema_id            |                        |
+      | version              |                        |
+      | schema_type          |                        |
+      | before_hash          |                        |
+      | after_hash           |                        |
+      | context              |                        |
+      | transport_security   |                        |
+      | source_ip            |                        |
+      | user_agent           |                        |
+      | method               | MCP                    |
+      | path                 | list_subjects          |
+      | status_code          | 0                      |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           |                        |

@@ -28,7 +28,34 @@ Feature: MCP Workflow — Cross-Cutting Change
     Then the MCP result should not be an error
     And the MCP result should contain "wf-xcut-orders"
     And the MCP result should contain "wf-xcut-payments"
-    And the audit log should contain event "mcp_tool_call"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_call          |
+      | outcome              | success                |
+      | actor_id             | mcp-anonymous          |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          |                        |
+      | target_id            |                        |
+      | schema_id            |                        |
+      | version              |                        |
+      | schema_type          |                        |
+      | before_hash          |                        |
+      | after_hash           |                        |
+      | context              |                        |
+      | transport_security   |                        |
+      | source_ip            |                        |
+      | user_agent           |                        |
+      | method               | MCP                    |
+      | path                 | find_schemas_by_field  |
+      | status_code          | 0                      |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           |                        |
 
   # Validates: prompts/cross-cutting-change.md — Step 3
   Scenario: Check field consistency for shared field
@@ -56,7 +83,34 @@ Feature: MCP Workflow — Cross-Cutting Change
       """
     Then the MCP result should not be an error
     And the MCP result should contain "tenant_id"
-    And the audit log should contain event "mcp_tool_call"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_call              |
+      | outcome              | success                    |
+      | actor_id             | mcp-anonymous              |
+      | actor_type           | anonymous                  |
+      | auth_method          |                            |
+      | role                 |                            |
+      | target_type          |                            |
+      | target_id            |                            |
+      | schema_id            |                            |
+      | version              |                            |
+      | schema_type          |                            |
+      | before_hash          |                            |
+      | after_hash           |                            |
+      | context              |                            |
+      | transport_security   |                            |
+      | source_ip            |                            |
+      | user_agent           |                            |
+      | method               | MCP                        |
+      | path                 | check_field_consistency    |
+      | status_code          | 0                          |
+      | reason               |                            |
+      | error                |                            |
+      | request_body         |                            |
+      | metadata             |                            |
+      | timestamp            | *                          |
+      | duration_ms          | *                          |
+      | request_id           |                            |
 
   # Validates: prompts/cross-cutting-change.md — Step 6
   Scenario: Check compatibility multi for change across subjects
@@ -84,4 +138,31 @@ Feature: MCP Workflow — Cross-Cutting Change
       }
       """
     Then the MCP result should not be an error
-    And the audit log should contain event "mcp_tool_call"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_call                |
+      | outcome              | success                      |
+      | actor_id             | mcp-anonymous                |
+      | actor_type           | anonymous                    |
+      | auth_method          |                              |
+      | role                 |                              |
+      | target_type          |                              |
+      | target_id            |                              |
+      | schema_id            |                              |
+      | version              |                              |
+      | schema_type          |                              |
+      | before_hash          |                              |
+      | after_hash           |                              |
+      | context              |                              |
+      | transport_security   |                              |
+      | source_ip            |                              |
+      | user_agent           |                              |
+      | method               | MCP                          |
+      | path                 | check_compatibility_multi    |
+      | status_code          | 0                            |
+      | reason               |                              |
+      | error                |                              |
+      | request_body         |                              |
+      | metadata             |                              |
+      | timestamp            | *                            |
+      | duration_ms          | *                            |
+      | request_id           |                              |
