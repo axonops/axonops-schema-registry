@@ -1894,7 +1894,7 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
       | method              | POST                                    |
       | path                | /subjects/imp-comp-reimport/versions    |
       | status_code         | 200                                     |
-      | before_hash         | sha256:*                                |
+      | before_hash         |                                         |
       | after_hash          | sha256:*                                |
       | context             | .                                       |
       | transport_security  | tls                                     |
