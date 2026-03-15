@@ -47,6 +47,12 @@ func (h *Handler) CreateExporter(w http.ResponseWriter, r *http.Request) {
 		Config:              req.Config,
 	}
 
+	// Set audit hints early so target_id is captured even on failure.
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "exporter"
+		hints.TargetID = req.Name
+	}
+
 	if err := h.registry.CreateExporter(r.Context(), exporter); err != nil {
 		if errors.Is(err, storage.ErrExporterExists) {
 			writeError(w, http.StatusConflict, types.ErrorCodeExporterExists, "Exporter already exists: "+req.Name)
@@ -57,8 +63,6 @@ func (h *Handler) CreateExporter(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if hints := auth.GetAuditHints(r.Context()); hints != nil {
-		hints.TargetType = "exporter"
-		hints.TargetID = req.Name
 		hints.AfterHash = hashExporter(exporter)
 	}
 

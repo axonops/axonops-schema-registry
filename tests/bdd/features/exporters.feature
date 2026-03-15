@@ -491,7 +491,7 @@ Feature: Exporters API
       | before_hash         |                    |
       | after_hash          |                    |
       | transport_security  | tls                |
-      | reason              |                    |
+      | reason              | already_exists     |
       | error               |                    |
       | request_body        |                    |
       | metadata            |                    |
