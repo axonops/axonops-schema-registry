@@ -81,7 +81,7 @@ Feature: mTLS Transport Security
       | target_id          | mtls-del-test        |
       | schema_id          |                      |
       | version            |                      |
-      | schema_type        |                      |
+      | schema_type        | AVRO                 |
       | before_hash        | sha256:*             |
       | after_hash         |                      |
       | context            | .                    |
@@ -360,7 +360,7 @@ Feature: mTLS Transport Security
       | target_id          | mtls-delsub-test        |
       | schema_id          |                         |
       | version            |                         |
-      | schema_type        |                         |
+      | schema_type        | AVRO                    |
       | before_hash        | sha256:*                |
       | after_hash         |                         |
       | context            | .                       |

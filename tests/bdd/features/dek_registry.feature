@@ -1360,7 +1360,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       | target_type         | dek                                                             |
       | target_id           | delver-kek                                                      |
       | schema_id           |                                                                 |
-      | version             |                                                                 |
+      | version             | 1                                                               |
       | schema_type         |                                                                 |
       | context             |                                                                 |
       | before_hash         | sha256:*                                                        |
@@ -1609,7 +1609,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       | target_type         | dek                                                                       |
       | target_id           | permdel-ver-kek                                                           |
       | schema_id           |                                                                           |
-      | version             |                                                                           |
+      | version             | 1                                                                         |
       | schema_type         |                                                                           |
       | context             |                                                                           |
       | before_hash         | sha256:*                                                                  |

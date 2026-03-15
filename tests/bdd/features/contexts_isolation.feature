@@ -192,7 +192,7 @@ Feature: Contexts — Cross-Context Isolation
       | target_id            | :.del-iso-a:shared                        |
       | schema_id            |                                           |
       | version              |                                           |
-      | schema_type          |                                           |
+      | schema_type          | AVRO                                      |
       | before_hash          | sha256:*                                  |
       | after_hash           |                                           |
       | context              | .del-iso-a                                |
@@ -241,7 +241,7 @@ Feature: Contexts — Cross-Context Isolation
       | target_id            | :.pdel-a:shared                           |
       | schema_id            |                                           |
       | version              |                                           |
-      | schema_type          |                                           |
+      | schema_type          | AVRO                                      |
       | before_hash          | sha256:*                                  |
       | after_hash           |                                           |
       | context              | .pdel-a                                   |

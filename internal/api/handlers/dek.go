@@ -445,6 +445,7 @@ func (h *Handler) DeleteDEKVersion(w http.ResponseWriter, r *http.Request) {
 	if hints := auth.GetAuditHints(r.Context()); hints != nil {
 		hints.TargetType = "dek"
 		hints.TargetID = kekName
+		hints.Version = version
 		if existing != nil {
 			hints.BeforeHash = hashDEK(existing)
 		}
@@ -489,6 +490,7 @@ func (h *Handler) UndeleteDEKVersion(w http.ResponseWriter, r *http.Request) {
 	if hints := auth.GetAuditHints(r.Context()); hints != nil {
 		hints.TargetType = "dek"
 		hints.TargetID = kekName
+		hints.Version = version
 		if existing != nil {
 			hints.BeforeHash = hashDEK(existing)
 		}

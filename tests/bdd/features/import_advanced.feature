@@ -40,7 +40,7 @@ Feature: Advanced Schema Import
       | status_code         | 200              |
       | before_hash         |                  |
       | after_hash          | sha256:*         |
-      | context             |                  |
+      | context             | .                |
       | transport_security  | tls              |
       | reason              |                  |
       | error               |                  |
@@ -69,7 +69,7 @@ Feature: Advanced Schema Import
       | status_code         | 422              |
       | before_hash         |                  |
       | after_hash          |                  |
-      | context             |                  |
+      | context             | .                |
       | transport_security  | tls              |
       | reason              | invalid_schema     |
       | error               |                  |
@@ -114,7 +114,7 @@ Feature: Advanced Schema Import
       | status_code         | 200              |
       | before_hash         |                  |
       | after_hash          | sha256:*         |
-      | context             |                  |
+      | context             | .                |
       | transport_security  | tls              |
       | reason              |                  |
       | error               |                  |
@@ -143,7 +143,7 @@ Feature: Advanced Schema Import
       | status_code         | 422              |
       | before_hash         |                  |
       | after_hash          |                  |
-      | context             |                  |
+      | context             | .                |
       | transport_security  | tls              |
       | reason              | invalid_schema     |
       | error               |                  |
@@ -190,13 +190,13 @@ Feature: Advanced Schema Import
       | target_id           |                  |
       | schema_id           | *                |
       | version             |                  |
-      | schema_type         |                  |
+      | schema_type         | AVRO             |
       | method              | POST             |
       | path                | /import/schemas  |
       | status_code         | 200              |
       | before_hash         |                  |
       | after_hash          |                  |
-      | context             |                  |
+      | context             | .                |
       | transport_security  | tls              |
       | reason              |                  |
       | error               |                  |
@@ -245,7 +245,7 @@ Feature: Advanced Schema Import
       | status_code         | 200                |
       | before_hash         |                    |
       | after_hash          | sha256:*           |
-      | context             |                    |
+      | context             | .                  |
       | transport_security  | tls                |
       | reason              |                    |
       | error               |                    |
@@ -298,7 +298,7 @@ Feature: Advanced Schema Import
       | status_code         | 200              |
       | before_hash         |                  |
       | after_hash          | sha256:*         |
-      | context             |                  |
+      | context             | .                |
       | transport_security  | tls              |
       | reason              |                  |
       | error               |                  |
@@ -352,7 +352,7 @@ Feature: Advanced Schema Import
       | status_code         | 200              |
       | before_hash         |                  |
       | after_hash          | sha256:*         |
-      | context             |                  |
+      | context             | .                |
       | transport_security  | tls              |
       | reason              |                  |
       | error               |                  |
@@ -402,7 +402,7 @@ Feature: Advanced Schema Import
       | status_code         | 200              |
       | before_hash         |                  |
       | after_hash          | sha256:*         |
-      | context             |                  |
+      | context             | .                |
       | transport_security  | tls              |
       | reason              |                  |
       | error               |                  |
@@ -459,7 +459,7 @@ Feature: Advanced Schema Import
       | status_code         | 200             |
       | before_hash         |                 |
       | after_hash          | sha256:*        |
-      | context             |                 |
+      | context             | .               |
       | transport_security  | tls             |
       | reason              |                 |
       | error               |                 |
@@ -502,7 +502,7 @@ Feature: Advanced Schema Import
       | status_code         | 422             |
       | before_hash         |                 |
       | after_hash          |                 |
-      | context             |                 |
+      | context             | .               |
       | transport_security  | tls             |
       | reason              | invalid_schema  |
       | error               |                 |
@@ -543,7 +543,7 @@ Feature: Advanced Schema Import
       | status_code         | 200               |
       | before_hash         |                   |
       | after_hash          | sha256:*          |
-      | context             |                   |
+      | context             | .                 |
       | transport_security  | tls               |
       | reason              |                   |
       | error               |                   |

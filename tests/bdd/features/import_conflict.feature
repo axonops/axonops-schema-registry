@@ -49,7 +49,7 @@ Feature: Import with Conflicting IDs
       | status_code         | 200               |
       | before_hash         |                   |
       | after_hash          | sha256:*          |
-      | context             |                   |
+      | context             | .                 |
       | transport_security  | tls               |
       | reason              |                   |
       | error               |                   |
@@ -78,7 +78,7 @@ Feature: Import with Conflicting IDs
       | status_code         | 422               |
       | before_hash         |                   |
       | after_hash          |                   |
-      | context             |                   |
+      | context             | .                 |
       | transport_security  | tls               |
       | reason              | invalid_schema     |
       | error               |                   |
@@ -130,7 +130,7 @@ Feature: Import with Conflicting IDs
       | status_code         | 200             |
       | before_hash         |                 |
       | after_hash          | sha256:*        |
-      | context             |                 |
+      | context             | .               |
       | transport_security  | tls             |
       | reason              |                 |
       | error               |                 |
@@ -159,7 +159,7 @@ Feature: Import with Conflicting IDs
       | status_code         | 422             |
       | before_hash         |                 |
       | after_hash          |                 |
-      | context             |                 |
+      | context             | .               |
       | transport_security  | tls             |
       | reason              | invalid_schema     |
       | error               |                 |
@@ -201,7 +201,7 @@ Feature: Import with Conflicting IDs
       | status_code         | 422               |
       | before_hash         |                   |
       | after_hash          |                   |
-      | context             |                   |
+      | context             | .                 |
       | transport_security  | tls               |
       | reason              | invalid_schema    |
       | error               |                   |
@@ -251,7 +251,7 @@ Feature: Import with Conflicting IDs
       | status_code         | 200              |
       | before_hash         |                  |
       | after_hash          | sha256:*         |
-      | context             |                  |
+      | context             | .                |
       | transport_security  | tls              |
       | reason              |                  |
       | error               |                  |
@@ -280,7 +280,7 @@ Feature: Import with Conflicting IDs
       | status_code         | 422              |
       | before_hash         |                  |
       | after_hash          |                  |
-      | context             |                  |
+      | context             | .                |
       | transport_security  | tls              |
       | reason              | invalid_schema     |
       | error               |                  |
@@ -335,7 +335,7 @@ Feature: Import with Conflicting IDs
       | status_code         | 200                    |
       | before_hash         |                        |
       | after_hash          | sha256:*               |
-      | context             |                        |
+      | context             | .                      |
       | transport_security  | tls                    |
       | reason              |                        |
       | error               |                        |
@@ -364,7 +364,7 @@ Feature: Import with Conflicting IDs
       | status_code         | 422                    |
       | before_hash         |                        |
       | after_hash          |                        |
-      | context             |                        |
+      | context             | .                      |
       | transport_security  | tls                    |
       | reason              | invalid_schema         |
       | error               |                        |
@@ -414,7 +414,7 @@ Feature: Import with Conflicting IDs
       | status_code         | 200              |
       | before_hash         |                  |
       | after_hash          | sha256:*         |
-      | context             |                  |
+      | context             | .                |
       | transport_security  | tls              |
       | reason              |                  |
       | error               |                  |

@@ -133,7 +133,7 @@ Feature: Advanced Schema Deletion
       | target_id           | del-adv-multi-b                      |
       | schema_id           |                                      |
       | version             |                                      |
-      | schema_type         |                                      |
+      | schema_type         | AVRO                                 |
       | method              | DELETE                               |
       | path                | /subjects/del-adv-multi-b            |
       | status_code         | 200                                  |
@@ -223,7 +223,7 @@ Feature: Advanced Schema Deletion
       | target_id           | del-adv-perm-sub                     |
       | schema_id           |                                      |
       | version             |                                      |
-      | schema_type         |                                      |
+      | schema_type         | AVRO                                 |
       | method              | DELETE                               |
       | path                | /subjects/del-adv-perm-sub           |
       | status_code         | 200                                  |
@@ -276,7 +276,7 @@ Feature: Advanced Schema Deletion
       | target_id           | del-adv-reregister                   |
       | schema_id           |                                      |
       | version             |                                      |
-      | schema_type         |                                      |
+      | schema_type         | AVRO                                 |
       | method              | DELETE                               |
       | path                | /subjects/del-adv-reregister         |
       | status_code         | 200                                  |
@@ -355,7 +355,7 @@ Feature: Advanced Schema Deletion
       | target_id           | del-adv-fresh                        |
       | schema_id           |                                      |
       | version             |                                      |
-      | schema_type         |                                      |
+      | schema_type         | AVRO                                 |
       | method              | DELETE                               |
       | path                | /subjects/del-adv-fresh              |
       | status_code         | 200                                  |
@@ -520,7 +520,7 @@ Feature: Advanced Schema Deletion
       | target_id           | del-adv-two-step-sub                 |
       | schema_id           |                                      |
       | version             |                                      |
-      | schema_type         |                                      |
+      | schema_type         | AVRO                                 |
       | method              | DELETE                               |
       | path                | /subjects/del-adv-two-step-sub       |
       | status_code         | 200                                  |
@@ -585,7 +585,7 @@ Feature: Advanced Schema Deletion
       | target_id           | del-adv-id-lookup                    |
       | schema_id           |                                      |
       | version             |                                      |
-      | schema_type         |                                      |
+      | schema_type         | AVRO                                 |
       | method              | DELETE                               |
       | path                | /subjects/del-adv-id-lookup          |
       | status_code         | 200                                  |
@@ -629,7 +629,7 @@ Feature: Advanced Schema Deletion
       | target_id           | del-adv-id-gone                      |
       | schema_id           |                                      |
       | version             |                                      |
-      | schema_type         |                                      |
+      | schema_type         | AVRO                                 |
       | method              | DELETE                               |
       | path                | /subjects/del-adv-id-gone            |
       | status_code         | 200                                  |

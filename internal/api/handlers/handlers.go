@@ -797,6 +797,7 @@ func (h *Handler) DeleteSubject(w http.ResponseWriter, r *http.Request) {
 		hints.TargetType = "subject"
 		hints.TargetID = chi.URLParam(r, "subject")
 		hints.Context = registryCtx
+		hints.SchemaType = deletionSchemaType
 		if beforeFingerprint != "" {
 			hints.BeforeHash = "sha256:" + beforeFingerprint
 		}
@@ -1550,9 +1551,10 @@ func (h *Handler) ImportSchemas(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Set audit target_type early so even early rejections capture it.
+	// Set audit hints early so even early rejections capture them.
 	if hints := auth.GetAuditHints(r.Context()); hints != nil {
 		hints.TargetType = "subject"
+		hints.Context = registryCtx
 	}
 
 	// Bulk import requires IMPORT mode (Confluent behavior)

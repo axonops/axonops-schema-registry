@@ -414,7 +414,7 @@ Feature: Authentication flows and RBAC
       | target_id            | admin-test-value           |
       | schema_id            |                            |
       | version              |                            |
-      | schema_type          |                            |
+      | schema_type          | AVRO                       |
       | before_hash          | sha256:*                   |
       | after_hash           |                            |
       | context              | .                          |

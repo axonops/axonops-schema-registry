@@ -141,7 +141,7 @@ Feature: REST API Audit Logging
       | target_id          | audit-rest-delete           |
       | schema_id          |                             |
       | version            |                             |
-      | schema_type        |                             |
+      | schema_type        | AVRO                        |
       | before_hash        | sha256:*                    |
       | after_hash         |                             |
       | context            | .                           |
@@ -178,7 +178,7 @@ Feature: REST API Audit Logging
       | target_id          | audit-rest-permdel           |
       | schema_id          |                              |
       | version            |                              |
-      | schema_type        |                              |
+      | schema_type        | AVRO                         |
       | before_hash        |                              |
       | after_hash         |                              |
       | context            | .                            |
@@ -454,14 +454,14 @@ Feature: REST API Audit Logging
       | actor_type         | anonymous       |
       | role               |                 |
       | auth_method        |                 |
-      | target_type        | schema          |
-      | target_id          |                 |
-      | schema_id          |                 |
+      | target_type        | subject         |
+      | target_id          | audit-rest-import |
+      | schema_id          | *               |
       | version            |                 |
-      | schema_type        |                 |
+      | schema_type        | AVRO            |
       | before_hash        |                 |
-      | after_hash         |                 |
-      | context            |                 |
+      | after_hash         | sha256:*        |
+      | context            | .               |
       | request_id         | *               |
       | transport_security | tls             |
       | source_ip          | *               |

@@ -29,7 +29,7 @@ Feature: Deletion Lifecycle (Two-Step Delete)
       | target_id           | del-lifecycle-1               |
       | schema_id           |                               |
       | version             |                               |
-      | schema_type         |                               |
+      | schema_type         | AVRO                          |
       | method              | DELETE                        |
       | path                | /subjects/del-lifecycle-1     |
       | status_code         | 200                           |
@@ -68,7 +68,7 @@ Feature: Deletion Lifecycle (Two-Step Delete)
       | target_id           | del-lifecycle-2               |
       | schema_id           |                               |
       | version             |                               |
-      | schema_type         |                               |
+      | schema_type         | AVRO                          |
       | method              | DELETE                        |
       | path                | /subjects/del-lifecycle-2     |
       | status_code         | 200                           |
@@ -117,7 +117,7 @@ Feature: Deletion Lifecycle (Two-Step Delete)
       | target_id           | del-lifecycle-4               |
       | schema_id           |                               |
       | version             |                               |
-      | schema_type         |                               |
+      | schema_type         | AVRO                          |
       | method              | DELETE                        |
       | path                | /subjects/del-lifecycle-4     |
       | status_code         | 200                           |
@@ -357,7 +357,7 @@ Feature: Deletion Lifecycle (Two-Step Delete)
       | target_id           | del-rereg-1                |
       | schema_id           |                            |
       | version             |                            |
-      | schema_type         |                            |
+      | schema_type         | AVRO                       |
       | method              | DELETE                     |
       | path                | /subjects/del-rereg-1      |
       | status_code         | 200                        |
@@ -431,7 +431,7 @@ Feature: Deletion Lifecycle (Two-Step Delete)
       | target_id           | del-rereg-2                |
       | schema_id           |                            |
       | version             |                            |
-      | schema_type         |                            |
+      | schema_type         | AVRO                       |
       | method              | DELETE                     |
       | path                | /subjects/del-rereg-2      |
       | status_code         | 200                        |
@@ -596,7 +596,7 @@ Feature: Deletion Lifecycle (Two-Step Delete)
       | target_id           | del-lookup-1               |
       | schema_id           |                            |
       | version             |                            |
-      | schema_type         |                            |
+      | schema_type         | AVRO                       |
       | method              | DELETE                     |
       | path                | /subjects/del-lookup-1     |
       | status_code         | 200                        |

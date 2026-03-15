@@ -31,7 +31,7 @@ Feature: Schema Import
       | status_code         | 200              |
       | before_hash         |                  |
       | after_hash          | sha256:*         |
-      | context             |                  |
+      | context             | .                |
       | transport_security  | tls              |
       | reason              |                  |
       | error               |                  |
@@ -72,7 +72,7 @@ Feature: Schema Import
       | status_code         | 200              |
       | before_hash         |                  |
       | after_hash          | sha256:*         |
-      | context             |                  |
+      | context             | .                |
       | transport_security  | tls              |
       | reason              |                  |
       | error               |                  |
@@ -120,7 +120,7 @@ Feature: Schema Import
       | status_code         | 200             |
       | before_hash         |                 |
       | after_hash          | sha256:*        |
-      | context             |                 |
+      | context             | .               |
       | transport_security  | tls             |
       | reason              |                 |
       | error               |                 |
@@ -163,7 +163,7 @@ Feature: Schema Import
       | status_code         | 200              |
       | before_hash         |                  |
       | after_hash          | sha256:*         |
-      | context             |                  |
+      | context             | .                |
       | transport_security  | tls              |
       | reason              |                  |
       | error               |                  |
@@ -206,7 +206,7 @@ Feature: Schema Import
       | status_code         | 200              |
       | before_hash         |                  |
       | after_hash          | sha256:*         |
-      | context             |                  |
+      | context             | .                |
       | transport_security  | tls              |
       | reason              |                  |
       | error               |                  |
@@ -246,7 +246,7 @@ Feature: Schema Import
       | status_code         | 200              |
       | before_hash         |                  |
       | after_hash          | sha256:*         |
-      | context             |                  |
+      | context             | .                |
       | transport_security  | tls              |
       | reason              |                  |
       | error               |                  |

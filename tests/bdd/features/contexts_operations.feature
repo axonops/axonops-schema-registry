@@ -140,7 +140,7 @@ Feature: Contexts — Full API Operations
       | target_id            | :.ops-ctx6:to-delete                   |
       | schema_id            |                                        |
       | version              |                                        |
-      | schema_type          |                                        |
+      | schema_type          | AVRO                                   |
       | before_hash          | sha256:*                               |
       | after_hash           |                                        |
       | context              | .ops-ctx6                              |
