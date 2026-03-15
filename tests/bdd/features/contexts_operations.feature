@@ -64,7 +64,34 @@ Feature: Contexts — Full API Operations
     When I GET "/subjects/:.ops-ctx2:latest-test/versions/latest"
     Then the response status should be 200
     And the response field "version" should be 2
-    And the audit log should contain event "schema_register" with subject ":.ops-ctx2:latest-test"
+    And the audit log should contain an event:
+      | event_type           | schema_register                           |
+      | outcome              | success                                   |
+      | actor_id             |                                           |
+      | actor_type           | anonymous                                 |
+      | auth_method          |                                           |
+      | role                 |                                           |
+      | target_type          | subject                                   |
+      | target_id            | :.ops-ctx2:latest-test                    |
+      | schema_id            | *                                         |
+      | version              | *                                         |
+      | schema_type          | AVRO                                      |
+      | before_hash          |                                           |
+      | after_hash           | sha256:*                                  |
+      | context              | .ops-ctx2                                 |
+      | transport_security   | tls                                       |
+      | method               | POST                                      |
+      | path                 | /subjects/:.ops-ctx2:latest-test/versions |
+      | status_code          | 200                                       |
+      | reason               |                                           |
+      | error                |                                           |
+      | request_body         |                                           |
+      | metadata             |                                           |
+      | timestamp            | *                                         |
+      | duration_ms          | *                                         |
+      | request_id           | *                                         |
+      | source_ip            | *                                         |
+      | user_agent           | *                                         |
 
   Scenario: List versions for context-prefixed subject
     When I POST "/subjects/:.ops-ctx3:list-ver/versions" with body:
@@ -82,7 +109,34 @@ Feature: Contexts — Full API Operations
     And the response should be an array of length 2
     And the response array should contain integer 1
     And the response array should contain integer 2
-    And the audit log should contain event "schema_register" with subject ":.ops-ctx3:list-ver"
+    And the audit log should contain an event:
+      | event_type           | schema_register                         |
+      | outcome              | success                                 |
+      | actor_id             |                                         |
+      | actor_type           | anonymous                               |
+      | auth_method          |                                         |
+      | role                 |                                         |
+      | target_type          | subject                                 |
+      | target_id            | :.ops-ctx3:list-ver                     |
+      | schema_id            | *                                       |
+      | version              | *                                       |
+      | schema_type          | AVRO                                    |
+      | before_hash          |                                         |
+      | after_hash           | sha256:*                                |
+      | context              | .ops-ctx3                               |
+      | transport_security   | tls                                     |
+      | method               | POST                                    |
+      | path                 | /subjects/:.ops-ctx3:list-ver/versions  |
+      | status_code          | 200                                     |
+      | reason               |                                         |
+      | error                |                                         |
+      | request_body         |                                         |
+      | metadata             |                                         |
+      | timestamp            | *                                       |
+      | duration_ms          | *                                       |
+      | request_id           | *                                       |
+      | source_ip            | *                                       |
+      | user_agent           | *                                       |
 
   # ==========================================================================
   # SCHEMA LOOKUP
@@ -101,7 +155,34 @@ Feature: Contexts — Full API Operations
       """
     Then the response status should be 200
     And the response field "id" should equal stored "lookup_id"
-    And the audit log should contain event "schema_lookup" with subject ":.ops-ctx4:lookup-test"
+    And the audit log should contain an event:
+      | event_type           | schema_lookup                       |
+      | outcome              | success                             |
+      | actor_id             |                                     |
+      | actor_type           | anonymous                           |
+      | auth_method          |                                     |
+      | role                 |                                     |
+      | target_type          | subject                             |
+      | target_id            | :.ops-ctx4:lookup-test              |
+      | schema_id            | *                                   |
+      | version              | *                                   |
+      | schema_type          | AVRO                                |
+      | before_hash          |                                     |
+      | after_hash           |                                     |
+      | context              | .ops-ctx4                           |
+      | transport_security   | tls                                 |
+      | method               | POST                                |
+      | path                 | /subjects/:.ops-ctx4:lookup-test    |
+      | status_code          | 200                                 |
+      | reason               |                                     |
+      | error                |                                     |
+      | request_body         |                                     |
+      | metadata             |                                     |
+      | timestamp            | *                                   |
+      | duration_ms          | *                                   |
+      | request_id           | *                                   |
+      | source_ip            | *                                   |
+      | user_agent           | *                                   |
 
   Scenario: Lookup non-existent schema in context returns 404
     When I POST "/subjects/:.ops-ctx5:s1/versions" with body:
@@ -168,7 +249,34 @@ Feature: Contexts — Full API Operations
     Then the response status should be 200
     When I DELETE "/subjects/:.ops-ctx7:to-perm-del?permanent=true"
     Then the response status should be 200
-    And the audit log should contain event "subject_delete_permanent" with subject ":.ops-ctx7:to-perm-del"
+    And the audit log should contain an event:
+      | event_type           | subject_delete_permanent                   |
+      | outcome              | success                                    |
+      | actor_id             |                                            |
+      | actor_type           | anonymous                                  |
+      | auth_method          |                                            |
+      | role                 |                                            |
+      | target_type          | subject                                    |
+      | target_id            | :.ops-ctx7:to-perm-del                     |
+      | schema_id            |                                            |
+      | version              |                                            |
+      | schema_type          | AVRO                                       |
+      | before_hash          | sha256:*                                   |
+      | after_hash           |                                            |
+      | context              | .ops-ctx7                                  |
+      | transport_security   | tls                                        |
+      | method               | DELETE                                     |
+      | path                 | /subjects/:.ops-ctx7:to-perm-del           |
+      | status_code          | 200                                        |
+      | reason               |                                            |
+      | error                |                                            |
+      | request_body         |                                            |
+      | metadata             |                                            |
+      | timestamp            | *                                          |
+      | duration_ms          | *                                          |
+      | request_id           | *                                          |
+      | source_ip            | *                                          |
+      | user_agent           | *                                          |
 
   Scenario: Delete specific version via qualified subject
     When I POST "/subjects/:.ops-ctx8:ver-del/versions" with body:
@@ -186,7 +294,34 @@ Feature: Contexts — Full API Operations
     # Version 2 still exists
     When I GET "/subjects/:.ops-ctx8:ver-del/versions/2"
     Then the response status should be 200
-    And the audit log should contain event "schema_delete_soft" with subject ":.ops-ctx8:ver-del"
+    And the audit log should contain an event:
+      | event_type           | schema_delete_soft                             |
+      | outcome              | success                                        |
+      | actor_id             |                                                |
+      | actor_type           | anonymous                                      |
+      | auth_method          |                                                |
+      | role                 |                                                |
+      | target_type          | subject                                        |
+      | target_id            | :.ops-ctx8:ver-del                             |
+      | schema_id            | *                                              |
+      | version              | *                                              |
+      | schema_type          | AVRO                                           |
+      | before_hash          | sha256:*                                       |
+      | after_hash           |                                                |
+      | context              | .ops-ctx8                                      |
+      | transport_security   | tls                                            |
+      | method               | DELETE                                         |
+      | path                 | /subjects/:.ops-ctx8:ver-del/versions/1        |
+      | status_code          | 200                                            |
+      | reason               |                                                |
+      | error                |                                                |
+      | request_body         |                                                |
+      | metadata             |                                                |
+      | timestamp            | *                                              |
+      | duration_ms          | *                                              |
+      | request_id           | *                                              |
+      | source_ip            | *                                              |
+      | user_agent           | *                                              |
 
   # ==========================================================================
   # COMPATIBILITY
@@ -205,6 +340,34 @@ Feature: Contexts — Full API Operations
       """
     Then the response status should be 200
     And the response field "is_compatible" should be true
+    And the audit log should contain an event:
+      | event_type           | compatibility_check                                              |
+      | outcome              | success                                                          |
+      | actor_id             |                                                                  |
+      | actor_type           | anonymous                                                        |
+      | auth_method          |                                                                  |
+      | role                 |                                                                  |
+      | target_type          | subject                                                          |
+      | target_id            | :.ops-ctx9:compat-test                                           |
+      | schema_id            |                                                                  |
+      | version              |                                                                  |
+      | schema_type          |                                                                  |
+      | before_hash          |                                                                  |
+      | after_hash           |                                                                  |
+      | context              | .ops-ctx9                                                        |
+      | transport_security   | tls                                                              |
+      | method               | POST                                                             |
+      | path                 | /compatibility/subjects/:.ops-ctx9:compat-test/versions/latest   |
+      | status_code          | 200                                                              |
+      | reason               |                                                                  |
+      | error                |                                                                  |
+      | request_body         |                                                                  |
+      | metadata             |                                                                  |
+      | timestamp            | *                                                                |
+      | duration_ms          | *                                                                |
+      | request_id           | *                                                                |
+      | source_ip            | *                                                                |
+      | user_agent           | *                                                                |
 
   Scenario: Incompatible schema detected in context
     When I POST "/subjects/:.ops-ctx10:compat-fail/versions" with body:
@@ -219,6 +382,34 @@ Feature: Contexts — Full API Operations
       """
     Then the response status should be 200
     And the response field "is_compatible" should be false
+    And the audit log should contain an event:
+      | event_type           | compatibility_check                                                |
+      | outcome              | success                                                            |
+      | actor_id             |                                                                    |
+      | actor_type           | anonymous                                                          |
+      | auth_method          |                                                                    |
+      | role                 |                                                                    |
+      | target_type          | subject                                                            |
+      | target_id            | :.ops-ctx10:compat-fail                                            |
+      | schema_id            |                                                                    |
+      | version              |                                                                    |
+      | schema_type          |                                                                    |
+      | before_hash          |                                                                    |
+      | after_hash           |                                                                    |
+      | context              | .ops-ctx10                                                         |
+      | transport_security   | tls                                                                |
+      | method               | POST                                                               |
+      | path                 | /compatibility/subjects/:.ops-ctx10:compat-fail/versions/latest    |
+      | status_code          | 200                                                                |
+      | reason               |                                                                    |
+      | error                |                                                                    |
+      | request_body         |                                                                    |
+      | metadata             |                                                                    |
+      | timestamp            | *                                                                  |
+      | duration_ms          | *                                                                  |
+      | request_id           | *                                                                  |
+      | source_ip            | *                                                                  |
+      | user_agent           | *                                                                  |
 
   # ==========================================================================
   # SUBJECTS BY SCHEMA ID
@@ -234,7 +425,34 @@ Feature: Contexts — Full API Operations
     When I GET "/contexts/.ops-ctx11/schemas/ids/{{sbid}}/subjects"
     Then the response status should be 200
     And the response array should contain "subj-by-id"
-    And the audit log should contain event "schema_register" with subject ":.ops-ctx11:subj-by-id"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | :.ops-ctx11:subj-by-id                       |
+      | schema_id            | *                                            |
+      | version              | *                                            |
+      | schema_type          | AVRO                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .ops-ctx11                                   |
+      | transport_security   | tls                                          |
+      | method               | POST                                         |
+      | path                 | /subjects/:.ops-ctx11:subj-by-id/versions    |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
 
   Scenario: Re-registering same schema returns existing (idempotent)
     When I POST "/subjects/:.ops-ctx12:idempotent/versions" with body:
@@ -250,7 +468,34 @@ Feature: Contexts — Full API Operations
       """
     Then the response status should be 200
     And the response field "id" should equal stored "first_id"
-    And the audit log should contain event "schema_register" with subject ":.ops-ctx12:idempotent"
+    And the audit log should contain an event:
+      | event_type           | schema_register                            |
+      | outcome              | success                                    |
+      | actor_id             |                                            |
+      | actor_type           | anonymous                                  |
+      | auth_method          |                                            |
+      | role                 |                                            |
+      | target_type          | subject                                    |
+      | target_id            | :.ops-ctx12:idempotent                     |
+      | schema_id            | *                                          |
+      | version              | *                                          |
+      | schema_type          | AVRO                                       |
+      | before_hash          |                                            |
+      | after_hash           | sha256:*                                   |
+      | context              | .ops-ctx12                                 |
+      | transport_security   | tls                                        |
+      | method               | POST                                       |
+      | path                 | /subjects/:.ops-ctx12:idempotent/versions  |
+      | status_code          | 200                                        |
+      | reason               |                                            |
+      | error                |                                            |
+      | request_body         |                                            |
+      | metadata             |                                            |
+      | timestamp            | *                                          |
+      | duration_ms          | *                                          |
+      | request_id           | *                                          |
+      | source_ip            | *                                          |
+      | user_agent           | *                                          |
 
   Scenario: Get non-existent subject in context returns 404
     When I GET "/subjects/:.ops-ctx13:nonexistent/versions"
