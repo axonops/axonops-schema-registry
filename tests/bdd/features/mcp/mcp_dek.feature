@@ -14,7 +14,34 @@ Feature: MCP KEK & DEK Tools
       | name | mcp-test-kek |
     Then the MCP result should contain "mcp-test-kek"
     Then the MCP result should contain "aws-kms"
-    And the audit log should contain event "mcp_tool_call"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_call          |
+      | outcome              | success                |
+      | actor_id             | mcp-anonymous          |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          |                        |
+      | target_id            |                        |
+      | schema_id            |                        |
+      | version              |                        |
+      | schema_type          |                        |
+      | before_hash          |                        |
+      | after_hash           |                        |
+      | context              |                        |
+      | transport_security   |                        |
+      | source_ip            |                        |
+      | user_agent           |                        |
+      | method               | MCP                    |
+      | path                 | get_kek                |
+      | status_code          | 0                      |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           |                        |
 
   Scenario: List KEKs
     When I call MCP tool "create_kek" with input:
@@ -28,7 +55,34 @@ Feature: MCP KEK & DEK Tools
     When I call MCP tool "list_keks"
     Then the MCP result should contain "mcp-list-kek-a"
     Then the MCP result should contain "mcp-list-kek-b"
-    And the audit log should contain event "mcp_tool_call"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_call          |
+      | outcome              | success                |
+      | actor_id             | mcp-anonymous          |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          |                        |
+      | target_id            |                        |
+      | schema_id            |                        |
+      | version              |                        |
+      | schema_type          |                        |
+      | before_hash          |                        |
+      | after_hash           |                        |
+      | context              |                        |
+      | transport_security   |                        |
+      | source_ip            |                        |
+      | user_agent           |                        |
+      | method               | MCP                    |
+      | path                 | list_keks              |
+      | status_code          | 0                      |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           |                        |
 
   Scenario: Delete and undelete KEK
     When I call MCP tool "create_kek" with input:
@@ -44,7 +98,34 @@ Feature: MCP KEK & DEK Tools
     When I call MCP tool "get_kek" with input:
       | name | mcp-del-kek |
     Then the MCP result should contain "mcp-del-kek"
-    And the audit log should contain event "mcp_tool_call"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_call          |
+      | outcome              | success                |
+      | actor_id             | mcp-anonymous          |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          |                        |
+      | target_id            |                        |
+      | schema_id            |                        |
+      | version              |                        |
+      | schema_type          |                        |
+      | before_hash          |                        |
+      | after_hash           |                        |
+      | context              |                        |
+      | transport_security   |                        |
+      | source_ip            |                        |
+      | user_agent           |                        |
+      | method               | MCP                    |
+      | path                 | get_kek                |
+      | status_code          | 0                      |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           |                        |
 
   Scenario: Create and get DEK
     When I call MCP tool "create_kek" with input:
@@ -63,7 +144,34 @@ Feature: MCP KEK & DEK Tools
       | algorithm | AES256_GCM       |
     Then the MCP result should contain "mcp-dek-parent"
     Then the MCP result should contain "mcp-dek-subject"
-    And the audit log should contain event "mcp_tool_call"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_call          |
+      | outcome              | success                |
+      | actor_id             | mcp-anonymous          |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          | subject                |
+      | target_id            | mcp-dek-subject        |
+      | schema_id            |                        |
+      | version              |                        |
+      | schema_type          |                        |
+      | before_hash          |                        |
+      | after_hash           |                        |
+      | context              |                        |
+      | transport_security   |                        |
+      | source_ip            |                        |
+      | user_agent           |                        |
+      | method               | MCP                    |
+      | path                 | get_dek                |
+      | status_code          | 0                      |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           |                        |
 
   Scenario: List DEKs
     When I call MCP tool "create_kek" with input:
@@ -80,7 +188,34 @@ Feature: MCP KEK & DEK Tools
       | kek_name | mcp-list-dek-kek |
     Then the MCP result should contain "mcp-dek-subj-a"
     Then the MCP result should contain "mcp-dek-subj-b"
-    And the audit log should contain event "mcp_tool_call"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_call          |
+      | outcome              | success                |
+      | actor_id             | mcp-anonymous          |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          |                        |
+      | target_id            |                        |
+      | schema_id            |                        |
+      | version              |                        |
+      | schema_type          |                        |
+      | before_hash          |                        |
+      | after_hash           |                        |
+      | context              |                        |
+      | transport_security   |                        |
+      | source_ip            |                        |
+      | user_agent           |                        |
+      | method               | MCP                    |
+      | path                 | list_deks              |
+      | status_code          | 0                      |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           |                        |
 
   Scenario: Delete DEK
     When I call MCP tool "create_kek" with input:
@@ -95,4 +230,31 @@ Feature: MCP KEK & DEK Tools
       | subject  | mcp-del-dek-subj |
       | version  | 1                |
     Then the MCP result should contain "true"
-    And the audit log should contain event "mcp_tool_call"
+    And the audit log should contain an event:
+      | event_type           | mcp_tool_call          |
+      | outcome              | success                |
+      | actor_id             | mcp-anonymous          |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          | subject                |
+      | target_id            | mcp-del-dek-subj       |
+      | schema_id            |                        |
+      | version              |                        |
+      | schema_type          |                        |
+      | before_hash          |                        |
+      | after_hash           |                        |
+      | context              |                        |
+      | transport_security   |                        |
+      | source_ip            |                        |
+      | user_agent           |                        |
+      | method               | MCP                    |
+      | path                 | delete_dek             |
+      | status_code          | 0                      |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           |                        |
