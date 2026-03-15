@@ -740,6 +740,15 @@ func (h *Handler) DeleteSubject(w http.ResponseWriter, r *http.Request) {
 	if latest, err := h.registry.GetLatestSchema(r.Context(), registryCtx, subject); err == nil {
 		deletionSchemaType = schemaTypeForResponse(latest.SchemaType)
 		beforeFingerprint = latest.Fingerprint
+	} else if permanent {
+		// For permanent deletes the subject is already soft-deleted, so GetLatestSchema
+		// (which only returns non-deleted schemas) fails. Fetch including deleted schemas
+		// to capture before_hash for audit.
+		if schemas, err := h.registry.GetSchemasBySubject(r.Context(), registryCtx, subject, true); err == nil && len(schemas) > 0 {
+			latest := schemas[len(schemas)-1]
+			deletionSchemaType = schemaTypeForResponse(latest.SchemaType)
+			beforeFingerprint = latest.Fingerprint
+		}
 	}
 
 	versions, err := h.registry.DeleteSubject(r.Context(), registryCtx, subject, permanent)
@@ -821,6 +830,21 @@ func (h *Handler) DeleteVersion(w http.ResponseWriter, r *http.Request) {
 		beforeFingerprint = schema.Fingerprint
 		beforeSchemaType = schemaTypeForResponse(schema.SchemaType)
 		beforeSchemaID = schema.ID
+	} else if permanent {
+		// For permanent deletes the version is already soft-deleted, so GetSchemaBySubjectVersion
+		// (which rejects deleted versions) fails. Fetch including deleted schemas to capture
+		// before_hash, schema_type, and schema_id for audit.
+		if schemas, err := h.registry.GetSchemasBySubject(r.Context(), registryCtx, subject, true); err == nil {
+			for _, s := range schemas {
+				if s.Version == version {
+					deletionSchemaType = schemaTypeForResponse(s.SchemaType)
+					beforeFingerprint = s.Fingerprint
+					beforeSchemaType = schemaTypeForResponse(s.SchemaType)
+					beforeSchemaID = s.ID
+					break
+				}
+			}
+		}
 	}
 
 	deletedVersion, err := h.registry.DeleteVersion(r.Context(), registryCtx, subject, version, permanent)

@@ -176,9 +176,9 @@ Feature: Deletion Lifecycle (Two-Step Delete)
       | role                |                                          |
       | target_type         | subject                                  |
       | target_id           | del-ver-lifecycle-2                      |
-      | schema_id           |                                          |
-      | version             |                                          |
-      | schema_type         |                                          |
+      | schema_id           | *                                        |
+      | version             | *                                        |
+      | schema_type         | AVRO                                     |
       | method              | DELETE                                   |
       | path                | /subjects/del-ver-lifecycle-2/versions   |
       | status_code         | 200                                      |
@@ -224,9 +224,9 @@ Feature: Deletion Lifecycle (Two-Step Delete)
       | role                |                                  |
       | target_type         | subject                          |
       | target_id           | del-vis-1                        |
-      | schema_id           |                                  |
-      | version             |                                  |
-      | schema_type         |                                  |
+      | schema_id           | *                                |
+      | version             | *                                |
+      | schema_type         | AVRO                             |
       | method              | DELETE                           |
       | path                | /subjects/del-vis-1/versions     |
       | status_code         | 200                              |
@@ -268,9 +268,9 @@ Feature: Deletion Lifecycle (Two-Step Delete)
       | role                |                                  |
       | target_type         | subject                          |
       | target_id           | del-vis-2                        |
-      | schema_id           |                                  |
-      | version             |                                  |
-      | schema_type         |                                  |
+      | schema_id           | *                                |
+      | version             | *                                |
+      | schema_type         | AVRO                             |
       | method              | DELETE                           |
       | path                | /subjects/del-vis-2/versions     |
       | status_code         | 200                              |
@@ -306,9 +306,9 @@ Feature: Deletion Lifecycle (Two-Step Delete)
       | role                |                                  |
       | target_type         | subject                          |
       | target_id           | del-vis-3                        |
-      | schema_id           |                                  |
-      | version             |                                  |
-      | schema_type         |                                  |
+      | schema_id           | *                                |
+      | version             | *                                |
+      | schema_type         | AVRO                             |
       | method              | DELETE                           |
       | path                | /subjects/del-vis-3/versions     |
       | status_code         | 200                              |
@@ -505,9 +505,9 @@ Feature: Deletion Lifecycle (Two-Step Delete)
       | role                |                                    |
       | target_type         | subject                            |
       | target_id           | del-latest-1                       |
-      | schema_id           |                                    |
-      | version             |                                    |
-      | schema_type         |                                    |
+      | schema_id           | *                                  |
+      | version             | *                                  |
+      | schema_type         | AVRO                               |
       | method              | DELETE                             |
       | path                | /subjects/del-latest-1/versions    |
       | status_code         | 200                                |
@@ -549,9 +549,9 @@ Feature: Deletion Lifecycle (Two-Step Delete)
       | role                |                                  |
       | target_type         | subject                          |
       | target_id           | del-minus1                       |
-      | schema_id           |                                  |
-      | version             |                                  |
-      | schema_type         |                                  |
+      | schema_id           | *                                |
+      | version             | *                                |
+      | schema_type         | AVRO                             |
       | method              | DELETE                           |
       | path                | /subjects/del-minus1/versions    |
       | status_code         | 200                              |
@@ -654,9 +654,9 @@ Feature: Deletion Lifecycle (Two-Step Delete)
       | role                |                                          |
       | target_type         | subject                                  |
       | target_id           | del-ver-reregister                       |
-      | schema_id           |                                          |
-      | version             |                                          |
-      | schema_type         |                                          |
+      | schema_id           | *                                        |
+      | version             | *                                        |
+      | schema_type         | AVRO                                     |
       | method              | DELETE                                   |
       | path                | /subjects/del-ver-reregister/versions    |
       | status_code         | 200                                      |
@@ -734,9 +734,9 @@ Feature: Deletion Lifecycle (Two-Step Delete)
       | role                |                                            |
       | target_type         | subject                                    |
       | target_id           | del-diff-reregister                        |
-      | schema_id           |                                            |
-      | version             |                                            |
-      | schema_type         |                                            |
+      | schema_id           | *                                          |
+      | version             | *                                          |
+      | schema_type         | AVRO                                       |
       | method              | DELETE                                     |
       | path                | /subjects/del-diff-reregister/versions     |
       | status_code         | 200                                        |

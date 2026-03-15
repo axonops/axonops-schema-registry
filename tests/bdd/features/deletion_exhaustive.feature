@@ -30,9 +30,9 @@ Feature: Schema & Subject Deletion — Exhaustive (Confluent v8.1.1 Compatibilit
       | role                |                                  |
       | target_type         | subject                          |
       | target_id           | del-ex-soft                      |
-      | schema_id           |                                  |
-      | version             |                                  |
-      | schema_type         |                                  |
+      | schema_id           | *                                |
+      | version             | *                                |
+      | schema_type         | AVRO                             |
       | method              | DELETE                           |
       | path                | /subjects/del-ex-soft/versions   |
       | status_code         | 200                              |
@@ -69,9 +69,9 @@ Feature: Schema & Subject Deletion — Exhaustive (Confluent v8.1.1 Compatibilit
       | role                |                                  |
       | target_type         | subject                          |
       | target_id           | del-ex-flag                      |
-      | schema_id           |                                  |
-      | version             |                                  |
-      | schema_type         |                                  |
+      | schema_id           | *                                |
+      | version             | *                                |
+      | schema_type         | AVRO                             |
       | method              | DELETE                           |
       | path                | /subjects/del-ex-flag/versions   |
       | status_code         | 200                              |
@@ -108,9 +108,9 @@ Feature: Schema & Subject Deletion — Exhaustive (Confluent v8.1.1 Compatibilit
       | role                |                                    |
       | target_type         | subject                            |
       | target_id           | del-ex-getdel                      |
-      | schema_id           |                                    |
-      | version             |                                    |
-      | schema_type         |                                    |
+      | schema_id           | *                                  |
+      | version             | *                                  |
+      | schema_type         | AVRO                               |
       | method              | DELETE                             |
       | path                | /subjects/del-ex-getdel/versions   |
       | status_code         | 200                                |
@@ -149,9 +149,9 @@ Feature: Schema & Subject Deletion — Exhaustive (Confluent v8.1.1 Compatibilit
       | role                |                                    |
       | target_type         | subject                            |
       | target_id           | del-ex-lookup                      |
-      | schema_id           |                                    |
-      | version             |                                    |
-      | schema_type         |                                    |
+      | schema_id           | *                                  |
+      | version             | *                                  |
+      | schema_type         | AVRO                               |
       | method              | DELETE                             |
       | path                | /subjects/del-ex-lookup/versions   |
       | status_code         | 200                                |
@@ -190,9 +190,9 @@ Feature: Schema & Subject Deletion — Exhaustive (Confluent v8.1.1 Compatibilit
       | role                |                                     |
       | target_type         | subject                             |
       | target_id           | del-ex-lookup2                      |
-      | schema_id           |                                     |
-      | version             |                                     |
-      | schema_type         |                                     |
+      | schema_id           | *                                   |
+      | version             | *                                   |
+      | schema_type         | AVRO                                |
       | method              | DELETE                              |
       | path                | /subjects/del-ex-lookup2/versions   |
       | status_code         | 200                                 |
@@ -234,9 +234,9 @@ Feature: Schema & Subject Deletion — Exhaustive (Confluent v8.1.1 Compatibilit
       | role                |                                  |
       | target_type         | subject                          |
       | target_id           | del-ex-hard                      |
-      | schema_id           |                                  |
-      | version             |                                  |
-      | schema_type         |                                  |
+      | schema_id           | *                                |
+      | version             | *                                |
+      | schema_type         | AVRO                             |
       | method              | DELETE                           |
       | path                | /subjects/del-ex-hard/versions   |
       | status_code         | 200                              |
@@ -278,9 +278,9 @@ Feature: Schema & Subject Deletion — Exhaustive (Confluent v8.1.1 Compatibilit
       | role                |                                    |
       | target_type         | subject                            |
       | target_id           | del-ex-latest                      |
-      | schema_id           |                                    |
-      | version             |                                    |
-      | schema_type         |                                    |
+      | schema_id           | *                                  |
+      | version             | *                                  |
+      | schema_type         | AVRO                               |
       | method              | DELETE                             |
       | path                | /subjects/del-ex-latest/versions   |
       | status_code         | 200                                |
@@ -525,9 +525,9 @@ Feature: Schema & Subject Deletion — Exhaustive (Confluent v8.1.1 Compatibilit
       | role                |                                          |
       | target_type         | subject                                  |
       | target_id           | del-ex-lookup-rereg                      |
-      | schema_id           |                                          |
-      | version             |                                          |
-      | schema_type         |                                          |
+      | schema_id           | *                                        |
+      | version             | *                                        |
+      | schema_type         | AVRO                                     |
       | method              | DELETE                                   |
       | path                | /subjects/del-ex-lookup-rereg/versions   |
       | status_code         | 200                                      |
@@ -604,9 +604,9 @@ Feature: Schema & Subject Deletion — Exhaustive (Confluent v8.1.1 Compatibilit
       | role                |                                    |
       | target_type         | subject                            |
       | target_id           | del-ex-compat                      |
-      | schema_id           |                                    |
-      | version             |                                    |
-      | schema_type         |                                    |
+      | schema_id           | *                                  |
+      | version             | *                                  |
+      | schema_type         | AVRO                               |
       | method              | DELETE                             |
       | path                | /subjects/del-ex-compat/versions   |
       | status_code         | 200                                |
@@ -758,9 +758,9 @@ Feature: Schema & Subject Deletion — Exhaustive (Confluent v8.1.1 Compatibilit
       | role                |                                      |
       | target_type         | subject                              |
       | target_id           | del-ex-cfg-ver                       |
-      | schema_id           |                                      |
-      | version             |                                      |
-      | schema_type         |                                      |
+      | schema_id           | *                                    |
+      | version             | *                                    |
+      | schema_type         | AVRO                                 |
       | method              | DELETE                               |
       | path                | /subjects/del-ex-cfg-ver/versions    |
       | status_code         | 200                                  |
@@ -902,9 +902,9 @@ Feature: Schema & Subject Deletion — Exhaustive (Confluent v8.1.1 Compatibilit
       | role                |                                        |
       | target_type         | subject                                |
       | target_id           | del-ex-partial-del                     |
-      | schema_id           |                                        |
-      | version             |                                        |
-      | schema_type         |                                        |
+      | schema_id           | *                                      |
+      | version             | *                                      |
+      | schema_type         | AVRO                                   |
       | method              | DELETE                                 |
       | path                | /subjects/del-ex-partial-del/versions  |
       | status_code         | 200                                    |

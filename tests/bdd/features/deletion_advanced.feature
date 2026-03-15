@@ -32,9 +32,9 @@ Feature: Advanced Schema Deletion
       | role                |                                      |
       | target_type         | subject                              |
       | target_id           | del-adv-vis                          |
-      | schema_id           |                                      |
-      | version             |                                      |
-      | schema_type         |                                      |
+      | schema_id           | *                                    |
+      | version             | *                                    |
+      | schema_type         | AVRO                                 |
       | method              | DELETE                               |
       | path                | /subjects/del-adv-vis/versions       |
       | status_code         | 200                                  |
@@ -76,9 +76,9 @@ Feature: Advanced Schema Deletion
       | role                |                                      |
       | target_type         | subject                              |
       | target_id           | del-adv-vis-del                      |
-      | schema_id           |                                      |
-      | version             |                                      |
-      | schema_type         |                                      |
+      | schema_id           | *                                    |
+      | version             | *                                    |
+      | schema_type         | AVRO                                 |
       | method              | DELETE                               |
       | path                | /subjects/del-adv-vis-del/versions   |
       | status_code         | 200                                  |
@@ -181,9 +181,9 @@ Feature: Advanced Schema Deletion
       | role                |                                      |
       | target_type         | subject                              |
       | target_id           | del-adv-perm-ver                     |
-      | schema_id           |                                      |
-      | version             |                                      |
-      | schema_type         |                                      |
+      | schema_id           | *                                    |
+      | version             | *                                    |
+      | schema_type         | AVRO                                 |
       | method              | DELETE                               |
       | path                | /subjects/del-adv-perm-ver/versions  |
       | status_code         | 200                                  |
@@ -478,9 +478,9 @@ Feature: Advanced Schema Deletion
       | role                |                                            |
       | target_type         | subject                                    |
       | target_id           | del-adv-two-step-ver                       |
-      | schema_id           |                                            |
-      | version             |                                            |
-      | schema_type         |                                            |
+      | schema_id           | *                                          |
+      | version             | *                                          |
+      | schema_type         | AVRO                                       |
       | method              | DELETE                                     |
       | path                | /subjects/del-adv-two-step-ver/versions    |
       | status_code         | 200                                        |
