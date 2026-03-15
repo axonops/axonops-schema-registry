@@ -107,7 +107,34 @@ Feature: Contexts — Advanced Config and Mode Behavior
       """
     Then the response status should be 200
     And the response field "is_compatible" should be false
-    And the audit log should contain event "config_delete" with subject ":.cfgm3:fallback"
+    And the audit log should contain an event:
+      | event_type           | config_delete                             |
+      | outcome              | success                                   |
+      | actor_id             |                                           |
+      | actor_type           | anonymous                                 |
+      | auth_method          |                                           |
+      | role                 |                                           |
+      | target_type          | config                                    |
+      | target_id            | :.cfgm3:fallback                          |
+      | schema_id            |                                           |
+      | version              |                                           |
+      | schema_type          |                                           |
+      | before_hash          | sha256:*                                  |
+      | after_hash           |                                           |
+      | context              | .cfgm3                                    |
+      | transport_security   | tls                                       |
+      | method               | DELETE                                    |
+      | path                 | /config/:.cfgm3:fallback                  |
+      | status_code          | 200                                       |
+      | reason               |                                           |
+      | error                |                                           |
+      | request_body         |                                           |
+      | metadata             |                                           |
+      | timestamp            | *                                         |
+      | duration_ms          | *                                         |
+      | request_id           | *                                         |
+      | source_ip            | *                                         |
+      | user_agent           | *                                         |
 
   # ==========================================================================
   # SCENARIO 4: READONLY MODE BLOCKS REGISTRATION IN CONTEXT
@@ -137,7 +164,34 @@ Feature: Contexts — Advanced Config and Mode Behavior
       """
     Then the response status should be 422
     And the response field "error_code" should be 42205
-    And the audit log should contain event "mode_update" with subject ":.cfgm4:readonly-test"
+    And the audit log should contain an event:
+      | event_type           | mode_update                               |
+      | outcome              | success                                   |
+      | actor_id             |                                           |
+      | actor_type           | anonymous                                 |
+      | auth_method          |                                           |
+      | role                 |                                           |
+      | target_type          | mode                                      |
+      | target_id            | :.cfgm4:readonly-test                     |
+      | schema_id            |                                           |
+      | version              |                                           |
+      | schema_type          |                                           |
+      | before_hash          | *                                         |
+      | after_hash           | sha256:*                                  |
+      | context              | .cfgm4                                    |
+      | transport_security   | tls                                       |
+      | method               | PUT                                       |
+      | path                 | /mode/:.cfgm4:readonly-test               |
+      | status_code          | 200                                       |
+      | reason               |                                           |
+      | error                |                                           |
+      | request_body         |                                           |
+      | metadata             |                                           |
+      | timestamp            | *                                         |
+      | duration_ms          | *                                         |
+      | request_id           | *                                         |
+      | source_ip            | *                                         |
+      | user_agent           | *                                         |
 
   # ==========================================================================
   # SCENARIO 5: READWRITE MODE ALLOWS REGISTRATION AFTER MODE CHANGE

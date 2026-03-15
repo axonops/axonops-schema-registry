@@ -26,7 +26,34 @@ Feature: Contexts — Cross-Context Isolation
     And I store the response field "id" as "ctx_b_id"
     # Both contexts should assign ID 1 independently
     Then the response field "id" should be 1
-    And the audit log should contain event "schema_register" with subject ":.ctx-id-b:test-subj"
+    And the audit log should contain an event:
+      | event_type           | schema_register                           |
+      | outcome              | success                                   |
+      | actor_id             |                                           |
+      | actor_type           | anonymous                                 |
+      | auth_method          |                                           |
+      | role                 |                                           |
+      | target_type          | subject                                   |
+      | target_id            | :.ctx-id-b:test-subj                      |
+      | schema_id            | *                                         |
+      | version              | *                                         |
+      | schema_type          | AVRO                                      |
+      | before_hash          |                                           |
+      | after_hash           | sha256:*                                  |
+      | context              | .ctx-id-b                                 |
+      | transport_security   | tls                                       |
+      | method               | POST                                      |
+      | path                 | /subjects/:.ctx-id-b:test-subj/versions   |
+      | status_code          | 200                                       |
+      | reason               |                                           |
+      | error                |                                           |
+      | request_body         |                                           |
+      | metadata             |                                           |
+      | timestamp            | *                                         |
+      | duration_ms          | *                                         |
+      | request_id           | *                                         |
+      | source_ip            | *                                         |
+      | user_agent           | *                                         |
 
   Scenario: Schema IDs start at 1 in each new context
     # Register in context A
@@ -154,7 +181,34 @@ Feature: Contexts — Cross-Context Isolation
     # Context A is deleted
     When I GET "/subjects/:.del-iso-a:shared/versions"
     Then the response status should be 404
-    And the audit log should contain event "subject_delete_soft" with subject ":.del-iso-a:shared"
+    And the audit log should contain an event:
+      | event_type           | subject_delete_soft                       |
+      | outcome              | success                                   |
+      | actor_id             |                                           |
+      | actor_type           | anonymous                                 |
+      | auth_method          |                                           |
+      | role                 |                                           |
+      | target_type          | subject                                   |
+      | target_id            | :.del-iso-a:shared                        |
+      | schema_id            |                                           |
+      | version              |                                           |
+      | schema_type          |                                           |
+      | before_hash          | sha256:*                                  |
+      | after_hash           |                                           |
+      | context              | .del-iso-a                                |
+      | transport_security   | tls                                       |
+      | method               | DELETE                                    |
+      | path                 | /subjects/:.del-iso-a:shared              |
+      | status_code          | 200                                       |
+      | reason               |                                           |
+      | error                |                                           |
+      | request_body         |                                           |
+      | metadata             |                                           |
+      | timestamp            | *                                         |
+      | duration_ms          | *                                         |
+      | request_id           | *                                         |
+      | source_ip            | *                                         |
+      | user_agent           | *                                         |
 
   Scenario: Permanent delete in one context does not affect another
     When I POST "/subjects/:.pdel-a:shared/versions" with body:
@@ -176,7 +230,34 @@ Feature: Contexts — Cross-Context Isolation
     When I GET "/subjects/:.pdel-b:shared/versions/1"
     Then the response status should be 200
     And the response body should contain "PDelB"
-    And the audit log should contain event "subject_delete_permanent" with subject ":.pdel-a:shared"
+    And the audit log should contain an event:
+      | event_type           | subject_delete_permanent                  |
+      | outcome              | success                                   |
+      | actor_id             |                                           |
+      | actor_type           | anonymous                                 |
+      | auth_method          |                                           |
+      | role                 |                                           |
+      | target_type          | subject                                   |
+      | target_id            | :.pdel-a:shared                           |
+      | schema_id            |                                           |
+      | version              |                                           |
+      | schema_type          |                                           |
+      | before_hash          | sha256:*                                  |
+      | after_hash           |                                           |
+      | context              | .pdel-a                                   |
+      | transport_security   | tls                                       |
+      | method               | DELETE                                    |
+      | path                 | /subjects/:.pdel-a:shared                 |
+      | status_code          | 200                                       |
+      | reason               |                                           |
+      | error                |                                           |
+      | request_body         |                                           |
+      | metadata             |                                           |
+      | timestamp            | *                                         |
+      | duration_ms          | *                                         |
+      | request_id           | *                                         |
+      | source_ip            | *                                         |
+      | user_agent           | *                                         |
 
   # ==========================================================================
   # LOOKUP ISOLATION
