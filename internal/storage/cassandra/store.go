@@ -805,14 +805,14 @@ func (s *Store) findSchemaInSubject(ctx context.Context, registryCtx string, sub
 
 // GetSchemaByID retrieves a schema by its per-context ID.
 func (s *Store) GetSchemaByID(ctx context.Context, registryCtx string, id int64) (*storage.SchemaRecord, error) {
-	var schemaType, schemaText string
+	var schemaType, schemaText, fp string
 	var metadataStr, rulesetStr string
 	var createdUUID gocql.UUID
 
 	err := s.readQuery(
-		fmt.Sprintf(`SELECT schema_type, schema_text, created_at, metadata, ruleset FROM %s.schemas_by_id WHERE registry_ctx = ? AND schema_id = ?`, qident(s.cfg.Keyspace)),
+		fmt.Sprintf(`SELECT schema_type, schema_text, fingerprint, created_at, metadata, ruleset FROM %s.schemas_by_id WHERE registry_ctx = ? AND schema_id = ?`, qident(s.cfg.Keyspace)),
 		registryCtx, int(id),
-	).WithContext(ctx).Scan(&schemaType, &schemaText, &createdUUID, &metadataStr, &rulesetStr)
+	).WithContext(ctx).Scan(&schemaType, &schemaText, &fp, &createdUUID, &metadataStr, &rulesetStr)
 	if err != nil {
 		if errors.Is(err, gocql.ErrNotFound) {
 			return nil, storage.ErrSchemaNotFound
@@ -821,12 +821,13 @@ func (s *Store) GetSchemaByID(ctx context.Context, registryCtx string, id int64)
 	}
 
 	rec := &storage.SchemaRecord{
-		ID:         id,
-		SchemaType: storage.SchemaType(schemaType),
-		Schema:     schemaText,
-		CreatedAt:  createdUUID.Time(),
-		Metadata:   unmarshalJSONText[storage.Metadata](metadataStr),
-		RuleSet:    unmarshalJSONText[storage.RuleSet](rulesetStr),
+		ID:          id,
+		SchemaType:  storage.SchemaType(schemaType),
+		Schema:      schemaText,
+		Fingerprint: fp,
+		CreatedAt:   createdUUID.Time(),
+		Metadata:    unmarshalJSONText[storage.Metadata](metadataStr),
+		RuleSet:     unmarshalJSONText[storage.RuleSet](rulesetStr),
 	}
 
 	// Load references for this schema within this context
