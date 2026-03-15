@@ -24,7 +24,34 @@ Feature: Contexts — Per-Context Config and Mode
     When I GET "/config/:.cfg-ctx:s1"
     Then the response status should be 200
     And the response field "compatibilityLevel" should be "FULL"
-    And the audit log should contain event "config_update" with subject ":.cfg-ctx:s1"
+    And the audit log should contain an event:
+      | event_type           | config_update                  |
+      | outcome              | success                        |
+      | actor_id             |                                |
+      | actor_type           | anonymous                      |
+      | auth_method          |                                |
+      | role                 |                                |
+      | target_type          | config                         |
+      | target_id            | :.cfg-ctx:s1                   |
+      | schema_id            |                                |
+      | version              |                                |
+      | schema_type          |                                |
+      | before_hash          | *                              |
+      | after_hash           | sha256:*                       |
+      | context              | .cfg-ctx                       |
+      | transport_security   | tls                            |
+      | method               | PUT                            |
+      | path                 | /config/:.cfg-ctx:s1           |
+      | status_code          | 200                            |
+      | reason               |                                |
+      | error                |                                |
+      | request_body         |                                |
+      | metadata             |                                |
+      | timestamp            | *                              |
+      | duration_ms          | *                              |
+      | request_id           | *                              |
+      | source_ip            | *                              |
+      | user_agent           | *                              |
 
   Scenario: Delete per-subject config in context
     When I POST "/subjects/:.cfg-del:s1/versions" with body:

@@ -550,6 +550,14 @@ func (h *Handler) RegisterSchema(w http.ResponseWriter, r *http.Request) {
 
 	normalizeSchema := r.URL.Query().Get("normalize") == "true"
 
+	// Set audit hints early so failure paths (e.g. ErrImportIDConflict) capture them.
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "subject"
+		hints.TargetID = chi.URLParam(r, "subject")
+		hints.SchemaType = string(schemaType)
+		hints.Context = registryCtx
+	}
+
 	// Capture previous fingerprint for audit change integrity.
 	var prevFingerprint string
 	if prev, _ := h.registry.GetLatestSchema(r.Context(), registryCtx, subject); prev != nil {
@@ -562,6 +570,10 @@ func (h *Handler) RegisterSchema(w http.ResponseWriter, r *http.Request) {
 	// Confluent behavior: IMPORT mode requires explicit ID, READWRITE mode requires no ID.
 	// These are mutually exclusive operational modes.
 	if req.ID > 0 {
+		// Set schema ID hint early so failure paths capture it.
+		if hints := auth.GetAuditHints(r.Context()); hints != nil {
+			hints.SchemaID = req.ID
+		}
 		mode, modeErr := h.registry.GetMode(r.Context(), registryCtx, subject)
 		if modeErr != nil {
 			writeError(w, http.StatusInternalServerError, types.ErrorCodeStorageError, "Failed to check mode")

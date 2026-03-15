@@ -21,7 +21,34 @@ Feature: Contexts — Full API Operations
     Then the response status should be 200
     And the response field "version" should be 1
     And the response body should contain "OpsRegister"
-    And the audit log should contain event "schema_register" with subject ":.ops-ctx:register-test"
+    And the audit log should contain an event:
+      | event_type           | schema_register                         |
+      | outcome              | success                                 |
+      | actor_id             |                                         |
+      | actor_type           | anonymous                               |
+      | auth_method          |                                         |
+      | role                 |                                         |
+      | target_type          | subject                                 |
+      | target_id            | :.ops-ctx:register-test                 |
+      | schema_id            | *                                       |
+      | version              |                                         |
+      | schema_type          | AVRO                                    |
+      | before_hash          |                                         |
+      | after_hash           | sha256:*                                |
+      | context              | .ops-ctx                                |
+      | transport_security   | tls                                     |
+      | method               | POST                                    |
+      | path                 | /subjects/:.ops-ctx:register-test/versions |
+      | status_code          | 200                                     |
+      | reason               |                                         |
+      | error                |                                         |
+      | request_body         |                                         |
+      | metadata             |                                         |
+      | timestamp            | *                                       |
+      | duration_ms          | *                                       |
+      | request_id           | *                                       |
+      | source_ip            | *                                       |
+      | user_agent           | *                                       |
 
   Scenario: Get latest version via qualified subject
     When I POST "/subjects/:.ops-ctx2:latest-test/versions" with body:
@@ -102,7 +129,34 @@ Feature: Contexts — Full API Operations
     Then the response status should be 200
     When I GET "/subjects/:.ops-ctx6:to-delete/versions"
     Then the response status should be 404
-    And the audit log should contain event "subject_delete_soft" with subject ":.ops-ctx6:to-delete"
+    And the audit log should contain an event:
+      | event_type           | subject_delete_soft                    |
+      | outcome              | success                                |
+      | actor_id             |                                        |
+      | actor_type           | anonymous                              |
+      | auth_method          |                                        |
+      | role                 |                                        |
+      | target_type          | subject                                |
+      | target_id            | :.ops-ctx6:to-delete                   |
+      | schema_id            |                                        |
+      | version              |                                        |
+      | schema_type          |                                        |
+      | before_hash          | sha256:*                               |
+      | after_hash           |                                        |
+      | context              | .ops-ctx6                              |
+      | transport_security   | tls                                    |
+      | method               | DELETE                                 |
+      | path                 | /subjects/:.ops-ctx6:to-delete         |
+      | status_code          | 200                                    |
+      | reason               |                                        |
+      | error                |                                        |
+      | request_body         |                                        |
+      | metadata             |                                        |
+      | timestamp            | *                                      |
+      | duration_ms          | *                                      |
+      | request_id           | *                                      |
+      | source_ip            | *                                      |
+      | user_agent           | *                                      |
 
   Scenario: Permanently delete subject via qualified subject
     When I POST "/subjects/:.ops-ctx7:to-perm-del/versions" with body:

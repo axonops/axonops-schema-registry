@@ -823,6 +823,34 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       {}
       """
     Then the response status should be 204
+    And the audit log should contain an event:
+      | event_type           | dek_undelete                                                        |
+      | outcome              | success                                                             |
+      | actor_id             |                                                                     |
+      | actor_type           | anonymous                                                           |
+      | auth_method          |                                                                     |
+      | role                 |                                                                     |
+      | target_type          | dek                                                                 |
+      | target_id            | undelete-dek-kek                                                    |
+      | schema_id            |                                                                     |
+      | version              |                                                                     |
+      | schema_type          |                                                                     |
+      | before_hash          | sha256:*                                                            |
+      | after_hash           | sha256:*                                                            |
+      | context              |                                                                     |
+      | transport_security   | tls                                                                 |
+      | method               | POST                                                                |
+      | path                 | /dek-registry/v1/keks/undelete-dek-kek/deks/undelete.subject/undelete |
+      | status_code          | 204                                                                 |
+      | reason               |                                                                     |
+      | error                |                                                                     |
+      | request_body         |                                                                     |
+      | metadata             |                                                                     |
+      | timestamp            | *                                                                   |
+      | duration_ms          | *                                                                   |
+      | request_id           | *                                                                   |
+      | source_ip            | *                                                                   |
+      | user_agent           | *                                                                   |
 
   # ============================================================================
   # Advanced Scenarios (10 scenarios)
