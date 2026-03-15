@@ -179,7 +179,7 @@ Feature: REST API Audit Logging
       | schema_id          |                              |
       | version            |                              |
       | schema_type        | AVRO                         |
-      | before_hash        |                              |
+      | before_hash        | sha256:*                     |
       | after_hash         |                              |
       | context            | .                            |
       | request_id         | *                            |

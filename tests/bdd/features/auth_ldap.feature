@@ -575,24 +575,24 @@ Feature: LDAP Authentication and RBAC
       """
     Then the response status should be 403
     And the audit log should contain an event:
-      | event_type           | auth_forbidden    |
-      | outcome              | failure           |
-      | actor_id             | readonly          |
-      | actor_type           | user              |
-      | auth_method          | ldap              |
-      | role                 | readonly          |
-      | target_type          |                   |
-      | target_id            |                   |
-      | schema_id            |                   |
-      | version              |                   |
-      | schema_type          |                   |
-      | before_hash          |                   |
-      | after_hash           |                   |
-      | context              | .                  |
-      | transport_security   | tls               |
-      | method               | POST              |
-      | path                 | /subjects         |
-      | status_code          | 403               |
+      | event_type           | auth_forbidden                         |
+      | outcome              | failure                                |
+      | actor_id             | readonly                               |
+      | actor_type           | user                                   |
+      | auth_method          | ldap                                   |
+      | role                 | readonly                               |
+      | target_type          | subject                                |
+      | target_id            | ldap-audit-forbidden                   |
+      | schema_id            |                                        |
+      | version              |                                        |
+      | schema_type          |                                        |
+      | before_hash          |                                        |
+      | after_hash           |                                        |
+      | context              | .                                       |
+      | transport_security   | tls                                    |
+      | method               | POST                                   |
+      | path                 | /subjects/ldap-audit-forbidden/versions |
+      | status_code          | 403                                    |
       | reason               | permission_denied |
       | error                |                   |
       | request_body         |                   |
@@ -681,24 +681,24 @@ Feature: LDAP Authentication and RBAC
     When I DELETE "/subjects/ldap-audit-del/versions/1"
     Then the response status should be 200
     And the audit log should contain an event:
-      | event_type           | schema_delete_soft |
-      | outcome              | success            |
-      | actor_id             | admin              |
-      | actor_type           | user               |
-      | auth_method          | ldap               |
-      | role                 | admin              |
-      | target_type          | subject            |
-      | target_id            | ldap-audit-del     |
-      | schema_id            |                    |
-      | version              |                    |
-      | schema_type          |                    |
-      | before_hash          | sha256:*           |
-      | after_hash           |                    |
-      | context              | .                  |
-      | transport_security   | tls                |
-      | method               | DELETE             |
-      | path                 | /subjects          |
-      | status_code          | 200                |
+      | event_type           | schema_delete_soft                |
+      | outcome              | success                           |
+      | actor_id             | admin                             |
+      | actor_type           | user                              |
+      | auth_method          | ldap                              |
+      | role                 | admin                             |
+      | target_type          | subject                           |
+      | target_id            | ldap-audit-del                    |
+      | schema_id            | *                                 |
+      | version              | *                                 |
+      | schema_type          | AVRO                              |
+      | before_hash          | sha256:*                          |
+      | after_hash           |                                   |
+      | context              | .                                 |
+      | transport_security   | tls                               |
+      | method               | DELETE                            |
+      | path                 | /subjects/ldap-audit-del/versions/1 |
+      | status_code          | 200                               |
       | reason               |                    |
       | error                |                    |
       | request_body         |                    |
@@ -737,17 +737,17 @@ Feature: LDAP Authentication and RBAC
       | outcome              | warning                            |
       | actor_id             | localadmin                         |
       | actor_type           | user                               |
-      | auth_method          |                                    |
+      | auth_method          | ldap                               |
       | role                 |                                    |
-      | target_type          |                                    |
-      | target_id            |                                    |
+      | target_type          | user                               |
+      | target_id            | localadmin                         |
       | schema_id            |                                    |
       | version              |                                    |
       | schema_type          |                                    |
       | before_hash          |                                    |
       | after_hash           |                                    |
-      | context              | .                                   |
-      | transport_security   | tls                                |
+      | context              |                                    |
+      | transport_security   |                                    |
       | method               | PUT                                |
       | path                 | /config                            |
       | status_code          |                                    |
@@ -837,17 +837,17 @@ Feature: LDAP Authentication and RBAC
       | outcome              | warning                            |
       | actor_id             | unknownuser                        |
       | actor_type           | user                               |
-      | auth_method          |                                    |
+      | auth_method          | ldap                               |
       | role                 |                                    |
-      | target_type          |                                    |
-      | target_id            |                                    |
+      | target_type          | user                               |
+      | target_id            | unknownuser                        |
       | schema_id            |                                    |
       | version              |                                    |
       | schema_type          |                                    |
       | before_hash          |                                    |
       | after_hash           |                                    |
-      | context              | .                                   |
-      | transport_security   | tls                                |
+      | context              |                                    |
+      | transport_security   |                                    |
       | method               | GET                                |
       | path                 | /subjects                          |
       | status_code          |                                    |

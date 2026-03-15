@@ -775,24 +775,24 @@ Feature: JWT Authentication and RBAC
       """
     Then the response status should be 403
     And the audit log should contain an event:
-      | event_type           | auth_forbidden    |
-      | outcome              | failure           |
-      | actor_id             | readonly          |
-      | actor_type           | user              |
-      | auth_method          | jwt               |
-      | role                 | readonly          |
-      | target_type          |                   |
-      | target_id            |                   |
-      | schema_id            |                   |
-      | version              |                   |
-      | schema_type          |                   |
-      | before_hash          |                   |
-      | after_hash           |                   |
-      | context              | .                  |
-      | transport_security   | tls               |
-      | method               | POST              |
-      | path                 | /subjects         |
-      | status_code          | 403               |
+      | event_type           | auth_forbidden                       |
+      | outcome              | failure                              |
+      | actor_id             | readonly                             |
+      | actor_type           | user                                 |
+      | auth_method          | jwt                                  |
+      | role                 | readonly                             |
+      | target_type          | subject                              |
+      | target_id            | jwt-forbidden-subject                |
+      | schema_id            |                                      |
+      | version              |                                      |
+      | schema_type          |                                      |
+      | before_hash          |                                      |
+      | after_hash           |                                      |
+      | context              | .                                     |
+      | transport_security   | tls                                  |
+      | method               | POST                                 |
+      | path                 | /subjects/jwt-forbidden-subject/versions |
+      | status_code          | 403                                  |
       | reason               | permission_denied |
       | error                |                   |
       | request_body         |                   |

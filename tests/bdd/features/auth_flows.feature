@@ -166,8 +166,8 @@ Feature: Authentication flows and RBAC
       | actor_type           | user                          |
       | auth_method          | basic                         |
       | role                 | readonly                      |
-      | target_type          |                               |
-      | target_id            |                               |
+      | target_type          | subject                       |
+      | target_id            | test-value                    |
       | schema_id            |                               |
       | version              |                               |
       | schema_type          |                               |
@@ -210,8 +210,8 @@ Feature: Authentication flows and RBAC
       | actor_type           | user                      |
       | auth_method          | basic                     |
       | role                 | readonly                  |
-      | target_type          |                           |
-      | target_id            |                           |
+      | target_type          | subject                   |
+      | target_id            | to-delete-value           |
       | schema_id            |                           |
       | version              |                           |
       | schema_type          |                           |
@@ -259,8 +259,8 @@ Feature: Authentication flows and RBAC
       | actor_type           | user              |
       | auth_method          | basic             |
       | role                 | readonly          |
-      | target_type          |                   |
-      | target_id            |                   |
+      | target_type          | config            |
+      | target_id            | _global           |
       | schema_id            |                   |
       | version              |                   |
       | schema_type          |                   |
@@ -355,8 +355,8 @@ Feature: Authentication flows and RBAC
       | actor_type           | user                         |
       | auth_method          | basic                        |
       | role                 | developer                    |
-      | target_type          |                              |
-      | target_id            |                              |
+      | target_type          | subject                      |
+      | target_id            | dev-nodelete-value           |
       | schema_id            |                              |
       | version              |                              |
       | schema_type          |                              |
@@ -456,7 +456,7 @@ Feature: Authentication flows and RBAC
       | actor_type           | user              |
       | auth_method          | basic             |
       | role                 | admin             |
-      | target_type          |                   |
+      | target_type          | user              |
       | target_id            |                   |
       | schema_id            |                   |
       | version              |                   |
@@ -509,7 +509,7 @@ Feature: Authentication flows and RBAC
       | actor_type           | user                  |
       | auth_method          | basic                 |
       | role                 | readonly              |
-      | target_type          |                       |
+      | target_type          | kek                   |
       | target_id            |                       |
       | schema_id            |                       |
       | version              |                       |
@@ -558,7 +558,7 @@ Feature: Authentication flows and RBAC
       | actor_type           | user                  |
       | auth_method          | basic                 |
       | role                 | developer             |
-      | target_type          |                       |
+      | target_type          | kek                   |
       | target_id            |                       |
       | schema_id            |                       |
       | version              |                       |
@@ -639,7 +639,7 @@ Feature: Authentication flows and RBAC
       | actor_type           | user              |
       | auth_method          | basic             |
       | role                 | readonly          |
-      | target_type          |                   |
+      | target_type          | exporter          |
       | target_id            |                   |
       | schema_id            |                   |
       | version              |                   |
@@ -679,7 +679,7 @@ Feature: Authentication flows and RBAC
       | actor_type           | user              |
       | auth_method          | basic             |
       | role                 | developer         |
-      | target_type          |                   |
+      | target_type          | exporter          |
       | target_id            |                   |
       | schema_id            |                   |
       | version              |                   |

@@ -318,9 +318,9 @@ Feature: mTLS Transport Security
       | role               | super_admin                        |
       | target_type        | subject                            |
       | target_id          | mtls-delvs-test                    |
-      | schema_id          |                                    |
-      | version            |                                    |
-      | schema_type        |                                    |
+      | schema_id          | *                                  |
+      | version            | *                                  |
+      | schema_type        | AVRO                               |
       | before_hash        | sha256:*                           |
       | after_hash         |                                    |
       | context            | .                                  |
@@ -431,24 +431,24 @@ Feature: mTLS Transport Security
       """
     Then the response status should be 403
     And the audit log should contain an event:
-      | event_type         | auth_forbidden       |
-      | outcome            | failure              |
-      | actor_id           | reader               |
-      | actor_type         | user                 |
-      | auth_method        | basic                |
-      | role               | readonly             |
-      | target_type        |                      |
-      | target_id          |                      |
-      | schema_id          |                      |
-      | version            |                      |
-      | schema_type        |                      |
-      | before_hash        |                      |
-      | after_hash         |                      |
-      | context            | .                     |
-      | transport_security | mtls                 |
-      | method             | POST                 |
+      | event_type         | auth_forbidden                   |
+      | outcome            | failure                          |
+      | actor_id           | reader                           |
+      | actor_type         | user                             |
+      | auth_method        | basic                            |
+      | role               | readonly                         |
+      | target_type        | subject                          |
+      | target_id          | mtls-ro-write                    |
+      | schema_id          |                                  |
+      | version            |                                  |
+      | schema_type        |                                  |
+      | before_hash        |                                  |
+      | after_hash         |                                  |
+      | context            | .                                 |
+      | transport_security | mtls                             |
+      | method             | POST                             |
       | path               | /subjects/mtls-ro-write/versions |
-      | status_code        | 403                  |
+      | status_code        | 403                              |
       | reason             | permission_denied    |
       | error              |                      |
       | request_body       |                      |
@@ -608,8 +608,8 @@ Feature: mTLS Transport Security
       | actor_type         | user                 |
       | auth_method        | basic                |
       | role               | readonly             |
-      | target_type        |                      |
-      | target_id          |                      |
+      | target_type        | config               |
+      | target_id          | _global              |
       | schema_id          |                      |
       | version            |                      |
       | schema_type        |                      |
@@ -698,8 +698,8 @@ Feature: mTLS Transport Security
       | actor_type         | user                 |
       | auth_method        | basic                |
       | role               | readonly             |
-      | target_type        |                      |
-      | target_id          |                      |
+      | target_type        | mode                 |
+      | target_id          | _global              |
       | schema_id          |                      |
       | version            |                      |
       | schema_type        |                      |
@@ -817,8 +817,8 @@ Feature: mTLS Transport Security
       | actor_type         | user                              |
       | auth_method        | basic                             |
       | role               | readonly                          |
-      | target_type        |                                   |
-      | target_id          |                                   |
+      | target_type        | subject                           |
+      | target_id          | mtls-forbidden                    |
       | schema_id          |                                   |
       | version            |                                   |
       | schema_type        |                                   |
