@@ -904,7 +904,7 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
       | after_hash          |                                              |
       | context             | .                                            |
       | transport_security  | tls                                          |
-      | reason              | schema_id_conflict                           |
+      | reason              | invalid_schema                               |
       | error               |                                              |
       | request_body        |                                              |
       | metadata            |                                              |

@@ -71,7 +71,7 @@ Feature: Advanced Schema Import
       | after_hash          |                  |
       | context             |                  |
       | transport_security  | tls              |
-      | reason              | schema_id_conflict |
+      | reason              | invalid_schema     |
       | error               |                  |
       | request_body        |                  |
       | metadata            |                  |
@@ -145,7 +145,7 @@ Feature: Advanced Schema Import
       | after_hash          |                  |
       | context             |                  |
       | transport_security  | tls              |
-      | reason              | schema_id_conflict |
+      | reason              | invalid_schema     |
       | error               |                  |
       | request_body        |                  |
       | metadata            |                  |

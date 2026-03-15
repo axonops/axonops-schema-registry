@@ -80,7 +80,7 @@ Feature: Import with Conflicting IDs
       | after_hash          |                   |
       | context             |                   |
       | transport_security  | tls               |
-      | reason              | schema_id_conflict |
+      | reason              | invalid_schema     |
       | error               |                   |
       | request_body        |                   |
       | metadata            |                   |
@@ -161,7 +161,7 @@ Feature: Import with Conflicting IDs
       | after_hash          |                 |
       | context             |                 |
       | transport_security  | tls             |
-      | reason              | schema_id_conflict |
+      | reason              | invalid_schema     |
       | error               |                 |
       | request_body        |                 |
       | metadata            |                 |
@@ -282,7 +282,7 @@ Feature: Import with Conflicting IDs
       | after_hash          |                  |
       | context             |                  |
       | transport_security  | tls              |
-      | reason              | schema_id_conflict |
+      | reason              | invalid_schema     |
       | error               |                  |
       | request_body        |                  |
       | metadata            |                  |

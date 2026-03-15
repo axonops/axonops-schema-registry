@@ -1538,6 +1538,11 @@ func (h *Handler) ImportSchemas(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Set audit target_type early so even early rejections capture it.
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "subject"
+	}
+
 	// Bulk import requires IMPORT mode (Confluent behavior)
 	mode, modeErr := h.registry.GetMode(r.Context(), registryCtx, "")
 	if modeErr != nil {
@@ -1561,7 +1566,7 @@ func (h *Handler) ImportSchemas(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Set audit hints with imported subjects for audit trail.
+	// Set audit hints from parsed request body.
 	if hints := auth.GetAuditHints(r.Context()); hints != nil {
 		seen := make(map[string]struct{})
 		var subjects []string
@@ -1571,8 +1576,29 @@ func (h *Handler) ImportSchemas(w http.ResponseWriter, r *http.Request) {
 				subjects = append(subjects, s.Subject)
 			}
 		}
-		if len(subjects) > 0 {
-			hints.TargetID = strings.Join(subjects, ",")
+		// Only set target_id for single-subject imports; multi-subject is ambiguous.
+		if len(subjects) == 1 {
+			hints.TargetID = subjects[0]
+		}
+		// Set schema_id from the first schema in the request.
+		if len(req.Schemas) > 0 {
+			hints.SchemaID = req.Schemas[0].ID
+		}
+		// Set schema_type when all schemas target a single subject with uniform type.
+		if len(subjects) == 1 {
+			schemaTypes := make(map[string]struct{})
+			for _, s := range req.Schemas {
+				st := strings.ToUpper(s.SchemaType)
+				if st == "" {
+					st = "AVRO"
+				}
+				schemaTypes[st] = struct{}{}
+			}
+			if len(schemaTypes) == 1 {
+				for t := range schemaTypes {
+					hints.SchemaType = t
+				}
+			}
 		}
 	}
 
@@ -1602,6 +1628,13 @@ func (h *Handler) ImportSchemas(w http.ResponseWriter, r *http.Request) {
 		}
 		writeInternalError(w, err)
 		return
+	}
+
+	// Set after_hash for fully successful imports.
+	if result.Imported > 0 && result.Errors == 0 {
+		if hints := auth.GetAuditHints(r.Context()); hints != nil {
+			hints.AfterHash = hashImportResult(result)
+		}
 	}
 
 	resp := importResultToResponse(result)
@@ -2058,6 +2091,27 @@ func hashAPIKey(key *storage.APIKeyRecord) string {
 		KeyPrefix: key.KeyPrefix,
 	}
 	data, _ := json.Marshal(obj)
+	return hashString(string(data))
+}
+
+// hashImportResult returns a sha256 hash of the successfully imported schemas.
+func hashImportResult(result *registry.ImportResult) string {
+	type importEntry struct {
+		ID      int64  `json:"id"`
+		Subject string `json:"subject"`
+		Version int    `json:"version"`
+	}
+	var entries []importEntry
+	for _, r := range result.Results {
+		if r.Success {
+			entries = append(entries, importEntry{
+				ID:      r.ID,
+				Subject: r.Subject,
+				Version: r.Version,
+			})
+		}
+	}
+	data, _ := json.Marshal(entries)
 	return hashString(string(data))
 }
 
