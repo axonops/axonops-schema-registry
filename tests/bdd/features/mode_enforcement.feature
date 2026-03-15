@@ -503,7 +503,7 @@ Feature: Mode Enforcement
       | role                 |                                        |
       | target_type          | subject                                |
       | target_id            | mode-import-dup2                       |
-      | schema_id            |                                        |
+      | schema_id            | *                                      |
       | version              | *                                      |
       | schema_type          | AVRO                                   |
       | before_hash          |                                        |
@@ -672,7 +672,7 @@ Feature: Mode Enforcement
       | role                 |                                          |
       | target_type          | subject                                  |
       | target_id            | mode-rw-explicit                         |
-      | schema_id            |                                          |
+      | schema_id            | *                                        |
       | version              | *                                        |
       | schema_type          | AVRO                                     |
       | before_hash          |                                          |
