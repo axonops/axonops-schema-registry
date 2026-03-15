@@ -182,7 +182,7 @@ Feature: mTLS Transport Security
       | schema_type        |                      |
       | before_hash        |                      |
       | after_hash         |                      |
-      | context            |                      |
+      | context            | .                     |
       | transport_security | mtls                 |
       | method             | GET                  |
       | path               | /subjects            |
@@ -217,7 +217,7 @@ Feature: mTLS Transport Security
       | schema_type        |                      |
       | before_hash        |                      |
       | after_hash         |                      |
-      | context            |                      |
+      | context            | .                     |
       | transport_security | mtls                 |
       | method             | GET                  |
       | path               | /subjects            |
@@ -407,7 +407,7 @@ Feature: mTLS Transport Security
       | schema_type        |                      |
       | before_hash        |                      |
       | after_hash         | sha256:*             |
-      | context            |                      |
+      | context            | .                     |
       | transport_security | mtls                 |
       | method             | POST                 |
       | path               | /admin/users         |
@@ -444,7 +444,7 @@ Feature: mTLS Transport Security
       | schema_type        |                      |
       | before_hash        |                      |
       | after_hash         |                      |
-      | context            |                      |
+      | context            | .                     |
       | transport_security | mtls                 |
       | method             | POST                 |
       | path               | /subjects/mtls-ro-write/versions |
@@ -490,7 +490,7 @@ Feature: mTLS Transport Security
       | schema_type        |                      |
       | before_hash        |                      |
       | after_hash         |                      |
-      | context            |                      |
+      | context            | .                     |
       | transport_security | mtls                 |
       | method             | DELETE               |
       | path               | /subjects/mtls-ro-del |
@@ -524,7 +524,7 @@ Feature: mTLS Transport Security
       | schema_type        |                      |
       | before_hash        |                      |
       | after_hash         |                      |
-      | context            |                      |
+      | context            | .                     |
       | transport_security | mtls                 |
       | method             | GET                  |
       | path               | /subjects            |
@@ -615,7 +615,7 @@ Feature: mTLS Transport Security
       | schema_type        |                      |
       | before_hash        |                      |
       | after_hash         |                      |
-      | context            |                      |
+      | context            | .                     |
       | transport_security | mtls                 |
       | method             | PUT                  |
       | path               | /config              |
@@ -705,7 +705,7 @@ Feature: mTLS Transport Security
       | schema_type        |                      |
       | before_hash        |                      |
       | after_hash         |                      |
-      | context            |                      |
+      | context            | .                     |
       | transport_security | mtls                 |
       | method             | PUT                  |
       | path               | /mode                |
@@ -780,7 +780,7 @@ Feature: mTLS Transport Security
       | schema_type        |                      |
       | before_hash        |                      |
       | after_hash         |                      |
-      | context            |                      |
+      | context            | .                     |
       | transport_security | mtls                 |
       | method             | GET                  |
       | path               | /subjects            |
@@ -824,7 +824,7 @@ Feature: mTLS Transport Security
       | schema_type        |                                   |
       | before_hash        |                                   |
       | after_hash         |                                   |
-      | context            |                                   |
+      | context            | .                                  |
       | transport_security | mtls                              |
       | method             | POST                              |
       | path               | /subjects/mtls-forbidden/versions |

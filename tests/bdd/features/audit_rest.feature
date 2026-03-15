@@ -106,7 +106,7 @@ Feature: REST API Audit Logging
       | schema_type        |                             |
       | before_hash        |                             |
       | after_hash         |                             |
-      | context            |                             |
+      | context            | .                            |
       | request_id         | *                           |
       | transport_security | tls                         |
       | source_ip          | *                           |
@@ -502,7 +502,7 @@ Feature: REST API Audit Logging
       | schema_type        |                  |
       | before_hash        |                  |
       | after_hash         | sha256:*         |
-      | context            |                  |
+      | context            | .                 |
       | request_id         | *                |
       | transport_security | tls              |
       | source_ip          | *                |
@@ -549,7 +549,7 @@ Feature: REST API Audit Logging
       | schema_type        |                             |
       | before_hash        | sha256:*                    |
       | after_hash         | sha256:*                    |
-      | context            |                             |
+      | context            | .                            |
       | request_id         | *                           |
       | transport_security | tls                         |
       | source_ip          | *                           |
@@ -589,7 +589,7 @@ Feature: REST API Audit Logging
       | schema_type        |                             |
       | before_hash        | sha256:*                    |
       | after_hash         |                             |
-      | context            |                             |
+      | context            | .                            |
       | request_id         | *                           |
       | transport_security | tls                         |
       | source_ip          | *                           |
@@ -632,7 +632,7 @@ Feature: REST API Audit Logging
       | schema_type        |                                  |
       | before_hash        | sha256:*                         |
       | after_hash         | sha256:*                         |
-      | context            |                                  |
+      | context            | .                                 |
       | request_id         | *                                |
       | transport_security | tls                              |
       | source_ip          | *                                |
@@ -679,7 +679,7 @@ Feature: REST API Audit Logging
       | schema_type        |                                      |
       | before_hash        | sha256:*                             |
       | after_hash         | sha256:*                             |
-      | context            |                                      |
+      | context            | .                                     |
       | request_id         | *                                    |
       | transport_security | tls                                  |
       | source_ip          | *                                    |
@@ -722,7 +722,7 @@ Feature: REST API Audit Logging
       | schema_type        |                                  |
       | before_hash        | sha256:*                         |
       | after_hash         | sha256:*                         |
-      | context            |                                  |
+      | context            | .                                 |
       | request_id         | *                                |
       | transport_security | tls                              |
       | source_ip          | *                                |

@@ -36,7 +36,7 @@ Feature: Authentication flows and RBAC
       | schema_type          |                      |
       | before_hash          |                      |
       | after_hash           |                      |
-      | context              |                      |
+      | context              | .                     |
       | transport_security   | tls                  |
       | method               | GET                  |
       | path                 | /subjects            |
@@ -70,7 +70,7 @@ Feature: Authentication flows and RBAC
       | schema_type          |                      |
       | before_hash          |                      |
       | after_hash           |                      |
-      | context              |                      |
+      | context              | .                     |
       | transport_security   | tls                  |
       | method               | GET                  |
       | path                 | /subjects            |
@@ -104,7 +104,7 @@ Feature: Authentication flows and RBAC
       | schema_type          |                      |
       | before_hash          |                      |
       | after_hash           |                      |
-      | context              |                      |
+      | context              | .                     |
       | transport_security   | tls                  |
       | method               | GET                  |
       | path                 | /subjects            |
@@ -173,7 +173,7 @@ Feature: Authentication flows and RBAC
       | schema_type          |                               |
       | before_hash          |                               |
       | after_hash           |                               |
-      | context              |                               |
+      | context              | .                              |
       | transport_security   | tls                           |
       | method               | POST                          |
       | path                 | /subjects/test-value/versions |
@@ -217,7 +217,7 @@ Feature: Authentication flows and RBAC
       | schema_type          |                           |
       | before_hash          |                           |
       | after_hash           |                           |
-      | context              |                           |
+      | context              | .                          |
       | transport_security   | tls                       |
       | method               | DELETE                    |
       | path                 | /subjects/to-delete-value |
@@ -266,7 +266,7 @@ Feature: Authentication flows and RBAC
       | schema_type          |                   |
       | before_hash          |                   |
       | after_hash           |                   |
-      | context              |                   |
+      | context              | .                  |
       | transport_security   | tls               |
       | method               | PUT               |
       | path                 | /config           |
@@ -362,7 +362,7 @@ Feature: Authentication flows and RBAC
       | schema_type          |                              |
       | before_hash          |                              |
       | after_hash           |                              |
-      | context              |                              |
+      | context              | .                             |
       | transport_security   | tls                          |
       | method               | DELETE                       |
       | path                 | /subjects/dev-nodelete-value |
@@ -463,7 +463,7 @@ Feature: Authentication flows and RBAC
       | schema_type          |                   |
       | before_hash          |                   |
       | after_hash           |                   |
-      | context              |                   |
+      | context              | .                  |
       | transport_security   | tls               |
       | method               | POST              |
       | path                 | /admin/users      |
@@ -516,7 +516,7 @@ Feature: Authentication flows and RBAC
       | schema_type          |                       |
       | before_hash          |                       |
       | after_hash           |                       |
-      | context              |                       |
+      | context              | .                      |
       | transport_security   | tls                   |
       | method               | POST                  |
       | path                 | /dek-registry/v1/keks |
@@ -565,7 +565,7 @@ Feature: Authentication flows and RBAC
       | schema_type          |                       |
       | before_hash          |                       |
       | after_hash           |                       |
-      | context              |                       |
+      | context              | .                      |
       | transport_security   | tls                   |
       | method               | POST                  |
       | path                 | /dek-registry/v1/keks |
@@ -646,7 +646,7 @@ Feature: Authentication flows and RBAC
       | schema_type          |                   |
       | before_hash          |                   |
       | after_hash           |                   |
-      | context              |                   |
+      | context              | .                  |
       | transport_security   | tls               |
       | method               | POST              |
       | path                 | /exporters        |
@@ -686,7 +686,7 @@ Feature: Authentication flows and RBAC
       | schema_type          |                   |
       | before_hash          |                   |
       | after_hash           |                   |
-      | context              |                   |
+      | context              | .                  |
       | transport_security   | tls               |
       | method               | POST              |
       | path                 | /exporters        |

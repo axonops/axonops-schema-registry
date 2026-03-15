@@ -33,7 +33,7 @@ Feature: Admin API Key Management
       | schema_type          |                  |
       | before_hash          |                  |
       | after_hash           | sha256:*         |
-      | context              |                  |
+      | context              | .                |
       | transport_security   | tls              |
       | method               | POST             |
       | path                 | /admin/apikeys   |
@@ -98,7 +98,7 @@ Feature: Admin API Key Management
       | schema_type          |                |
       | before_hash          | sha256:*       |
       | after_hash           | sha256:*       |
-      | context              |                |
+      | context              | .              |
       | transport_security   | tls            |
       | method               | PUT            |
       | path                 | /admin/apikeys |
@@ -140,7 +140,7 @@ Feature: Admin API Key Management
       | schema_type          |                |
       | before_hash          | sha256:*       |
       | after_hash           | sha256:*       |
-      | context              |                |
+      | context              | .              |
       | transport_security   | tls            |
       | method               | PUT            |
       | path                 | /admin/apikeys |
@@ -176,7 +176,7 @@ Feature: Admin API Key Management
       | schema_type          |                |
       | before_hash          | sha256:*       |
       | after_hash           |                |
-      | context              |                |
+      | context              | .              |
       | transport_security   | tls            |
       | method               | DELETE         |
       | path                 | /admin/apikeys |
@@ -215,7 +215,7 @@ Feature: Admin API Key Management
       | schema_type          |                |
       | before_hash          | sha256:*       |
       | after_hash           | sha256:*       |
-      | context              |                |
+      | context              | .              |
       | transport_security   | tls            |
       | method               | POST           |
       | path                 | /admin/apikeys |
@@ -255,7 +255,7 @@ Feature: Admin API Key Management
       | schema_type          |                |
       | before_hash          | sha256:*       |
       | after_hash           | sha256:*       |
-      | context              |                |
+      | context              | .              |
       | transport_security   | tls            |
       | method               | POST           |
       | path                 | /admin/apikeys |
@@ -289,14 +289,14 @@ Feature: Admin API Key Management
       | actor_type           | anonymous            |
       | auth_method          |                      |
       | role                 |                      |
-      | target_type          |                      |
+      | target_type          | apikey               |
       | target_id            |                      |
       | schema_id            |                      |
       | version              |                      |
       | schema_type          |                      |
       | before_hash          |                      |
       | after_hash           |                      |
-      | context              |                      |
+      | context              | .                    |
       | transport_security   | tls                  |
       | method               | POST                 |
       | path                 | /admin/apikeys       |
@@ -325,14 +325,14 @@ Feature: Admin API Key Management
       | actor_type           | user              |
       | auth_method          | basic             |
       | role                 | readonly          |
-      | target_type          |                   |
+      | target_type          | apikey            |
       | target_id            |                   |
       | schema_id            |                   |
       | version              |                   |
       | schema_type          |                   |
       | before_hash          |                   |
       | after_hash           |                   |
-      | context              |                   |
+      | context              | .                 |
       | transport_security   | tls               |
       | method               | POST              |
       | path                 | /admin/apikeys    |

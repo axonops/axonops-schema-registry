@@ -463,7 +463,7 @@ Feature: OIDC Authentication and RBAC
       | schema_type          |                      |
       | before_hash          |                      |
       | after_hash           |                      |
-      | context              |                      |
+      | context              | .                     |
       | transport_security   | tls                  |
       | method               | GET                  |
       | path                 | /subjects            |
@@ -535,7 +535,7 @@ Feature: OIDC Authentication and RBAC
       | schema_type          |                   |
       | before_hash          |                   |
       | after_hash           |                   |
-      | context              |                   |
+      | context              | .                  |
       | transport_security   | tls               |
       | method               | POST              |
       | path                 | /subjects         |
@@ -568,7 +568,7 @@ Feature: OIDC Authentication and RBAC
       | schema_type          |                      |
       | before_hash          |                      |
       | after_hash           |                      |
-      | context              |                      |
+      | context              | .                     |
       | transport_security   | tls                  |
       | method               | GET                  |
       | path                 | /subjects            |

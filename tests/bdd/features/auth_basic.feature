@@ -369,7 +369,7 @@ Feature: Internal User Authentication and RBAC
       | schema_type          |                                                  |
       | before_hash          |                                                  |
       | after_hash           |                                                  |
-      | context              |                                                  |
+      | context              | .                                                |
       | transport_security   | tls                                              |
       | method               | POST                                             |
       | path                 | /compatibility/subjects/ba-compat/versions/latest |
@@ -576,7 +576,7 @@ Feature: Internal User Authentication and RBAC
       | schema_type          |                      |
       | before_hash          |                      |
       | after_hash           |                      |
-      | context              |                      |
+      | context              | .                    |
       | transport_security   | tls                  |
       | method               | GET                  |
       | path                 | /subjects            |
@@ -639,33 +639,33 @@ Feature: Internal User Authentication and RBAC
       """
     Then the response status should be 403
     And the audit log should contain an event:
-      | event_type           | auth_forbidden    |
-      | outcome              | failure           |
-      | actor_id             | ba-aud-ro         |
-      | actor_type           | user              |
-      | auth_method          | basic             |
-      | role                 | readonly          |
-      | target_type          |                   |
-      | target_id            |                   |
-      | schema_id            |                   |
-      | version              |                   |
-      | schema_type          |                   |
-      | before_hash          |                   |
-      | after_hash           |                   |
-      | context              |                   |
-      | transport_security   | tls               |
-      | method               | POST              |
-      | path                 | /subjects         |
-      | status_code          | 403               |
-      | reason               | permission_denied |
-      | error                |                   |
-      | request_body         |                   |
-      | metadata             |                   |
-      | timestamp            | *                 |
-      | duration_ms          | *                 |
-      | request_id           | *                 |
-      | source_ip            | *                 |
-      | user_agent           | *                 |
+      | event_type           | auth_forbidden          |
+      | outcome              | failure                 |
+      | actor_id             | ba-aud-ro               |
+      | actor_type           | user                    |
+      | auth_method          | basic                   |
+      | role                 | readonly                |
+      | target_type          | subject                 |
+      | target_id            | ba-audit-forbidden      |
+      | schema_id            |                         |
+      | version              |                         |
+      | schema_type          |                         |
+      | before_hash          |                         |
+      | after_hash           |                         |
+      | context              | .                       |
+      | transport_security   | tls                     |
+      | method               | POST                    |
+      | path                 | /subjects               |
+      | status_code          | 403                     |
+      | reason               | permission_denied       |
+      | error                |                         |
+      | request_body         |                         |
+      | metadata             |                         |
+      | timestamp            | *                       |
+      | duration_ms          | *                       |
+      | request_id           | *                       |
+      | source_ip            | *                       |
+      | user_agent           | *                       |
 
   Scenario: No credentials produces auth_failure audit event
     Given I clear authentication
@@ -685,7 +685,7 @@ Feature: Internal User Authentication and RBAC
       | schema_type          |                      |
       | before_hash          |                      |
       | after_hash           |                      |
-      | context              |                      |
+      | context              | .                    |
       | transport_security   | tls                  |
       | method               | GET                  |
       | path                 | /subjects            |
@@ -717,9 +717,9 @@ Feature: Internal User Authentication and RBAC
       | role                 | super_admin        |
       | target_type          | subject            |
       | target_id            | ba-audit-del       |
-      | schema_id            |                    |
-      | version              |                    |
-      | schema_type          |                    |
+      | schema_id            | *                  |
+      | version              | *                  |
+      | schema_type          | AVRO               |
       | before_hash          | sha256:*           |
       | after_hash           |                    |
       | context              | .                  |
@@ -834,33 +834,33 @@ Feature: Internal User Authentication and RBAC
       """
     Then the response status should be 403
     And the audit log should contain an event:
-      | event_type           | auth_forbidden    |
-      | outcome              | failure           |
-      | actor_id             | *                 |
-      | actor_type           | api_key           |
-      | auth_method          | api_key           |
-      | role                 | readonly          |
-      | target_type          |                   |
-      | target_id            |                   |
-      | schema_id            |                   |
-      | version              |                   |
-      | schema_type          |                   |
-      | before_hash          |                   |
-      | after_hash           |                   |
-      | context              |                   |
-      | transport_security   | tls               |
-      | method               | POST              |
-      | path                 | /subjects         |
-      | status_code          | 403               |
-      | reason               | permission_denied |
-      | error                |                   |
-      | request_body         |                   |
-      | metadata             |                   |
-      | timestamp            | *                 |
-      | duration_ms          | *                 |
-      | request_id           | *                 |
-      | source_ip            | *                 |
-      | user_agent           | *                 |
+      | event_type           | auth_forbidden         |
+      | outcome              | failure                |
+      | actor_id             | *                      |
+      | actor_type           | api_key                |
+      | auth_method          | api_key                |
+      | role                 | readonly               |
+      | target_type          | subject                |
+      | target_id            | ba-apikey-ro-subject   |
+      | schema_id            |                        |
+      | version              |                        |
+      | schema_type          |                        |
+      | before_hash          |                        |
+      | after_hash           |                        |
+      | context              | .                      |
+      | transport_security   | tls                    |
+      | method               | POST                   |
+      | path                 | /subjects              |
+      | status_code          | 403                    |
+      | reason               | permission_denied      |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           | *                      |
+      | source_ip            | *                      |
+      | user_agent           | *                      |
 
   Scenario: Super admin can create users but admin role cannot
     Given I authenticate as "admin" with password "admin-password"
@@ -878,14 +878,14 @@ Feature: Internal User Authentication and RBAC
       | actor_type           | user              |
       | auth_method          | basic             |
       | role                 | admin             |
-      | target_type          |                   |
+      | target_type          | user              |
       | target_id            |                   |
       | schema_id            |                   |
       | version              |                   |
       | schema_type          |                   |
       | before_hash          |                   |
       | after_hash           |                   |
-      | context              |                   |
+      | context              | .                 |
       | transport_security   | tls               |
       | method               | POST              |
       | path                 | /admin/users      |

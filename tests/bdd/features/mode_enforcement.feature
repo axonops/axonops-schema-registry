@@ -389,7 +389,7 @@ Feature: Mode Enforcement
       | schema_type          |                               |
       | before_hash          |                               |
       | after_hash           |                               |
-      | context              |                               |
+      | context              | .                              |
       | transport_security   | tls                           |
       | method               | DELETE                        |
       | path                 | /mode/mode-del-nonexist       |
@@ -634,7 +634,7 @@ Feature: Mode Enforcement
       | schema_type          |                               |
       | before_hash          |                               |
       | after_hash           |                               |
-      | context              |                               |
+      | context              | .                              |
       | transport_security   | tls                           |
       | method               | PUT                           |
       | path                 | /mode                         |

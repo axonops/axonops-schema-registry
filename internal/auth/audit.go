@@ -699,6 +699,15 @@ func (al *AuditLogger) Middleware(next http.Handler) http.Handler {
 		// Detect transport security from TLS connection state.
 		transportSecurity := transportSecurityFromRequest(r)
 
+		// Default to the root registry context (".") when no handler has
+		// set an explicit context.  This covers auth_failure (401) and
+		// auth_forbidden (403) events where the request never reaches a
+		// handler, as well as handlers that do not set hints.Context.
+		auditContext := hints.Context
+		if auditContext == "" {
+			auditContext = "."
+		}
+
 		event := &AuditEvent{
 			Timestamp:         start,
 			Duration:          time.Since(start),
@@ -715,7 +724,7 @@ func (al *AuditLogger) Middleware(next http.Handler) http.Handler {
 			SchemaType:        hints.SchemaType,
 			SchemaID:          hints.SchemaID,
 			Version:           hints.Version,
-			Context:           hints.Context,
+			Context:           auditContext,
 			TransportSecurity: transportSecurity,
 			SourceIP:          getClientIP(r),
 			UserAgent:         r.UserAgent(),

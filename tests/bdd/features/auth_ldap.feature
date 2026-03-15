@@ -514,7 +514,7 @@ Feature: LDAP Authentication and RBAC
       | schema_type          |                      |
       | before_hash          |                      |
       | after_hash           |                      |
-      | context              |                      |
+      | context              | .                     |
       | transport_security   | tls                  |
       | method               | GET                  |
       | path                 | /subjects            |
@@ -588,7 +588,7 @@ Feature: LDAP Authentication and RBAC
       | schema_type          |                   |
       | before_hash          |                   |
       | after_hash           |                   |
-      | context              |                   |
+      | context              | .                  |
       | transport_security   | tls               |
       | method               | POST              |
       | path                 | /subjects         |
@@ -622,7 +622,7 @@ Feature: LDAP Authentication and RBAC
       | schema_type          |                      |
       | before_hash          |                      |
       | after_hash           |                      |
-      | context              |                      |
+      | context              | .                     |
       | transport_security   | tls                  |
       | method               | GET                  |
       | path                 | /subjects            |
@@ -656,7 +656,7 @@ Feature: LDAP Authentication and RBAC
       | schema_type          |                      |
       | before_hash          |                      |
       | after_hash           |                      |
-      | context              |                      |
+      | context              | .                     |
       | transport_security   | tls                  |
       | method               | GET                  |
       | path                 | /subjects            |
@@ -746,7 +746,7 @@ Feature: LDAP Authentication and RBAC
       | schema_type          |                                    |
       | before_hash          |                                    |
       | after_hash           |                                    |
-      | context              |                                    |
+      | context              | .                                   |
       | transport_security   | tls                                |
       | method               | PUT                                |
       | path                 | /config                            |
@@ -810,7 +810,7 @@ Feature: LDAP Authentication and RBAC
       | schema_type          |                      |
       | before_hash          |                      |
       | after_hash           |                      |
-      | context              |                      |
+      | context              | .                     |
       | transport_security   | tls                  |
       | method               | GET                  |
       | path                 | /subjects            |
@@ -846,7 +846,7 @@ Feature: LDAP Authentication and RBAC
       | schema_type          |                                    |
       | before_hash          |                                    |
       | after_hash           |                                    |
-      | context              |                                    |
+      | context              | .                                   |
       | transport_security   | tls                                |
       | method               | GET                                |
       | path                 | /subjects                          |
@@ -874,7 +874,7 @@ Feature: LDAP Authentication and RBAC
       | schema_type          |                      |
       | before_hash          |                      |
       | after_hash           |                      |
-      | context              |                      |
+      | context              | .                     |
       | transport_security   | tls                  |
       | method               | GET                  |
       | path                 | /subjects            |

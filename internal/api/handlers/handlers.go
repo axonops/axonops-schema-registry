@@ -1135,6 +1135,12 @@ func (h *Handler) CheckCompatibility(w http.ResponseWriter, r *http.Request) {
 		h.metrics.RecordCompatibilityCheck(string(schemaType), "", result.IsCompatible)
 	}
 
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "subject"
+		hints.TargetID = chi.URLParam(r, "subject")
+		hints.Context = registryCtx
+	}
+
 	verbose := r.URL.Query().Get("verbose") == "true"
 	resp := types.CompatibilityCheckResponse{
 		IsCompatible: result.IsCompatible,

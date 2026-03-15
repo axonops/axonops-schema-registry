@@ -36,7 +36,7 @@ Feature: htpasswd file authentication
       | schema_type          |                      |
       | before_hash          |                      |
       | after_hash           |                      |
-      | context              |                      |
+      | context              | .                    |
       | transport_security   | tls                  |
       | method               | GET                  |
       | path                 | /subjects            |
@@ -70,7 +70,7 @@ Feature: htpasswd file authentication
       | schema_type          |                      |
       | before_hash          |                      |
       | after_hash           |                      |
-      | context              |                      |
+      | context              | .                    |
       | transport_security   | tls                  |
       | method               | GET                  |
       | path                 | /subjects            |
@@ -100,14 +100,14 @@ Feature: htpasswd file authentication
       | actor_type           | user                             |
       | auth_method          | basic                            |
       | role                 | readonly                         |
-      | target_type          |                                  |
-      | target_id            |                                  |
+      | target_type          | subject                          |
+      | target_id            | test-htpasswd                    |
       | schema_id            |                                  |
       | version              |                                  |
       | schema_type          |                                  |
       | before_hash          |                                  |
       | after_hash           |                                  |
-      | context              |                                  |
+      | context              | .                                |
       | transport_security   | tls                              |
       | method               | POST                             |
       | path                 | /subjects/test-htpasswd/versions |

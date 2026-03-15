@@ -39,7 +39,7 @@ Feature: KMS Server-Side Field-Level Encryption
       | schema_id           |                                                |
       | version             |                                                |
       | schema_type         |                                                |
-      | context             |                                                |
+      | context             | .                                               |
       | before_hash         |                                                |
       | after_hash          | sha256:*                                       |
       | transport_security  | tls                                            |
@@ -76,7 +76,7 @@ Feature: KMS Server-Side Field-Level Encryption
       | schema_id           |                                             |
       | version             |                                             |
       | schema_type         |                                             |
-      | context             |                                             |
+      | context             | .                                            |
       | before_hash         |                                             |
       | after_hash          | sha256:*                                    |
       | transport_security  | tls                                         |
@@ -113,7 +113,7 @@ Feature: KMS Server-Side Field-Level Encryption
       | schema_id           |                                                |
       | version             |                                                |
       | schema_type         |                                                |
-      | context             |                                                |
+      | context             | .                                               |
       | before_hash         |                                                |
       | after_hash          | sha256:*                                       |
       | transport_security  | tls                                            |
@@ -161,7 +161,7 @@ Feature: KMS Server-Side Field-Level Encryption
       | schema_id           |                                                   |
       | version             |                                                   |
       | schema_type         |                                                   |
-      | context             |                                                   |
+      | context             | .                                                  |
       | before_hash         |                                                   |
       | after_hash          | sha256:*                                          |
       | transport_security  | tls                                               |
@@ -205,7 +205,7 @@ Feature: KMS Server-Side Field-Level Encryption
       | schema_id           |                                              |
       | version             |                                              |
       | schema_type         |                                              |
-      | context             |                                              |
+      | context             | .                                             |
       | before_hash         |                                              |
       | after_hash          | sha256:*                                     |
       | transport_security  | tls                                          |
@@ -242,7 +242,7 @@ Feature: KMS Server-Side Field-Level Encryption
       | schema_id           |                                           |
       | version             |                                           |
       | schema_type         |                                           |
-      | context             |                                           |
+      | context             | .                                          |
       | before_hash         |                                           |
       | after_hash          | sha256:*                                  |
       | transport_security  | tls                                       |
@@ -279,7 +279,7 @@ Feature: KMS Server-Side Field-Level Encryption
       | schema_id           |                                              |
       | version             |                                              |
       | schema_type         |                                              |
-      | context             |                                              |
+      | context             | .                                             |
       | before_hash         |                                              |
       | after_hash          | sha256:*                                     |
       | transport_security  | tls                                          |
@@ -329,7 +329,7 @@ Feature: KMS Server-Side Field-Level Encryption
       | schema_id           |                                          |
       | version             |                                          |
       | schema_type         |                                          |
-      | context             |                                          |
+      | context             | .                                         |
       | before_hash         |                                          |
       | after_hash          | sha256:*                                 |
       | transport_security  | tls                                      |
@@ -380,7 +380,7 @@ Feature: KMS Server-Side Field-Level Encryption
       | schema_id           |                                           |
       | version             |                                           |
       | schema_type         |                                           |
-      | context             |                                           |
+      | context             | .                                          |
       | before_hash         |                                           |
       | after_hash          | sha256:*                                  |
       | transport_security  | tls                                       |
@@ -416,7 +416,7 @@ Feature: KMS Server-Side Field-Level Encryption
       | schema_id           |                                                |
       | version             |                                                |
       | schema_type         |                                                |
-      | context             |                                                |
+      | context             | .                                               |
       | before_hash         |                                                |
       | after_hash          | sha256:*                                       |
       | transport_security  | tls                                            |
@@ -470,7 +470,7 @@ Feature: KMS Server-Side Field-Level Encryption
       | schema_id           |                                              |
       | version             |                                              |
       | schema_type         |                                              |
-      | context             |                                              |
+      | context             | .                                             |
       | before_hash         |                                              |
       | after_hash          | sha256:*                                     |
       | transport_security  | tls                                          |
@@ -513,7 +513,7 @@ Feature: KMS Server-Side Field-Level Encryption
       | schema_id           |                                                                          |
       | version             |                                                                          |
       | schema_type         |                                                                          |
-      | context             |                                                                          |
+      | context             | .                                                                         |
       | before_hash         | sha256:*                                                                 |
       | after_hash          |                                                                          |
       | transport_security  | tls                                                                      |
@@ -564,7 +564,7 @@ Feature: KMS Server-Side Field-Level Encryption
       | schema_id           |                                            |
       | version             |                                            |
       | schema_type         |                                            |
-      | context             |                                            |
+      | context             | .                                           |
       | before_hash         |                                            |
       | after_hash          | sha256:*                                   |
       | transport_security  | tls                                        |
@@ -603,7 +603,7 @@ Feature: KMS Server-Side Field-Level Encryption
       | schema_id           |                                               |
       | version             |                                               |
       | schema_type         |                                               |
-      | context             |                                               |
+      | context             | .                                              |
       | before_hash         |                                               |
       | after_hash          | sha256:*                                      |
       | transport_security  | tls                                           |
@@ -652,7 +652,7 @@ Feature: KMS Server-Side Field-Level Encryption
       | schema_id           |                                                   |
       | version             |                                                   |
       | schema_type         |                                                   |
-      | context             |                                                   |
+      | context             | .                                                  |
       | before_hash         |                                                   |
       | after_hash          | sha256:*                                          |
       | transport_security  | tls                                               |
@@ -709,7 +709,7 @@ Feature: KMS Server-Side Field-Level Encryption
       | schema_id           |                                                   |
       | version             |                                                   |
       | schema_type         |                                                   |
-      | context             |                                                   |
+      | context             | .                                                  |
       | before_hash         |                                                   |
       | after_hash          | sha256:*                                          |
       | transport_security  | tls                                               |
@@ -751,7 +751,7 @@ Feature: KMS Server-Side Field-Level Encryption
       | schema_id           |                                                |
       | version             |                                                |
       | schema_type         |                                                |
-      | context             |                                                |
+      | context             | .                                               |
       | before_hash         |                                                |
       | after_hash          | sha256:*                                       |
       | transport_security  | tls                                            |
@@ -796,7 +796,7 @@ Feature: KMS Server-Side Field-Level Encryption
       | schema_id           |                                                    |
       | version             |                                                    |
       | schema_type         |                                                    |
-      | context             |                                                    |
+      | context             | .                                                   |
       | before_hash         |                                                    |
       | after_hash          | sha256:*                                           |
       | transport_security  | tls                                                |

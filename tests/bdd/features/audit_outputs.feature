@@ -286,7 +286,7 @@ Feature: Enterprise Audit Log Outputs
       | schema_type        |               |
       | before_hash        |               |
       | after_hash         |               |
-      | context            |               |
+      | context            | .              |
       | request_id         | *             |
       | transport_security | tls           |
       | source_ip          | *             |

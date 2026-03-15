@@ -191,7 +191,7 @@ Feature: Configuration and Mode Management Advanced
       | schema_type          |                                       |
       | before_hash          |                                       |
       | after_hash           |                                       |
-      | context              |                                       |
+      | context              | .                                      |
       | transport_security   | tls                                   |
       | method               | DELETE                                |
       | path                 | /config/never-configured-subject      |
@@ -227,7 +227,7 @@ Feature: Configuration and Mode Management Advanced
       | schema_type          |                               |
       | before_hash          |                               |
       | after_hash           |                               |
-      | context              |                               |
+      | context              | .                              |
       | transport_security   | tls                           |
       | method               | PUT                           |
       | path                 | /config                       |
@@ -354,7 +354,7 @@ Feature: Configuration and Mode Management Advanced
       | schema_type          |                               |
       | before_hash          |                               |
       | after_hash           |                               |
-      | context              |                               |
+      | context              | .                              |
       | transport_security   | tls                           |
       | method               | PUT                           |
       | path                 | /mode                         |
@@ -389,7 +389,7 @@ Feature: Configuration and Mode Management Advanced
       | schema_type          |                                       |
       | before_hash          |                                       |
       | after_hash           |                                       |
-      | context              |                                       |
+      | context              | .                                      |
       | transport_security   | tls                                   |
       | method               | DELETE                                |
       | path                 | /mode/never-moded-subject             |

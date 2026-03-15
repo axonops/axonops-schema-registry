@@ -33,7 +33,7 @@ Feature: Self-service account management
       | schema_type          |                      |
       | before_hash          |                      |
       | after_hash           |                      |
-      | context              |                      |
+      | context              | .                     |
       | transport_security   | tls                  |
       | method               | GET                  |
       | path                 | /me                  |
@@ -68,7 +68,7 @@ Feature: Self-service account management
       | schema_type          |                    |
       | before_hash          |                    |
       | after_hash           |                    |
-      | context              |                    |
+      | context              | .                   |
       | transport_security   | tls                |
       | method               | POST               |
       | path                 | /me/password       |
@@ -108,7 +108,7 @@ Feature: Self-service account management
       | schema_type          |                   |
       | before_hash          |                   |
       | after_hash           |                   |
-      | context              |                   |
+      | context              | .                  |
       | transport_security   | tls               |
       | method               | POST              |
       | path                 | /me/password      |
@@ -151,7 +151,7 @@ Feature: Self-service account management
       | schema_type          |                      |
       | before_hash          |                      |
       | after_hash           |                      |
-      | context              |                      |
+      | context              | .                     |
       | transport_security   | tls                  |
       | method               | POST                 |
       | path                 | /me/password         |

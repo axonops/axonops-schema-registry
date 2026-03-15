@@ -30,7 +30,7 @@ Feature: Admin User Management
       | schema_type          |              |
       | before_hash          |              |
       | after_hash           | sha256:*     |
-      | context              |              |
+      | context              | .            |
       | transport_security   | tls          |
       | method               | POST         |
       | path                 | /admin/users |
@@ -68,7 +68,7 @@ Feature: Admin User Management
       | schema_type          |              |
       | before_hash          |              |
       | after_hash           | sha256:*     |
-      | context              |              |
+      | context              | .            |
       | transport_security   | tls          |
       | method               | POST         |
       | path                 | /admin/users |
@@ -131,7 +131,7 @@ Feature: Admin User Management
       | schema_type          |              |
       | before_hash          | sha256:*     |
       | after_hash           | sha256:*     |
-      | context              |              |
+      | context              | .            |
       | transport_security   | tls          |
       | method               | PUT          |
       | path                 | /admin/users |
@@ -172,7 +172,7 @@ Feature: Admin User Management
       | schema_type          |              |
       | before_hash          | sha256:*     |
       | after_hash           | sha256:*     |
-      | context              |              |
+      | context              | .            |
       | transport_security   | tls          |
       | method               | PUT          |
       | path                 | /admin/users |
@@ -208,7 +208,7 @@ Feature: Admin User Management
       | schema_type          |              |
       | before_hash          | sha256:*     |
       | after_hash           |              |
-      | context              |              |
+      | context              | .            |
       | transport_security   | tls          |
       | method               | DELETE       |
       | path                 | /admin/users |
@@ -242,14 +242,14 @@ Feature: Admin User Management
       | actor_type           | anonymous            |
       | auth_method          |                      |
       | role                 |                      |
-      | target_type          |                      |
+      | target_type          | user                 |
       | target_id            |                      |
       | schema_id            |                      |
       | version              |                      |
       | schema_type          |                      |
       | before_hash          |                      |
       | after_hash           |                      |
-      | context              |                      |
+      | context              | .                    |
       | transport_security   | tls                  |
       | method               | POST                 |
       | path                 | /admin/users         |
@@ -278,14 +278,14 @@ Feature: Admin User Management
       | actor_type           | user              |
       | auth_method          | basic             |
       | role                 | readonly          |
-      | target_type          |                   |
+      | target_type          | user              |
       | target_id            |                   |
       | schema_id            |                   |
       | version              |                   |
       | schema_type          |                   |
       | before_hash          |                   |
       | after_hash           |                   |
-      | context              |                   |
+      | context              | .                 |
       | transport_security   | tls               |
       | method               | POST              |
       | path                 | /admin/users      |

@@ -32,14 +32,14 @@ Feature: Config-defined API key authentication (memory storage)
       | actor_type           | api_key                               |
       | auth_method          | api_key                               |
       | role                 | readonly                              |
-      | target_type          |                                       |
-      | target_id            |                                       |
+      | target_type          | subject                               |
+      | target_id            | test-memory-apikey                    |
       | schema_id            |                                       |
       | version              |                                       |
       | schema_type          |                                       |
       | before_hash          |                                       |
       | after_hash           |                                       |
-      | context              |                                       |
+      | context              | .                                     |
       | transport_security   | tls                                   |
       | method               | POST                                  |
       | path                 | /subjects/test-memory-apikey/versions |
@@ -110,7 +110,7 @@ Feature: Config-defined API key authentication (memory storage)
       | schema_type          |                      |
       | before_hash          |                      |
       | after_hash           |                      |
-      | context              |                      |
+      | context              | .                    |
       | transport_security   | tls                  |
       | method               | GET                  |
       | path                 | /subjects            |

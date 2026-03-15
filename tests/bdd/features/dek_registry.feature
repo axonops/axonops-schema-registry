@@ -54,7 +54,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       | schema_id           |                        |
       | version             |                        |
       | schema_type         |                        |
-      | context             |                        |
+      | context             | .                       |
       | before_hash         |                        |
       | after_hash          | sha256:*               |
       | transport_security  | tls                    |
@@ -97,7 +97,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       | schema_id           |                        |
       | version             |                        |
       | schema_type         |                        |
-      | context             |                        |
+      | context             | .                       |
       | before_hash         |                        |
       | after_hash          | sha256:*               |
       | transport_security  | tls                    |
@@ -198,7 +198,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       | schema_id           |                                       |
       | version             |                                       |
       | schema_type         |                                       |
-      | context             |                                       |
+      | context             | .                                      |
       | before_hash         | sha256:*                              |
       | after_hash          | sha256:*                              |
       | transport_security  | tls                                   |
@@ -249,7 +249,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       | schema_id           |                                       |
       | version             |                                       |
       | schema_type         |                                       |
-      | context             |                                       |
+      | context             | .                                      |
       | before_hash         | sha256:*                              |
       | after_hash          |                                       |
       | transport_security  | tls                                   |
@@ -322,7 +322,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       | schema_type          |                                               |
       | before_hash          | sha256:*                                      |
       | after_hash           | sha256:*                                      |
-      | context              |                                               |
+      | context              | .                                              |
       | transport_security   | tls                                           |
       | method               | POST                                          |
       | path                 | /dek-registry/v1/keks/undelete-kek/undelete   |
@@ -369,7 +369,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       | schema_id           |                                            |
       | version             |                                            |
       | schema_type         |                                            |
-      | context             |                                            |
+      | context             | .                                           |
       | before_hash         | sha256:*                                   |
       | after_hash          |                                            |
       | transport_security  | tls                                        |
@@ -457,7 +457,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       | schema_id           |                                         |
       | version             |                                         |
       | schema_type         |                                         |
-      | context             |                                         |
+      | context             | .                                        |
       | before_hash         |                                         |
       | after_hash          | sha256:*                                |
       | transport_security  | tls                                     |
@@ -500,7 +500,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       | schema_id           |                                             |
       | version             |                                             |
       | schema_type         |                                             |
-      | context             |                                             |
+      | context             | .                                            |
       | before_hash         |                                             |
       | after_hash          | sha256:*                                    |
       | transport_security  | tls                                         |
@@ -544,7 +544,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       | schema_id           |                                       |
       | version             |                                       |
       | schema_type         |                                       |
-      | context             |                                       |
+      | context             | .                                      |
       | before_hash         |                                       |
       | after_hash          | sha256:*                              |
       | transport_security  | tls                                   |
@@ -588,7 +588,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       | schema_id           |                                          |
       | version             |                                          |
       | schema_type         |                                          |
-      | context             |                                          |
+      | context             | .                                         |
       | before_hash         |                                          |
       | after_hash          | sha256:*                                 |
       | transport_security  | tls                                      |
@@ -664,7 +664,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       | schema_id           |                                        |
       | version             |                                        |
       | schema_type         |                                        |
-      | context             |                                        |
+      | context             | .                                       |
       | before_hash         |                                        |
       | after_hash          | sha256:*                               |
       | transport_security  | tls                                    |
@@ -794,7 +794,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       | schema_id           |                                                          |
       | version             |                                                          |
       | schema_type         |                                                          |
-      | context             |                                                          |
+      | context             | .                                                         |
       | before_hash         | sha256:*                                                 |
       | after_hash          |                                                          |
       | transport_security  | tls                                                      |
@@ -837,7 +837,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       | schema_type          |                                                                     |
       | before_hash          | sha256:*                                                            |
       | after_hash           | sha256:*                                                            |
-      | context              |                                                                     |
+      | context              | .                                                                    |
       | transport_security   | tls                                                                 |
       | method               | POST                                                                |
       | path                 | /dek-registry/v1/keks/undelete-dek-kek/deks/undelete.subject/undelete |
@@ -907,7 +907,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       | schema_id           |                        |
       | version             |                        |
       | schema_type         |                        |
-      | context             |                        |
+      | context             | .                       |
       | before_hash         |                        |
       | after_hash          | sha256:*               |
       | transport_security  | tls                    |
@@ -948,7 +948,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       | schema_id           |                        |
       | version             |                        |
       | schema_type         |                        |
-      | context             |                        |
+      | context             | .                       |
       | before_hash         |                        |
       | after_hash          | sha256:*               |
       | transport_security  | tls                    |
@@ -989,7 +989,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       | schema_id           |                        |
       | version             |                        |
       | schema_type         |                        |
-      | context             |                        |
+      | context             | .                       |
       | before_hash         |                        |
       | after_hash          | sha256:*               |
       | transport_security  | tls                    |
@@ -1105,7 +1105,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       | schema_id           |                        |
       | version             |                        |
       | schema_type         |                        |
-      | context             |                        |
+      | context             | .                       |
       | before_hash         |                        |
       | after_hash          | sha256:*               |
       | transport_security  | tls                    |
@@ -1159,7 +1159,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       | schema_id           |                                            |
       | version             |                                            |
       | schema_type         |                                            |
-      | context             |                                            |
+      | context             | .                                           |
       | before_hash         |                                            |
       | after_hash          | sha256:*                                   |
       | transport_security  | tls                                        |
@@ -1283,7 +1283,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       | schema_id           |                                                         |
       | version             |                                                         |
       | schema_type         |                                                         |
-      | context             |                                                         |
+      | context             | .                                                        |
       | before_hash         |                                                         |
       | after_hash          | sha256:*                                                |
       | transport_security  | tls                                                     |
@@ -1322,7 +1322,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       | schema_id           |                                                         |
       | version             |                                                         |
       | schema_type         |                                                         |
-      | context             |                                                         |
+      | context             | .                                                        |
       | before_hash         |                                                         |
       | after_hash          | sha256:*                                                |
       | transport_security  | tls                                                     |
@@ -1362,7 +1362,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       | schema_id           |                                                                 |
       | version             | 1                                                               |
       | schema_type         |                                                                 |
-      | context             |                                                                 |
+      | context             | .                                                                |
       | before_hash         | sha256:*                                                        |
       | after_hash          |                                                                 |
       | transport_security  | tls                                                             |
@@ -1567,7 +1567,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       | schema_id           |                                                            |
       | version             |                                                            |
       | schema_type         |                                                            |
-      | context             |                                                            |
+      | context             | .                                                           |
       | before_hash         | sha256:*                                                   |
       | after_hash          |                                                            |
       | transport_security  | tls                                                        |
@@ -1611,7 +1611,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       | schema_id           |                                                                           |
       | version             | 1                                                                         |
       | schema_type         |                                                                           |
-      | context             |                                                                           |
+      | context             | .                                                                          |
       | before_hash         | sha256:*                                                                  |
       | after_hash          |                                                                           |
       | transport_security  | tls                                                                       |
@@ -1651,7 +1651,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       | schema_id           |                                                                       |
       | version             |                                                                       |
       | schema_type         |                                                                       |
-      | context             |                                                                       |
+      | context             | .                                                                      |
       | before_hash         | sha256:*                                                              |
       | after_hash          |                                                                       |
       | transport_security  | tls                                                                   |
@@ -1709,7 +1709,7 @@ Feature: DEK Registry API (Client-Side Field Level Encryption)
       | schema_id           |                                                          |
       | version             |                                                          |
       | schema_type         |                                                          |
-      | context             |                                                          |
+      | context             | .                                                         |
       | before_hash         | sha256:*                                                 |
       | after_hash          |                                                          |
       | transport_security  | tls                                                      |
