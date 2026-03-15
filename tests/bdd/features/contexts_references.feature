@@ -33,7 +33,34 @@ Feature: Contexts — Schema References
     And the response should contain "Order"
     And the response should contain "references"
     And the response should contain "com.example.Address"
-    And the audit log should contain event "schema_register" with subject ":.ref1:order-value"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | :.ref1:order-value                           |
+      | schema_id            | *                                            |
+      | version              | *                                            |
+      | schema_type          | AVRO                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .ref1                                        |
+      | transport_security   | tls                                          |
+      | method               | POST                                         |
+      | path                 | /subjects/:.ref1:order-value/versions        |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
 
   # ==========================================================================
   # REFERENCEDBY ENDPOINT IN CONTEXT
@@ -58,7 +85,34 @@ Feature: Contexts — Schema References
     When I GET "/subjects/:.ref2:address-value/versions/1/referencedby"
     Then the response status should be 200
     And the response should be valid JSON
-    And the audit log should contain event "schema_register" with subject ":.ref2:order-value"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | :.ref2:order-value                           |
+      | schema_id            | *                                            |
+      | version              | *                                            |
+      | schema_type          | AVRO                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .ref2                                        |
+      | transport_security   | tls                                          |
+      | method               | POST                                         |
+      | path                 | /subjects/:.ref2:order-value/versions        |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
 
   # ==========================================================================
   # CROSS-CONTEXT REFERENCE ISOLATION
@@ -84,7 +138,34 @@ Feature: Contexts — Schema References
       {"schema": "{\"type\":\"record\",\"name\":\"Order\",\"namespace\":\"com.example\",\"fields\":[{\"name\":\"id\",\"type\":\"long\"},{\"name\":\"address\",\"type\":\"com.example.Address\"}]}", "references": [{"name": "com.example.Address", "subject": "address-value", "version": 1}]}
       """
     Then the response status should be 422
-    And the audit log should contain event "schema_register" with subject ":.ref3a:order-value"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | :.ref3a:order-value                          |
+      | schema_id            | *                                            |
+      | version              | *                                            |
+      | schema_type          | AVRO                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .ref3a                                       |
+      | transport_security   | tls                                          |
+      | method               | POST                                         |
+      | path                 | /subjects/:.ref3a:order-value/versions       |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
 
   # ==========================================================================
   # SAME SUBJECT NAME, DIFFERENT CONTEXTS, INDEPENDENT REFERENCES
@@ -130,7 +211,34 @@ Feature: Contexts — Schema References
     And the response body should contain "line1"
     And the response body should contain "zip"
     And the response body should not contain "street"
-    And the audit log should contain event "schema_register" with subject ":.ref4b:order-value"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | :.ref4b:order-value                          |
+      | schema_id            | *                                            |
+      | version              | *                                            |
+      | schema_type          | AVRO                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .ref4b                                       |
+      | transport_security   | tls                                          |
+      | method               | POST                                         |
+      | path                 | /subjects/:.ref4b:order-value/versions       |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
 
   # ==========================================================================
   # RAW SCHEMA ENDPOINT FOR SCHEMA WITH REFERENCES
@@ -154,7 +262,34 @@ Feature: Contexts — Schema References
     Then the response status should be 200
     And the response body should contain "Order"
     And the response body should contain "com.example.Address"
-    And the audit log should contain event "schema_register" with subject ":.ref5:order-value"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | :.ref5:order-value                           |
+      | schema_id            | *                                            |
+      | version              | *                                            |
+      | schema_type          | AVRO                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .ref5                                        |
+      | transport_security   | tls                                          |
+      | method               | POST                                         |
+      | path                 | /subjects/:.ref5:order-value/versions        |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
 
   # ==========================================================================
   # DELETE PROTECTION FOR REFERENCED SCHEMAS IN CONTEXT
@@ -180,7 +315,34 @@ Feature: Contexts — Schema References
     # Also try to delete the specific version — should be blocked
     When I DELETE "/subjects/:.ref6:address-value/versions/1"
     Then the response status should be 422
-    And the audit log should contain event "schema_register" with subject ":.ref6:order-value"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | :.ref6:order-value                           |
+      | schema_id            | *                                            |
+      | version              | *                                            |
+      | schema_type          | AVRO                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .ref6                                        |
+      | transport_security   | tls                                          |
+      | method               | POST                                         |
+      | path                 | /subjects/:.ref6:order-value/versions        |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
 
   # ==========================================================================
   # PROTOBUF IMPORT IN SAME CONTEXT
@@ -206,7 +368,34 @@ Feature: Contexts — Schema References
     Then the response status should be 200
     And the response field "schemaType" should be "PROTOBUF"
     And the response should contain "references"
-    And the audit log should contain event "schema_register" with subject ":.ref7:order-proto"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | :.ref7:order-proto                           |
+      | schema_id            | *                                            |
+      | version              | *                                            |
+      | schema_type          | PROTOBUF                                     |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .ref7                                        |
+      | transport_security   | tls                                          |
+      | method               | POST                                         |
+      | path                 | /subjects/:.ref7:order-proto/versions        |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
 
   # ==========================================================================
   # SCHEMA VERSION DETAIL INCLUDES REFERENCES FIELD
@@ -235,4 +424,31 @@ Feature: Contexts — Schema References
     And the response should contain "address-value"
     And the response field "version" should be 1
     And the response field "subject" should be "order-value"
-    And the audit log should contain event "schema_register" with subject ":.ref8:order-value"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | :.ref8:order-value                           |
+      | schema_id            | *                                            |
+      | version              | *                                            |
+      | schema_type          | AVRO                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .ref8                                        |
+      | transport_security   | tls                                          |
+      | method               | POST                                         |
+      | path                 | /subjects/:.ref8:order-value/versions        |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |

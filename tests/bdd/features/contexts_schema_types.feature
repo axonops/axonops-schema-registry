@@ -20,7 +20,34 @@ Feature: Contexts — Schema Types
     When I GET "/subjects/:.type-ctx:avro-test/versions/1"
     Then the response status should be 200
     And the response field "schemaType" should be "AVRO"
-    And the audit log should contain event "schema_register" with subject ":.type-ctx:avro-test"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | :.type-ctx:avro-test                         |
+      | schema_id            | *                                            |
+      | version              | *                                            |
+      | schema_type          | AVRO                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .type-ctx                                    |
+      | transport_security   | tls                                          |
+      | method               | POST                                         |
+      | path                 | /subjects/:.type-ctx:avro-test/versions      |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
 
   Scenario: Avro compatibility check in context
     When I POST "/subjects/:.type-ctx2:avro-compat/versions" with body:
@@ -49,7 +76,34 @@ Feature: Contexts — Schema Types
     When I GET "/subjects/:.type-ctx3:proto-test/versions/1"
     Then the response status should be 200
     And the response field "schemaType" should be "PROTOBUF"
-    And the audit log should contain event "schema_register" with subject ":.type-ctx3:proto-test"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | :.type-ctx3:proto-test                       |
+      | schema_id            | *                                            |
+      | version              | *                                            |
+      | schema_type          | PROTOBUF                                     |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .type-ctx3                                   |
+      | transport_security   | tls                                          |
+      | method               | POST                                         |
+      | path                 | /subjects/:.type-ctx3:proto-test/versions    |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
 
   Scenario: Protobuf compatibility check in context
     When I POST "/subjects/:.type-ctx4:proto-compat/versions" with body:
@@ -78,7 +132,34 @@ Feature: Contexts — Schema Types
     When I GET "/subjects/:.type-ctx5:json-test/versions/1"
     Then the response status should be 200
     And the response field "schemaType" should be "JSON"
-    And the audit log should contain event "schema_register" with subject ":.type-ctx5:json-test"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | :.type-ctx5:json-test                        |
+      | schema_id            | *                                            |
+      | version              | *                                            |
+      | schema_type          | JSON                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .type-ctx5                                   |
+      | transport_security   | tls                                          |
+      | method               | POST                                         |
+      | path                 | /subjects/:.type-ctx5:json-test/versions     |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
 
   Scenario: JSON Schema compatibility check in context
     When I POST "/subjects/:.type-ctx6:json-compat/versions" with body:
@@ -125,7 +206,34 @@ Feature: Contexts — Schema Types
     When I GET "/subjects/:.mixed-ctx:json-s/versions/1"
     Then the response status should be 200
     And the response field "schemaType" should be "JSON"
-    And the audit log should contain event "schema_register" with subject ":.mixed-ctx:json-s"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | :.mixed-ctx:json-s                           |
+      | schema_id            | *                                            |
+      | version              | *                                            |
+      | schema_type          | JSON                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .mixed-ctx                                   |
+      | transport_security   | tls                                          |
+      | method               | POST                                         |
+      | path                 | /subjects/:.mixed-ctx:json-s/versions        |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
 
   Scenario: Same schema type across different contexts
     When I POST "/subjects/:.type-a:avro-cross/versions" with body:
@@ -144,4 +252,31 @@ Feature: Contexts — Schema Types
     When I GET "/subjects/:.type-b:avro-cross/versions/1"
     Then the response status should be 200
     And the response body should contain "CrossB"
-    And the audit log should contain event "schema_register" with subject ":.type-b:avro-cross"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | :.type-b:avro-cross                          |
+      | schema_id            | *                                            |
+      | version              | *                                            |
+      | schema_type          | AVRO                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .type-b                                      |
+      | transport_security   | tls                                          |
+      | method               | POST                                         |
+      | path                 | /subjects/:.type-b:avro-cross/versions       |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
