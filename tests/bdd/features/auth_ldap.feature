@@ -750,7 +750,7 @@ Feature: LDAP Authentication and RBAC
       | transport_security   |                                    |
       | method               | PUT                                |
       | path                 | /config                            |
-      | status_code          |                                    |
+      | status_code          | 0                                  |
       | reason               | ldap_user_not_found_fallback_to_db |
       | error                |                                    |
       | request_body         |                                    |
@@ -850,7 +850,7 @@ Feature: LDAP Authentication and RBAC
       | transport_security   |                                    |
       | method               | GET                                |
       | path                 | /subjects                          |
-      | status_code          |                                    |
+      | status_code          | 0                                  |
       | reason               | ldap_user_not_found_fallback_to_db |
       | error                |                                    |
       | request_body         |                                    |

@@ -966,19 +966,20 @@ func (s *Store) GetSchemasBySubject(ctx context.Context, registryCtx string, sub
 
 	// Batch read all schema content — one query per ID (context-scoped PK)
 	type schemaContent struct {
-		schemaType string
-		schemaText string
-		createdAt  gocql.UUID
-		metaStr    string
-		ruleStr    string
+		schemaType  string
+		schemaText  string
+		fingerprint string
+		createdAt   gocql.UUID
+		metaStr     string
+		ruleStr     string
 	}
 	schemaMap := make(map[int]*schemaContent)
 	for id := range idSet {
 		var sc schemaContent
 		err := s.readQuery(
-			fmt.Sprintf(`SELECT schema_type, schema_text, created_at, metadata, ruleset FROM %s.schemas_by_id WHERE registry_ctx = ? AND schema_id = ?`, qident(s.cfg.Keyspace)),
+			fmt.Sprintf(`SELECT schema_type, schema_text, fingerprint, created_at, metadata, ruleset FROM %s.schemas_by_id WHERE registry_ctx = ? AND schema_id = ?`, qident(s.cfg.Keyspace)),
 			registryCtx, id,
-		).WithContext(ctx).Scan(&sc.schemaType, &sc.schemaText, &sc.createdAt, &sc.metaStr, &sc.ruleStr)
+		).WithContext(ctx).Scan(&sc.schemaType, &sc.schemaText, &sc.fingerprint, &sc.createdAt, &sc.metaStr, &sc.ruleStr)
 		if err == nil {
 			cp := sc
 			schemaMap[id] = &cp
@@ -1012,16 +1013,17 @@ func (s *Store) GetSchemasBySubject(ctx context.Context, registryCtx string, sub
 			continue
 		}
 		rec := &storage.SchemaRecord{
-			ID:         int64(e.schemaID),
-			Subject:    subject,
-			Version:    e.version,
-			SchemaType: storage.SchemaType(sc.schemaType),
-			Schema:     sc.schemaText,
-			Deleted:    e.deleted,
-			CreatedAt:  e.createdAt.Time(),
-			References: refMap[e.schemaID],
-			Metadata:   unmarshalJSONText[storage.Metadata](sc.metaStr),
-			RuleSet:    unmarshalJSONText[storage.RuleSet](sc.ruleStr),
+			ID:          int64(e.schemaID),
+			Subject:     subject,
+			Version:     e.version,
+			SchemaType:  storage.SchemaType(sc.schemaType),
+			Schema:      sc.schemaText,
+			Fingerprint: sc.fingerprint,
+			Deleted:     e.deleted,
+			CreatedAt:   e.createdAt.Time(),
+			References:  refMap[e.schemaID],
+			Metadata:    unmarshalJSONText[storage.Metadata](sc.metaStr),
+			RuleSet:     unmarshalJSONText[storage.RuleSet](sc.ruleStr),
 		}
 		// Overlay per-version metadata/ruleset
 		if m := unmarshalJSONText[storage.Metadata](e.metadataStr); m != nil {
