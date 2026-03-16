@@ -31,7 +31,34 @@ message Address {
       """
     Then the response status should be 200
     And I store the response field "id" as "proto_consumer_v1"
-    And the audit log should contain event "schema_register" with subject "proto-refevo-consumer"
+    And the audit log should contain an event:
+      | event_type           | schema_register                                  |
+      | outcome              | success                                          |
+      | actor_id             |                                                  |
+      | actor_type           | anonymous                                        |
+      | auth_method          |                                                  |
+      | role                 |                                                  |
+      | target_type          | subject                                          |
+      | target_id            | proto-refevo-consumer                            |
+      | schema_id            | *                                                |
+      | version              |                                                  |
+      | schema_type          | PROTOBUF                                         |
+      | before_hash          |                                                  |
+      | after_hash           | sha256:*                                         |
+      | context              | .                                                |
+      | transport_security   | tls                                              |
+      | source_ip            | *                                                |
+      | user_agent           | *                                                |
+      | method               | POST                                             |
+      | path                 | /subjects/proto-refevo-consumer/versions         |
+      | status_code          | 200                                              |
+      | reason               |                                                  |
+      | error                |                                                  |
+      | request_body         |                                                  |
+      | metadata             |                                                  |
+      | timestamp            | *                                                |
+      | duration_ms          | *                                                |
+      | request_id           | *                                                |
 
   # ==========================================================================
   # 2. CONSUMER UPGRADES TO IMPORT V2
@@ -83,7 +110,34 @@ message Dependency {
       """
     Then the response status should be 200
     And the response field "id" should not equal stored "proto_ref1_id"
-    And the audit log should contain event "schema_register" with subject "proto-refevo2-c2"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | proto-refevo2-c2                             |
+      | schema_id            | *                                            |
+      | version              |                                              |
+      | schema_type          | PROTOBUF                                     |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/proto-refevo2-c2/versions          |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   # ==========================================================================
   # 3. MULTIPLE IMPORTS
@@ -122,7 +176,34 @@ enum Status {
       }
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "proto-multiref-consumer"
+    And the audit log should contain an event:
+      | event_type           | schema_register                                    |
+      | outcome              | success                                            |
+      | actor_id             |                                                    |
+      | actor_type           | anonymous                                          |
+      | auth_method          |                                                    |
+      | role                 |                                                    |
+      | target_type          | subject                                            |
+      | target_id            | proto-multiref-consumer                            |
+      | schema_id            | *                                                  |
+      | version              |                                                    |
+      | schema_type          | PROTOBUF                                           |
+      | before_hash          |                                                    |
+      | after_hash           | sha256:*                                           |
+      | context              | .                                                  |
+      | transport_security   | tls                                                |
+      | source_ip            | *                                                  |
+      | user_agent           | *                                                  |
+      | method               | POST                                               |
+      | path                 | /subjects/proto-multiref-consumer/versions         |
+      | status_code          | 200                                                |
+      | reason               |                                                    |
+      | error                |                                                    |
+      | request_body         |                                                    |
+      | metadata             |                                                    |
+      | timestamp            | *                                                  |
+      | duration_ms          | *                                                  |
+      | request_id           | *                                                  |
 
   # ==========================================================================
   # 4. REFERENCEDBY TRACKING
@@ -162,7 +243,34 @@ message Shared {
     Then the response status should be 200
     When I get the referenced by for subject "proto-refby-shared" version 1
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "proto-refby-c2"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | proto-refby-c2                               |
+      | schema_id            | *                                            |
+      | version              |                                              |
+      | schema_type          | PROTOBUF                                     |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/proto-refby-c2/versions            |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   # ==========================================================================
   # 5. SAME PROTO BODY WITH DIFFERENT IMPORT VERSIONS — DIFFERENT IDS
@@ -213,7 +321,34 @@ message Dep {
       """
     Then the response status should be 200
     And the response field "id" should not equal stored "proto_diff_v1"
-    And the audit log should contain event "schema_register" with subject "proto-diffref-b"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | proto-diffref-b                              |
+      | schema_id            | *                                            |
+      | version              |                                              |
+      | schema_type          | PROTOBUF                                     |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/proto-diffref-b/versions           |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   # ==========================================================================
   # 6. DELETE REFERENCED PROTO — CONSUMER STILL RETRIEVABLE
@@ -242,7 +377,34 @@ message Base {
     Then the response status should be 200
     When I get version 1 of subject "proto-refdel-consumer"
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "proto-refdel-consumer"
+    And the audit log should contain an event:
+      | event_type           | schema_register                                  |
+      | outcome              | success                                          |
+      | actor_id             |                                                  |
+      | actor_type           | anonymous                                        |
+      | auth_method          |                                                  |
+      | role                 |                                                  |
+      | target_type          | subject                                          |
+      | target_id            | proto-refdel-consumer                            |
+      | schema_id            | *                                                |
+      | version              |                                                  |
+      | schema_type          | PROTOBUF                                         |
+      | before_hash          |                                                  |
+      | after_hash           | sha256:*                                         |
+      | context              | .                                                |
+      | transport_security   | tls                                              |
+      | source_ip            | *                                                |
+      | user_agent           | *                                                |
+      | method               | POST                                             |
+      | path                 | /subjects/proto-refdel-consumer/versions         |
+      | status_code          | 200                                              |
+      | reason               |                                                  |
+      | error                |                                                  |
+      | request_body         |                                                  |
+      | metadata             |                                                  |
+      | timestamp            | *                                                |
+      | duration_ms          | *                                                |
+      | request_id           | *                                                |
 
   # ==========================================================================
   # 7. COMPATIBILITY WITH IMPORT REFERENCES
@@ -270,7 +432,34 @@ message Dep {
       }
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "proto-refcompat-main"
+    And the audit log should contain an event:
+      | event_type           | schema_register                                  |
+      | outcome              | success                                          |
+      | actor_id             |                                                  |
+      | actor_type           | anonymous                                        |
+      | auth_method          |                                                  |
+      | role                 |                                                  |
+      | target_type          | subject                                          |
+      | target_id            | proto-refcompat-main                             |
+      | schema_id            | *                                                |
+      | version              |                                                  |
+      | schema_type          | PROTOBUF                                         |
+      | before_hash          |                                                  |
+      | after_hash           | sha256:*                                         |
+      | context              | .                                                |
+      | transport_security   | tls                                              |
+      | source_ip            | *                                                |
+      | user_agent           | *                                                |
+      | method               | POST                                             |
+      | path                 | /subjects/proto-refcompat-main/versions          |
+      | status_code          | 200                                              |
+      | reason               |                                                  |
+      | error                |                                                  |
+      | request_body         |                                                  |
+      | metadata             |                                                  |
+      | timestamp            | *                                                |
+      | duration_ms          | *                                                |
+      | request_id           | *                                                |
 
   # ==========================================================================
   # 8. IMPORT CHAIN — A IMPORTS B IMPORTS C
@@ -309,4 +498,31 @@ message TypeC {
       }
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "proto-chain-a"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | proto-chain-a                                |
+      | schema_id            | *                                            |
+      | version              |                                              |
+      | schema_type          | PROTOBUF                                     |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/proto-chain-a/versions             |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |

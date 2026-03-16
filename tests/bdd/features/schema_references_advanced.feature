@@ -27,7 +27,34 @@ Feature: Advanced Schema References
     When I get the stored schema by ID
     Then the response status should be 200
     And the response should contain "Person"
-    And the audit log should contain event "schema_register" with subject "avro-ref-person"
+    And the audit log should contain an event:
+      | event_type         | schema_register                      |
+      | outcome            | success                              |
+      | actor_id           |                                      |
+      | actor_type         | anonymous                            |
+      | auth_method        |                                      |
+      | role               |                                      |
+      | target_type        | subject                              |
+      | target_id          | avro-ref-person                      |
+      | schema_id          | *                                    |
+      | version            |                                      |
+      | schema_type        | AVRO                                 |
+      | before_hash        |                                      |
+      | after_hash         | sha256:*                             |
+      | context            | .                                    |
+      | transport_security | tls                                  |
+      | source_ip          | *                                    |
+      | user_agent         | *                                    |
+      | method             | POST                                 |
+      | path               | /subjects/avro-ref-person/versions   |
+      | status_code        | 200                                  |
+      | reason             |                                      |
+      | error              |                                      |
+      | request_body       |                                      |
+      | metadata           |                                      |
+      | timestamp          | *                                    |
+      | duration_ms        | *                                    |
+      | request_id         | *                                    |
 
   Scenario: Avro multiple cross-subject references
     Given the global compatibility level is "NONE"
@@ -50,7 +77,34 @@ Feature: Advanced Schema References
       }
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "avro-ref-order2"
+    And the audit log should contain an event:
+      | event_type         | schema_register                      |
+      | outcome            | success                              |
+      | actor_id           |                                      |
+      | actor_type         | anonymous                            |
+      | auth_method        |                                      |
+      | role               |                                      |
+      | target_type        | subject                              |
+      | target_id          | avro-ref-order2                      |
+      | schema_id          | *                                    |
+      | version            |                                      |
+      | schema_type        | AVRO                                 |
+      | before_hash        |                                      |
+      | after_hash         | sha256:*                             |
+      | context            | .                                    |
+      | transport_security | tls                                  |
+      | source_ip          | *                                    |
+      | user_agent         | *                                    |
+      | method             | POST                                 |
+      | path               | /subjects/avro-ref-order2/versions   |
+      | status_code        | 200                                  |
+      | reason             |                                      |
+      | error              |                                      |
+      | request_body       |                                      |
+      | metadata           |                                      |
+      | timestamp          | *                                    |
+      | duration_ms        | *                                    |
+      | request_id         | *                                    |
 
   Scenario: Avro reference chain - A references B which references C
     Given the global compatibility level is "NONE"
@@ -79,7 +133,34 @@ Feature: Advanced Schema References
       }
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "avro-chain-a"
+    And the audit log should contain an event:
+      | event_type         | schema_register                      |
+      | outcome            | success                              |
+      | actor_id           |                                      |
+      | actor_type         | anonymous                            |
+      | auth_method        |                                      |
+      | role               |                                      |
+      | target_type        | subject                              |
+      | target_id          | avro-chain-a                         |
+      | schema_id          | *                                    |
+      | version            |                                      |
+      | schema_type        | AVRO                                 |
+      | before_hash        |                                      |
+      | after_hash         | sha256:*                             |
+      | context            | .                                    |
+      | transport_security | tls                                  |
+      | source_ip          | *                                    |
+      | user_agent         | *                                    |
+      | method             | POST                                 |
+      | path               | /subjects/avro-chain-a/versions      |
+      | status_code        | 200                                  |
+      | reason             |                                      |
+      | error              |                                      |
+      | request_body       |                                      |
+      | metadata           |                                      |
+      | timestamp          | *                                    |
+      | duration_ms        | *                                    |
+      | request_id         | *                                    |
 
   Scenario: Avro reference with version pinning
     Given the global compatibility level is "NONE"
@@ -104,7 +185,34 @@ Feature: Advanced Schema References
       }
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "avro-pin-main"
+    And the audit log should contain an event:
+      | event_type         | schema_register                      |
+      | outcome            | success                              |
+      | actor_id           |                                      |
+      | actor_type         | anonymous                            |
+      | auth_method        |                                      |
+      | role               |                                      |
+      | target_type        | subject                              |
+      | target_id          | avro-pin-main                        |
+      | schema_id          | *                                    |
+      | version            |                                      |
+      | schema_type        | AVRO                                 |
+      | before_hash        |                                      |
+      | after_hash         | sha256:*                             |
+      | context            | .                                    |
+      | transport_security | tls                                  |
+      | source_ip          | *                                    |
+      | user_agent         | *                                    |
+      | method             | POST                                 |
+      | path               | /subjects/avro-pin-main/versions     |
+      | status_code        | 200                                  |
+      | reason             |                                      |
+      | error              |                                      |
+      | request_body       |                                      |
+      | metadata           |                                      |
+      | timestamp          | *                                    |
+      | duration_ms        | *                                    |
+      | request_id         | *                                    |
 
   # ==========================================================================
   # JSON SCHEMA REFERENCES
@@ -127,7 +235,34 @@ Feature: Advanced Schema References
       }
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "json-ref-person"
+    And the audit log should contain an event:
+      | event_type         | schema_register                      |
+      | outcome            | success                              |
+      | actor_id           |                                      |
+      | actor_type         | anonymous                            |
+      | auth_method        |                                      |
+      | role               |                                      |
+      | target_type        | subject                              |
+      | target_id          | json-ref-person                      |
+      | schema_id          | *                                    |
+      | version            |                                      |
+      | schema_type        | JSON                                 |
+      | before_hash        |                                      |
+      | after_hash         | sha256:*                             |
+      | context            | .                                    |
+      | transport_security | tls                                  |
+      | source_ip          | *                                    |
+      | user_agent         | *                                    |
+      | method             | POST                                 |
+      | path               | /subjects/json-ref-person/versions   |
+      | status_code        | 200                                  |
+      | reason             |                                      |
+      | error              |                                      |
+      | request_body       |                                      |
+      | metadata           |                                      |
+      | timestamp          | *                                    |
+      | duration_ms        | *                                    |
+      | request_id         | *                                    |
 
   Scenario: JSON Schema multiple external $refs
     Given the global compatibility level is "NONE"
@@ -151,7 +286,34 @@ Feature: Advanced Schema References
       }
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "json-ref-checkout"
+    And the audit log should contain an event:
+      | event_type         | schema_register                      |
+      | outcome            | success                              |
+      | actor_id           |                                      |
+      | actor_type         | anonymous                            |
+      | auth_method        |                                      |
+      | role               |                                      |
+      | target_type        | subject                              |
+      | target_id          | json-ref-checkout                    |
+      | schema_id          | *                                    |
+      | version            |                                      |
+      | schema_type        | JSON                                 |
+      | before_hash        |                                      |
+      | after_hash         | sha256:*                             |
+      | context            | .                                    |
+      | transport_security | tls                                  |
+      | source_ip          | *                                    |
+      | user_agent         | *                                    |
+      | method             | POST                                 |
+      | path               | /subjects/json-ref-checkout/versions |
+      | status_code        | 200                                  |
+      | reason             |                                      |
+      | error              |                                      |
+      | request_body       |                                      |
+      | metadata           |                                      |
+      | timestamp          | *                                    |
+      | duration_ms        | *                                    |
+      | request_id         | *                                    |
 
   Scenario: JSON Schema external $ref combined with internal $defs
     Given the global compatibility level is "NONE"
@@ -170,7 +332,34 @@ Feature: Advanced Schema References
       }
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "json-ref-combo"
+    And the audit log should contain an event:
+      | event_type         | schema_register                      |
+      | outcome            | success                              |
+      | actor_id           |                                      |
+      | actor_type         | anonymous                            |
+      | auth_method        |                                      |
+      | role               |                                      |
+      | target_type        | subject                              |
+      | target_id          | json-ref-combo                       |
+      | schema_id          | *                                    |
+      | version            |                                      |
+      | schema_type        | JSON                                 |
+      | before_hash        |                                      |
+      | after_hash         | sha256:*                             |
+      | context            | .                                    |
+      | transport_security | tls                                  |
+      | source_ip          | *                                    |
+      | user_agent         | *                                    |
+      | method             | POST                                 |
+      | path               | /subjects/json-ref-combo/versions    |
+      | status_code        | 200                                  |
+      | reason             |                                      |
+      | error              |                                      |
+      | request_body       |                                      |
+      | metadata           |                                      |
+      | timestamp          | *                                    |
+      | duration_ms        | *                                    |
+      | request_id         | *                                    |
 
   Scenario: JSON Schema reference chain (3 levels)
     Given the global compatibility level is "NONE"
@@ -201,7 +390,34 @@ Feature: Advanced Schema References
       }
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "json-chain-a"
+    And the audit log should contain an event:
+      | event_type         | schema_register                      |
+      | outcome            | success                              |
+      | actor_id           |                                      |
+      | actor_type         | anonymous                            |
+      | auth_method        |                                      |
+      | role               |                                      |
+      | target_type        | subject                              |
+      | target_id          | json-chain-a                         |
+      | schema_id          | *                                    |
+      | version            |                                      |
+      | schema_type        | JSON                                 |
+      | before_hash        |                                      |
+      | after_hash         | sha256:*                             |
+      | context            | .                                    |
+      | transport_security | tls                                  |
+      | source_ip          | *                                    |
+      | user_agent         | *                                    |
+      | method             | POST                                 |
+      | path               | /subjects/json-chain-a/versions      |
+      | status_code        | 200                                  |
+      | reason             |                                      |
+      | error              |                                      |
+      | request_body       |                                      |
+      | metadata           |                                      |
+      | timestamp          | *                                    |
+      | duration_ms        | *                                    |
+      | request_id         | *                                    |
 
   # ==========================================================================
   # PROTOBUF REFERENCES
@@ -230,7 +446,34 @@ Feature: Advanced Schema References
       }
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "proto-ref-person"
+    And the audit log should contain an event:
+      | event_type         | schema_register                      |
+      | outcome            | success                              |
+      | actor_id           |                                      |
+      | actor_type         | anonymous                            |
+      | auth_method        |                                      |
+      | role               |                                      |
+      | target_type        | subject                              |
+      | target_id          | proto-ref-person                     |
+      | schema_id          | *                                    |
+      | version            |                                      |
+      | schema_type        | PROTOBUF                             |
+      | before_hash        |                                      |
+      | after_hash         | sha256:*                             |
+      | context            | .                                    |
+      | transport_security | tls                                  |
+      | source_ip          | *                                    |
+      | user_agent         | *                                    |
+      | method             | POST                                 |
+      | path               | /subjects/proto-ref-person/versions  |
+      | status_code        | 200                                  |
+      | reason             |                                      |
+      | error              |                                      |
+      | request_body       |                                      |
+      | metadata           |                                      |
+      | timestamp          | *                                    |
+      | duration_ms        | *                                    |
+      | request_id         | *                                    |
 
   Scenario: Protobuf multiple imports from different subjects
     Given the global compatibility level is "NONE"
@@ -264,7 +507,34 @@ Feature: Advanced Schema References
       }
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "proto-ref-order2"
+    And the audit log should contain an event:
+      | event_type         | schema_register                      |
+      | outcome            | success                              |
+      | actor_id           |                                      |
+      | actor_type         | anonymous                            |
+      | auth_method        |                                      |
+      | role               |                                      |
+      | target_type        | subject                              |
+      | target_id          | proto-ref-order2                     |
+      | schema_id          | *                                    |
+      | version            |                                      |
+      | schema_type        | PROTOBUF                             |
+      | before_hash        |                                      |
+      | after_hash         | sha256:*                             |
+      | context            | .                                    |
+      | transport_security | tls                                  |
+      | source_ip          | *                                    |
+      | user_agent         | *                                    |
+      | method             | POST                                 |
+      | path               | /subjects/proto-ref-order2/versions  |
+      | status_code        | 200                                  |
+      | reason             |                                      |
+      | error              |                                      |
+      | request_body       |                                      |
+      | metadata           |                                      |
+      | timestamp          | *                                    |
+      | duration_ms        | *                                    |
+      | request_id         | *                                    |
 
   Scenario: Protobuf import chain - 3 levels
     Given the global compatibility level is "NONE"
@@ -300,7 +570,34 @@ Feature: Advanced Schema References
       }
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "proto-chain-a"
+    And the audit log should contain an event:
+      | event_type         | schema_register                      |
+      | outcome            | success                              |
+      | actor_id           |                                      |
+      | actor_type         | anonymous                            |
+      | auth_method        |                                      |
+      | role               |                                      |
+      | target_type        | subject                              |
+      | target_id          | proto-chain-a                        |
+      | schema_id          | *                                    |
+      | version            |                                      |
+      | schema_type        | PROTOBUF                             |
+      | before_hash        |                                      |
+      | after_hash         | sha256:*                             |
+      | context            | .                                    |
+      | transport_security | tls                                  |
+      | source_ip          | *                                    |
+      | user_agent         | *                                    |
+      | method             | POST                                 |
+      | path               | /subjects/proto-chain-a/versions     |
+      | status_code        | 200                                  |
+      | reason             |                                      |
+      | error              |                                      |
+      | request_body       |                                      |
+      | metadata           |                                      |
+      | timestamp          | *                                    |
+      | duration_ms        | *                                    |
+      | request_id         | *                                    |
 
   Scenario: Protobuf import with well-known types plus custom import
     Given the global compatibility level is "NONE"
@@ -324,7 +621,34 @@ Feature: Advanced Schema References
       }
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "proto-ref-wkt-plus"
+    And the audit log should contain an event:
+      | event_type         | schema_register                         |
+      | outcome            | success                                 |
+      | actor_id           |                                         |
+      | actor_type         | anonymous                               |
+      | auth_method        |                                         |
+      | role               |                                         |
+      | target_type        | subject                                 |
+      | target_id          | proto-ref-wkt-plus                      |
+      | schema_id          | *                                       |
+      | version            |                                         |
+      | schema_type        | PROTOBUF                                |
+      | before_hash        |                                         |
+      | after_hash         | sha256:*                                |
+      | context            | .                                       |
+      | transport_security | tls                                     |
+      | source_ip          | *                                       |
+      | user_agent         | *                                       |
+      | method             | POST                                    |
+      | path               | /subjects/proto-ref-wkt-plus/versions   |
+      | status_code        | 200                                     |
+      | reason             |                                         |
+      | error              |                                         |
+      | request_body       |                                         |
+      | metadata           |                                         |
+      | timestamp          | *                                       |
+      | duration_ms        | *                                       |
+      | request_id         | *                                       |
 
   # ==========================================================================
   # ERROR CASES
@@ -410,7 +734,34 @@ Feature: Advanced Schema References
     Then the response status should be 200
     When I get the referenced by for subject "ref-by-src" version 1
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "ref-by-consumer"
+    And the audit log should contain an event:
+      | event_type         | schema_register                        |
+      | outcome            | success                                |
+      | actor_id           |                                        |
+      | actor_type         | anonymous                              |
+      | auth_method        |                                        |
+      | role               |                                        |
+      | target_type        | subject                                |
+      | target_id          | ref-by-consumer                        |
+      | schema_id          | *                                      |
+      | version            |                                        |
+      | schema_type        | AVRO                                   |
+      | before_hash        |                                        |
+      | after_hash         | sha256:*                               |
+      | context            | .                                      |
+      | transport_security | tls                                    |
+      | source_ip          | *                                      |
+      | user_agent         | *                                      |
+      | method             | POST                                   |
+      | path               | /subjects/ref-by-consumer/versions     |
+      | status_code        | 200                                    |
+      | reason             |                                        |
+      | error              |                                        |
+      | request_body       |                                        |
+      | metadata           |                                        |
+      | timestamp          | *                                      |
+      | duration_ms        | *                                      |
+      | request_id         | *                                      |
 
   Scenario: Verify referencedby with multiple consumers
     Given the global compatibility level is "NONE"
@@ -440,7 +791,34 @@ Feature: Advanced Schema References
     Then the response status should be 200
     When I get the referenced by for subject "ref-by-shared" version 1
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "ref-by-use2"
+    And the audit log should contain an event:
+      | event_type         | schema_register                      |
+      | outcome            | success                              |
+      | actor_id           |                                      |
+      | actor_type         | anonymous                            |
+      | auth_method        |                                      |
+      | role               |                                      |
+      | target_type        | subject                              |
+      | target_id          | ref-by-use2                          |
+      | schema_id          | *                                    |
+      | version            |                                      |
+      | schema_type        | AVRO                                 |
+      | before_hash        |                                      |
+      | after_hash         | sha256:*                             |
+      | context            | .                                    |
+      | transport_security | tls                                  |
+      | source_ip          | *                                    |
+      | user_agent         | *                                    |
+      | method             | POST                                 |
+      | path               | /subjects/ref-by-use2/versions       |
+      | status_code        | 200                                  |
+      | reason             |                                      |
+      | error              |                                      |
+      | request_body       |                                      |
+      | metadata           |                                      |
+      | timestamp          | *                                    |
+      | duration_ms        | *                                    |
+      | request_id         | *                                    |
 
   # ==========================================================================
   # SPECIAL CASES
@@ -462,7 +840,34 @@ Feature: Advanced Schema References
       }
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "ref-unused-main"
+    And the audit log should contain an event:
+      | event_type         | schema_register                      |
+      | outcome            | success                              |
+      | actor_id           |                                      |
+      | actor_type         | anonymous                            |
+      | auth_method        |                                      |
+      | role               |                                      |
+      | target_type        | subject                              |
+      | target_id          | ref-unused-main                      |
+      | schema_id          | *                                    |
+      | version            |                                      |
+      | schema_type        | AVRO                                 |
+      | before_hash        |                                      |
+      | after_hash         | sha256:*                             |
+      | context            | .                                    |
+      | transport_security | tls                                  |
+      | source_ip          | *                                    |
+      | user_agent         | *                                    |
+      | method             | POST                                 |
+      | path               | /subjects/ref-unused-main/versions   |
+      | status_code        | 200                                  |
+      | reason             |                                      |
+      | error              |                                      |
+      | request_body       |                                      |
+      | metadata           |                                      |
+      | timestamp          | *                                    |
+      | duration_ms        | *                                    |
+      | request_id         | *                                    |
 
   Scenario: Register same schema with different references creates separate entries
     Given the global compatibility level is "NONE"
@@ -495,7 +900,34 @@ Feature: Advanced Schema References
       }
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "ref-diff-main1"
+    And the audit log should contain an event:
+      | event_type         | schema_register                      |
+      | outcome            | success                              |
+      | actor_id           |                                      |
+      | actor_type         | anonymous                            |
+      | auth_method        |                                      |
+      | role               |                                      |
+      | target_type        | subject                              |
+      | target_id          | ref-diff-main1                       |
+      | schema_id          | *                                    |
+      | version            |                                      |
+      | schema_type        | AVRO                                 |
+      | before_hash        |                                      |
+      | after_hash         | sha256:*                             |
+      | context            | .                                    |
+      | transport_security | tls                                  |
+      | source_ip          | *                                    |
+      | user_agent         | *                                    |
+      | method             | POST                                 |
+      | path               | /subjects/ref-diff-main1/versions    |
+      | status_code        | 200                                  |
+      | reason             |                                      |
+      | error              |                                      |
+      | request_body       |                                      |
+      | metadata           |                                      |
+      | timestamp          | *                                    |
+      | duration_ms        | *                                    |
+      | request_id         | *                                    |
 
   Scenario: Large reference count - 5 references in one Avro schema
     Given the global compatibility level is "NONE"
@@ -533,7 +965,34 @@ Feature: Advanced Schema References
       }
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "ref-large-main"
+    And the audit log should contain an event:
+      | event_type         | schema_register                      |
+      | outcome            | success                              |
+      | actor_id           |                                      |
+      | actor_type         | anonymous                            |
+      | auth_method        |                                      |
+      | role               |                                      |
+      | target_type        | subject                              |
+      | target_id          | ref-large-main                       |
+      | schema_id          | *                                    |
+      | version            |                                      |
+      | schema_type        | AVRO                                 |
+      | before_hash        |                                      |
+      | after_hash         | sha256:*                             |
+      | context            | .                                    |
+      | transport_security | tls                                  |
+      | source_ip          | *                                    |
+      | user_agent         | *                                    |
+      | method             | POST                                 |
+      | path               | /subjects/ref-large-main/versions    |
+      | status_code        | 200                                  |
+      | reason             |                                      |
+      | error              |                                      |
+      | request_body       |                                      |
+      | metadata           |                                      |
+      | timestamp          | *                                    |
+      | duration_ms        | *                                    |
+      | request_id         | *                                    |
 
   Scenario: Update referenced schema and register with new version
     Given the global compatibility level is "NONE"
@@ -568,4 +1027,31 @@ Feature: Advanced Schema References
       }
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "ref-update-consumer"
+    And the audit log should contain an event:
+      | event_type         | schema_register                          |
+      | outcome            | success                                  |
+      | actor_id           |                                          |
+      | actor_type         | anonymous                                |
+      | auth_method        |                                          |
+      | role               |                                          |
+      | target_type        | subject                                  |
+      | target_id          | ref-update-consumer                      |
+      | schema_id          | *                                        |
+      | version            |                                          |
+      | schema_type        | AVRO                                     |
+      | before_hash        |                                          |
+      | after_hash         | sha256:*                                 |
+      | context            | .                                        |
+      | transport_security | tls                                      |
+      | source_ip          | *                                        |
+      | user_agent         | *                                        |
+      | method             | POST                                     |
+      | path               | /subjects/ref-update-consumer/versions   |
+      | status_code        | 200                                      |
+      | reason             |                                          |
+      | error              |                                          |
+      | request_body       |                                          |
+      | metadata           |                                          |
+      | timestamp          | *                                        |
+      | duration_ms        | *                                        |
+      | request_id         | *                                        |

@@ -59,7 +59,34 @@ Feature: Avro E-Commerce Domain Modeling
       ]}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "ecom-product"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | ecom-product                                 |
+      | schema_id            | *                                            |
+      | version              |                                              |
+      | schema_type          | AVRO                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/ecom-product/versions              |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   # ==========================================================================
   # 2. CUSTOMER SCHEMA WITH NESTED ADDRESS RECORD
@@ -95,7 +122,34 @@ Feature: Avro E-Commerce Domain Modeling
       ]}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "ecom-customer"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | ecom-customer                                |
+      | schema_id            | *                                            |
+      | version              |                                              |
+      | schema_type          | AVRO                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/ecom-customer/versions             |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   # ==========================================================================
   # 3. ORDER REFERENCES CUSTOMER AND PRODUCT
@@ -129,7 +183,34 @@ Feature: Avro E-Commerce Domain Modeling
     Then the response status should be 200
     When I get the referenced by for subject "ecom-ref-customer" version 1
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "ecom-ref-order"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | ecom-ref-order                               |
+      | schema_id            | *                                            |
+      | version              |                                              |
+      | schema_type          | AVRO                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/ecom-ref-order/versions            |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   # ==========================================================================
   # 4. PAYMENT WITH LOGICAL TYPES
@@ -150,7 +231,34 @@ Feature: Avro E-Commerce Domain Modeling
     Then the response status should be 200
     And the response body should contain "decimal"
     And the response body should contain "timestamp-millis"
-    And the audit log should contain event "schema_register" with subject "ecom-payment"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | ecom-payment                                 |
+      | schema_id            | *                                            |
+      | version              |                                              |
+      | schema_type          | AVRO                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/ecom-payment/versions              |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   # ==========================================================================
   # 5. SAME PRODUCT IN TWO SUBJECTS — GLOBAL DEDUP
@@ -177,7 +285,34 @@ Feature: Avro E-Commerce Domain Modeling
       """
     Then the response status should be 200
     And the response field "id" should equal stored "product_event_id"
-    And the audit log should contain event "schema_register" with subject "ecom-product-changelog"
+    And the audit log should contain an event:
+      | event_type           | schema_register                                  |
+      | outcome              | success                                          |
+      | actor_id             |                                                  |
+      | actor_type           | anonymous                                        |
+      | auth_method          |                                                  |
+      | role                 |                                                  |
+      | target_type          | subject                                          |
+      | target_id            | ecom-product-changelog                           |
+      | schema_id            | *                                                |
+      | version              |                                                  |
+      | schema_type          | AVRO                                             |
+      | before_hash          |                                                  |
+      | after_hash           | sha256:*                                         |
+      | context              | .                                                |
+      | transport_security   | tls                                              |
+      | source_ip            | *                                                |
+      | user_agent           | *                                                |
+      | method               | POST                                             |
+      | path                 | /subjects/ecom-product-changelog/versions        |
+      | status_code          | 200                                              |
+      | reason               |                                                  |
+      | error                |                                                  |
+      | request_body         |                                                  |
+      | metadata             |                                                  |
+      | timestamp            | *                                                |
+      | duration_ms          | *                                                |
+      | request_id           | *                                                |
 
   # ==========================================================================
   # 6. FULL LIFECYCLE
@@ -207,7 +342,34 @@ Feature: Avro E-Commerce Domain Modeling
       {"type":"record","name":"Item","fields":[{"name":"id","type":"long"},{"name":"name","type":"string"},{"name":"desc","type":"string","default":""},{"name":"qty","type":"int","default":0},{"name":"sku","type":"string","default":""}]}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "ecom-lifecycle"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | ecom-lifecycle                               |
+      | schema_id            | *                                            |
+      | version              |                                              |
+      | schema_type          | AVRO                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/ecom-lifecycle/versions            |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   # ==========================================================================
   # 7. BREAK COMPATIBILITY — REMOVE REQUIRED FIELD
@@ -254,4 +416,31 @@ Feature: Avro E-Commerce Domain Modeling
       {"type":"record","name":"Imported","fields":[{"name":"id","type":"long"},{"name":"data","type":"string"},{"name":"extra","type":"string","default":""}]}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "ecom-import"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | ecom-import                                  |
+      | schema_id            | *                                            |
+      | version              |                                              |
+      | schema_type          | AVRO                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/ecom-import/versions               |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |

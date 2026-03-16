@@ -12,7 +12,34 @@ Feature: JSON Schema Types
     When I get the stored schema by ID
     Then the response status should be 200
     And the response should contain "name"
-    And the audit log should contain event "schema_register" with subject "json-simple"
+    And the audit log should contain an event:
+      | event_type           | schema_register                    |
+      | outcome              | success                            |
+      | actor_id             |                                    |
+      | actor_type           | anonymous                          |
+      | auth_method          |                                    |
+      | role                 |                                    |
+      | target_type          | subject                            |
+      | target_id            | json-simple                        |
+      | schema_id            | *                                  |
+      | version              |                                    |
+      | schema_type          | JSON                               |
+      | before_hash          |                                    |
+      | after_hash           | sha256:*                           |
+      | context              | .                                  |
+      | transport_security   | tls                                |
+      | source_ip            | *                                  |
+      | user_agent           | *                                  |
+      | method               | POST                               |
+      | path                 | /subjects/json-simple/versions     |
+      | status_code          | 200                                |
+      | reason               |                                    |
+      | error                |                                    |
+      | request_body         |                                    |
+      | metadata             |                                    |
+      | timestamp            | *                                  |
+      | duration_ms          | *                                  |
+      | request_id           | *                                  |
 
   Scenario: String constraints (format, minLength, maxLength, pattern)
     When I register a "JSON" schema under subject "json-string-constraints":
@@ -27,7 +54,34 @@ Feature: JSON Schema Types
     And I store the response field "id" as "schema_id"
     When I get the stored schema by ID
     Then the response should contain "minLength"
-    And the audit log should contain event "schema_register" with subject "json-string-constraints"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | json-string-constraints                      |
+      | schema_id            | *                                            |
+      | version              |                                              |
+      | schema_type          | JSON                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/json-string-constraints/versions   |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   Scenario: Numeric constraints
     When I register a "JSON" schema under subject "json-numeric":
@@ -43,7 +97,34 @@ Feature: JSON Schema Types
     And I store the response field "id" as "schema_id"
     When I get the stored schema by ID
     Then the response should contain "multipleOf"
-    And the audit log should contain event "schema_register" with subject "json-numeric"
+    And the audit log should contain an event:
+      | event_type           | schema_register                    |
+      | outcome              | success                            |
+      | actor_id             |                                    |
+      | actor_type           | anonymous                          |
+      | auth_method          |                                    |
+      | role                 |                                    |
+      | target_type          | subject                            |
+      | target_id            | json-numeric                       |
+      | schema_id            | *                                  |
+      | version              |                                    |
+      | schema_type          | JSON                               |
+      | before_hash          |                                    |
+      | after_hash           | sha256:*                           |
+      | context              | .                                  |
+      | transport_security   | tls                                |
+      | source_ip            | *                                  |
+      | user_agent           | *                                  |
+      | method               | POST                               |
+      | path                 | /subjects/json-numeric/versions    |
+      | status_code          | 200                                |
+      | reason               |                                    |
+      | error                |                                    |
+      | request_body         |                                    |
+      | metadata             |                                    |
+      | timestamp            | *                                  |
+      | duration_ms          | *                                  |
+      | request_id           | *                                  |
 
   Scenario: Array constraints
     When I register a "JSON" schema under subject "json-arrays":
@@ -58,7 +139,34 @@ Feature: JSON Schema Types
     And I store the response field "id" as "schema_id"
     When I get the stored schema by ID
     Then the response should contain "uniqueItems"
-    And the audit log should contain event "schema_register" with subject "json-arrays"
+    And the audit log should contain an event:
+      | event_type           | schema_register                    |
+      | outcome              | success                            |
+      | actor_id             |                                    |
+      | actor_type           | anonymous                          |
+      | auth_method          |                                    |
+      | role                 |                                    |
+      | target_type          | subject                            |
+      | target_id            | json-arrays                        |
+      | schema_id            | *                                  |
+      | version              |                                    |
+      | schema_type          | JSON                               |
+      | before_hash          |                                    |
+      | after_hash           | sha256:*                           |
+      | context              | .                                  |
+      | transport_security   | tls                                |
+      | source_ip            | *                                  |
+      | user_agent           | *                                  |
+      | method               | POST                               |
+      | path                 | /subjects/json-arrays/versions     |
+      | status_code          | 200                                |
+      | reason               |                                    |
+      | error                |                                    |
+      | request_body         |                                    |
+      | metadata             |                                    |
+      | timestamp            | *                                  |
+      | duration_ms          | *                                  |
+      | request_id           | *                                  |
 
   Scenario: Nested objects (2 levels)
     When I register a "JSON" schema under subject "json-nested-2":
@@ -76,7 +184,34 @@ Feature: JSON Schema Types
     And I store the response field "id" as "schema_id"
     When I get the stored schema by ID
     Then the response should contain "address"
-    And the audit log should contain event "schema_register" with subject "json-nested-2"
+    And the audit log should contain an event:
+      | event_type           | schema_register                    |
+      | outcome              | success                            |
+      | actor_id             |                                    |
+      | actor_type           | anonymous                          |
+      | auth_method          |                                    |
+      | role                 |                                    |
+      | target_type          | subject                            |
+      | target_id            | json-nested-2                      |
+      | schema_id            | *                                  |
+      | version              |                                    |
+      | schema_type          | JSON                               |
+      | before_hash          |                                    |
+      | after_hash           | sha256:*                           |
+      | context              | .                                  |
+      | transport_security   | tls                                |
+      | source_ip            | *                                  |
+      | user_agent           | *                                  |
+      | method               | POST                               |
+      | path                 | /subjects/json-nested-2/versions   |
+      | status_code          | 200                                |
+      | reason               |                                    |
+      | error                |                                    |
+      | request_body         |                                    |
+      | metadata             |                                    |
+      | timestamp            | *                                  |
+      | duration_ms          | *                                  |
+      | request_id           | *                                  |
 
   Scenario: Deeply nested objects (3+ levels)
     When I register a "JSON" schema under subject "json-nested-3":
@@ -97,7 +232,34 @@ Feature: JSON Schema Types
     And I store the response field "id" as "schema_id"
     When I get the stored schema by ID
     Then the response should contain "value"
-    And the audit log should contain event "schema_register" with subject "json-nested-3"
+    And the audit log should contain an event:
+      | event_type           | schema_register                    |
+      | outcome              | success                            |
+      | actor_id             |                                    |
+      | actor_type           | anonymous                          |
+      | auth_method          |                                    |
+      | role                 |                                    |
+      | target_type          | subject                            |
+      | target_id            | json-nested-3                      |
+      | schema_id            | *                                  |
+      | version              |                                    |
+      | schema_type          | JSON                               |
+      | before_hash          |                                    |
+      | after_hash           | sha256:*                           |
+      | context              | .                                  |
+      | transport_security   | tls                                |
+      | source_ip            | *                                  |
+      | user_agent           | *                                  |
+      | method               | POST                               |
+      | path                 | /subjects/json-nested-3/versions   |
+      | status_code          | 200                                |
+      | reason               |                                    |
+      | error                |                                    |
+      | request_body         |                                    |
+      | metadata             |                                    |
+      | timestamp            | *                                  |
+      | duration_ms          | *                                  |
+      | request_id           | *                                  |
 
   Scenario: Enum values
     When I register a "JSON" schema under subject "json-enum":
@@ -112,7 +274,34 @@ Feature: JSON Schema Types
     And I store the response field "id" as "schema_id"
     When I get the stored schema by ID
     Then the response should contain "suspended"
-    And the audit log should contain event "schema_register" with subject "json-enum"
+    And the audit log should contain an event:
+      | event_type           | schema_register                    |
+      | outcome              | success                            |
+      | actor_id             |                                    |
+      | actor_type           | anonymous                          |
+      | auth_method          |                                    |
+      | role                 |                                    |
+      | target_type          | subject                            |
+      | target_id            | json-enum                          |
+      | schema_id            | *                                  |
+      | version              |                                    |
+      | schema_type          | JSON                               |
+      | before_hash          |                                    |
+      | after_hash           | sha256:*                           |
+      | context              | .                                  |
+      | transport_security   | tls                                |
+      | source_ip            | *                                  |
+      | user_agent           | *                                  |
+      | method               | POST                               |
+      | path                 | /subjects/json-enum/versions       |
+      | status_code          | 200                                |
+      | reason               |                                    |
+      | error                |                                    |
+      | request_body         |                                    |
+      | metadata             |                                    |
+      | timestamp            | *                                  |
+      | duration_ms          | *                                  |
+      | request_id           | *                                  |
 
   Scenario: oneOf composition
     When I register a "JSON" schema under subject "json-oneof":
@@ -130,7 +319,34 @@ Feature: JSON Schema Types
     And I store the response field "id" as "schema_id"
     When I get the stored schema by ID
     Then the response should contain "oneOf"
-    And the audit log should contain event "schema_register" with subject "json-oneof"
+    And the audit log should contain an event:
+      | event_type           | schema_register                    |
+      | outcome              | success                            |
+      | actor_id             |                                    |
+      | actor_type           | anonymous                          |
+      | auth_method          |                                    |
+      | role                 |                                    |
+      | target_type          | subject                            |
+      | target_id            | json-oneof                         |
+      | schema_id            | *                                  |
+      | version              |                                    |
+      | schema_type          | JSON                               |
+      | before_hash          |                                    |
+      | after_hash           | sha256:*                           |
+      | context              | .                                  |
+      | transport_security   | tls                                |
+      | source_ip            | *                                  |
+      | user_agent           | *                                  |
+      | method               | POST                               |
+      | path                 | /subjects/json-oneof/versions      |
+      | status_code          | 200                                |
+      | reason               |                                    |
+      | error                |                                    |
+      | request_body         |                                    |
+      | metadata             |                                    |
+      | timestamp            | *                                  |
+      | duration_ms          | *                                  |
+      | request_id           | *                                  |
 
   Scenario: anyOf composition
     When I register a "JSON" schema under subject "json-anyof":
@@ -146,7 +362,34 @@ Feature: JSON Schema Types
     And I store the response field "id" as "schema_id"
     When I get the stored schema by ID
     Then the response should contain "anyOf"
-    And the audit log should contain event "schema_register" with subject "json-anyof"
+    And the audit log should contain an event:
+      | event_type           | schema_register                    |
+      | outcome              | success                            |
+      | actor_id             |                                    |
+      | actor_type           | anonymous                          |
+      | auth_method          |                                    |
+      | role                 |                                    |
+      | target_type          | subject                            |
+      | target_id            | json-anyof                         |
+      | schema_id            | *                                  |
+      | version              |                                    |
+      | schema_type          | JSON                               |
+      | before_hash          |                                    |
+      | after_hash           | sha256:*                           |
+      | context              | .                                  |
+      | transport_security   | tls                                |
+      | source_ip            | *                                  |
+      | user_agent           | *                                  |
+      | method               | POST                               |
+      | path                 | /subjects/json-anyof/versions      |
+      | status_code          | 200                                |
+      | reason               |                                    |
+      | error                |                                    |
+      | request_body         |                                    |
+      | metadata             |                                    |
+      | timestamp            | *                                  |
+      | duration_ms          | *                                  |
+      | request_id           | *                                  |
 
   Scenario: allOf composition
     When I register a "JSON" schema under subject "json-allof":
@@ -161,7 +404,34 @@ Feature: JSON Schema Types
     And I store the response field "id" as "schema_id"
     When I get the stored schema by ID
     Then the response should contain "allOf"
-    And the audit log should contain event "schema_register" with subject "json-allof"
+    And the audit log should contain an event:
+      | event_type           | schema_register                    |
+      | outcome              | success                            |
+      | actor_id             |                                    |
+      | actor_type           | anonymous                          |
+      | auth_method          |                                    |
+      | role                 |                                    |
+      | target_type          | subject                            |
+      | target_id            | json-allof                         |
+      | schema_id            | *                                  |
+      | version              |                                    |
+      | schema_type          | JSON                               |
+      | before_hash          |                                    |
+      | after_hash           | sha256:*                           |
+      | context              | .                                  |
+      | transport_security   | tls                                |
+      | source_ip            | *                                  |
+      | user_agent           | *                                  |
+      | method               | POST                               |
+      | path                 | /subjects/json-allof/versions      |
+      | status_code          | 200                                |
+      | reason               |                                    |
+      | error                |                                    |
+      | request_body         |                                    |
+      | metadata             |                                    |
+      | timestamp            | *                                  |
+      | duration_ms          | *                                  |
+      | request_id           | *                                  |
 
   Scenario: additionalProperties (false and typed)
     When I register a "JSON" schema under subject "json-additional-props":
@@ -179,7 +449,34 @@ Feature: JSON Schema Types
       },"additionalProperties":{"type":"string"}}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "json-additional-props"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | json-additional-props                        |
+      | schema_id            | *                                            |
+      | version              |                                              |
+      | schema_type          | JSON                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/json-additional-props/versions     |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   Scenario: $defs and $ref (internal)
     When I register a "JSON" schema under subject "json-defs-ref":
@@ -199,7 +496,34 @@ Feature: JSON Schema Types
     And I store the response field "id" as "schema_id"
     When I get the stored schema by ID
     Then the response should contain "$defs"
-    And the audit log should contain event "schema_register" with subject "json-defs-ref"
+    And the audit log should contain an event:
+      | event_type           | schema_register                    |
+      | outcome              | success                            |
+      | actor_id             |                                    |
+      | actor_type           | anonymous                          |
+      | auth_method          |                                    |
+      | role                 |                                    |
+      | target_type          | subject                            |
+      | target_id            | json-defs-ref                      |
+      | schema_id            | *                                  |
+      | version              |                                    |
+      | schema_type          | JSON                               |
+      | before_hash          |                                    |
+      | after_hash           | sha256:*                           |
+      | context              | .                                  |
+      | transport_security   | tls                                |
+      | source_ip            | *                                  |
+      | user_agent           | *                                  |
+      | method               | POST                               |
+      | path                 | /subjects/json-defs-ref/versions   |
+      | status_code          | 200                                |
+      | reason               |                                    |
+      | error                |                                    |
+      | request_body         |                                    |
+      | metadata             |                                    |
+      | timestamp            | *                                  |
+      | duration_ms          | *                                  |
+      | request_id           | *                                  |
 
   Scenario: Standalone non-object types (string)
     When I register a "JSON" schema under subject "json-standalone-string":
@@ -210,7 +534,34 @@ Feature: JSON Schema Types
     And I store the response field "id" as "schema_id"
     When I get the stored schema by ID
     Then the response should contain "maxLength"
-    And the audit log should contain event "schema_register" with subject "json-standalone-string"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | json-standalone-string                       |
+      | schema_id            | *                                            |
+      | version              |                                              |
+      | schema_type          | JSON                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/json-standalone-string/versions    |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   Scenario: Standalone non-object types (array)
     When I register a "JSON" schema under subject "json-standalone-array":
@@ -218,7 +569,34 @@ Feature: JSON Schema Types
       {"type":"array","items":{"type":"number"},"minItems":1}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "json-standalone-array"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | json-standalone-array                        |
+      | schema_id            | *                                            |
+      | version              |                                              |
+      | schema_type          | JSON                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/json-standalone-array/versions     |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   Scenario: Standalone non-object types (integer)
     When I register a "JSON" schema under subject "json-standalone-integer":
@@ -226,7 +604,34 @@ Feature: JSON Schema Types
       {"type":"integer","minimum":0,"maximum":100}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "json-standalone-integer"
+    And the audit log should contain an event:
+      | event_type           | schema_register                               |
+      | outcome              | success                                       |
+      | actor_id             |                                               |
+      | actor_type           | anonymous                                     |
+      | auth_method          |                                               |
+      | role                 |                                               |
+      | target_type          | subject                                       |
+      | target_id            | json-standalone-integer                       |
+      | schema_id            | *                                             |
+      | version              |                                               |
+      | schema_type          | JSON                                          |
+      | before_hash          |                                               |
+      | after_hash           | sha256:*                                      |
+      | context              | .                                             |
+      | transport_security   | tls                                           |
+      | source_ip            | *                                             |
+      | user_agent           | *                                             |
+      | method               | POST                                          |
+      | path                 | /subjects/json-standalone-integer/versions    |
+      | status_code          | 200                                           |
+      | reason               |                                               |
+      | error                |                                               |
+      | request_body         |                                               |
+      | metadata             |                                               |
+      | timestamp            | *                                             |
+      | duration_ms          | *                                             |
+      | request_id           | *                                             |
 
   Scenario: patternProperties
     When I register a "JSON" schema under subject "json-pattern-props":
@@ -240,7 +645,34 @@ Feature: JSON Schema Types
     And I store the response field "id" as "schema_id"
     When I get the stored schema by ID
     Then the response should contain "patternProperties"
-    And the audit log should contain event "schema_register" with subject "json-pattern-props"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-pattern-props                       |
+      | schema_id            | *                                        |
+      | version              |                                          |
+      | schema_type          | JSON                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-pattern-props/versions    |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: Complex real-world PaymentEvent schema
     When I register a "JSON" schema under subject "json-payment-event":
@@ -320,7 +752,34 @@ Feature: JSON Schema Types
     When I get version 1 of subject "json-payment-event"
     Then the response status should be 200
     And the response field "version" should be 1
-    And the audit log should contain event "schema_register" with subject "json-payment-event"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-payment-event                       |
+      | schema_id            | *                                        |
+      | version              |                                          |
+      | schema_type          | JSON                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-payment-event/versions    |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: Retrieve JSON Schema round-trip
     Given subject "json-roundtrip" has "JSON" schema:
