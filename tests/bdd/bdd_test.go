@@ -204,8 +204,11 @@ func TestFeatures(t *testing.T) {
 				return mainAuditWatcher.LogString()
 			}
 			clearAuditLog = func() error {
+				if err := os.Truncate(auditLogPath, 0); err != nil {
+					return err
+				}
 				mainAuditWatcher.Clear()
-				return os.Truncate(auditLogPath, 0)
+				return nil
 			}
 		} else {
 			auditFetcher, clearAuditLog = makeAuditHelpers(composeFiles, "")
@@ -2430,8 +2433,11 @@ func makeAuditWatcher(t *testing.T) (watcher *steps.AuditWatcher, auditDir strin
 	}
 
 	clearer = func() error {
+		if err := os.Truncate(auditLogPath, 0); err != nil {
+			return err
+		}
 		watcher.Clear()
-		return os.Truncate(auditLogPath, 0)
+		return nil
 	}
 
 	return watcher, auditDir, fetcher, clearer

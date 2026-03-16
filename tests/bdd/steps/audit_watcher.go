@@ -28,7 +28,8 @@ type AuditWatcher struct {
 	newData  chan struct{} // signaled when new data arrives
 	done     chan struct{}
 	stopOnce sync.Once
-	partial  string // buffer for incomplete last line
+	partial  string          // buffer for incomplete last line
+	rawLog   strings.Builder // accumulates raw data for LogString()
 }
 
 // NewAuditWatcher creates a new AuditWatcher that watches the given file path.
@@ -133,6 +134,9 @@ func (aw *AuditWatcher) ReadNewData() {
 
 	aw.offset += int64(len(data))
 
+	// Accumulate raw data for LogString().
+	aw.rawLog.Write(data)
+
 	// Prepend any partial line from previous read.
 	content := aw.partial + string(data)
 	aw.partial = ""
@@ -161,15 +165,32 @@ func (aw *AuditWatcher) ReadNewData() {
 }
 
 // WaitForMatch waits for an audit event that matches the given function.
-// It returns whether a match was found, the best partial match, and the count of matched fields.
+// Only scans newly arrived events on each notification (tracks checkedIdx).
+// Returns whether a match was found, the best partial match, and the count of matched fields.
 func (aw *AuditWatcher) WaitForMatch(ctx context.Context, matchFn func([]map[string]interface{}) (bool, map[string]interface{}, int)) (bool, map[string]interface{}, int) {
 	// Do an initial read in case data arrived before the watcher was set up.
 	aw.ReadNewData()
 
-	aw.mu.Lock()
-	found, bestMatch, bestCount := matchFn(aw.events)
-	aw.mu.Unlock()
-	if found {
+	var bestMatch map[string]interface{}
+	var bestCount int
+	checkedIdx := 0
+
+	checkNew := func() bool {
+		aw.mu.Lock()
+		defer aw.mu.Unlock()
+		if len(aw.events) <= checkedIdx {
+			return false
+		}
+		found, bm, bc := matchFn(aw.events[checkedIdx:])
+		checkedIdx = len(aw.events)
+		if bm != nil && bc > bestCount {
+			bestMatch = bm
+			bestCount = bc
+		}
+		return found
+	}
+
+	if checkNew() {
 		return true, nil, 0
 	}
 
@@ -178,32 +199,18 @@ func (aw *AuditWatcher) WaitForMatch(ctx context.Context, matchFn func([]map[str
 		case <-ctx.Done():
 			// Final read before giving up.
 			aw.ReadNewData()
-			aw.mu.Lock()
-			found, bestMatch, bestCount = matchFn(aw.events)
-			aw.mu.Unlock()
-			return found, bestMatch, bestCount
-		case <-aw.newData:
-			aw.mu.Lock()
-			found, bm, bc := matchFn(aw.events)
-			if bm != nil {
-				bestMatch = bm
-				bestCount = bc
-			}
-			aw.mu.Unlock()
-			if found {
+			if checkNew() {
 				return true, nil, 0
 			}
-		case <-time.After(50 * time.Millisecond):
+			return false, bestMatch, bestCount
+		case <-aw.newData:
+			if checkNew() {
+				return true, nil, 0
+			}
+		case <-time.After(200 * time.Millisecond):
 			// Periodic poll as safety net in case fsnotify misses an event.
 			aw.ReadNewData()
-			aw.mu.Lock()
-			found, bm, bc := matchFn(aw.events)
-			if bm != nil {
-				bestMatch = bm
-				bestCount = bc
-			}
-			aw.mu.Unlock()
-			if found {
+			if checkNew() {
 				return true, nil, 0
 			}
 		}
@@ -220,13 +227,14 @@ func (aw *AuditWatcher) Events() []map[string]interface{} {
 }
 
 // Clear resets the events slice and offset. Call this between scenarios
-// after truncating the audit log file on the host.
+// after the audit log file has been truncated on the host.
 func (aw *AuditWatcher) Clear() {
 	aw.mu.Lock()
 	defer aw.mu.Unlock()
 	aw.events = nil
 	aw.offset = 0
 	aw.partial = ""
+	aw.rawLog.Reset()
 }
 
 // Close stops the fsnotify watcher and background goroutine.
@@ -237,15 +245,10 @@ func (aw *AuditWatcher) Close() {
 	<-aw.done
 }
 
-// LogString reads the raw audit log file and returns its contents as a string.
-// Used for simple string-contains assertions.
+// LogString returns the raw audit log content accumulated since the last Clear().
+// No disk I/O — data is buffered in memory during incremental reads.
 func (aw *AuditWatcher) LogString() (string, error) {
-	data, err := os.ReadFile(aw.filePath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return "", nil
-		}
-		return "", err
-	}
-	return string(data), nil
+	aw.mu.Lock()
+	defer aw.mu.Unlock()
+	return aw.rawLog.String(), nil
 }

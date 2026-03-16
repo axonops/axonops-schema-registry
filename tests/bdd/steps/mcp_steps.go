@@ -849,6 +849,8 @@ func RegisterMCPSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 			logStr, _ = tc.AuditWatcher.LogString()
 		} else {
 			// Fallback: polling via docker exec or in-process buffer (legacy path).
+			// Cache parsed events across retries — only parse new lines each time.
+			checkedIdx := 0
 			for attempt := 0; attempt < 5; attempt++ {
 				var available bool
 				var err error
@@ -861,11 +863,17 @@ func RegisterMCPSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 				}
 
 				events = parseAuditEvents(logStr)
-				found, bm, _ := matchEvents(events)
-				if found {
-					return nil
+				// Only match newly arrived events (prior events already checked).
+				if len(events) > checkedIdx {
+					found, bm, _ := matchEvents(events[checkedIdx:])
+					checkedIdx = len(events)
+					if found {
+						return nil
+					}
+					if bm != nil {
+						bestMatch = bm
+					}
 				}
-				bestMatch = bm
 				time.Sleep(100 * time.Millisecond)
 			}
 		}
