@@ -27,7 +27,34 @@ Feature: Advanced Avro Schema Parsing
     When I get the stored schema by ID
     Then the response status should be 200
     And the response should have field "schema"
-    And the audit log should contain event "schema_register" with subject "avro-adv-1"
+    And the audit log should contain an event:
+      | event_type           | schema_register                    |
+      | outcome              | success                            |
+      | actor_id             |                                    |
+      | actor_type           | anonymous                          |
+      | auth_method          |                                    |
+      | role                 |                                    |
+      | target_type          | subject                            |
+      | target_id            | avro-adv-1                         |
+      | schema_id            | *                                  |
+      | version              |                                    |
+      | schema_type          | AVRO                               |
+      | before_hash          |                                    |
+      | after_hash           | sha256:*                           |
+      | context              | .                                  |
+      | transport_security   | tls                                |
+      | source_ip            | *                                  |
+      | user_agent           | *                                  |
+      | method               | POST                               |
+      | path                 | /subjects/avro-adv-1/versions      |
+      | status_code          | 200                                |
+      | reason               |                                    |
+      | error                |                                    |
+      | request_body         |                                    |
+      | metadata             |                                    |
+      | timestamp            | *                                  |
+      | duration_ms          | *                                  |
+      | request_id           | *                                  |
 
   # ---------- 2. Union with null and complex type (nullable record) ----------
   Scenario: Nullable record via union with null
@@ -49,7 +76,34 @@ Feature: Advanced Avro Schema Parsing
     When I get the stored schema by ID
     Then the response status should be 200
     And the response should have field "schema"
-    And the audit log should contain event "schema_register" with subject "avro-adv-2"
+    And the audit log should contain an event:
+      | event_type           | schema_register                    |
+      | outcome              | success                            |
+      | actor_id             |                                    |
+      | actor_type           | anonymous                          |
+      | auth_method          |                                    |
+      | role                 |                                    |
+      | target_type          | subject                            |
+      | target_id            | avro-adv-2                         |
+      | schema_id            | *                                  |
+      | version              |                                    |
+      | schema_type          | AVRO                               |
+      | before_hash          |                                    |
+      | after_hash           | sha256:*                           |
+      | context              | .                                  |
+      | transport_security   | tls                                |
+      | source_ip            | *                                  |
+      | user_agent           | *                                  |
+      | method               | POST                               |
+      | path                 | /subjects/avro-adv-2/versions      |
+      | status_code          | 200                                |
+      | reason               |                                    |
+      | error                |                                    |
+      | request_body         |                                    |
+      | metadata             |                                    |
+      | timestamp            | *                                  |
+      | duration_ms          | *                                  |
+      | request_id           | *                                  |
 
   # ---------- 3. Deeply nested records (4 levels deep) ----------
   Scenario: Four levels of nested records
@@ -75,7 +129,34 @@ Feature: Advanced Avro Schema Parsing
     Then the response status should be 200
     And the response should have field "schema"
     And the response should contain "Level4"
-    And the audit log should contain event "schema_register" with subject "avro-adv-3"
+    And the audit log should contain an event:
+      | event_type           | schema_register                    |
+      | outcome              | success                            |
+      | actor_id             |                                    |
+      | actor_type           | anonymous                          |
+      | auth_method          |                                    |
+      | role                 |                                    |
+      | target_type          | subject                            |
+      | target_id            | avro-adv-3                         |
+      | schema_id            | *                                  |
+      | version              |                                    |
+      | schema_type          | AVRO                               |
+      | before_hash          |                                    |
+      | after_hash           | sha256:*                           |
+      | context              | .                                  |
+      | transport_security   | tls                                |
+      | source_ip            | *                                  |
+      | user_agent           | *                                  |
+      | method               | POST                               |
+      | path                 | /subjects/avro-adv-3/versions      |
+      | status_code          | 200                                |
+      | reason               |                                    |
+      | error                |                                    |
+      | request_body         |                                    |
+      | metadata             |                                    |
+      | timestamp            | *                                  |
+      | duration_ms          | *                                  |
+      | request_id           | *                                  |
 
   # ---------- 4. Record with all logical types ----------
   Scenario: Record with all Avro logical types
@@ -98,7 +179,34 @@ Feature: Advanced Avro Schema Parsing
     Then the response status should be 200
     And the response should have field "schema"
     And the response should contain "AllLogicalTypes"
-    And the audit log should contain event "schema_register" with subject "avro-adv-4"
+    And the audit log should contain an event:
+      | event_type           | schema_register                    |
+      | outcome              | success                            |
+      | actor_id             |                                    |
+      | actor_type           | anonymous                          |
+      | auth_method          |                                    |
+      | role                 |                                    |
+      | target_type          | subject                            |
+      | target_id            | avro-adv-4                         |
+      | schema_id            | *                                  |
+      | version              |                                    |
+      | schema_type          | AVRO                               |
+      | before_hash          |                                    |
+      | after_hash           | sha256:*                           |
+      | context              | .                                  |
+      | transport_security   | tls                                |
+      | source_ip            | *                                  |
+      | user_agent           | *                                  |
+      | method               | POST                               |
+      | path                 | /subjects/avro-adv-4/versions      |
+      | status_code          | 200                                |
+      | reason               |                                    |
+      | error                |                                    |
+      | request_body         |                                    |
+      | metadata             |                                    |
+      | timestamp            | *                                  |
+      | duration_ms          | *                                  |
+      | request_id           | *                                  |
 
   # ---------- 5. Fixed type inside record field ----------
   Scenario: Fixed type as a record field
@@ -116,7 +224,34 @@ Feature: Advanced Avro Schema Parsing
     Then the response status should be 200
     And the response should have field "schema"
     And the response should contain "MD5Hash"
-    And the audit log should contain event "schema_register" with subject "avro-adv-5"
+    And the audit log should contain an event:
+      | event_type           | schema_register                    |
+      | outcome              | success                            |
+      | actor_id             |                                    |
+      | actor_type           | anonymous                          |
+      | auth_method          |                                    |
+      | role                 |                                    |
+      | target_type          | subject                            |
+      | target_id            | avro-adv-5                         |
+      | schema_id            | *                                  |
+      | version              |                                    |
+      | schema_type          | AVRO                               |
+      | before_hash          |                                    |
+      | after_hash           | sha256:*                           |
+      | context              | .                                  |
+      | transport_security   | tls                                |
+      | source_ip            | *                                  |
+      | user_agent           | *                                  |
+      | method               | POST                               |
+      | path                 | /subjects/avro-adv-5/versions      |
+      | status_code          | 200                                |
+      | reason               |                                    |
+      | error                |                                    |
+      | request_body         |                                    |
+      | metadata             |                                    |
+      | timestamp            | *                                  |
+      | duration_ms          | *                                  |
+      | request_id           | *                                  |
 
   # ---------- 6. Fixed type inside array items ----------
   Scenario: Array of fixed type values
@@ -132,7 +267,34 @@ Feature: Advanced Avro Schema Parsing
     Then the response status should be 200
     And the response should have field "schema"
     And the response should contain "SHA256"
-    And the audit log should contain event "schema_register" with subject "avro-adv-6"
+    And the audit log should contain an event:
+      | event_type           | schema_register                    |
+      | outcome              | success                            |
+      | actor_id             |                                    |
+      | actor_type           | anonymous                          |
+      | auth_method          |                                    |
+      | role                 |                                    |
+      | target_type          | subject                            |
+      | target_id            | avro-adv-6                         |
+      | schema_id            | *                                  |
+      | version              |                                    |
+      | schema_type          | AVRO                               |
+      | before_hash          |                                    |
+      | after_hash           | sha256:*                           |
+      | context              | .                                  |
+      | transport_security   | tls                                |
+      | source_ip            | *                                  |
+      | user_agent           | *                                  |
+      | method               | POST                               |
+      | path                 | /subjects/avro-adv-6/versions      |
+      | status_code          | 200                                |
+      | reason               |                                    |
+      | error                |                                    |
+      | request_body         |                                    |
+      | metadata             |                                    |
+      | timestamp            | *                                  |
+      | duration_ms          | *                                  |
+      | request_id           | *                                  |
 
   # ---------- 7. Enum with doc string ----------
   Scenario: Enum type with doc annotation
@@ -153,7 +315,34 @@ Feature: Advanced Avro Schema Parsing
     Then the response status should be 200
     And the response should have field "schema"
     And the response should contain "TaskStatus"
-    And the audit log should contain event "schema_register" with subject "avro-adv-7"
+    And the audit log should contain an event:
+      | event_type           | schema_register                    |
+      | outcome              | success                            |
+      | actor_id             |                                    |
+      | actor_type           | anonymous                          |
+      | auth_method          |                                    |
+      | role                 |                                    |
+      | target_type          | subject                            |
+      | target_id            | avro-adv-7                         |
+      | schema_id            | *                                  |
+      | version              |                                    |
+      | schema_type          | AVRO                               |
+      | before_hash          |                                    |
+      | after_hash           | sha256:*                           |
+      | context              | .                                  |
+      | transport_security   | tls                                |
+      | source_ip            | *                                  |
+      | user_agent           | *                                  |
+      | method               | POST                               |
+      | path                 | /subjects/avro-adv-7/versions      |
+      | status_code          | 200                                |
+      | reason               |                                    |
+      | error                |                                    |
+      | request_body         |                                    |
+      | metadata             |                                    |
+      | timestamp            | *                                  |
+      | duration_ms          | *                                  |
+      | request_id           | *                                  |
 
   # ---------- 8. Enum inside union ----------
   Scenario: Nullable enum via union
@@ -174,7 +363,34 @@ Feature: Advanced Avro Schema Parsing
     Then the response status should be 200
     And the response should have field "schema"
     And the response should contain "Department"
-    And the audit log should contain event "schema_register" with subject "avro-adv-8"
+    And the audit log should contain an event:
+      | event_type           | schema_register                    |
+      | outcome              | success                            |
+      | actor_id             |                                    |
+      | actor_type           | anonymous                          |
+      | auth_method          |                                    |
+      | role                 |                                    |
+      | target_type          | subject                            |
+      | target_id            | avro-adv-8                         |
+      | schema_id            | *                                  |
+      | version              |                                    |
+      | schema_type          | AVRO                               |
+      | before_hash          |                                    |
+      | after_hash           | sha256:*                           |
+      | context              | .                                  |
+      | transport_security   | tls                                |
+      | source_ip            | *                                  |
+      | user_agent           | *                                  |
+      | method               | POST                               |
+      | path                 | /subjects/avro-adv-8/versions      |
+      | status_code          | 200                                |
+      | reason               |                                    |
+      | error                |                                    |
+      | request_body         |                                    |
+      | metadata             |                                    |
+      | timestamp            | *                                  |
+      | duration_ms          | *                                  |
+      | request_id           | *                                  |
 
   # ---------- 9. Map with record values containing unions ----------
   Scenario: Map of records with union fields
@@ -199,7 +415,34 @@ Feature: Advanced Avro Schema Parsing
     Then the response status should be 200
     And the response should have field "schema"
     And the response should contain "ServiceInfo"
-    And the audit log should contain event "schema_register" with subject "avro-adv-9"
+    And the audit log should contain an event:
+      | event_type           | schema_register                    |
+      | outcome              | success                            |
+      | actor_id             |                                    |
+      | actor_type           | anonymous                          |
+      | auth_method          |                                    |
+      | role                 |                                    |
+      | target_type          | subject                            |
+      | target_id            | avro-adv-9                         |
+      | schema_id            | *                                  |
+      | version              |                                    |
+      | schema_type          | AVRO                               |
+      | before_hash          |                                    |
+      | after_hash           | sha256:*                           |
+      | context              | .                                  |
+      | transport_security   | tls                                |
+      | source_ip            | *                                  |
+      | user_agent           | *                                  |
+      | method               | POST                               |
+      | path                 | /subjects/avro-adv-9/versions      |
+      | status_code          | 200                                |
+      | reason               |                                    |
+      | error                |                                    |
+      | request_body         |                                    |
+      | metadata             |                                    |
+      | timestamp            | *                                  |
+      | duration_ms          | *                                  |
+      | request_id           | *                                  |
 
   # ---------- 10. Array of maps of records ----------
   Scenario: Array of maps containing record values
@@ -221,7 +464,34 @@ Feature: Advanced Avro Schema Parsing
     Then the response status should be 200
     And the response should have field "schema"
     And the response should contain "Widget"
-    And the audit log should contain event "schema_register" with subject "avro-adv-10"
+    And the audit log should contain an event:
+      | event_type           | schema_register                    |
+      | outcome              | success                            |
+      | actor_id             |                                    |
+      | actor_type           | anonymous                          |
+      | auth_method          |                                    |
+      | role                 |                                    |
+      | target_type          | subject                            |
+      | target_id            | avro-adv-10                        |
+      | schema_id            | *                                  |
+      | version              |                                    |
+      | schema_type          | AVRO                               |
+      | before_hash          |                                    |
+      | after_hash           | sha256:*                           |
+      | context              | .                                  |
+      | transport_security   | tls                                |
+      | source_ip            | *                                  |
+      | user_agent           | *                                  |
+      | method               | POST                               |
+      | path                 | /subjects/avro-adv-10/versions     |
+      | status_code          | 200                                |
+      | reason               |                                    |
+      | error                |                                    |
+      | request_body         |                                    |
+      | metadata             |                                    |
+      | timestamp            | *                                  |
+      | duration_ms          | *                                  |
+      | request_id           | *                                  |
 
   # ---------- 11. Self-referencing record (linked list) ----------
   Scenario: Self-referencing record as linked list
@@ -238,7 +508,34 @@ Feature: Advanced Avro Schema Parsing
     Then the response status should be 200
     And the response should have field "schema"
     And the response should contain "Node"
-    And the audit log should contain event "schema_register" with subject "avro-adv-11"
+    And the audit log should contain an event:
+      | event_type           | schema_register                    |
+      | outcome              | success                            |
+      | actor_id             |                                    |
+      | actor_type           | anonymous                          |
+      | auth_method          |                                    |
+      | role                 |                                    |
+      | target_type          | subject                            |
+      | target_id            | avro-adv-11                        |
+      | schema_id            | *                                  |
+      | version              |                                    |
+      | schema_type          | AVRO                               |
+      | before_hash          |                                    |
+      | after_hash           | sha256:*                           |
+      | context              | .                                  |
+      | transport_security   | tls                                |
+      | source_ip            | *                                  |
+      | user_agent           | *                                  |
+      | method               | POST                               |
+      | path                 | /subjects/avro-adv-11/versions     |
+      | status_code          | 200                                |
+      | reason               |                                    |
+      | error                |                                    |
+      | request_body         |                                    |
+      | metadata             |                                    |
+      | timestamp            | *                                  |
+      | duration_ms          | *                                  |
+      | request_id           | *                                  |
 
   # ---------- 12. Record with bytes field and default ----------
   Scenario: Record with bytes field and empty default
@@ -256,7 +553,34 @@ Feature: Advanced Avro Schema Parsing
     Then the response status should be 200
     And the response should have field "schema"
     And the response should contain "BinaryData"
-    And the audit log should contain event "schema_register" with subject "avro-adv-12"
+    And the audit log should contain an event:
+      | event_type           | schema_register                    |
+      | outcome              | success                            |
+      | actor_id             |                                    |
+      | actor_type           | anonymous                          |
+      | auth_method          |                                    |
+      | role                 |                                    |
+      | target_type          | subject                            |
+      | target_id            | avro-adv-12                        |
+      | schema_id            | *                                  |
+      | version              |                                    |
+      | schema_type          | AVRO                               |
+      | before_hash          |                                    |
+      | after_hash           | sha256:*                           |
+      | context              | .                                  |
+      | transport_security   | tls                                |
+      | source_ip            | *                                  |
+      | user_agent           | *                                  |
+      | method               | POST                               |
+      | path                 | /subjects/avro-adv-12/versions     |
+      | status_code          | 200                                |
+      | reason               |                                    |
+      | error                |                                    |
+      | request_body         |                                    |
+      | metadata             |                                    |
+      | timestamp            | *                                  |
+      | duration_ms          | *                                  |
+      | request_id           | *                                  |
 
   # ---------- 13. Record with 30+ fields (stress test) ----------
   Scenario: Record with more than 30 fields
@@ -303,7 +627,34 @@ Feature: Advanced Avro Schema Parsing
     Then the response status should be 200
     And the response should have field "schema"
     And the response should contain "WideRecord"
-    And the audit log should contain event "schema_register" with subject "avro-adv-13"
+    And the audit log should contain an event:
+      | event_type           | schema_register                    |
+      | outcome              | success                            |
+      | actor_id             |                                    |
+      | actor_type           | anonymous                          |
+      | auth_method          |                                    |
+      | role                 |                                    |
+      | target_type          | subject                            |
+      | target_id            | avro-adv-13                        |
+      | schema_id            | *                                  |
+      | version              |                                    |
+      | schema_type          | AVRO                               |
+      | before_hash          |                                    |
+      | after_hash           | sha256:*                           |
+      | context              | .                                  |
+      | transport_security   | tls                                |
+      | source_ip            | *                                  |
+      | user_agent           | *                                  |
+      | method               | POST                               |
+      | path                 | /subjects/avro-adv-13/versions     |
+      | status_code          | 200                                |
+      | reason               |                                    |
+      | error                |                                    |
+      | request_body         |                                    |
+      | metadata             |                                    |
+      | timestamp            | *                                  |
+      | duration_ms          | *                                  |
+      | request_id           | *                                  |
 
   # ---------- 14. Namespace inheritance in nested records ----------
   Scenario: Namespace inheritance with explicit and inherited namespaces
@@ -325,7 +676,34 @@ Feature: Advanced Avro Schema Parsing
     And the response should have field "schema"
     And the response should contain "com.example.outer"
     And the response should contain "com.example.inner"
-    And the audit log should contain event "schema_register" with subject "avro-adv-14"
+    And the audit log should contain an event:
+      | event_type           | schema_register                    |
+      | outcome              | success                            |
+      | actor_id             |                                    |
+      | actor_type           | anonymous                          |
+      | auth_method          |                                    |
+      | role                 |                                    |
+      | target_type          | subject                            |
+      | target_id            | avro-adv-14                        |
+      | schema_id            | *                                  |
+      | version              |                                    |
+      | schema_type          | AVRO                               |
+      | before_hash          |                                    |
+      | after_hash           | sha256:*                           |
+      | context              | .                                  |
+      | transport_security   | tls                                |
+      | source_ip            | *                                  |
+      | user_agent           | *                                  |
+      | method               | POST                               |
+      | path                 | /subjects/avro-adv-14/versions     |
+      | status_code          | 200                                |
+      | reason               |                                    |
+      | error                |                                    |
+      | request_body         |                                    |
+      | metadata             |                                    |
+      | timestamp            | *                                  |
+      | duration_ms          | *                                  |
+      | request_id           | *                                  |
 
   # ---------- 15. Multiple named types in same schema ----------
   Scenario: Schema with multiple named record types
@@ -353,7 +731,34 @@ Feature: Advanced Avro Schema Parsing
     And the response should have field "schema"
     And the response should contain "Invoice"
     And the response should contain "InvoiceLine"
-    And the audit log should contain event "schema_register" with subject "avro-adv-15"
+    And the audit log should contain an event:
+      | event_type           | schema_register                    |
+      | outcome              | success                            |
+      | actor_id             |                                    |
+      | actor_type           | anonymous                          |
+      | auth_method          |                                    |
+      | role                 |                                    |
+      | target_type          | subject                            |
+      | target_id            | avro-adv-15                        |
+      | schema_id            | *                                  |
+      | version              |                                    |
+      | schema_type          | AVRO                               |
+      | before_hash          |                                    |
+      | after_hash           | sha256:*                           |
+      | context              | .                                  |
+      | transport_security   | tls                                |
+      | source_ip            | *                                  |
+      | user_agent           | *                                  |
+      | method               | POST                               |
+      | path                 | /subjects/avro-adv-15/versions     |
+      | status_code          | 200                                |
+      | reason               |                                    |
+      | error                |                                    |
+      | request_body         |                                    |
+      | metadata             |                                    |
+      | timestamp            | *                                  |
+      | duration_ms          | *                                  |
+      | request_id           | *                                  |
 
   # ---------- 16. Record with all 8 primitive field types ----------
   Scenario: Record covering every Avro primitive type
@@ -377,7 +782,34 @@ Feature: Advanced Avro Schema Parsing
     Then the response status should be 200
     And the response should have field "schema"
     And the response should contain "AllPrimitivesAdvanced"
-    And the audit log should contain event "schema_register" with subject "avro-adv-16"
+    And the audit log should contain an event:
+      | event_type           | schema_register                    |
+      | outcome              | success                            |
+      | actor_id             |                                    |
+      | actor_type           | anonymous                          |
+      | auth_method          |                                    |
+      | role                 |                                    |
+      | target_type          | subject                            |
+      | target_id            | avro-adv-16                        |
+      | schema_id            | *                                  |
+      | version              |                                    |
+      | schema_type          | AVRO                               |
+      | before_hash          |                                    |
+      | after_hash           | sha256:*                           |
+      | context              | .                                  |
+      | transport_security   | tls                                |
+      | source_ip            | *                                  |
+      | user_agent           | *                                  |
+      | method               | POST                               |
+      | path                 | /subjects/avro-adv-16/versions     |
+      | status_code          | 200                                |
+      | reason               |                                    |
+      | error                |                                    |
+      | request_body         |                                    |
+      | metadata             |                                    |
+      | timestamp            | *                                  |
+      | duration_ms          | *                                  |
+      | request_id           | *                                  |
 
   # ---------- 17. Doc annotations at record and field level ----------
   Scenario: Schema with doc annotations on record and fields
@@ -396,7 +828,34 @@ Feature: Advanced Avro Schema Parsing
     Then the response status should be 200
     And the response should have field "schema"
     And the response should contain "DocumentedRecord"
-    And the audit log should contain event "schema_register" with subject "avro-adv-17"
+    And the audit log should contain an event:
+      | event_type           | schema_register                    |
+      | outcome              | success                            |
+      | actor_id             |                                    |
+      | actor_type           | anonymous                          |
+      | auth_method          |                                    |
+      | role                 |                                    |
+      | target_type          | subject                            |
+      | target_id            | avro-adv-17                        |
+      | schema_id            | *                                  |
+      | version              |                                    |
+      | schema_type          | AVRO                               |
+      | before_hash          |                                    |
+      | after_hash           | sha256:*                           |
+      | context              | .                                  |
+      | transport_security   | tls                                |
+      | source_ip            | *                                  |
+      | user_agent           | *                                  |
+      | method               | POST                               |
+      | path                 | /subjects/avro-adv-17/versions     |
+      | status_code          | 200                                |
+      | reason               |                                    |
+      | error                |                                    |
+      | request_body         |                                    |
+      | metadata             |                                    |
+      | timestamp            | *                                  |
+      | duration_ms          | *                                  |
+      | request_id           | *                                  |
 
   # ---------- 18. Field ordering (order attribute) ----------
   Scenario: Schema with field ordering annotations
@@ -415,7 +874,34 @@ Feature: Advanced Avro Schema Parsing
     Then the response status should be 200
     And the response should have field "schema"
     And the response should contain "SortableRecord"
-    And the audit log should contain event "schema_register" with subject "avro-adv-18"
+    And the audit log should contain an event:
+      | event_type           | schema_register                    |
+      | outcome              | success                            |
+      | actor_id             |                                    |
+      | actor_type           | anonymous                          |
+      | auth_method          |                                    |
+      | role                 |                                    |
+      | target_type          | subject                            |
+      | target_id            | avro-adv-18                        |
+      | schema_id            | *                                  |
+      | version              |                                    |
+      | schema_type          | AVRO                               |
+      | before_hash          |                                    |
+      | after_hash           | sha256:*                           |
+      | context              | .                                  |
+      | transport_security   | tls                                |
+      | source_ip            | *                                  |
+      | user_agent           | *                                  |
+      | method               | POST                               |
+      | path                 | /subjects/avro-adv-18/versions     |
+      | status_code          | 200                                |
+      | reason               |                                    |
+      | error                |                                    |
+      | request_body         |                                    |
+      | metadata             |                                    |
+      | timestamp            | *                                  |
+      | duration_ms          | *                                  |
+      | request_id           | *                                  |
 
   # ---------- 19. Aliases on records ----------
   Scenario: Schema with aliases on the record
@@ -433,7 +919,34 @@ Feature: Advanced Avro Schema Parsing
     Then the response status should be 200
     And the response should have field "schema"
     And the response should contain "UserProfile"
-    And the audit log should contain event "schema_register" with subject "avro-adv-19"
+    And the audit log should contain an event:
+      | event_type           | schema_register                    |
+      | outcome              | success                            |
+      | actor_id             |                                    |
+      | actor_type           | anonymous                          |
+      | auth_method          |                                    |
+      | role                 |                                    |
+      | target_type          | subject                            |
+      | target_id            | avro-adv-19                        |
+      | schema_id            | *                                  |
+      | version              |                                    |
+      | schema_type          | AVRO                               |
+      | before_hash          |                                    |
+      | after_hash           | sha256:*                           |
+      | context              | .                                  |
+      | transport_security   | tls                                |
+      | source_ip            | *                                  |
+      | user_agent           | *                                  |
+      | method               | POST                               |
+      | path                 | /subjects/avro-adv-19/versions     |
+      | status_code          | 200                                |
+      | reason               |                                    |
+      | error                |                                    |
+      | request_body         |                                    |
+      | metadata             |                                    |
+      | timestamp            | *                                  |
+      | duration_ms          | *                                  |
+      | request_id           | *                                  |
 
   # ---------- 20. Aliases on fields ----------
   Scenario: Schema with aliases on fields
@@ -451,7 +964,34 @@ Feature: Advanced Avro Schema Parsing
     Then the response status should be 200
     And the response should have field "schema"
     And the response should contain "LegacyCompatible"
-    And the audit log should contain event "schema_register" with subject "avro-adv-20"
+    And the audit log should contain an event:
+      | event_type           | schema_register                    |
+      | outcome              | success                            |
+      | actor_id             |                                    |
+      | actor_type           | anonymous                          |
+      | auth_method          |                                    |
+      | role                 |                                    |
+      | target_type          | subject                            |
+      | target_id            | avro-adv-20                        |
+      | schema_id            | *                                  |
+      | version              |                                    |
+      | schema_type          | AVRO                               |
+      | before_hash          |                                    |
+      | after_hash           | sha256:*                           |
+      | context              | .                                  |
+      | transport_security   | tls                                |
+      | source_ip            | *                                  |
+      | user_agent           | *                                  |
+      | method               | POST                               |
+      | path                 | /subjects/avro-adv-20/versions     |
+      | status_code          | 200                                |
+      | reason               |                                    |
+      | error                |                                    |
+      | request_body         |                                    |
+      | metadata             |                                    |
+      | timestamp            | *                                  |
+      | duration_ms          | *                                  |
+      | request_id           | *                                  |
 
   # ---------- 21. Decimal logical type with specific precision and scale ----------
   Scenario: Decimal logical type with high precision
@@ -469,7 +1009,34 @@ Feature: Advanced Avro Schema Parsing
     Then the response status should be 200
     And the response should have field "schema"
     And the response should contain "FinancialAmount"
-    And the audit log should contain event "schema_register" with subject "avro-adv-21"
+    And the audit log should contain an event:
+      | event_type           | schema_register                    |
+      | outcome              | success                            |
+      | actor_id             |                                    |
+      | actor_type           | anonymous                          |
+      | auth_method          |                                    |
+      | role                 |                                    |
+      | target_type          | subject                            |
+      | target_id            | avro-adv-21                        |
+      | schema_id            | *                                  |
+      | version              |                                    |
+      | schema_type          | AVRO                               |
+      | before_hash          |                                    |
+      | after_hash           | sha256:*                           |
+      | context              | .                                  |
+      | transport_security   | tls                                |
+      | source_ip            | *                                  |
+      | user_agent           | *                                  |
+      | method               | POST                               |
+      | path                 | /subjects/avro-adv-21/versions     |
+      | status_code          | 200                                |
+      | reason               |                                    |
+      | error                |                                    |
+      | request_body         |                                    |
+      | metadata             |                                    |
+      | timestamp            | *                                  |
+      | duration_ms          | *                                  |
+      | request_id           | *                                  |
 
   # ---------- 22. Complex real-world: Kafka Connect source record ----------
   Scenario: Kafka Connect source record schema
@@ -507,7 +1074,34 @@ Feature: Advanced Avro Schema Parsing
     And the response should have field "schema"
     And the response should contain "ConnectRecord"
     And the response should contain "Operation"
-    And the audit log should contain event "schema_register" with subject "avro-adv-22"
+    And the audit log should contain an event:
+      | event_type           | schema_register                    |
+      | outcome              | success                            |
+      | actor_id             |                                    |
+      | actor_type           | anonymous                          |
+      | auth_method          |                                    |
+      | role                 |                                    |
+      | target_type          | subject                            |
+      | target_id            | avro-adv-22                        |
+      | schema_id            | *                                  |
+      | version              |                                    |
+      | schema_type          | AVRO                               |
+      | before_hash          |                                    |
+      | after_hash           | sha256:*                           |
+      | context              | .                                  |
+      | transport_security   | tls                                |
+      | source_ip            | *                                  |
+      | user_agent           | *                                  |
+      | method               | POST                               |
+      | path                 | /subjects/avro-adv-22/versions     |
+      | status_code          | 200                                |
+      | reason               |                                    |
+      | error                |                                    |
+      | request_body         |                                    |
+      | metadata             |                                    |
+      | timestamp            | *                                  |
+      | duration_ms          | *                                  |
+      | request_id           | *                                  |
 
   # ---------- 23. Complex real-world: CDC change event ----------
   Scenario: CDC change event schema
@@ -533,7 +1127,34 @@ Feature: Advanced Avro Schema Parsing
     And the response should have field "schema"
     And the response should contain "ChangeEvent"
     And the response should contain "ChangeType"
-    And the audit log should contain event "schema_register" with subject "avro-adv-23"
+    And the audit log should contain an event:
+      | event_type           | schema_register                    |
+      | outcome              | success                            |
+      | actor_id             |                                    |
+      | actor_type           | anonymous                          |
+      | auth_method          |                                    |
+      | role                 |                                    |
+      | target_type          | subject                            |
+      | target_id            | avro-adv-23                        |
+      | schema_id            | *                                  |
+      | version              |                                    |
+      | schema_type          | AVRO                               |
+      | before_hash          |                                    |
+      | after_hash           | sha256:*                           |
+      | context              | .                                  |
+      | transport_security   | tls                                |
+      | source_ip            | *                                  |
+      | user_agent           | *                                  |
+      | method               | POST                               |
+      | path                 | /subjects/avro-adv-23/versions     |
+      | status_code          | 200                                |
+      | reason               |                                    |
+      | error                |                                    |
+      | request_body         |                                    |
+      | metadata             |                                    |
+      | timestamp            | *                                  |
+      | duration_ms          | *                                  |
+      | request_id           | *                                  |
 
   # ---------- 24. Complex real-world: Financial transaction ----------
   Scenario: Financial transaction schema with multiple record types
@@ -569,7 +1190,34 @@ Feature: Advanced Avro Schema Parsing
     And the response should contain "Transaction"
     And the response should contain "Currency"
     And the response should contain "AccountType"
-    And the audit log should contain event "schema_register" with subject "avro-adv-24"
+    And the audit log should contain an event:
+      | event_type           | schema_register                    |
+      | outcome              | success                            |
+      | actor_id             |                                    |
+      | actor_type           | anonymous                          |
+      | auth_method          |                                    |
+      | role                 |                                    |
+      | target_type          | subject                            |
+      | target_id            | avro-adv-24                        |
+      | schema_id            | *                                  |
+      | version              |                                    |
+      | schema_type          | AVRO                               |
+      | before_hash          |                                    |
+      | after_hash           | sha256:*                           |
+      | context              | .                                  |
+      | transport_security   | tls                                |
+      | source_ip            | *                                  |
+      | user_agent           | *                                  |
+      | method               | POST                               |
+      | path                 | /subjects/avro-adv-24/versions     |
+      | status_code          | 200                                |
+      | reason               |                                    |
+      | error                |                                    |
+      | request_body         |                                    |
+      | metadata             |                                    |
+      | timestamp            | *                                  |
+      | duration_ms          | *                                  |
+      | request_id           | *                                  |
 
   # ---------- 25. Round-trip: register, get by ID, verify schema field ----------
   Scenario: Round-trip registration and retrieval verifies schema field
@@ -594,7 +1242,34 @@ Feature: Advanced Avro Schema Parsing
     And the response field "subject" should be "avro-adv-25"
     And the response field "version" should be 1
     And the response should contain "RoundTripTest"
-    And the audit log should contain event "schema_register" with subject "avro-adv-25"
+    And the audit log should contain an event:
+      | event_type           | schema_register                    |
+      | outcome              | success                            |
+      | actor_id             |                                    |
+      | actor_type           | anonymous                          |
+      | auth_method          |                                    |
+      | role                 |                                    |
+      | target_type          | subject                            |
+      | target_id            | avro-adv-25                        |
+      | schema_id            | *                                  |
+      | version              |                                    |
+      | schema_type          | AVRO                               |
+      | before_hash          |                                    |
+      | after_hash           | sha256:*                           |
+      | context              | .                                  |
+      | transport_security   | tls                                |
+      | source_ip            | *                                  |
+      | user_agent           | *                                  |
+      | method               | POST                               |
+      | path                 | /subjects/avro-adv-25/versions     |
+      | status_code          | 200                                |
+      | reason               |                                    |
+      | error                |                                    |
+      | request_body         |                                    |
+      | metadata             |                                    |
+      | timestamp            | *                                  |
+      | duration_ms          | *                                  |
+      | request_id           | *                                  |
 
   # ---------- 26. Fingerprint stability: same schema under 2 subjects ----------
   Scenario: Same schema registered under two subjects gets same schema ID
@@ -621,7 +1296,34 @@ Feature: Advanced Avro Schema Parsing
     And the response should be an array of length 2
     And the response array should contain "avro-adv-26a"
     And the response array should contain "avro-adv-26b"
-    And the audit log should contain event "schema_register" with subject "avro-adv-26a"
+    And the audit log should contain an event:
+      | event_type           | schema_register                    |
+      | outcome              | success                            |
+      | actor_id             |                                    |
+      | actor_type           | anonymous                          |
+      | auth_method          |                                    |
+      | role                 |                                    |
+      | target_type          | subject                            |
+      | target_id            | avro-adv-26a                       |
+      | schema_id            | *                                  |
+      | version              |                                    |
+      | schema_type          | AVRO                               |
+      | before_hash          |                                    |
+      | after_hash           | sha256:*                           |
+      | context              | .                                  |
+      | transport_security   | tls                                |
+      | source_ip            | *                                  |
+      | user_agent           | *                                  |
+      | method               | POST                               |
+      | path                 | /subjects/avro-adv-26a/versions    |
+      | status_code          | 200                                |
+      | reason               |                                    |
+      | error                |                                    |
+      | request_body         |                                    |
+      | metadata             |                                    |
+      | timestamp            | *                                  |
+      | duration_ms          | *                                  |
+      | request_id           | *                                  |
 
   # ---------- 27. Field defaults of every primitive type ----------
   Scenario: Schema with default values for every primitive type
@@ -644,7 +1346,34 @@ Feature: Advanced Avro Schema Parsing
     Then the response status should be 200
     And the response should have field "schema"
     And the response should contain "AllDefaults"
-    And the audit log should contain event "schema_register" with subject "avro-adv-27"
+    And the audit log should contain an event:
+      | event_type           | schema_register                    |
+      | outcome              | success                            |
+      | actor_id             |                                    |
+      | actor_type           | anonymous                          |
+      | auth_method          |                                    |
+      | role                 |                                    |
+      | target_type          | subject                            |
+      | target_id            | avro-adv-27                        |
+      | schema_id            | *                                  |
+      | version              |                                    |
+      | schema_type          | AVRO                               |
+      | before_hash          |                                    |
+      | after_hash           | sha256:*                           |
+      | context              | .                                  |
+      | transport_security   | tls                                |
+      | source_ip            | *                                  |
+      | user_agent           | *                                  |
+      | method               | POST                               |
+      | path                 | /subjects/avro-adv-27/versions     |
+      | status_code          | 200                                |
+      | reason               |                                    |
+      | error                |                                    |
+      | request_body         |                                    |
+      | metadata             |                                    |
+      | timestamp            | *                                  |
+      | duration_ms          | *                                  |
+      | request_id           | *                                  |
 
   # ---------- 28. Enum with many symbols (10+) ----------
   Scenario: Enum with more than 10 symbols
@@ -665,7 +1394,34 @@ Feature: Advanced Avro Schema Parsing
     And the response should have field "schema"
     And the response should contain "HttpMethod"
     And the response should contain "PURGE"
-    And the audit log should contain event "schema_register" with subject "avro-adv-28"
+    And the audit log should contain an event:
+      | event_type           | schema_register                    |
+      | outcome              | success                            |
+      | actor_id             |                                    |
+      | actor_type           | anonymous                          |
+      | auth_method          |                                    |
+      | role                 |                                    |
+      | target_type          | subject                            |
+      | target_id            | avro-adv-28                        |
+      | schema_id            | *                                  |
+      | version              |                                    |
+      | schema_type          | AVRO                               |
+      | before_hash          |                                    |
+      | after_hash           | sha256:*                           |
+      | context              | .                                  |
+      | transport_security   | tls                                |
+      | source_ip            | *                                  |
+      | user_agent           | *                                  |
+      | method               | POST                               |
+      | path                 | /subjects/avro-adv-28/versions     |
+      | status_code          | 200                                |
+      | reason               |                                    |
+      | error                |                                    |
+      | request_body         |                                    |
+      | metadata             |                                    |
+      | timestamp            | *                                  |
+      | duration_ms          | *                                  |
+      | request_id           | *                                  |
 
   # ---------- 29. Map of arrays of strings ----------
   Scenario: Map whose values are arrays of strings
@@ -682,7 +1438,34 @@ Feature: Advanced Avro Schema Parsing
     Then the response status should be 200
     And the response should have field "schema"
     And the response should contain "TagIndex"
-    And the audit log should contain event "schema_register" with subject "avro-adv-29"
+    And the audit log should contain an event:
+      | event_type           | schema_register                    |
+      | outcome              | success                            |
+      | actor_id             |                                    |
+      | actor_type           | anonymous                          |
+      | auth_method          |                                    |
+      | role                 |                                    |
+      | target_type          | subject                            |
+      | target_id            | avro-adv-29                        |
+      | schema_id            | *                                  |
+      | version              |                                    |
+      | schema_type          | AVRO                               |
+      | before_hash          |                                    |
+      | after_hash           | sha256:*                           |
+      | context              | .                                  |
+      | transport_security   | tls                                |
+      | source_ip            | *                                  |
+      | user_agent           | *                                  |
+      | method               | POST                               |
+      | path                 | /subjects/avro-adv-29/versions     |
+      | status_code          | 200                                |
+      | reason               |                                    |
+      | error                |                                    |
+      | request_body         |                                    |
+      | metadata             |                                    |
+      | timestamp            | *                                  |
+      | duration_ms          | *                                  |
+      | request_id           | *                                  |
 
   # ---------- 30. Array of arrays (nested collection) ----------
   Scenario: Array of arrays for matrix-like data
@@ -702,7 +1485,34 @@ Feature: Advanced Avro Schema Parsing
     Then the response status should be 200
     And the response should have field "schema"
     And the response should contain "Matrix"
-    And the audit log should contain event "schema_register" with subject "avro-adv-30"
+    And the audit log should contain an event:
+      | event_type           | schema_register                    |
+      | outcome              | success                            |
+      | actor_id             |                                    |
+      | actor_type           | anonymous                          |
+      | auth_method          |                                    |
+      | role                 |                                    |
+      | target_type          | subject                            |
+      | target_id            | avro-adv-30                        |
+      | schema_id            | *                                  |
+      | version              |                                    |
+      | schema_type          | AVRO                               |
+      | before_hash          |                                    |
+      | after_hash           | sha256:*                           |
+      | context              | .                                  |
+      | transport_security   | tls                                |
+      | source_ip            | *                                  |
+      | user_agent           | *                                  |
+      | method               | POST                               |
+      | path                 | /subjects/avro-adv-30/versions     |
+      | status_code          | 200                                |
+      | reason               |                                    |
+      | error                |                                    |
+      | request_body         |                                    |
+      | metadata             |                                    |
+      | timestamp            | *                                  |
+      | duration_ms          | *                                  |
+      | request_id           | *                                  |
 
   # ---------- 31. Record with nullable array field ----------
   Scenario: Nullable array field in a record
@@ -719,7 +1529,34 @@ Feature: Advanced Avro Schema Parsing
     Then the response status should be 200
     And the response should have field "schema"
     And the response should contain "UserWithTags"
-    And the audit log should contain event "schema_register" with subject "avro-adv-31"
+    And the audit log should contain an event:
+      | event_type           | schema_register                    |
+      | outcome              | success                            |
+      | actor_id             |                                    |
+      | actor_type           | anonymous                          |
+      | auth_method          |                                    |
+      | role                 |                                    |
+      | target_type          | subject                            |
+      | target_id            | avro-adv-31                        |
+      | schema_id            | *                                  |
+      | version              |                                    |
+      | schema_type          | AVRO                               |
+      | before_hash          |                                    |
+      | after_hash           | sha256:*                           |
+      | context              | .                                  |
+      | transport_security   | tls                                |
+      | source_ip            | *                                  |
+      | user_agent           | *                                  |
+      | method               | POST                               |
+      | path                 | /subjects/avro-adv-31/versions     |
+      | status_code          | 200                                |
+      | reason               |                                    |
+      | error                |                                    |
+      | request_body         |                                    |
+      | metadata             |                                    |
+      | timestamp            | *                                  |
+      | duration_ms          | *                                  |
+      | request_id           | *                                  |
 
   # ---------- 32. Record with nullable map field ----------
   Scenario: Nullable map field in a record
@@ -736,7 +1573,34 @@ Feature: Advanced Avro Schema Parsing
     Then the response status should be 200
     And the response should have field "schema"
     And the response should contain "ConfigEntry"
-    And the audit log should contain event "schema_register" with subject "avro-adv-32"
+    And the audit log should contain an event:
+      | event_type           | schema_register                    |
+      | outcome              | success                            |
+      | actor_id             |                                    |
+      | actor_type           | anonymous                          |
+      | auth_method          |                                    |
+      | role                 |                                    |
+      | target_type          | subject                            |
+      | target_id            | avro-adv-32                        |
+      | schema_id            | *                                  |
+      | version              |                                    |
+      | schema_type          | AVRO                               |
+      | before_hash          |                                    |
+      | after_hash           | sha256:*                           |
+      | context              | .                                  |
+      | transport_security   | tls                                |
+      | source_ip            | *                                  |
+      | user_agent           | *                                  |
+      | method               | POST                               |
+      | path                 | /subjects/avro-adv-32/versions     |
+      | status_code          | 200                                |
+      | reason               |                                    |
+      | error                |                                    |
+      | request_body         |                                    |
+      | metadata             |                                    |
+      | timestamp            | *                                  |
+      | duration_ms          | *                                  |
+      | request_id           | *                                  |
 
   # ---------- 33. Record with nullable enum field ----------
   Scenario: Nullable enum field in a record
@@ -760,7 +1624,34 @@ Feature: Advanced Avro Schema Parsing
     And the response should have field "schema"
     And the response should contain "TicketPriority"
     And the response should contain "Severity"
-    And the audit log should contain event "schema_register" with subject "avro-adv-33"
+    And the audit log should contain an event:
+      | event_type           | schema_register                    |
+      | outcome              | success                            |
+      | actor_id             |                                    |
+      | actor_type           | anonymous                          |
+      | auth_method          |                                    |
+      | role                 |                                    |
+      | target_type          | subject                            |
+      | target_id            | avro-adv-33                        |
+      | schema_id            | *                                  |
+      | version              |                                    |
+      | schema_type          | AVRO                               |
+      | before_hash          |                                    |
+      | after_hash           | sha256:*                           |
+      | context              | .                                  |
+      | transport_security   | tls                                |
+      | source_ip            | *                                  |
+      | user_agent           | *                                  |
+      | method               | POST                               |
+      | path                 | /subjects/avro-adv-33/versions     |
+      | status_code          | 200                                |
+      | reason               |                                    |
+      | error                |                                    |
+      | request_body         |                                    |
+      | metadata             |                                    |
+      | timestamp            | *                                  |
+      | duration_ms          | *                                  |
+      | request_id           | *                                  |
 
   # ---------- 34. Schema with very long record name ----------
   Scenario: Schema with a very long record name
@@ -777,7 +1668,34 @@ Feature: Advanced Avro Schema Parsing
     Then the response status should be 200
     And the response should have field "schema"
     And the response should contain "ThisIsAnExtremelyLongRecordName"
-    And the audit log should contain event "schema_register" with subject "avro-adv-34"
+    And the audit log should contain an event:
+      | event_type           | schema_register                    |
+      | outcome              | success                            |
+      | actor_id             |                                    |
+      | actor_type           | anonymous                          |
+      | auth_method          |                                    |
+      | role                 |                                    |
+      | target_type          | subject                            |
+      | target_id            | avro-adv-34                        |
+      | schema_id            | *                                  |
+      | version              |                                    |
+      | schema_type          | AVRO                               |
+      | before_hash          |                                    |
+      | after_hash           | sha256:*                           |
+      | context              | .                                  |
+      | transport_security   | tls                                |
+      | source_ip            | *                                  |
+      | user_agent           | *                                  |
+      | method               | POST                               |
+      | path                 | /subjects/avro-adv-34/versions     |
+      | status_code          | 200                                |
+      | reason               |                                    |
+      | error                |                                    |
+      | request_body         |                                    |
+      | metadata             |                                    |
+      | timestamp            | *                                  |
+      | duration_ms          | *                                  |
+      | request_id           | *                                  |
 
   # ---------- 35. Schema with nested namespace ----------
   Scenario: Schema with deeply nested namespace hierarchy
@@ -800,7 +1718,34 @@ Feature: Advanced Avro Schema Parsing
     Then the response status should be 200
     And the response should have field "schema"
     And the response should contain "com.example.division.team.project.module"
-    And the audit log should contain event "schema_register" with subject "avro-adv-35"
+    And the audit log should contain an event:
+      | event_type           | schema_register                    |
+      | outcome              | success                            |
+      | actor_id             |                                    |
+      | actor_type           | anonymous                          |
+      | auth_method          |                                    |
+      | role                 |                                    |
+      | target_type          | subject                            |
+      | target_id            | avro-adv-35                        |
+      | schema_id            | *                                  |
+      | version              |                                    |
+      | schema_type          | AVRO                               |
+      | before_hash          |                                    |
+      | after_hash           | sha256:*                           |
+      | context              | .                                  |
+      | transport_security   | tls                                |
+      | source_ip            | *                                  |
+      | user_agent           | *                                  |
+      | method               | POST                               |
+      | path                 | /subjects/avro-adv-35/versions     |
+      | status_code          | 200                                |
+      | reason               |                                    |
+      | error                |                                    |
+      | request_body         |                                    |
+      | metadata             |                                    |
+      | timestamp            | *                                  |
+      | duration_ms          | *                                  |
+      | request_id           | *                                  |
 
   # ---------- 36. Self-referencing binary tree ----------
   Scenario: Self-referencing record as binary tree
@@ -818,7 +1763,34 @@ Feature: Advanced Avro Schema Parsing
     Then the response status should be 200
     And the response should have field "schema"
     And the response should contain "BinaryTreeNode"
-    And the audit log should contain event "schema_register" with subject "avro-adv-36"
+    And the audit log should contain an event:
+      | event_type           | schema_register                    |
+      | outcome              | success                            |
+      | actor_id             |                                    |
+      | actor_type           | anonymous                          |
+      | auth_method          |                                    |
+      | role                 |                                    |
+      | target_type          | subject                            |
+      | target_id            | avro-adv-36                        |
+      | schema_id            | *                                  |
+      | version              |                                    |
+      | schema_type          | AVRO                               |
+      | before_hash          |                                    |
+      | after_hash           | sha256:*                           |
+      | context              | .                                  |
+      | transport_security   | tls                                |
+      | source_ip            | *                                  |
+      | user_agent           | *                                  |
+      | method               | POST                               |
+      | path                 | /subjects/avro-adv-36/versions     |
+      | status_code          | 200                                |
+      | reason               |                                    |
+      | error                |                                    |
+      | request_body         |                                    |
+      | metadata             |                                    |
+      | timestamp            | *                                  |
+      | duration_ms          | *                                  |
+      | request_id           | *                                  |
 
   # ---------- 37. Record reusing named types across fields ----------
   Scenario: Reusing a named enum type across multiple fields
@@ -844,7 +1816,34 @@ Feature: Advanced Avro Schema Parsing
     And the response should have field "schema"
     And the response should contain "FlightBooking"
     And the response should contain "CabinClass"
-    And the audit log should contain event "schema_register" with subject "avro-adv-37"
+    And the audit log should contain an event:
+      | event_type           | schema_register                    |
+      | outcome              | success                            |
+      | actor_id             |                                    |
+      | actor_type           | anonymous                          |
+      | auth_method          |                                    |
+      | role                 |                                    |
+      | target_type          | subject                            |
+      | target_id            | avro-adv-37                        |
+      | schema_id            | *                                  |
+      | version              |                                    |
+      | schema_type          | AVRO                               |
+      | before_hash          |                                    |
+      | after_hash           | sha256:*                           |
+      | context              | .                                  |
+      | transport_security   | tls                                |
+      | source_ip            | *                                  |
+      | user_agent           | *                                  |
+      | method               | POST                               |
+      | path                 | /subjects/avro-adv-37/versions     |
+      | status_code          | 200                                |
+      | reason               |                                    |
+      | error                |                                    |
+      | request_body         |                                    |
+      | metadata             |                                    |
+      | timestamp            | *                                  |
+      | duration_ms          | *                                  |
+      | request_id           | *                                  |
 
   # ---------- 38. Complex union with multiple record and enum types ----------
   Scenario: Union with multiple named record and enum types
@@ -881,7 +1880,34 @@ Feature: Advanced Avro Schema Parsing
     And the response should contain "Notification"
     And the response should contain "EmailContent"
     And the response should contain "PushContent"
-    And the audit log should contain event "schema_register" with subject "avro-adv-38"
+    And the audit log should contain an event:
+      | event_type           | schema_register                    |
+      | outcome              | success                            |
+      | actor_id             |                                    |
+      | actor_type           | anonymous                          |
+      | auth_method          |                                    |
+      | role                 |                                    |
+      | target_type          | subject                            |
+      | target_id            | avro-adv-38                        |
+      | schema_id            | *                                  |
+      | version              |                                    |
+      | schema_type          | AVRO                               |
+      | before_hash          |                                    |
+      | after_hash           | sha256:*                           |
+      | context              | .                                  |
+      | transport_security   | tls                                |
+      | source_ip            | *                                  |
+      | user_agent           | *                                  |
+      | method               | POST                               |
+      | path                 | /subjects/avro-adv-38/versions     |
+      | status_code          | 200                                |
+      | reason               |                                    |
+      | error                |                                    |
+      | request_body         |                                    |
+      | metadata             |                                    |
+      | timestamp            | *                                  |
+      | duration_ms          | *                                  |
+      | request_id           | *                                  |
 
   # ---------- 39. Map with complex nested values ----------
   Scenario: Map with values being arrays of records
@@ -904,7 +1930,34 @@ Feature: Advanced Avro Schema Parsing
     And the response should have field "schema"
     And the response should contain "Catalog"
     And the response should contain "Product"
-    And the audit log should contain event "schema_register" with subject "avro-adv-39"
+    And the audit log should contain an event:
+      | event_type           | schema_register                    |
+      | outcome              | success                            |
+      | actor_id             |                                    |
+      | actor_type           | anonymous                          |
+      | auth_method          |                                    |
+      | role                 |                                    |
+      | target_type          | subject                            |
+      | target_id            | avro-adv-39                        |
+      | schema_id            | *                                  |
+      | version              |                                    |
+      | schema_type          | AVRO                               |
+      | before_hash          |                                    |
+      | after_hash           | sha256:*                           |
+      | context              | .                                  |
+      | transport_security   | tls                                |
+      | source_ip            | *                                  |
+      | user_agent           | *                                  |
+      | method               | POST                               |
+      | path                 | /subjects/avro-adv-39/versions     |
+      | status_code          | 200                                |
+      | reason               |                                    |
+      | error                |                                    |
+      | request_body         |                                    |
+      | metadata             |                                    |
+      | timestamp            | *                                  |
+      | duration_ms          | *                                  |
+      | request_id           | *                                  |
 
   # ---------- 40. IoT sensor event with complex structure ----------
   Scenario: IoT sensor event with complex nested structure
@@ -946,4 +1999,31 @@ Feature: Advanced Avro Schema Parsing
     And the response should contain "SensorReading"
     And the response should contain "SensorType"
     And the response should contain "GeoLocation"
-    And the audit log should contain event "schema_register" with subject "avro-adv-40"
+    And the audit log should contain an event:
+      | event_type           | schema_register                    |
+      | outcome              | success                            |
+      | actor_id             |                                    |
+      | actor_type           | anonymous                          |
+      | auth_method          |                                    |
+      | role                 |                                    |
+      | target_type          | subject                            |
+      | target_id            | avro-adv-40                        |
+      | schema_id            | *                                  |
+      | version              |                                    |
+      | schema_type          | AVRO                               |
+      | before_hash          |                                    |
+      | after_hash           | sha256:*                           |
+      | context              | .                                  |
+      | transport_security   | tls                                |
+      | source_ip            | *                                  |
+      | user_agent           | *                                  |
+      | method               | POST                               |
+      | path                 | /subjects/avro-adv-40/versions     |
+      | status_code          | 200                                |
+      | reason               |                                    |
+      | error                |                                    |
+      | request_body         |                                    |
+      | metadata             |                                    |
+      | timestamp            | *                                  |
+      | duration_ms          | *                                  |
+      | request_id           | *                                  |

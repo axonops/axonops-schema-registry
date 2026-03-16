@@ -21,7 +21,34 @@ Feature: Avro Schema Compatibility
       {"type":"record","name":"User","fields":[{"name":"name","type":"string"},{"name":"email","type":"string","default":"unknown"}]}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "avro-back-1"
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | avro-back-1                      |
+      | schema_id            | *                                |
+      | version              |                                  |
+      | schema_type          | AVRO                             |
+      | before_hash          |                                  |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/avro-back-1/versions   |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: BACKWARD - add field without default is incompatible
     Given the global compatibility level is "BACKWARD"
@@ -46,7 +73,34 @@ Feature: Avro Schema Compatibility
       {"type":"record","name":"User","fields":[{"name":"name","type":"string"}]}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "avro-back-3"
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | avro-back-3                      |
+      | schema_id            | *                                |
+      | version              |                                  |
+      | schema_type          | AVRO                             |
+      | before_hash          |                                  |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/avro-back-3/versions   |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: BACKWARD - change field type string to int is incompatible
     Given the global compatibility level is "BACKWARD"
@@ -71,7 +125,34 @@ Feature: Avro Schema Compatibility
       {"type":"record","name":"Metric","fields":[{"name":"value","type":"long"}]}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "avro-back-5"
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | avro-back-5                      |
+      | schema_id            | *                                |
+      | version              |                                  |
+      | schema_type          | AVRO                             |
+      | before_hash          |                                  |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/avro-back-5/versions   |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: BACKWARD - reverse type promotion long to int is incompatible
     Given the global compatibility level is "BACKWARD"
@@ -96,7 +177,34 @@ Feature: Avro Schema Compatibility
       {"type":"record","name":"Event","fields":[{"name":"status","type":{"type":"enum","name":"Status","symbols":["ACTIVE","INACTIVE","PENDING"]}}]}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "avro-back-7"
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | avro-back-7                      |
+      | schema_id            | *                                |
+      | version              |                                  |
+      | schema_type          | AVRO                             |
+      | before_hash          |                                  |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/avro-back-7/versions   |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: BACKWARD - rename field is incompatible (old field missing, no default)
     Given the global compatibility level is "BACKWARD"
@@ -130,7 +238,34 @@ Feature: Avro Schema Compatibility
       {"type":"record","name":"User","fields":[{"name":"name","type":"string"},{"name":"email","type":["null","string"],"default":null},{"name":"age","type":["null","int"],"default":null}]}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "avro-bt-1"
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | avro-bt-1                        |
+      | schema_id            | *                                |
+      | version              |                                  |
+      | schema_type          | AVRO                             |
+      | before_hash          |                                  |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/avro-bt-1/versions     |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: BACKWARD_TRANSITIVE - v3 incompatible with v1 but compatible with v2 is rejected
     Given the global compatibility level is "BACKWARD_TRANSITIVE"
@@ -163,7 +298,34 @@ Feature: Avro Schema Compatibility
       {"type":"record","name":"Metric","fields":[{"name":"value","type":"float"}]}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "avro-bt-3"
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | avro-bt-3                        |
+      | schema_id            | *                                |
+      | version              |                                  |
+      | schema_type          | AVRO                             |
+      | before_hash          |                                  |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/avro-bt-3/versions     |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: BACKWARD_TRANSITIVE - each version adds field with default
     Given the global compatibility level is "BACKWARD_TRANSITIVE"
@@ -180,7 +342,34 @@ Feature: Avro Schema Compatibility
       {"type":"record","name":"User","fields":[{"name":"name","type":"string"},{"name":"email","type":"string","default":"none"},{"name":"phone","type":"string","default":"none"}]}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "avro-bt-4"
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | avro-bt-4                        |
+      | schema_id            | *                                |
+      | version              |                                  |
+      | schema_type          | AVRO                             |
+      | before_hash          |                                  |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/avro-bt-4/versions     |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: BACKWARD_TRANSITIVE - v3 changes type of field present in v1
     Given the global compatibility level is "BACKWARD_TRANSITIVE"
@@ -213,7 +402,34 @@ Feature: Avro Schema Compatibility
       {"type":"record","name":"Event","fields":[{"name":"status","type":{"type":"enum","name":"Status","symbols":["A","B","C"]}}]}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "avro-bt-6"
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | avro-bt-6                        |
+      | schema_id            | *                                |
+      | version              |                                  |
+      | schema_type          | AVRO                             |
+      | before_hash          |                                  |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/avro-bt-6/versions     |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   # ---------------------------------------------------------------------------
   # FORWARD mode (8 scenarios)
@@ -232,7 +448,34 @@ Feature: Avro Schema Compatibility
       {"type":"record","name":"User","fields":[{"name":"name","type":"string"},{"name":"email","type":"string"}]}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "avro-fwd-1"
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | avro-fwd-1                       |
+      | schema_id            | *                                |
+      | version              |                                  |
+      | schema_type          | AVRO                             |
+      | before_hash          |                                  |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/avro-fwd-1/versions    |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: FORWARD - remove required field that old reader uses is incompatible
     Given the global compatibility level is "FORWARD"
@@ -257,7 +500,34 @@ Feature: Avro Schema Compatibility
       {"type":"record","name":"User","fields":[{"name":"name","type":"string"},{"name":"age","type":"int"}]}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "avro-fwd-3"
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | avro-fwd-3                       |
+      | schema_id            | *                                |
+      | version              |                                  |
+      | schema_type          | AVRO                             |
+      | before_hash          |                                  |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/avro-fwd-3/versions    |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: FORWARD - change field type is incompatible
     Given the global compatibility level is "FORWARD"
@@ -282,7 +552,34 @@ Feature: Avro Schema Compatibility
       {"type":"record","name":"Data","fields":[{"name":"payload","type":"bytes"}]}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "avro-fwd-5"
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | avro-fwd-5                       |
+      | schema_id            | *                                |
+      | version              |                                  |
+      | schema_type          | AVRO                             |
+      | before_hash          |                                  |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/avro-fwd-5/versions    |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: FORWARD - type demotion long to int is incompatible
     Given the global compatibility level is "FORWARD"
@@ -319,7 +616,34 @@ Feature: Avro Schema Compatibility
       {"type":"record","name":"User","fields":[{"name":"name","type":"string"}]}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "avro-fwd-8"
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | avro-fwd-8                       |
+      | schema_id            | *                                |
+      | version              |                                  |
+      | schema_type          | AVRO                             |
+      | before_hash          |                                  |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/avro-fwd-8/versions    |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   # ---------------------------------------------------------------------------
   # FORWARD_TRANSITIVE mode (5 scenarios)
@@ -341,7 +665,34 @@ Feature: Avro Schema Compatibility
       {"type":"record","name":"User","fields":[{"name":"name","type":"string"},{"name":"email","type":"string"},{"name":"phone","type":"string"}]}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "avro-ft-1"
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | avro-ft-1                        |
+      | schema_id            | *                                |
+      | version              |                                  |
+      | schema_type          | AVRO                             |
+      | before_hash          |                                  |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/avro-ft-1/versions     |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: FORWARD_TRANSITIVE - v3 breaks v1 forward compat
     Given the global compatibility level is "FORWARD_TRANSITIVE"
@@ -391,7 +742,34 @@ Feature: Avro Schema Compatibility
       {"type":"record","name":"User","fields":[{"name":"name","type":"string"},{"name":"age","type":"int"},{"name":"score","type":"long"}]}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "avro-ft-4"
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | avro-ft-4                        |
+      | schema_id            | *                                |
+      | version              |                                  |
+      | schema_type          | AVRO                             |
+      | before_hash          |                                  |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/avro-ft-4/versions     |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: FORWARD_TRANSITIVE - field type change breaks chain
     Given the global compatibility level is "FORWARD_TRANSITIVE"
@@ -425,7 +803,34 @@ Feature: Avro Schema Compatibility
       {"type":"record","name":"User","fields":[{"name":"name","type":"string"},{"name":"email","type":["null","string"],"default":null}]}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "avro-full-1"
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | avro-full-1                      |
+      | schema_id            | *                                |
+      | version              |                                  |
+      | schema_type          | AVRO                             |
+      | before_hash          |                                  |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/avro-full-1/versions   |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: FULL - add field without default is incompatible (fails backward)
     Given the global compatibility level is "FULL"
@@ -462,7 +867,34 @@ Feature: Avro Schema Compatibility
       {"type":"record","name":"Data","fields":[{"name":"payload","type":"bytes"}]}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "avro-full-4"
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | avro-full-4                      |
+      | schema_id            | *                                |
+      | version              |                                  |
+      | schema_type          | AVRO                             |
+      | before_hash          |                                  |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/avro-full-4/versions   |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: FULL - int to long promotion is incompatible (one-way only)
     Given the global compatibility level is "FULL"
@@ -487,7 +919,34 @@ Feature: Avro Schema Compatibility
       {"type":"record","name":"User","fields":[{"name":"name","type":"string"},{"name":"phone","type":["null","string"],"default":null}]}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "avro-full-6"
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | avro-full-6                      |
+      | schema_id            | *                                |
+      | version              |                                  |
+      | schema_type          | AVRO                             |
+      | before_hash          |                                  |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/avro-full-6/versions   |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: FULL - identical schema is compatible
     Given the global compatibility level is "FULL"
@@ -500,7 +959,34 @@ Feature: Avro Schema Compatibility
       {"type":"record","name":"User","fields":[{"name":"name","type":"string"},{"name":"age","type":"int"}]}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "avro-full-7"
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | avro-full-7                      |
+      | schema_id            | *                                |
+      | version              |                                  |
+      | schema_type          | AVRO                             |
+      | before_hash          |                                  |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/avro-full-7/versions   |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   # ---------------------------------------------------------------------------
   # FULL_TRANSITIVE mode (4 scenarios)
@@ -522,7 +1008,34 @@ Feature: Avro Schema Compatibility
       {"type":"record","name":"User","fields":[{"name":"name","type":"string"},{"name":"email","type":["null","string"],"default":null},{"name":"phone","type":["null","string"],"default":null}]}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "avro-flt-1"
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | avro-flt-1                       |
+      | schema_id            | *                                |
+      | version              |                                  |
+      | schema_type          | AVRO                             |
+      | before_hash          |                                  |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/avro-flt-1/versions    |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: FULL_TRANSITIVE - one-way promotion in chain is incompatible
     Given the global compatibility level is "FULL_TRANSITIVE"
@@ -555,7 +1068,34 @@ Feature: Avro Schema Compatibility
       {"type":"record","name":"User","fields":[{"name":"id","type":"long"},{"name":"name","type":"string"},{"name":"tag","type":["null","string"],"default":null},{"name":"score","type":["null","int"],"default":null}]}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "avro-flt-3"
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | avro-flt-3                       |
+      | schema_id            | *                                |
+      | version              |                                  |
+      | schema_type          | AVRO                             |
+      | before_hash          |                                  |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/avro-flt-3/versions    |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: FULL_TRANSITIVE - remove field in chain is incompatible
     Given the global compatibility level is "FULL_TRANSITIVE"
@@ -589,7 +1129,34 @@ Feature: Avro Schema Compatibility
       {"type":"record","name":"Order","fields":[{"name":"id","type":"long"},{"name":"total","type":"double"}]}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "avro-none-1"
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | avro-none-1                      |
+      | schema_id            | *                                |
+      | version              |                                  |
+      | schema_type          | AVRO                             |
+      | before_hash          |                                  |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/avro-none-1/versions   |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: NONE - incompatible type change is accepted
     Given the global compatibility level is "NONE"
@@ -602,7 +1169,34 @@ Feature: Avro Schema Compatibility
       {"type":"record","name":"User","fields":[{"name":"name","type":"int"},{"name":"age","type":"string"}]}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "avro-none-2"
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | avro-none-2                      |
+      | schema_id            | *                                |
+      | version              |                                  |
+      | schema_type          | AVRO                             |
+      | before_hash          |                                  |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/avro-none-2/versions   |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   # ---------------------------------------------------------------------------
   # Edge Cases (8 scenarios)
@@ -620,7 +1214,34 @@ Feature: Avro Schema Compatibility
       {"type":"record","name":"Event","fields":[{"name":"payload","type":["null","string","int"]}]}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "avro-edge-1"
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | avro-edge-1                      |
+      | schema_id            | *                                |
+      | version              |                                  |
+      | schema_type          | AVRO                             |
+      | before_hash          |                                  |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/avro-edge-1/versions   |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: BACKWARD - union contraction (remove type from union) is incompatible
     Given the global compatibility level is "BACKWARD"
@@ -749,7 +1370,34 @@ Feature: Avro Schema Compatibility
       {"type":"record","name":"Order","fields":[{"name":"id","type":"long"}]}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "avro-err-3"
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | avro-err-3                       |
+      | schema_id            | *                                |
+      | version              |                                  |
+      | schema_type          | AVRO                             |
+      | before_hash          |                                  |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/avro-err-3/versions    |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: Error validation - delete per-subject config falls back to global
     Given the global compatibility level is "BACKWARD"
@@ -764,7 +1412,34 @@ Feature: Avro Schema Compatibility
       {"type":"record","name":"User","fields":[{"name":"name","type":"string"},{"name":"email","type":"string"}]}
       """
     Then the response status should be 409
-    And the audit log should contain event "config_delete" with subject "avro-err-4"
+    And the audit log should contain an event:
+      | event_type           | config_delete                    |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | config                           |
+      | target_id            | avro-err-4                       |
+      | schema_id            |                                  |
+      | version              |                                  |
+      | schema_type          |                                  |
+      | before_hash          | sha256:*                         |
+      | after_hash           |                                  |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | DELETE                           |
+      | path                 | /config/avro-err-4               |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: Error validation - READONLY mode can be set and retrieved
     When I set the global mode to "READONLY"
@@ -775,7 +1450,34 @@ Feature: Avro Schema Compatibility
     # Reset mode so cleanup can proceed
     When I set the global mode to "READWRITE"
     Then the response status should be 200
-    And the audit log should contain event "mode_update"
+    And the audit log should contain an event:
+      | event_type           | mode_update                      |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | mode                             |
+      | target_id            |                                  |
+      | schema_id            |                                  |
+      | version              |                                  |
+      | schema_type          |                                  |
+      | before_hash          |                                  |
+      | after_hash           |                                  |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | PUT                              |
+      | path                 | /mode                            |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: Error validation - compatibility check endpoint returns is_compatible true for compatible schema
     Given the global compatibility level is "BACKWARD"
@@ -838,7 +1540,34 @@ Feature: Avro Schema Compatibility
       {"type":"record","name":"Evt","fields":[{"name":"val","type":["null","string","int"]}]}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "avro-gap-4"
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | avro-gap-4                       |
+      | schema_id            | *                                |
+      | version              |                                  |
+      | schema_type          | AVRO                             |
+      | before_hash          |                                  |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/avro-gap-4/versions    |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: BACKWARD - union narrowing (remove type from union) is incompatible
     Given the global compatibility level is "BACKWARD"
@@ -863,7 +1592,34 @@ Feature: Avro Schema Compatibility
       {"type":"record","name":"Evt","fields":[{"name":"val","type":["null","string"]}]}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "avro-gap-6"
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | avro-gap-6                       |
+      | schema_id            | *                                |
+      | version              |                                  |
+      | schema_type          | AVRO                             |
+      | before_hash          |                                  |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/avro-gap-6/versions    |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: BACKWARD - map value type change is incompatible
     Given the global compatibility level is "BACKWARD"
@@ -912,7 +1668,34 @@ Feature: Avro Schema Compatibility
       {"type":"record","name":"Data","fields":[{"name":"payload","type":"bytes"}]}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "avro-gap-10"
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | avro-gap-10                      |
+      | schema_id            | *                                |
+      | version              |                                  |
+      | schema_type          | AVRO                             |
+      | before_hash          |                                  |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/avro-gap-10/versions   |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |
 
   Scenario: BACKWARD - bytes to string promotion is compatible
     Given the global compatibility level is "BACKWARD"
@@ -925,4 +1708,31 @@ Feature: Avro Schema Compatibility
       {"type":"record","name":"Data","fields":[{"name":"payload","type":"string"}]}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "avro-gap-11"
+    And the audit log should contain an event:
+      | event_type           | schema_register                  |
+      | outcome              | success                          |
+      | actor_id             |                                  |
+      | actor_type           | anonymous                        |
+      | auth_method          |                                  |
+      | role                 |                                  |
+      | target_type          | subject                          |
+      | target_id            | avro-gap-11                      |
+      | schema_id            | *                                |
+      | version              |                                  |
+      | schema_type          | AVRO                             |
+      | before_hash          |                                  |
+      | after_hash           | sha256:*                         |
+      | context              | .                                |
+      | transport_security   | tls                              |
+      | source_ip            | *                                |
+      | user_agent           | *                                |
+      | method               | POST                             |
+      | path                 | /subjects/avro-gap-11/versions   |
+      | status_code          | 200                              |
+      | reason               |                                  |
+      | error                |                                  |
+      | request_body         |                                  |
+      | metadata             |                                  |
+      | timestamp            | *                                |
+      | duration_ms          | *                                |
+      | request_id           | *                                |

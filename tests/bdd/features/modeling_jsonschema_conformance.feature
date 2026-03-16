@@ -13,7 +13,34 @@ Feature: JSON Schema Conformance-Inspired Parsing
       {}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "json-conform-empty"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-conform-empty                       |
+      | schema_id            | *                                        |
+      | version              |                                          |
+      | schema_type          | JSON                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-conform-empty/versions    |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   # ==========================================================================
   # 2. ALL 7 PRIMITIVE TYPES
@@ -55,7 +82,34 @@ Feature: JSON Schema Conformance-Inspired Parsing
       {"type":"array"}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "json-conform-type-array"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | json-conform-type-array                      |
+      | schema_id            | *                                            |
+      | version              |                                              |
+      | schema_type          | JSON                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/json-conform-type-array/versions   |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   # ==========================================================================
   # 3. MULTI-TYPE ARRAY
@@ -74,7 +128,34 @@ Feature: JSON Schema Conformance-Inspired Parsing
       """
     Then the response status should be 200
     And the response field "id" should not equal stored "single_type_id"
-    And the audit log should contain event "schema_register" with subject "json-conform-multitype-b"
+    And the audit log should contain an event:
+      | event_type           | schema_register                                |
+      | outcome              | success                                        |
+      | actor_id             |                                                |
+      | actor_type           | anonymous                                      |
+      | auth_method          |                                                |
+      | role                 |                                                |
+      | target_type          | subject                                        |
+      | target_id            | json-conform-multitype-b                       |
+      | schema_id            | *                                              |
+      | version              |                                                |
+      | schema_type          | JSON                                           |
+      | before_hash          |                                                |
+      | after_hash           | sha256:*                                       |
+      | context              | .                                              |
+      | transport_security   | tls                                            |
+      | source_ip            | *                                              |
+      | user_agent           | *                                              |
+      | method               | POST                                           |
+      | path                 | /subjects/json-conform-multitype-b/versions    |
+      | status_code          | 200                                            |
+      | reason               |                                                |
+      | error                |                                                |
+      | request_body         |                                                |
+      | metadata             |                                                |
+      | timestamp            | *                                              |
+      | duration_ms          | *                                              |
+      | request_id           | *                                              |
 
   # ==========================================================================
   # 4. OBJECT WITH ALL PROPERTY KEYWORDS
@@ -86,7 +167,34 @@ Feature: JSON Schema Conformance-Inspired Parsing
       {"type":"object","properties":{"foo":{"type":"string"},"bar":{"type":"integer"}},"required":["foo"],"additionalProperties":false}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "json-conform-obj-props"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | json-conform-obj-props                       |
+      | schema_id            | *                                            |
+      | version              |                                              |
+      | schema_type          | JSON                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/json-conform-obj-props/versions    |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   # ==========================================================================
   # 5. PATTERN PROPERTIES + ADDITIONAL PROPERTIES
@@ -98,7 +206,34 @@ Feature: JSON Schema Conformance-Inspired Parsing
       {"type":"object","properties":{"name":{"type":"string"}},"patternProperties":{"^x-":{"type":"string"}},"additionalProperties":{"type":"integer"}}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "json-conform-pattern-props"
+    And the audit log should contain an event:
+      | event_type           | schema_register                                  |
+      | outcome              | success                                          |
+      | actor_id             |                                                  |
+      | actor_type           | anonymous                                        |
+      | auth_method          |                                                  |
+      | role                 |                                                  |
+      | target_type          | subject                                          |
+      | target_id            | json-conform-pattern-props                       |
+      | schema_id            | *                                                |
+      | version              |                                                  |
+      | schema_type          | JSON                                             |
+      | before_hash          |                                                  |
+      | after_hash           | sha256:*                                         |
+      | context              | .                                                |
+      | transport_security   | tls                                              |
+      | source_ip            | *                                                |
+      | user_agent           | *                                                |
+      | method               | POST                                             |
+      | path                 | /subjects/json-conform-pattern-props/versions    |
+      | status_code          | 200                                              |
+      | reason               |                                                  |
+      | error                |                                                  |
+      | request_body         |                                                  |
+      | metadata             |                                                  |
+      | timestamp            | *                                                |
+      | duration_ms          | *                                                |
+      | request_id           | *                                                |
 
   # ==========================================================================
   # 6. RECURSIVE $REF TO ROOT
@@ -110,7 +245,34 @@ Feature: JSON Schema Conformance-Inspired Parsing
       {"type":"object","properties":{"children":{"type":"array","items":{"$ref":"#"}}},"additionalProperties":false}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "json-conform-recursive-ref"
+    And the audit log should contain an event:
+      | event_type           | schema_register                                  |
+      | outcome              | success                                          |
+      | actor_id             |                                                  |
+      | actor_type           | anonymous                                        |
+      | auth_method          |                                                  |
+      | role                 |                                                  |
+      | target_type          | subject                                          |
+      | target_id            | json-conform-recursive-ref                       |
+      | schema_id            | *                                                |
+      | version              |                                                  |
+      | schema_type          | JSON                                             |
+      | before_hash          |                                                  |
+      | after_hash           | sha256:*                                         |
+      | context              | .                                                |
+      | transport_security   | tls                                              |
+      | source_ip            | *                                                |
+      | user_agent           | *                                                |
+      | method               | POST                                             |
+      | path                 | /subjects/json-conform-recursive-ref/versions    |
+      | status_code          | 200                                              |
+      | reason               |                                                  |
+      | error                |                                                  |
+      | request_body         |                                                  |
+      | metadata             |                                                  |
+      | timestamp            | *                                                |
+      | duration_ms          | *                                                |
+      | request_id           | *                                                |
 
   # ==========================================================================
   # 7. $REF THROUGH DEFINITIONS CHAIN
@@ -122,7 +284,34 @@ Feature: JSON Schema Conformance-Inspired Parsing
       {"definitions":{"a":{"type":"integer"},"b":{"$ref":"#/definitions/a"},"c":{"$ref":"#/definitions/b"}},"allOf":[{"$ref":"#/definitions/c"}]}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "json-conform-ref-chain"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | json-conform-ref-chain                       |
+      | schema_id            | *                                            |
+      | version              |                                              |
+      | schema_type          | JSON                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/json-conform-ref-chain/versions    |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   # ==========================================================================
   # 8. IF/THEN/ELSE
@@ -134,7 +323,34 @@ Feature: JSON Schema Conformance-Inspired Parsing
       {"type":"object","properties":{"country":{"type":"string"},"postal_code":{"type":"string"}},"if":{"properties":{"country":{"const":"US"}},"required":["country"]},"then":{"properties":{"postal_code":{"pattern":"^[0-9]{5}$"}}},"else":{"properties":{"postal_code":{"pattern":"^[A-Z][0-9][A-Z] [0-9][A-Z][0-9]$"}}}}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "json-conform-conditional"
+    And the audit log should contain an event:
+      | event_type           | schema_register                                |
+      | outcome              | success                                        |
+      | actor_id             |                                                |
+      | actor_type           | anonymous                                      |
+      | auth_method          |                                                |
+      | role                 |                                                |
+      | target_type          | subject                                        |
+      | target_id            | json-conform-conditional                       |
+      | schema_id            | *                                              |
+      | version              |                                                |
+      | schema_type          | JSON                                           |
+      | before_hash          |                                                |
+      | after_hash           | sha256:*                                       |
+      | context              | .                                              |
+      | transport_security   | tls                                            |
+      | source_ip            | *                                              |
+      | user_agent           | *                                              |
+      | method               | POST                                           |
+      | path                 | /subjects/json-conform-conditional/versions    |
+      | status_code          | 200                                            |
+      | reason               |                                                |
+      | error                |                                                |
+      | request_body         |                                                |
+      | metadata             |                                                |
+      | timestamp            | *                                              |
+      | duration_ms          | *                                              |
+      | request_id           | *                                              |
 
   # ==========================================================================
   # 9. NOT KEYWORD
@@ -146,7 +362,34 @@ Feature: JSON Schema Conformance-Inspired Parsing
       {"not":{"type":"null"}}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "json-conform-not"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-conform-not                         |
+      | schema_id            | *                                        |
+      | version              |                                          |
+      | schema_type          | JSON                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-conform-not/versions      |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   # ==========================================================================
   # 10. CONST KEYWORD
@@ -158,7 +401,34 @@ Feature: JSON Schema Conformance-Inspired Parsing
       {"type":"object","properties":{"status":{"const":"active"},"name":{"type":"string"}},"required":["status"]}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "json-conform-const"
+    And the audit log should contain an event:
+      | event_type           | schema_register                            |
+      | outcome              | success                                    |
+      | actor_id             |                                            |
+      | actor_type           | anonymous                                  |
+      | auth_method          |                                            |
+      | role                 |                                            |
+      | target_type          | subject                                    |
+      | target_id            | json-conform-const                         |
+      | schema_id            | *                                          |
+      | version              |                                            |
+      | schema_type          | JSON                                       |
+      | before_hash          |                                            |
+      | after_hash           | sha256:*                                   |
+      | context              | .                                          |
+      | transport_security   | tls                                        |
+      | source_ip            | *                                          |
+      | user_agent           | *                                          |
+      | method               | POST                                       |
+      | path                 | /subjects/json-conform-const/versions      |
+      | status_code          | 200                                        |
+      | reason               |                                            |
+      | error                |                                            |
+      | request_body         |                                            |
+      | metadata             |                                            |
+      | timestamp            | *                                          |
+      | duration_ms          | *                                          |
+      | request_id           | *                                          |
 
   # ==========================================================================
   # 11. CONTAINS KEYWORD
@@ -170,7 +440,34 @@ Feature: JSON Schema Conformance-Inspired Parsing
       {"type":"array","contains":{"type":"integer"}}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "json-conform-contains"
+    And the audit log should contain an event:
+      | event_type           | schema_register                               |
+      | outcome              | success                                       |
+      | actor_id             |                                               |
+      | actor_type           | anonymous                                     |
+      | auth_method          |                                               |
+      | role                 |                                               |
+      | target_type          | subject                                       |
+      | target_id            | json-conform-contains                         |
+      | schema_id            | *                                             |
+      | version              |                                               |
+      | schema_type          | JSON                                          |
+      | before_hash          |                                               |
+      | after_hash           | sha256:*                                      |
+      | context              | .                                             |
+      | transport_security   | tls                                           |
+      | source_ip            | *                                             |
+      | user_agent           | *                                             |
+      | method               | POST                                          |
+      | path                 | /subjects/json-conform-contains/versions      |
+      | status_code          | 200                                           |
+      | reason               |                                               |
+      | error                |                                               |
+      | request_body         |                                               |
+      | metadata             |                                               |
+      | timestamp            | *                                             |
+      | duration_ms          | *                                             |
+      | request_id           | *                                             |
 
   # ==========================================================================
   # 12. DEPENDENCIES
@@ -182,7 +479,34 @@ Feature: JSON Schema Conformance-Inspired Parsing
       {"type":"object","properties":{"name":{"type":"string"},"credit_card":{"type":"string"},"billing_address":{"type":"string"}},"dependencies":{"credit_card":["billing_address"]}}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "json-conform-dependencies"
+    And the audit log should contain an event:
+      | event_type           | schema_register                                  |
+      | outcome              | success                                          |
+      | actor_id             |                                                  |
+      | actor_type           | anonymous                                        |
+      | auth_method          |                                                  |
+      | role                 |                                                  |
+      | target_type          | subject                                          |
+      | target_id            | json-conform-dependencies                        |
+      | schema_id            | *                                                |
+      | version              |                                                  |
+      | schema_type          | JSON                                             |
+      | before_hash          |                                                  |
+      | after_hash           | sha256:*                                         |
+      | context              | .                                                |
+      | transport_security   | tls                                              |
+      | source_ip            | *                                                |
+      | user_agent           | *                                                |
+      | method               | POST                                             |
+      | path                 | /subjects/json-conform-dependencies/versions     |
+      | status_code          | 200                                              |
+      | reason               |                                                  |
+      | error                |                                                  |
+      | request_body         |                                                  |
+      | metadata             |                                                  |
+      | timestamp            | *                                                |
+      | duration_ms          | *                                                |
+      | request_id           | *                                                |
 
   # ==========================================================================
   # 13. COMBINED ALLOF + ONEOF
@@ -194,7 +518,34 @@ Feature: JSON Schema Conformance-Inspired Parsing
       {"allOf":[{"type":"object","properties":{"id":{"type":"integer"}},"required":["id"]}],"oneOf":[{"properties":{"type":{"const":"circle"},"radius":{"type":"number"}},"required":["type","radius"]},{"properties":{"type":{"const":"rect"},"w":{"type":"number"},"h":{"type":"number"}},"required":["type","w","h"]}]}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "json-conform-allof-oneof"
+    And the audit log should contain an event:
+      | event_type           | schema_register                                |
+      | outcome              | success                                        |
+      | actor_id             |                                                |
+      | actor_type           | anonymous                                      |
+      | auth_method          |                                                |
+      | role                 |                                                |
+      | target_type          | subject                                        |
+      | target_id            | json-conform-allof-oneof                       |
+      | schema_id            | *                                              |
+      | version              |                                                |
+      | schema_type          | JSON                                           |
+      | before_hash          |                                                |
+      | after_hash           | sha256:*                                       |
+      | context              | .                                              |
+      | transport_security   | tls                                            |
+      | source_ip            | *                                              |
+      | user_agent           | *                                              |
+      | method               | POST                                           |
+      | path                 | /subjects/json-conform-allof-oneof/versions    |
+      | status_code          | 200                                            |
+      | reason               |                                                |
+      | error                |                                                |
+      | request_body         |                                                |
+      | metadata             |                                                |
+      | timestamp            | *                                              |
+      | duration_ms          | *                                              |
+      | request_id           | *                                              |
 
   # ==========================================================================
   # 14. ENUM WITH HETEROGENEOUS VALUES
@@ -206,7 +557,34 @@ Feature: JSON Schema Conformance-Inspired Parsing
       {"enum":[1,"two",true,null,{"key":"val"},[1,2]]}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "json-conform-hetero-enum"
+    And the audit log should contain an event:
+      | event_type           | schema_register                                |
+      | outcome              | success                                        |
+      | actor_id             |                                                |
+      | actor_type           | anonymous                                      |
+      | auth_method          |                                                |
+      | role                 |                                                |
+      | target_type          | subject                                        |
+      | target_id            | json-conform-hetero-enum                       |
+      | schema_id            | *                                              |
+      | version              |                                                |
+      | schema_type          | JSON                                           |
+      | before_hash          |                                                |
+      | after_hash           | sha256:*                                       |
+      | context              | .                                              |
+      | transport_security   | tls                                            |
+      | source_ip            | *                                              |
+      | user_agent           | *                                              |
+      | method               | POST                                           |
+      | path                 | /subjects/json-conform-hetero-enum/versions    |
+      | status_code          | 200                                            |
+      | reason               |                                                |
+      | error                |                                                |
+      | request_body         |                                                |
+      | metadata             |                                                |
+      | timestamp            | *                                              |
+      | duration_ms          | *                                              |
+      | request_id           | *                                              |
 
   # ==========================================================================
   # 15. FORMAT ANNOTATIONS
@@ -243,7 +621,34 @@ Feature: JSON Schema Conformance-Inspired Parsing
       {"type":"string","format":"uuid"}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "json-conform-fmt-uuid"
+    And the audit log should contain an event:
+      | event_type           | schema_register                               |
+      | outcome              | success                                       |
+      | actor_id             |                                               |
+      | actor_type           | anonymous                                     |
+      | auth_method          |                                               |
+      | role                 |                                               |
+      | target_type          | subject                                       |
+      | target_id            | json-conform-fmt-uuid                         |
+      | schema_id            | *                                             |
+      | version              |                                               |
+      | schema_type          | JSON                                          |
+      | before_hash          |                                               |
+      | after_hash           | sha256:*                                      |
+      | context              | .                                             |
+      | transport_security   | tls                                           |
+      | source_ip            | *                                             |
+      | user_agent           | *                                             |
+      | method               | POST                                          |
+      | path                 | /subjects/json-conform-fmt-uuid/versions      |
+      | status_code          | 200                                           |
+      | reason               |                                               |
+      | error                |                                               |
+      | request_body         |                                               |
+      | metadata             |                                               |
+      | timestamp            | *                                             |
+      | duration_ms          | *                                             |
+      | request_id           | *                                             |
 
   # ==========================================================================
   # 16. PROPERTY NAMES
@@ -255,7 +660,34 @@ Feature: JSON Schema Conformance-Inspired Parsing
       {"type":"object","propertyNames":{"maxLength":5}}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "json-conform-propnames"
+    And the audit log should contain an event:
+      | event_type           | schema_register                                |
+      | outcome              | success                                        |
+      | actor_id             |                                                |
+      | actor_type           | anonymous                                      |
+      | auth_method          |                                                |
+      | role                 |                                                |
+      | target_type          | subject                                        |
+      | target_id            | json-conform-propnames                         |
+      | schema_id            | *                                              |
+      | version              |                                                |
+      | schema_type          | JSON                                           |
+      | before_hash          |                                                |
+      | after_hash           | sha256:*                                       |
+      | context              | .                                              |
+      | transport_security   | tls                                            |
+      | source_ip            | *                                              |
+      | user_agent           | *                                              |
+      | method               | POST                                           |
+      | path                 | /subjects/json-conform-propnames/versions      |
+      | status_code          | 200                                            |
+      | reason               |                                                |
+      | error                |                                                |
+      | request_body         |                                                |
+      | metadata             |                                                |
+      | timestamp            | *                                              |
+      | duration_ms          | *                                              |
+      | request_id           | *                                              |
 
   # ==========================================================================
   # 17. DEFINITIONS WITH $REF COMPOSITION
@@ -267,7 +699,34 @@ Feature: JSON Schema Conformance-Inspired Parsing
       {"type":"object","definitions":{"address":{"type":"object","properties":{"street":{"type":"string"},"city":{"type":"string"}},"required":["street","city"]}},"properties":{"home":{"$ref":"#/definitions/address"},"work":{"$ref":"#/definitions/address"}}}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "json-conform-defs-ref"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | json-conform-defs-ref                        |
+      | schema_id            | *                                            |
+      | version              |                                              |
+      | schema_type          | JSON                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/json-conform-defs-ref/versions     |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   # ==========================================================================
   # 18. CONTENT ROUND-TRIP
@@ -294,7 +753,34 @@ Feature: JSON Schema Conformance-Inspired Parsing
       true
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "json-conform-bool-true"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | json-conform-bool-true                       |
+      | schema_id            | *                                            |
+      | version              |                                              |
+      | schema_type          | JSON                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/json-conform-bool-true/versions    |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   # ==========================================================================
   # 20. STANDALONE BOOLEAN ROOT SCHEMA — FALSE REJECTS EVERYTHING
@@ -306,7 +792,34 @@ Feature: JSON Schema Conformance-Inspired Parsing
       false
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "json-conform-bool-false"
+    And the audit log should contain an event:
+      | event_type           | schema_register                               |
+      | outcome              | success                                       |
+      | actor_id             |                                               |
+      | actor_type           | anonymous                                     |
+      | auth_method          |                                               |
+      | role                 |                                               |
+      | target_type          | subject                                       |
+      | target_id            | json-conform-bool-false                       |
+      | schema_id            | *                                             |
+      | version              |                                               |
+      | schema_type          | JSON                                          |
+      | before_hash          |                                               |
+      | after_hash           | sha256:*                                      |
+      | context              | .                                             |
+      | transport_security   | tls                                           |
+      | source_ip            | *                                             |
+      | user_agent           | *                                             |
+      | method               | POST                                          |
+      | path                 | /subjects/json-conform-bool-false/versions    |
+      | status_code          | 200                                           |
+      | reason               |                                               |
+      | error                |                                               |
+      | request_body         |                                               |
+      | metadata             |                                               |
+      | timestamp            | *                                             |
+      | duration_ms          | *                                             |
+      | request_id           | *                                             |
 
   # ==========================================================================
   # 21. ADDITIONAL FORMAT ANNOTATIONS
@@ -348,4 +861,31 @@ Feature: JSON Schema Conformance-Inspired Parsing
       {"type":"string","format":"iri-reference"}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "json-conform-fmt-iri-ref"
+    And the audit log should contain an event:
+      | event_type           | schema_register                                |
+      | outcome              | success                                        |
+      | actor_id             |                                                |
+      | actor_type           | anonymous                                      |
+      | auth_method          |                                                |
+      | role                 |                                                |
+      | target_type          | subject                                        |
+      | target_id            | json-conform-fmt-iri-ref                       |
+      | schema_id            | *                                              |
+      | version              |                                                |
+      | schema_type          | JSON                                           |
+      | before_hash          |                                                |
+      | after_hash           | sha256:*                                       |
+      | context              | .                                              |
+      | transport_security   | tls                                            |
+      | source_ip            | *                                              |
+      | user_agent           | *                                              |
+      | method               | POST                                           |
+      | path                 | /subjects/json-conform-fmt-iri-ref/versions    |
+      | status_code          | 200                                            |
+      | reason               |                                                |
+      | error                |                                                |
+      | request_body         |                                                |
+      | metadata             |                                                |
+      | timestamp            | *                                              |
+      | duration_ms          | *                                              |
+      | request_id           | *                                              |

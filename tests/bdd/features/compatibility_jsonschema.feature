@@ -18,7 +18,34 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"name":{"type":"string"},"email":{"type":"string"}},"required":["name"]}
       """
     Then the response status should be 409
-    And the audit log should contain event "schema_register" with subject "json-back-1"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | failure                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-back-1                              |
+      | schema_id            |                                          |
+      | version              |                                          |
+      | schema_type          | JSON                                     |
+      | before_hash          |                                          |
+      | after_hash           |                                          |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-back-1/versions           |
+      | status_code          | 409                                      |
+      | reason               | already_exists                           |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: BACKWARD - add required property is incompatible
     Given the global compatibility level is "BACKWARD"
@@ -31,7 +58,34 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"name":{"type":"string"},"age":{"type":"integer"}},"required":["name","age"]}
       """
     Then the response status should be 409
-    And the audit log should contain event "schema_register" with subject "json-back-2"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | failure                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-back-2                              |
+      | schema_id            |                                          |
+      | version              |                                          |
+      | schema_type          | JSON                                     |
+      | before_hash          |                                          |
+      | after_hash           |                                          |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-back-2/versions           |
+      | status_code          | 409                                      |
+      | reason               | already_exists                           |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: BACKWARD - remove property from open content model is compatible
     Given the global compatibility level is "BACKWARD"
@@ -44,7 +98,34 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"name":{"type":"string"}},"required":["name"]}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "json-back-3"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-back-3                              |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | JSON                                     |
+      | before_hash          | sha256:*                                 |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-back-3/versions           |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: BACKWARD - make optional property required is incompatible
     Given the global compatibility level is "BACKWARD"
@@ -57,7 +138,34 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"name":{"type":"string"},"age":{"type":"integer"}},"required":["name","age"]}
       """
     Then the response status should be 409
-    And the audit log should contain event "schema_register" with subject "json-back-4"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | failure                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-back-4                              |
+      | schema_id            |                                          |
+      | version              |                                          |
+      | schema_type          | JSON                                     |
+      | before_hash          |                                          |
+      | after_hash           |                                          |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-back-4/versions           |
+      | status_code          | 409                                      |
+      | reason               | already_exists                           |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: BACKWARD - widen type union is compatible
     Given the global compatibility level is "BACKWARD"
@@ -70,7 +178,34 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"value":{"type":["string","null"]}},"required":["value"]}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "json-back-5"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-back-5                              |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | JSON                                     |
+      | before_hash          | sha256:*                                 |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-back-5/versions           |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: BACKWARD - narrow type union is incompatible
     Given the global compatibility level is "BACKWARD"
@@ -83,7 +218,34 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"value":{"type":"string"}},"required":["value"]}
       """
     Then the response status should be 409
-    And the audit log should contain event "schema_register" with subject "json-back-6"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | failure                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-back-6                              |
+      | schema_id            |                                          |
+      | version              |                                          |
+      | schema_type          | JSON                                     |
+      | before_hash          |                                          |
+      | after_hash           |                                          |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-back-6/versions           |
+      | status_code          | 409                                      |
+      | reason               | already_exists                           |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: BACKWARD - loosen array minItems is compatible
     Given the global compatibility level is "BACKWARD"
@@ -96,7 +258,34 @@ Feature: JSON Schema Compatibility
       {"type":"array","items":{"type":"string"},"minItems":1}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "json-back-7"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-back-7                              |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | JSON                                     |
+      | before_hash          | sha256:*                                 |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-back-7/versions           |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: BACKWARD - tighten array minItems is incompatible
     Given the global compatibility level is "BACKWARD"
@@ -109,7 +298,34 @@ Feature: JSON Schema Compatibility
       {"type":"array","items":{"type":"string"},"minItems":5}
       """
     Then the response status should be 409
-    And the audit log should contain event "schema_register" with subject "json-back-8"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | failure                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-back-8                              |
+      | schema_id            |                                          |
+      | version              |                                          |
+      | schema_type          | JSON                                     |
+      | before_hash          |                                          |
+      | after_hash           |                                          |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-back-8/versions           |
+      | status_code          | 409                                      |
+      | reason               | already_exists                           |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   # ============================================================================
   # BACKWARD_TRANSITIVE mode (5 scenarios)
@@ -134,7 +350,34 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"name":{"type":"string"},"email":{"type":"string"},"phone":{"type":"string"}},"required":["name"],"additionalProperties":false}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "json-bt-1"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-bt-1                                |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | JSON                                     |
+      | before_hash          | sha256:*                                 |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-bt-1/versions             |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: BACKWARD_TRANSITIVE - v3 adds required property absent in v1
     # Register v1 and v2 under NONE to avoid open-model incompatibility on v2.
@@ -154,7 +397,34 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"name":{"type":"string"},"age":{"type":"integer"}},"required":["name","age"]}
       """
     Then the response status should be 409
-    And the audit log should contain event "schema_register" with subject "json-bt-2"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | failure                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-bt-2                                |
+      | schema_id            |                                          |
+      | version              |                                          |
+      | schema_type          | JSON                                     |
+      | before_hash          |                                          |
+      | after_hash           |                                          |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-bt-2/versions             |
+      | status_code          | 409                                      |
+      | reason               | already_exists                           |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: BACKWARD_TRANSITIVE - loosen minItems chain is compatible
     Given the global compatibility level is "BACKWARD_TRANSITIVE"
@@ -171,7 +441,34 @@ Feature: JSON Schema Compatibility
       {"type":"array","items":{"type":"string"},"minItems":1}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "json-bt-3"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-bt-3                                |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | JSON                                     |
+      | before_hash          | sha256:*                                 |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-bt-3/versions             |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: BACKWARD_TRANSITIVE - v3 tightens minItems vs v1
     Given the global compatibility level is "BACKWARD_TRANSITIVE"
@@ -188,7 +485,34 @@ Feature: JSON Schema Compatibility
       {"type":"array","items":{"type":"string"},"minItems":5}
       """
     Then the response status should be 409
-    And the audit log should contain event "schema_register" with subject "json-bt-4"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | failure                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-bt-4                                |
+      | schema_id            |                                          |
+      | version              |                                          |
+      | schema_type          | JSON                                     |
+      | before_hash          |                                          |
+      | after_hash           |                                          |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-bt-4/versions             |
+      | status_code          | 409                                      |
+      | reason               | already_exists                           |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: BACKWARD_TRANSITIVE - optional property additions chain is compatible (closed model)
     # With closed content model, adding optional properties is backward-compatible.
@@ -206,7 +530,34 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"id":{"type":"string"},"name":{"type":"string"},"email":{"type":"string"}},"required":["id"],"additionalProperties":false}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "json-bt-5"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-bt-5                                |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | JSON                                     |
+      | before_hash          | sha256:*                                 |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-bt-5/versions             |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   # ============================================================================
   # FORWARD mode (8 scenarios)
@@ -224,7 +575,34 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"name":{"type":"string"}},"required":["name"]}
       """
     Then the response status should be 409
-    And the audit log should contain event "schema_register" with subject "json-fwd-1"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | failure                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-fwd-1                               |
+      | schema_id            |                                          |
+      | version              |                                          |
+      | schema_type          | JSON                                     |
+      | before_hash          |                                          |
+      | after_hash           |                                          |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-fwd-1/versions            |
+      | status_code          | 409                                      |
+      | reason               | already_exists                           |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: FORWARD - remove required property from new is incompatible
     Given the global compatibility level is "FORWARD"
@@ -237,7 +615,34 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"name":{"type":"string"}},"required":["name"]}
       """
     Then the response status should be 409
-    And the audit log should contain event "schema_register" with subject "json-fwd-2"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | failure                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-fwd-2                               |
+      | schema_id            |                                          |
+      | version              |                                          |
+      | schema_type          | JSON                                     |
+      | before_hash          |                                          |
+      | after_hash           |                                          |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-fwd-2/versions            |
+      | status_code          | 409                                      |
+      | reason               | already_exists                           |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: FORWARD - make required property optional in new is incompatible
     Given the global compatibility level is "FORWARD"
@@ -250,7 +655,34 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"name":{"type":"string"},"email":{"type":"string"}},"required":["name"]}
       """
     Then the response status should be 409
-    And the audit log should contain event "schema_register" with subject "json-fwd-3"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | failure                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-fwd-3                               |
+      | schema_id            |                                          |
+      | version              |                                          |
+      | schema_type          | JSON                                     |
+      | before_hash          |                                          |
+      | after_hash           |                                          |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-fwd-3/versions            |
+      | status_code          | 409                                      |
+      | reason               | already_exists                           |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: FORWARD - tighten array minItems in new is compatible
     Given the global compatibility level is "FORWARD"
@@ -263,7 +695,34 @@ Feature: JSON Schema Compatibility
       {"type":"array","items":{"type":"string"},"minItems":5}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "json-fwd-4"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-fwd-4                               |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | JSON                                     |
+      | before_hash          | sha256:*                                 |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-fwd-4/versions            |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: FORWARD - loosen array minItems in new is incompatible
     Given the global compatibility level is "FORWARD"
@@ -276,7 +735,34 @@ Feature: JSON Schema Compatibility
       {"type":"array","items":{"type":"string"},"minItems":1}
       """
     Then the response status should be 409
-    And the audit log should contain event "schema_register" with subject "json-fwd-5"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | failure                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-fwd-5                               |
+      | schema_id            |                                          |
+      | version              |                                          |
+      | schema_type          | JSON                                     |
+      | before_hash          |                                          |
+      | after_hash           |                                          |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-fwd-5/versions            |
+      | status_code          | 409                                      |
+      | reason               | already_exists                           |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: FORWARD - add enum value in new is incompatible
     Given the global compatibility level is "FORWARD"
@@ -289,7 +775,34 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"status":{"type":"string","enum":["active","inactive","pending"]}},"required":["status"]}
       """
     Then the response status should be 409
-    And the audit log should contain event "schema_register" with subject "json-fwd-6"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | failure                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-fwd-6                               |
+      | schema_id            |                                          |
+      | version              |                                          |
+      | schema_type          | JSON                                     |
+      | before_hash          |                                          |
+      | after_hash           |                                          |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-fwd-6/versions            |
+      | status_code          | 409                                      |
+      | reason               | already_exists                           |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: FORWARD - remove enum value in new is compatible
     Given the global compatibility level is "FORWARD"
@@ -302,7 +815,34 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"status":{"type":"string","enum":["active","inactive"]}},"required":["status"]}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "json-fwd-7"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-fwd-7                               |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | JSON                                     |
+      | before_hash          | sha256:*                                 |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-fwd-7/versions            |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: FORWARD - identical schema is compatible
     Given the global compatibility level is "FORWARD"
@@ -315,7 +855,34 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"name":{"type":"string"},"age":{"type":"integer"}},"required":["name"]}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "json-fwd-8"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-fwd-8                               |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | JSON                                     |
+      | before_hash          | sha256:*                                 |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-fwd-8/versions            |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   # ============================================================================
   # FORWARD_TRANSITIVE mode (4 scenarios)
@@ -339,7 +906,34 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"name":{"type":"string"}},"required":["name"],"additionalProperties":false}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "json-ft-1"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-ft-1                                |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | JSON                                     |
+      | before_hash          | sha256:*                                 |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-ft-1/versions             |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: FORWARD_TRANSITIVE - removing required property in chain fails (closed model)
     # Removing a required property makes old reader unable to find expected data.
@@ -357,7 +951,34 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"name":{"type":"string"}},"required":["name"],"additionalProperties":false}
       """
     Then the response status should be 409
-    And the audit log should contain event "schema_register" with subject "json-ft-2"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | failure                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-ft-2                                |
+      | schema_id            |                                          |
+      | version              |                                          |
+      | schema_type          | JSON                                     |
+      | before_hash          |                                          |
+      | after_hash           |                                          |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-ft-2/versions             |
+      | status_code          | 409                                      |
+      | reason               | already_exists                           |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: FORWARD_TRANSITIVE - making required optional in chain fails
     Given the global compatibility level is "FORWARD_TRANSITIVE"
@@ -374,7 +995,34 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"name":{"type":"string"},"email":{"type":"string"}},"required":["name"]}
       """
     Then the response status should be 409
-    And the audit log should contain event "schema_register" with subject "json-ft-3"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | failure                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-ft-3                                |
+      | schema_id            |                                          |
+      | version              |                                          |
+      | schema_type          | JSON                                     |
+      | before_hash          |                                          |
+      | after_hash           |                                          |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-ft-3/versions             |
+      | status_code          | 409                                      |
+      | reason               | already_exists                           |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: FORWARD_TRANSITIVE - tighten constraints chain is compatible
     Given the global compatibility level is "FORWARD_TRANSITIVE"
@@ -391,7 +1039,34 @@ Feature: JSON Schema Compatibility
       {"type":"array","items":{"type":"string"},"minItems":5}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "json-ft-4"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-ft-4                                |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | JSON                                     |
+      | before_hash          | sha256:*                                 |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-ft-4/versions             |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   # ============================================================================
   # FULL mode (7 scenarios)
@@ -409,7 +1084,34 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"name":{"type":"string"},"email":{"type":"string"}},"required":["name"]}
       """
     Then the response status should be 409
-    And the audit log should contain event "schema_register" with subject "json-full-1"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | failure                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-full-1                              |
+      | schema_id            |                                          |
+      | version              |                                          |
+      | schema_type          | JSON                                     |
+      | before_hash          |                                          |
+      | after_hash           |                                          |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-full-1/versions           |
+      | status_code          | 409                                      |
+      | reason               | already_exists                           |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: FULL - add required property is incompatible
     Given the global compatibility level is "FULL"
@@ -422,7 +1124,34 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"name":{"type":"string"},"email":{"type":"string"}},"required":["name","email"]}
       """
     Then the response status should be 409
-    And the audit log should contain event "schema_register" with subject "json-full-2"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | failure                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-full-2                              |
+      | schema_id            |                                          |
+      | version              |                                          |
+      | schema_type          | JSON                                     |
+      | before_hash          |                                          |
+      | after_hash           |                                          |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-full-2/versions           |
+      | status_code          | 409                                      |
+      | reason               | already_exists                           |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: FULL - remove property is incompatible
     Given the global compatibility level is "FULL"
@@ -435,7 +1164,34 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"name":{"type":"string"}},"required":["name"]}
       """
     Then the response status should be 409
-    And the audit log should contain event "schema_register" with subject "json-full-3"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | failure                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-full-3                              |
+      | schema_id            |                                          |
+      | version              |                                          |
+      | schema_type          | JSON                                     |
+      | before_hash          |                                          |
+      | after_hash           |                                          |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-full-3/versions           |
+      | status_code          | 409                                      |
+      | reason               | already_exists                           |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: FULL - make required to optional is incompatible (fails forward)
     Given the global compatibility level is "FULL"
@@ -448,7 +1204,34 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"name":{"type":"string"},"age":{"type":"integer"}},"required":["name"]}
       """
     Then the response status should be 409
-    And the audit log should contain event "schema_register" with subject "json-full-3b"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | failure                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-full-3b                             |
+      | schema_id            |                                          |
+      | version              |                                          |
+      | schema_type          | JSON                                     |
+      | before_hash          |                                          |
+      | after_hash           |                                          |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-full-3b/versions          |
+      | status_code          | 409                                      |
+      | reason               | already_exists                           |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: FULL - type change in both directions is incompatible
     Given the global compatibility level is "FULL"
@@ -461,7 +1244,34 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"value":{"type":"integer"}},"required":["value"]}
       """
     Then the response status should be 409
-    And the audit log should contain event "schema_register" with subject "json-full-4"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | failure                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-full-4                              |
+      | schema_id            |                                          |
+      | version              |                                          |
+      | schema_type          | JSON                                     |
+      | before_hash          |                                          |
+      | after_hash           |                                          |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-full-4/versions           |
+      | status_code          | 409                                      |
+      | reason               | already_exists                           |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: FULL - additionalProperties true to false is incompatible
     Given the global compatibility level is "FULL"
@@ -474,7 +1284,34 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"name":{"type":"string"}},"additionalProperties":false}
       """
     Then the response status should be 409
-    And the audit log should contain event "schema_register" with subject "json-full-5"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | failure                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-full-5                              |
+      | schema_id            |                                          |
+      | version              |                                          |
+      | schema_type          | JSON                                     |
+      | before_hash          |                                          |
+      | after_hash           |                                          |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-full-5/versions           |
+      | status_code          | 409                                      |
+      | reason               | already_exists                           |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: FULL - identical schema is compatible
     Given the global compatibility level is "FULL"
@@ -487,7 +1324,34 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"name":{"type":"string"},"age":{"type":"integer"}},"required":["name"]}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "json-full-6"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-full-6                              |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | JSON                                     |
+      | before_hash          | sha256:*                                 |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-full-6/versions           |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   # ============================================================================
   # FULL_TRANSITIVE mode (3 scenarios)
@@ -509,7 +1373,34 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"id":{"type":"string"},"name":{"type":"string"}},"required":["id"]}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "json-flt-1"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-flt-1                               |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | JSON                                     |
+      | before_hash          | sha256:*                                 |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-flt-1/versions            |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: FULL_TRANSITIVE - removing property fails across versions
     Given the global compatibility level is "FULL_TRANSITIVE"
@@ -526,7 +1417,34 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"name":{"type":"string"}},"required":["name"]}
       """
     Then the response status should be 409
-    And the audit log should contain event "schema_register" with subject "json-flt-2"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | failure                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-flt-2                               |
+      | schema_id            |                                          |
+      | version              |                                          |
+      | schema_type          | JSON                                     |
+      | before_hash          |                                          |
+      | after_hash           |                                          |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-flt-2/versions            |
+      | status_code          | 409                                      |
+      | reason               | already_exists                           |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: FULL_TRANSITIVE - identical schemas across chain is compatible
     Given the global compatibility level is "FULL_TRANSITIVE"
@@ -543,7 +1461,34 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"id":{"type":"string"},"value":{"type":"integer"}},"required":["id"]}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "json-flt-3"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-flt-3                               |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | JSON                                     |
+      | before_hash          | sha256:*                                 |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-flt-3/versions            |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   # ============================================================================
   # NONE mode (2 scenarios)
@@ -561,7 +1506,34 @@ Feature: JSON Schema Compatibility
       {"type":"array","items":{"type":"number"},"minItems":1}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "json-none-1"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-none-1                              |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | JSON                                     |
+      | before_hash          | sha256:*                                 |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-none-1/versions           |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: NONE - root type change is allowed
     Given the global compatibility level is "NONE"
@@ -574,7 +1546,34 @@ Feature: JSON Schema Compatibility
       {"type":"integer","minimum":0,"maximum":100}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "json-none-2"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-none-2                              |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | JSON                                     |
+      | before_hash          | sha256:*                                 |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-none-2/versions           |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   # ============================================================================
   # Edge Cases (12 scenarios)
@@ -591,7 +1590,34 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"name":{"type":"string"}},"additionalProperties":false}
       """
     Then the response status should be 409
-    And the audit log should contain event "schema_register" with subject "json-edge-1"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | failure                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-edge-1                              |
+      | schema_id            |                                          |
+      | version              |                                          |
+      | schema_type          | JSON                                     |
+      | before_hash          |                                          |
+      | after_hash           |                                          |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-edge-1/versions           |
+      | status_code          | 409                                      |
+      | reason               | already_exists                           |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: Edge - additionalProperties false to true is compatible (backward)
     Given the global compatibility level is "BACKWARD"
@@ -604,7 +1630,34 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"name":{"type":"string"}},"additionalProperties":true}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "json-edge-2"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-edge-2                              |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | JSON                                     |
+      | before_hash          | sha256:*                                 |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-edge-2/versions           |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: Edge - enum value addition is compatible (backward)
     Given the global compatibility level is "BACKWARD"
@@ -617,7 +1670,34 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"color":{"type":"string","enum":["red","green","blue"]}},"required":["color"]}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "json-edge-3"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-edge-3                              |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | JSON                                     |
+      | before_hash          | sha256:*                                 |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-edge-3/versions           |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: Edge - enum value removal is incompatible (backward)
     Given the global compatibility level is "BACKWARD"
@@ -630,7 +1710,34 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"color":{"type":"string","enum":["red","green"]}},"required":["color"]}
       """
     Then the response status should be 409
-    And the audit log should contain event "schema_register" with subject "json-edge-4"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | failure                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-edge-4                              |
+      | schema_id            |                                          |
+      | version              |                                          |
+      | schema_type          | JSON                                     |
+      | before_hash          |                                          |
+      | after_hash           |                                          |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-edge-4/versions           |
+      | status_code          | 409                                      |
+      | reason               | already_exists                           |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: Edge - nested object property removal from open model is compatible
     Given the global compatibility level is "BACKWARD"
@@ -643,7 +1750,34 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"user":{"type":"object","properties":{"name":{"type":"string"}}}},"required":["user"]}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "json-edge-5"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-edge-5                              |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | JSON                                     |
+      | before_hash          | sha256:*                                 |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-edge-5/versions           |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: Edge - array items type change is incompatible
     Given the global compatibility level is "BACKWARD"
@@ -656,7 +1790,34 @@ Feature: JSON Schema Compatibility
       {"type":"array","items":{"type":"integer"}}
       """
     Then the response status should be 409
-    And the audit log should contain event "schema_register" with subject "json-edge-6"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | failure                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-edge-6                              |
+      | schema_id            |                                          |
+      | version              |                                          |
+      | schema_type          | JSON                                     |
+      | before_hash          |                                          |
+      | after_hash           |                                          |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-edge-6/versions           |
+      | status_code          | 409                                      |
+      | reason               | already_exists                           |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: Edge - minItems increase is incompatible (backward)
     Given the global compatibility level is "BACKWARD"
@@ -669,7 +1830,34 @@ Feature: JSON Schema Compatibility
       {"type":"array","items":{"type":"string"},"minItems":10}
       """
     Then the response status should be 409
-    And the audit log should contain event "schema_register" with subject "json-edge-7"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | failure                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-edge-7                              |
+      | schema_id            |                                          |
+      | version              |                                          |
+      | schema_type          | JSON                                     |
+      | before_hash          |                                          |
+      | after_hash           |                                          |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-edge-7/versions           |
+      | status_code          | 409                                      |
+      | reason               | already_exists                           |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: Edge - maxItems decrease is incompatible (backward)
     Given the global compatibility level is "BACKWARD"
@@ -682,7 +1870,34 @@ Feature: JSON Schema Compatibility
       {"type":"array","items":{"type":"string"},"maxItems":5}
       """
     Then the response status should be 409
-    And the audit log should contain event "schema_register" with subject "json-edge-8"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | failure                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-edge-8                              |
+      | schema_id            |                                          |
+      | version              |                                          |
+      | schema_type          | JSON                                     |
+      | before_hash          |                                          |
+      | after_hash           |                                          |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-edge-8/versions           |
+      | status_code          | 409                                      |
+      | reason               | already_exists                           |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: Edge - type array expansion is compatible (backward)
     Given the global compatibility level is "BACKWARD"
@@ -695,7 +1910,34 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"value":{"type":["string","null"]}},"required":["value"]}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "json-edge-9"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-edge-9                              |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | JSON                                     |
+      | before_hash          | sha256:*                                 |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-edge-9/versions           |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: Edge - maxItems increase is compatible (backward)
     Given the global compatibility level is "BACKWARD"
@@ -708,7 +1950,34 @@ Feature: JSON Schema Compatibility
       {"type":"array","items":{"type":"string"},"maxItems":10}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "json-edge-10"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-edge-10                             |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | JSON                                     |
+      | before_hash          | sha256:*                                 |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-edge-10/versions          |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: Edge - root type change object to array is incompatible (backward)
     Given the global compatibility level is "BACKWARD"
@@ -721,7 +1990,34 @@ Feature: JSON Schema Compatibility
       {"type":"array","items":{"type":"string"}}
       """
     Then the response status should be 409
-    And the audit log should contain event "schema_register" with subject "json-edge-11"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | failure                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-edge-11                             |
+      | schema_id            |                                          |
+      | version              |                                          |
+      | schema_type          | JSON                                     |
+      | before_hash          |                                          |
+      | after_hash           |                                          |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-edge-11/versions          |
+      | status_code          | 409                                      |
+      | reason               | already_exists                           |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: Edge - make required property optional is compatible (backward)
     Given the global compatibility level is "BACKWARD"
@@ -734,7 +2030,34 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"name":{"type":"string"},"age":{"type":"integer"}},"required":["name"]}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "json-edge-12"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-edge-12                             |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | JSON                                     |
+      | before_hash          | sha256:*                                 |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-edge-12/versions          |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   # ============================================================================
   # Error Validation (5 scenarios)
@@ -752,7 +2075,34 @@ Feature: JSON Schema Compatibility
       """
     Then the response status should be 409
     And the response should have error code 409
-    And the audit log should contain event "schema_register" with subject "json-err-1"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | failure                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-err-1                               |
+      | schema_id            |                                          |
+      | version              |                                          |
+      | schema_type          | JSON                                     |
+      | before_hash          |                                          |
+      | after_hash           |                                          |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-err-1/versions            |
+      | status_code          | 409                                      |
+      | reason               | already_exists                           |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: Error - check endpoint returns is_compatible false for incompatible schema
     Given the global compatibility level is "BACKWARD"
@@ -778,7 +2128,34 @@ Feature: JSON Schema Compatibility
       {"type":"array","items":{"type":"integer"}}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "json-err-3"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-err-3                               |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | JSON                                     |
+      | before_hash          | sha256:*                                 |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-err-3/versions            |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: Error - check endpoint returns is_compatible false for open model property addition
     Given the global compatibility level is "BACKWARD"
@@ -811,7 +2188,34 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"x":{"type":"number"}}}
       """
     Then the response status should be 409
-    And the audit log should contain event "schema_register" with subject "json-err-5"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | failure                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-err-5                               |
+      | schema_id            |                                          |
+      | version              |                                          |
+      | schema_type          | JSON                                     |
+      | before_hash          |                                          |
+      | after_hash           |                                          |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-err-5/versions            |
+      | status_code          | 409                                      |
+      | reason               | already_exists                           |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   # --- Gap-filling: JSON Schema-specific compatibility rules ---
 
@@ -826,7 +2230,34 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"name":{"type":"string"}},"additionalProperties":true}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "json-gap-1"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-gap-1                               |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | JSON                                     |
+      | before_hash          | sha256:*                                 |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-gap-1/versions            |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: BACKWARD - additionalProperties true to false is incompatible
     Given the global compatibility level is "BACKWARD"
@@ -839,7 +2270,34 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"name":{"type":"string"}},"additionalProperties":false}
       """
     Then the response status should be 409
-    And the audit log should contain event "schema_register" with subject "json-gap-2"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | failure                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-gap-2                               |
+      | schema_id            |                                          |
+      | version              |                                          |
+      | schema_type          | JSON                                     |
+      | before_hash          |                                          |
+      | after_hash           |                                          |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-gap-2/versions            |
+      | status_code          | 409                                      |
+      | reason               | already_exists                           |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: BACKWARD - nested property removal from open model is compatible
     Given the global compatibility level is "BACKWARD"
@@ -852,7 +2310,34 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"address":{"type":"object","properties":{"street":{"type":"string"}}}}}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "json-gap-3"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-gap-3                               |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | JSON                                     |
+      | before_hash          | sha256:*                                 |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-gap-3/versions            |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: BACKWARD - nested property addition to open model is incompatible
     Given the global compatibility level is "BACKWARD"
@@ -865,7 +2350,34 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"address":{"type":"object","properties":{"street":{"type":"string"},"zip":{"type":"string"}}}}}
       """
     Then the response status should be 409
-    And the audit log should contain event "schema_register" with subject "json-gap-4"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | failure                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-gap-4                               |
+      | schema_id            |                                          |
+      | version              |                                          |
+      | schema_type          | JSON                                     |
+      | before_hash          |                                          |
+      | after_hash           |                                          |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-gap-4/versions            |
+      | status_code          | 409                                      |
+      | reason               | already_exists                           |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: BACKWARD - type widening string to string-or-null is compatible
     Given the global compatibility level is "BACKWARD"
@@ -878,7 +2390,34 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"name":{"type":["string","null"]}}}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "json-gap-5"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-gap-5                               |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | JSON                                     |
+      | before_hash          | sha256:*                                 |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-gap-5/versions            |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: BACKWARD - type narrowing string-or-null to string is incompatible
     Given the global compatibility level is "BACKWARD"
@@ -891,7 +2430,34 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"name":{"type":"string"}}}
       """
     Then the response status should be 409
-    And the audit log should contain event "schema_register" with subject "json-gap-6"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | failure                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-gap-6                               |
+      | schema_id            |                                          |
+      | version              |                                          |
+      | schema_type          | JSON                                     |
+      | before_hash          |                                          |
+      | after_hash           |                                          |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-gap-6/versions            |
+      | status_code          | 409                                      |
+      | reason               | already_exists                           |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: BACKWARD - array items schema removal is compatible (relaxation)
     Given the global compatibility level is "BACKWARD"
@@ -904,7 +2470,34 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"tags":{"type":"array"}}}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "json-gap-7"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-gap-7                               |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | JSON                                     |
+      | before_hash          | sha256:*                                 |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-gap-7/versions            |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: BACKWARD - multiple simultaneous incompatible changes detected
     Given the global compatibility level is "BACKWARD"
@@ -917,7 +2510,34 @@ Feature: JSON Schema Compatibility
       {"type":"object","properties":{"name":{"type":"integer"},"email":{"type":"string"}},"required":["name","email"]}
       """
     Then the response status should be 409
-    And the audit log should contain event "schema_register" with subject "json-gap-8"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | failure                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-gap-8                               |
+      | schema_id            |                                          |
+      | version              |                                          |
+      | schema_type          | JSON                                     |
+      | before_hash          |                                          |
+      | after_hash           |                                          |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-gap-8/versions            |
+      | status_code          | 409                                      |
+      | reason               | already_exists                           |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   # ==========================================================================
   # JSON Schema compatibility with external $ref — the compatibility checker
@@ -941,7 +2561,34 @@ Feature: JSON Schema Compatibility
       }
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "json-ref-person"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-ref-person                          |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | JSON                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-ref-person/versions       |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
     When I check compatibility of "JSON" schema with reference "address.json" from subject "json-ref-address" version 1 against subject "json-ref-person":
       """
       {"type":"object","properties":{"name":{"type":"string"},"address":{"$ref":"address.json"},"email":{"type":"string"}},"required":["name"],"additionalProperties":false}
@@ -964,7 +2611,34 @@ Feature: JSON Schema Compatibility
       }
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "json-compat-person"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-compat-person                       |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | JSON                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-compat-person/versions    |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
     When I check compatibility of "JSON" schema with reference "addr.json" from subject "json-compat-addr" version 1 against subject "json-compat-person":
       """
       {"type":"object","properties":{"name":{"type":"string"},"addr":{"$ref":"addr.json"}},"required":["name"],"additionalProperties":false}
@@ -987,7 +2661,34 @@ Feature: JSON Schema Compatibility
       }
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "json-incompat-person"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-incompat-person                     |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | JSON                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-incompat-person/versions  |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
     When I check compatibility of "JSON" schema with reference "addr.json" from subject "json-incompat-addr" version 1 against subject "json-incompat-person":
       """
       {"type":"object","properties":{"name":{"type":"string"},"addr":{"$ref":"addr.json"}},"required":["name","addr"],"additionalProperties":false}
