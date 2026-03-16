@@ -26,7 +26,34 @@ Feature: Schema References
     When I get the stored schema by ID
     Then the response status should be 200
     And the response should contain "Order"
-    And the audit log should contain event "schema_register" with subject "order-value"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | order-value                              |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | AVRO                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/order-value/versions           |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: JSON Schema with internal $ref
     Given the global compatibility level is "NONE"
@@ -39,7 +66,34 @@ Feature: Schema References
     When I get the stored schema by ID
     Then the response status should be 200
     And the response should contain "Address"
-    And the audit log should contain event "schema_register" with subject "json-internal-ref"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-internal-ref                        |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | JSON                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-internal-ref/versions     |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: Get subjects by schema ID with referenced schemas
     Given the global compatibility level is "NONE"
@@ -54,7 +108,34 @@ Feature: Schema References
       """
     When I get the subjects for the stored schema ID
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "shared-type"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | shared-type                              |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | AVRO                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/shared-type/versions           |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: Register schema with non-existent reference
     Given the global compatibility level is "NONE"

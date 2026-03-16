@@ -77,7 +77,34 @@ Feature: Schema References — Exhaustive (Confluent v8.1.1 Compatibility)
     # Now deleting the reference should succeed
     When I delete version 1 of subject "ref-ex-del-base"
     Then the response status should be 200
-    And the audit log should contain event "subject_delete_soft" with subject "ref-ex-del-referrer"
+    And the audit log should contain an event:
+      | event_type           | subject_delete_soft                      |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | ref-ex-del-referrer                      |
+      | schema_id            |                                          |
+      | version              |                                          |
+      | schema_type          | AVRO                                     |
+      | before_hash          | sha256:*                                 |
+      | after_hash           |                                          |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | DELETE                                   |
+      | path                 | /subjects/ref-ex-del-referrer            |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   # ==========================================================================
   # MULTI-LEVEL REFERENCES WITH SCHEMA RETRIEVAL
@@ -114,7 +141,34 @@ Feature: Schema References — Exhaustive (Confluent v8.1.1 Compatibility)
     When I get schema by ID {{top_id}}
     Then the response status should be 200
     And the response should contain "MLTop"
-    And the audit log should contain event "schema_register" with subject "ref-ex-ml-top"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | ref-ex-ml-top                            |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | AVRO                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/ref-ex-ml-top/versions         |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: Referencedby shows multiple referrers
     Given the global compatibility level is "NONE"
@@ -148,7 +202,34 @@ Feature: Schema References — Exhaustive (Confluent v8.1.1 Compatibility)
     Then the response status should be 200
     And the response array should contain stored integer "use1_id"
     And the response array should contain stored integer "use2_id"
-    And the audit log should contain event "schema_register" with subject "ref-ex-use1"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | ref-ex-use1                              |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | AVRO                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/ref-ex-use1/versions           |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   # ==========================================================================
   # DANGLING REFERENCES — Delete and recreate
@@ -215,7 +296,34 @@ Feature: Schema References — Exhaustive (Confluent v8.1.1 Compatibility)
     When I get schema by ID {{json_ref_id}}
     Then the response status should be 200
     And the response should have field "references"
-    And the audit log should contain event "schema_register" with subject "ref-ex-json-person"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | ref-ex-json-person                       |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | JSON                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/ref-ex-json-person/versions    |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: Protobuf with cross-subject reference is retrievable
     Given the global compatibility level is "NONE"
@@ -243,7 +351,34 @@ Feature: Schema References — Exhaustive (Confluent v8.1.1 Compatibility)
     When I get schema by ID {{proto_ref_id}}
     Then the response status should be 200
     And the response should have field "references"
-    And the audit log should contain event "schema_register" with subject "ref-ex-proto-event"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | ref-ex-proto-event                       |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | PROTOBUF                                 |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/ref-ex-proto-event/versions    |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   # ==========================================================================
   # MISSING/EMPTY REFERENCES
@@ -256,7 +391,34 @@ Feature: Schema References — Exhaustive (Confluent v8.1.1 Compatibility)
       {"schema": "{\"type\":\"record\",\"name\":\"EmptyRefs\",\"fields\":[{\"name\":\"a\",\"type\":\"string\"}]}", "references": []}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "ref-ex-empty-refs"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | ref-ex-empty-refs                        |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | AVRO                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/ref-ex-empty-refs/versions     |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: Referencedby for non-referenced schema returns empty array
     Given the global compatibility level is "NONE"

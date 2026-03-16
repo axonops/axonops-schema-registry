@@ -348,7 +348,34 @@ Feature: JSON Schema Validation Compatibility — Exhaustive (Confluent v8.1.1 C
       {"type":"object","properties":{"a":{"type":"integer"},"b":{"type":"string","default":""},"c":{"type":"number","default":0}},"required":["a"]}
       """
     Then the response status should be 409
-    And the audit log should contain event "schema_register" with subject "jsv-trans-ok"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | failure                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | jsv-trans-ok                             |
+      | schema_id            |                                          |
+      | version              |                                          |
+      | schema_type          | JSON                                     |
+      | before_hash          |                                          |
+      | after_hash           |                                          |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/jsv-trans-ok/versions          |
+      | status_code          | 409                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: JSON Schema backward transitive — closed content model allows new properties
     Given the global compatibility level is "NONE"
@@ -366,7 +393,34 @@ Feature: JSON Schema Validation Compatibility — Exhaustive (Confluent v8.1.1 C
       {"type":"object","properties":{"a":{"type":"integer"},"b":{"type":"string"},"c":{"type":"number"}},"required":["a"],"additionalProperties":false}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "jsv-trans-fail"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | jsv-trans-fail                           |
+      | schema_id            | *                                        |
+      | version              |                                          |
+      | schema_type          | JSON                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/jsv-trans-fail/versions        |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   # ==========================================================================
   # UNION / ONEOF COMPATIBILITY

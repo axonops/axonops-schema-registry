@@ -22,7 +22,34 @@ Feature: Compatibility Groups
     When I GET "/config/cg-subject"
     Then the response status should be 200
     And the response field "compatibilityGroup" should be "major_version"
-    And the audit log should contain event "config_update" with subject "cg-subject"
+    And the audit log should contain an event:
+      | event_type           | config_update                            |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | config                                   |
+      | target_id            | cg-subject                               |
+      | schema_id            |                                          |
+      | version              |                                          |
+      | schema_type          |                                          |
+      | before_hash          | *                                        |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | PUT                                      |
+      | path                 | /config/cg-subject                       |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   # ==========================================================================
   # COMPATIBILITY GROUP FILTERING
@@ -54,7 +81,34 @@ Feature: Compatibility Groups
       }
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "cg-bypass"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | cg-bypass                                |
+      | schema_id            | *                                        |
+      | version              |                                          |
+      | schema_type          | AVRO                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/cg-bypass/versions             |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: Schemas in same compatibility group are checked for compatibility
     # Configure compatibility group

@@ -8,7 +8,34 @@ Feature: Schema Types
       {"type":"record","name":"Event","fields":[{"name":"id","type":"string"}]}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "avro-test"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | avro-test                                |
+      | schema_id            | *                                        |
+      | version              |                                          |
+      | schema_type          | AVRO                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/avro-test/versions             |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: Register Protobuf schema
     When I register a "PROTOBUF" schema under subject "proto-test":
@@ -19,7 +46,34 @@ Feature: Schema Types
       }
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "proto-test"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | proto-test                               |
+      | schema_id            | *                                        |
+      | version              |                                          |
+      | schema_type          | PROTOBUF                                 |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/proto-test/versions            |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: Register JSON Schema
     When I register a "JSON" schema under subject "json-test":
@@ -27,7 +81,34 @@ Feature: Schema Types
       {"type":"object","properties":{"id":{"type":"string"}},"required":["id"]}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "json-test"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | json-test                                |
+      | schema_id            | *                                        |
+      | version              |                                          |
+      | schema_type          | JSON                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/json-test/versions             |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: Get schema by ID shows schemaType for Protobuf
     When I register a "PROTOBUF" schema under subject "proto-type-test":

@@ -15,7 +15,34 @@ Feature: Content-Type Header Handling
       """
     Then the response status should be 200
     And the response header "Content-Type" should contain "application/vnd.schemaregistry.v1+json"
-    And the audit log should contain event "schema_register" with subject "ct-reg"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | ct-reg                                   |
+      | schema_id            | *                                        |
+      | version              |                                          |
+      | schema_type          | AVRO                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/ct-reg/versions                |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: Error response has correct Content-Type
     When I GET "/subjects/ct-no-such-subject/versions/1"

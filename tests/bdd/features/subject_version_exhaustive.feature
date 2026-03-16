@@ -38,7 +38,34 @@ Feature: Subject & Version Management — Exhaustive (Confluent v8.1.1 Compatibi
     When I GET "/subjects?deleted=true"
     Then the response status should be 200
     And the response array should contain "sv-softdel"
-    And the audit log should contain event "subject_delete_soft" with subject "sv-softdel"
+    And the audit log should contain an event:
+      | event_type           | subject_delete_soft                      |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | sv-softdel                               |
+      | schema_id            |                                          |
+      | version              |                                          |
+      | schema_type          | AVRO                                     |
+      | before_hash          | sha256:*                                 |
+      | after_hash           |                                          |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | DELETE                                   |
+      | path                 | /subjects/sv-softdel                     |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   # ==========================================================================
   # VERSION LISTING
@@ -91,7 +118,34 @@ Feature: Subject & Version Management — Exhaustive (Confluent v8.1.1 Compatibi
     When I get the latest version of subject "sv-del-older"
     Then the response status should be 200
     And the response field "version" should be 2
-    And the audit log should contain event "schema_delete_soft" with subject "sv-del-older"
+    And the audit log should contain an event:
+      | event_type           | schema_delete_soft                       |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | sv-del-older                             |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | AVRO                                     |
+      | before_hash          | sha256:*                                 |
+      | after_hash           |                                          |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | DELETE                                   |
+      | path                 | /subjects/sv-del-older/versions/1        |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: Get latest version for non-existent subject returns 404
     When I get the latest version of subject "sv-nonexist-latest"

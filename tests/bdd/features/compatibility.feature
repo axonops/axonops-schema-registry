@@ -13,7 +13,34 @@ Feature: Compatibility Checking
       {"type":"record","name":"User","fields":[{"name":"name","type":"string"},{"name":"email","type":["null","string"],"default":null}]}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "user-value"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | user-value                               |
+      | schema_id            | *                                        |
+      | version              |                                          |
+      | schema_type          | AVRO                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/user-value/versions            |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: Backward incompatible schema is rejected
     Given the global compatibility level is "BACKWARD"
@@ -38,7 +65,34 @@ Feature: Compatibility Checking
       {"type":"record","name":"Order","fields":[{"name":"id","type":"long"}]}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "user-value"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | user-value                               |
+      | schema_id            | *                                        |
+      | version              |                                          |
+      | schema_type          | AVRO                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/user-value/versions            |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: Check compatibility endpoint - compatible
     Given the global compatibility level is "BACKWARD"
@@ -76,4 +130,31 @@ Feature: Compatibility Checking
       {"type":"record","name":"B","fields":[{"name":"y","type":"long"}]}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "flexible-value"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | flexible-value                           |
+      | schema_id            | *                                        |
+      | version              |                                          |
+      | schema_type          | AVRO                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/flexible-value/versions        |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |

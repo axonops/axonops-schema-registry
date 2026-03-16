@@ -16,7 +16,34 @@ Feature: Edge Cases and Boundary Conditions
     When I get the latest version of subject "com.example.Topic-value"
     Then the response status should be 200
     And the response field "subject" should be "com.example.Topic-value"
-    And the audit log should contain event "schema_register" with subject "com.example.Topic-value"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | com.example.Topic-value                      |
+      | schema_id            | *                                            |
+      | version              | *                                            |
+      | schema_type          | AVRO                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/com.example.Topic-value/versions   |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   Scenario: Subject name with underscores works
     When I register a schema under subject "my_topic_value":
@@ -27,7 +54,34 @@ Feature: Edge Cases and Boundary Conditions
     When I get the latest version of subject "my_topic_value"
     Then the response status should be 200
     And the response field "subject" should be "my_topic_value"
-    And the audit log should contain event "schema_register" with subject "my_topic_value"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | my_topic_value                           |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | AVRO                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/my_topic_value/versions        |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: Subject name with dashes works
     When I register a schema under subject "my-topic-value":
@@ -38,7 +92,34 @@ Feature: Edge Cases and Boundary Conditions
     When I get the latest version of subject "my-topic-value"
     Then the response status should be 200
     And the response field "subject" should be "my-topic-value"
-    And the audit log should contain event "schema_register" with subject "my-topic-value"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | my-topic-value                           |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | AVRO                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/my-topic-value/versions        |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   # ==========================================================================
   # MALFORMED REQUEST BODIES
@@ -59,7 +140,34 @@ Feature: Edge Cases and Boundary Conditions
       """
     Then the response status should be 200
     And the response field "compatibility" should be "BACKWARD"
-    And the audit log should contain event "config_update"
+    And the audit log should contain an event:
+      | event_type           | config_update                  |
+      | outcome              | success                        |
+      | actor_id             |                                |
+      | actor_type           | anonymous                      |
+      | auth_method          |                                |
+      | role                 |                                |
+      | target_type          | config                         |
+      | target_id            | _global                        |
+      | schema_id            |                                |
+      | version              |                                |
+      | schema_type          |                                |
+      | before_hash          | *                              |
+      | after_hash           | sha256:*                       |
+      | context              | .                              |
+      | transport_security   | tls                            |
+      | source_ip            | *                              |
+      | user_agent           | *                              |
+      | method               | PUT                            |
+      | path                 | /config                        |
+      | status_code          | 200                            |
+      | reason               |                                |
+      | error                |                                |
+      | request_body         |                                |
+      | metadata             |                                |
+      | timestamp            | *                              |
+      | duration_ms          | *                              |
+      | request_id           | *                              |
 
   Scenario: PUT /config with invalid compatibility level returns error
     When I PUT "/config" with body:
@@ -76,7 +184,34 @@ Feature: Edge Cases and Boundary Conditions
       {}
       """
     Then the response status should be 200
-    And the audit log should contain event "mode_update"
+    And the audit log should contain an event:
+      | event_type           | mode_update                    |
+      | outcome              | success                        |
+      | actor_id             |                                |
+      | actor_type           | anonymous                      |
+      | auth_method          |                                |
+      | role                 |                                |
+      | target_type          | mode                           |
+      | target_id            | _global                        |
+      | schema_id            |                                |
+      | version              |                                |
+      | schema_type          |                                |
+      | before_hash          | *                              |
+      | after_hash           | sha256:*                       |
+      | context              | .                              |
+      | transport_security   | tls                            |
+      | source_ip            | *                              |
+      | user_agent           | *                              |
+      | method               | PUT                            |
+      | path                 | /mode                          |
+      | status_code          | 200                            |
+      | reason               |                                |
+      | error                |                                |
+      | request_body         |                                |
+      | metadata             |                                |
+      | timestamp            | *                              |
+      | duration_ms          | *                              |
+      | request_id           | *                              |
 
   Scenario: PUT /mode with invalid mode value returns error
     When I PUT "/mode" with body:
@@ -132,7 +267,34 @@ Feature: Edge Cases and Boundary Conditions
     When I list versions of subject "edge-idempotent"
     Then the response status should be 200
     And the response should be an array of length 1
-    And the audit log should contain event "schema_register" with subject "edge-idempotent"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | edge-idempotent                          |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | AVRO                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/edge-idempotent/versions       |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   # ==========================================================================
   # COMPATIBILITY CHECK AGAINST SPECIFIC VERSION NUMBERS

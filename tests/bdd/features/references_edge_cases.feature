@@ -129,7 +129,34 @@ Feature: Schema Reference Edge Cases
     When I get the latest version of subject "deep-level-5"
     Then the response status should be 200
     And the response should contain "Level5"
-    And the audit log should contain event "schema_register" with subject "deep-level-5"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | deep-level-5                             |
+      | schema_id            | *                                        |
+      | version              |                                          |
+      | schema_type          | AVRO                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/deep-level-5/versions          |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   # ---------------------------------------------------------------------------
   # Reference to non-existent subject
@@ -189,4 +216,31 @@ Feature: Schema Reference Edge Cases
     When I get the referenced by for subject "ref-base" version 1
     Then the response status should be 200
     And the response should be valid JSON
-    And the audit log should contain event "schema_register" with subject "ref-consumer-1"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | ref-consumer-1                           |
+      | schema_id            | *                                        |
+      | version              |                                          |
+      | schema_type          | AVRO                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/ref-consumer-1/versions        |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |

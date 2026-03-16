@@ -9,7 +9,34 @@ Feature: Schema Registration
       """
     Then the response status should be 200
     And the response should have field "id"
-    And the audit log should contain event "schema_register" with subject "user-value"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | user-value                               |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | AVRO                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/user-value/versions            |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: Register returns same ID for duplicate schema
     Given subject "user-value" has schema:
@@ -21,7 +48,34 @@ Feature: Schema Registration
       {"type":"record","name":"User","fields":[{"name":"name","type":"string"}]}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "user-value"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | user-value                               |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | AVRO                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/user-value/versions            |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: Register second version increments version
     Given subject "user-value" has schema:
@@ -35,7 +89,34 @@ Feature: Schema Registration
       """
     Then the response status should be 200
     And the response should have field "id"
-    And the audit log should contain event "schema_register" with subject "user-value"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | user-value                               |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | AVRO                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/user-value/versions            |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: Get schema by ID
     When I register a schema under subject "user-value":
@@ -82,7 +163,34 @@ Feature: Schema Registration
       """
     Then the response status should be 200
     And the response field "version" should be 1
-    And the audit log should contain event "schema_lookup" with subject "user-value"
+    And the audit log should contain an event:
+      | event_type           | schema_lookup                            |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | user-value                               |
+      | schema_id            |                                          |
+      | version              |                                          |
+      | schema_type          |                                          |
+      | before_hash          |                                          |
+      | after_hash           |                                          |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/user-value                     |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: Lookup non-existing schema returns 404
     Given subject "user-value" has schema:

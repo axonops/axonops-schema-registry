@@ -27,7 +27,34 @@ Feature: Reserved Fields Validation
       {"compatibility": "BACKWARD", "validateFields": null}
       """
     Then the response status should be 200
-    And the audit log should contain event "config_update"
+    And the audit log should contain an event:
+      | event_type           | config_update                  |
+      | outcome              | success                        |
+      | actor_id             |                                |
+      | actor_type           | anonymous                      |
+      | auth_method          |                                |
+      | role                 |                                |
+      | target_type          | config                         |
+      | target_id            | _global                        |
+      | schema_id            |                                |
+      | version              |                                |
+      | schema_type          |                                |
+      | before_hash          | *                              |
+      | after_hash           | sha256:*                       |
+      | context              | .                              |
+      | transport_security   | tls                            |
+      | source_ip            | *                              |
+      | user_agent           | *                              |
+      | method               | PUT                            |
+      | path                 | /config                        |
+      | status_code          | 200                            |
+      | reason               |                                |
+      | error                |                                |
+      | request_body         |                                |
+      | metadata             |                                |
+      | timestamp            | *                              |
+      | duration_ms          | *                              |
+      | request_id           | *                              |
 
   Scenario: Enable validateFields via subject config
     When I PUT "/config/reserved-cfg" with body:
@@ -41,7 +68,34 @@ Feature: Reserved Fields Validation
     # Cleanup
     When I DELETE "/config/reserved-cfg"
     Then the response status should be 200
-    And the audit log should contain event "config_update"
+    And the audit log should contain an event:
+      | event_type           | config_update                  |
+      | outcome              | success                        |
+      | actor_id             |                                |
+      | actor_type           | anonymous                      |
+      | auth_method          |                                |
+      | role                 |                                |
+      | target_type          | config                         |
+      | target_id            | reserved-cfg                   |
+      | schema_id            |                                |
+      | version              |                                |
+      | schema_type          |                                |
+      | before_hash          | *                              |
+      | after_hash           | sha256:*                       |
+      | context              | .                              |
+      | transport_security   | tls                            |
+      | source_ip            | *                              |
+      | user_agent           | *                              |
+      | method               | PUT                            |
+      | path                 | /config/reserved-cfg           |
+      | status_code          | 200                            |
+      | reason               |                                |
+      | error                |                                |
+      | request_body         |                                |
+      | metadata             |                                |
+      | timestamp            | *                              |
+      | duration_ms          | *                              |
+      | request_id           | *                              |
 
   # ==========================================================================
   # RULE 1: Reserved fields must not conflict with actual fields
@@ -98,7 +152,34 @@ Feature: Reserved Fields Validation
       {"compatibility": "BACKWARD", "validateFields": null}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "reserved-noconflict"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | reserved-noconflict                      |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | AVRO                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/reserved-noconflict/versions   |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: Multiple reserved fields — one conflicts
     When I PUT "/config" with body:
@@ -198,7 +279,34 @@ Feature: Reserved Fields Validation
       {"compatibility": "BACKWARD", "validateFields": null}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "reserved-preserved"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | reserved-preserved                       |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | AVRO                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/reserved-preserved/versions    |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   # ==========================================================================
   # DISABLED BY DEFAULT
@@ -217,7 +325,34 @@ Feature: Reserved Fields Validation
       """
     Then the response status should be 200
     And the response should have field "id"
-    And the audit log should contain event "schema_register" with subject "reserved-disabled"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | reserved-disabled                        |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | AVRO                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/reserved-disabled/versions     |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   # ==========================================================================
   # SUBJECT-LEVEL OVERRIDE

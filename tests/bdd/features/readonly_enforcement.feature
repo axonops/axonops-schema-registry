@@ -48,7 +48,34 @@ Feature: READONLY Enforcement and Permanent Delete Restrictions
     Then the response status should be 200
     When I get the global mode
     Then the response field "mode" should be "READWRITE"
-    And the audit log should contain event "mode_update"
+    And the audit log should contain an event:
+      | event_type           | mode_update                    |
+      | outcome              | success                        |
+      | actor_id             |                                |
+      | actor_type           | anonymous                      |
+      | auth_method          |                                |
+      | role                 |                                |
+      | target_type          | mode                           |
+      | target_id            | _global                        |
+      | schema_id            |                                |
+      | version              |                                |
+      | schema_type          |                                |
+      | before_hash          | *                              |
+      | after_hash           | sha256:*                       |
+      | context              | .                              |
+      | transport_security   | tls                            |
+      | source_ip            | *                              |
+      | user_agent           | *                              |
+      | method               | PUT                            |
+      | path                 | /mode                          |
+      | status_code          | 200                            |
+      | reason               |                                |
+      | error                |                                |
+      | request_body         |                                |
+      | metadata             |                                |
+      | timestamp            | *                              |
+      | duration_ms          | *                              |
+      | request_id           | *                              |
 
   Scenario: READONLY mode allows deleting subject mode
     When I set the mode for subject "ro-modedel-allowed" to "IMPORT"
@@ -56,7 +83,34 @@ Feature: READONLY Enforcement and Permanent Delete Restrictions
     And I delete the mode for subject "ro-modedel-allowed"
     Then the response status should be 200
     When I set the global mode to "READWRITE"
-    And the audit log should contain event "mode_update"
+    And the audit log should contain an event:
+      | event_type           | mode_update                    |
+      | outcome              | success                        |
+      | actor_id             |                                |
+      | actor_type           | anonymous                      |
+      | auth_method          |                                |
+      | role                 |                                |
+      | target_type          | mode                           |
+      | target_id            | _global                        |
+      | schema_id            |                                |
+      | version              |                                |
+      | schema_type          |                                |
+      | before_hash          | *                              |
+      | after_hash           | sha256:*                       |
+      | context              | .                              |
+      | transport_security   | tls                            |
+      | source_ip            | *                              |
+      | user_agent           | *                              |
+      | method               | PUT                            |
+      | path                 | /mode                          |
+      | status_code          | 200                            |
+      | reason               |                                |
+      | error                |                                |
+      | request_body         |                                |
+      | metadata             |                                |
+      | timestamp            | *                              |
+      | duration_ms          | *                              |
+      | request_id           | *                              |
 
   # ==========================================================================
   # READONLY_OVERRIDE — ALSO BLOCKS CONFIG CHANGES
@@ -83,7 +137,34 @@ Feature: READONLY Enforcement and Permanent Delete Restrictions
     Then the response status should be 200
     When I get the global mode
     Then the response field "mode" should be "READWRITE"
-    And the audit log should contain event "mode_update"
+    And the audit log should contain an event:
+      | event_type           | mode_update                    |
+      | outcome              | success                        |
+      | actor_id             |                                |
+      | actor_type           | anonymous                      |
+      | auth_method          |                                |
+      | role                 |                                |
+      | target_type          | mode                           |
+      | target_id            | _global                        |
+      | schema_id            |                                |
+      | version              |                                |
+      | schema_type          |                                |
+      | before_hash          | *                              |
+      | after_hash           | sha256:*                       |
+      | context              | .                              |
+      | transport_security   | tls                            |
+      | source_ip            | *                              |
+      | user_agent           | *                              |
+      | method               | PUT                            |
+      | path                 | /mode                          |
+      | status_code          | 200                            |
+      | reason               |                                |
+      | error                |                                |
+      | request_body         |                                |
+      | metadata             |                                |
+      | timestamp            | *                              |
+      | duration_ms          | *                              |
+      | request_id           | *                              |
 
   # ==========================================================================
   # PERMANENT DELETE OF "LATEST" RESOLVES AND PROCEEDS
@@ -101,7 +182,34 @@ Feature: READONLY Enforcement and Permanent Delete Restrictions
     # Permanent delete of "latest" — Confluent resolves to actual version and proceeds
     When I DELETE "/subjects/perm-del-latest/versions/latest?permanent=true"
     Then the response status should be 200
-    And the audit log should contain event "schema_delete_permanent" with subject "perm-del-latest"
+    And the audit log should contain an event:
+      | event_type           | schema_delete_permanent                  |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | perm-del-latest                          |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | AVRO                                     |
+      | before_hash          | sha256:*                                 |
+      | after_hash           |                                          |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | DELETE                                   |
+      | path                 | /subjects/perm-del-latest/versions       |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: Permanent delete with explicit version number works
     Given subject "perm-del-explicit" has schema:
@@ -114,4 +222,31 @@ Feature: READONLY Enforcement and Permanent Delete Restrictions
     # Permanent delete with explicit version — should succeed
     When I DELETE "/subjects/perm-del-explicit/versions/1?permanent=true"
     Then the response status should be 200
-    And the audit log should contain event "schema_delete_permanent" with subject "perm-del-explicit"
+    And the audit log should contain an event:
+      | event_type           | schema_delete_permanent                      |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | perm-del-explicit                            |
+      | schema_id            | *                                            |
+      | version              | *                                            |
+      | schema_type          | AVRO                                         |
+      | before_hash          | sha256:*                                     |
+      | after_hash           |                                              |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | DELETE                                       |
+      | path                 | /subjects/perm-del-explicit/versions/1       |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |

@@ -43,7 +43,34 @@ Feature: Compatibility Transitive Chain with 5+ Versions
       """
     Then the response status should be 200
     And subject "bt-chain-5" should have exactly 5 versions
-    And the audit log should contain event "schema_register" with subject "bt-chain-5"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | bt-chain-5                               |
+      | schema_id            | *                                        |
+      | version              |                                          |
+      | schema_type          | AVRO                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/bt-chain-5/versions            |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   # ---------------------------------------------------------------------------
   # BACKWARD_TRANSITIVE: v6 breaks compatibility because it adds required field
@@ -120,7 +147,34 @@ Feature: Compatibility Transitive Chain with 5+ Versions
       """
     Then the response status should be 200
     And subject "ft-chain-5" should have exactly 5 versions
-    And the audit log should contain event "schema_register" with subject "ft-chain-5"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | ft-chain-5                               |
+      | schema_id            | *                                        |
+      | version              |                                          |
+      | schema_type          | AVRO                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/ft-chain-5/versions            |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   # ---------------------------------------------------------------------------
   # FULL_TRANSITIVE: 5-version chain, all compatible
@@ -152,7 +206,34 @@ Feature: Compatibility Transitive Chain with 5+ Versions
       """
     Then the response status should be 200
     And subject "fullt-chain-5" should have exactly 5 versions
-    And the audit log should contain event "schema_register" with subject "fullt-chain-5"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | fullt-chain-5                            |
+      | schema_id            | *                                        |
+      | version              |                                          |
+      | schema_type          | AVRO                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/fullt-chain-5/versions         |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   # ---------------------------------------------------------------------------
   # BACKWARD_TRANSITIVE rejects what non-transitive BACKWARD allows

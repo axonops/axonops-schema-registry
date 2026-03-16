@@ -29,7 +29,34 @@ Feature: Security Hardening
     And the response should not contain "panic"
     And the response should not contain "goroutine"
     And the response should not contain ".go:"
-    And the audit log should contain event "schema_register"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | failure                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | security-test-value                      |
+      | schema_id            |                                          |
+      | version              |                                          |
+      | schema_type          |                                          |
+      | before_hash          |                                          |
+      | after_hash           |                                          |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/security-test-value/versions   |
+      | status_code          | 422                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: Invalid compatibility level returns clean error
     When I PUT "/config" with body:
@@ -40,7 +67,34 @@ Feature: Security Hardening
     And the response should be valid JSON
     And the response should not contain "panic"
     And the response should not contain "runtime error"
-    And the audit log should contain event "config_update"
+    And the audit log should contain an event:
+      | event_type           | config_update                            |
+      | outcome              | failure                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | config                                   |
+      | target_id            |                                          |
+      | schema_id            |                                          |
+      | version              |                                          |
+      | schema_type          |                                          |
+      | before_hash          |                                          |
+      | after_hash           |                                          |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | PUT                                      |
+      | path                 | /config                                  |
+      | status_code          | 422                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: Method not allowed returns standard JSON error
     When I PATCH "/subjects"

@@ -27,7 +27,34 @@ Feature: Config Inheritance and Fallback
     # Query subject config returns 404 (no subject-level config)
     When I get the config for subject "inherit-test"
     Then the response status should be 404
-    And the audit log should contain event "config_delete" with subject "inherit-test"
+    And the audit log should contain an event:
+      | event_type           | config_delete                  |
+      | outcome              | success                        |
+      | actor_id             |                                |
+      | actor_type           | anonymous                      |
+      | auth_method          |                                |
+      | role                 |                                |
+      | target_type          | config                         |
+      | target_id            | inherit-test                   |
+      | schema_id            |                                |
+      | version              |                                |
+      | schema_type          |                                |
+      | before_hash          | sha256:*                       |
+      | after_hash           |                                |
+      | context              | .                              |
+      | transport_security   | tls                            |
+      | source_ip            | *                              |
+      | user_agent           | *                              |
+      | method               | DELETE                         |
+      | path                 | /config/inherit-test           |
+      | status_code          | 200                            |
+      | reason               |                                |
+      | error                |                                |
+      | request_body         |                                |
+      | metadata             |                                |
+      | timestamp            | *                              |
+      | duration_ms          | *                              |
+      | request_id           | *                              |
 
   Scenario: Subject config deletion causes registration to use global level
     # Set global to BACKWARD, subject to NONE
@@ -52,7 +79,34 @@ Feature: Config Inheritance and Fallback
       {"type":"record","name":"InheritFunc","fields":[{"name":"totally_new","type":"long"}]}
       """
     Then the response status should be 409
-    And the audit log should contain event "config_delete" with subject "inherit-func"
+    And the audit log should contain an event:
+      | event_type           | config_delete                  |
+      | outcome              | success                        |
+      | actor_id             |                                |
+      | actor_type           | anonymous                      |
+      | auth_method          |                                |
+      | role                 |                                |
+      | target_type          | config                         |
+      | target_id            | inherit-func                   |
+      | schema_id            |                                |
+      | version              |                                |
+      | schema_type          |                                |
+      | before_hash          | sha256:*                       |
+      | after_hash           |                                |
+      | context              | .                              |
+      | transport_security   | tls                            |
+      | source_ip            | *                              |
+      | user_agent           | *                              |
+      | method               | DELETE                         |
+      | path                 | /config/inherit-func           |
+      | status_code          | 200                            |
+      | reason               |                                |
+      | error                |                                |
+      | request_body         |                                |
+      | metadata             |                                |
+      | timestamp            | *                              |
+      | duration_ms          | *                              |
+      | request_id           | *                              |
 
   # ---------------------------------------------------------------------------
   # Subject config overrides global
@@ -69,7 +123,34 @@ Feature: Config Inheritance and Fallback
     And I get the config for subject "override-test"
     Then the response status should be 200
     And the response field "compatibilityLevel" should be "NONE"
-    And the audit log should contain event "config_update"
+    And the audit log should contain an event:
+      | event_type           | config_update                  |
+      | outcome              | success                        |
+      | actor_id             |                                |
+      | actor_type           | anonymous                      |
+      | auth_method          |                                |
+      | role                 |                                |
+      | target_type          | config                         |
+      | target_id            | _global                        |
+      | schema_id            |                                |
+      | version              |                                |
+      | schema_type          |                                |
+      | before_hash          | *                              |
+      | after_hash           | sha256:*                       |
+      | context              | .                              |
+      | transport_security   | tls                            |
+      | source_ip            | *                              |
+      | user_agent           | *                              |
+      | method               | PUT                            |
+      | path                 | /config                        |
+      | status_code          | 200                            |
+      | reason               |                                |
+      | error                |                                |
+      | request_body         |                                |
+      | metadata             |                                |
+      | timestamp            | *                              |
+      | duration_ms          | *                              |
+      | request_id           | *                              |
 
   # ---------------------------------------------------------------------------
   # Multiple subjects with independent configs
@@ -95,7 +176,34 @@ Feature: Config Inheritance and Fallback
     When I get the config for subject "subj-b"
     Then the response status should be 200
     And the response field "compatibilityLevel" should be "FORWARD"
-    And the audit log should contain event "config_delete" with subject "subj-a"
+    And the audit log should contain an event:
+      | event_type           | config_delete                  |
+      | outcome              | success                        |
+      | actor_id             |                                |
+      | actor_type           | anonymous                      |
+      | auth_method          |                                |
+      | role                 |                                |
+      | target_type          | config                         |
+      | target_id            | subj-a                         |
+      | schema_id            |                                |
+      | version              |                                |
+      | schema_type          |                                |
+      | before_hash          | sha256:*                       |
+      | after_hash           |                                |
+      | context              | .                              |
+      | transport_security   | tls                            |
+      | source_ip            | *                              |
+      | user_agent           | *                              |
+      | method               | DELETE                         |
+      | path                 | /config/subj-a                 |
+      | status_code          | 200                            |
+      | reason               |                                |
+      | error                |                                |
+      | request_body         |                                |
+      | metadata             |                                |
+      | timestamp            | *                              |
+      | duration_ms          | *                              |
+      | request_id           | *                              |
 
   # ---------------------------------------------------------------------------
   # Global config set / get / delete cycle
@@ -114,7 +222,34 @@ Feature: Config Inheritance and Fallback
     When I get the global config
     Then the response status should be 200
     And the response field "compatibilityLevel" should be "BACKWARD"
-    And the audit log should contain event "config_delete"
+    And the audit log should contain an event:
+      | event_type           | config_delete                  |
+      | outcome              | success                        |
+      | actor_id             |                                |
+      | actor_type           | anonymous                      |
+      | auth_method          |                                |
+      | role                 |                                |
+      | target_type          | config                         |
+      | target_id            | _global                        |
+      | schema_id            |                                |
+      | version              |                                |
+      | schema_type          |                                |
+      | before_hash          | sha256:*                       |
+      | after_hash           |                                |
+      | context              | .                              |
+      | transport_security   | tls                            |
+      | source_ip            | *                              |
+      | user_agent           | *                              |
+      | method               | DELETE                         |
+      | path                 | /config                        |
+      | status_code          | 200                            |
+      | reason               |                                |
+      | error                |                                |
+      | request_body         |                                |
+      | metadata             |                                |
+      | timestamp            | *                              |
+      | duration_ms          | *                              |
+      | request_id           | *                              |
 
   # ---------------------------------------------------------------------------
   # All 7 compatibility levels can be set per-subject

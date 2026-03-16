@@ -31,7 +31,34 @@ Feature: Concurrency Edge Cases
     # Subject should be visible again and have exactly 1 version (new registration after soft-delete)
     When I list versions of subject "race-subject"
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "race-subject"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | race-subject                             |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | AVRO                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/race-subject/versions          |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: Concurrent identical registrations after soft-delete converge to one version
     Given subject "idempotent-del" has schema:
@@ -45,7 +72,34 @@ Feature: Concurrency Edge Cases
     Then all concurrent results should succeed
     And all returned schema IDs should be identical
     And subject "idempotent-del" should have exactly 1 version
-    And the audit log should contain event "schema_register" with subject "idempotent-del"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | idempotent-del                           |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | AVRO                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/idempotent-del/versions        |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   # ---------------------------------------------------------------------------
   # Mode switch during concurrent registration
@@ -62,7 +116,34 @@ Feature: Concurrency Edge Cases
     # All attempts to register should fail with 422 (mode is READONLY)
     And 5 goroutines attempt to register schemas to subject "mode-race"
     Then all concurrent results should have status 422
-    And the audit log should contain event "mode_update"
+    And the audit log should contain an event:
+      | event_type           | mode_update                    |
+      | outcome              | success                        |
+      | actor_id             |                                |
+      | actor_type           | anonymous                      |
+      | auth_method          |                                |
+      | role                 |                                |
+      | target_type          | mode                           |
+      | target_id            | _global                        |
+      | schema_id            |                                |
+      | version              |                                |
+      | schema_type          |                                |
+      | before_hash          | *                              |
+      | after_hash           | sha256:*                       |
+      | context              | .                              |
+      | transport_security   | tls                            |
+      | source_ip            | *                              |
+      | user_agent           | *                              |
+      | method               | PUT                            |
+      | path                 | /mode                          |
+      | status_code          | 200                            |
+      | reason               |                                |
+      | error                |                                |
+      | request_body         |                                |
+      | metadata             |                                |
+      | timestamp            | *                              |
+      | duration_ms          | *                              |
+      | request_id           | *                              |
     # Restore READWRITE for cleanup
     When I set the global mode to "READWRITE"
 
@@ -76,7 +157,34 @@ Feature: Concurrency Edge Cases
     When 5 goroutines each soft-delete their own subject
     Then all concurrent results should succeed
     And GET /subjects should return an empty array
-    And the audit log should contain event "subject_delete_soft"
+    And the audit log should contain an event:
+      | event_type           | subject_delete_soft            |
+      | outcome              | success                        |
+      | actor_id             |                                |
+      | actor_type           | anonymous                      |
+      | auth_method          |                                |
+      | role                 |                                |
+      | target_type          | subject                        |
+      | target_id            |                                |
+      | schema_id            |                                |
+      | version              |                                |
+      | schema_type          | AVRO                           |
+      | before_hash          | sha256:*                       |
+      | after_hash           |                                |
+      | context              | .                              |
+      | transport_security   | tls                            |
+      | source_ip            | *                              |
+      | user_agent           | *                              |
+      | method               | DELETE                         |
+      | path                 | /subjects/                     |
+      | status_code          | 200                            |
+      | reason               |                                |
+      | error                |                                |
+      | request_body         |                                |
+      | metadata             |                                |
+      | timestamp            | *                              |
+      | duration_ms          | *                              |
+      | request_id           | *                              |
 
   # ---------------------------------------------------------------------------
   # Concurrent writes produce sequential version numbers
@@ -86,7 +194,34 @@ Feature: Concurrency Edge Cases
     When 10 goroutines each register a unique Avro schema to separate subjects
     Then all concurrent results should succeed
     And all returned schema IDs should be unique
-    And the audit log should contain event "schema_register"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            |                                          |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | AVRO                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/                               |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: Mixed readers and writers under load do not produce server errors
     Given subject "load-subject" has schema:
@@ -96,4 +231,31 @@ Feature: Concurrency Edge Cases
     When 5 writer goroutines add versions and 5 reader goroutines read latest from subject "load-subject"
     Then no concurrent results should have a 500 status
     And all reader responses should contain a valid schema
-    And the audit log should contain event "schema_register" with subject "load-subject"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | load-subject                             |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | AVRO                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/load-subject/versions          |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
