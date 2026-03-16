@@ -36,7 +36,34 @@ Feature: Wire-Compatible Metrics
     And the Prometheus metric "kafka_schema_registry_api_failure_count" should exist
     And the Prometheus metric "kafka_schema_registry_master_slave_role" should exist
     And the Prometheus metric "kafka_schema_registry_node_count" should exist
-    And the audit log should contain event "schema_register" with subject "metrics-existence-test"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | metrics-existence-test                       |
+      | schema_id            | *                                            |
+      | version              |                                              |
+      | schema_type          | AVRO                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/metrics-existence-test/versions    |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   # ---------------------------------------------------------------------------
   # API call counters (AxonOps-only — counter semantics differ across JMX bridge)
@@ -69,7 +96,34 @@ Feature: Wire-Compatible Metrics
       """
     Then the response status should be 200
     And the Prometheus metric "kafka_schema_registry_registered_count" should have increased from "before"
-    And the audit log should contain event "schema_register" with subject "metrics-reg-test"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | metrics-reg-test                             |
+      | schema_id            | *                                            |
+      | version              |                                              |
+      | schema_type          | AVRO                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/metrics-reg-test/versions          |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   @axonops-only
   Scenario: schemas_created counter tracks Avro registrations
@@ -81,7 +135,34 @@ Feature: Wire-Compatible Metrics
     Then the response status should be 200
     And the Prometheus metric "kafka_schema_registry_schemas_created" with labels "schema_type=\"avro\"" should exist
     And the Prometheus metric "kafka_schema_registry_registered_count" should have increased from "before_total"
-    And the audit log should contain event "schema_register" with subject "metrics-avro-test"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | metrics-avro-test                            |
+      | schema_id            | *                                            |
+      | version              |                                              |
+      | schema_type          | AVRO                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/metrics-avro-test/versions         |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   @axonops-only
   Scenario: schemas_created counter tracks JSON Schema registrations
@@ -91,7 +172,34 @@ Feature: Wire-Compatible Metrics
       """
     Then the response status should be 200
     And the Prometheus metric "kafka_schema_registry_schemas_created" with labels "schema_type=\"json\"" should exist
-    And the audit log should contain event "schema_register" with subject "metrics-json-test"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | metrics-json-test                            |
+      | schema_id            | *                                            |
+      | version              |                                              |
+      | schema_type          | JSON                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/metrics-json-test/versions         |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   # ---------------------------------------------------------------------------
   # Schema deletion counters (AxonOps-only — increment verification)
@@ -107,7 +215,34 @@ Feature: Wire-Compatible Metrics
     When I delete subject "metrics-del-test"
     Then the response status should be 200
     And the Prometheus metric "kafka_schema_registry_deleted_count" should have increased from "before"
-    And the audit log should contain event "subject_delete_soft" with subject "metrics-del-test"
+    And the audit log should contain an event:
+      | event_type           | subject_delete_soft                          |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | metrics-del-test                             |
+      | schema_id            |                                              |
+      | version              |                                              |
+      | schema_type          | AVRO                                         |
+      | before_hash          | sha256:*                                     |
+      | after_hash           |                                              |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | DELETE                                       |
+      | path                 | /subjects/metrics-del-test                   |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   @axonops-only
   Scenario: schemas_deleted counter tracks deletions by type
@@ -118,7 +253,34 @@ Feature: Wire-Compatible Metrics
     When I delete subject "metrics-del-type-test"
     Then the response status should be 200
     And the Prometheus metric "kafka_schema_registry_schemas_deleted" with labels "schema_type=\"avro\"" should exist
-    And the audit log should contain event "subject_delete_soft" with subject "metrics-del-type-test"
+    And the audit log should contain an event:
+      | event_type           | subject_delete_soft                          |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | metrics-del-type-test                        |
+      | schema_id            |                                              |
+      | version              |                                              |
+      | schema_type          | AVRO                                         |
+      | before_hash          | sha256:*                                     |
+      | after_hash           |                                              |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | DELETE                                       |
+      | path                 | /subjects/metrics-del-type-test              |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   @axonops-only
   Scenario: deleted_count increments when a version is deleted
@@ -135,7 +297,34 @@ Feature: Wire-Compatible Metrics
     Then the response status should be 200
     And the Prometheus metric "kafka_schema_registry_deleted_count" should have increased from "before"
     And the Prometheus metric "kafka_schema_registry_schemas_deleted" with labels "schema_type=\"avro\"" should exist
-    And the audit log should contain event "schema_delete_soft" with subject "metrics-ver-del"
+    And the audit log should contain an event:
+      | event_type           | schema_delete_soft                           |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | metrics-ver-del                              |
+      | schema_id            |                                              |
+      | version              |                                              |
+      | schema_type          | AVRO                                         |
+      | before_hash          | sha256:*                                     |
+      | after_hash           |                                              |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | DELETE                                       |
+      | path                 | /subjects/metrics-ver-del/versions/1         |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   # ---------------------------------------------------------------------------
   # Per-endpoint Confluent-compatible metrics
@@ -150,7 +339,34 @@ Feature: Wire-Compatible Metrics
     Then the response status should be 200
     And the Prometheus metric "kafka_schema_registry_jersey_metrics_request_total" with labels "endpoint=\"subjects.versions.register\"" should exist
     And the Prometheus metric "kafka_schema_registry_jersey_metrics_request_latency_seconds_count" with labels "endpoint=\"subjects.versions.register\"" should exist
-    And the audit log should contain event "schema_register" with subject "metrics-endpoint-test"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | metrics-endpoint-test                        |
+      | schema_id            | *                                            |
+      | version              |                                              |
+      | schema_type          | AVRO                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/metrics-endpoint-test/versions     |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   @axonops-only
   Scenario: Per-endpoint request metrics track subject listing

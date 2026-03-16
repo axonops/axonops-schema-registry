@@ -20,7 +20,34 @@ Feature: Error Codes Exhaustive
     When I DELETE "/subjects/err-no-subject3"
     Then the response status should be 404
     And the response should have error code 40401
-    And the audit log should contain event "subject_delete_soft"
+    And the audit log should contain an event:
+      | event_type           | subject_delete_soft          |
+      | outcome              | failure                      |
+      | actor_id             |                              |
+      | actor_type           | anonymous                    |
+      | auth_method          |                              |
+      | role                 |                              |
+      | target_type          | subject                      |
+      | target_id            | err-no-subject3              |
+      | schema_id            |                              |
+      | version              |                              |
+      | schema_type          |                              |
+      | before_hash          |                              |
+      | after_hash           |                              |
+      | context              | .                            |
+      | transport_security   | tls                          |
+      | source_ip            | *                            |
+      | user_agent           | *                            |
+      | method               | DELETE                       |
+      | path                 | /subjects/err-no-subject3    |
+      | status_code          | 404                          |
+      | reason               | not_found                    |
+      | error                |                              |
+      | request_body         |                              |
+      | metadata             |                              |
+      | timestamp            | *                            |
+      | duration_ms          | *                            |
+      | request_id           | *                            |
 
   Scenario: 40402 on compatibility check against specific version of non-existent subject
     When I POST "/compatibility/subjects/err-no-subject4/versions/1" with body:
@@ -51,7 +78,34 @@ Feature: Error Codes Exhaustive
     When I DELETE "/subjects/err-ver-nf2/versions/99"
     Then the response status should be 404
     And the response should have error code 40402
-    And the audit log should contain event "schema_delete_soft"
+    And the audit log should contain an event:
+      | event_type           | schema_delete_soft                      |
+      | outcome              | failure                                 |
+      | actor_id             |                                         |
+      | actor_type           | anonymous                               |
+      | auth_method          |                                         |
+      | role                 |                                         |
+      | target_type          | subject                                 |
+      | target_id            | err-ver-nf2                             |
+      | schema_id            |                                         |
+      | version              |                                         |
+      | schema_type          |                                         |
+      | before_hash          |                                         |
+      | after_hash           |                                         |
+      | context              | .                                       |
+      | transport_security   | tls                                     |
+      | source_ip            | *                                       |
+      | user_agent           | *                                       |
+      | method               | DELETE                                  |
+      | path                 | /subjects/err-ver-nf2/versions/99       |
+      | status_code          | 404                                     |
+      | reason               | not_found                               |
+      | error                |                                         |
+      | request_body         |                                         |
+      | metadata             |                                         |
+      | timestamp            | *                                       |
+      | duration_ms          | *                                       |
+      | request_id           | *                                       |
 
   Scenario: 40402 on compatibility check against non-existent version
     Given subject "err-ver-nf3" has schema:
@@ -86,7 +140,34 @@ Feature: Error Codes Exhaustive
     When I DELETE "/subjects/err-perm-sub?permanent=true"
     Then the response status should be 404
     And the response should have error code 40405
-    And the audit log should contain event "subject_delete_permanent"
+    And the audit log should contain an event:
+      | event_type           | subject_delete_permanent     |
+      | outcome              | failure                      |
+      | actor_id             |                              |
+      | actor_type           | anonymous                    |
+      | auth_method          |                              |
+      | role                 |                              |
+      | target_type          | subject                      |
+      | target_id            | err-perm-sub                 |
+      | schema_id            |                              |
+      | version              |                              |
+      | schema_type          |                              |
+      | before_hash          |                              |
+      | after_hash           |                              |
+      | context              | .                            |
+      | transport_security   | tls                          |
+      | source_ip            | *                            |
+      | user_agent           | *                            |
+      | method               | DELETE                       |
+      | path                 | /subjects/err-perm-sub       |
+      | status_code          | 404                          |
+      | reason               | not_found                    |
+      | error                |                              |
+      | request_body         |                              |
+      | metadata             |                              |
+      | timestamp            | *                            |
+      | duration_ms          | *                            |
+      | request_id           | *                            |
 
   Scenario: 40407 on permanent delete version without soft-delete
     Given subject "err-perm-ver" has schema:
@@ -96,7 +177,34 @@ Feature: Error Codes Exhaustive
     When I DELETE "/subjects/err-perm-ver/versions/1?permanent=true"
     Then the response status should be 404
     And the response should have error code 40407
-    And the audit log should contain event "schema_delete_permanent"
+    And the audit log should contain an event:
+      | event_type           | schema_delete_permanent                       |
+      | outcome              | failure                                       |
+      | actor_id             |                                               |
+      | actor_type           | anonymous                                     |
+      | auth_method          |                                               |
+      | role                 |                                               |
+      | target_type          | subject                                       |
+      | target_id            | err-perm-ver                                  |
+      | schema_id            |                                               |
+      | version              |                                               |
+      | schema_type          |                                               |
+      | before_hash          |                                               |
+      | after_hash           |                                               |
+      | context              | .                                             |
+      | transport_security   | tls                                           |
+      | source_ip            | *                                             |
+      | user_agent           | *                                             |
+      | method               | DELETE                                        |
+      | path                 | /subjects/err-perm-ver/versions/1             |
+      | status_code          | 404                                           |
+      | reason               | not_found                                     |
+      | error                |                                               |
+      | request_body         |                                               |
+      | metadata             |                                               |
+      | timestamp            | *                                             |
+      | duration_ms          | *                                             |
+      | request_id           | *                                             |
 
   # ==========================================================================
   # 409 — Incompatible schema
@@ -113,7 +221,34 @@ Feature: Error Codes Exhaustive
       {"type":"record","name":"IC","fields":[{"name":"a","type":"string"},{"name":"b","type":"string"}]}
       """
     Then the response status should be 409
-    And the audit log should contain event "schema_register" with subject "err-incompat"
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | failure                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | err-incompat                          |
+      | schema_id            |                                       |
+      | version              |                                       |
+      | schema_type          |                                       |
+      | before_hash          |                                       |
+      | after_hash           |                                       |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/err-incompat/versions       |
+      | status_code          | 409                                   |
+      | reason               | already_exists                        |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   # ==========================================================================
   # 42201 — Invalid schema
@@ -126,7 +261,34 @@ Feature: Error Codes Exhaustive
       """
     Then the response status should be 422
     And the response should have error code 42201
-    And the audit log should contain event "schema_register"
+    And the audit log should contain an event:
+      | event_type           | schema_register                           |
+      | outcome              | failure                                   |
+      | actor_id             |                                           |
+      | actor_type           | anonymous                                 |
+      | auth_method          |                                           |
+      | role                 |                                           |
+      | target_type          | subject                                   |
+      | target_id            | err-invalid-avro                          |
+      | schema_id            |                                           |
+      | version              |                                           |
+      | schema_type          |                                           |
+      | before_hash          |                                           |
+      | after_hash           |                                           |
+      | context              | .                                         |
+      | transport_security   | tls                                       |
+      | source_ip            | *                                         |
+      | user_agent           | *                                         |
+      | method               | POST                                      |
+      | path                 | /subjects/err-invalid-avro/versions       |
+      | status_code          | 422                                       |
+      | reason               | invalid_schema                            |
+      | error                |                                           |
+      | request_body         |                                           |
+      | metadata             |                                           |
+      | timestamp            | *                                         |
+      | duration_ms          | *                                         |
+      | request_id           | *                                         |
 
   # ==========================================================================
   # 42202 — Invalid version
@@ -161,7 +323,34 @@ Feature: Error Codes Exhaustive
       """
     Then the response status should be 422
     And the response should have error code 42203
-    And the audit log should contain event "config_update"
+    And the audit log should contain an event:
+      | event_type           | config_update          |
+      | outcome              | failure                |
+      | actor_id             |                        |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          | config                 |
+      | target_id            | _global                |
+      | schema_id            |                        |
+      | version              |                        |
+      | schema_type          |                        |
+      | before_hash          |                        |
+      | after_hash           |                        |
+      | context              | .                      |
+      | transport_security   | tls                    |
+      | source_ip            | *                      |
+      | user_agent           | *                      |
+      | method               | PUT                    |
+      | path                 | /config                |
+      | status_code          | 422                    |
+      | reason               | invalid_schema         |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           | *                      |
 
   # ==========================================================================
   # 42204 — Invalid mode
@@ -174,7 +363,34 @@ Feature: Error Codes Exhaustive
       """
     Then the response status should be 422
     And the response should have error code 42204
-    And the audit log should contain event "mode_update"
+    And the audit log should contain an event:
+      | event_type           | mode_update            |
+      | outcome              | failure                |
+      | actor_id             |                        |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          | mode                   |
+      | target_id            |                        |
+      | schema_id            |                        |
+      | version              |                        |
+      | schema_type          |                        |
+      | before_hash          |                        |
+      | after_hash           |                        |
+      | context              | .                      |
+      | transport_security   | tls                    |
+      | source_ip            | *                      |
+      | user_agent           | *                      |
+      | method               | PUT                    |
+      | path                 | /mode                  |
+      | status_code          | 422                    |
+      | reason               | invalid_schema         |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           | *                      |
 
   # ==========================================================================
   # 42205 — Operation not permitted (mode enforcement)
@@ -188,5 +404,32 @@ Feature: Error Codes Exhaustive
       """
     Then the response status should be 422
     And the response should have error code 42205
-    And the audit log should contain event "schema_register"
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | failure                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | err-readonly                          |
+      | schema_id            |                                       |
+      | version              |                                       |
+      | schema_type          |                                       |
+      | before_hash          |                                       |
+      | after_hash           |                                       |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/err-readonly/versions       |
+      | status_code          | 422                                   |
+      | reason               | invalid_schema                        |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
     When I set the global mode to "READWRITE"

@@ -29,7 +29,34 @@ Feature: JSON Schema API Contract Domain Modeling
       {"type":"object","properties":{"name":{"type":"string"},"email":{"type":"string"},"phone":{"type":"string"},"address":{"type":"object","properties":{"street":{"type":"string"},"city":{"type":"string"}}}},"required":["name"],"additionalProperties":false}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "api-request"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | api-request                                  |
+      | schema_id            | *                                            |
+      | version              |                                              |
+      | schema_type          | JSON                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/api-request/versions               |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   # ==========================================================================
   # 2. RESPONSE SCHEMA WITH $DEFS + ALLOF COMPOSITION
@@ -45,7 +72,34 @@ Feature: JSON Schema API Contract Domain Modeling
     Then the response status should be 200
     And the response body should contain "pagination"
     And the response body should contain "allOf"
-    And the audit log should contain event "schema_register" with subject "api-response"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | api-response                                 |
+      | schema_id            | *                                            |
+      | version              |                                              |
+      | schema_type          | JSON                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/api-response/versions              |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   # ==========================================================================
   # 3. DISCRIMINATED UNION EVOLVES — ADD PAYMENT VARIANT
@@ -62,7 +116,34 @@ Feature: JSON Schema API Contract Domain Modeling
       {"oneOf":[{"type":"object","properties":{"method":{"const":"credit_card"},"card_number":{"type":"string"}},"required":["method","card_number"]},{"type":"object","properties":{"method":{"const":"bank_transfer"},"iban":{"type":"string"}},"required":["method","iban"]},{"type":"object","properties":{"method":{"const":"paypal"},"email":{"type":"string"}},"required":["method","email"]}]}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "api-payment-union"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | api-payment-union                            |
+      | schema_id            | *                                            |
+      | version              |                                              |
+      | schema_type          | JSON                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/api-payment-union/versions         |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   # ==========================================================================
   # 4. CONSTRAINT RELAXATION CHAIN
@@ -84,7 +165,34 @@ Feature: JSON Schema API Contract Domain Modeling
       {"type":"string","maxLength":200}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "api-constraint-chain"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | api-constraint-chain                         |
+      | schema_id            | *                                            |
+      | version              |                                              |
+      | schema_type          | JSON                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/api-constraint-chain/versions      |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   # ==========================================================================
   # 5. ADDING REQUIRED FIELD BREAKS BACKWARD_TRANSITIVE
@@ -141,7 +249,34 @@ Feature: JSON Schema API Contract Domain Modeling
       """
     Then the response status should be 200
     And the response field "id" should equal stored "keyorder_id"
-    And the audit log should contain event "schema_register" with subject "api-keyorder-b"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | api-keyorder-b                               |
+      | schema_id            | *                                            |
+      | version              |                                              |
+      | schema_type          | JSON                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/api-keyorder-b/versions            |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   # ==========================================================================
   # 8. CROSS-SUBJECT REFERENCES
@@ -165,4 +300,31 @@ Feature: JSON Schema API Contract Domain Modeling
     Then the response status should be 200
     When I get the referenced by for subject "api-ref-address" version 1
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "api-ref-person"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | api-ref-person                               |
+      | schema_id            | *                                            |
+      | version              |                                              |
+      | schema_type          | JSON                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/api-ref-person/versions            |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |

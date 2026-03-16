@@ -17,7 +17,34 @@ Feature: Advanced Features
       """
     Then the response status should be 200
     And the response field "mode" should be "IMPORT"
-    And the audit log should contain event "mode_update"
+    And the audit log should contain an event:
+      | event_type           | mode_update            |
+      | outcome              | success                |
+      | actor_id             |                        |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          | mode                   |
+      | target_id            |                        |
+      | schema_id            |                        |
+      | version              |                        |
+      | schema_type          |                        |
+      | before_hash          |                        |
+      | after_hash           | sha256:*               |
+      | context              | .                      |
+      | transport_security   | tls                    |
+      | source_ip            | *                      |
+      | user_agent           | *                      |
+      | method               | PUT                    |
+      | path                 | /mode                  |
+      | status_code          | 200                    |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           | *                      |
     When I set the global mode to "READWRITE"
 
   Scenario: Set mode to IMPORT with force=true when schemas exist
@@ -32,7 +59,34 @@ Feature: Advanced Features
       """
     Then the response status should be 200
     And the response field "mode" should be "IMPORT"
-    And the audit log should contain event "mode_update"
+    And the audit log should contain an event:
+      | event_type           | mode_update            |
+      | outcome              | success                |
+      | actor_id             |                        |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          | mode                   |
+      | target_id            |                        |
+      | schema_id            |                        |
+      | version              |                        |
+      | schema_type          |                        |
+      | before_hash          | *                      |
+      | after_hash           | sha256:*               |
+      | context              | .                      |
+      | transport_security   | tls                    |
+      | source_ip            | *                      |
+      | user_agent           | *                      |
+      | method               | PUT                    |
+      | path                 | /mode                  |
+      | status_code          | 200                    |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           | *                      |
     When I set the global mode to "READWRITE"
 
   Scenario: Set mode to IMPORT without force when schemas exist returns error
@@ -75,7 +129,34 @@ Feature: Advanced Features
       """
     Then the response status should be 200
     And the response field "mode" should be "IMPORT"
-    And the audit log should contain event "mode_update"
+    And the audit log should contain an event:
+      | event_type           | mode_update                        |
+      | outcome              | success                            |
+      | actor_id             |                                    |
+      | actor_type           | anonymous                          |
+      | auth_method          |                                    |
+      | role                 |                                    |
+      | target_type          | mode                               |
+      | target_id            | force-per-sub2                     |
+      | schema_id            |                                    |
+      | version              |                                    |
+      | schema_type          |                                    |
+      | before_hash          | *                                  |
+      | after_hash           | sha256:*                           |
+      | context              | .                                  |
+      | transport_security   | tls                                |
+      | source_ip            | *                                  |
+      | user_agent           | *                                  |
+      | method               | PUT                                |
+      | path                 | /mode/force-per-sub2               |
+      | status_code          | 200                                |
+      | reason               |                                    |
+      | error                |                                    |
+      | request_body         |                                    |
+      | metadata             |                                    |
+      | timestamp            | *                                  |
+      | duration_ms          | *                                  |
+      | request_id           | *                                  |
     When I set the global mode to "READWRITE"
 
   Scenario: Force is not needed for non-IMPORT modes
@@ -89,7 +170,34 @@ Feature: Advanced Features
       {"mode": "READONLY"}
       """
     Then the response status should be 200
-    And the audit log should contain event "mode_update"
+    And the audit log should contain an event:
+      | event_type           | mode_update            |
+      | outcome              | success                |
+      | actor_id             |                        |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          | mode                   |
+      | target_id            |                        |
+      | schema_id            |                        |
+      | version              |                        |
+      | schema_type          |                        |
+      | before_hash          | *                      |
+      | after_hash           | sha256:*               |
+      | context              | .                      |
+      | transport_security   | tls                    |
+      | source_ip            | *                      |
+      | user_agent           | *                      |
+      | method               | PUT                    |
+      | path                 | /mode                  |
+      | status_code          | 200                    |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           | *                      |
     When I set the global mode to "READWRITE"
 
   Scenario: Force not needed when already in IMPORT mode
@@ -104,7 +212,34 @@ Feature: Advanced Features
       {"mode": "IMPORT"}
       """
     Then the response status should be 200
-    And the audit log should contain event "mode_update"
+    And the audit log should contain an event:
+      | event_type           | mode_update            |
+      | outcome              | success                |
+      | actor_id             |                        |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          | mode                   |
+      | target_id            |                        |
+      | schema_id            |                        |
+      | version              |                        |
+      | schema_type          |                        |
+      | before_hash          | *                      |
+      | after_hash           | sha256:*               |
+      | context              | .                      |
+      | transport_security   | tls                    |
+      | source_ip            | *                      |
+      | user_agent           | *                      |
+      | method               | PUT                    |
+      | path                 | /mode                  |
+      | status_code          | 200                    |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           | *                      |
     When I set the global mode to "READWRITE"
 
   # ==========================================================================
@@ -186,7 +321,34 @@ Feature: Advanced Features
       {"schema": "{\"type\":\"record\",\"name\":\"Norm\",\"fields\":[{\"name\":\"a\",\"type\":\"string\"}]}"}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "norm-test"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | norm-test                                |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | AVRO                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/norm-test/versions             |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: normalize parameter is accepted on lookup
     Given subject "norm-lookup" has schema:
@@ -198,7 +360,34 @@ Feature: Advanced Features
       {"schema": "{\"type\":\"record\",\"name\":\"NormLookup\",\"fields\":[{\"name\":\"a\",\"type\":\"string\"}]}"}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_lookup" with subject "norm-lookup"
+    And the audit log should contain an event:
+      | event_type           | schema_lookup                            |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | norm-lookup                              |
+      | schema_id            |                                          |
+      | version              |                                          |
+      | schema_type          |                                          |
+      | before_hash          |                                          |
+      | after_hash           |                                          |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/norm-lookup                    |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: normalize parameter is accepted on compatibility check
     Given subject "norm-compat" has schema:
@@ -218,7 +407,34 @@ Feature: Advanced Features
       """
     Then the response status should be 200
     And the response should contain "normalize"
-    And the audit log should contain event "config_update" with subject "norm-config-sub"
+    And the audit log should contain an event:
+      | event_type           | config_update                            |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | config                                   |
+      | target_id            | norm-config-sub                          |
+      | schema_id            |                                          |
+      | version              |                                          |
+      | schema_type          |                                          |
+      | before_hash          | *                                        |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | PUT                                      |
+      | path                 | /config/norm-config-sub                  |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: normalize config option can be set globally
     When I PUT "/config" with body:
@@ -226,7 +442,34 @@ Feature: Advanced Features
       {"compatibility": "BACKWARD", "normalize": true}
       """
     Then the response status should be 200
-    And the audit log should contain event "config_update"
+    And the audit log should contain an event:
+      | event_type           | config_update          |
+      | outcome              | success                |
+      | actor_id             |                        |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          | config                 |
+      | target_id            |                        |
+      | schema_id            |                        |
+      | version              |                        |
+      | schema_type          |                        |
+      | before_hash          | *                      |
+      | after_hash           | sha256:*               |
+      | context              | .                      |
+      | transport_security   | tls                    |
+      | source_ip            | *                      |
+      | user_agent           | *                      |
+      | method               | PUT                    |
+      | path                 | /config                |
+      | status_code          | 200                    |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           | *                      |
     # Reset to avoid affecting other tests
     When I PUT "/config" with body:
       """

@@ -14,7 +14,34 @@ Feature: Response Shapes — Confluent Wire Compatibility
       """
     Then the response status should be 200
     And the response should have field "id"
-    And the audit log should contain event "schema_register" with subject "resp-reg-only-id"
+    And the audit log should contain an event:
+      | event_type           | schema_register                      |
+      | outcome              | success                              |
+      | actor_id             |                                      |
+      | actor_type           | anonymous                            |
+      | auth_method          |                                      |
+      | role                 |                                      |
+      | target_type          | subject                              |
+      | target_id            | resp-reg-only-id                     |
+      | schema_id            | *                                    |
+      | version              |                                      |
+      | schema_type          | AVRO                                 |
+      | before_hash          |                                      |
+      | after_hash           | sha256:*                             |
+      | context              | .                                    |
+      | transport_security   | tls                                  |
+      | source_ip            | *                                    |
+      | user_agent           | *                                    |
+      | method               | POST                                 |
+      | path                 | /subjects/resp-reg-only-id/versions  |
+      | status_code          | 200                                  |
+      | reason               |                                      |
+      | error                |                                      |
+      | request_body         |                                      |
+      | metadata             |                                      |
+      | timestamp            | *                                    |
+      | duration_ms          | *                                    |
+      | request_id           | *                                    |
 
   # ==========================================================================
   # SCHEMA-BY-ID RESPONSE — schemaType ALWAYS PRESENT
@@ -125,7 +152,34 @@ Feature: Response Shapes — Confluent Wire Compatibility
     And the response should have field "id"
     And the response should have field "schema"
     And the response field "schemaType" should be "AVRO"
-    And the audit log should contain event "schema_lookup" with subject "resp-avro-lookup"
+    And the audit log should contain an event:
+      | event_type           | schema_lookup                     |
+      | outcome              | success                           |
+      | actor_id             |                                   |
+      | actor_type           | anonymous                         |
+      | auth_method          |                                   |
+      | role                 |                                   |
+      | target_type          | subject                           |
+      | target_id            | resp-avro-lookup                  |
+      | schema_id            |                                   |
+      | version              |                                   |
+      | schema_type          |                                   |
+      | before_hash          |                                   |
+      | after_hash           |                                   |
+      | context              | .                                 |
+      | transport_security   | tls                               |
+      | source_ip            | *                                 |
+      | user_agent           | *                                 |
+      | method               | POST                              |
+      | path                 | /subjects/resp-avro-lookup        |
+      | status_code          | 200                               |
+      | reason               |                                   |
+      | error                |                                   |
+      | request_body         |                                   |
+      | metadata             |                                   |
+      | timestamp            | *                                 |
+      | duration_ms          | *                                 |
+      | request_id           | *                                 |
 
   Scenario: Lookup response for Protobuf includes schemaType
     Given subject "resp-proto-lookup" has "PROTOBUF" schema:
@@ -148,7 +202,34 @@ Feature: Response Shapes — Confluent Wire Compatibility
     And the response should have field "id"
     And the response should have field "schema"
     And the response field "schemaType" should be "PROTOBUF"
-    And the audit log should contain event "schema_lookup" with subject "resp-proto-lookup"
+    And the audit log should contain an event:
+      | event_type           | schema_lookup                     |
+      | outcome              | success                           |
+      | actor_id             |                                   |
+      | actor_type           | anonymous                         |
+      | auth_method          |                                   |
+      | role                 |                                   |
+      | target_type          | subject                           |
+      | target_id            | resp-proto-lookup                 |
+      | schema_id            |                                   |
+      | version              |                                   |
+      | schema_type          |                                   |
+      | before_hash          |                                   |
+      | after_hash           |                                   |
+      | context              | .                                 |
+      | transport_security   | tls                               |
+      | source_ip            | *                                 |
+      | user_agent           | *                                 |
+      | method               | POST                              |
+      | path                 | /subjects/resp-proto-lookup       |
+      | status_code          | 200                               |
+      | reason               |                                   |
+      | error                |                                   |
+      | request_body         |                                   |
+      | metadata             |                                   |
+      | timestamp            | *                                 |
+      | duration_ms          | *                                 |
+      | request_id           | *                                 |
 
   # ==========================================================================
   # CONFIG RESPONSE FIELD NAMES
@@ -163,7 +244,34 @@ Feature: Response Shapes — Confluent Wire Compatibility
     When I set the global config to "FULL"
     Then the response status should be 200
     And the response should have field "compatibility"
-    And the audit log should contain event "config_update"
+    And the audit log should contain an event:
+      | event_type           | config_update          |
+      | outcome              | success                |
+      | actor_id             |                        |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          | config                 |
+      | target_id            | _global                |
+      | schema_id            |                        |
+      | version              |                        |
+      | schema_type          |                        |
+      | before_hash          | sha256:*               |
+      | after_hash           | sha256:*               |
+      | context              | .                      |
+      | transport_security   | tls                    |
+      | source_ip            | *                      |
+      | user_agent           | *                      |
+      | method               | PUT                    |
+      | path                 | /config                |
+      | status_code          | 200                    |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           | *                      |
 
   Scenario: GET /config/{subject} returns compatibilityLevel field
     Given subject "resp-cfg-sub" has compatibility level "FORWARD"
@@ -177,7 +285,34 @@ Feature: Response Shapes — Confluent Wire Compatibility
     Then the response status should be 200
     And the response should have field "compatibility"
     And the response field "compatibility" should be "FULL"
-    And the audit log should contain event "config_update"
+    And the audit log should contain an event:
+      | event_type           | config_update               |
+      | outcome              | success                     |
+      | actor_id             |                             |
+      | actor_type           | anonymous                   |
+      | auth_method          |                             |
+      | role                 |                             |
+      | target_type          | config                      |
+      | target_id            | resp-cfg-sub2               |
+      | schema_id            |                             |
+      | version              |                             |
+      | schema_type          |                             |
+      | before_hash          |                             |
+      | after_hash           | sha256:*                    |
+      | context              | .                           |
+      | transport_security   | tls                         |
+      | source_ip            | *                           |
+      | user_agent           | *                           |
+      | method               | PUT                         |
+      | path                 | /config/resp-cfg-sub2       |
+      | status_code          | 200                         |
+      | reason               |                             |
+      | error                |                             |
+      | request_body         |                             |
+      | metadata             |                             |
+      | timestamp            | *                           |
+      | duration_ms          | *                           |
+      | request_id           | *                           |
 
   # ==========================================================================
   # MODE RESPONSE
@@ -194,7 +329,34 @@ Feature: Response Shapes — Confluent Wire Compatibility
     Then the response status should be 200
     And the response should have field "mode"
     And the response field "mode" should be "READWRITE"
-    And the audit log should contain event "mode_update"
+    And the audit log should contain an event:
+      | event_type           | mode_update            |
+      | outcome              | success                |
+      | actor_id             |                        |
+      | actor_type           | anonymous              |
+      | auth_method          |                        |
+      | role                 |                        |
+      | target_type          | mode                   |
+      | target_id            |                        |
+      | schema_id            |                        |
+      | version              |                        |
+      | schema_type          |                        |
+      | before_hash          |                        |
+      | after_hash           | sha256:*               |
+      | context              | .                      |
+      | transport_security   | tls                    |
+      | source_ip            | *                      |
+      | user_agent           | *                      |
+      | method               | PUT                    |
+      | path                 | /mode                  |
+      | status_code          | 200                    |
+      | reason               |                        |
+      | error                |                        |
+      | request_body         |                        |
+      | metadata             |                        |
+      | timestamp            | *                      |
+      | duration_ms          | *                      |
+      | request_id           | *                      |
 
   # ==========================================================================
   # DELETE SUBJECT RESPONSE BODY
@@ -209,7 +371,34 @@ Feature: Response Shapes — Confluent Wire Compatibility
     Then the response status should be 200
     And the response should be an array of length 1
     And the response array should contain integer 1
-    And the audit log should contain event "subject_delete_soft" with subject "resp-del-sub-1"
+    And the audit log should contain an event:
+      | event_type           | subject_delete_soft          |
+      | outcome              | success                      |
+      | actor_id             |                              |
+      | actor_type           | anonymous                    |
+      | auth_method          |                              |
+      | role                 |                              |
+      | target_type          | subject                      |
+      | target_id            | resp-del-sub-1               |
+      | schema_id            |                              |
+      | version              |                              |
+      | schema_type          |                              |
+      | before_hash          |                              |
+      | after_hash           |                              |
+      | context              | .                            |
+      | transport_security   | tls                          |
+      | source_ip            | *                            |
+      | user_agent           | *                            |
+      | method               | DELETE                       |
+      | path                 | /subjects/resp-del-sub-1     |
+      | status_code          | 200                          |
+      | reason               |                              |
+      | error                |                              |
+      | request_body         |                              |
+      | metadata             |                              |
+      | timestamp            | *                            |
+      | duration_ms          | *                            |
+      | request_id           | *                            |
 
   Scenario: DELETE subject with 3 versions returns array with all version numbers
     Given the global compatibility level is "NONE"
@@ -231,7 +420,34 @@ Feature: Response Shapes — Confluent Wire Compatibility
     And the response array should contain integer 1
     And the response array should contain integer 2
     And the response array should contain integer 3
-    And the audit log should contain event "subject_delete_soft" with subject "resp-del-sub-3"
+    And the audit log should contain an event:
+      | event_type           | subject_delete_soft          |
+      | outcome              | success                      |
+      | actor_id             |                              |
+      | actor_type           | anonymous                    |
+      | auth_method          |                              |
+      | role                 |                              |
+      | target_type          | subject                      |
+      | target_id            | resp-del-sub-3               |
+      | schema_id            |                              |
+      | version              |                              |
+      | schema_type          |                              |
+      | before_hash          |                              |
+      | after_hash           |                              |
+      | context              | .                            |
+      | transport_security   | tls                          |
+      | source_ip            | *                            |
+      | user_agent           | *                            |
+      | method               | DELETE                       |
+      | path                 | /subjects/resp-del-sub-3     |
+      | status_code          | 200                          |
+      | reason               |                              |
+      | error                |                              |
+      | request_body         |                              |
+      | metadata             |                              |
+      | timestamp            | *                            |
+      | duration_ms          | *                            |
+      | request_id           | *                            |
 
   # ==========================================================================
   # DELETE VERSION RESPONSE BODY
@@ -250,7 +466,34 @@ Feature: Response Shapes — Confluent Wire Compatibility
     When I delete version 1 of subject "resp-del-ver"
     Then the response status should be 200
     And the response should be an integer with value 1
-    And the audit log should contain event "schema_delete_soft" with subject "resp-del-ver"
+    And the audit log should contain an event:
+      | event_type           | schema_delete_soft                   |
+      | outcome              | success                              |
+      | actor_id             |                                      |
+      | actor_type           | anonymous                            |
+      | auth_method          |                                      |
+      | role                 |                                      |
+      | target_type          | subject                              |
+      | target_id            | resp-del-ver                         |
+      | schema_id            |                                      |
+      | version              |                                      |
+      | schema_type          |                                      |
+      | before_hash          |                                      |
+      | after_hash           |                                      |
+      | context              | .                                    |
+      | transport_security   | tls                                  |
+      | source_ip            | *                                    |
+      | user_agent           | *                                    |
+      | method               | DELETE                               |
+      | path                 | /subjects/resp-del-ver/versions/1    |
+      | status_code          | 200                                  |
+      | reason               |                                      |
+      | error                |                                      |
+      | request_body         |                                      |
+      | metadata             |                                      |
+      | timestamp            | *                                    |
+      | duration_ms          | *                                    |
+      | request_id           | *                                    |
 
   Scenario: DELETE version 2 returns integer 2
     Given the global compatibility level is "NONE"
@@ -265,7 +508,34 @@ Feature: Response Shapes — Confluent Wire Compatibility
     When I delete version 2 of subject "resp-del-ver2"
     Then the response status should be 200
     And the response should be an integer with value 2
-    And the audit log should contain event "schema_delete_soft" with subject "resp-del-ver2"
+    And the audit log should contain an event:
+      | event_type           | schema_delete_soft                    |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | resp-del-ver2                         |
+      | schema_id            |                                       |
+      | version              |                                       |
+      | schema_type          |                                       |
+      | before_hash          |                                       |
+      | after_hash           |                                       |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | DELETE                                |
+      | path                 | /subjects/resp-del-ver2/versions/2    |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   # ==========================================================================
   # DELETE CONFIG RESPONSE

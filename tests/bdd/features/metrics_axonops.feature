@@ -38,7 +38,34 @@ Feature: AxonOps-Native Metrics
       """
     Then the response status should be 200
     And the Prometheus metric "schema_registry_registrations_total" with labels "status=\"success\"" should exist
-    And the audit log should contain event "schema_register" with subject "metrics-reg-total-test"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | metrics-reg-total-test                       |
+      | schema_id            | *                                            |
+      | version              |                                              |
+      | schema_type          | AVRO                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/metrics-reg-total-test/versions    |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   Scenario: registrations_total counter tracks registration by schema type
     When I register a "JSON" schema under subject "metrics-reg-json-test":
@@ -47,7 +74,34 @@ Feature: AxonOps-Native Metrics
       """
     Then the response status should be 200
     And the Prometheus metric "schema_registry_registrations_total" with labels "type=\"JSON\"" should exist
-    And the audit log should contain event "schema_register" with subject "metrics-reg-json-test"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | metrics-reg-json-test                        |
+      | schema_id            | *                                            |
+      | version              |                                              |
+      | schema_type          | JSON                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/metrics-reg-json-test/versions     |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   Scenario: schemas_total gauge tracks schema count by type
     When I register a schema under subject "metrics-schemas-total-test":
@@ -57,7 +111,34 @@ Feature: AxonOps-Native Metrics
     Then the response status should be 200
     And I wait for metrics refresh
     And the Prometheus metric "schema_registry_schemas_total" with labels "type=\"AVRO\"" should exist
-    And the audit log should contain event "schema_register" with subject "metrics-schemas-total-test"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | metrics-schemas-total-test                   |
+      | schema_id            | *                                            |
+      | version              |                                              |
+      | schema_type          | AVRO                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/metrics-schemas-total-test/versions |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   Scenario: subjects_total gauge tracks subject count
     When I register a schema under subject "metrics-subjects-total-test":
@@ -67,7 +148,34 @@ Feature: AxonOps-Native Metrics
     Then the response status should be 200
     And I wait for metrics refresh
     And the Prometheus metric "schema_registry_subjects_total" should exist
-    And the audit log should contain event "schema_register" with subject "metrics-subjects-total-test"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | metrics-subjects-total-test                  |
+      | schema_id            | *                                            |
+      | version              |                                              |
+      | schema_type          | AVRO                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/metrics-subjects-total-test/versions |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   Scenario: schema_versions gauge tracks version count per subject
     When I register a schema under subject "metrics-schema-versions-test":
@@ -76,7 +184,34 @@ Feature: AxonOps-Native Metrics
       """
     Then the response status should be 200
     And the Prometheus metric "schema_registry_schema_versions" with labels "subject=\"metrics-schema-versions-test\"" should exist
-    And the audit log should contain event "schema_register" with subject "metrics-schema-versions-test"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | metrics-schema-versions-test                 |
+      | schema_id            | *                                            |
+      | version              |                                              |
+      | schema_type          | AVRO                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/metrics-schema-versions-test/versions |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   # ---------------------------------------------------------------------------
   # Storage Metrics — populated by storage operations
@@ -89,7 +224,34 @@ Feature: AxonOps-Native Metrics
       """
     Then the response status should be 200
     And the Prometheus metric "schema_registry_storage_operations_total" should exist
-    And the audit log should contain event "schema_register" with subject "metrics-storage-ops-test"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | metrics-storage-ops-test                     |
+      | schema_id            | *                                            |
+      | version              |                                              |
+      | schema_type          | AVRO                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/metrics-storage-ops-test/versions  |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   Scenario: storage_latency_seconds histogram tracks storage operation latency
     When I register a schema under subject "metrics-storage-latency-test":
@@ -98,7 +260,34 @@ Feature: AxonOps-Native Metrics
       """
     Then the response status should be 200
     And the Prometheus metric "schema_registry_storage_latency_seconds_bucket" should exist
-    And the audit log should contain event "schema_register" with subject "metrics-storage-latency-test"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | metrics-storage-latency-test                 |
+      | schema_id            | *                                            |
+      | version              |                                              |
+      | schema_type          | AVRO                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/metrics-storage-latency-test/versions |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   # ---------------------------------------------------------------------------
   # Compatibility Metrics — populated by compatibility checks
@@ -151,7 +340,34 @@ Feature: AxonOps-Native Metrics
     And the Prometheus metric "kafka_schema_registry_api_success_count" should exist
     And the Prometheus metric "schema_registry_requests_total" should exist
     And the Prometheus metric "schema_registry_registrations_total" should exist
-    And the audit log should contain event "schema_register" with subject "metrics-coexist-test"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | metrics-coexist-test                         |
+      | schema_id            | *                                            |
+      | version              |                                              |
+      | schema_type          | AVRO                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/metrics-coexist-test/versions      |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   # ---------------------------------------------------------------------------
   # Auth Metrics — populated when auth is enabled

@@ -14,7 +14,34 @@ Feature: Error Handling & Edge Cases — Exhaustive (Confluent v8.1.1 Compatibil
       """
     Then the response status should be 422
     And the response should have error code 42201
-    And the audit log should contain event "schema_register"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | failure                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | err-ex-bad-avro                          |
+      | schema_id            |                                          |
+      | version              |                                          |
+      | schema_type          |                                          |
+      | before_hash          |                                          |
+      | after_hash           |                                          |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/err-ex-bad-avro/versions       |
+      | status_code          | 422                                      |
+      | reason               | invalid_schema                           |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: Register invalid JSON in schema field returns error
     When I POST "/subjects/err-ex-bad-json/versions" with body:
@@ -23,7 +50,34 @@ Feature: Error Handling & Edge Cases — Exhaustive (Confluent v8.1.1 Compatibil
       """
     Then the response status should be 422
     And the response should have error code 42201
-    And the audit log should contain event "schema_register"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | failure                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | err-ex-bad-json                          |
+      | schema_id            |                                          |
+      | version              |                                          |
+      | schema_type          |                                          |
+      | before_hash          |                                          |
+      | after_hash           |                                          |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/err-ex-bad-json/versions       |
+      | status_code          | 422                                      |
+      | reason               | invalid_schema                           |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: Register empty schema string returns error
     When I POST "/subjects/err-ex-empty/versions" with body:
@@ -31,7 +85,34 @@ Feature: Error Handling & Edge Cases — Exhaustive (Confluent v8.1.1 Compatibil
       {"schema": ""}
       """
     Then the response status should be 422
-    And the audit log should contain event "schema_register"
+    And the audit log should contain an event:
+      | event_type           | schema_register                      |
+      | outcome              | failure                              |
+      | actor_id             |                                      |
+      | actor_type           | anonymous                            |
+      | auth_method          |                                      |
+      | role                 |                                      |
+      | target_type          | subject                              |
+      | target_id            | err-ex-empty                         |
+      | schema_id            |                                      |
+      | version              |                                      |
+      | schema_type          |                                      |
+      | before_hash          |                                      |
+      | after_hash           |                                      |
+      | context              | .                                    |
+      | transport_security   | tls                                  |
+      | source_ip            | *                                    |
+      | user_agent           | *                                    |
+      | method               | POST                                 |
+      | path                 | /subjects/err-ex-empty/versions      |
+      | status_code          | 422                                  |
+      | reason               | invalid_schema                       |
+      | error                |                                      |
+      | request_body         |                                      |
+      | metadata             |                                      |
+      | timestamp            | *                                    |
+      | duration_ms          | *                                    |
+      | request_id           | *                                    |
 
   # ==========================================================================
   # BAD REFERENCE ERRORS
@@ -48,7 +129,34 @@ Feature: Error Handling & Edge Cases — Exhaustive (Confluent v8.1.1 Compatibil
       }
       """
     Then the response status should be 422
-    And the audit log should contain event "schema_register"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | failure                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | err-ex-ref-nosub                         |
+      | schema_id            |                                          |
+      | version              |                                          |
+      | schema_type          |                                          |
+      | before_hash          |                                          |
+      | after_hash           |                                          |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/err-ex-ref-nosub/versions      |
+      | status_code          | 422                                      |
+      | reason               | invalid_schema                           |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: Register with reference to non-existent version returns error
     Given subject "err-ex-ref-src" has schema:
@@ -65,7 +173,34 @@ Feature: Error Handling & Edge Cases — Exhaustive (Confluent v8.1.1 Compatibil
       }
       """
     Then the response status should be 422
-    And the audit log should contain event "schema_register"
+    And the audit log should contain an event:
+      | event_type           | schema_register                           |
+      | outcome              | failure                                   |
+      | actor_id             |                                           |
+      | actor_type           | anonymous                                 |
+      | auth_method          |                                           |
+      | role                 |                                           |
+      | target_type          | subject                                   |
+      | target_id            | err-ex-ref-badver                         |
+      | schema_id            |                                           |
+      | version              |                                           |
+      | schema_type          |                                           |
+      | before_hash          |                                           |
+      | after_hash           |                                           |
+      | context              | .                                         |
+      | transport_security   | tls                                       |
+      | source_ip            | *                                         |
+      | user_agent           | *                                         |
+      | method               | POST                                      |
+      | path                 | /subjects/err-ex-ref-badver/versions      |
+      | status_code          | 422                                       |
+      | reason               | invalid_schema                            |
+      | error                |                                           |
+      | request_body         |                                           |
+      | metadata             |                                           |
+      | timestamp            | *                                         |
+      | duration_ms          | *                                         |
+      | request_id           | *                                         |
 
   # ==========================================================================
   # GLOBAL ID CONSISTENCY
@@ -85,7 +220,34 @@ Feature: Error Handling & Edge Cases — Exhaustive (Confluent v8.1.1 Compatibil
       """
     Then the response status should be 200
     And the response field "id" should equal stored "first_id"
-    And the audit log should contain event "schema_register" with subject "err-ex-id-s2"
+    And the audit log should contain an event:
+      | event_type           | schema_register                       |
+      | outcome              | success                               |
+      | actor_id             |                                       |
+      | actor_type           | anonymous                             |
+      | auth_method          |                                       |
+      | role                 |                                       |
+      | target_type          | subject                               |
+      | target_id            | err-ex-id-s2                          |
+      | schema_id            | *                                     |
+      | version              |                                       |
+      | schema_type          | AVRO                                  |
+      | before_hash          |                                       |
+      | after_hash           | sha256:*                              |
+      | context              | .                                     |
+      | transport_security   | tls                                   |
+      | source_ip            | *                                     |
+      | user_agent           | *                                     |
+      | method               | POST                                  |
+      | path                 | /subjects/err-ex-id-s2/versions       |
+      | status_code          | 200                                   |
+      | reason               |                                       |
+      | error                |                                       |
+      | request_body         |                                       |
+      | metadata             |                                       |
+      | timestamp            | *                                     |
+      | duration_ms          | *                                     |
+      | request_id           | *                                     |
 
   Scenario: Different schemas get different global IDs
     Given the global compatibility level is "NONE"
@@ -101,7 +263,34 @@ Feature: Error Handling & Edge Cases — Exhaustive (Confluent v8.1.1 Compatibil
       """
     Then the response status should be 200
     And I store the response field "id" as "id2"
-    And the audit log should contain event "schema_register" with subject "err-ex-diffid-s2"
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | err-ex-diffid-s2                         |
+      | schema_id            | *                                        |
+      | version              |                                          |
+      | schema_type          | AVRO                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/err-ex-diffid-s2/versions      |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   # ==========================================================================
   # SUBJECT AND VERSION ERROR CODES
@@ -174,7 +363,34 @@ Feature: Error Handling & Edge Cases — Exhaustive (Confluent v8.1.1 Compatibil
     When I get version 1 of subject "err-40406-sub"
     Then the response status should be 404
     And the response should have error code 40406
-    And the audit log should contain event "schema_delete_soft" with subject "err-40406-sub"
+    And the audit log should contain an event:
+      | event_type           | schema_delete_soft                        |
+      | outcome              | success                                   |
+      | actor_id             |                                           |
+      | actor_type           | anonymous                                 |
+      | auth_method          |                                           |
+      | role                 |                                           |
+      | target_type          | subject                                   |
+      | target_id            | err-40406-sub                             |
+      | schema_id            |                                           |
+      | version              |                                           |
+      | schema_type          |                                           |
+      | before_hash          |                                           |
+      | after_hash           |                                           |
+      | context              | .                                         |
+      | transport_security   | tls                                       |
+      | source_ip            | *                                         |
+      | user_agent           | *                                         |
+      | method               | DELETE                                    |
+      | path                 | /subjects/err-40406-sub/versions/1        |
+      | status_code          | 200                                       |
+      | reason               |                                           |
+      | error                |                                           |
+      | request_body         |                                           |
+      | metadata             |                                           |
+      | timestamp            | *                                         |
+      | duration_ms          | *                                         |
+      | request_id           | *                                         |
 
   @axonops-only
   Scenario: GET soft-deleted version with deleted=true still returns 200
@@ -191,7 +407,34 @@ Feature: Error Handling & Edge Cases — Exhaustive (Confluent v8.1.1 Compatibil
     Then the response status should be 200
     When I GET "/subjects/err-40406-del/versions/1?deleted=true"
     Then the response status should be 200
-    And the audit log should contain event "schema_delete_soft" with subject "err-40406-del"
+    And the audit log should contain an event:
+      | event_type           | schema_delete_soft                        |
+      | outcome              | success                                   |
+      | actor_id             |                                           |
+      | actor_type           | anonymous                                 |
+      | auth_method          |                                           |
+      | role                 |                                           |
+      | target_type          | subject                                   |
+      | target_id            | err-40406-del                             |
+      | schema_id            |                                           |
+      | version              |                                           |
+      | schema_type          |                                           |
+      | before_hash          |                                           |
+      | after_hash           |                                           |
+      | context              | .                                         |
+      | transport_security   | tls                                       |
+      | source_ip            | *                                         |
+      | user_agent           | *                                         |
+      | method               | DELETE                                    |
+      | path                 | /subjects/err-40406-del/versions/1        |
+      | status_code          | 200                                       |
+      | reason               |                                           |
+      | error                |                                           |
+      | request_body         |                                           |
+      | metadata             |                                           |
+      | timestamp            | *                                         |
+      | duration_ms          | *                                         |
+      | request_id           | *                                         |
 
   @axonops-only
   Scenario: GET raw schema of individually soft-deleted version returns 40406
@@ -209,4 +452,31 @@ Feature: Error Handling & Edge Cases — Exhaustive (Confluent v8.1.1 Compatibil
     When I GET "/subjects/err-40406-raw/versions/1/schema"
     Then the response status should be 404
     And the response should have error code 40406
-    And the audit log should contain event "schema_delete_soft" with subject "err-40406-raw"
+    And the audit log should contain an event:
+      | event_type           | schema_delete_soft                        |
+      | outcome              | success                                   |
+      | actor_id             |                                           |
+      | actor_type           | anonymous                                 |
+      | auth_method          |                                           |
+      | role                 |                                           |
+      | target_type          | subject                                   |
+      | target_id            | err-40406-raw                             |
+      | schema_id            |                                           |
+      | version              |                                           |
+      | schema_type          |                                           |
+      | before_hash          |                                           |
+      | after_hash           |                                           |
+      | context              | .                                         |
+      | transport_security   | tls                                       |
+      | source_ip            | *                                         |
+      | user_agent           | *                                         |
+      | method               | DELETE                                    |
+      | path                 | /subjects/err-40406-raw/versions/1        |
+      | status_code          | 200                                       |
+      | reason               |                                           |
+      | error                |                                           |
+      | request_body         |                                           |
+      | metadata             |                                           |
+      | timestamp            | *                                         |
+      | duration_ms          | *                                         |
+      | request_id           | *                                         |

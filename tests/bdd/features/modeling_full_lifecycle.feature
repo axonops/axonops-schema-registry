@@ -62,7 +62,34 @@ Feature: Full Schema Lifecycle
     When I get the latest version of subject "lifecycle-avro"
     Then the response status should be 200
     And the response body should contain "ts"
-    And the audit log should contain event "schema_register" with subject "lifecycle-avro"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | lifecycle-avro                               |
+      | schema_id            | *                                            |
+      | version              |                                              |
+      | schema_type          | AVRO                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/lifecycle-avro/versions            |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   # ==========================================================================
   # 2. PROTOBUF FULL LIFECYCLE
@@ -116,7 +143,34 @@ message Event {
 }
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "lifecycle-proto"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | lifecycle-proto                              |
+      | schema_id            | *                                            |
+      | version              |                                              |
+      | schema_type          | PROTOBUF                                     |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/lifecycle-proto/versions           |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   # ==========================================================================
   # 3. JSON SCHEMA FULL LIFECYCLE
@@ -149,7 +203,34 @@ message Event {
       {"type":"object","properties":{"id":{"type":"integer"},"name":{"type":"string"},"email":{"type":"string"},"phone":{"type":"string"}},"required":["id","name"],"additionalProperties":false}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "lifecycle-json"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | lifecycle-json                               |
+      | schema_id            | *                                            |
+      | version              |                                              |
+      | schema_type          | JSON                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/lifecycle-json/versions            |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   # ==========================================================================
   # 4. CROSS-TYPE LIFECYCLE
@@ -186,7 +267,34 @@ message B {
     Then the response status should be 200
     When I delete subject "lifecycle-cross-json"
     Then the response status should be 200
-    And the audit log should contain event "subject_delete_soft" with subject "lifecycle-cross-json"
+    And the audit log should contain an event:
+      | event_type           | subject_delete_soft                          |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | lifecycle-cross-json                         |
+      | schema_id            |                                              |
+      | version              |                                              |
+      | schema_type          | JSON                                         |
+      | before_hash          | sha256:*                                     |
+      | after_hash           |                                              |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | DELETE                                       |
+      | path                 | /subjects/lifecycle-cross-json               |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   # ==========================================================================
   # 5. SCHEMA WITH REFERENCES LIFECYCLE
@@ -222,7 +330,34 @@ message B {
       ]}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "lifecycle-ref-base"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | lifecycle-ref-base                           |
+      | schema_id            | *                                            |
+      | version              |                                              |
+      | schema_type          | AVRO                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/lifecycle-ref-base/versions        |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   # ==========================================================================
   # 6. IMPORT AND EVOLVE
@@ -243,7 +378,34 @@ message B {
       {"type":"record","name":"Imported","fields":[{"name":"id","type":"long"},{"name":"data","type":"string","default":""}]}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "lifecycle-import"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | lifecycle-import                             |
+      | schema_id            | *                                            |
+      | version              |                                              |
+      | schema_type          | AVRO                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/lifecycle-import/versions          |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   # ==========================================================================
   # 7. MODE CHANGES
@@ -274,7 +436,34 @@ message B {
       {"type":"record","name":"M","fields":[{"name":"id","type":"long"},{"name":"x","type":"string","default":""}]}
       """
     Then the response status should be 200
-    And the audit log should contain event "schema_register" with subject "lifecycle-mode"
+    And the audit log should contain an event:
+      | event_type           | schema_register                              |
+      | outcome              | success                                      |
+      | actor_id             |                                              |
+      | actor_type           | anonymous                                    |
+      | auth_method          |                                              |
+      | role                 |                                              |
+      | target_type          | subject                                      |
+      | target_id            | lifecycle-mode                               |
+      | schema_id            | *                                            |
+      | version              |                                              |
+      | schema_type          | AVRO                                         |
+      | before_hash          |                                              |
+      | after_hash           | sha256:*                                     |
+      | context              | .                                            |
+      | transport_security   | tls                                          |
+      | source_ip            | *                                            |
+      | user_agent           | *                                            |
+      | method               | POST                                         |
+      | path                 | /subjects/lifecycle-mode/versions            |
+      | status_code          | 200                                          |
+      | reason               |                                              |
+      | error                |                                              |
+      | request_body         |                                              |
+      | metadata             |                                              |
+      | timestamp            | *                                            |
+      | duration_ms          | *                                            |
+      | request_id           | *                                            |
 
   # ==========================================================================
   # 8. CONFIG CHANGES

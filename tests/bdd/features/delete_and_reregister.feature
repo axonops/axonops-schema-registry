@@ -44,8 +44,62 @@ Feature: Delete and Re-register Semantics
     When I list all subjects
     Then the response status should be 200
     And the response array should contain "del-reregister"
-    And the audit log should contain event "subject_delete_soft" with subject "del-reregister"
-    And the audit log should contain event "schema_register" with subject "del-reregister"
+    And the audit log should contain an event:
+      | event_type           | subject_delete_soft                      |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | del-reregister                           |
+      | schema_id            |                                          |
+      | version              |                                          |
+      | schema_type          | AVRO                                     |
+      | before_hash          | sha256:*                                 |
+      | after_hash           |                                          |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | DELETE                                   |
+      | path                 | /subjects/del-reregister                 |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | del-reregister                           |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | AVRO                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/del-reregister/versions        |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   Scenario: Re-registering the same schema after soft-delete returns existing ID
     Given subject "del-same-schema" has schema:
@@ -61,8 +115,62 @@ Feature: Delete and Re-register Semantics
       {"type":"record","name":"DelSame","fields":[{"name":"id","type":"int"}]}
       """
     Then the response status should be 200
-    And the audit log should contain event "subject_delete_soft" with subject "del-same-schema"
-    And the audit log should contain event "schema_register" with subject "del-same-schema"
+    And the audit log should contain an event:
+      | event_type           | subject_delete_soft                      |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | del-same-schema                          |
+      | schema_id            |                                          |
+      | version              |                                          |
+      | schema_type          | AVRO                                     |
+      | before_hash          | sha256:*                                 |
+      | after_hash           |                                          |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | DELETE                                   |
+      | path                 | /subjects/del-same-schema                |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
+    And the audit log should contain an event:
+      | event_type           | schema_register                          |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | del-same-schema                          |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | AVRO                                     |
+      | before_hash          |                                          |
+      | after_hash           | sha256:*                                 |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | POST                                     |
+      | path                 | /subjects/del-same-schema/versions       |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   # ---------------------------------------------------------------------------
   # Lookup of deleted schemas
@@ -87,7 +195,34 @@ Feature: Delete and Re-register Semantics
       {"type":"record","name":"LookupDel","fields":[{"name":"id","type":"int"}]}
       """
     Then the response status should be 200
-    And the audit log should contain event "subject_delete_soft" with subject "lookup-del"
+    And the audit log should contain an event:
+      | event_type           | subject_delete_soft                      |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | lookup-del                               |
+      | schema_id            |                                          |
+      | version              |                                          |
+      | schema_type          | AVRO                                     |
+      | before_hash          | sha256:*                                 |
+      | after_hash           |                                          |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | DELETE                                   |
+      | path                 | /subjects/lookup-del                     |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   # ---------------------------------------------------------------------------
   # Listing with deleted flag
@@ -114,7 +249,34 @@ Feature: Delete and Re-register Semantics
     Then the response status should be 200
     And the response array should contain "list-del-a"
     And the response array should contain "list-del-b"
-    And the audit log should contain event "subject_delete_soft" with subject "list-del-a"
+    And the audit log should contain an event:
+      | event_type           | subject_delete_soft                      |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | list-del-a                               |
+      | schema_id            |                                          |
+      | version              |                                          |
+      | schema_type          | AVRO                                     |
+      | before_hash          | sha256:*                                 |
+      | after_hash           |                                          |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | DELETE                                   |
+      | path                 | /subjects/list-del-a                     |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   # ---------------------------------------------------------------------------
   # Permanent delete
@@ -142,7 +304,34 @@ Feature: Delete and Re-register Semantics
     When I list subjects with deleted
     Then the response status should be 200
     And the response array should not contain "perm-del-ok"
-    And the audit log should contain event "subject_delete_permanent" with subject "perm-del-ok"
+    And the audit log should contain an event:
+      | event_type           | subject_delete_permanent                 |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | perm-del-ok                              |
+      | schema_id            |                                          |
+      | version              |                                          |
+      | schema_type          | AVRO                                     |
+      | before_hash          | sha256:*                                 |
+      | after_hash           |                                          |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | DELETE                                   |
+      | path                 | /subjects/perm-del-ok                    |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
 
   # ---------------------------------------------------------------------------
   # Permanent delete of referenced subject
@@ -200,4 +389,31 @@ Feature: Delete and Re-register Semantics
     # Version 2 should be gone
     When I get version 2 of subject "ver-del"
     Then the response status should be 404
-    And the audit log should contain event "schema_delete_soft" with subject "ver-del"
+    And the audit log should contain an event:
+      | event_type           | schema_delete_soft                       |
+      | outcome              | success                                  |
+      | actor_id             |                                          |
+      | actor_type           | anonymous                                |
+      | auth_method          |                                          |
+      | role                 |                                          |
+      | target_type          | subject                                  |
+      | target_id            | ver-del                                  |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | AVRO                                     |
+      | before_hash          | sha256:*                                 |
+      | after_hash           |                                          |
+      | context              | .                                        |
+      | transport_security   | tls                                      |
+      | source_ip            | *                                        |
+      | user_agent           | *                                        |
+      | method               | DELETE                                   |
+      | path                 | /subjects/ver-del/versions/2             |
+      | status_code          | 200                                      |
+      | reason               |                                          |
+      | error                |                                          |
+      | request_body         |                                          |
+      | metadata             |                                          |
+      | timestamp            | *                                        |
+      | duration_ms          | *                                        |
+      | request_id           | *                                        |
