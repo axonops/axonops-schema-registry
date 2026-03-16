@@ -39,7 +39,7 @@ Feature: JSON Schema Compatibility
       | method               | POST                                     |
       | path                 | /subjects/json-back-1/versions           |
       | status_code          | 409                                      |
-      | reason               | already_exists                           |
+      | reason               | incompatible                             |
       | error                |                                          |
       | request_body         |                                          |
       | metadata             |                                          |
@@ -79,7 +79,7 @@ Feature: JSON Schema Compatibility
       | method               | POST                                     |
       | path                 | /subjects/json-back-2/versions           |
       | status_code          | 409                                      |
-      | reason               | already_exists                           |
+      | reason               | incompatible                             |
       | error                |                                          |
       | request_body         |                                          |
       | metadata             |                                          |
@@ -159,7 +159,7 @@ Feature: JSON Schema Compatibility
       | method               | POST                                     |
       | path                 | /subjects/json-back-4/versions           |
       | status_code          | 409                                      |
-      | reason               | already_exists                           |
+      | reason               | incompatible                             |
       | error                |                                          |
       | request_body         |                                          |
       | metadata             |                                          |
@@ -239,7 +239,7 @@ Feature: JSON Schema Compatibility
       | method               | POST                                     |
       | path                 | /subjects/json-back-6/versions           |
       | status_code          | 409                                      |
-      | reason               | already_exists                           |
+      | reason               | incompatible                             |
       | error                |                                          |
       | request_body         |                                          |
       | metadata             |                                          |
@@ -319,7 +319,7 @@ Feature: JSON Schema Compatibility
       | method               | POST                                     |
       | path                 | /subjects/json-back-8/versions           |
       | status_code          | 409                                      |
-      | reason               | already_exists                           |
+      | reason               | incompatible                             |
       | error                |                                          |
       | request_body         |                                          |
       | metadata             |                                          |
@@ -418,7 +418,7 @@ Feature: JSON Schema Compatibility
       | method               | POST                                     |
       | path                 | /subjects/json-bt-2/versions             |
       | status_code          | 409                                      |
-      | reason               | already_exists                           |
+      | reason               | incompatible                             |
       | error                |                                          |
       | request_body         |                                          |
       | metadata             |                                          |
@@ -506,7 +506,7 @@ Feature: JSON Schema Compatibility
       | method               | POST                                     |
       | path                 | /subjects/json-bt-4/versions             |
       | status_code          | 409                                      |
-      | reason               | already_exists                           |
+      | reason               | incompatible                             |
       | error                |                                          |
       | request_body         |                                          |
       | metadata             |                                          |
@@ -596,7 +596,7 @@ Feature: JSON Schema Compatibility
       | method               | POST                                     |
       | path                 | /subjects/json-fwd-1/versions            |
       | status_code          | 409                                      |
-      | reason               | already_exists                           |
+      | reason               | incompatible                             |
       | error                |                                          |
       | request_body         |                                          |
       | metadata             |                                          |
@@ -636,7 +636,7 @@ Feature: JSON Schema Compatibility
       | method               | POST                                     |
       | path                 | /subjects/json-fwd-2/versions            |
       | status_code          | 409                                      |
-      | reason               | already_exists                           |
+      | reason               | incompatible                             |
       | error                |                                          |
       | request_body         |                                          |
       | metadata             |                                          |
@@ -676,7 +676,7 @@ Feature: JSON Schema Compatibility
       | method               | POST                                     |
       | path                 | /subjects/json-fwd-3/versions            |
       | status_code          | 409                                      |
-      | reason               | already_exists                           |
+      | reason               | incompatible                             |
       | error                |                                          |
       | request_body         |                                          |
       | metadata             |                                          |
@@ -756,7 +756,7 @@ Feature: JSON Schema Compatibility
       | method               | POST                                     |
       | path                 | /subjects/json-fwd-5/versions            |
       | status_code          | 409                                      |
-      | reason               | already_exists                           |
+      | reason               | incompatible                             |
       | error                |                                          |
       | request_body         |                                          |
       | metadata             |                                          |
@@ -796,7 +796,7 @@ Feature: JSON Schema Compatibility
       | method               | POST                                     |
       | path                 | /subjects/json-fwd-6/versions            |
       | status_code          | 409                                      |
-      | reason               | already_exists                           |
+      | reason               | incompatible                             |
       | error                |                                          |
       | request_body         |                                          |
       | metadata             |                                          |
@@ -972,7 +972,7 @@ Feature: JSON Schema Compatibility
       | method               | POST                                     |
       | path                 | /subjects/json-ft-2/versions             |
       | status_code          | 409                                      |
-      | reason               | already_exists                           |
+      | reason               | incompatible                             |
       | error                |                                          |
       | request_body         |                                          |
       | metadata             |                                          |
@@ -1016,7 +1016,7 @@ Feature: JSON Schema Compatibility
       | method               | POST                                     |
       | path                 | /subjects/json-ft-3/versions             |
       | status_code          | 409                                      |
-      | reason               | already_exists                           |
+      | reason               | incompatible                             |
       | error                |                                          |
       | request_body         |                                          |
       | metadata             |                                          |
@@ -1105,7 +1105,7 @@ Feature: JSON Schema Compatibility
       | method               | POST                                     |
       | path                 | /subjects/json-full-1/versions           |
       | status_code          | 409                                      |
-      | reason               | already_exists                           |
+      | reason               | incompatible                             |
       | error                |                                          |
       | request_body         |                                          |
       | metadata             |                                          |
@@ -1145,7 +1145,7 @@ Feature: JSON Schema Compatibility
       | method               | POST                                     |
       | path                 | /subjects/json-full-2/versions           |
       | status_code          | 409                                      |
-      | reason               | already_exists                           |
+      | reason               | incompatible                             |
       | error                |                                          |
       | request_body         |                                          |
       | metadata             |                                          |
@@ -1185,7 +1185,7 @@ Feature: JSON Schema Compatibility
       | method               | POST                                     |
       | path                 | /subjects/json-full-3/versions           |
       | status_code          | 409                                      |
-      | reason               | already_exists                           |
+      | reason               | incompatible                             |
       | error                |                                          |
       | request_body         |                                          |
       | metadata             |                                          |
@@ -1225,7 +1225,7 @@ Feature: JSON Schema Compatibility
       | method               | POST                                     |
       | path                 | /subjects/json-full-3b/versions          |
       | status_code          | 409                                      |
-      | reason               | already_exists                           |
+      | reason               | incompatible                             |
       | error                |                                          |
       | request_body         |                                          |
       | metadata             |                                          |
@@ -1265,7 +1265,7 @@ Feature: JSON Schema Compatibility
       | method               | POST                                     |
       | path                 | /subjects/json-full-4/versions           |
       | status_code          | 409                                      |
-      | reason               | already_exists                           |
+      | reason               | incompatible                             |
       | error                |                                          |
       | request_body         |                                          |
       | metadata             |                                          |
@@ -1305,7 +1305,7 @@ Feature: JSON Schema Compatibility
       | method               | POST                                     |
       | path                 | /subjects/json-full-5/versions           |
       | status_code          | 409                                      |
-      | reason               | already_exists                           |
+      | reason               | incompatible                             |
       | error                |                                          |
       | request_body         |                                          |
       | metadata             |                                          |
@@ -1438,7 +1438,7 @@ Feature: JSON Schema Compatibility
       | method               | POST                                     |
       | path                 | /subjects/json-flt-2/versions            |
       | status_code          | 409                                      |
-      | reason               | already_exists                           |
+      | reason               | incompatible                             |
       | error                |                                          |
       | request_body         |                                          |
       | metadata             |                                          |
@@ -1611,7 +1611,7 @@ Feature: JSON Schema Compatibility
       | method               | POST                                     |
       | path                 | /subjects/json-edge-1/versions           |
       | status_code          | 409                                      |
-      | reason               | already_exists                           |
+      | reason               | incompatible                             |
       | error                |                                          |
       | request_body         |                                          |
       | metadata             |                                          |
@@ -1731,7 +1731,7 @@ Feature: JSON Schema Compatibility
       | method               | POST                                     |
       | path                 | /subjects/json-edge-4/versions           |
       | status_code          | 409                                      |
-      | reason               | already_exists                           |
+      | reason               | incompatible                             |
       | error                |                                          |
       | request_body         |                                          |
       | metadata             |                                          |
@@ -1811,7 +1811,7 @@ Feature: JSON Schema Compatibility
       | method               | POST                                     |
       | path                 | /subjects/json-edge-6/versions           |
       | status_code          | 409                                      |
-      | reason               | already_exists                           |
+      | reason               | incompatible                             |
       | error                |                                          |
       | request_body         |                                          |
       | metadata             |                                          |
@@ -1851,7 +1851,7 @@ Feature: JSON Schema Compatibility
       | method               | POST                                     |
       | path                 | /subjects/json-edge-7/versions           |
       | status_code          | 409                                      |
-      | reason               | already_exists                           |
+      | reason               | incompatible                             |
       | error                |                                          |
       | request_body         |                                          |
       | metadata             |                                          |
@@ -1891,7 +1891,7 @@ Feature: JSON Schema Compatibility
       | method               | POST                                     |
       | path                 | /subjects/json-edge-8/versions           |
       | status_code          | 409                                      |
-      | reason               | already_exists                           |
+      | reason               | incompatible                             |
       | error                |                                          |
       | request_body         |                                          |
       | metadata             |                                          |
@@ -2011,7 +2011,7 @@ Feature: JSON Schema Compatibility
       | method               | POST                                     |
       | path                 | /subjects/json-edge-11/versions          |
       | status_code          | 409                                      |
-      | reason               | already_exists                           |
+      | reason               | incompatible                             |
       | error                |                                          |
       | request_body         |                                          |
       | metadata             |                                          |
@@ -2096,7 +2096,7 @@ Feature: JSON Schema Compatibility
       | method               | POST                                     |
       | path                 | /subjects/json-err-1/versions            |
       | status_code          | 409                                      |
-      | reason               | already_exists                           |
+      | reason               | incompatible                             |
       | error                |                                          |
       | request_body         |                                          |
       | metadata             |                                          |
@@ -2209,7 +2209,7 @@ Feature: JSON Schema Compatibility
       | method               | POST                                     |
       | path                 | /subjects/json-err-5/versions            |
       | status_code          | 409                                      |
-      | reason               | already_exists                           |
+      | reason               | incompatible                             |
       | error                |                                          |
       | request_body         |                                          |
       | metadata             |                                          |
@@ -2291,7 +2291,7 @@ Feature: JSON Schema Compatibility
       | method               | POST                                     |
       | path                 | /subjects/json-gap-2/versions            |
       | status_code          | 409                                      |
-      | reason               | already_exists                           |
+      | reason               | incompatible                             |
       | error                |                                          |
       | request_body         |                                          |
       | metadata             |                                          |
@@ -2371,7 +2371,7 @@ Feature: JSON Schema Compatibility
       | method               | POST                                     |
       | path                 | /subjects/json-gap-4/versions            |
       | status_code          | 409                                      |
-      | reason               | already_exists                           |
+      | reason               | incompatible                             |
       | error                |                                          |
       | request_body         |                                          |
       | metadata             |                                          |
@@ -2451,7 +2451,7 @@ Feature: JSON Schema Compatibility
       | method               | POST                                     |
       | path                 | /subjects/json-gap-6/versions            |
       | status_code          | 409                                      |
-      | reason               | already_exists                           |
+      | reason               | incompatible                             |
       | error                |                                          |
       | request_body         |                                          |
       | metadata             |                                          |
@@ -2531,7 +2531,7 @@ Feature: JSON Schema Compatibility
       | method               | POST                                     |
       | path                 | /subjects/json-gap-8/versions            |
       | status_code          | 409                                      |
-      | reason               | already_exists                           |
+      | reason               | incompatible                             |
       | error                |                                          |
       | request_body         |                                          |
       | metadata             |                                          |

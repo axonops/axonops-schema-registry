@@ -247,7 +247,7 @@ Feature: Contexts — URL Prefix Routing
       | schema_type          | AVRO                                                  |
       | before_hash          |                                                       |
       | after_hash           |                                                       |
-      | context              | .                                                     |
+      | context              | .url-lookup                                           |
       | transport_security   | tls                                                   |
       | method               | POST                                                  |
       | path                 | /contexts/.url-lookup/subjects/lookup-s               |

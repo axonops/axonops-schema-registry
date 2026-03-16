@@ -242,7 +242,7 @@ Feature: Error Codes Exhaustive
       | method               | POST                                  |
       | path                 | /subjects/err-incompat/versions       |
       | status_code          | 409                                   |
-      | reason               | already_exists                        |
+      | reason               | incompatible                          |
       | error                |                                       |
       | request_body         |                                       |
       | metadata             |                                       |

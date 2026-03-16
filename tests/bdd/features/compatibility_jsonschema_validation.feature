@@ -369,7 +369,7 @@ Feature: JSON Schema Validation Compatibility — Exhaustive (Confluent v8.1.1 C
       | method               | POST                                     |
       | path                 | /subjects/jsv-trans-ok/versions          |
       | status_code          | 409                                      |
-      | reason               |                                          |
+      | reason               | incompatible                             |
       | error                |                                          |
       | request_body         |                                          |
       | metadata             |                                          |

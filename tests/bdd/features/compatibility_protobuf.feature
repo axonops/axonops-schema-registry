@@ -94,7 +94,7 @@ Feature: Protobuf Schema Compatibility
       | method               | POST                             |
       | path                 | /subjects/proto-back-2/versions  |
       | status_code          | 409                              |
-      | reason               |                                  |
+      | reason               | incompatible                     |
       | error                |                                  |
       | request_body         |                                  |
       | metadata             |                                  |
@@ -187,7 +187,7 @@ Feature: Protobuf Schema Compatibility
       | method               | POST                             |
       | path                 | /subjects/proto-back-4/versions  |
       | status_code          | 409                              |
-      | reason               |                                  |
+      | reason               | incompatible                     |
       | error                |                                  |
       | request_body         |                                  |
       | metadata             |                                  |
@@ -233,7 +233,7 @@ Feature: Protobuf Schema Compatibility
       | method               | POST                             |
       | path                 | /subjects/proto-back-5/versions  |
       | status_code          | 409                              |
-      | reason               |                                  |
+      | reason               | incompatible                     |
       | error                |                                  |
       | request_body         |                                  |
       | metadata             |                                  |
@@ -600,7 +600,7 @@ Feature: Protobuf Schema Compatibility
       | method               | POST                             |
       | path                 | /subjects/proto-bt-2/versions    |
       | status_code          | 409                              |
-      | reason               |                                  |
+      | reason               | incompatible                     |
       | error                |                                  |
       | request_body         |                                  |
       | metadata             |                                  |
@@ -977,7 +977,7 @@ Feature: Protobuf Schema Compatibility
       | method               | POST                             |
       | path                 | /subjects/proto-fwd-3/versions   |
       | status_code          | 409                              |
-      | reason               |                                  |
+      | reason               | incompatible                     |
       | error                |                                  |
       | request_body         |                                  |
       | metadata             |                                  |
@@ -1023,7 +1023,7 @@ Feature: Protobuf Schema Compatibility
       | method               | POST                             |
       | path                 | /subjects/proto-fwd-4/versions   |
       | status_code          | 409                              |
-      | reason               |                                  |
+      | reason               | incompatible                     |
       | error                |                                  |
       | request_body         |                                  |
       | metadata             |                                  |
@@ -1420,7 +1420,7 @@ Feature: Protobuf Schema Compatibility
       | method               | POST                             |
       | path                 | /subjects/proto-ft-3/versions    |
       | status_code          | 409                              |
-      | reason               |                                  |
+      | reason               | incompatible                     |
       | error                |                                  |
       | request_body         |                                  |
       | metadata             |                                  |
@@ -1639,7 +1639,7 @@ Feature: Protobuf Schema Compatibility
       | method               | POST                             |
       | path                 | /subjects/proto-full-2/versions  |
       | status_code          | 409                              |
-      | reason               |                                  |
+      | reason               | incompatible                     |
       | error                |                                  |
       | request_body         |                                  |
       | metadata             |                                  |
@@ -1883,7 +1883,7 @@ Feature: Protobuf Schema Compatibility
       | method               | POST                             |
       | path                 | /subjects/proto-full-7/versions  |
       | status_code          | 409                              |
-      | reason               |                                  |
+      | reason               | incompatible                     |
       | error                |                                  |
       | request_body         |                                  |
       | metadata             |                                  |
@@ -2001,7 +2001,7 @@ Feature: Protobuf Schema Compatibility
       | method               | POST                             |
       | path                 | /subjects/proto-flt-2/versions   |
       | status_code          | 409                              |
-      | reason               |                                  |
+      | reason               | incompatible                     |
       | error                |                                  |
       | request_body         |                                  |
       | metadata             |                                  |
@@ -2119,7 +2119,7 @@ Feature: Protobuf Schema Compatibility
       | method               | POST                             |
       | path                 | /subjects/proto-flt-4/versions   |
       | status_code          | 409                              |
-      | reason               |                                  |
+      | reason               | incompatible                     |
       | error                |                                  |
       | request_body         |                                  |
       | metadata             |                                  |
@@ -2282,7 +2282,7 @@ Feature: Protobuf Schema Compatibility
       | method               | POST                             |
       | path                 | /subjects/proto-edge-1/versions  |
       | status_code          | 409                              |
-      | reason               |                                  |
+      | reason               | incompatible                     |
       | error                |                                  |
       | request_body         |                                  |
       | metadata             |                                  |
@@ -2388,7 +2388,7 @@ Feature: Protobuf Schema Compatibility
       | method               | POST                             |
       | path                 | /subjects/proto-edge-3/versions  |
       | status_code          | 409                              |
-      | reason               |                                  |
+      | reason               | incompatible                     |
       | error                |                                  |
       | request_body         |                                  |
       | metadata             |                                  |
@@ -2436,7 +2436,7 @@ Feature: Protobuf Schema Compatibility
       | method               | POST                             |
       | path                 | /subjects/proto-edge-4/versions  |
       | status_code          | 409                              |
-      | reason               |                                  |
+      | reason               | incompatible                     |
       | error                |                                  |
       | request_body         |                                  |
       | metadata             |                                  |
@@ -2484,7 +2484,7 @@ Feature: Protobuf Schema Compatibility
       | method               | POST                             |
       | path                 | /subjects/proto-edge-5/versions  |
       | status_code          | 409                              |
-      | reason               |                                  |
+      | reason               | incompatible                     |
       | error                |                                  |
       | request_body         |                                  |
       | metadata             |                                  |
@@ -2536,7 +2536,7 @@ Feature: Protobuf Schema Compatibility
       | method               | POST                             |
       | path                 | /subjects/proto-edge-6/versions  |
       | status_code          | 409                              |
-      | reason               |                                  |
+      | reason               | incompatible                     |
       | error                |                                  |
       | request_body         |                                  |
       | metadata             |                                  |
@@ -2690,7 +2690,7 @@ Feature: Protobuf Schema Compatibility
       | method               | POST                             |
       | path                 | /subjects/proto-err-1/versions   |
       | status_code          | 409                              |
-      | reason               |                                  |
+      | reason               | incompatible                     |
       | error                |                                  |
       | request_body         |                                  |
       | metadata             |                                  |
@@ -2827,7 +2827,7 @@ Feature: Protobuf Schema Compatibility
       | method               | POST                             |
       | path                 | /subjects/proto-err-5/versions   |
       | status_code          | 409                              |
-      | reason               |                                  |
+      | reason               | incompatible                     |
       | error                |                                  |
       | request_body         |                                  |
       | metadata             |                                  |
@@ -2877,7 +2877,7 @@ Feature: Protobuf Schema Compatibility
       | method               | POST                             |
       | path                 | /subjects/proto-gap-1/versions   |
       | status_code          | 409                              |
-      | reason               |                                  |
+      | reason               | incompatible                     |
       | error                |                                  |
       | request_body         |                                  |
       | metadata             |                                  |
@@ -3065,7 +3065,7 @@ Feature: Protobuf Schema Compatibility
       | method               | POST                             |
       | path                 | /subjects/proto-gap-5/versions   |
       | status_code          | 409                              |
-      | reason               |                                  |
+      | reason               | incompatible                     |
       | error                |                                  |
       | request_body         |                                  |
       | metadata             |                                  |

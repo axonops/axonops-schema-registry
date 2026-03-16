@@ -1180,7 +1180,7 @@ Feature: IMPORT Mode — Comprehensive Corner Cases
       | after_hash          |                                          |
       | context             | .                                        |
       | transport_security  | tls                                      |
-      | reason              | already_exists                           |
+      | reason              | incompatible                             |
       | error               |                                          |
       | request_body        |                                          |
       | metadata            |                                          |

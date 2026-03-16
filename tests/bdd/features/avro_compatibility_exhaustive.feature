@@ -81,7 +81,7 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       | method               | POST                                           |
       | path                 | /subjects/avro-ex-back-add-nodef/versions      |
       | status_code          | 409                                            |
-      | reason               | already_exists                                 |
+      | reason               | incompatible                                   |
       | error                |                                                |
       | request_body         |                                                |
       | metadata             |                                                |
@@ -245,7 +245,7 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       | method               | POST                                              |
       | path                 | /subjects/avro-ex-back-narrow-union/versions      |
       | status_code          | 409                                               |
-      | reason               | already_exists                                    |
+      | reason               | incompatible                                      |
       | error                |                                                   |
       | request_body         |                                                   |
       | metadata             |                                                   |
@@ -655,7 +655,7 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       | method               | POST                                              |
       | path                 | /subjects/avro-ex-back-type-change/versions       |
       | status_code          | 409                                               |
-      | reason               | already_exists                                    |
+      | reason               | incompatible                                      |
       | error                |                                                   |
       | request_body         |                                                   |
       | metadata             |                                                   |
@@ -696,7 +696,7 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       | method               | POST                                         |
       | path                 | /subjects/avro-ex-back-rename/versions       |
       | status_code          | 409                                          |
-      | reason               | already_exists                               |
+      | reason               | incompatible                                 |
       | error                |                                              |
       | request_body         |                                              |
       | metadata             |                                              |
@@ -778,7 +778,7 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       | method               | POST                                              |
       | path                 | /subjects/avro-ex-back-enum-remove/versions       |
       | status_code          | 409                                               |
-      | reason               | already_exists                                    |
+      | reason               | incompatible                                      |
       | error                |                                                   |
       | request_body         |                                                   |
       | metadata             |                                                   |
@@ -946,7 +946,7 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       | method               | POST                                               |
       | path                 | /subjects/avro-ex-fwd-remove-nodef/versions        |
       | status_code          | 409                                                |
-      | reason               | already_exists                                     |
+      | reason               | incompatible                                       |
       | error                |                                                    |
       | request_body         |                                                    |
       | metadata             |                                                    |
@@ -987,7 +987,7 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       | method               | POST                                          |
       | path                 | /subjects/avro-ex-fwd-int-long/versions       |
       | status_code          | 409                                           |
-      | reason               | already_exists                                |
+      | reason               | incompatible                                  |
       | error                |                                               |
       | request_body         |                                               |
       | metadata             |                                               |
@@ -1114,7 +1114,7 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       | method               | POST                                           |
       | path                 | /subjects/avro-ex-full-add-nodef/versions      |
       | status_code          | 409                                            |
-      | reason               | already_exists                                 |
+      | reason               | incompatible                                   |
       | error                |                                                |
       | request_body         |                                                |
       | metadata             |                                                |
@@ -1196,7 +1196,7 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       | method               | POST                                               |
       | path                 | /subjects/avro-ex-full-remove-nodef/versions       |
       | status_code          | 409                                                |
-      | reason               | already_exists                                     |
+      | reason               | incompatible                                       |
       | error                |                                                    |
       | request_body         |                                                    |
       | metadata             |                                                    |
@@ -1278,7 +1278,7 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       | method               | POST                                          |
       | path                 | /subjects/avro-ex-full-int-long/versions      |
       | status_code          | 409                                           |
-      | reason               | already_exists                                |
+      | reason               | incompatible                                  |
       | error                |                                               |
       | request_body         |                                               |
       | metadata             |                                               |
@@ -1372,7 +1372,7 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       | method               | POST                                      |
       | path                 | /subjects/avro-ex-bt-nodef/versions       |
       | status_code          | 409                                       |
-      | reason               | already_exists                            |
+      | reason               | incompatible                              |
       | error                |                                           |
       | request_body         |                                           |
       | metadata             |                                           |
@@ -1552,7 +1552,7 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       | method               | POST                                         |
       | path                 | /subjects/avro-ex-fullt-nodef/versions       |
       | status_code          | 409                                          |
-      | reason               | already_exists                               |
+      | reason               | incompatible                                 |
       | error                |                                              |
       | request_body         |                                              |
       | metadata             |                                              |
@@ -1702,7 +1702,7 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       | method               | POST                                          |
       | path                 | /subjects/avro-ex-nested-type/versions        |
       | status_code          | 409                                           |
-      | reason               | already_exists                                |
+      | reason               | incompatible                                  |
       | error                |                                               |
       | request_body         |                                               |
       | metadata             |                                               |
@@ -1747,7 +1747,7 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       | method               | POST                                       |
       | path                 | /subjects/avro-ex-map-type/versions        |
       | status_code          | 409                                        |
-      | reason               | already_exists                             |
+      | reason               | incompatible                               |
       | error                |                                            |
       | request_body         |                                            |
       | metadata             |                                            |
@@ -1788,7 +1788,7 @@ Feature: Avro Compatibility — Exhaustive (Confluent v8.1.1 Compatibility)
       | method               | POST                                         |
       | path                 | /subjects/avro-ex-array-type/versions        |
       | status_code          | 409                                          |
-      | reason               | already_exists                               |
+      | reason               | incompatible                                 |
       | error                |                                              |
       | request_body         |                                              |
       | metadata             |                                              |
