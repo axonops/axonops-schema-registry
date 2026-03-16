@@ -590,11 +590,12 @@ func (h *Handler) RegisterSchema(w http.ResponseWriter, r *http.Request) {
 	normalizeSchema := r.URL.Query().Get("normalize") == "true"
 
 	// Set audit hints early so failure paths (e.g. ErrImportIDConflict) capture them.
-	// Note: SchemaType is set only on success (line 657) so failure events don't
-	// leak the attempted type — the test assertions expect schema_type="" on failure.
+	// SchemaType is set here because it's a property of the request (what was
+	// attempted), and audit events should record it even when registration fails.
 	if hints := auth.GetAuditHints(r.Context()); hints != nil {
 		hints.TargetType = "subject"
 		hints.TargetID = chi.URLParam(r, "subject")
+		hints.SchemaType = string(schemaType)
 		hints.Context = registryCtx
 	}
 
@@ -736,11 +737,11 @@ func (h *Handler) LookupSchema(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Set audit hints early so failure paths capture target info.
-	// Note: SchemaType, SchemaID, and Version are intentionally NOT set for
-	// lookup events — the audit records the operation, not the lookup result.
+	// SchemaType is a property of the request (what type was being looked up).
 	if hints := auth.GetAuditHints(r.Context()); hints != nil {
 		hints.TargetType = "subject"
 		hints.TargetID = chi.URLParam(r, "subject")
+		hints.SchemaType = string(schemaType)
 		hints.Context = registryCtx
 	}
 
@@ -761,6 +762,12 @@ func (h *Handler) LookupSchema(w http.ResponseWriter, r *http.Request) {
 		}
 		writeInternalError(w, err)
 		return
+	}
+
+	// Set schema ID and version on audit hints after successful lookup.
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.SchemaID = schema.ID
+		hints.Version = schema.Version
 	}
 
 	resp := types.LookupSchemaResponse{
