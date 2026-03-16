@@ -1,5 +1,6 @@
 # Binaries
 /build/
+/schema-registry
 *.exe
 *.exe~
 *.dll
