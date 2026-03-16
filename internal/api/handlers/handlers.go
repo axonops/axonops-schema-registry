@@ -721,7 +721,7 @@ func (h *Handler) LookupSchema(w http.ResponseWriter, r *http.Request) {
 
 	// Set schema ID and version on audit hints after successful lookup.
 	if hints := auth.GetAuditHints(r.Context()); hints != nil {
-		hints.SchemaID = int64(schema.ID)
+		hints.SchemaID = schema.ID
 		hints.Version = schema.Version
 	}
 
