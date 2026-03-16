@@ -172,9 +172,9 @@ Feature: Schema Registration
       | role                 |                                          |
       | target_type          | subject                                  |
       | target_id            | user-value                               |
-      | schema_id            |                                          |
-      | version              |                                          |
-      | schema_type          |                                          |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | AVRO                                     |
       | before_hash          |                                          |
       | after_hash           |                                          |
       | context              | .                                        |

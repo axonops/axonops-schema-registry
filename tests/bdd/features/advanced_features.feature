@@ -25,7 +25,7 @@ Feature: Advanced Features
       | auth_method          |                        |
       | role                 |                        |
       | target_type          | mode                   |
-      | target_id            |                        |
+      | target_id            | _global                |
       | schema_id            |                        |
       | version              |                        |
       | schema_type          |                        |
@@ -67,7 +67,7 @@ Feature: Advanced Features
       | auth_method          |                        |
       | role                 |                        |
       | target_type          | mode                   |
-      | target_id            |                        |
+      | target_id            | _global                |
       | schema_id            |                        |
       | version              |                        |
       | schema_type          |                        |
@@ -178,7 +178,7 @@ Feature: Advanced Features
       | auth_method          |                        |
       | role                 |                        |
       | target_type          | mode                   |
-      | target_id            |                        |
+      | target_id            | _global                |
       | schema_id            |                        |
       | version              |                        |
       | schema_type          |                        |
@@ -220,7 +220,7 @@ Feature: Advanced Features
       | auth_method          |                        |
       | role                 |                        |
       | target_type          | mode                   |
-      | target_id            |                        |
+      | target_id            | _global                |
       | schema_id            |                        |
       | version              |                        |
       | schema_type          |                        |
@@ -369,9 +369,9 @@ Feature: Advanced Features
       | role                 |                                          |
       | target_type          | subject                                  |
       | target_id            | norm-lookup                              |
-      | schema_id            |                                          |
-      | version              |                                          |
-      | schema_type          |                                          |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | AVRO                                     |
       | before_hash          |                                          |
       | after_hash           |                                          |
       | context              | .                                        |

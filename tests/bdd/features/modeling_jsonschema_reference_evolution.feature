@@ -35,7 +35,7 @@ Feature: JSON Schema Reference Evolution
       | target_type          | subject                                        |
       | target_id            | json-refevo-consumer                           |
       | schema_id            | *                                              |
-      | version              |                                                |
+      | version              | *                                              |
       | schema_type          | JSON                                           |
       | before_hash          |                                                |
       | after_hash           | sha256:*                                       |
@@ -103,7 +103,7 @@ Feature: JSON Schema Reference Evolution
       | target_type          | subject                                      |
       | target_id            | json-refevo2-c2                              |
       | schema_id            | *                                            |
-      | version              |                                              |
+      | version              | *                                            |
       | schema_type          | JSON                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -157,7 +157,7 @@ Feature: JSON Schema Reference Evolution
       | target_type          | subject                                        |
       | target_id            | json-multiref-person                           |
       | schema_id            | *                                              |
-      | version              |                                                |
+      | version              | *                                              |
       | schema_type          | JSON                                           |
       | before_hash          |                                                |
       | after_hash           | sha256:*                                       |
@@ -219,7 +219,7 @@ Feature: JSON Schema Reference Evolution
       | target_type          | subject                                      |
       | target_id            | json-refby-c2                                |
       | schema_id            | *                                            |
-      | version              |                                              |
+      | version              | *                                            |
       | schema_type          | JSON                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -287,7 +287,7 @@ Feature: JSON Schema Reference Evolution
       | target_type          | subject                                      |
       | target_id            | json-diffref-b                               |
       | schema_id            | *                                            |
-      | version              |                                              |
+      | version              | *                                            |
       | schema_type          | JSON                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -338,7 +338,7 @@ Feature: JSON Schema Reference Evolution
       | target_type          | subject                                        |
       | target_id            | json-refdel-consumer                           |
       | schema_id            | *                                              |
-      | version              |                                                |
+      | version              | *                                              |
       | schema_type          | JSON                                           |
       | before_hash          |                                                |
       | after_hash           | sha256:*                                       |
@@ -388,7 +388,7 @@ Feature: JSON Schema Reference Evolution
       | target_type          | subject                                        |
       | target_id            | json-refcompat-main                            |
       | schema_id            | *                                              |
-      | version              |                                                |
+      | version              | *                                              |
       | schema_type          | JSON                                           |
       | before_hash          |                                                |
       | after_hash           | sha256:*                                       |
@@ -448,7 +448,7 @@ Feature: JSON Schema Reference Evolution
       | target_type          | subject                                      |
       | target_id            | json-chain-a                                 |
       | schema_id            | *                                            |
-      | version              |                                              |
+      | version              | *                                            |
       | schema_type          | JSON                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |

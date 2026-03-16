@@ -712,9 +712,9 @@ Feature: Schema Identity — metadata and ruleSet do not affect global ID
       | role                 |                            |
       | target_type          | subject                    |
       | target_id            | identity-lookup            |
-      | schema_id            |                            |
-      | version              |                            |
-      | schema_type          |                            |
+      | schema_id            | *                          |
+      | version              | *                          |
+      | schema_type          | AVRO                       |
       | before_hash          |                            |
       | after_hash           |                            |
       | context              | .                          |

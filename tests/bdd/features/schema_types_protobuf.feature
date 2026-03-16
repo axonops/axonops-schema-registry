@@ -39,7 +39,7 @@ Feature: Protobuf Schema Types
       | target_type          | subject                              |
       | target_id            | proto-scalars                        |
       | schema_id            | *                                    |
-      | version              |                                      |
+      | version              | *                                    |
       | schema_type          | PROTOBUF                             |
       | before_hash          |                                      |
       | after_hash           | sha256:*                             |
@@ -85,7 +85,7 @@ Feature: Protobuf Schema Types
       | target_type          | subject                               |
       | target_id            | proto-nested-2                        |
       | schema_id            | *                                     |
-      | version              |                                       |
+      | version              | *                                     |
       | schema_type          | PROTOBUF                              |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -135,7 +135,7 @@ Feature: Protobuf Schema Types
       | target_type          | subject                               |
       | target_id            | proto-nested-3                        |
       | schema_id            | *                                     |
-      | version              |                                       |
+      | version              | *                                     |
       | schema_type          | PROTOBUF                              |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -187,7 +187,7 @@ Feature: Protobuf Schema Types
       | target_type          | subject                            |
       | target_id            | proto-enums                        |
       | schema_id            | *                                  |
-      | version              |                                    |
+      | version              | *                                  |
       | schema_type          | PROTOBUF                           |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -234,7 +234,7 @@ Feature: Protobuf Schema Types
       | target_type          | subject                               |
       | target_id            | proto-repeated                        |
       | schema_id            | *                                     |
-      | version              |                                       |
+      | version              | *                                     |
       | schema_type          | PROTOBUF                              |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -281,7 +281,7 @@ Feature: Protobuf Schema Types
       | target_type          | subject                           |
       | target_id            | proto-maps                        |
       | schema_id            | *                                 |
-      | version              |                                   |
+      | version              | *                                 |
       | schema_type          | PROTOBUF                          |
       | before_hash          |                                   |
       | after_hash           | sha256:*                          |
@@ -335,7 +335,7 @@ Feature: Protobuf Schema Types
       | target_type          | subject                            |
       | target_id            | proto-oneof                        |
       | schema_id            | *                                  |
-      | version              |                                    |
+      | version              | *                                  |
       | schema_type          | PROTOBUF                           |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -379,7 +379,7 @@ Feature: Protobuf Schema Types
       | target_type          | subject                               |
       | target_id            | proto-optional                        |
       | schema_id            | *                                     |
-      | version              |                                       |
+      | version              | *                                     |
       | schema_type          | PROTOBUF                              |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -423,7 +423,7 @@ Feature: Protobuf Schema Types
       | target_type          | subject                              |
       | target_id            | proto-package                        |
       | schema_id            | *                                    |
-      | version              |                                      |
+      | version              | *                                    |
       | schema_type          | PROTOBUF                             |
       | before_hash          |                                      |
       | after_hash           | sha256:*                             |
@@ -476,7 +476,7 @@ Feature: Protobuf Schema Types
       | target_type          | subject                                |
       | target_id            | proto-multi-msg                        |
       | schema_id            | *                                      |
-      | version              |                                        |
+      | version              | *                                      |
       | schema_type          | PROTOBUF                               |
       | before_hash          |                                        |
       | after_hash           | sha256:*                               |
@@ -523,7 +523,7 @@ Feature: Protobuf Schema Types
       | target_type          | subject                              |
       | target_id            | proto-service                        |
       | schema_id            | *                                    |
-      | version              |                                      |
+      | version              | *                                    |
       | schema_type          | PROTOBUF                             |
       | before_hash          |                                      |
       | after_hash           | sha256:*                             |
@@ -566,7 +566,7 @@ Feature: Protobuf Schema Types
       | target_type          | subject                             |
       | target_id            | proto-proto2                        |
       | schema_id            | *                                   |
-      | version              |                                     |
+      | version              | *                                   |
       | schema_type          | PROTOBUF                            |
       | before_hash          |                                     |
       | after_hash           | sha256:*                            |
@@ -663,7 +663,7 @@ Feature: Protobuf Schema Types
       | target_type          | subject                                  |
       | target_id            | proto-payment-event                      |
       | schema_id            | *                                        |
-      | version              |                                          |
+      | version              | *                                        |
       | schema_type          | PROTOBUF                                 |
       | before_hash          |                                          |
       | after_hash           | sha256:*                                 |

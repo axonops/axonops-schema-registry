@@ -710,7 +710,7 @@ Feature: 3-layer metadata/ruleSet merge during schema registration
       | target_type          | subject                |
       | target_id            | cfg-merge-nometa       |
       | schema_id            | *                      |
-      | version              |                        |
+      | version              | *                      |
       | schema_type          | AVRO                   |
       | before_hash          |                        |
       | after_hash           | sha256:*               |

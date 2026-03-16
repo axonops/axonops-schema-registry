@@ -205,9 +205,9 @@ Feature: Subject Aliases
       | role                 |                                          |
       | target_type          | subject                                  |
       | target_id            | alias-lookup-shortcut                    |
-      | schema_id            |                                          |
-      | version              |                                          |
-      | schema_type          |                                          |
+      | schema_id            | *                                        |
+      | version              | *                                        |
+      | schema_type          | AVRO                                     |
       | before_hash          |                                          |
       | after_hash           |                                          |
       | context              | .                                        |

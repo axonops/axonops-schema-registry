@@ -23,7 +23,7 @@ Feature: JSON Schema Conformance-Inspired Parsing
       | target_type          | subject                                  |
       | target_id            | json-conform-empty                       |
       | schema_id            | *                                        |
-      | version              |                                          |
+      | version              | *                                        |
       | schema_type          | JSON                                     |
       | before_hash          |                                          |
       | after_hash           | sha256:*                                 |
@@ -92,7 +92,7 @@ Feature: JSON Schema Conformance-Inspired Parsing
       | target_type          | subject                                      |
       | target_id            | json-conform-type-array                      |
       | schema_id            | *                                            |
-      | version              |                                              |
+      | version              | *                                            |
       | schema_type          | JSON                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -138,7 +138,7 @@ Feature: JSON Schema Conformance-Inspired Parsing
       | target_type          | subject                                        |
       | target_id            | json-conform-multitype-b                       |
       | schema_id            | *                                              |
-      | version              |                                                |
+      | version              | *                                              |
       | schema_type          | JSON                                           |
       | before_hash          |                                                |
       | after_hash           | sha256:*                                       |
@@ -177,7 +177,7 @@ Feature: JSON Schema Conformance-Inspired Parsing
       | target_type          | subject                                      |
       | target_id            | json-conform-obj-props                       |
       | schema_id            | *                                            |
-      | version              |                                              |
+      | version              | *                                            |
       | schema_type          | JSON                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -216,7 +216,7 @@ Feature: JSON Schema Conformance-Inspired Parsing
       | target_type          | subject                                          |
       | target_id            | json-conform-pattern-props                       |
       | schema_id            | *                                                |
-      | version              |                                                  |
+      | version              | *                                                |
       | schema_type          | JSON                                             |
       | before_hash          |                                                  |
       | after_hash           | sha256:*                                         |
@@ -255,7 +255,7 @@ Feature: JSON Schema Conformance-Inspired Parsing
       | target_type          | subject                                          |
       | target_id            | json-conform-recursive-ref                       |
       | schema_id            | *                                                |
-      | version              |                                                  |
+      | version              | *                                                |
       | schema_type          | JSON                                             |
       | before_hash          |                                                  |
       | after_hash           | sha256:*                                         |
@@ -294,7 +294,7 @@ Feature: JSON Schema Conformance-Inspired Parsing
       | target_type          | subject                                      |
       | target_id            | json-conform-ref-chain                       |
       | schema_id            | *                                            |
-      | version              |                                              |
+      | version              | *                                            |
       | schema_type          | JSON                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -333,7 +333,7 @@ Feature: JSON Schema Conformance-Inspired Parsing
       | target_type          | subject                                        |
       | target_id            | json-conform-conditional                       |
       | schema_id            | *                                              |
-      | version              |                                                |
+      | version              | *                                              |
       | schema_type          | JSON                                           |
       | before_hash          |                                                |
       | after_hash           | sha256:*                                       |
@@ -372,7 +372,7 @@ Feature: JSON Schema Conformance-Inspired Parsing
       | target_type          | subject                                  |
       | target_id            | json-conform-not                         |
       | schema_id            | *                                        |
-      | version              |                                          |
+      | version              | *                                        |
       | schema_type          | JSON                                     |
       | before_hash          |                                          |
       | after_hash           | sha256:*                                 |
@@ -411,7 +411,7 @@ Feature: JSON Schema Conformance-Inspired Parsing
       | target_type          | subject                                    |
       | target_id            | json-conform-const                         |
       | schema_id            | *                                          |
-      | version              |                                            |
+      | version              | *                                          |
       | schema_type          | JSON                                       |
       | before_hash          |                                            |
       | after_hash           | sha256:*                                   |
@@ -450,7 +450,7 @@ Feature: JSON Schema Conformance-Inspired Parsing
       | target_type          | subject                                       |
       | target_id            | json-conform-contains                         |
       | schema_id            | *                                             |
-      | version              |                                               |
+      | version              | *                                             |
       | schema_type          | JSON                                          |
       | before_hash          |                                               |
       | after_hash           | sha256:*                                      |
@@ -489,7 +489,7 @@ Feature: JSON Schema Conformance-Inspired Parsing
       | target_type          | subject                                          |
       | target_id            | json-conform-dependencies                        |
       | schema_id            | *                                                |
-      | version              |                                                  |
+      | version              | *                                                |
       | schema_type          | JSON                                             |
       | before_hash          |                                                  |
       | after_hash           | sha256:*                                         |
@@ -528,7 +528,7 @@ Feature: JSON Schema Conformance-Inspired Parsing
       | target_type          | subject                                        |
       | target_id            | json-conform-allof-oneof                       |
       | schema_id            | *                                              |
-      | version              |                                                |
+      | version              | *                                              |
       | schema_type          | JSON                                           |
       | before_hash          |                                                |
       | after_hash           | sha256:*                                       |
@@ -567,7 +567,7 @@ Feature: JSON Schema Conformance-Inspired Parsing
       | target_type          | subject                                        |
       | target_id            | json-conform-hetero-enum                       |
       | schema_id            | *                                              |
-      | version              |                                                |
+      | version              | *                                              |
       | schema_type          | JSON                                           |
       | before_hash          |                                                |
       | after_hash           | sha256:*                                       |
@@ -631,7 +631,7 @@ Feature: JSON Schema Conformance-Inspired Parsing
       | target_type          | subject                                       |
       | target_id            | json-conform-fmt-uuid                         |
       | schema_id            | *                                             |
-      | version              |                                               |
+      | version              | *                                             |
       | schema_type          | JSON                                          |
       | before_hash          |                                               |
       | after_hash           | sha256:*                                      |
@@ -670,7 +670,7 @@ Feature: JSON Schema Conformance-Inspired Parsing
       | target_type          | subject                                        |
       | target_id            | json-conform-propnames                         |
       | schema_id            | *                                              |
-      | version              |                                                |
+      | version              | *                                              |
       | schema_type          | JSON                                           |
       | before_hash          |                                                |
       | after_hash           | sha256:*                                       |
@@ -709,7 +709,7 @@ Feature: JSON Schema Conformance-Inspired Parsing
       | target_type          | subject                                      |
       | target_id            | json-conform-defs-ref                        |
       | schema_id            | *                                            |
-      | version              |                                              |
+      | version              | *                                            |
       | schema_type          | JSON                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -763,7 +763,7 @@ Feature: JSON Schema Conformance-Inspired Parsing
       | target_type          | subject                                      |
       | target_id            | json-conform-bool-true                       |
       | schema_id            | *                                            |
-      | version              |                                              |
+      | version              | *                                            |
       | schema_type          | JSON                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -802,7 +802,7 @@ Feature: JSON Schema Conformance-Inspired Parsing
       | target_type          | subject                                       |
       | target_id            | json-conform-bool-false                       |
       | schema_id            | *                                             |
-      | version              |                                               |
+      | version              | *                                             |
       | schema_type          | JSON                                          |
       | before_hash          |                                               |
       | after_hash           | sha256:*                                      |
@@ -871,7 +871,7 @@ Feature: JSON Schema Conformance-Inspired Parsing
       | target_type          | subject                                        |
       | target_id            | json-conform-fmt-iri-ref                       |
       | schema_id            | *                                              |
-      | version              |                                                |
+      | version              | *                                              |
       | schema_type          | JSON                                           |
       | before_hash          |                                                |
       | after_hash           | sha256:*                                       |

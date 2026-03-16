@@ -47,7 +47,7 @@ Feature: Avro Namespace Inheritance
       | target_type          | subject                                      |
       | target_id            | ns-inherit-inherited                         |
       | schema_id            | *                                            |
-      | version              |                                              |
+      | version              | *                                            |
       | schema_type          | AVRO                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -104,7 +104,7 @@ Feature: Avro Namespace Inheritance
       | target_type          | subject                                  |
       | target_id            | ns-inherit-beta                          |
       | schema_id            | *                                        |
-      | version              |                                          |
+      | version              | *                                        |
       | schema_type          | AVRO                                     |
       | before_hash          |                                          |
       | after_hash           | sha256:*                                 |
@@ -171,7 +171,7 @@ Feature: Avro Namespace Inheritance
       | target_type          | subject                                    |
       | target_id            | ns-inherit-deep-b                          |
       | schema_id            | *                                          |
-      | version              |                                            |
+      | version              | *                                          |
       | schema_type          | AVRO                                       |
       | before_hash          |                                            |
       | after_hash           | sha256:*                                   |
@@ -228,7 +228,7 @@ Feature: Avro Namespace Inheritance
       | target_type          | subject                                        |
       | target_id            | ns-inherit-override-ns                         |
       | schema_id            | *                                              |
-      | version              |                                                |
+      | version              | *                                              |
       | schema_type          | AVRO                                           |
       | before_hash          |                                                |
       | after_hash           | sha256:*                                       |
@@ -284,7 +284,7 @@ Feature: Avro Namespace Inheritance
       | target_type          | subject                                            |
       | target_id            | ns-inherit-array-inherited                         |
       | schema_id            | *                                                  |
-      | version              |                                                    |
+      | version              | *                                                  |
       | schema_type          | AVRO                                               |
       | before_hash          |                                                    |
       | after_hash           | sha256:*                                           |
@@ -340,7 +340,7 @@ Feature: Avro Namespace Inheritance
       | target_type          | subject                                            |
       | target_id            | ns-inherit-union-inherited                         |
       | schema_id            | *                                                  |
-      | version              |                                                    |
+      | version              | *                                                  |
       | schema_type          | AVRO                                               |
       | before_hash          |                                                    |
       | after_hash           | sha256:*                                           |
@@ -398,7 +398,7 @@ Feature: Avro Namespace Inheritance
       | target_type          | subject                                      |
       | target_id            | ns-inherit-mixed-full                        |
       | schema_id            | *                                            |
-      | version              |                                              |
+      | version              | *                                            |
       | schema_type          | AVRO                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -454,7 +454,7 @@ Feature: Avro Namespace Inheritance
       | target_type          | subject                                    |
       | target_id            | ns-inherit-none-b                          |
       | schema_id            | *                                          |
-      | version              |                                            |
+      | version              | *                                          |
       | schema_type          | AVRO                                       |
       | before_hash          |                                            |
       | after_hash           | sha256:*                                   |
@@ -515,7 +515,7 @@ Feature: Avro Namespace Inheritance
       | target_type          | subject                                              |
       | target_id            | ns-inherit-propagate-explicit                        |
       | schema_id            | *                                                    |
-      | version              |                                                      |
+      | version              | *                                                    |
       | schema_type          | AVRO                                                 |
       | before_hash          |                                                      |
       | after_hash           | sha256:*                                             |

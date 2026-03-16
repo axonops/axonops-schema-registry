@@ -101,9 +101,9 @@ Feature: REST API Audit Logging
       | auth_method        |                             |
       | target_type        | subject                     |
       | target_id          | audit-rest-lookup           |
-      | schema_id          |                             |
-      | version            |                             |
-      | schema_type        |                             |
+      | schema_id          | *                           |
+      | version            | *                           |
+      | schema_type        | AVRO                        |
       | before_hash        |                             |
       | after_hash         |                             |
       | context            | .                            |

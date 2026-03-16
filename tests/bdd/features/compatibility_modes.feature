@@ -45,7 +45,7 @@ Feature: Compatibility Modes
       | target_type          | subject                                      |
       | target_id            | avro-b                                       |
       | schema_id            | *                                            |
-      | version              |                                              |
+      | version              | *                                            |
       | schema_type          | AVRO                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -87,7 +87,7 @@ Feature: Compatibility Modes
       | target_type          | subject                                      |
       | target_id            | avro-fwd                                     |
       | schema_id            | *                                            |
-      | version              |                                              |
+      | version              | *                                            |
       | schema_type          | AVRO                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -157,7 +157,7 @@ Feature: Compatibility Modes
       | target_type          | subject                                      |
       | target_id            | avro-full                                    |
       | schema_id            | *                                            |
-      | version              |                                              |
+      | version              | *                                            |
       | schema_type          | AVRO                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -252,7 +252,7 @@ Feature: Compatibility Modes
       | target_type          | subject                                      |
       | target_id            | proto-compat                                 |
       | schema_id            | *                                            |
-      | version              |                                              |
+      | version              | *                                            |
       | schema_type          | PROTOBUF                                     |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -317,7 +317,7 @@ Feature: Compatibility Modes
       | target_type          | subject                                      |
       | target_id            | proto-fwd                                    |
       | schema_id            | *                                            |
-      | version              |                                              |
+      | version              | *                                            |
       | schema_type          | PROTOBUF                                     |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -365,7 +365,7 @@ Feature: Compatibility Modes
       | target_type          | subject                                      |
       | target_id            | proto-full                                   |
       | schema_id            | *                                            |
-      | version              |                                              |
+      | version              | *                                            |
       | schema_type          | PROTOBUF                                     |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -443,7 +443,7 @@ Feature: Compatibility Modes
       | target_type          | subject                                      |
       | target_id            | json-full                                    |
       | schema_id            | *                                            |
-      | version              |                                              |
+      | version              | *                                            |
       | schema_type          | JSON                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -486,7 +486,7 @@ Feature: Compatibility Modes
       | target_type          | subject                                      |
       | target_id            | override-subj                                |
       | schema_id            | *                                            |
-      | version              |                                              |
+      | version              | *                                            |
       | schema_type          | AVRO                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |

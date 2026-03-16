@@ -57,7 +57,7 @@ Feature: EncodingRules Support in RuleSet
       | target_type          | subject                               |
       | target_id            | enc-rules-basic                       |
       | schema_id            | *                                     |
-      | version              |                                       |
+      | version              | *                                     |
       | schema_type          | AVRO                                  |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -144,7 +144,7 @@ Feature: EncodingRules Support in RuleSet
       | target_type          | subject                               |
       | target_id            | enc-rules-all-three                   |
       | schema_id            | *                                     |
-      | version              |                                       |
+      | version              | *                                     |
       | schema_type          | AVRO                                  |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -311,7 +311,7 @@ Feature: EncodingRules Support in RuleSet
       | target_type          | subject                               |
       | target_id            | enc-rules-no-rules                    |
       | schema_id            | *                                     |
-      | version              |                                       |
+      | version              | *                                     |
       | schema_type          | AVRO                                  |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -391,7 +391,7 @@ Feature: EncodingRules Support in RuleSet
       | target_type          | subject                               |
       | target_id            | enc-rules-all-fields                  |
       | schema_id            | *                                     |
-      | version              |                                       |
+      | version              | *                                     |
       | schema_type          | AVRO                                  |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -475,7 +475,7 @@ Feature: EncodingRules Support in RuleSet
       | target_type          | subject                               |
       | target_id            | enc-rules-multiple                    |
       | schema_id            | *                                     |
-      | version              |                                       |
+      | version              | *                                     |
       | schema_type          | AVRO                                  |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -534,7 +534,7 @@ Feature: EncodingRules Support in RuleSet
       | target_type          | subject                               |
       | target_id            | enc-rules-by-id                       |
       | schema_id            | *                                     |
-      | version              |                                       |
+      | version              | *                                     |
       | schema_type          | AVRO                                  |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -595,7 +595,7 @@ Feature: EncodingRules Support in RuleSet
       | target_type          | subject                               |
       | target_id            | enc-rules-disabled                    |
       | schema_id            | *                                     |
-      | version              |                                       |
+      | version              | *                                     |
       | schema_type          | AVRO                                  |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -768,7 +768,7 @@ Feature: EncodingRules Support in RuleSet
       | target_type          | subject                               |
       | target_id            | enc-rules-versioned                   |
       | schema_id            | *                                     |
-      | version              |                                       |
+      | version              | *                                     |
       | schema_type          | AVRO                                  |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |

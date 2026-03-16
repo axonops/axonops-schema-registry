@@ -53,7 +53,7 @@ Feature: Compatibility Transitive Chain with 5+ Versions
       | target_type          | subject                                  |
       | target_id            | bt-chain-5                               |
       | schema_id            | *                                        |
-      | version              |                                          |
+      | version              | *                                        |
       | schema_type          | AVRO                                     |
       | before_hash          |                                          |
       | after_hash           | sha256:*                                 |
@@ -157,7 +157,7 @@ Feature: Compatibility Transitive Chain with 5+ Versions
       | target_type          | subject                                  |
       | target_id            | ft-chain-5                               |
       | schema_id            | *                                        |
-      | version              |                                          |
+      | version              | *                                        |
       | schema_type          | AVRO                                     |
       | before_hash          |                                          |
       | after_hash           | sha256:*                                 |
@@ -216,7 +216,7 @@ Feature: Compatibility Transitive Chain with 5+ Versions
       | target_type          | subject                                  |
       | target_id            | fullt-chain-5                            |
       | schema_id            | *                                        |
-      | version              |                                          |
+      | version              | *                                        |
       | schema_type          | AVRO                                     |
       | before_hash          |                                          |
       | after_hash           | sha256:*                                 |

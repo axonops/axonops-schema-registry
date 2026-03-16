@@ -72,7 +72,7 @@ Feature: Full Schema Lifecycle
       | target_type          | subject                                      |
       | target_id            | lifecycle-avro                               |
       | schema_id            | *                                            |
-      | version              |                                              |
+      | version              | *                                            |
       | schema_type          | AVRO                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -153,7 +153,7 @@ message Event {
       | target_type          | subject                                      |
       | target_id            | lifecycle-proto                              |
       | schema_id            | *                                            |
-      | version              |                                              |
+      | version              | *                                            |
       | schema_type          | PROTOBUF                                     |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -213,7 +213,7 @@ message Event {
       | target_type          | subject                                      |
       | target_id            | lifecycle-json                               |
       | schema_id            | *                                            |
-      | version              |                                              |
+      | version              | *                                            |
       | schema_type          | JSON                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -340,7 +340,7 @@ message B {
       | target_type          | subject                                      |
       | target_id            | lifecycle-ref-base                           |
       | schema_id            | *                                            |
-      | version              |                                              |
+      | version              | *                                            |
       | schema_type          | AVRO                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -388,7 +388,7 @@ message B {
       | target_type          | subject                                      |
       | target_id            | lifecycle-import                             |
       | schema_id            | *                                            |
-      | version              |                                              |
+      | version              | *                                            |
       | schema_type          | AVRO                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -446,7 +446,7 @@ message B {
       | target_type          | subject                                      |
       | target_id            | lifecycle-mode                               |
       | schema_id            | *                                            |
-      | version              |                                              |
+      | version              | *                                            |
       | schema_type          | AVRO                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |

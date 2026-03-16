@@ -37,7 +37,7 @@ Feature: Advanced Avro Schema Parsing
       | target_type          | subject                            |
       | target_id            | avro-adv-1                         |
       | schema_id            | *                                  |
-      | version              |                                    |
+      | version              | *                                  |
       | schema_type          | AVRO                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -86,7 +86,7 @@ Feature: Advanced Avro Schema Parsing
       | target_type          | subject                            |
       | target_id            | avro-adv-2                         |
       | schema_id            | *                                  |
-      | version              |                                    |
+      | version              | *                                  |
       | schema_type          | AVRO                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -139,7 +139,7 @@ Feature: Advanced Avro Schema Parsing
       | target_type          | subject                            |
       | target_id            | avro-adv-3                         |
       | schema_id            | *                                  |
-      | version              |                                    |
+      | version              | *                                  |
       | schema_type          | AVRO                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -189,7 +189,7 @@ Feature: Advanced Avro Schema Parsing
       | target_type          | subject                            |
       | target_id            | avro-adv-4                         |
       | schema_id            | *                                  |
-      | version              |                                    |
+      | version              | *                                  |
       | schema_type          | AVRO                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -234,7 +234,7 @@ Feature: Advanced Avro Schema Parsing
       | target_type          | subject                            |
       | target_id            | avro-adv-5                         |
       | schema_id            | *                                  |
-      | version              |                                    |
+      | version              | *                                  |
       | schema_type          | AVRO                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -277,7 +277,7 @@ Feature: Advanced Avro Schema Parsing
       | target_type          | subject                            |
       | target_id            | avro-adv-6                         |
       | schema_id            | *                                  |
-      | version              |                                    |
+      | version              | *                                  |
       | schema_type          | AVRO                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -325,7 +325,7 @@ Feature: Advanced Avro Schema Parsing
       | target_type          | subject                            |
       | target_id            | avro-adv-7                         |
       | schema_id            | *                                  |
-      | version              |                                    |
+      | version              | *                                  |
       | schema_type          | AVRO                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -373,7 +373,7 @@ Feature: Advanced Avro Schema Parsing
       | target_type          | subject                            |
       | target_id            | avro-adv-8                         |
       | schema_id            | *                                  |
-      | version              |                                    |
+      | version              | *                                  |
       | schema_type          | AVRO                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -425,7 +425,7 @@ Feature: Advanced Avro Schema Parsing
       | target_type          | subject                            |
       | target_id            | avro-adv-9                         |
       | schema_id            | *                                  |
-      | version              |                                    |
+      | version              | *                                  |
       | schema_type          | AVRO                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -474,7 +474,7 @@ Feature: Advanced Avro Schema Parsing
       | target_type          | subject                            |
       | target_id            | avro-adv-10                        |
       | schema_id            | *                                  |
-      | version              |                                    |
+      | version              | *                                  |
       | schema_type          | AVRO                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -518,7 +518,7 @@ Feature: Advanced Avro Schema Parsing
       | target_type          | subject                            |
       | target_id            | avro-adv-11                        |
       | schema_id            | *                                  |
-      | version              |                                    |
+      | version              | *                                  |
       | schema_type          | AVRO                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -563,7 +563,7 @@ Feature: Advanced Avro Schema Parsing
       | target_type          | subject                            |
       | target_id            | avro-adv-12                        |
       | schema_id            | *                                  |
-      | version              |                                    |
+      | version              | *                                  |
       | schema_type          | AVRO                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -637,7 +637,7 @@ Feature: Advanced Avro Schema Parsing
       | target_type          | subject                            |
       | target_id            | avro-adv-13                        |
       | schema_id            | *                                  |
-      | version              |                                    |
+      | version              | *                                  |
       | schema_type          | AVRO                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -686,7 +686,7 @@ Feature: Advanced Avro Schema Parsing
       | target_type          | subject                            |
       | target_id            | avro-adv-14                        |
       | schema_id            | *                                  |
-      | version              |                                    |
+      | version              | *                                  |
       | schema_type          | AVRO                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -741,7 +741,7 @@ Feature: Advanced Avro Schema Parsing
       | target_type          | subject                            |
       | target_id            | avro-adv-15                        |
       | schema_id            | *                                  |
-      | version              |                                    |
+      | version              | *                                  |
       | schema_type          | AVRO                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -792,7 +792,7 @@ Feature: Advanced Avro Schema Parsing
       | target_type          | subject                            |
       | target_id            | avro-adv-16                        |
       | schema_id            | *                                  |
-      | version              |                                    |
+      | version              | *                                  |
       | schema_type          | AVRO                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -838,7 +838,7 @@ Feature: Advanced Avro Schema Parsing
       | target_type          | subject                            |
       | target_id            | avro-adv-17                        |
       | schema_id            | *                                  |
-      | version              |                                    |
+      | version              | *                                  |
       | schema_type          | AVRO                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -884,7 +884,7 @@ Feature: Advanced Avro Schema Parsing
       | target_type          | subject                            |
       | target_id            | avro-adv-18                        |
       | schema_id            | *                                  |
-      | version              |                                    |
+      | version              | *                                  |
       | schema_type          | AVRO                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -929,7 +929,7 @@ Feature: Advanced Avro Schema Parsing
       | target_type          | subject                            |
       | target_id            | avro-adv-19                        |
       | schema_id            | *                                  |
-      | version              |                                    |
+      | version              | *                                  |
       | schema_type          | AVRO                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -974,7 +974,7 @@ Feature: Advanced Avro Schema Parsing
       | target_type          | subject                            |
       | target_id            | avro-adv-20                        |
       | schema_id            | *                                  |
-      | version              |                                    |
+      | version              | *                                  |
       | schema_type          | AVRO                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -1019,7 +1019,7 @@ Feature: Advanced Avro Schema Parsing
       | target_type          | subject                            |
       | target_id            | avro-adv-21                        |
       | schema_id            | *                                  |
-      | version              |                                    |
+      | version              | *                                  |
       | schema_type          | AVRO                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -1084,7 +1084,7 @@ Feature: Advanced Avro Schema Parsing
       | target_type          | subject                            |
       | target_id            | avro-adv-22                        |
       | schema_id            | *                                  |
-      | version              |                                    |
+      | version              | *                                  |
       | schema_type          | AVRO                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -1137,7 +1137,7 @@ Feature: Advanced Avro Schema Parsing
       | target_type          | subject                            |
       | target_id            | avro-adv-23                        |
       | schema_id            | *                                  |
-      | version              |                                    |
+      | version              | *                                  |
       | schema_type          | AVRO                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -1200,7 +1200,7 @@ Feature: Advanced Avro Schema Parsing
       | target_type          | subject                            |
       | target_id            | avro-adv-24                        |
       | schema_id            | *                                  |
-      | version              |                                    |
+      | version              | *                                  |
       | schema_type          | AVRO                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -1252,7 +1252,7 @@ Feature: Advanced Avro Schema Parsing
       | target_type          | subject                            |
       | target_id            | avro-adv-25                        |
       | schema_id            | *                                  |
-      | version              |                                    |
+      | version              | *                                  |
       | schema_type          | AVRO                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -1306,7 +1306,7 @@ Feature: Advanced Avro Schema Parsing
       | target_type          | subject                            |
       | target_id            | avro-adv-26a                       |
       | schema_id            | *                                  |
-      | version              |                                    |
+      | version              | *                                  |
       | schema_type          | AVRO                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -1356,7 +1356,7 @@ Feature: Advanced Avro Schema Parsing
       | target_type          | subject                            |
       | target_id            | avro-adv-27                        |
       | schema_id            | *                                  |
-      | version              |                                    |
+      | version              | *                                  |
       | schema_type          | AVRO                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -1404,7 +1404,7 @@ Feature: Advanced Avro Schema Parsing
       | target_type          | subject                            |
       | target_id            | avro-adv-28                        |
       | schema_id            | *                                  |
-      | version              |                                    |
+      | version              | *                                  |
       | schema_type          | AVRO                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -1448,7 +1448,7 @@ Feature: Advanced Avro Schema Parsing
       | target_type          | subject                            |
       | target_id            | avro-adv-29                        |
       | schema_id            | *                                  |
-      | version              |                                    |
+      | version              | *                                  |
       | schema_type          | AVRO                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -1495,7 +1495,7 @@ Feature: Advanced Avro Schema Parsing
       | target_type          | subject                            |
       | target_id            | avro-adv-30                        |
       | schema_id            | *                                  |
-      | version              |                                    |
+      | version              | *                                  |
       | schema_type          | AVRO                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -1539,7 +1539,7 @@ Feature: Advanced Avro Schema Parsing
       | target_type          | subject                            |
       | target_id            | avro-adv-31                        |
       | schema_id            | *                                  |
-      | version              |                                    |
+      | version              | *                                  |
       | schema_type          | AVRO                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -1583,7 +1583,7 @@ Feature: Advanced Avro Schema Parsing
       | target_type          | subject                            |
       | target_id            | avro-adv-32                        |
       | schema_id            | *                                  |
-      | version              |                                    |
+      | version              | *                                  |
       | schema_type          | AVRO                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -1634,7 +1634,7 @@ Feature: Advanced Avro Schema Parsing
       | target_type          | subject                            |
       | target_id            | avro-adv-33                        |
       | schema_id            | *                                  |
-      | version              |                                    |
+      | version              | *                                  |
       | schema_type          | AVRO                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -1678,7 +1678,7 @@ Feature: Advanced Avro Schema Parsing
       | target_type          | subject                            |
       | target_id            | avro-adv-34                        |
       | schema_id            | *                                  |
-      | version              |                                    |
+      | version              | *                                  |
       | schema_type          | AVRO                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -1728,7 +1728,7 @@ Feature: Advanced Avro Schema Parsing
       | target_type          | subject                            |
       | target_id            | avro-adv-35                        |
       | schema_id            | *                                  |
-      | version              |                                    |
+      | version              | *                                  |
       | schema_type          | AVRO                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -1773,7 +1773,7 @@ Feature: Advanced Avro Schema Parsing
       | target_type          | subject                            |
       | target_id            | avro-adv-36                        |
       | schema_id            | *                                  |
-      | version              |                                    |
+      | version              | *                                  |
       | schema_type          | AVRO                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -1826,7 +1826,7 @@ Feature: Advanced Avro Schema Parsing
       | target_type          | subject                            |
       | target_id            | avro-adv-37                        |
       | schema_id            | *                                  |
-      | version              |                                    |
+      | version              | *                                  |
       | schema_type          | AVRO                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -1890,7 +1890,7 @@ Feature: Advanced Avro Schema Parsing
       | target_type          | subject                            |
       | target_id            | avro-adv-38                        |
       | schema_id            | *                                  |
-      | version              |                                    |
+      | version              | *                                  |
       | schema_type          | AVRO                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -1940,7 +1940,7 @@ Feature: Advanced Avro Schema Parsing
       | target_type          | subject                            |
       | target_id            | avro-adv-39                        |
       | schema_id            | *                                  |
-      | version              |                                    |
+      | version              | *                                  |
       | schema_type          | AVRO                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -2009,7 +2009,7 @@ Feature: Advanced Avro Schema Parsing
       | target_type          | subject                            |
       | target_id            | avro-adv-40                        |
       | schema_id            | *                                  |
-      | version              |                                    |
+      | version              | *                                  |
       | schema_type          | AVRO                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |

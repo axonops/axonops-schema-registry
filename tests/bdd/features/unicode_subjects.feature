@@ -31,7 +31,7 @@ Feature: Unicode and Special Character Subject Names
       | target_type          | subject                              |
       | target_id            | test-subject                         |
       | schema_id            | *                                    |
-      | version              |                                      |
+      | version              | *                                    |
       | schema_type          | AVRO                                 |
       | before_hash          |                                      |
       | after_hash           | sha256:*                             |
@@ -73,7 +73,7 @@ Feature: Unicode and Special Character Subject Names
       | target_type          | subject                                             |
       | target_id            | com.example.events.user-created                     |
       | schema_id            | *                                                   |
-      | version              |                                                     |
+      | version              | *                                                   |
       | schema_type          | AVRO                                                |
       | before_hash          |                                                     |
       | after_hash           | sha256:*                                            |
@@ -111,7 +111,7 @@ Feature: Unicode and Special Character Subject Names
       | target_type          | subject                                  |
       | target_id            | my_subject_123_v2                        |
       | schema_id            | *                                        |
-      | version              |                                          |
+      | version              | *                                        |
       | schema_type          | AVRO                                     |
       | before_hash          |                                          |
       | after_hash           | sha256:*                                 |
@@ -159,7 +159,7 @@ Feature: Unicode and Special Character Subject Names
       | target_type          | subject                                  |
       | target_id            | orders.events-key                        |
       | schema_id            | *                                        |
-      | version              |                                          |
+      | version              | *                                        |
       | schema_type          | AVRO                                     |
       | before_hash          |                                          |
       | after_hash           | sha256:*                                 |
@@ -201,7 +201,7 @@ Feature: Unicode and Special Character Subject Names
       | target_type          | subject                                  |
       | target_id            | ns:my-subject:v1                         |
       | schema_id            | *                                        |
-      | version              |                                          |
+      | version              | *                                        |
       | schema_type          | AVRO                                     |
       | before_hash          |                                          |
       | after_hash           | sha256:*                                 |
@@ -239,7 +239,7 @@ Feature: Unicode and Special Character Subject Names
       | target_type          | subject                              |
       | target_id            | test~subject                         |
       | schema_id            | *                                    |
-      | version              |                                      |
+      | version              | *                                    |
       | schema_type          | AVRO                                 |
       | before_hash          |                                      |
       | after_hash           | sha256:*                             |
@@ -278,7 +278,7 @@ Feature: Unicode and Special Character Subject Names
       | target_type          | subject                                                                                                                                                                                                      |
       | target_id            | very-long-subject-name-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa     |
       | schema_id            | *                                                                                                                                                                                                            |
-      | version              |                                                                                                                                                                                                              |
+      | version              | *                                                                                                                                                                                                            |
       | schema_type          | AVRO                                                                                                                                                                                                         |
       | before_hash          |                                                                                                                                                                                                              |
       | after_hash           | sha256:*                                                                                                                                                                                                     |
@@ -327,7 +327,7 @@ Feature: Unicode and Special Character Subject Names
       | target_type          | subject                                        |
       | target_id            | com.example.delete-test                        |
       | schema_id            | *                                              |
-      | version              |                                                |
+      | version              | *                                              |
       | schema_type          | AVRO                                           |
       | before_hash          |                                                |
       | after_hash           | sha256:*                                       |
@@ -373,7 +373,7 @@ Feature: Unicode and Special Character Subject Names
       | target_type          | subject                                        |
       | target_id            | com.example.compat-test                        |
       | schema_id            | *                                              |
-      | version              |                                                |
+      | version              | *                                              |
       | schema_type          | AVRO                                           |
       | before_hash          |                                                |
       | after_hash           | sha256:*                                       |

@@ -37,7 +37,7 @@ Feature: Mode Management — Exhaustive (Confluent v8.1.1 Compatibility)
       | auth_method          |                        |
       | role                 |                        |
       | target_type          | mode                   |
-      | target_id            |                        |
+      | target_id            | _global                |
       | schema_id            |                        |
       | version              |                        |
       | schema_type          |                        |
@@ -81,7 +81,7 @@ Feature: Mode Management — Exhaustive (Confluent v8.1.1 Compatibility)
       | auth_method          |                        |
       | role                 |                        |
       | target_type          | mode                   |
-      | target_id            |                        |
+      | target_id            | _global                |
       | schema_id            |                        |
       | version              |                        |
       | schema_type          |                        |
@@ -229,7 +229,7 @@ Feature: Mode Management — Exhaustive (Confluent v8.1.1 Compatibility)
       | target_type          | subject                |
       | target_id            | mode-ex-import         |
       | schema_id            | *                      |
-      | version              |                        |
+      | version              | *                      |
       | schema_type          | AVRO                   |
       | before_hash          |                        |
       | after_hash           | sha256:*               |
@@ -272,7 +272,7 @@ Feature: Mode Management — Exhaustive (Confluent v8.1.1 Compatibility)
       | target_type          | subject                |
       | target_id            | mode-ex-import-reuse2  |
       | schema_id            | *                      |
-      | version              |                        |
+      | version              | *                      |
       | schema_type          | AVRO                   |
       | before_hash          |                        |
       | after_hash           | sha256:*               |
@@ -315,7 +315,7 @@ Feature: Mode Management — Exhaustive (Confluent v8.1.1 Compatibility)
       | target_type          | subject                |
       | target_id            | mode-ex-import-conflict1 |
       | schema_id            | *                      |
-      | version              |                        |
+      | version              | *                      |
       | schema_type          | AVRO                   |
       | before_hash          |                        |
       | after_hash           | sha256:*               |
@@ -359,7 +359,7 @@ Feature: Mode Management — Exhaustive (Confluent v8.1.1 Compatibility)
       | target_type          | subject                |
       | target_id            | mode-ex-import-nocompat |
       | schema_id            | *                      |
-      | version              |                        |
+      | version              | *                      |
       | schema_type          | AVRO                   |
       | before_hash          |                        |
       | after_hash           | sha256:*               |
@@ -402,7 +402,7 @@ Feature: Mode Management — Exhaustive (Confluent v8.1.1 Compatibility)
       | target_type          | subject                |
       | target_id            | mode-ex-exit-import-auto |
       | schema_id            | *                      |
-      | version              |                        |
+      | version              | *                      |
       | schema_type          | AVRO                   |
       | before_hash          |                        |
       | after_hash           | sha256:*               |
@@ -448,7 +448,7 @@ Feature: Mode Management — Exhaustive (Confluent v8.1.1 Compatibility)
       | target_type          | subject                |
       | target_id            | mode-ex-ver-explicit   |
       | schema_id            | *                      |
-      | version              |                        |
+      | version              | *                      |
       | schema_type          | AVRO                   |
       | before_hash          |                        |
       | after_hash           | sha256:*               |
@@ -511,7 +511,7 @@ Feature: Mode Management — Exhaustive (Confluent v8.1.1 Compatibility)
       | target_type          | subject                |
       | target_id            | mode-ex-ver-ooo        |
       | schema_id            | *                      |
-      | version              |                        |
+      | version              | *                      |
       | schema_type          | AVRO                   |
       | before_hash          |                        |
       | after_hash           | sha256:*               |
@@ -561,7 +561,7 @@ Feature: Mode Management — Exhaustive (Confluent v8.1.1 Compatibility)
       | target_type          | subject                |
       | target_id            | mode-ex-ver-gaps       |
       | schema_id            | *                      |
-      | version              |                        |
+      | version              | *                      |
       | schema_type          | AVRO                   |
       | before_hash          |                        |
       | after_hash           | sha256:*               |
@@ -609,7 +609,7 @@ Feature: Mode Management — Exhaustive (Confluent v8.1.1 Compatibility)
       | target_type          | subject                |
       | target_id            | mode-ex-ver-auto       |
       | schema_id            | *                      |
-      | version              |                        |
+      | version              | *                      |
       | schema_type          | AVRO                   |
       | before_hash          |                        |
       | after_hash           | sha256:*               |
@@ -652,7 +652,7 @@ Feature: Mode Management — Exhaustive (Confluent v8.1.1 Compatibility)
       | target_type          | subject                |
       | target_id            | mode-ex-ver-dup        |
       | schema_id            | *                      |
-      | version              |                        |
+      | version              | *                      |
       | schema_type          | AVRO                   |
       | before_hash          |                        |
       | after_hash           | sha256:*               |
@@ -693,7 +693,7 @@ Feature: Mode Management — Exhaustive (Confluent v8.1.1 Compatibility)
       | auth_method          |                        |
       | role                 |                        |
       | target_type          | mode                   |
-      | target_id            |                        |
+      | target_id            | _global                |
       | schema_id            |                        |
       | version              |                        |
       | schema_type          |                        |
@@ -731,7 +731,7 @@ Feature: Mode Management — Exhaustive (Confluent v8.1.1 Compatibility)
       | auth_method          |                        |
       | role                 |                        |
       | target_type          | mode                   |
-      | target_id            |                        |
+      | target_id            | _global                |
       | schema_id            |                        |
       | version              |                        |
       | schema_type          |                        |

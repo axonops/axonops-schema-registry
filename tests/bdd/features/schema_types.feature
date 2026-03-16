@@ -18,7 +18,7 @@ Feature: Schema Types
       | target_type          | subject                                  |
       | target_id            | avro-test                                |
       | schema_id            | *                                        |
-      | version              |                                          |
+      | version              | *                                        |
       | schema_type          | AVRO                                     |
       | before_hash          |                                          |
       | after_hash           | sha256:*                                 |
@@ -56,7 +56,7 @@ Feature: Schema Types
       | target_type          | subject                                  |
       | target_id            | proto-test                               |
       | schema_id            | *                                        |
-      | version              |                                          |
+      | version              | *                                        |
       | schema_type          | PROTOBUF                                 |
       | before_hash          |                                          |
       | after_hash           | sha256:*                                 |
@@ -91,7 +91,7 @@ Feature: Schema Types
       | target_type          | subject                                  |
       | target_id            | json-test                                |
       | schema_id            | *                                        |
-      | version              |                                          |
+      | version              | *                                        |
       | schema_type          | JSON                                     |
       | before_hash          |                                          |
       | after_hash           | sha256:*                                 |
