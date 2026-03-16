@@ -105,6 +105,7 @@ func TestMain(m *testing.M) {
 			} else {
 				mainAuditWatcher = w
 				mainComposeEnv = append(mainComposeEnv, "AUDIT_LOG_DIR="+auditDir)
+				log.Printf("AuditWatcher created: watching %s (bind-mount dir: %s)", auditLogPath, auditDir)
 			}
 		}
 
@@ -141,6 +142,7 @@ func TestMain(m *testing.M) {
 
 	// Close the audit watcher before tearing down containers.
 	if mainAuditWatcher != nil {
+		log.Println(mainAuditWatcher.Stats())
 		mainAuditWatcher.Close()
 	}
 	if mainAuditDir != "" {
@@ -299,6 +301,7 @@ func TestAuthFeatures(t *testing.T) {
 	if authWatcher != nil {
 		authEnv = append(authEnv, "AUDIT_LOG_DIR="+authAuditDir)
 		t.Cleanup(func() {
+			t.Log(authWatcher.Stats())
 			authWatcher.Close()
 			os.RemoveAll(authAuditDir)
 		})
@@ -413,6 +416,7 @@ func TestMCPFeatures(t *testing.T) {
 	if mcpWatcher != nil {
 		mcpEnv = append(mcpEnv, "AUDIT_LOG_DIR="+mcpAuditDir)
 		t.Cleanup(func() {
+			t.Log(mcpWatcher.Stats())
 			mcpWatcher.Close()
 			os.RemoveAll(mcpAuditDir)
 		})
@@ -539,6 +543,7 @@ func TestMCPKMSFeatures(t *testing.T) {
 	if kmsWatcher != nil {
 		mcpEnv = append(mcpEnv, "AUDIT_LOG_DIR="+kmsAuditDir)
 		t.Cleanup(func() {
+			t.Log(kmsWatcher.Stats())
 			kmsWatcher.Close()
 			os.RemoveAll(kmsAuditDir)
 		})
@@ -661,6 +666,7 @@ func TestMCPMetricsFeatures(t *testing.T) {
 	if metricsWatcher != nil {
 		mcpEnv = append(mcpEnv, "AUDIT_LOG_DIR="+metricsAuditDir)
 		t.Cleanup(func() {
+			t.Log(metricsWatcher.Stats())
 			metricsWatcher.Close()
 			os.RemoveAll(metricsAuditDir)
 		})
@@ -773,6 +779,7 @@ func TestMCPConfirmationFeatures(t *testing.T) {
 	if confirmWatcher != nil {
 		mcpEnv = append(mcpEnv, "AUDIT_LOG_DIR="+confirmAuditDir)
 		t.Cleanup(func() {
+			t.Log(confirmWatcher.Stats())
 			confirmWatcher.Close()
 			os.RemoveAll(confirmAuditDir)
 		})
@@ -916,6 +923,7 @@ func TestMCPPermissionsFeatures(t *testing.T) {
 			if permWatcher != nil {
 				mcpEnv = append(mcpEnv, "AUDIT_LOG_DIR="+permAuditDir)
 				t.Cleanup(func() {
+					t.Log(permWatcher.Stats())
 					permWatcher.Close()
 					os.RemoveAll(permAuditDir)
 				})
@@ -1029,6 +1037,7 @@ func TestMCPAuditFeatures(t *testing.T) {
 	if auditWatcher != nil {
 		auditEnv = append(auditEnv, "AUDIT_LOG_DIR="+auditAuditDir)
 		t.Cleanup(func() {
+			t.Log(auditWatcher.Stats())
 			auditWatcher.Close()
 			os.RemoveAll(auditAuditDir)
 		})
@@ -1153,6 +1162,7 @@ func TestKMSFeatures(t *testing.T) {
 	if restKMSWatcher != nil {
 		kmsEnv = append(kmsEnv, "AUDIT_LOG_DIR="+restKMSAuditDir)
 		t.Cleanup(func() {
+			t.Log(restKMSWatcher.Stats())
 			restKMSWatcher.Close()
 			os.RemoveAll(restKMSAuditDir)
 		})
@@ -1263,6 +1273,7 @@ func TestRESTAuditFeatures(t *testing.T) {
 	if restAuditWatcher != nil {
 		auditEnv = append(auditEnv, "AUDIT_LOG_DIR="+restAuditDir)
 		t.Cleanup(func() {
+			t.Log(restAuditWatcher.Stats())
 			restAuditWatcher.Close()
 			os.RemoveAll(restAuditDir)
 		})
@@ -1361,6 +1372,7 @@ func TestAuditOutputsFeatures(t *testing.T) {
 	if outputsWatcher != nil {
 		composeEnv = append(composeEnv, "AUDIT_LOG_DIR="+outputsAuditDir)
 		t.Cleanup(func() {
+			t.Log(outputsWatcher.Stats())
 			outputsWatcher.Close()
 			os.RemoveAll(outputsAuditDir)
 		})
@@ -1481,6 +1493,7 @@ func TestLDAPFeatures(t *testing.T) {
 	if ldapWatcher != nil {
 		ldapEnv = append(ldapEnv, "AUDIT_LOG_DIR="+ldapAuditDir)
 		t.Cleanup(func() {
+			t.Log(ldapWatcher.Stats())
 			ldapWatcher.Close()
 			os.RemoveAll(ldapAuditDir)
 		})
@@ -1583,6 +1596,7 @@ func TestOIDCFeatures(t *testing.T) {
 	if oidcWatcher != nil {
 		oidcEnv = append(oidcEnv, "AUDIT_LOG_DIR="+oidcAuditDir)
 		t.Cleanup(func() {
+			t.Log(oidcWatcher.Stats())
 			oidcWatcher.Close()
 			os.RemoveAll(oidcAuditDir)
 		})
@@ -1688,6 +1702,7 @@ func TestJWTFeatures(t *testing.T) {
 	if jwtWatcher != nil {
 		jwtEnv = append(jwtEnv, "AUDIT_LOG_DIR="+jwtAuditDir)
 		t.Cleanup(func() {
+			t.Log(jwtWatcher.Stats())
 			jwtWatcher.Close()
 			os.RemoveAll(jwtAuditDir)
 		})
@@ -1787,6 +1802,7 @@ func TestMTLSFeatures(t *testing.T) {
 	if mtlsWatcher != nil {
 		mtlsEnv = append(mtlsEnv, "AUDIT_LOG_DIR="+mtlsAuditDir)
 		t.Cleanup(func() {
+			t.Log(mtlsWatcher.Stats())
 			mtlsWatcher.Close()
 			os.RemoveAll(mtlsAuditDir)
 		})
@@ -1885,6 +1901,7 @@ func TestMTLSAuthFeatures(t *testing.T) {
 	if mtlsAuthWatcher != nil {
 		mtlsAuthEnv = append(mtlsAuthEnv, "AUDIT_LOG_DIR="+mtlsAuthAuditDir)
 		t.Cleanup(func() {
+			t.Log(mtlsAuthWatcher.Stats())
 			mtlsAuthWatcher.Close()
 			os.RemoveAll(mtlsAuthAuditDir)
 		})
@@ -2427,6 +2444,7 @@ func makeAuditWatcher(t *testing.T) (watcher *steps.AuditWatcher, auditDir strin
 		os.RemoveAll(auditDir)
 		return nil, "", nil, nil
 	}
+	t.Logf("AuditWatcher created: watching %s (bind-mount dir: %s)", auditLogPath, auditDir)
 
 	fetcher = func() (string, error) {
 		return watcher.LogString()

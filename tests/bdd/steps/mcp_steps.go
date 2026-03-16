@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
 	"time"
@@ -771,6 +772,8 @@ func RegisterMCPSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 	// A value ending with "*" uses prefix matching (e.g., | after_hash | sha256:* |).
 	// An empty value (e.g., | actor_id | |) matches the empty string.
 	ctx.Step(`^the audit log should contain an event:$`, func(table *godog.Table) error {
+		assertStart := time.Now()
+
 		// Build expected field map from the table.
 		expected := make(map[string]string)
 		for _, row := range table.Rows {
@@ -842,6 +845,10 @@ func RegisterMCPSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 			defer cancel()
 			found, bm, _ := tc.AuditWatcher.WaitForMatch(ctx, matchEvents)
 			if found {
+				if elapsed := time.Since(assertStart); elapsed > 500*time.Millisecond {
+					log.Printf("SLOW audit assertion (%s): event_type=%s took %dms",
+						expected["event_type"], expected["event_type"], elapsed.Milliseconds())
+				}
 				return nil
 			}
 			bestMatch = bm
@@ -878,9 +885,13 @@ func RegisterMCPSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 			}
 		}
 
+		elapsed := time.Since(assertStart)
+		log.Printf("FAILED audit assertion after %dms: event_type=%s (events=%d)",
+			elapsed.Milliseconds(), expected["event_type"], len(events))
+
 		// Build a helpful error message showing the best partial match.
 		var detail strings.Builder
-		detail.WriteString("expected audit event not found. Wanted:\n")
+		detail.WriteString(fmt.Sprintf("expected audit event not found after %dms. Wanted:\n", elapsed.Milliseconds()))
 		for field, val := range expected {
 			detail.WriteString(fmt.Sprintf("  %s = %q\n", field, val))
 		}

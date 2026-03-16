@@ -11,6 +11,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
@@ -30,6 +31,16 @@ type AuditWatcher struct {
 	stopOnce sync.Once
 	partial  string          // buffer for incomplete last line
 	rawLog   strings.Builder // accumulates raw data for LogString()
+
+	// Instrumentation — accessed via atomic operations, no mutex needed.
+	matchInitial  int64 // found on initial check (event already present)
+	matchViaNotif int64 // found via fsnotify channel
+	matchViaPoll  int64 // found via safety-net poll
+	matchTimeout  int64 // found on final timeout read
+	matchFailed   int64 // not found (2s timeout expired)
+	totalWaitNs   int64 // cumulative wait time in nanoseconds
+	readCalls     int64 // number of ReadNewData calls
+	readBytes     int64 // total bytes read
 }
 
 // NewAuditWatcher creates a new AuditWatcher that watches the given file path.
@@ -104,6 +115,8 @@ func (aw *AuditWatcher) ReadNewData() {
 	aw.mu.Lock()
 	defer aw.mu.Unlock()
 
+	atomic.AddInt64(&aw.readCalls, 1)
+
 	f, err := os.Open(aw.filePath)
 	if err != nil {
 		return
@@ -132,6 +145,7 @@ func (aw *AuditWatcher) ReadNewData() {
 		return
 	}
 
+	atomic.AddInt64(&aw.readBytes, int64(len(data)))
 	aw.offset += int64(len(data))
 
 	// Accumulate raw data for LogString().
@@ -164,10 +178,27 @@ func (aw *AuditWatcher) ReadNewData() {
 	}
 }
 
+// matchResolution identifies how WaitForMatch found (or failed to find) an event.
+type matchResolution int
+
+const (
+	resolvedInitial matchResolution = iota
+	resolvedNotify
+	resolvedPoll
+	resolvedTimeout
+	resolvedFailed
+)
+
 // WaitForMatch waits for an audit event that matches the given function.
 // Only scans newly arrived events on each notification (tracks checkedIdx).
 // Returns whether a match was found, the best partial match, and the count of matched fields.
 func (aw *AuditWatcher) WaitForMatch(ctx context.Context, matchFn func([]map[string]interface{}) (bool, map[string]interface{}, int)) (bool, map[string]interface{}, int) {
+	start := time.Now()
+
+	defer func() {
+		atomic.AddInt64(&aw.totalWaitNs, time.Since(start).Nanoseconds())
+	}()
+
 	// Do an initial read in case data arrived before the watcher was set up.
 	aw.ReadNewData()
 
@@ -191,6 +222,7 @@ func (aw *AuditWatcher) WaitForMatch(ctx context.Context, matchFn func([]map[str
 	}
 
 	if checkNew() {
+		atomic.AddInt64(&aw.matchInitial, 1)
 		return true, nil, 0
 	}
 
@@ -200,17 +232,21 @@ func (aw *AuditWatcher) WaitForMatch(ctx context.Context, matchFn func([]map[str
 			// Final read before giving up.
 			aw.ReadNewData()
 			if checkNew() {
+				atomic.AddInt64(&aw.matchTimeout, 1)
 				return true, nil, 0
 			}
+			atomic.AddInt64(&aw.matchFailed, 1)
 			return false, bestMatch, bestCount
 		case <-aw.newData:
 			if checkNew() {
+				atomic.AddInt64(&aw.matchViaNotif, 1)
 				return true, nil, 0
 			}
 		case <-time.After(200 * time.Millisecond):
 			// Periodic poll as safety net in case fsnotify misses an event.
 			aw.ReadNewData()
 			if checkNew() {
+				atomic.AddInt64(&aw.matchViaPoll, 1)
 				return true, nil, 0
 			}
 		}
@@ -251,4 +287,24 @@ func (aw *AuditWatcher) LogString() (string, error) {
 	aw.mu.Lock()
 	defer aw.mu.Unlock()
 	return aw.rawLog.String(), nil
+}
+
+// Stats returns a human-readable summary of watcher performance counters.
+// Log this at watcher Close to understand how assertions were resolved.
+func (aw *AuditWatcher) Stats() string {
+	initial := atomic.LoadInt64(&aw.matchInitial)
+	notify := atomic.LoadInt64(&aw.matchViaNotif)
+	poll := atomic.LoadInt64(&aw.matchViaPoll)
+	timeout := atomic.LoadInt64(&aw.matchTimeout)
+	failed := atomic.LoadInt64(&aw.matchFailed)
+	totalNs := atomic.LoadInt64(&aw.totalWaitNs)
+	reads := atomic.LoadInt64(&aw.readCalls)
+	bytes := atomic.LoadInt64(&aw.readBytes)
+	total := initial + notify + poll + timeout + failed
+
+	return fmt.Sprintf(
+		"AuditWatcher[%s]: total=%d initial=%d notify=%d poll=%d timeout=%d failed=%d | wait=%dms reads=%d bytes=%d",
+		aw.filePath, total, initial, notify, poll, timeout, failed,
+		totalNs/1e6, reads, bytes,
+	)
 }
