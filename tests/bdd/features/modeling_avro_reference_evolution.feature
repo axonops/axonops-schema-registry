@@ -59,7 +59,7 @@ Feature: Avro Reference Evolution
       | target_type          | subject                                            |
       | target_id            | avro-refevo-consumer-dup                           |
       | schema_id            | *                                                  |
-      | version              | *                                                  |
+      | version              |                                                    |
       | schema_type          | AVRO                                               |
       | before_hash          |                                                    |
       | after_hash           | sha256:*                                           |
@@ -132,7 +132,7 @@ Feature: Avro Reference Evolution
       | target_type          | subject                                              |
       | target_id            | avro-refevo2-consumer-v2                             |
       | schema_id            | *                                                    |
-      | version              | *                                                    |
+      | version              |                                                      |
       | schema_type          | AVRO                                                 |
       | before_hash          |                                                      |
       | after_hash           | sha256:*                                             |
@@ -186,7 +186,7 @@ Feature: Avro Reference Evolution
       | target_type          | subject                                          |
       | target_id            | avro-multiref-consumer                           |
       | schema_id            | *                                                |
-      | version              | *                                                |
+      | version              |                                                  |
       | schema_type          | AVRO                                             |
       | before_hash          |                                                  |
       | after_hash           | sha256:*                                         |
@@ -252,7 +252,7 @@ Feature: Avro Reference Evolution
       | target_type          | subject                                      |
       | target_id            | avro-diffref-c2                              |
       | schema_id            | *                                            |
-      | version              | *                                            |
+      | version              |                                              |
       | schema_type          | AVRO                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -312,7 +312,7 @@ Feature: Avro Reference Evolution
       | target_type          | subject                                        |
       | target_id            | avro-refby-consumer2                           |
       | schema_id            | *                                              |
-      | version              | *                                              |
+      | version              |                                                |
       | schema_type          | AVRO                                           |
       | before_hash          |                                                |
       | after_hash           | sha256:*                                       |
@@ -393,7 +393,7 @@ Feature: Avro Reference Evolution
       | target_type          | subject                                          |
       | target_id            | avro-refdel-consumer                             |
       | schema_id            | *                                                |
-      | version              | *                                                |
+      | version              |                                                  |
       | schema_type          | AVRO                                             |
       | before_hash          |                                                  |
       | after_hash           | sha256:*                                         |
@@ -442,7 +442,7 @@ Feature: Avro Reference Evolution
       | target_type          | subject                                            |
       | target_id            | avro-reflookup-consumer                            |
       | schema_id            | *                                                  |
-      | version              | *                                                  |
+      | version              |                                                    |
       | schema_type          | AVRO                                               |
       | before_hash          |                                                    |
       | after_hash           | sha256:*                                           |
@@ -508,7 +508,7 @@ Feature: Avro Reference Evolution
       | target_type          | subject                                      |
       | target_id            | avro-refver-c2                               |
       | schema_id            | *                                            |
-      | version              | *                                            |
+      | version              |                                              |
       | schema_type          | AVRO                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |

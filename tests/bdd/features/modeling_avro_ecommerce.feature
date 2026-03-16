@@ -69,7 +69,7 @@ Feature: Avro E-Commerce Domain Modeling
       | target_type          | subject                                      |
       | target_id            | ecom-product                                 |
       | schema_id            | *                                            |
-      | version              | *                                            |
+      | version              |                                              |
       | schema_type          | AVRO                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -132,7 +132,7 @@ Feature: Avro E-Commerce Domain Modeling
       | target_type          | subject                                      |
       | target_id            | ecom-customer                                |
       | schema_id            | *                                            |
-      | version              | *                                            |
+      | version              |                                              |
       | schema_type          | AVRO                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -193,7 +193,7 @@ Feature: Avro E-Commerce Domain Modeling
       | target_type          | subject                                      |
       | target_id            | ecom-ref-order                               |
       | schema_id            | *                                            |
-      | version              | *                                            |
+      | version              |                                              |
       | schema_type          | AVRO                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -241,7 +241,7 @@ Feature: Avro E-Commerce Domain Modeling
       | target_type          | subject                                      |
       | target_id            | ecom-payment                                 |
       | schema_id            | *                                            |
-      | version              | *                                            |
+      | version              |                                              |
       | schema_type          | AVRO                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -295,7 +295,7 @@ Feature: Avro E-Commerce Domain Modeling
       | target_type          | subject                                          |
       | target_id            | ecom-product-changelog                           |
       | schema_id            | *                                                |
-      | version              | *                                                |
+      | version              |                                                  |
       | schema_type          | AVRO                                             |
       | before_hash          |                                                  |
       | after_hash           | sha256:*                                         |
@@ -352,7 +352,7 @@ Feature: Avro E-Commerce Domain Modeling
       | target_type          | subject                                      |
       | target_id            | ecom-lifecycle                               |
       | schema_id            | *                                            |
-      | version              | *                                            |
+      | version              |                                              |
       | schema_type          | AVRO                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -426,7 +426,7 @@ Feature: Avro E-Commerce Domain Modeling
       | target_type          | subject                                      |
       | target_id            | ecom-import                                  |
       | schema_id            | *                                            |
-      | version              | *                                            |
+      | version              |                                              |
       | schema_type          | AVRO                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |

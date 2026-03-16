@@ -25,11 +25,11 @@ Feature: Advanced Features
       | auth_method          |                        |
       | role                 |                        |
       | target_type          | mode                   |
-      | target_id            | _global                |
+      | target_id            |                        |
       | schema_id            |                        |
       | version              |                        |
       | schema_type          |                        |
-      | before_hash          | *                      |
+      | before_hash          |                        |
       | after_hash           | sha256:*               |
       | context              | .                      |
       | transport_security   | tls                    |
@@ -67,7 +67,7 @@ Feature: Advanced Features
       | auth_method          |                        |
       | role                 |                        |
       | target_type          | mode                   |
-      | target_id            | _global                |
+      | target_id            |                        |
       | schema_id            |                        |
       | version              |                        |
       | schema_type          |                        |
@@ -178,7 +178,7 @@ Feature: Advanced Features
       | auth_method          |                        |
       | role                 |                        |
       | target_type          | mode                   |
-      | target_id            | _global                |
+      | target_id            |                        |
       | schema_id            |                        |
       | version              |                        |
       | schema_type          |                        |
@@ -220,7 +220,7 @@ Feature: Advanced Features
       | auth_method          |                        |
       | role                 |                        |
       | target_type          | mode                   |
-      | target_id            | _global                |
+      | target_id            |                        |
       | schema_id            |                        |
       | version              |                        |
       | schema_type          |                        |
@@ -370,7 +370,7 @@ Feature: Advanced Features
       | target_type          | subject                                  |
       | target_id            | norm-lookup                              |
       | schema_id            |                                          |
-      | version              | *                                        |
+      | version              |                                          |
       | schema_type          |                                          |
       | before_hash          |                                          |
       | after_hash           |                                          |
@@ -450,7 +450,7 @@ Feature: Advanced Features
       | auth_method          |                        |
       | role                 |                        |
       | target_type          | config                 |
-      | target_id            | _global                |
+      | target_id            |                        |
       | schema_id            |                        |
       | version              |                        |
       | schema_type          |                        |

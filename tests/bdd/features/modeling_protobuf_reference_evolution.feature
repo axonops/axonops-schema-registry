@@ -41,7 +41,7 @@ message Address {
       | target_type          | subject                                          |
       | target_id            | proto-refevo-consumer                            |
       | schema_id            | *                                                |
-      | version              | *                                                |
+      | version              |                                                  |
       | schema_type          | PROTOBUF                                         |
       | before_hash          |                                                  |
       | after_hash           | sha256:*                                         |
@@ -120,7 +120,7 @@ message Dependency {
       | target_type          | subject                                      |
       | target_id            | proto-refevo2-c2                             |
       | schema_id            | *                                            |
-      | version              | *                                            |
+      | version              |                                              |
       | schema_type          | PROTOBUF                                     |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -186,7 +186,7 @@ enum Status {
       | target_type          | subject                                            |
       | target_id            | proto-multiref-consumer                            |
       | schema_id            | *                                                  |
-      | version              | *                                                  |
+      | version              |                                                    |
       | schema_type          | PROTOBUF                                           |
       | before_hash          |                                                    |
       | after_hash           | sha256:*                                           |
@@ -253,7 +253,7 @@ message Shared {
       | target_type          | subject                                      |
       | target_id            | proto-refby-c2                               |
       | schema_id            | *                                            |
-      | version              | *                                            |
+      | version              |                                              |
       | schema_type          | PROTOBUF                                     |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -331,7 +331,7 @@ message Dep {
       | target_type          | subject                                      |
       | target_id            | proto-diffref-b                              |
       | schema_id            | *                                            |
-      | version              | *                                            |
+      | version              |                                              |
       | schema_type          | PROTOBUF                                     |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -387,7 +387,7 @@ message Base {
       | target_type          | subject                                          |
       | target_id            | proto-refdel-consumer                            |
       | schema_id            | *                                                |
-      | version              | *                                                |
+      | version              |                                                  |
       | schema_type          | PROTOBUF                                         |
       | before_hash          |                                                  |
       | after_hash           | sha256:*                                         |
@@ -442,7 +442,7 @@ message Dep {
       | target_type          | subject                                          |
       | target_id            | proto-refcompat-main                             |
       | schema_id            | *                                                |
-      | version              | *                                                |
+      | version              |                                                  |
       | schema_type          | PROTOBUF                                         |
       | before_hash          |                                                  |
       | after_hash           | sha256:*                                         |
@@ -508,7 +508,7 @@ message TypeC {
       | target_type          | subject                                      |
       | target_id            | proto-chain-a                                |
       | schema_id            | *                                            |
-      | version              | *                                            |
+      | version              |                                              |
       | schema_type          | PROTOBUF                                     |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |

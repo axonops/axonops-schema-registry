@@ -38,7 +38,7 @@ Feature: Advanced JSON Schema Parsing
       | target_type          | subject                |
       | target_id            | json-adv-1             |
       | schema_id            | *                      |
-      | version              | *                      |
+      | version              |                        |
       | schema_type          | JSON                   |
       | before_hash          |                        |
       | after_hash           | sha256:*               |
@@ -113,7 +113,7 @@ Feature: Advanced JSON Schema Parsing
       | target_type          | subject                |
       | target_id            | json-adv-2             |
       | schema_id            | *                      |
-      | version              | *                      |
+      | version              |                        |
       | schema_type          | JSON                   |
       | before_hash          |                        |
       | after_hash           | sha256:*               |
@@ -182,7 +182,7 @@ Feature: Advanced JSON Schema Parsing
       | target_type          | subject                |
       | target_id            | json-adv-3             |
       | schema_id            | *                      |
-      | version              | *                      |
+      | version              |                        |
       | schema_type          | JSON                   |
       | before_hash          |                        |
       | after_hash           | sha256:*               |
@@ -233,7 +233,7 @@ Feature: Advanced JSON Schema Parsing
       | target_type          | subject                |
       | target_id            | json-adv-4             |
       | schema_id            | *                      |
-      | version              | *                      |
+      | version              |                        |
       | schema_type          | JSON                   |
       | before_hash          |                        |
       | after_hash           | sha256:*               |
@@ -292,7 +292,7 @@ Feature: Advanced JSON Schema Parsing
       | target_type          | subject                |
       | target_id            | json-adv-5             |
       | schema_id            | *                      |
-      | version              | *                      |
+      | version              |                        |
       | schema_type          | JSON                   |
       | before_hash          |                        |
       | after_hash           | sha256:*               |
@@ -343,7 +343,7 @@ Feature: Advanced JSON Schema Parsing
       | target_type          | subject                |
       | target_id            | json-adv-6             |
       | schema_id            | *                      |
-      | version              | *                      |
+      | version              |                        |
       | schema_type          | JSON                   |
       | before_hash          |                        |
       | after_hash           | sha256:*               |
@@ -424,7 +424,7 @@ Feature: Advanced JSON Schema Parsing
       | target_type          | subject                |
       | target_id            | json-adv-7             |
       | schema_id            | *                      |
-      | version              | *                      |
+      | version              |                        |
       | schema_type          | JSON                   |
       | before_hash          |                        |
       | after_hash           | sha256:*               |
@@ -496,7 +496,7 @@ Feature: Advanced JSON Schema Parsing
       | target_type          | subject                |
       | target_id            | json-adv-8             |
       | schema_id            | *                      |
-      | version              | *                      |
+      | version              |                        |
       | schema_type          | JSON                   |
       | before_hash          |                        |
       | after_hash           | sha256:*               |
@@ -565,7 +565,7 @@ Feature: Advanced JSON Schema Parsing
       | target_type          | subject                |
       | target_id            | json-adv-9             |
       | schema_id            | *                      |
-      | version              | *                      |
+      | version              |                        |
       | schema_type          | JSON                   |
       | before_hash          |                        |
       | after_hash           | sha256:*               |
@@ -617,7 +617,7 @@ Feature: Advanced JSON Schema Parsing
       | target_type          | subject                |
       | target_id            | json-adv-10            |
       | schema_id            | *                      |
-      | version              | *                      |
+      | version              |                        |
       | schema_type          | JSON                   |
       | before_hash          |                        |
       | after_hash           | sha256:*               |
@@ -667,7 +667,7 @@ Feature: Advanced JSON Schema Parsing
       | target_type          | subject                |
       | target_id            | json-adv-11            |
       | schema_id            | *                      |
-      | version              | *                      |
+      | version              |                        |
       | schema_type          | JSON                   |
       | before_hash          |                        |
       | after_hash           | sha256:*               |
@@ -724,7 +724,7 @@ Feature: Advanced JSON Schema Parsing
       | target_type          | subject                |
       | target_id            | json-adv-12            |
       | schema_id            | *                      |
-      | version              | *                      |
+      | version              |                        |
       | schema_type          | JSON                   |
       | before_hash          |                        |
       | after_hash           | sha256:*               |
@@ -775,7 +775,7 @@ Feature: Advanced JSON Schema Parsing
       | target_type          | subject                |
       | target_id            | json-adv-13            |
       | schema_id            | *                      |
-      | version              | *                      |
+      | version              |                        |
       | schema_type          | JSON                   |
       | before_hash          |                        |
       | after_hash           | sha256:*               |
@@ -829,7 +829,7 @@ Feature: Advanced JSON Schema Parsing
       | target_type          | subject                |
       | target_id            | json-adv-14            |
       | schema_id            | *                      |
-      | version              | *                      |
+      | version              |                        |
       | schema_type          | JSON                   |
       | before_hash          |                        |
       | after_hash           | sha256:*               |
@@ -885,7 +885,7 @@ Feature: Advanced JSON Schema Parsing
       | target_type          | subject                |
       | target_id            | json-adv-15            |
       | schema_id            | *                      |
-      | version              | *                      |
+      | version              |                        |
       | schema_type          | JSON                   |
       | before_hash          |                        |
       | after_hash           | sha256:*               |
@@ -937,7 +937,7 @@ Feature: Advanced JSON Schema Parsing
       | target_type          | subject                |
       | target_id            | json-adv-16            |
       | schema_id            | *                      |
-      | version              | *                      |
+      | version              |                        |
       | schema_type          | JSON                   |
       | before_hash          |                        |
       | after_hash           | sha256:*               |
@@ -997,7 +997,7 @@ Feature: Advanced JSON Schema Parsing
       | target_type          | subject                |
       | target_id            | json-adv-17            |
       | schema_id            | *                      |
-      | version              | *                      |
+      | version              |                        |
       | schema_type          | JSON                   |
       | before_hash          |                        |
       | after_hash           | sha256:*               |
@@ -1060,7 +1060,7 @@ Feature: Advanced JSON Schema Parsing
       | target_type          | subject                |
       | target_id            | json-adv-18            |
       | schema_id            | *                      |
-      | version              | *                      |
+      | version              |                        |
       | schema_type          | JSON                   |
       | before_hash          |                        |
       | after_hash           | sha256:*               |
@@ -1138,7 +1138,7 @@ Feature: Advanced JSON Schema Parsing
       | target_type          | subject                |
       | target_id            | json-adv-19            |
       | schema_id            | *                      |
-      | version              | *                      |
+      | version              |                        |
       | schema_type          | JSON                   |
       | before_hash          |                        |
       | after_hash           | sha256:*               |
@@ -1217,7 +1217,7 @@ Feature: Advanced JSON Schema Parsing
       | target_type          | subject                |
       | target_id            | json-adv-20            |
       | schema_id            | *                      |
-      | version              | *                      |
+      | version              |                        |
       | schema_type          | JSON                   |
       | before_hash          |                        |
       | after_hash           | sha256:*               |
@@ -1282,7 +1282,7 @@ Feature: Advanced JSON Schema Parsing
       | target_type          | subject                |
       | target_id            | json-adv-21            |
       | schema_id            | *                      |
-      | version              | *                      |
+      | version              |                        |
       | schema_type          | JSON                   |
       | before_hash          |                        |
       | after_hash           | sha256:*               |
@@ -1336,7 +1336,7 @@ Feature: Advanced JSON Schema Parsing
       | target_type          | subject                |
       | target_id            | json-adv-22            |
       | schema_id            | *                      |
-      | version              | *                      |
+      | version              |                        |
       | schema_type          | JSON                   |
       | before_hash          |                        |
       | after_hash           | sha256:*               |
@@ -1389,7 +1389,7 @@ Feature: Advanced JSON Schema Parsing
       | target_type          | subject                |
       | target_id            | json-adv-23            |
       | schema_id            | *                      |
-      | version              | *                      |
+      | version              |                        |
       | schema_type          | JSON                   |
       | before_hash          |                        |
       | after_hash           | sha256:*               |
@@ -1444,7 +1444,7 @@ Feature: Advanced JSON Schema Parsing
       | target_type          | subject                |
       | target_id            | json-adv-24            |
       | schema_id            | *                      |
-      | version              | *                      |
+      | version              |                        |
       | schema_type          | JSON                   |
       | before_hash          |                        |
       | after_hash           | sha256:*               |
@@ -1526,7 +1526,7 @@ Feature: Advanced JSON Schema Parsing
       | target_type          | subject                |
       | target_id            | json-adv-25            |
       | schema_id            | *                      |
-      | version              | *                      |
+      | version              |                        |
       | schema_type          | JSON                   |
       | before_hash          |                        |
       | after_hash           | sha256:*               |
@@ -1639,7 +1639,7 @@ Feature: Advanced JSON Schema Parsing
       | target_type          | subject                |
       | target_id            | json-adv-26            |
       | schema_id            | *                      |
-      | version              | *                      |
+      | version              |                        |
       | schema_type          | JSON                   |
       | before_hash          |                        |
       | after_hash           | sha256:*               |
@@ -1719,7 +1719,7 @@ Feature: Advanced JSON Schema Parsing
       | target_type          | subject                |
       | target_id            | json-adv-27            |
       | schema_id            | *                      |
-      | version              | *                      |
+      | version              |                        |
       | schema_type          | JSON                   |
       | before_hash          |                        |
       | after_hash           | sha256:*               |
@@ -1786,7 +1786,7 @@ Feature: Advanced JSON Schema Parsing
       | target_type          | subject                |
       | target_id            | json-adv-28            |
       | schema_id            | *                      |
-      | version              | *                      |
+      | version              |                        |
       | schema_type          | JSON                   |
       | before_hash          |                        |
       | after_hash           | sha256:*               |
@@ -1832,7 +1832,7 @@ Feature: Advanced JSON Schema Parsing
       | target_type          | subject                |
       | target_id            | json-adv-29b           |
       | schema_id            | *                      |
-      | version              | *                      |
+      | version              |                        |
       | schema_type          | JSON                   |
       | before_hash          |                        |
       | after_hash           | sha256:*               |
@@ -1917,7 +1917,7 @@ Feature: Advanced JSON Schema Parsing
       | target_type          | subject                |
       | target_id            | json-adv-30            |
       | schema_id            | *                      |
-      | version              | *                      |
+      | version              |                        |
       | schema_type          | JSON                   |
       | before_hash          |                        |
       | after_hash           | sha256:*               |
@@ -1968,7 +1968,7 @@ Feature: Advanced JSON Schema Parsing
       | target_type          | subject                |
       | target_id            | json-adv-31            |
       | schema_id            | *                      |
-      | version              | *                      |
+      | version              |                        |
       | schema_type          | JSON                   |
       | before_hash          |                        |
       | after_hash           | sha256:*               |
@@ -2027,7 +2027,7 @@ Feature: Advanced JSON Schema Parsing
       | target_type          | subject                |
       | target_id            | json-adv-32            |
       | schema_id            | *                      |
-      | version              | *                      |
+      | version              |                        |
       | schema_type          | JSON                   |
       | before_hash          |                        |
       | after_hash           | sha256:*               |
@@ -2088,7 +2088,7 @@ Feature: Advanced JSON Schema Parsing
       | target_type          | subject                |
       | target_id            | json-adv-33            |
       | schema_id            | *                      |
-      | version              | *                      |
+      | version              |                        |
       | schema_type          | JSON                   |
       | before_hash          |                        |
       | after_hash           | sha256:*               |
@@ -2158,7 +2158,7 @@ Feature: Advanced JSON Schema Parsing
       | target_type          | subject                |
       | target_id            | json-adv-34            |
       | schema_id            | *                      |
-      | version              | *                      |
+      | version              |                        |
       | schema_type          | JSON                   |
       | before_hash          |                        |
       | after_hash           | sha256:*               |
@@ -2249,7 +2249,7 @@ Feature: Advanced JSON Schema Parsing
       | target_type          | subject                |
       | target_id            | json-adv-35            |
       | schema_id            | *                      |
-      | version              | *                      |
+      | version              |                        |
       | schema_type          | JSON                   |
       | before_hash          |                        |
       | after_hash           | sha256:*               |
@@ -2303,7 +2303,7 @@ Feature: Advanced JSON Schema Parsing
       | target_type          | subject                |
       | target_id            | json-adv-36            |
       | schema_id            | *                      |
-      | version              | *                      |
+      | version              |                        |
       | schema_type          | JSON                   |
       | before_hash          |                        |
       | after_hash           | sha256:*               |
@@ -2346,7 +2346,7 @@ Feature: Advanced JSON Schema Parsing
       | target_type          | subject                |
       | target_id            | json-adv-37            |
       | schema_id            | *                      |
-      | version              | *                      |
+      | version              |                        |
       | schema_type          | JSON                   |
       | before_hash          |                        |
       | after_hash           | sha256:*               |
@@ -2399,7 +2399,7 @@ Feature: Advanced JSON Schema Parsing
       | target_type          | subject                |
       | target_id            | json-adv-38            |
       | schema_id            | *                      |
-      | version              | *                      |
+      | version              |                        |
       | schema_type          | JSON                   |
       | before_hash          |                        |
       | after_hash           | sha256:*               |

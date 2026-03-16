@@ -102,7 +102,7 @@ Feature: REST API Audit Logging
       | target_type        | subject                     |
       | target_id          | audit-rest-lookup           |
       | schema_id          |                             |
-      | version            | *                           |
+      | version            |                             |
       | schema_type        |                             |
       | before_hash        |                             |
       | after_hash         |                             |

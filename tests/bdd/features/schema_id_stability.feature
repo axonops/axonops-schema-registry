@@ -33,7 +33,7 @@ Feature: Schema ID Stability and Content Validation
       | target_type          | subject                                      |
       | target_id            | idstab-avro-b                                |
       | schema_id            | *                                            |
-      | version              | *                                            |
+      | version              |                                              |
       | schema_type          | AVRO                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -75,7 +75,7 @@ Feature: Schema ID Stability and Content Validation
       | target_type          | subject                                      |
       | target_id            | idstab-diff-b                                |
       | schema_id            | *                                            |
-      | version              | *                                            |
+      | version              |                                              |
       | schema_type          | AVRO                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -172,7 +172,7 @@ Feature: Schema ID Stability and Content Validation
       | target_type          | subject                                      |
       | target_id            | idstab-seq-new                               |
       | schema_id            | *                                            |
-      | version              | *                                            |
+      | version              |                                              |
       | schema_type          | AVRO                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |

@@ -37,7 +37,7 @@ Feature: Advanced Schema References
       | target_type        | subject                              |
       | target_id          | avro-ref-person                      |
       | schema_id          | *                                    |
-      | version            | *                                    |
+      | version            |                                      |
       | schema_type        | AVRO                                 |
       | before_hash        |                                      |
       | after_hash         | sha256:*                             |
@@ -87,7 +87,7 @@ Feature: Advanced Schema References
       | target_type        | subject                              |
       | target_id          | avro-ref-order2                      |
       | schema_id          | *                                    |
-      | version            | *                                    |
+      | version            |                                      |
       | schema_type        | AVRO                                 |
       | before_hash        |                                      |
       | after_hash         | sha256:*                             |
@@ -143,7 +143,7 @@ Feature: Advanced Schema References
       | target_type        | subject                              |
       | target_id          | avro-chain-a                         |
       | schema_id          | *                                    |
-      | version            | *                                    |
+      | version            |                                      |
       | schema_type        | AVRO                                 |
       | before_hash        |                                      |
       | after_hash         | sha256:*                             |
@@ -195,7 +195,7 @@ Feature: Advanced Schema References
       | target_type        | subject                              |
       | target_id          | avro-pin-main                        |
       | schema_id          | *                                    |
-      | version            | *                                    |
+      | version            |                                      |
       | schema_type        | AVRO                                 |
       | before_hash        |                                      |
       | after_hash         | sha256:*                             |
@@ -245,7 +245,7 @@ Feature: Advanced Schema References
       | target_type        | subject                              |
       | target_id          | json-ref-person                      |
       | schema_id          | *                                    |
-      | version            | *                                    |
+      | version            |                                      |
       | schema_type        | JSON                                 |
       | before_hash        |                                      |
       | after_hash         | sha256:*                             |
@@ -296,7 +296,7 @@ Feature: Advanced Schema References
       | target_type        | subject                              |
       | target_id          | json-ref-checkout                    |
       | schema_id          | *                                    |
-      | version            | *                                    |
+      | version            |                                      |
       | schema_type        | JSON                                 |
       | before_hash        |                                      |
       | after_hash         | sha256:*                             |
@@ -342,7 +342,7 @@ Feature: Advanced Schema References
       | target_type        | subject                              |
       | target_id          | json-ref-combo                       |
       | schema_id          | *                                    |
-      | version            | *                                    |
+      | version            |                                      |
       | schema_type        | JSON                                 |
       | before_hash        |                                      |
       | after_hash         | sha256:*                             |
@@ -400,7 +400,7 @@ Feature: Advanced Schema References
       | target_type        | subject                              |
       | target_id          | json-chain-a                         |
       | schema_id          | *                                    |
-      | version            | *                                    |
+      | version            |                                      |
       | schema_type        | JSON                                 |
       | before_hash        |                                      |
       | after_hash         | sha256:*                             |
@@ -456,7 +456,7 @@ Feature: Advanced Schema References
       | target_type        | subject                              |
       | target_id          | proto-ref-person                     |
       | schema_id          | *                                    |
-      | version            | *                                    |
+      | version            |                                      |
       | schema_type        | PROTOBUF                             |
       | before_hash        |                                      |
       | after_hash         | sha256:*                             |
@@ -517,7 +517,7 @@ Feature: Advanced Schema References
       | target_type        | subject                              |
       | target_id          | proto-ref-order2                     |
       | schema_id          | *                                    |
-      | version            | *                                    |
+      | version            |                                      |
       | schema_type        | PROTOBUF                             |
       | before_hash        |                                      |
       | after_hash         | sha256:*                             |
@@ -580,7 +580,7 @@ Feature: Advanced Schema References
       | target_type        | subject                              |
       | target_id          | proto-chain-a                        |
       | schema_id          | *                                    |
-      | version            | *                                    |
+      | version            |                                      |
       | schema_type        | PROTOBUF                             |
       | before_hash        |                                      |
       | after_hash         | sha256:*                             |
@@ -631,7 +631,7 @@ Feature: Advanced Schema References
       | target_type        | subject                                 |
       | target_id          | proto-ref-wkt-plus                      |
       | schema_id          | *                                       |
-      | version            | *                                       |
+      | version            |                                         |
       | schema_type        | PROTOBUF                                |
       | before_hash        |                                         |
       | after_hash         | sha256:*                                |
@@ -744,7 +744,7 @@ Feature: Advanced Schema References
       | target_type        | subject                                |
       | target_id          | ref-by-consumer                        |
       | schema_id          | *                                      |
-      | version            | *                                      |
+      | version            |                                        |
       | schema_type        | AVRO                                   |
       | before_hash        |                                        |
       | after_hash         | sha256:*                               |
@@ -801,7 +801,7 @@ Feature: Advanced Schema References
       | target_type        | subject                              |
       | target_id          | ref-by-use2                          |
       | schema_id          | *                                    |
-      | version            | *                                    |
+      | version            |                                      |
       | schema_type        | AVRO                                 |
       | before_hash        |                                      |
       | after_hash         | sha256:*                             |
@@ -850,7 +850,7 @@ Feature: Advanced Schema References
       | target_type        | subject                              |
       | target_id          | ref-unused-main                      |
       | schema_id          | *                                    |
-      | version            | *                                    |
+      | version            |                                      |
       | schema_type        | AVRO                                 |
       | before_hash        |                                      |
       | after_hash         | sha256:*                             |
@@ -910,7 +910,7 @@ Feature: Advanced Schema References
       | target_type        | subject                              |
       | target_id          | ref-diff-main1                       |
       | schema_id          | *                                    |
-      | version            | *                                    |
+      | version            |                                      |
       | schema_type        | AVRO                                 |
       | before_hash        |                                      |
       | after_hash         | sha256:*                             |
@@ -975,7 +975,7 @@ Feature: Advanced Schema References
       | target_type        | subject                              |
       | target_id          | ref-large-main                       |
       | schema_id          | *                                    |
-      | version            | *                                    |
+      | version            |                                      |
       | schema_type        | AVRO                                 |
       | before_hash        |                                      |
       | after_hash         | sha256:*                             |
@@ -1037,7 +1037,7 @@ Feature: Advanced Schema References
       | target_type        | subject                                  |
       | target_id          | ref-update-consumer                      |
       | schema_id          | *                                        |
-      | version            | *                                        |
+      | version            |                                          |
       | schema_type        | AVRO                                     |
       | before_hash        |                                          |
       | after_hash         | sha256:*                                 |

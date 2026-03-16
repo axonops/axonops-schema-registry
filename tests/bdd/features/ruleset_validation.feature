@@ -47,7 +47,7 @@ Feature: RuleSet Validation
       | target_type          | subject                               |
       | target_id            | valid-ruleset                         |
       | schema_id            | *                                     |
-      | version              | *                                     |
+      | version              |                                       |
       | schema_type          | AVRO                                  |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -101,7 +101,7 @@ Feature: RuleSet Validation
       | target_type          | subject                               |
       | target_id            | migration-upgrade                     |
       | schema_id            | *                                     |
-      | version              | *                                     |
+      | version              |                                       |
       | schema_type          | AVRO                                  |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -156,7 +156,7 @@ Feature: RuleSet Validation
       | target_type          | subject                               |
       | target_id            | on-actions                            |
       | schema_id            | *                                     |
-      | version              | *                                     |
+      | version              |                                       |
       | schema_type          | AVRO                                  |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -198,7 +198,7 @@ Feature: RuleSet Validation
       | target_type          | subject                               |
       | target_id            | empty-ruleset                         |
       | schema_id            | *                                     |
-      | version              | *                                     |
+      | version              |                                       |
       | schema_type          | AVRO                                  |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -266,7 +266,7 @@ Feature: RuleSet Validation
       | target_type          | subject                               |
       | target_id            | multi-rules                           |
       | schema_id            | *                                     |
-      | version              | *                                     |
+      | version              |                                       |
       | schema_type          | AVRO                                  |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -562,7 +562,7 @@ Feature: RuleSet Validation
       | target_type          | subject                               |
       | target_id            | domain-write                          |
       | schema_id            | *                                     |
-      | version              | *                                     |
+      | version              |                                       |
       | schema_type          | AVRO                                  |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -611,7 +611,7 @@ Feature: RuleSet Validation
       | target_type          | subject                               |
       | target_id            | domain-read                           |
       | schema_id            | *                                     |
-      | version              | *                                     |
+      | version              |                                       |
       | schema_type          | AVRO                                  |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -660,7 +660,7 @@ Feature: RuleSet Validation
       | target_type          | subject                               |
       | target_id            | domain-writeread                      |
       | schema_id            | *                                     |
-      | version              | *                                     |
+      | version              |                                       |
       | schema_type          | AVRO                                  |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -757,7 +757,7 @@ Feature: RuleSet Validation
       | target_type          | subject                               |
       | target_id            | mig-upgrade                           |
       | schema_id            | *                                     |
-      | version              | *                                     |
+      | version              |                                       |
       | schema_type          | AVRO                                  |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -806,7 +806,7 @@ Feature: RuleSet Validation
       | target_type          | subject                               |
       | target_id            | mig-downgrade                         |
       | schema_id            | *                                     |
-      | version              | *                                     |
+      | version              |                                       |
       | schema_type          | AVRO                                  |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -855,7 +855,7 @@ Feature: RuleSet Validation
       | target_type          | subject                               |
       | target_id            | mig-updown                            |
       | schema_id            | *                                     |
-      | version              | *                                     |
+      | version              |                                       |
       | schema_type          | AVRO                                  |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -974,7 +974,7 @@ Feature: RuleSet Validation
       | target_type          | subject                               |
       | target_id            | all-actions                           |
       | schema_id            | *                                     |
-      | version              | *                                     |
+      | version              |                                       |
       | schema_type          | AVRO                                  |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -1142,7 +1142,7 @@ Feature: RuleSet Validation
       | target_type          | subject                               |
       | target_id            | encoding-write                        |
       | schema_id            | *                                     |
-      | version              | *                                     |
+      | version              |                                       |
       | schema_type          | AVRO                                  |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |

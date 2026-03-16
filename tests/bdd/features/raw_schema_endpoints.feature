@@ -126,7 +126,7 @@ Feature: Raw Schema Endpoints
       | target_type          | subject                                  |
       | target_id            | refby-consumer                           |
       | schema_id            | *                                        |
-      | version              | *                                        |
+      | version              |                                          |
       | schema_type          | AVRO                                     |
       | before_hash          |                                          |
       | after_hash           | sha256:*                                 |

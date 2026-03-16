@@ -50,7 +50,7 @@ Feature: Advanced Protobuf Schema Parsing
       | target_type          | subject                          |
       | target_id            | proto-adv-1                      |
       | schema_id            | *                                |
-      | version              | *                                |
+      | version              |                                  |
       | schema_type          | PROTOBUF                         |
       | before_hash          |                                  |
       | after_hash           | sha256:*                         |
@@ -110,7 +110,7 @@ Feature: Advanced Protobuf Schema Parsing
       | target_type          | subject                          |
       | target_id            | proto-adv-2                      |
       | schema_id            | *                                |
-      | version              | *                                |
+      | version              |                                  |
       | schema_type          | PROTOBUF                         |
       | before_hash          |                                  |
       | after_hash           | sha256:*                         |
@@ -166,7 +166,7 @@ Feature: Advanced Protobuf Schema Parsing
       | target_type          | subject                          |
       | target_id            | proto-adv-3                      |
       | schema_id            | *                                |
-      | version              | *                                |
+      | version              |                                  |
       | schema_type          | PROTOBUF                         |
       | before_hash          |                                  |
       | after_hash           | sha256:*                         |
@@ -222,7 +222,7 @@ Feature: Advanced Protobuf Schema Parsing
       | target_type          | subject                          |
       | target_id            | proto-adv-4                      |
       | schema_id            | *                                |
-      | version              | *                                |
+      | version              |                                  |
       | schema_type          | PROTOBUF                         |
       | before_hash          |                                  |
       | after_hash           | sha256:*                         |
@@ -277,7 +277,7 @@ Feature: Advanced Protobuf Schema Parsing
       | target_type          | subject                          |
       | target_id            | proto-adv-5                      |
       | schema_id            | *                                |
-      | version              | *                                |
+      | version              |                                  |
       | schema_type          | PROTOBUF                         |
       | before_hash          |                                  |
       | after_hash           | sha256:*                         |
@@ -342,7 +342,7 @@ Feature: Advanced Protobuf Schema Parsing
       | target_type          | subject                          |
       | target_id            | proto-adv-6                      |
       | schema_id            | *                                |
-      | version              | *                                |
+      | version              |                                  |
       | schema_type          | PROTOBUF                         |
       | before_hash          |                                  |
       | after_hash           | sha256:*                         |
@@ -396,7 +396,7 @@ Feature: Advanced Protobuf Schema Parsing
       | target_type          | subject                          |
       | target_id            | proto-adv-7                      |
       | schema_id            | *                                |
-      | version              | *                                |
+      | version              |                                  |
       | schema_type          | PROTOBUF                         |
       | before_hash          |                                  |
       | after_hash           | sha256:*                         |
@@ -454,7 +454,7 @@ Feature: Advanced Protobuf Schema Parsing
       | target_type          | subject                          |
       | target_id            | proto-adv-8                      |
       | schema_id            | *                                |
-      | version              | *                                |
+      | version              |                                  |
       | schema_type          | PROTOBUF                         |
       | before_hash          |                                  |
       | after_hash           | sha256:*                         |
@@ -514,7 +514,7 @@ Feature: Advanced Protobuf Schema Parsing
       | target_type          | subject                          |
       | target_id            | proto-adv-9                      |
       | schema_id            | *                                |
-      | version              | *                                |
+      | version              |                                  |
       | schema_type          | PROTOBUF                         |
       | before_hash          |                                  |
       | after_hash           | sha256:*                         |
@@ -570,7 +570,7 @@ Feature: Advanced Protobuf Schema Parsing
       | target_type          | subject                           |
       | target_id            | proto-adv-10                      |
       | schema_id            | *                                 |
-      | version              | *                                 |
+      | version              |                                   |
       | schema_type          | PROTOBUF                          |
       | before_hash          |                                   |
       | after_hash           | sha256:*                          |
@@ -626,7 +626,7 @@ Feature: Advanced Protobuf Schema Parsing
       | target_type          | subject                           |
       | target_id            | proto-adv-11                      |
       | schema_id            | *                                 |
-      | version              | *                                 |
+      | version              |                                   |
       | schema_type          | PROTOBUF                          |
       | before_hash          |                                   |
       | after_hash           | sha256:*                          |
@@ -681,7 +681,7 @@ Feature: Advanced Protobuf Schema Parsing
       | target_type          | subject                           |
       | target_id            | proto-adv-12                      |
       | schema_id            | *                                 |
-      | version              | *                                 |
+      | version              |                                   |
       | schema_type          | PROTOBUF                          |
       | before_hash          |                                   |
       | after_hash           | sha256:*                          |
@@ -759,7 +759,7 @@ Feature: Advanced Protobuf Schema Parsing
       | target_type          | subject                           |
       | target_id            | proto-adv-13                      |
       | schema_id            | *                                 |
-      | version              | *                                 |
+      | version              |                                   |
       | schema_type          | PROTOBUF                          |
       | before_hash          |                                   |
       | after_hash           | sha256:*                          |
@@ -810,7 +810,7 @@ Feature: Advanced Protobuf Schema Parsing
       | target_type          | subject                           |
       | target_id            | proto-adv-14                      |
       | schema_id            | *                                 |
-      | version              | *                                 |
+      | version              |                                   |
       | schema_type          | PROTOBUF                          |
       | before_hash          |                                   |
       | after_hash           | sha256:*                          |
@@ -861,7 +861,7 @@ Feature: Advanced Protobuf Schema Parsing
       | target_type          | subject                           |
       | target_id            | proto-adv-15                      |
       | schema_id            | *                                 |
-      | version              | *                                 |
+      | version              |                                   |
       | schema_type          | PROTOBUF                          |
       | before_hash          |                                   |
       | after_hash           | sha256:*                          |
@@ -912,7 +912,7 @@ Feature: Advanced Protobuf Schema Parsing
       | target_type          | subject                           |
       | target_id            | proto-adv-16                      |
       | schema_id            | *                                 |
-      | version              | *                                 |
+      | version              |                                   |
       | schema_type          | PROTOBUF                          |
       | before_hash          |                                   |
       | after_hash           | sha256:*                          |
@@ -962,7 +962,7 @@ Feature: Advanced Protobuf Schema Parsing
       | target_type          | subject                           |
       | target_id            | proto-adv-17                      |
       | schema_id            | *                                 |
-      | version              | *                                 |
+      | version              |                                   |
       | schema_type          | PROTOBUF                          |
       | before_hash          |                                   |
       | after_hash           | sha256:*                          |
@@ -1012,7 +1012,7 @@ Feature: Advanced Protobuf Schema Parsing
       | target_type          | subject                           |
       | target_id            | proto-adv-18                      |
       | schema_id            | *                                 |
-      | version              | *                                 |
+      | version              |                                   |
       | schema_type          | PROTOBUF                          |
       | before_hash          |                                   |
       | after_hash           | sha256:*                          |
@@ -1062,7 +1062,7 @@ Feature: Advanced Protobuf Schema Parsing
       | target_type          | subject                           |
       | target_id            | proto-adv-19                      |
       | schema_id            | *                                 |
-      | version              | *                                 |
+      | version              |                                   |
       | schema_type          | PROTOBUF                          |
       | before_hash          |                                   |
       | after_hash           | sha256:*                          |
@@ -1112,7 +1112,7 @@ Feature: Advanced Protobuf Schema Parsing
       | target_type          | subject                           |
       | target_id            | proto-adv-20                      |
       | schema_id            | *                                 |
-      | version              | *                                 |
+      | version              |                                   |
       | schema_type          | PROTOBUF                          |
       | before_hash          |                                   |
       | after_hash           | sha256:*                          |
@@ -1163,7 +1163,7 @@ Feature: Advanced Protobuf Schema Parsing
       | target_type          | subject                           |
       | target_id            | proto-adv-21                      |
       | schema_id            | *                                 |
-      | version              | *                                 |
+      | version              |                                   |
       | schema_type          | PROTOBUF                          |
       | before_hash          |                                   |
       | after_hash           | sha256:*                          |
@@ -1214,7 +1214,7 @@ Feature: Advanced Protobuf Schema Parsing
       | target_type          | subject                           |
       | target_id            | proto-adv-22                      |
       | schema_id            | *                                 |
-      | version              | *                                 |
+      | version              |                                   |
       | schema_type          | PROTOBUF                          |
       | before_hash          |                                   |
       | after_hash           | sha256:*                          |
@@ -1265,7 +1265,7 @@ Feature: Advanced Protobuf Schema Parsing
       | target_type          | subject                           |
       | target_id            | proto-adv-23                      |
       | schema_id            | *                                 |
-      | version              | *                                 |
+      | version              |                                   |
       | schema_type          | PROTOBUF                          |
       | before_hash          |                                   |
       | after_hash           | sha256:*                          |
@@ -1316,7 +1316,7 @@ Feature: Advanced Protobuf Schema Parsing
       | target_type          | subject                           |
       | target_id            | proto-adv-24                      |
       | schema_id            | *                                 |
-      | version              | *                                 |
+      | version              |                                   |
       | schema_type          | PROTOBUF                          |
       | before_hash          |                                   |
       | after_hash           | sha256:*                          |
@@ -1395,7 +1395,7 @@ Feature: Advanced Protobuf Schema Parsing
       | target_type          | subject                           |
       | target_id            | proto-adv-25                      |
       | schema_id            | *                                 |
-      | version              | *                                 |
+      | version              |                                   |
       | schema_type          | PROTOBUF                          |
       | before_hash          |                                   |
       | after_hash           | sha256:*                          |
@@ -1475,7 +1475,7 @@ Feature: Advanced Protobuf Schema Parsing
       | target_type          | subject                           |
       | target_id            | proto-adv-26                      |
       | schema_id            | *                                 |
-      | version              | *                                 |
+      | version              |                                   |
       | schema_type          | PROTOBUF                          |
       | before_hash          |                                   |
       | after_hash           | sha256:*                          |
@@ -1541,7 +1541,7 @@ Feature: Advanced Protobuf Schema Parsing
       | target_type          | subject                           |
       | target_id            | proto-adv-27                      |
       | schema_id            | *                                 |
-      | version              | *                                 |
+      | version              |                                   |
       | schema_type          | PROTOBUF                          |
       | before_hash          |                                   |
       | after_hash           | sha256:*                          |
@@ -1600,7 +1600,7 @@ Feature: Advanced Protobuf Schema Parsing
       | target_type          | subject                           |
       | target_id            | proto-adv-28                      |
       | schema_id            | *                                 |
-      | version              | *                                 |
+      | version              |                                   |
       | schema_type          | PROTOBUF                          |
       | before_hash          |                                   |
       | after_hash           | sha256:*                          |
@@ -1652,7 +1652,7 @@ Feature: Advanced Protobuf Schema Parsing
       | target_type          | subject                           |
       | target_id            | proto-adv-29                      |
       | schema_id            | *                                 |
-      | version              | *                                 |
+      | version              |                                   |
       | schema_type          | PROTOBUF                          |
       | before_hash          |                                   |
       | after_hash           | sha256:*                          |
@@ -1760,7 +1760,7 @@ Feature: Advanced Protobuf Schema Parsing
       | target_type          | subject                           |
       | target_id            | proto-adv-30                      |
       | schema_id            | *                                 |
-      | version              | *                                 |
+      | version              |                                   |
       | schema_type          | PROTOBUF                          |
       | before_hash          |                                   |
       | after_hash           | sha256:*                          |
@@ -1838,7 +1838,7 @@ Feature: Advanced Protobuf Schema Parsing
       | target_type          | subject                           |
       | target_id            | proto-adv-31                      |
       | schema_id            | *                                 |
-      | version              | *                                 |
+      | version              |                                   |
       | schema_type          | PROTOBUF                          |
       | before_hash          |                                   |
       | after_hash           | sha256:*                          |
@@ -1920,7 +1920,7 @@ Feature: Advanced Protobuf Schema Parsing
       | target_type          | subject                           |
       | target_id            | proto-adv-32                      |
       | schema_id            | *                                 |
-      | version              | *                                 |
+      | version              |                                   |
       | schema_type          | PROTOBUF                          |
       | before_hash          |                                   |
       | after_hash           | sha256:*                          |
@@ -1975,7 +1975,7 @@ Feature: Advanced Protobuf Schema Parsing
       | target_type          | subject                           |
       | target_id            | proto-adv-33                      |
       | schema_id            | *                                 |
-      | version              | *                                 |
+      | version              |                                   |
       | schema_type          | PROTOBUF                          |
       | before_hash          |                                   |
       | after_hash           | sha256:*                          |
@@ -2028,7 +2028,7 @@ Feature: Advanced Protobuf Schema Parsing
       | target_type          | subject                            |
       | target_id            | proto-adv-34b                      |
       | schema_id            | *                                  |
-      | version              | *                                  |
+      | version              |                                    |
       | schema_type          | PROTOBUF                           |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -2162,7 +2162,7 @@ Feature: Advanced Protobuf Schema Parsing
       | target_type          | subject                           |
       | target_id            | proto-adv-35                      |
       | schema_id            | *                                 |
-      | version              | *                                 |
+      | version              |                                   |
       | schema_type          | PROTOBUF                          |
       | before_hash          |                                   |
       | after_hash           | sha256:*                          |
@@ -2212,7 +2212,7 @@ Feature: Advanced Protobuf Schema Parsing
       | target_type          | subject                           |
       | target_id            | proto-adv-36                      |
       | schema_id            | *                                 |
-      | version              | *                                 |
+      | version              |                                   |
       | schema_type          | PROTOBUF                          |
       | before_hash          |                                   |
       | after_hash           | sha256:*                          |
@@ -2301,7 +2301,7 @@ Feature: Advanced Protobuf Schema Parsing
       | target_type          | subject                           |
       | target_id            | proto-adv-37                      |
       | schema_id            | *                                 |
-      | version              | *                                 |
+      | version              |                                   |
       | schema_type          | PROTOBUF                          |
       | before_hash          |                                   |
       | after_hash           | sha256:*                          |
@@ -2396,7 +2396,7 @@ Feature: Advanced Protobuf Schema Parsing
       | target_type          | subject                           |
       | target_id            | proto-adv-38                      |
       | schema_id            | *                                 |
-      | version              | *                                 |
+      | version              |                                   |
       | schema_type          | PROTOBUF                          |
       | before_hash          |                                   |
       | after_hash           | sha256:*                          |

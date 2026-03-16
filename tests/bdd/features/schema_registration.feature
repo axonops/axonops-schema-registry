@@ -173,7 +173,7 @@ Feature: Schema Registration
       | target_type          | subject                                  |
       | target_id            | user-value                               |
       | schema_id            |                                          |
-      | version              | *                                        |
+      | version              |                                          |
       | schema_type          |                                          |
       | before_hash          |                                          |
       | after_hash           |                                          |

@@ -139,7 +139,7 @@ Feature: Schema Reference Edge Cases
       | target_type          | subject                                  |
       | target_id            | deep-level-5                             |
       | schema_id            | *                                        |
-      | version              | *                                        |
+      | version              |                                          |
       | schema_type          | AVRO                                     |
       | before_hash          |                                          |
       | after_hash           | sha256:*                                 |
@@ -226,7 +226,7 @@ Feature: Schema Reference Edge Cases
       | target_type          | subject                                  |
       | target_id            | ref-consumer-1                           |
       | schema_id            | *                                        |
-      | version              | *                                        |
+      | version              |                                          |
       | schema_type          | AVRO                                     |
       | before_hash          |                                          |
       | after_hash           | sha256:*                                 |

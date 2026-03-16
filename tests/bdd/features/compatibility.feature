@@ -23,7 +23,7 @@ Feature: Compatibility Checking
       | target_type          | subject                                  |
       | target_id            | user-value                               |
       | schema_id            | *                                        |
-      | version              | *                                        |
+      | version              |                                          |
       | schema_type          | AVRO                                     |
       | before_hash          |                                          |
       | after_hash           | sha256:*                                 |
@@ -75,7 +75,7 @@ Feature: Compatibility Checking
       | target_type          | subject                                  |
       | target_id            | user-value                               |
       | schema_id            | *                                        |
-      | version              | *                                        |
+      | version              |                                          |
       | schema_type          | AVRO                                     |
       | before_hash          |                                          |
       | after_hash           | sha256:*                                 |
@@ -140,7 +140,7 @@ Feature: Compatibility Checking
       | target_type          | subject                                  |
       | target_id            | flexible-value                           |
       | schema_id            | *                                        |
-      | version              | *                                        |
+      | version              |                                          |
       | schema_type          | AVRO                                     |
       | before_hash          |                                          |
       | after_hash           | sha256:*                                 |

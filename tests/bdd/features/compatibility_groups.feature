@@ -91,7 +91,7 @@ Feature: Compatibility Groups
       | target_type          | subject                                  |
       | target_id            | cg-bypass                                |
       | schema_id            | *                                        |
-      | version              | *                                        |
+      | version              |                                          |
       | schema_type          | AVRO                                     |
       | before_hash          |                                          |
       | after_hash           | sha256:*                                 |

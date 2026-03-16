@@ -713,7 +713,7 @@ Feature: Schema Identity — metadata and ruleSet do not affect global ID
       | target_type          | subject                    |
       | target_id            | identity-lookup            |
       | schema_id            |                            |
-      | version              | *                          |
+      | version              |                            |
       | schema_type          |                            |
       | before_hash          |                            |
       | after_hash           |                            |

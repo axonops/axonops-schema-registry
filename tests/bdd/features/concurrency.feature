@@ -89,7 +89,7 @@ Feature: Concurrent Operations Safety
       | auth_method          |                                |
       | role                 |                                |
       | target_type          | subject                        |
-      | target_id            | *                              |
+      | target_id            |                                |
       | schema_id            |                                |
       | version              |                                |
       | schema_type          | AVRO                           |

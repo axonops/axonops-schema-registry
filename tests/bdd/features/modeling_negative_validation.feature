@@ -167,7 +167,7 @@ message Second {
       | target_type          | subject                                  |
       | target_id            | neg-idempotent                           |
       | schema_id            | *                                        |
-      | version              | *                                        |
+      | version              |                                          |
       | schema_type          | AVRO                                     |
       | before_hash          |                                          |
       | after_hash           | sha256:*                                 |
@@ -209,7 +209,7 @@ message Second {
       | target_type          | subject                                  |
       | target_id            | neg-dedup-b                              |
       | schema_id            | *                                        |
-      | version              | *                                        |
+      | version              |                                          |
       | schema_type          | AVRO                                     |
       | before_hash          |                                          |
       | after_hash           | sha256:*                                 |

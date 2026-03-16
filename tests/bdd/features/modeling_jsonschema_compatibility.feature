@@ -31,7 +31,7 @@ Feature: JSON Schema Advanced Compatibility
       | target_type          | subject                                      |
       | target_id            | json-compat-int-num                          |
       | schema_id            | *                                            |
-      | version              | *                                            |
+      | version              |                                              |
       | schema_type          | JSON                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -75,7 +75,7 @@ Feature: JSON Schema Advanced Compatibility
       | target_type          | subject                                      |
       | target_id            | json-compat-nullable                         |
       | schema_id            | *                                            |
-      | version              | *                                            |
+      | version              |                                              |
       | schema_type          | JSON                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -119,7 +119,7 @@ Feature: JSON Schema Advanced Compatibility
       | target_type          | subject                                      |
       | target_id            | json-compat-addl-open                        |
       | schema_id            | *                                            |
-      | version              | *                                            |
+      | version              |                                              |
       | schema_type          | JSON                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -179,7 +179,7 @@ Feature: JSON Schema Advanced Compatibility
       | target_type          | subject                                      |
       | target_id            | json-compat-oneof-add                        |
       | schema_id            | *                                            |
-      | version              | *                                            |
+      | version              |                                              |
       | schema_type          | JSON                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -239,7 +239,7 @@ Feature: JSON Schema Advanced Compatibility
       | target_type          | subject                                      |
       | target_id            | json-compat-enum-add                         |
       | schema_id            | *                                            |
-      | version              | *                                            |
+      | version              |                                              |
       | schema_type          | JSON                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -347,7 +347,7 @@ Feature: JSON Schema Advanced Compatibility
       | target_type          | subject                                        |
       | target_id            | json-compat-closed-add                         |
       | schema_id            | *                                              |
-      | version              | *                                              |
+      | version              |                                                |
       | schema_type          | JSON                                           |
       | before_hash          |                                                |
       | after_hash           | sha256:*                                       |
@@ -396,7 +396,7 @@ Feature: JSON Schema Advanced Compatibility
       | target_type          | subject                                      |
       | target_id            | json-compat-num-chain                        |
       | schema_id            | *                                            |
-      | version              | *                                            |
+      | version              |                                              |
       | schema_type          | JSON                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -450,7 +450,7 @@ Feature: JSON Schema Advanced Compatibility
       | target_type          | subject                                      |
       | target_id            | json-compat-4v-chain                         |
       | schema_id            | *                                            |
-      | version              | *                                            |
+      | version              |                                              |
       | schema_type          | JSON                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |

@@ -22,7 +22,7 @@ Feature: JSON Schema Types
       | target_type          | subject                            |
       | target_id            | json-simple                        |
       | schema_id            | *                                  |
-      | version              | *                                  |
+      | version              |                                    |
       | schema_type          | JSON                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -64,7 +64,7 @@ Feature: JSON Schema Types
       | target_type          | subject                                      |
       | target_id            | json-string-constraints                      |
       | schema_id            | *                                            |
-      | version              | *                                            |
+      | version              |                                              |
       | schema_type          | JSON                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -107,7 +107,7 @@ Feature: JSON Schema Types
       | target_type          | subject                            |
       | target_id            | json-numeric                       |
       | schema_id            | *                                  |
-      | version              | *                                  |
+      | version              |                                    |
       | schema_type          | JSON                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -149,7 +149,7 @@ Feature: JSON Schema Types
       | target_type          | subject                            |
       | target_id            | json-arrays                        |
       | schema_id            | *                                  |
-      | version              | *                                  |
+      | version              |                                    |
       | schema_type          | JSON                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -194,7 +194,7 @@ Feature: JSON Schema Types
       | target_type          | subject                            |
       | target_id            | json-nested-2                      |
       | schema_id            | *                                  |
-      | version              | *                                  |
+      | version              |                                    |
       | schema_type          | JSON                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -242,7 +242,7 @@ Feature: JSON Schema Types
       | target_type          | subject                            |
       | target_id            | json-nested-3                      |
       | schema_id            | *                                  |
-      | version              | *                                  |
+      | version              |                                    |
       | schema_type          | JSON                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -284,7 +284,7 @@ Feature: JSON Schema Types
       | target_type          | subject                            |
       | target_id            | json-enum                          |
       | schema_id            | *                                  |
-      | version              | *                                  |
+      | version              |                                    |
       | schema_type          | JSON                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -329,7 +329,7 @@ Feature: JSON Schema Types
       | target_type          | subject                            |
       | target_id            | json-oneof                         |
       | schema_id            | *                                  |
-      | version              | *                                  |
+      | version              |                                    |
       | schema_type          | JSON                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -372,7 +372,7 @@ Feature: JSON Schema Types
       | target_type          | subject                            |
       | target_id            | json-anyof                         |
       | schema_id            | *                                  |
-      | version              | *                                  |
+      | version              |                                    |
       | schema_type          | JSON                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -414,7 +414,7 @@ Feature: JSON Schema Types
       | target_type          | subject                            |
       | target_id            | json-allof                         |
       | schema_id            | *                                  |
-      | version              | *                                  |
+      | version              |                                    |
       | schema_type          | JSON                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -459,7 +459,7 @@ Feature: JSON Schema Types
       | target_type          | subject                                      |
       | target_id            | json-additional-props                        |
       | schema_id            | *                                            |
-      | version              | *                                            |
+      | version              |                                              |
       | schema_type          | JSON                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -506,7 +506,7 @@ Feature: JSON Schema Types
       | target_type          | subject                            |
       | target_id            | json-defs-ref                      |
       | schema_id            | *                                  |
-      | version              | *                                  |
+      | version              |                                    |
       | schema_type          | JSON                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -544,7 +544,7 @@ Feature: JSON Schema Types
       | target_type          | subject                                      |
       | target_id            | json-standalone-string                       |
       | schema_id            | *                                            |
-      | version              | *                                            |
+      | version              |                                              |
       | schema_type          | JSON                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -579,7 +579,7 @@ Feature: JSON Schema Types
       | target_type          | subject                                      |
       | target_id            | json-standalone-array                        |
       | schema_id            | *                                            |
-      | version              | *                                            |
+      | version              |                                              |
       | schema_type          | JSON                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -614,7 +614,7 @@ Feature: JSON Schema Types
       | target_type          | subject                                       |
       | target_id            | json-standalone-integer                       |
       | schema_id            | *                                             |
-      | version              | *                                             |
+      | version              |                                               |
       | schema_type          | JSON                                          |
       | before_hash          |                                               |
       | after_hash           | sha256:*                                      |
@@ -655,7 +655,7 @@ Feature: JSON Schema Types
       | target_type          | subject                                  |
       | target_id            | json-pattern-props                       |
       | schema_id            | *                                        |
-      | version              | *                                        |
+      | version              |                                          |
       | schema_type          | JSON                                     |
       | before_hash          |                                          |
       | after_hash           | sha256:*                                 |
@@ -762,7 +762,7 @@ Feature: JSON Schema Types
       | target_type          | subject                                  |
       | target_id            | json-payment-event                       |
       | schema_id            | *                                        |
-      | version              | *                                        |
+      | version              |                                          |
       | schema_type          | JSON                                     |
       | before_hash          |                                          |
       | after_hash           | sha256:*                                 |

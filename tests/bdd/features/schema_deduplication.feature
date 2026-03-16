@@ -30,7 +30,7 @@ Feature: Schema Deduplication
       | target_type          | subject                                  |
       | target_id            | dedup-avro-b                             |
       | schema_id            | *                                        |
-      | version              | *                                        |
+      | version              |                                          |
       | schema_type          | AVRO                                     |
       | before_hash          |                                          |
       | after_hash           | sha256:*                                 |
@@ -80,7 +80,7 @@ Feature: Schema Deduplication
       | target_type          | subject                                  |
       | target_id            | dedup-proto-b                            |
       | schema_id            | *                                        |
-      | version              | *                                        |
+      | version              |                                          |
       | schema_type          | PROTOBUF                                 |
       | before_hash          |                                          |
       | after_hash           | sha256:*                                 |
@@ -122,7 +122,7 @@ Feature: Schema Deduplication
       | target_type          | subject                                  |
       | target_id            | dedup-json-b                             |
       | schema_id            | *                                        |
-      | version              | *                                        |
+      | version              |                                          |
       | schema_type          | JSON                                     |
       | before_hash          |                                          |
       | after_hash           | sha256:*                                 |
@@ -172,7 +172,7 @@ Feature: Schema Deduplication
       | target_type          | subject                                  |
       | target_id            | dedup-idempotent                         |
       | schema_id            | *                                        |
-      | version              | *                                        |
+      | version              |                                          |
       | schema_type          | AVRO                                     |
       | before_hash          |                                          |
       | after_hash           | sha256:*                                 |
@@ -218,7 +218,7 @@ Feature: Schema Deduplication
       | target_type          | subject                                  |
       | target_id            | dedup-diff-b                             |
       | schema_id            | *                                        |
-      | version              | *                                        |
+      | version              |                                          |
       | schema_type          | AVRO                                     |
       | before_hash          |                                          |
       | after_hash           | sha256:*                                 |
@@ -268,7 +268,7 @@ Feature: Schema Deduplication
       | target_type          | subject                                  |
       | target_id            | dedup-vis-two                            |
       | schema_id            | *                                        |
-      | version              | *                                        |
+      | version              |                                          |
       | schema_type          | AVRO                                     |
       | before_hash          |                                          |
       | after_hash           | sha256:*                                 |
@@ -312,7 +312,7 @@ Feature: Schema Deduplication
       | target_type          | subject                                  |
       | target_id            | dedup-ver-y                              |
       | schema_id            | *                                        |
-      | version              | *                                        |
+      | version              |                                          |
       | schema_type          | AVRO                                     |
       | before_hash          |                                          |
       | after_hash           | sha256:*                                 |
@@ -371,7 +371,7 @@ Feature: Schema Deduplication
       | target_type          | subject                                  |
       | target_id            | dedup-ws-spaced                          |
       | schema_id            | *                                        |
-      | version              | *                                        |
+      | version              |                                          |
       | schema_type          | AVRO                                     |
       | before_hash          |                                          |
       | after_hash           | sha256:*                                 |

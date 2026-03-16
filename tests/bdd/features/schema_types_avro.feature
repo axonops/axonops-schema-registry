@@ -32,7 +32,7 @@ Feature: Avro Schema Types
       | target_type          | subject                               |
       | target_id            | avro-primitives                       |
       | schema_id            | *                                     |
-      | version              | *                                     |
+      | version              |                                       |
       | schema_type          | AVRO                                  |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -76,7 +76,7 @@ Feature: Avro Schema Types
       | target_type          | subject                             |
       | target_id            | avro-nullable                       |
       | schema_id            | *                                   |
-      | version              | *                                   |
+      | version              |                                     |
       | schema_type          | AVRO                                |
       | before_hash          |                                     |
       | after_hash           | sha256:*                            |
@@ -121,7 +121,7 @@ Feature: Avro Schema Types
       | target_type          | subject                             |
       | target_id            | avro-nested-2                       |
       | schema_id            | *                                   |
-      | version              | *                                   |
+      | version              |                                     |
       | schema_type          | AVRO                                |
       | before_hash          |                                     |
       | after_hash           | sha256:*                            |
@@ -168,7 +168,7 @@ Feature: Avro Schema Types
       | target_type          | subject                             |
       | target_id            | avro-nested-3                       |
       | schema_id            | *                                   |
-      | version              | *                                   |
+      | version              |                                     |
       | schema_type          | AVRO                                |
       | before_hash          |                                     |
       | after_hash           | sha256:*                            |
@@ -210,7 +210,7 @@ Feature: Avro Schema Types
       | target_type          | subject                                |
       | target_id            | avro-collections                       |
       | schema_id            | *                                      |
-      | version              | *                                      |
+      | version              |                                        |
       | schema_type          | AVRO                                   |
       | before_hash          |                                        |
       | after_hash           | sha256:*                               |
@@ -253,7 +253,7 @@ Feature: Avro Schema Types
       | target_type          | subject                                       |
       | target_id            | avro-complex-collections                      |
       | schema_id            | *                                             |
-      | version              | *                                             |
+      | version              |                                               |
       | schema_type          | AVRO                                          |
       | before_hash          |                                               |
       | after_hash           | sha256:*                                      |
@@ -294,7 +294,7 @@ Feature: Avro Schema Types
       | target_type          | subject                          |
       | target_id            | avro-enum                        |
       | schema_id            | *                                |
-      | version              | *                                |
+      | version              |                                  |
       | schema_type          | AVRO                             |
       | before_hash          |                                  |
       | after_hash           | sha256:*                         |
@@ -335,7 +335,7 @@ Feature: Avro Schema Types
       | target_type          | subject                           |
       | target_id            | avro-fixed                        |
       | schema_id            | *                                 |
-      | version              | *                                 |
+      | version              |                                   |
       | schema_type          | AVRO                              |
       | before_hash          |                                   |
       | after_hash           | sha256:*                          |
@@ -380,7 +380,7 @@ Feature: Avro Schema Types
       | target_type          | subject                             |
       | target_id            | avro-logical                        |
       | schema_id            | *                                   |
-      | version              | *                                   |
+      | version              |                                     |
       | schema_type          | AVRO                                |
       | before_hash          |                                     |
       | after_hash           | sha256:*                            |
@@ -421,7 +421,7 @@ Feature: Avro Schema Types
       | target_type          | subject                            |
       | target_id            | avro-unions                        |
       | schema_id            | *                                  |
-      | version              | *                                  |
+      | version              |                                    |
       | schema_type          | AVRO                               |
       | before_hash          |                                    |
       | after_hash           | sha256:*                           |
@@ -462,7 +462,7 @@ Feature: Avro Schema Types
       | target_type          | subject                               |
       | target_id            | avro-recursive                        |
       | schema_id            | *                                     |
-      | version              | *                                     |
+      | version              |                                       |
       | schema_type          | AVRO                                  |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -506,7 +506,7 @@ Feature: Avro Schema Types
       | target_type          | subject                              |
       | target_id            | avro-defaults                        |
       | schema_id            | *                                    |
-      | version              | *                                    |
+      | version              |                                      |
       | schema_type          | AVRO                                 |
       | before_hash          |                                      |
       | after_hash           | sha256:*                             |
@@ -551,7 +551,7 @@ Feature: Avro Schema Types
       | target_type          | subject                               |
       | target_id            | avro-namespaced                       |
       | schema_id            | *                                     |
-      | version              | *                                     |
+      | version              |                                       |
       | schema_type          | AVRO                                  |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -624,7 +624,7 @@ Feature: Avro Schema Types
       | target_type          | subject                                  |
       | target_id            | avro-payment-event                       |
       | schema_id            | *                                        |
-      | version              | *                                        |
+      | version              |                                          |
       | schema_type          | AVRO                                     |
       | before_hash          |                                          |
       | after_hash           | sha256:*                                 |

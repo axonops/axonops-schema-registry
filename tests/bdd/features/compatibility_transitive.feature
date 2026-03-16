@@ -40,7 +40,7 @@ Feature: Transitive Compatibility - Multi-Version Chains
       | target_type          | subject                               |
       | target_id            | avro-bt-chain-1                       |
       | schema_id            | *                                     |
-      | version              | *                                     |
+      | version              |                                       |
       | schema_type          | AVRO                                  |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -89,7 +89,7 @@ Feature: Transitive Compatibility - Multi-Version Chains
       | target_type          | subject                               |
       | target_id            | avro-bt-vs-b                          |
       | schema_id            | *                                     |
-      | version              | *                                     |
+      | version              |                                       |
       | schema_type          | AVRO                                  |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -157,7 +157,7 @@ Feature: Transitive Compatibility - Multi-Version Chains
       | target_type          | subject                               |
       | target_id            | avro-bt-promo                         |
       | schema_id            | *                                     |
-      | version              | *                                     |
+      | version              |                                       |
       | schema_type          | AVRO                                  |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -203,7 +203,7 @@ Feature: Transitive Compatibility - Multi-Version Chains
       | target_type          | subject                               |
       | target_id            | avro-bt-enum                          |
       | schema_id            | *                                     |
-      | version              | *                                     |
+      | version              |                                       |
       | schema_type          | AVRO                                  |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -252,7 +252,7 @@ Feature: Transitive Compatibility - Multi-Version Chains
       | target_type          | subject                               |
       | target_id            | avro-bt-4ver                          |
       | schema_id            | *                                     |
-      | version              | *                                     |
+      | version              |                                       |
       | schema_type          | AVRO                                  |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -299,7 +299,7 @@ Feature: Transitive Compatibility - Multi-Version Chains
       | target_type          | subject                               |
       | target_id            | avro-ft-chain-1                       |
       | schema_id            | *                                     |
-      | version              | *                                     |
+      | version              |                                       |
       | schema_type          | AVRO                                  |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -370,7 +370,7 @@ Feature: Transitive Compatibility - Multi-Version Chains
       | target_type          | subject                               |
       | target_id            | avro-ft-vs-f                          |
       | schema_id            | *                                     |
-      | version              | *                                     |
+      | version              |                                       |
       | schema_type          | AVRO                                  |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -439,7 +439,7 @@ Feature: Transitive Compatibility - Multi-Version Chains
       | target_type          | subject                               |
       | target_id            | avro-flt-safe                         |
       | schema_id            | *                                     |
-      | version              | *                                     |
+      | version              |                                       |
       | schema_type          | AVRO                                  |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -513,7 +513,7 @@ Feature: Transitive Compatibility - Multi-Version Chains
       | target_type          | subject                               |
       | target_id            | avro-flt-4v                           |
       | schema_id            | *                                     |
-      | version              | *                                     |
+      | version              |                                       |
       | schema_type          | AVRO                                  |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -565,7 +565,7 @@ Feature: Transitive Compatibility - Multi-Version Chains
       | target_type          | subject                               |
       | target_id            | avro-bt-5v                            |
       | schema_id            | *                                     |
-      | version              | *                                     |
+      | version              |                                       |
       | schema_type          | AVRO                                  |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -615,7 +615,7 @@ Feature: Transitive Compatibility - Multi-Version Chains
       | target_type          | subject                               |
       | target_id            | json-bt-chain-1                       |
       | schema_id            | *                                     |
-      | version              | *                                     |
+      | version              |                                       |
       | schema_type          | JSON                                  |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -681,7 +681,7 @@ Feature: Transitive Compatibility - Multi-Version Chains
       | target_type          | subject                               |
       | target_id            | json-bt-vs-b                          |
       | schema_id            | *                                     |
-      | version              | *                                     |
+      | version              |                                       |
       | schema_type          | JSON                                  |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -727,7 +727,7 @@ Feature: Transitive Compatibility - Multi-Version Chains
       | target_type          | subject                               |
       | target_id            | json-bt-relax                         |
       | schema_id            | *                                     |
-      | version              | *                                     |
+      | version              |                                       |
       | schema_type          | JSON                                  |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -776,7 +776,7 @@ Feature: Transitive Compatibility - Multi-Version Chains
       | target_type          | subject                               |
       | target_id            | json-bt-4v                            |
       | schema_id            | *                                     |
-      | version              | *                                     |
+      | version              |                                       |
       | schema_type          | JSON                                  |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -822,7 +822,7 @@ Feature: Transitive Compatibility - Multi-Version Chains
       | target_type          | subject                               |
       | target_id            | json-ft-chain-1                       |
       | schema_id            | *                                     |
-      | version              | *                                     |
+      | version              |                                       |
       | schema_type          | JSON                                  |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -905,7 +905,7 @@ Feature: Transitive Compatibility - Multi-Version Chains
       | target_type          | subject                               |
       | target_id            | json-flt-safe                         |
       | schema_id            | *                                     |
-      | version              | *                                     |
+      | version              |                                       |
       | schema_type          | JSON                                  |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -971,7 +971,7 @@ Feature: Transitive Compatibility - Multi-Version Chains
       | target_type          | subject                               |
       | target_id            | json-bt-enum                          |
       | schema_id            | *                                     |
-      | version              | *                                     |
+      | version              |                                       |
       | schema_type          | JSON                                  |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -1016,7 +1016,7 @@ Feature: Transitive Compatibility - Multi-Version Chains
       | target_type          | subject                               |
       | target_id            | json-bt-nested                        |
       | schema_id            | *                                     |
-      | version              | *                                     |
+      | version              |                                       |
       | schema_type          | JSON                                  |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -1069,7 +1069,7 @@ Feature: Transitive Compatibility - Multi-Version Chains
       | target_type          | subject                               |
       | target_id            | json-bt-5v                            |
       | schema_id            | *                                     |
-      | version              | *                                     |
+      | version              |                                       |
       | schema_type          | JSON                                  |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -1132,7 +1132,7 @@ Feature: Transitive Compatibility - Multi-Version Chains
       | target_type          | subject                               |
       | target_id            | proto-bt-chain-1                      |
       | schema_id            | *                                     |
-      | version              | *                                     |
+      | version              |                                       |
       | schema_type          | PROTOBUF                              |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -1193,7 +1193,7 @@ Feature: Transitive Compatibility - Multi-Version Chains
       | target_type          | subject                               |
       | target_id            | proto-bt-vs-b                         |
       | schema_id            | *                                     |
-      | version              | *                                     |
+      | version              |                                       |
       | schema_type          | PROTOBUF                              |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -1280,7 +1280,7 @@ Feature: Transitive Compatibility - Multi-Version Chains
       | target_type          | subject                               |
       | target_id            | proto-bt-typegroup                    |
       | schema_id            | *                                     |
-      | version              | *                                     |
+      | version              |                                       |
       | schema_type          | PROTOBUF                              |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -1346,7 +1346,7 @@ Feature: Transitive Compatibility - Multi-Version Chains
       | target_type          | subject                               |
       | target_id            | proto-bt-4v                           |
       | schema_id            | *                                     |
-      | version              | *                                     |
+      | version              |                                       |
       | schema_type          | PROTOBUF                              |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -1411,7 +1411,7 @@ Feature: Transitive Compatibility - Multi-Version Chains
       | target_type          | subject                               |
       | target_id            | proto-bt-enum                         |
       | schema_id            | *                                     |
-      | version              | *                                     |
+      | version              |                                       |
       | schema_type          | PROTOBUF                              |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -1469,7 +1469,7 @@ Feature: Transitive Compatibility - Multi-Version Chains
       | target_type          | subject                               |
       | target_id            | proto-ft-chain-1                      |
       | schema_id            | *                                     |
-      | version              | *                                     |
+      | version              |                                       |
       | schema_type          | PROTOBUF                              |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -1529,7 +1529,7 @@ Feature: Transitive Compatibility - Multi-Version Chains
       | target_type          | subject                               |
       | target_id            | proto-ft-remove                       |
       | schema_id            | *                                     |
-      | version              | *                                     |
+      | version              |                                       |
       | schema_type          | PROTOBUF                              |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -1585,7 +1585,7 @@ Feature: Transitive Compatibility - Multi-Version Chains
       | target_type          | subject                               |
       | target_id            | proto-ft-vs-f                         |
       | schema_id            | *                                     |
-      | version              | *                                     |
+      | version              |                                       |
       | schema_type          | PROTOBUF                              |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -1671,7 +1671,7 @@ Feature: Transitive Compatibility - Multi-Version Chains
       | target_type          | subject                               |
       | target_id            | proto-flt-safe                        |
       | schema_id            | *                                     |
-      | version              | *                                     |
+      | version              |                                       |
       | schema_type          | PROTOBUF                              |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -1731,7 +1731,7 @@ Feature: Transitive Compatibility - Multi-Version Chains
       | target_type          | subject                               |
       | target_id            | proto-flt-fail                        |
       | schema_id            | *                                     |
-      | version              | *                                     |
+      | version              |                                       |
       | schema_type          | PROTOBUF                              |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -1813,7 +1813,7 @@ Feature: Transitive Compatibility - Multi-Version Chains
       | target_type          | subject                               |
       | target_id            | proto-bt-5v                           |
       | schema_id            | *                                     |
-      | version              | *                                     |
+      | version              |                                       |
       | schema_type          | PROTOBUF                              |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -1879,7 +1879,7 @@ Feature: Transitive Compatibility - Multi-Version Chains
       | target_type          | subject                               |
       | target_id            | proto-flt-4v                          |
       | schema_id            | *                                     |
-      | version              | *                                     |
+      | version              |                                       |
       | schema_type          | PROTOBUF                              |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |

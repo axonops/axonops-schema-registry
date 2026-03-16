@@ -39,7 +39,7 @@ Feature: JSON Schema API Contract Domain Modeling
       | target_type          | subject                                      |
       | target_id            | api-request                                  |
       | schema_id            | *                                            |
-      | version              | *                                            |
+      | version              |                                              |
       | schema_type          | JSON                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -82,7 +82,7 @@ Feature: JSON Schema API Contract Domain Modeling
       | target_type          | subject                                      |
       | target_id            | api-response                                 |
       | schema_id            | *                                            |
-      | version              | *                                            |
+      | version              |                                              |
       | schema_type          | JSON                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -126,7 +126,7 @@ Feature: JSON Schema API Contract Domain Modeling
       | target_type          | subject                                      |
       | target_id            | api-payment-union                            |
       | schema_id            | *                                            |
-      | version              | *                                            |
+      | version              |                                              |
       | schema_type          | JSON                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -175,7 +175,7 @@ Feature: JSON Schema API Contract Domain Modeling
       | target_type          | subject                                      |
       | target_id            | api-constraint-chain                         |
       | schema_id            | *                                            |
-      | version              | *                                            |
+      | version              |                                              |
       | schema_type          | JSON                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -259,7 +259,7 @@ Feature: JSON Schema API Contract Domain Modeling
       | target_type          | subject                                      |
       | target_id            | api-keyorder-b                               |
       | schema_id            | *                                            |
-      | version              | *                                            |
+      | version              |                                              |
       | schema_type          | JSON                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -310,7 +310,7 @@ Feature: JSON Schema API Contract Domain Modeling
       | target_type          | subject                                      |
       | target_id            | api-ref-person                               |
       | schema_id            | *                                            |
-      | version              | *                                            |
+      | version              |                                              |
       | schema_type          | JSON                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |

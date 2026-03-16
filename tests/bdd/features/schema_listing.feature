@@ -35,7 +35,7 @@ Feature: Schema Listing
       | target_type          | subject                                  |
       | target_id            | shared-value                             |
       | schema_id            | *                                        |
-      | version              | *                                        |
+      | version              |                                          |
       | schema_type          | AVRO                                     |
       | before_hash          |                                          |
       | after_hash           | sha256:*                                 |

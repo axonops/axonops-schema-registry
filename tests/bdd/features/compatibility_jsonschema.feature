@@ -28,7 +28,7 @@ Feature: JSON Schema Compatibility
       | target_type          | subject                                  |
       | target_id            | json-back-1                              |
       | schema_id            |                                          |
-      | version              | *                                        |
+      | version              |                                          |
       | schema_type          | JSON                                     |
       | before_hash          |                                          |
       | after_hash           |                                          |
@@ -68,7 +68,7 @@ Feature: JSON Schema Compatibility
       | target_type          | subject                                  |
       | target_id            | json-back-2                              |
       | schema_id            |                                          |
-      | version              | *                                        |
+      | version              |                                          |
       | schema_type          | JSON                                     |
       | before_hash          |                                          |
       | after_hash           |                                          |
@@ -148,7 +148,7 @@ Feature: JSON Schema Compatibility
       | target_type          | subject                                  |
       | target_id            | json-back-4                              |
       | schema_id            |                                          |
-      | version              | *                                        |
+      | version              |                                          |
       | schema_type          | JSON                                     |
       | before_hash          |                                          |
       | after_hash           |                                          |
@@ -228,7 +228,7 @@ Feature: JSON Schema Compatibility
       | target_type          | subject                                  |
       | target_id            | json-back-6                              |
       | schema_id            |                                          |
-      | version              | *                                        |
+      | version              |                                          |
       | schema_type          | JSON                                     |
       | before_hash          |                                          |
       | after_hash           |                                          |
@@ -308,7 +308,7 @@ Feature: JSON Schema Compatibility
       | target_type          | subject                                  |
       | target_id            | json-back-8                              |
       | schema_id            |                                          |
-      | version              | *                                        |
+      | version              |                                          |
       | schema_type          | JSON                                     |
       | before_hash          |                                          |
       | after_hash           |                                          |
@@ -407,7 +407,7 @@ Feature: JSON Schema Compatibility
       | target_type          | subject                                  |
       | target_id            | json-bt-2                                |
       | schema_id            |                                          |
-      | version              | *                                        |
+      | version              |                                          |
       | schema_type          | JSON                                     |
       | before_hash          |                                          |
       | after_hash           |                                          |
@@ -495,7 +495,7 @@ Feature: JSON Schema Compatibility
       | target_type          | subject                                  |
       | target_id            | json-bt-4                                |
       | schema_id            |                                          |
-      | version              | *                                        |
+      | version              |                                          |
       | schema_type          | JSON                                     |
       | before_hash          |                                          |
       | after_hash           |                                          |
@@ -585,7 +585,7 @@ Feature: JSON Schema Compatibility
       | target_type          | subject                                  |
       | target_id            | json-fwd-1                               |
       | schema_id            |                                          |
-      | version              | *                                        |
+      | version              |                                          |
       | schema_type          | JSON                                     |
       | before_hash          |                                          |
       | after_hash           |                                          |
@@ -625,7 +625,7 @@ Feature: JSON Schema Compatibility
       | target_type          | subject                                  |
       | target_id            | json-fwd-2                               |
       | schema_id            |                                          |
-      | version              | *                                        |
+      | version              |                                          |
       | schema_type          | JSON                                     |
       | before_hash          |                                          |
       | after_hash           |                                          |
@@ -665,7 +665,7 @@ Feature: JSON Schema Compatibility
       | target_type          | subject                                  |
       | target_id            | json-fwd-3                               |
       | schema_id            |                                          |
-      | version              | *                                        |
+      | version              |                                          |
       | schema_type          | JSON                                     |
       | before_hash          |                                          |
       | after_hash           |                                          |
@@ -745,7 +745,7 @@ Feature: JSON Schema Compatibility
       | target_type          | subject                                  |
       | target_id            | json-fwd-5                               |
       | schema_id            |                                          |
-      | version              | *                                        |
+      | version              |                                          |
       | schema_type          | JSON                                     |
       | before_hash          |                                          |
       | after_hash           |                                          |
@@ -785,7 +785,7 @@ Feature: JSON Schema Compatibility
       | target_type          | subject                                  |
       | target_id            | json-fwd-6                               |
       | schema_id            |                                          |
-      | version              | *                                        |
+      | version              |                                          |
       | schema_type          | JSON                                     |
       | before_hash          |                                          |
       | after_hash           |                                          |
@@ -961,7 +961,7 @@ Feature: JSON Schema Compatibility
       | target_type          | subject                                  |
       | target_id            | json-ft-2                                |
       | schema_id            |                                          |
-      | version              | *                                        |
+      | version              |                                          |
       | schema_type          | JSON                                     |
       | before_hash          |                                          |
       | after_hash           |                                          |
@@ -1005,7 +1005,7 @@ Feature: JSON Schema Compatibility
       | target_type          | subject                                  |
       | target_id            | json-ft-3                                |
       | schema_id            |                                          |
-      | version              | *                                        |
+      | version              |                                          |
       | schema_type          | JSON                                     |
       | before_hash          |                                          |
       | after_hash           |                                          |
@@ -1094,7 +1094,7 @@ Feature: JSON Schema Compatibility
       | target_type          | subject                                  |
       | target_id            | json-full-1                              |
       | schema_id            |                                          |
-      | version              | *                                        |
+      | version              |                                          |
       | schema_type          | JSON                                     |
       | before_hash          |                                          |
       | after_hash           |                                          |
@@ -1134,7 +1134,7 @@ Feature: JSON Schema Compatibility
       | target_type          | subject                                  |
       | target_id            | json-full-2                              |
       | schema_id            |                                          |
-      | version              | *                                        |
+      | version              |                                          |
       | schema_type          | JSON                                     |
       | before_hash          |                                          |
       | after_hash           |                                          |
@@ -1174,7 +1174,7 @@ Feature: JSON Schema Compatibility
       | target_type          | subject                                  |
       | target_id            | json-full-3                              |
       | schema_id            |                                          |
-      | version              | *                                        |
+      | version              |                                          |
       | schema_type          | JSON                                     |
       | before_hash          |                                          |
       | after_hash           |                                          |
@@ -1214,7 +1214,7 @@ Feature: JSON Schema Compatibility
       | target_type          | subject                                  |
       | target_id            | json-full-3b                             |
       | schema_id            |                                          |
-      | version              | *                                        |
+      | version              |                                          |
       | schema_type          | JSON                                     |
       | before_hash          |                                          |
       | after_hash           |                                          |
@@ -1254,7 +1254,7 @@ Feature: JSON Schema Compatibility
       | target_type          | subject                                  |
       | target_id            | json-full-4                              |
       | schema_id            |                                          |
-      | version              | *                                        |
+      | version              |                                          |
       | schema_type          | JSON                                     |
       | before_hash          |                                          |
       | after_hash           |                                          |
@@ -1294,7 +1294,7 @@ Feature: JSON Schema Compatibility
       | target_type          | subject                                  |
       | target_id            | json-full-5                              |
       | schema_id            |                                          |
-      | version              | *                                        |
+      | version              |                                          |
       | schema_type          | JSON                                     |
       | before_hash          |                                          |
       | after_hash           |                                          |
@@ -1427,7 +1427,7 @@ Feature: JSON Schema Compatibility
       | target_type          | subject                                  |
       | target_id            | json-flt-2                               |
       | schema_id            |                                          |
-      | version              | *                                        |
+      | version              |                                          |
       | schema_type          | JSON                                     |
       | before_hash          |                                          |
       | after_hash           |                                          |
@@ -1600,7 +1600,7 @@ Feature: JSON Schema Compatibility
       | target_type          | subject                                  |
       | target_id            | json-edge-1                              |
       | schema_id            |                                          |
-      | version              | *                                        |
+      | version              |                                          |
       | schema_type          | JSON                                     |
       | before_hash          |                                          |
       | after_hash           |                                          |
@@ -1720,7 +1720,7 @@ Feature: JSON Schema Compatibility
       | target_type          | subject                                  |
       | target_id            | json-edge-4                              |
       | schema_id            |                                          |
-      | version              | *                                        |
+      | version              |                                          |
       | schema_type          | JSON                                     |
       | before_hash          |                                          |
       | after_hash           |                                          |
@@ -1800,7 +1800,7 @@ Feature: JSON Schema Compatibility
       | target_type          | subject                                  |
       | target_id            | json-edge-6                              |
       | schema_id            |                                          |
-      | version              | *                                        |
+      | version              |                                          |
       | schema_type          | JSON                                     |
       | before_hash          |                                          |
       | after_hash           |                                          |
@@ -1840,7 +1840,7 @@ Feature: JSON Schema Compatibility
       | target_type          | subject                                  |
       | target_id            | json-edge-7                              |
       | schema_id            |                                          |
-      | version              | *                                        |
+      | version              |                                          |
       | schema_type          | JSON                                     |
       | before_hash          |                                          |
       | after_hash           |                                          |
@@ -1880,7 +1880,7 @@ Feature: JSON Schema Compatibility
       | target_type          | subject                                  |
       | target_id            | json-edge-8                              |
       | schema_id            |                                          |
-      | version              | *                                        |
+      | version              |                                          |
       | schema_type          | JSON                                     |
       | before_hash          |                                          |
       | after_hash           |                                          |
@@ -2000,7 +2000,7 @@ Feature: JSON Schema Compatibility
       | target_type          | subject                                  |
       | target_id            | json-edge-11                             |
       | schema_id            |                                          |
-      | version              | *                                        |
+      | version              |                                          |
       | schema_type          | JSON                                     |
       | before_hash          |                                          |
       | after_hash           |                                          |
@@ -2085,7 +2085,7 @@ Feature: JSON Schema Compatibility
       | target_type          | subject                                  |
       | target_id            | json-err-1                               |
       | schema_id            |                                          |
-      | version              | *                                        |
+      | version              |                                          |
       | schema_type          | JSON                                     |
       | before_hash          |                                          |
       | after_hash           |                                          |
@@ -2198,7 +2198,7 @@ Feature: JSON Schema Compatibility
       | target_type          | subject                                  |
       | target_id            | json-err-5                               |
       | schema_id            |                                          |
-      | version              | *                                        |
+      | version              |                                          |
       | schema_type          | JSON                                     |
       | before_hash          |                                          |
       | after_hash           |                                          |
@@ -2280,7 +2280,7 @@ Feature: JSON Schema Compatibility
       | target_type          | subject                                  |
       | target_id            | json-gap-2                               |
       | schema_id            |                                          |
-      | version              | *                                        |
+      | version              |                                          |
       | schema_type          | JSON                                     |
       | before_hash          |                                          |
       | after_hash           |                                          |
@@ -2360,7 +2360,7 @@ Feature: JSON Schema Compatibility
       | target_type          | subject                                  |
       | target_id            | json-gap-4                               |
       | schema_id            |                                          |
-      | version              | *                                        |
+      | version              |                                          |
       | schema_type          | JSON                                     |
       | before_hash          |                                          |
       | after_hash           |                                          |
@@ -2440,7 +2440,7 @@ Feature: JSON Schema Compatibility
       | target_type          | subject                                  |
       | target_id            | json-gap-6                               |
       | schema_id            |                                          |
-      | version              | *                                        |
+      | version              |                                          |
       | schema_type          | JSON                                     |
       | before_hash          |                                          |
       | after_hash           |                                          |
@@ -2520,7 +2520,7 @@ Feature: JSON Schema Compatibility
       | target_type          | subject                                  |
       | target_id            | json-gap-8                               |
       | schema_id            |                                          |
-      | version              | *                                        |
+      | version              |                                          |
       | schema_type          | JSON                                     |
       | before_hash          |                                          |
       | after_hash           |                                          |
