@@ -841,11 +841,11 @@ func RegisterMCPSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 		var bestMatch map[string]interface{}
 
 		if tc.AuditWatcher != nil {
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 			defer cancel()
 			found, bm, _ := tc.AuditWatcher.WaitForMatch(ctx, matchEvents)
 			if found {
-				if elapsed := time.Since(assertStart); elapsed > 500*time.Millisecond {
+				if elapsed := time.Since(assertStart); elapsed > 200*time.Millisecond {
 					log.Printf("SLOW audit assertion (%s): event_type=%s took %dms",
 						expected["event_type"], expected["event_type"], elapsed.Milliseconds())
 				}

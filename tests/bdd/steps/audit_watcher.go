@@ -33,14 +33,15 @@ type AuditWatcher struct {
 	rawLog   strings.Builder // accumulates raw data for LogString()
 
 	// Instrumentation — accessed via atomic operations, no mutex needed.
-	matchInitial  int64 // found on initial check (event already present)
-	matchViaNotif int64 // found via fsnotify channel
-	matchViaPoll  int64 // found via safety-net poll
-	matchTimeout  int64 // found on final timeout read
-	matchFailed   int64 // not found (2s timeout expired)
-	totalWaitNs   int64 // cumulative wait time in nanoseconds
-	readCalls     int64 // number of ReadNewData calls
-	readBytes     int64 // total bytes read
+	fsnotifyEvents int64 // raw fsnotify Write events received by watch goroutine
+	matchInitial   int64 // found on initial check (event already present)
+	matchViaNotif  int64 // found via fsnotify channel
+	matchViaPoll   int64 // found via safety-net poll
+	matchTimeout   int64 // found on final timeout read
+	matchFailed    int64 // not found (timeout expired)
+	totalWaitNs    int64 // cumulative wait time in nanoseconds
+	readCalls      int64 // number of ReadNewData calls
+	readBytes      int64 // total bytes read
 }
 
 // NewAuditWatcher creates a new AuditWatcher that watches the given file path.
@@ -84,6 +85,7 @@ func (aw *AuditWatcher) watch() {
 				return
 			}
 			if event.Has(fsnotify.Write) {
+				atomic.AddInt64(&aw.fsnotifyEvents, 1)
 				aw.ReadNewData()
 				// Signal waiters without blocking.
 				select {
@@ -292,6 +294,7 @@ func (aw *AuditWatcher) LogString() (string, error) {
 // Stats returns a human-readable summary of watcher performance counters.
 // Log this at watcher Close to understand how assertions were resolved.
 func (aw *AuditWatcher) Stats() string {
+	fsEvents := atomic.LoadInt64(&aw.fsnotifyEvents)
 	initial := atomic.LoadInt64(&aw.matchInitial)
 	notify := atomic.LoadInt64(&aw.matchViaNotif)
 	poll := atomic.LoadInt64(&aw.matchViaPoll)
@@ -303,8 +306,8 @@ func (aw *AuditWatcher) Stats() string {
 	total := initial + notify + poll + timeout + failed
 
 	return fmt.Sprintf(
-		"AuditWatcher[%s]: total=%d initial=%d notify=%d poll=%d timeout=%d failed=%d | wait=%dms reads=%d bytes=%d",
-		aw.filePath, total, initial, notify, poll, timeout, failed,
+		"AuditWatcher[%s]: fsnotify=%d | assertions: total=%d initial=%d notify=%d poll=%d timeout=%d failed=%d | wait=%dms reads=%d bytes=%d",
+		aw.filePath, fsEvents, total, initial, notify, poll, timeout, failed,
 		totalNs/1e6, reads, bytes,
 	)
 }
