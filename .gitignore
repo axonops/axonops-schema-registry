@@ -40,6 +40,9 @@ config.local.yaml
 debug
 *.log
 
+# BDD audit log bind-mount directory (created by tests)
+tests/bdd/audit-logs/
+
 # AI session tracking files
 PROGRESS.md
 RESUME_SESSION.md

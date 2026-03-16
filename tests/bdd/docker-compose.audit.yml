@@ -4,7 +4,7 @@
 #
 # Usage:
 #   docker compose -f docker-compose.base.yml -f docker-compose.audit.yml up -d --build --wait
-#   docker compose -p <project> exec schema-registry cat /tmp/audit.log
+#   docker compose -p <project> exec schema-registry cat /tmp/audit-logs/audit.log
 
 services:
   schema-registry:

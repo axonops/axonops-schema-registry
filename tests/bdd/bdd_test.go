@@ -27,6 +27,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -66,6 +67,11 @@ var (
 	// gocql sessions are expensive to create (topology discovery, connection pool setup),
 	// so we create one at first use and close it in TestMain.
 	cassandraSession *gocql.Session
+
+	// mainAuditWatcher is the fsnotify watcher for the main TestFeatures compose stack.
+	// Created in TestMain, shared with TestFeatures.
+	mainAuditWatcher *steps.AuditWatcher
+	mainAuditDir     string
 )
 
 func TestMain(m *testing.M) {
@@ -83,8 +89,27 @@ func TestMain(m *testing.M) {
 		containerCmd = findContainerCmd()
 		composeFiles = composeFilesForBackend(backend)
 
+		// Create audit watcher with bind-mounted directory.
+		var mainComposeEnv []string
+		auditDir, err := os.MkdirTemp("", "bdd-audit-main-*")
+		if err != nil {
+			log.Printf("WARNING: failed to create audit temp dir: %v (falling back to docker exec)", err)
+		} else {
+			mainAuditDir = auditDir
+			auditLogPath := filepath.Join(auditDir, "audit.log")
+			w, wErr := steps.NewAuditWatcher(auditLogPath)
+			if wErr != nil {
+				log.Printf("WARNING: failed to create audit watcher: %v (falling back to docker exec)", wErr)
+				os.RemoveAll(auditDir)
+				mainAuditDir = ""
+			} else {
+				mainAuditWatcher = w
+				mainComposeEnv = append(mainComposeEnv, "AUDIT_LOG_DIR="+auditDir)
+			}
+		}
+
 		log.Printf("Starting %s compose for %s backend...", containerCmd, backend)
-		if err := composeUp(composeFiles); err != nil {
+		if err := composeUpWithProject(composeFiles, "", mainComposeEnv); err != nil {
 			log.Fatalf("Failed to start compose: %v", err)
 		}
 
@@ -113,6 +138,14 @@ func TestMain(m *testing.M) {
 	}
 
 	code := m.Run()
+
+	// Close the audit watcher before tearing down containers.
+	if mainAuditWatcher != nil {
+		mainAuditWatcher.Close()
+	}
+	if mainAuditDir != "" {
+		os.RemoveAll(mainAuditDir)
+	}
 
 	// Close the long-lived Cassandra session before tearing down containers.
 	if cassandraSession != nil {
@@ -164,7 +197,19 @@ func TestFeatures(t *testing.T) {
 	var auditFetcher func() (string, error)
 	var clearAuditLog func() error
 	if backend != "confluent" {
-		auditFetcher, clearAuditLog = makeAuditHelpers(composeFiles, "")
+		if mainAuditWatcher != nil {
+			// Use fsnotify watcher (fast path — no docker exec).
+			auditLogPath := filepath.Join(mainAuditDir, "audit.log")
+			auditFetcher = func() (string, error) {
+				return mainAuditWatcher.LogString()
+			}
+			clearAuditLog = func() error {
+				mainAuditWatcher.Clear()
+				return os.Truncate(auditLogPath, 0)
+			}
+		} else {
+			auditFetcher, clearAuditLog = makeAuditHelpers(composeFiles, "")
+		}
 	}
 
 	suite := godog.TestSuite{
@@ -172,6 +217,7 @@ func TestFeatures(t *testing.T) {
 			tc := steps.NewTestContext(registryURL)
 			tc.MetricsURL = metricsURL
 			tc.WebhookURL = webhookURL
+			tc.AuditWatcher = mainAuditWatcher
 			if auditFetcher != nil {
 				tc.StoredValues["_audit_fetcher"] = auditFetcher
 			}
@@ -245,6 +291,16 @@ func TestAuthFeatures(t *testing.T) {
 		}
 	}
 
+	// Set up audit watcher with bind-mounted directory.
+	authWatcher, authAuditDir, authAuditFetcher, clearAuthAuditLog := makeAuditWatcher(t)
+	if authWatcher != nil {
+		authEnv = append(authEnv, "AUDIT_LOG_DIR="+authAuditDir)
+		t.Cleanup(func() {
+			authWatcher.Close()
+			os.RemoveAll(authAuditDir)
+		})
+	}
+
 	log.Printf("Starting auth compose stack (backend=%s)...", backend)
 	if err := composeUpWithProject(authFiles, "bdd-auth", authEnv); err != nil {
 		t.Fatalf("Failed to start auth compose: %v", err)
@@ -268,7 +324,10 @@ func TestAuthFeatures(t *testing.T) {
 	}
 	log.Println("Auth registry is healthy.")
 
-	authAuditFetcher, clearAuthAuditLog := makeAuditHelpers(authFiles, "bdd-auth")
+	// Fall back to docker exec if watcher is not available.
+	if authWatcher == nil {
+		authAuditFetcher, clearAuthAuditLog = makeAuditHelpers(authFiles, "bdd-auth")
+	}
 
 	opts := godog.Options{
 		Format:   "pretty",
@@ -282,6 +341,7 @@ func TestAuthFeatures(t *testing.T) {
 	suite := godog.TestSuite{
 		ScenarioInitializer: func(ctx *godog.ScenarioContext) {
 			tc := steps.NewTestContext(authURL)
+			tc.AuditWatcher = authWatcher
 			if authAuditFetcher != nil {
 				tc.StoredValues["_audit_fetcher"] = authAuditFetcher
 			}
@@ -345,6 +405,16 @@ func TestMCPFeatures(t *testing.T) {
 		"MCP_PORT=19081",
 	}
 
+	// Set up audit watcher with bind-mounted directory.
+	mcpWatcher, mcpAuditDir, mcpAuditFetcher, clearMCPAuditLog := makeAuditWatcher(t)
+	if mcpWatcher != nil {
+		mcpEnv = append(mcpEnv, "AUDIT_LOG_DIR="+mcpAuditDir)
+		t.Cleanup(func() {
+			mcpWatcher.Close()
+			os.RemoveAll(mcpAuditDir)
+		})
+	}
+
 	log.Printf("Starting MCP compose stack...")
 	if err := composeUpWithProject(mcpFiles, "bdd-mcp", mcpEnv); err != nil {
 		t.Fatalf("Failed to start MCP compose: %v", err)
@@ -371,7 +441,10 @@ func TestMCPFeatures(t *testing.T) {
 	}
 	log.Println("MCP registry is healthy.")
 
-	mcpAuditFetcher, clearMCPAuditLog := makeAuditHelpers(mcpFiles, "bdd-mcp")
+	// Fall back to docker exec if watcher is not available.
+	if mcpWatcher == nil {
+		mcpAuditFetcher, clearMCPAuditLog = makeAuditHelpers(mcpFiles, "bdd-mcp")
+	}
 
 	opts := godog.Options{
 		Format:   "pretty",
@@ -387,6 +460,7 @@ func TestMCPFeatures(t *testing.T) {
 			tc := steps.NewTestContext(mcpRESTURL)
 			tc.MetricsURL = mcpRESTURL + "/metrics"
 			tc.WebhookURL = mcpWebhook
+			tc.AuditWatcher = mcpWatcher
 			tc.StoredValues["_mcp_url"] = mcpURL
 			tc.AuthHeader = "Basic " + base64.StdEncoding.EncodeToString([]byte("admin:admin-password"))
 			if mcpAuditFetcher != nil {
@@ -457,6 +531,16 @@ func TestMCPKMSFeatures(t *testing.T) {
 		}
 	}
 
+	// Set up audit watcher with bind-mounted directory.
+	kmsWatcher, kmsAuditDir, kmsAuditFetcher, clearKMSAuditLog := makeAuditWatcher(t)
+	if kmsWatcher != nil {
+		mcpEnv = append(mcpEnv, "AUDIT_LOG_DIR="+kmsAuditDir)
+		t.Cleanup(func() {
+			kmsWatcher.Close()
+			os.RemoveAll(kmsAuditDir)
+		})
+	}
+
 	log.Printf("Starting MCP + KMS compose stack (backend=%s)...", backend)
 	if err := composeUpWithProject(mcpFiles, "bdd-mcp-kms", mcpEnv); err != nil {
 		t.Fatalf("Failed to start MCP KMS compose: %v", err)
@@ -494,7 +578,10 @@ func TestMCPKMSFeatures(t *testing.T) {
 	t.Setenv("KMS_BAO_ADDR", "http://localhost:18203")
 	t.Setenv("KMS_BAO_TOKEN", "test-bao-token")
 
-	kmsAuditFetcher, clearKMSAuditLog := makeAuditHelpers(mcpFiles, "bdd-mcp-kms")
+	// Fall back to docker exec if watcher is not available.
+	if kmsWatcher == nil {
+		kmsAuditFetcher, clearKMSAuditLog = makeAuditHelpers(mcpFiles, "bdd-mcp-kms")
+	}
 
 	opts := godog.Options{
 		Format:   "pretty",
@@ -510,6 +597,7 @@ func TestMCPKMSFeatures(t *testing.T) {
 			tc := steps.NewTestContext(mcpRESTURL)
 			tc.MetricsURL = mcpRESTURL + "/metrics"
 			tc.WebhookURL = mcpWebhook
+			tc.AuditWatcher = kmsWatcher
 			tc.StoredValues["_mcp_url"] = mcpURL
 			tc.AuthHeader = "Basic " + base64.StdEncoding.EncodeToString([]byte("admin:admin-password"))
 			if kmsAuditFetcher != nil {
@@ -565,6 +653,16 @@ func TestMCPMetricsFeatures(t *testing.T) {
 		"MCP_PORT=19084",
 	}
 
+	// Set up audit watcher with bind-mounted directory.
+	metricsWatcher, metricsAuditDir, metricsAuditFetcher, clearMetricsAuditLog := makeAuditWatcher(t)
+	if metricsWatcher != nil {
+		mcpEnv = append(mcpEnv, "AUDIT_LOG_DIR="+metricsAuditDir)
+		t.Cleanup(func() {
+			metricsWatcher.Close()
+			os.RemoveAll(metricsAuditDir)
+		})
+	}
+
 	log.Printf("Starting MCP metrics compose stack...")
 	if err := composeUpWithProject(mcpFiles, "bdd-mcp-metrics", mcpEnv); err != nil {
 		t.Fatalf("Failed to start MCP metrics compose: %v", err)
@@ -591,7 +689,10 @@ func TestMCPMetricsFeatures(t *testing.T) {
 	}
 	log.Println("MCP metrics registry is healthy.")
 
-	metricsAuditFetcher, clearMetricsAuditLog := makeAuditHelpers(mcpFiles, "bdd-mcp-metrics")
+	// Fall back to docker exec if watcher is not available.
+	if metricsWatcher == nil {
+		metricsAuditFetcher, clearMetricsAuditLog = makeAuditHelpers(mcpFiles, "bdd-mcp-metrics")
+	}
 
 	opts := godog.Options{
 		Format:   "pretty",
@@ -607,6 +708,7 @@ func TestMCPMetricsFeatures(t *testing.T) {
 			tc := steps.NewTestContext(mcpRESTURL)
 			tc.MetricsURL = mcpRESTURL + "/metrics"
 			tc.WebhookURL = mcpWebhook
+			tc.AuditWatcher = metricsWatcher
 			tc.StoredValues["_mcp_url"] = mcpURL
 			tc.AuthHeader = "Basic " + base64.StdEncoding.EncodeToString([]byte("admin:admin-password"))
 			if metricsAuditFetcher != nil {
@@ -663,6 +765,16 @@ func TestMCPConfirmationFeatures(t *testing.T) {
 		"SCHEMA_REGISTRY_MCP_CONFIRMATION_TTL=300",
 	}
 
+	// Set up audit watcher with bind-mounted directory.
+	confirmWatcher, confirmAuditDir, confirmAuditFetcher, clearConfirmAuditLog := makeAuditWatcher(t)
+	if confirmWatcher != nil {
+		mcpEnv = append(mcpEnv, "AUDIT_LOG_DIR="+confirmAuditDir)
+		t.Cleanup(func() {
+			confirmWatcher.Close()
+			os.RemoveAll(confirmAuditDir)
+		})
+	}
+
 	log.Printf("Starting MCP confirmation compose stack...")
 	if err := composeUpWithProject(mcpFiles, "bdd-mcp-confirm", mcpEnv); err != nil {
 		t.Fatalf("Failed to start MCP confirmation compose: %v", err)
@@ -689,7 +801,10 @@ func TestMCPConfirmationFeatures(t *testing.T) {
 	}
 	log.Println("MCP confirmation registry is healthy.")
 
-	confirmAuditFetcher, clearConfirmAuditLog := makeAuditHelpers(mcpFiles, "bdd-mcp-confirm")
+	// Fall back to docker exec if watcher is not available.
+	if confirmWatcher == nil {
+		confirmAuditFetcher, clearConfirmAuditLog = makeAuditHelpers(mcpFiles, "bdd-mcp-confirm")
+	}
 
 	opts := godog.Options{
 		Format:   "pretty",
@@ -705,6 +820,7 @@ func TestMCPConfirmationFeatures(t *testing.T) {
 			tc := steps.NewTestContext(mcpRESTURL)
 			tc.MetricsURL = mcpRESTURL + "/metrics"
 			tc.WebhookURL = mcpWebhook
+			tc.AuditWatcher = confirmWatcher
 			tc.StoredValues["_mcp_url"] = mcpURL
 			tc.AuthHeader = "Basic " + base64.StdEncoding.EncodeToString([]byte("admin:admin-password"))
 			if confirmAuditFetcher != nil {
@@ -792,6 +908,16 @@ func TestMCPPermissionsFeatures(t *testing.T) {
 			}
 			mcpEnv = append(mcpEnv, pt.extraEnv...)
 
+			// Set up audit watcher with bind-mounted directory.
+			permWatcher, permAuditDir, permAuditFetcher, clearPermAuditLog := makeAuditWatcher(t)
+			if permWatcher != nil {
+				mcpEnv = append(mcpEnv, "AUDIT_LOG_DIR="+permAuditDir)
+				t.Cleanup(func() {
+					permWatcher.Close()
+					os.RemoveAll(permAuditDir)
+				})
+			}
+
 			log.Printf("Starting MCP permissions compose stack (preset=%s)...", pt.preset)
 			if err := composeUpWithProject(mcpFiles, projectName, mcpEnv); err != nil {
 				t.Fatalf("Failed to start MCP permissions compose (preset=%s): %v", pt.preset, err)
@@ -818,7 +944,10 @@ func TestMCPPermissionsFeatures(t *testing.T) {
 			}
 			log.Printf("MCP permissions registry (preset=%s) is healthy.", pt.preset)
 
-			permAuditFetcher, clearPermAuditLog := makeAuditHelpers(mcpFiles, projectName)
+			// Fall back to docker exec if watcher is not available.
+			if permWatcher == nil {
+				permAuditFetcher, clearPermAuditLog = makeAuditHelpers(mcpFiles, projectName)
+			}
 
 			opts := godog.Options{
 				Format:   "pretty",
@@ -834,6 +963,7 @@ func TestMCPPermissionsFeatures(t *testing.T) {
 					tc := steps.NewTestContext(mcpRESTURL)
 					tc.MetricsURL = mcpRESTURL + "/metrics"
 					tc.WebhookURL = mcpWebhook
+					tc.AuditWatcher = permWatcher
 					tc.StoredValues["_mcp_url"] = mcpURL
 					tc.AuthHeader = "Basic " + base64.StdEncoding.EncodeToString([]byte("admin:admin-password"))
 					if permAuditFetcher != nil {
@@ -891,6 +1021,16 @@ func TestMCPAuditFeatures(t *testing.T) {
 	}
 	projectName := "bdd-mcp-audit"
 
+	// Set up audit watcher with bind-mounted directory.
+	auditWatcher, auditAuditDir, auditFetcher, clearAuditLog := makeAuditWatcher(t)
+	if auditWatcher != nil {
+		auditEnv = append(auditEnv, "AUDIT_LOG_DIR="+auditAuditDir)
+		t.Cleanup(func() {
+			auditWatcher.Close()
+			os.RemoveAll(auditAuditDir)
+		})
+	}
+
 	log.Printf("Starting MCP audit compose stack...")
 	if err := composeUpWithProject(auditFiles, projectName, auditEnv); err != nil {
 		t.Fatalf("Failed to start MCP audit compose: %v", err)
@@ -917,7 +1057,10 @@ func TestMCPAuditFeatures(t *testing.T) {
 	}
 	log.Println("MCP audit registry is healthy.")
 
-	auditFetcher, clearAuditLog := makeAuditHelpers(auditFiles, projectName)
+	// Fall back to docker exec if watcher is not available.
+	if auditWatcher == nil {
+		auditFetcher, clearAuditLog = makeAuditHelpers(auditFiles, projectName)
+	}
 
 	opts := godog.Options{
 		Format:   "pretty",
@@ -933,6 +1076,7 @@ func TestMCPAuditFeatures(t *testing.T) {
 			tc := steps.NewTestContext(mcpRESTURL)
 			tc.MetricsURL = mcpRESTURL + "/metrics"
 			tc.WebhookURL = mcpWebhook
+			tc.AuditWatcher = auditWatcher
 			tc.StoredValues["_mcp_url"] = mcpURL
 			tc.StoredValues["_audit_fetcher"] = auditFetcher
 			tc.AuthHeader = "Basic " + base64.StdEncoding.EncodeToString([]byte("admin:admin-password"))
@@ -941,8 +1085,10 @@ func TestMCPAuditFeatures(t *testing.T) {
 				if err := cleanViaAPIWithAuth(mcpRESTURL, "admin", "admin-password"); err != nil {
 					return gctx, fmt.Errorf("clean MCP audit registry: %w", err)
 				}
-				if err := clearAuditLog(); err != nil {
-					return gctx, fmt.Errorf("clear audit log: %w", err)
+				if clearAuditLog != nil {
+					if err := clearAuditLog(); err != nil {
+						return gctx, fmt.Errorf("clear audit log: %w", err)
+					}
 				}
 				return gctx, nil
 			})
@@ -999,6 +1145,16 @@ func TestKMSFeatures(t *testing.T) {
 		}
 	}
 
+	// Set up audit watcher with bind-mounted directory.
+	restKMSWatcher, restKMSAuditDir, restKMSAuditFetcher, clearRestKMSAuditLog := makeAuditWatcher(t)
+	if restKMSWatcher != nil {
+		kmsEnv = append(kmsEnv, "AUDIT_LOG_DIR="+restKMSAuditDir)
+		t.Cleanup(func() {
+			restKMSWatcher.Close()
+			os.RemoveAll(restKMSAuditDir)
+		})
+	}
+
 	waitTimeout := 120 * time.Second
 	if dbOverlayFile(backend) != "" {
 		waitTimeout = 180 * time.Second // DB startup takes longer
@@ -1028,7 +1184,10 @@ func TestKMSFeatures(t *testing.T) {
 	t.Setenv("KMS_BAO_ADDR", "http://localhost:18205")
 	t.Setenv("KMS_BAO_TOKEN", "test-bao-token")
 
-	restKMSAuditFetcher, clearRestKMSAuditLog := makeAuditHelpers(kmsFiles, "bdd-rest-kms")
+	// Fall back to docker exec if watcher is not available.
+	if restKMSWatcher == nil {
+		restKMSAuditFetcher, clearRestKMSAuditLog = makeAuditHelpers(kmsFiles, "bdd-rest-kms")
+	}
 
 	opts := godog.Options{
 		Format:   "pretty",
@@ -1043,6 +1202,7 @@ func TestKMSFeatures(t *testing.T) {
 		ScenarioInitializer: func(ctx *godog.ScenarioContext) {
 			tc := steps.NewTestContext(restURL)
 			tc.MetricsURL = restURL + "/metrics"
+			tc.AuditWatcher = restKMSWatcher
 			if restKMSAuditFetcher != nil {
 				tc.StoredValues["_audit_fetcher"] = restKMSAuditFetcher
 			}
@@ -1095,6 +1255,16 @@ func TestRESTAuditFeatures(t *testing.T) {
 	}
 	projectName := "bdd-rest-audit"
 
+	// Set up audit watcher with bind-mounted directory.
+	restAuditWatcher, restAuditDir, auditFetcher, clearAuditLog := makeAuditWatcher(t)
+	if restAuditWatcher != nil {
+		auditEnv = append(auditEnv, "AUDIT_LOG_DIR="+restAuditDir)
+		t.Cleanup(func() {
+			restAuditWatcher.Close()
+			os.RemoveAll(restAuditDir)
+		})
+	}
+
 	log.Printf("Starting REST audit compose stack...")
 	if err := composeUpWithProject(auditFiles, projectName, auditEnv); err != nil {
 		t.Fatalf("Failed to start REST audit compose: %v", err)
@@ -1113,7 +1283,10 @@ func TestRESTAuditFeatures(t *testing.T) {
 	}
 	log.Println("Audit registry is healthy.")
 
-	auditFetcher, clearAuditLog := makeAuditHelpers(auditFiles, projectName)
+	// Fall back to docker exec if watcher is not available.
+	if restAuditWatcher == nil {
+		auditFetcher, clearAuditLog = makeAuditHelpers(auditFiles, projectName)
+	}
 
 	opts := godog.Options{
 		Format:   "pretty",
@@ -1127,11 +1300,14 @@ func TestRESTAuditFeatures(t *testing.T) {
 	suite := godog.TestSuite{
 		ScenarioInitializer: func(ctx *godog.ScenarioContext) {
 			tc := steps.NewTestContext(restURL)
+			tc.AuditWatcher = restAuditWatcher
 			tc.StoredValues["_audit_fetcher"] = auditFetcher
 
 			ctx.Before(func(gctx context.Context, sc *godog.Scenario) (context.Context, error) {
-				if err := clearAuditLog(); err != nil {
-					return gctx, fmt.Errorf("clear audit log: %w", err)
+				if clearAuditLog != nil {
+					if err := clearAuditLog(); err != nil {
+						return gctx, fmt.Errorf("clear audit log: %w", err)
+					}
 				}
 				if err := cleanViaAPINoAuth(restURL); err != nil {
 					return gctx, fmt.Errorf("clean audit registry: %w", err)
@@ -1177,6 +1353,16 @@ func TestAuditOutputsFeatures(t *testing.T) {
 	}
 	projectName := "bdd-audit-outputs"
 
+	// Set up audit watcher with bind-mounted directory.
+	outputsWatcher, outputsAuditDir, auditFetcher, clearAuditLog := makeAuditWatcher(t)
+	if outputsWatcher != nil {
+		composeEnv = append(composeEnv, "AUDIT_LOG_DIR="+outputsAuditDir)
+		t.Cleanup(func() {
+			outputsWatcher.Close()
+			os.RemoveAll(outputsAuditDir)
+		})
+	}
+
 	log.Printf("Starting audit outputs compose stack...")
 	if err := composeUpWithProject(composeFiles, projectName, composeEnv); err != nil {
 		t.Fatalf("Failed to start audit outputs compose: %v", err)
@@ -1204,7 +1390,10 @@ func TestAuditOutputsFeatures(t *testing.T) {
 	}
 	log.Println("Webhook receiver is healthy.")
 
-	auditFetcher, clearAuditLog := makeAuditHelpers(composeFiles, projectName)
+	// Fall back to docker exec if watcher is not available.
+	if outputsWatcher == nil {
+		auditFetcher, clearAuditLog = makeAuditHelpers(composeFiles, projectName)
+	}
 	syslogFetcher := makeSyslogFetcherFile(composeFiles, projectName, "/var/log/syslog-audit/audit.log")
 	syslogTLSFetcher := makeSyslogFetcherFile(composeFiles, projectName, "/var/log/syslog-audit/audit-tls.log")
 
@@ -1220,14 +1409,17 @@ func TestAuditOutputsFeatures(t *testing.T) {
 	suite := godog.TestSuite{
 		ScenarioInitializer: func(ctx *godog.ScenarioContext) {
 			tc := steps.NewTestContext(restURL)
+			tc.AuditWatcher = outputsWatcher
 			tc.StoredValues["_audit_fetcher"] = auditFetcher
 			tc.StoredValues["_webhook_receiver_url"] = webhookReceiverURL
 			tc.StoredValues["_syslog_fetcher"] = syslogFetcher
 			tc.StoredValues["_syslog_tls_fetcher"] = syslogTLSFetcher
 
 			ctx.Before(func(gctx context.Context, sc *godog.Scenario) (context.Context, error) {
-				if err := clearAuditLog(); err != nil {
-					return gctx, fmt.Errorf("clear audit log: %w", err)
+				if clearAuditLog != nil {
+					if err := clearAuditLog(); err != nil {
+						return gctx, fmt.Errorf("clear audit log: %w", err)
+					}
 				}
 				// Clear webhook receiver events
 				if err := clearWebhookReceiver(webhookReceiverURL); err != nil {
@@ -1281,6 +1473,16 @@ func TestLDAPFeatures(t *testing.T) {
 	}
 	projectName := "bdd-ldap"
 
+	// Set up audit watcher with bind-mounted directory.
+	ldapWatcher, ldapAuditDir, ldapAuditFetcher, clearLDAPAuditLog := makeAuditWatcher(t)
+	if ldapWatcher != nil {
+		ldapEnv = append(ldapEnv, "AUDIT_LOG_DIR="+ldapAuditDir)
+		t.Cleanup(func() {
+			ldapWatcher.Close()
+			os.RemoveAll(ldapAuditDir)
+		})
+	}
+
 	log.Printf("Starting LDAP compose stack...")
 	if err := composeUpWithProject(ldapFiles, projectName, ldapEnv); err != nil {
 		t.Fatalf("Failed to start LDAP compose: %v", err)
@@ -1300,7 +1502,10 @@ func TestLDAPFeatures(t *testing.T) {
 	}
 	log.Println("LDAP registry is healthy.")
 
-	ldapAuditFetcher, clearLDAPAuditLog := makeAuditHelpers(ldapFiles, projectName)
+	// Fall back to docker exec if watcher is not available.
+	if ldapWatcher == nil {
+		ldapAuditFetcher, clearLDAPAuditLog = makeAuditHelpers(ldapFiles, projectName)
+	}
 
 	opts := godog.Options{
 		Format:   "pretty",
@@ -1315,6 +1520,7 @@ func TestLDAPFeatures(t *testing.T) {
 		ScenarioInitializer: func(ctx *godog.ScenarioContext) {
 			tc := steps.NewTestContext(ldapURL)
 			tc.WebhookURL = ldapWebhook
+			tc.AuditWatcher = ldapWatcher
 			if ldapAuditFetcher != nil {
 				tc.StoredValues["_audit_fetcher"] = ldapAuditFetcher
 			}
@@ -1369,6 +1575,16 @@ func TestOIDCFeatures(t *testing.T) {
 	}
 	projectName := "bdd-oidc"
 
+	// Set up audit watcher with bind-mounted directory.
+	oidcWatcher, oidcAuditDir, oidcAuditFetcher, clearOIDCAuditLog := makeAuditWatcher(t)
+	if oidcWatcher != nil {
+		oidcEnv = append(oidcEnv, "AUDIT_LOG_DIR="+oidcAuditDir)
+		t.Cleanup(func() {
+			oidcWatcher.Close()
+			os.RemoveAll(oidcAuditDir)
+		})
+	}
+
 	log.Printf("Starting OIDC compose stack...")
 	if err := composeUpWithProject(oidcFiles, projectName, oidcEnv); err != nil {
 		t.Fatalf("Failed to start OIDC compose: %v", err)
@@ -1389,7 +1605,10 @@ func TestOIDCFeatures(t *testing.T) {
 	}
 	log.Println("OIDC registry is healthy.")
 
-	oidcAuditFetcher, clearOIDCAuditLog := makeAuditHelpers(oidcFiles, projectName)
+	// Fall back to docker exec if watcher is not available.
+	if oidcWatcher == nil {
+		oidcAuditFetcher, clearOIDCAuditLog = makeAuditHelpers(oidcFiles, projectName)
+	}
 
 	opts := godog.Options{
 		Format:   "pretty",
@@ -1404,6 +1623,7 @@ func TestOIDCFeatures(t *testing.T) {
 		ScenarioInitializer: func(ctx *godog.ScenarioContext) {
 			tc := steps.NewTestContext(oidcURL)
 			tc.WebhookURL = oidcWebhook
+			tc.AuditWatcher = oidcWatcher
 			tc.StoredValues["_oidc_token_url"] = kcTokenURL
 			tc.StoredValues["_oidc_client_id"] = "schema-registry"
 			tc.StoredValues["_oidc_client_secret"] = "schema-registry-secret"
@@ -1460,6 +1680,16 @@ func TestJWTFeatures(t *testing.T) {
 	}
 	projectName := "bdd-jwt"
 
+	// Set up audit watcher with bind-mounted directory.
+	jwtWatcher, jwtAuditDir, jwtAuditFetcher, clearJWTAuditLog := makeAuditWatcher(t)
+	if jwtWatcher != nil {
+		jwtEnv = append(jwtEnv, "AUDIT_LOG_DIR="+jwtAuditDir)
+		t.Cleanup(func() {
+			jwtWatcher.Close()
+			os.RemoveAll(jwtAuditDir)
+		})
+	}
+
 	log.Printf("Starting JWT compose stack...")
 	if err := composeUpWithProject(jwtFiles, projectName, jwtEnv); err != nil {
 		t.Fatalf("Failed to start JWT compose: %v", err)
@@ -1479,7 +1709,10 @@ func TestJWTFeatures(t *testing.T) {
 	}
 	log.Println("JWT registry is healthy.")
 
-	jwtAuditFetcher, clearJWTAuditLog := makeAuditHelpers(jwtFiles, projectName)
+	// Fall back to docker exec if watcher is not available.
+	if jwtWatcher == nil {
+		jwtAuditFetcher, clearJWTAuditLog = makeAuditHelpers(jwtFiles, projectName)
+	}
 
 	opts := godog.Options{
 		Format:   "pretty",
@@ -1494,6 +1727,7 @@ func TestJWTFeatures(t *testing.T) {
 		ScenarioInitializer: func(ctx *godog.ScenarioContext) {
 			tc := steps.NewTestContext(jwtURL)
 			tc.WebhookURL = jwtWebhook
+			tc.AuditWatcher = jwtWatcher
 			if jwtAuditFetcher != nil {
 				tc.StoredValues["_audit_fetcher"] = jwtAuditFetcher
 			}
@@ -1545,6 +1779,16 @@ func TestMTLSFeatures(t *testing.T) {
 	}
 	projectName := "bdd-mtls"
 
+	// Set up audit watcher with bind-mounted directory.
+	mtlsWatcher, mtlsAuditDir, mtlsAuditFetcher, clearMTLSAuditLog := makeAuditWatcher(t)
+	if mtlsWatcher != nil {
+		mtlsEnv = append(mtlsEnv, "AUDIT_LOG_DIR="+mtlsAuditDir)
+		t.Cleanup(func() {
+			mtlsWatcher.Close()
+			os.RemoveAll(mtlsAuditDir)
+		})
+	}
+
 	log.Printf("Starting mTLS compose stack...")
 	if err := composeUpWithProject(mtlsFiles, projectName, mtlsEnv); err != nil {
 		t.Fatalf("Failed to start mTLS compose: %v", err)
@@ -1564,7 +1808,10 @@ func TestMTLSFeatures(t *testing.T) {
 	}
 	log.Println("mTLS registry is healthy.")
 
-	mtlsAuditFetcher, clearMTLSAuditLog := makeAuditHelpers(mtlsFiles, projectName)
+	// Fall back to docker exec if watcher is not available.
+	if mtlsWatcher == nil {
+		mtlsAuditFetcher, clearMTLSAuditLog = makeAuditHelpers(mtlsFiles, projectName)
+	}
 
 	opts := godog.Options{
 		Format:   "pretty",
@@ -1578,6 +1825,7 @@ func TestMTLSFeatures(t *testing.T) {
 	suite := godog.TestSuite{
 		ScenarioInitializer: func(ctx *godog.ScenarioContext) {
 			tc := steps.NewTestContext(mtlsURL)
+			tc.AuditWatcher = mtlsWatcher
 			if mtlsAuditFetcher != nil {
 				tc.StoredValues["_audit_fetcher"] = mtlsAuditFetcher
 			}
@@ -1629,6 +1877,16 @@ func TestMTLSAuthFeatures(t *testing.T) {
 	}
 	projectName := "bdd-mtls-auth"
 
+	// Set up audit watcher with bind-mounted directory.
+	mtlsAuthWatcher, mtlsAuthAuditDir, mtlsAuthAuditFetcher, clearMTLSAuthAuditLog := makeAuditWatcher(t)
+	if mtlsAuthWatcher != nil {
+		mtlsAuthEnv = append(mtlsAuthEnv, "AUDIT_LOG_DIR="+mtlsAuthAuditDir)
+		t.Cleanup(func() {
+			mtlsAuthWatcher.Close()
+			os.RemoveAll(mtlsAuthAuditDir)
+		})
+	}
+
 	log.Printf("Starting mTLS + auth compose stack...")
 	if err := composeUpWithProject(mtlsAuthFiles, projectName, mtlsAuthEnv); err != nil {
 		t.Fatalf("Failed to start mTLS auth compose: %v", err)
@@ -1648,7 +1906,10 @@ func TestMTLSAuthFeatures(t *testing.T) {
 	}
 	log.Println("mTLS+auth registry is healthy.")
 
-	mtlsAuthAuditFetcher, clearMTLSAuthAuditLog := makeAuditHelpers(mtlsAuthFiles, projectName)
+	// Fall back to docker exec if watcher is not available.
+	if mtlsAuthWatcher == nil {
+		mtlsAuthAuditFetcher, clearMTLSAuthAuditLog = makeAuditHelpers(mtlsAuthFiles, projectName)
+	}
 
 	opts := godog.Options{
 		Format:   "pretty",
@@ -1663,6 +1924,7 @@ func TestMTLSAuthFeatures(t *testing.T) {
 		ScenarioInitializer: func(ctx *godog.ScenarioContext) {
 			tc := steps.NewTestContext(mtlsAuthURL)
 			tc.WebhookURL = mtlsAuthWebhook
+			tc.AuditWatcher = mtlsAuthWatcher
 			if mtlsAuthAuditFetcher != nil {
 				tc.StoredValues["_audit_fetcher"] = mtlsAuthAuditFetcher
 			}
@@ -2145,6 +2407,36 @@ func hasTag(sc *godog.Scenario, name string) bool {
 	return false
 }
 
+// makeAuditWatcher creates an AuditWatcher for a bind-mounted audit log directory.
+// Returns the watcher, the audit dir path (for env var injection), and audit log cleanup functions.
+// On failure, returns nil watcher — callers should fall back to makeAuditHelpers.
+func makeAuditWatcher(t *testing.T) (watcher *steps.AuditWatcher, auditDir string, fetcher func() (string, error), clearer func() error) {
+	auditDir, err := os.MkdirTemp("", "bdd-audit-*")
+	if err != nil {
+		t.Logf("WARNING: failed to create audit temp dir: %v (falling back to docker exec)", err)
+		return nil, "", nil, nil
+	}
+	auditLogPath := filepath.Join(auditDir, "audit.log")
+
+	watcher, err = steps.NewAuditWatcher(auditLogPath)
+	if err != nil {
+		t.Logf("WARNING: failed to create audit watcher: %v (falling back to docker exec)", err)
+		os.RemoveAll(auditDir)
+		return nil, "", nil, nil
+	}
+
+	fetcher = func() (string, error) {
+		return watcher.LogString()
+	}
+
+	clearer = func() error {
+		watcher.Clear()
+		return os.Truncate(auditLogPath, 0)
+	}
+
+	return watcher, auditDir, fetcher, clearer
+}
+
 // makeAuditHelpers creates audit log fetcher and clearer functions for a Docker compose stack.
 // Returns nil functions if containerCmd is not set (external registry mode).
 func makeAuditHelpers(files []string, project string) (fetcher func() (string, error), clearer func() error) {
@@ -2164,7 +2456,7 @@ func makeAuditHelpers(files []string, project string) (fetcher func() (string, e
 	}
 
 	fetcher = func() (string, error) {
-		args := buildArgs("exec", "-T", "schema-registry", "cat", "/tmp/audit.log")
+		args := buildArgs("exec", "-T", "schema-registry", "cat", "/tmp/audit-logs/audit.log")
 		cmd := exec.Command(containerCmd, args...)
 		cmd.Dir = "."
 		out, err := cmd.CombinedOutput()
@@ -2178,7 +2470,7 @@ func makeAuditHelpers(files []string, project string) (fetcher func() (string, e
 	}
 
 	clearer = func() error {
-		args := buildArgs("exec", "-T", "schema-registry", "sh", "-c", "truncate -s 0 /tmp/audit.log 2>/dev/null || true")
+		args := buildArgs("exec", "-T", "schema-registry", "sh", "-c", "truncate -s 0 /tmp/audit-logs/audit.log 2>/dev/null || true")
 		cmd := exec.Command(containerCmd, args...)
 		cmd.Dir = "."
 		return cmd.Run()

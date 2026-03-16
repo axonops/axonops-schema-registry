@@ -19,6 +19,7 @@ services:
       - ./certs/mtls/server.pem:/etc/tls/server.pem:ro
       - ./certs/mtls/server-key.pem:/etc/tls/server-key.pem:ro
       - ./certs/mtls/ca.pem:/etc/tls/ca.pem:ro
+      - ${AUDIT_LOG_DIR:-./audit-logs}:/tmp/audit-logs
     environment:
       SCHEMA_REGISTRY_TLS_ENABLED: "true"
       SCHEMA_REGISTRY_TLS_CERT_FILE: "/etc/tls/server.pem"
@@ -26,7 +27,7 @@ services:
       SCHEMA_REGISTRY_TLS_MIN_VERSION: "TLS1.3"
       SCHEMA_REGISTRY_AUDIT_ENABLED: "true"
       SCHEMA_REGISTRY_AUDIT_FILE_ENABLED: "true"
-      SCHEMA_REGISTRY_AUDIT_FILE_PATH: "/tmp/audit.log"
+      SCHEMA_REGISTRY_AUDIT_FILE_PATH: "/tmp/audit-logs/audit.log"
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "--no-check-certificate", "https://localhost:8081/"]
       interval: 5s

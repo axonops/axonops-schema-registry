@@ -601,12 +601,17 @@ func RegisterMCPSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 
 	// --- Audit log assertion steps ---
 
-	// getAuditLog returns the audit log content from either the in-process buffer
-	// or the Docker container's audit log file (via _audit_fetcher stored value).
+	// getAuditLog returns the audit log content from either the fsnotify watcher,
+	// in-process buffer, or Docker container's audit log file (via _audit_fetcher).
 	// When no audit infrastructure is configured (e.g., running against Confluent's
 	// registry which has no audit logging), it returns ("", false, nil) so that
 	// callers can silently skip audit assertions rather than failing.
 	getAuditLog := func() (string, bool, error) {
+		if tc.AuditWatcher != nil {
+			tc.AuditWatcher.ReadNewData()
+			logStr, err := tc.AuditWatcher.LogString()
+			return logStr, true, err
+		}
 		if tc.AuditBuffer != nil {
 			return tc.AuditBuffer.String(), true, nil
 		}
@@ -827,28 +832,42 @@ func RegisterMCPSteps(ctx *godog.ScenarioContext, tc *TestContext) {
 			return false, bestMatch, bestMatchCount
 		}
 
-		// Retry up to 500ms to handle async audit log flush timing.
+		// Use AuditWatcher channel-based wait if available (fast path).
 		var logStr string
 		var events []map[string]interface{}
 		var bestMatch map[string]interface{}
-		for attempt := 0; attempt < 5; attempt++ {
-			var available bool
-			var err error
-			logStr, available, err = getAuditLog()
-			if err != nil {
-				return err
-			}
-			if !available {
-				return nil
-			}
 
-			events = parseAuditEvents(logStr)
-			found, bm, _ := matchEvents(events)
+		if tc.AuditWatcher != nil {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
+			found, bm, _ := tc.AuditWatcher.WaitForMatch(ctx, matchEvents)
 			if found {
 				return nil
 			}
 			bestMatch = bm
-			time.Sleep(100 * time.Millisecond)
+			events = tc.AuditWatcher.Events()
+			logStr, _ = tc.AuditWatcher.LogString()
+		} else {
+			// Fallback: polling via docker exec or in-process buffer (legacy path).
+			for attempt := 0; attempt < 5; attempt++ {
+				var available bool
+				var err error
+				logStr, available, err = getAuditLog()
+				if err != nil {
+					return err
+				}
+				if !available {
+					return nil
+				}
+
+				events = parseAuditEvents(logStr)
+				found, bm, _ := matchEvents(events)
+				if found {
+					return nil
+				}
+				bestMatch = bm
+				time.Sleep(100 * time.Millisecond)
+			}
 		}
 
 		// Build a helpful error message showing the best partial match.
