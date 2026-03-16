@@ -692,6 +692,14 @@ func (h *Handler) LookupSchema(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Set audit hints early so failure paths capture target info.
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.TargetType = "subject"
+		hints.TargetID = chi.URLParam(r, "subject")
+		hints.SchemaType = string(schemaType)
+		hints.Context = registryCtx
+	}
+
 	normalizeSchema := r.URL.Query().Get("normalize") == "true"
 	schema, err := h.registry.LookupSchema(r.Context(), registryCtx, subject, req.Schema, schemaType, req.References, deleted, normalizeSchema)
 	if err != nil {
@@ -709,6 +717,12 @@ func (h *Handler) LookupSchema(w http.ResponseWriter, r *http.Request) {
 		}
 		writeInternalError(w, err)
 		return
+	}
+
+	// Set schema ID and version on audit hints after successful lookup.
+	if hints := auth.GetAuditHints(r.Context()); hints != nil {
+		hints.SchemaID = int64(schema.ID)
+		hints.Version = schema.Version
 	}
 
 	resp := types.LookupSchemaResponse{
