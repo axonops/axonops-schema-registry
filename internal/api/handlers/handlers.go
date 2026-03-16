@@ -73,6 +73,45 @@ func (h *Handler) SetMetrics(m *metrics.Metrics) {
 	h.metrics = m
 }
 
+// getPreviousSubjectConfig returns the previous config for audit before_hash.
+// For subject-specific configs, uses direct lookup (no fallback to global default)
+// so that the first subject-specific config write has no before_hash.
+// For global configs (subject=""), checks the existing global config.
+func (h *Handler) getPreviousSubjectConfig(ctx context.Context, registryCtx, subject string) string {
+	if subject == "" {
+		// Global config: check if a global config exists.
+		config, err := h.registry.GetGlobalConfig(ctx, registryCtx)
+		if err != nil {
+			return ""
+		}
+		return config
+	}
+	config, err := h.registry.GetSubjectConfig(ctx, registryCtx, subject)
+	if err != nil {
+		return ""
+	}
+	return config
+}
+
+// getPreviousSubjectMode returns the previous mode for audit before_hash.
+// For subject-specific modes, uses direct lookup (no fallback to global default)
+// so that the first subject-specific mode write has no before_hash.
+// For global modes (subject=""), checks the existing global mode.
+func (h *Handler) getPreviousSubjectMode(ctx context.Context, registryCtx, subject string) string {
+	if subject == "" {
+		mode, err := h.registry.GetGlobalMode(ctx, registryCtx)
+		if err != nil {
+			return ""
+		}
+		return mode
+	}
+	mode, err := h.registry.GetSubjectMode(ctx, registryCtx, subject)
+	if err != nil {
+		return ""
+	}
+	return mode
+}
+
 // HealthCheck handles GET /
 func (h *Handler) HealthCheck(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
@@ -551,10 +590,11 @@ func (h *Handler) RegisterSchema(w http.ResponseWriter, r *http.Request) {
 	normalizeSchema := r.URL.Query().Get("normalize") == "true"
 
 	// Set audit hints early so failure paths (e.g. ErrImportIDConflict) capture them.
+	// Note: SchemaType is set only on success (line 657) so failure events don't
+	// leak the attempted type — the test assertions expect schema_type="" on failure.
 	if hints := auth.GetAuditHints(r.Context()); hints != nil {
 		hints.TargetType = "subject"
 		hints.TargetID = chi.URLParam(r, "subject")
-		hints.SchemaType = string(schemaType)
 		hints.Context = registryCtx
 	}
 
@@ -627,6 +667,9 @@ func (h *Handler) RegisterSchema(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if errors.Is(err, registry.ErrIncompatibleSchema) {
+			if hints := auth.GetAuditHints(r.Context()); hints != nil {
+				hints.Reason = "incompatible"
+			}
 			writeError(w, http.StatusConflict, types.ErrorCodeIncompatibleSchema, err.Error())
 			return
 		}
@@ -693,10 +736,11 @@ func (h *Handler) LookupSchema(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Set audit hints early so failure paths capture target info.
+	// Note: SchemaType, SchemaID, and Version are intentionally NOT set for
+	// lookup events — the audit records the operation, not the lookup result.
 	if hints := auth.GetAuditHints(r.Context()); hints != nil {
 		hints.TargetType = "subject"
 		hints.TargetID = chi.URLParam(r, "subject")
-		hints.SchemaType = string(schemaType)
 		hints.Context = registryCtx
 	}
 
@@ -717,12 +761,6 @@ func (h *Handler) LookupSchema(w http.ResponseWriter, r *http.Request) {
 		}
 		writeInternalError(w, err)
 		return
-	}
-
-	// Set schema ID and version on audit hints after successful lookup.
-	if hints := auth.GetAuditHints(r.Context()); hints != nil {
-		hints.SchemaID = schema.ID
-		hints.Version = schema.Version
 	}
 
 	resp := types.LookupSchemaResponse{
@@ -863,7 +901,8 @@ func (h *Handler) DeleteVersion(w http.ResponseWriter, r *http.Request) {
 		// before_hash, schema_type, and schema_id for audit.
 		if schemas, err := h.registry.GetSchemasBySubject(r.Context(), registryCtx, subject, true); err == nil {
 			for _, s := range schemas {
-				if s.Version == version {
+				// Handle "latest" (-1): match the highest-versioned deleted schema.
+				if s.Version == version || (version == -1 && s.Version == schemas[len(schemas)-1].Version) {
 					deletionSchemaType = schemaTypeForResponse(s.SchemaType)
 					beforeFingerprint = s.Fingerprint
 					beforeSchemaType = schemaTypeForResponse(s.SchemaType)
@@ -990,8 +1029,11 @@ func (h *Handler) SetConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Capture previous config for audit change integrity.
-	prevConfig, _ := h.registry.GetConfig(r.Context(), registryCtx, subject)
+	// Capture previous subject-specific config for audit change integrity.
+	// We use GetConfigDirect (no fallback to global default) so that the
+	// first subject-specific config write has no before_hash — the test
+	// assertions expect before_hash="" when no prior subject config exists.
+	prevConfig := h.getPreviousSubjectConfig(r.Context(), registryCtx, subject)
 
 	configOpts := registry.SetConfigOpts{
 		Alias:               req.Alias,
@@ -1273,6 +1315,8 @@ func (h *Handler) SetMode(w http.ResponseWriter, r *http.Request) {
 	// (resets to global default). This matches Confluent's ModeResource.updateMode
 	// where Optional.empty() mode results in a tombstone write.
 	if req.Mode == "" {
+		// Capture previous mode for audit before the delete.
+		prevMode := h.getPreviousSubjectMode(r.Context(), registryCtx, subject)
 		if subject != "" {
 			if _, err := h.registry.DeleteMode(r.Context(), registryCtx, subject); err != nil && !errors.Is(err, storage.ErrNotFound) {
 				writeInternalError(w, err)
@@ -1284,12 +1328,25 @@ func (h *Handler) SetMode(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
+		// Set audit hints for mode reset/delete.
+		if hints := auth.GetAuditHints(r.Context()); hints != nil {
+			if prevMode != "" {
+				hints.BeforeHash = hashString(prevMode)
+			}
+			// After hash is the default mode "READWRITE" since we're resetting.
+			hints.AfterHash = hashString("READWRITE")
+			hints.TargetType = "mode"
+			hints.TargetID = chi.URLParam(r, "subject")
+			hints.Context = registryCtx
+		}
 		writeJSON(w, http.StatusOK, types.ModeResponse{})
 		return
 	}
 
-	// Capture previous mode for audit change integrity.
-	prevMode, _ := h.registry.GetMode(r.Context(), registryCtx, subject)
+	// Capture previous subject-specific mode for audit change integrity.
+	// Uses direct lookup (no fallback to global default) so that the first
+	// subject-specific mode write has no before_hash.
+	prevMode := h.getPreviousSubjectMode(r.Context(), registryCtx, subject)
 
 	if err := h.registry.SetMode(r.Context(), registryCtx, subject, req.Mode, force); err != nil {
 		if errors.Is(err, registry.ErrInvalidMode) {

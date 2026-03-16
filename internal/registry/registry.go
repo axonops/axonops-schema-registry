@@ -713,8 +713,12 @@ func (r *Registry) GetConfig(ctx context.Context, registryCtx string, subject st
 }
 
 // GetSubjectConfig gets the compatibility configuration for a specific subject only,
-// without falling back to the global default. Returns storage.ErrNotFound if not set.
+// without falling back to the global default. Returns storage.ErrNotFound if not set
+// or if subject is empty.
 func (r *Registry) GetSubjectConfig(ctx context.Context, registryCtx string, subject string) (string, error) {
+	if subject == "" {
+		return "", storage.ErrNotFound
+	}
 	config, err := r.storage.GetConfig(ctx, registryCtx, subject)
 	if err != nil {
 		return "", err
@@ -726,6 +730,17 @@ func (r *Registry) GetSubjectConfig(ctx context.Context, registryCtx string, sub
 // without falling back to global. Returns storage.ErrNotFound if not set.
 func (r *Registry) GetSubjectConfigFull(ctx context.Context, registryCtx string, subject string) (*storage.ConfigRecord, error) {
 	return r.storage.GetConfig(ctx, registryCtx, subject)
+}
+
+// GetGlobalConfig gets the context-level global config without fallback to
+// the __GLOBAL context or to the compile-time default. Returns ("", ErrNotFound)
+// if no global config has been explicitly set for this context.
+func (r *Registry) GetGlobalConfig(ctx context.Context, registryCtx string) (string, error) {
+	config, err := r.storage.GetGlobalConfig(ctx, registryCtx)
+	if err != nil {
+		return "", err
+	}
+	return config.CompatibilityLevel, nil
 }
 
 // GetConfigFull gets the full configuration record using the 4-tier fallback chain.
@@ -849,6 +864,31 @@ func (r *Registry) DeleteConfig(ctx context.Context, registryCtx string, subject
 // GetMode gets the mode for a subject within a context using the 4-tier fallback chain.
 // Also implements the Confluent READONLY_OVERRIDE kill switch: if the default context's
 // resolved global mode is READONLY_OVERRIDE, it overrides all per-subject/per-context modes.
+// GetSubjectMode gets the mode for a specific subject without falling back to
+// the global default. Returns ("", ErrNotFound) if no subject-specific mode has
+// been set. Used by the audit system for before_hash on mode change events.
+func (r *Registry) GetSubjectMode(ctx context.Context, registryCtx string, subject string) (string, error) {
+	if subject == "" {
+		return "", storage.ErrNotFound
+	}
+	mode, err := r.storage.GetMode(ctx, registryCtx, subject)
+	if err != nil {
+		return "", err
+	}
+	return mode.Mode, nil
+}
+
+// GetGlobalMode gets the context-level global mode without fallback to the
+// __GLOBAL context or compile-time default. Returns ("", ErrNotFound) if no
+// global mode has been explicitly set for this context.
+func (r *Registry) GetGlobalMode(ctx context.Context, registryCtx string) (string, error) {
+	mode, err := r.storage.GetGlobalMode(ctx, registryCtx)
+	if err != nil {
+		return "", err
+	}
+	return mode.Mode, nil
+}
+
 func (r *Registry) GetMode(ctx context.Context, registryCtx string, subject string) (string, error) {
 	// Confluent behavior: READONLY_OVERRIDE on default context global is a kill switch
 	// that overrides everything. Check it first.
@@ -917,16 +957,6 @@ func (r *Registry) GetGlobalModeDirect(ctx context.Context, registryCtx string) 
 		return "READWRITE", nil
 	}
 	return "", fmt.Errorf("failed to get global mode: %w", err)
-}
-
-// GetSubjectMode gets the mode for a specific subject only,
-// without falling back to the global default. Returns storage.ErrNotFound if not set.
-func (r *Registry) GetSubjectMode(ctx context.Context, registryCtx string, subject string) (string, error) {
-	mode, err := r.storage.GetMode(ctx, registryCtx, subject)
-	if err != nil {
-		return "", err
-	}
-	return mode.Mode, nil
 }
 
 // SetMode sets the mode for a subject within a context.

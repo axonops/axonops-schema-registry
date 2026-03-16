@@ -593,6 +593,13 @@ type AuditHints struct {
 	// Valid values: "success", "failure", "partial_failure".
 	Outcome string
 
+	// Reason override — when set by a handler, the audit middleware uses this
+	// instead of deriving the reason from the HTTP status code. This allows
+	// handlers to provide semantically precise reasons (e.g. "incompatible"
+	// instead of the generic "already_exists" that reasonFromStatusCode maps
+	// from 409).
+	Reason string
+
 	// Target fields — populated by handlers when the URL path alone is not
 	// sufficient to determine the target (e.g., bulk import where subjects
 	// are in the request body, not the URL).
@@ -684,6 +691,9 @@ func (al *AuditLogger) Middleware(next http.Handler) http.Handler {
 			outcome = hints.Outcome
 		}
 		reason := reasonFromStatusCode(rw.statusCode)
+		if hints.Reason != "" {
+			reason = hints.Reason
+		}
 		targetType, targetID := extractTarget(r.URL.Path, eventType)
 
 		// Prefer handler-supplied target info over URL-extracted info.
