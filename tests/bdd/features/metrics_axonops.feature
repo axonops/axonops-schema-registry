@@ -48,7 +48,7 @@ Feature: AxonOps-Native Metrics
       | target_type          | subject                                      |
       | target_id            | metrics-reg-total-test                       |
       | schema_id            | *                                            |
-      | version              |                                              |
+      | version              | *                                            |
       | schema_type          | AVRO                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -84,7 +84,7 @@ Feature: AxonOps-Native Metrics
       | target_type          | subject                                      |
       | target_id            | metrics-reg-json-test                        |
       | schema_id            | *                                            |
-      | version              |                                              |
+      | version              | *                                            |
       | schema_type          | JSON                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -121,7 +121,7 @@ Feature: AxonOps-Native Metrics
       | target_type          | subject                                      |
       | target_id            | metrics-schemas-total-test                   |
       | schema_id            | *                                            |
-      | version              |                                              |
+      | version              | *                                            |
       | schema_type          | AVRO                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -158,7 +158,7 @@ Feature: AxonOps-Native Metrics
       | target_type          | subject                                      |
       | target_id            | metrics-subjects-total-test                  |
       | schema_id            | *                                            |
-      | version              |                                              |
+      | version              | *                                            |
       | schema_type          | AVRO                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -194,7 +194,7 @@ Feature: AxonOps-Native Metrics
       | target_type          | subject                                      |
       | target_id            | metrics-schema-versions-test                 |
       | schema_id            | *                                            |
-      | version              |                                              |
+      | version              | *                                            |
       | schema_type          | AVRO                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -234,7 +234,7 @@ Feature: AxonOps-Native Metrics
       | target_type          | subject                                      |
       | target_id            | metrics-storage-ops-test                     |
       | schema_id            | *                                            |
-      | version              |                                              |
+      | version              | *                                            |
       | schema_type          | AVRO                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -270,7 +270,7 @@ Feature: AxonOps-Native Metrics
       | target_type          | subject                                      |
       | target_id            | metrics-storage-latency-test                 |
       | schema_id            | *                                            |
-      | version              |                                              |
+      | version              | *                                            |
       | schema_type          | AVRO                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -350,7 +350,7 @@ Feature: AxonOps-Native Metrics
       | target_type          | subject                                      |
       | target_id            | metrics-coexist-test                         |
       | schema_id            | *                                            |
-      | version              |                                              |
+      | version              | *                                            |
       | schema_type          | AVRO                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |

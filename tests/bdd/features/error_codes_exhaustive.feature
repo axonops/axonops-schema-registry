@@ -88,7 +88,7 @@ Feature: Error Codes Exhaustive
       | target_type          | subject                                 |
       | target_id            | err-ver-nf2                             |
       | schema_id            |                                         |
-      | version              |                                         |
+      | version              | *                                       |
       | schema_type          |                                         |
       | before_hash          |                                         |
       | after_hash           |                                         |
@@ -187,7 +187,7 @@ Feature: Error Codes Exhaustive
       | target_type          | subject                                       |
       | target_id            | err-perm-ver                                  |
       | schema_id            |                                               |
-      | version              |                                               |
+      | version              | *                                             |
       | schema_type          |                                               |
       | before_hash          |                                               |
       | after_hash           |                                               |
@@ -231,7 +231,7 @@ Feature: Error Codes Exhaustive
       | target_type          | subject                               |
       | target_id            | err-incompat                          |
       | schema_id            |                                       |
-      | version              |                                       |
+      | version              | *                                     |
       | schema_type          |                                       |
       | before_hash          |                                       |
       | after_hash           |                                       |
@@ -271,7 +271,7 @@ Feature: Error Codes Exhaustive
       | target_type          | subject                                   |
       | target_id            | err-invalid-avro                          |
       | schema_id            |                                           |
-      | version              |                                           |
+      | version              | *                                         |
       | schema_type          |                                           |
       | before_hash          |                                           |
       | after_hash           |                                           |
@@ -371,11 +371,11 @@ Feature: Error Codes Exhaustive
       | auth_method          |                        |
       | role                 |                        |
       | target_type          | mode                   |
-      | target_id            |                        |
+      | target_id            | _global                |
       | schema_id            |                        |
       | version              |                        |
       | schema_type          |                        |
-      | before_hash          |                        |
+      | before_hash          | *                      |
       | after_hash           |                        |
       | context              | .                      |
       | transport_security   | tls                    |
@@ -414,7 +414,7 @@ Feature: Error Codes Exhaustive
       | target_type          | subject                               |
       | target_id            | err-readonly                          |
       | schema_id            |                                       |
-      | version              |                                       |
+      | version              | *                                     |
       | schema_type          |                                       |
       | before_hash          |                                       |
       | after_hash           |                                       |

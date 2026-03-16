@@ -83,7 +83,7 @@ Feature: Protobuf Schema Compatibility
       | target_type          | subject                          |
       | target_id            | proto-back-2                     |
       | schema_id            |                                  |
-      | version              |                                  |
+      | version              | *                                |
       | schema_type          | PROTOBUF                         |
       | before_hash          |                                  |
       | after_hash           |                                  |
@@ -176,7 +176,7 @@ Feature: Protobuf Schema Compatibility
       | target_type          | subject                          |
       | target_id            | proto-back-4                     |
       | schema_id            |                                  |
-      | version              |                                  |
+      | version              | *                                |
       | schema_type          | PROTOBUF                         |
       | before_hash          |                                  |
       | after_hash           |                                  |
@@ -222,7 +222,7 @@ Feature: Protobuf Schema Compatibility
       | target_type          | subject                          |
       | target_id            | proto-back-5                     |
       | schema_id            |                                  |
-      | version              |                                  |
+      | version              | *                                |
       | schema_type          | PROTOBUF                         |
       | before_hash          |                                  |
       | after_hash           |                                  |
@@ -589,7 +589,7 @@ Feature: Protobuf Schema Compatibility
       | target_type          | subject                          |
       | target_id            | proto-bt-2                       |
       | schema_id            |                                  |
-      | version              |                                  |
+      | version              | *                                |
       | schema_type          | PROTOBUF                         |
       | before_hash          |                                  |
       | after_hash           |                                  |
@@ -966,7 +966,7 @@ Feature: Protobuf Schema Compatibility
       | target_type          | subject                          |
       | target_id            | proto-fwd-3                      |
       | schema_id            |                                  |
-      | version              |                                  |
+      | version              | *                                |
       | schema_type          | PROTOBUF                         |
       | before_hash          |                                  |
       | after_hash           |                                  |
@@ -1012,7 +1012,7 @@ Feature: Protobuf Schema Compatibility
       | target_type          | subject                          |
       | target_id            | proto-fwd-4                      |
       | schema_id            |                                  |
-      | version              |                                  |
+      | version              | *                                |
       | schema_type          | PROTOBUF                         |
       | before_hash          |                                  |
       | after_hash           |                                  |
@@ -1409,7 +1409,7 @@ Feature: Protobuf Schema Compatibility
       | target_type          | subject                          |
       | target_id            | proto-ft-3                       |
       | schema_id            |                                  |
-      | version              |                                  |
+      | version              | *                                |
       | schema_type          | PROTOBUF                         |
       | before_hash          |                                  |
       | after_hash           |                                  |
@@ -1628,7 +1628,7 @@ Feature: Protobuf Schema Compatibility
       | target_type          | subject                          |
       | target_id            | proto-full-2                     |
       | schema_id            |                                  |
-      | version              |                                  |
+      | version              | *                                |
       | schema_type          | PROTOBUF                         |
       | before_hash          |                                  |
       | after_hash           |                                  |
@@ -1872,7 +1872,7 @@ Feature: Protobuf Schema Compatibility
       | target_type          | subject                          |
       | target_id            | proto-full-7                     |
       | schema_id            |                                  |
-      | version              |                                  |
+      | version              | *                                |
       | schema_type          | PROTOBUF                         |
       | before_hash          |                                  |
       | after_hash           |                                  |
@@ -1990,7 +1990,7 @@ Feature: Protobuf Schema Compatibility
       | target_type          | subject                          |
       | target_id            | proto-flt-2                      |
       | schema_id            |                                  |
-      | version              |                                  |
+      | version              | *                                |
       | schema_type          | PROTOBUF                         |
       | before_hash          |                                  |
       | after_hash           |                                  |
@@ -2108,7 +2108,7 @@ Feature: Protobuf Schema Compatibility
       | target_type          | subject                          |
       | target_id            | proto-flt-4                      |
       | schema_id            |                                  |
-      | version              |                                  |
+      | version              | *                                |
       | schema_type          | PROTOBUF                         |
       | before_hash          |                                  |
       | after_hash           |                                  |
@@ -2271,7 +2271,7 @@ Feature: Protobuf Schema Compatibility
       | target_type          | subject                          |
       | target_id            | proto-edge-1                     |
       | schema_id            |                                  |
-      | version              |                                  |
+      | version              | *                                |
       | schema_type          | PROTOBUF                         |
       | before_hash          |                                  |
       | after_hash           |                                  |
@@ -2377,7 +2377,7 @@ Feature: Protobuf Schema Compatibility
       | target_type          | subject                          |
       | target_id            | proto-edge-3                     |
       | schema_id            |                                  |
-      | version              |                                  |
+      | version              | *                                |
       | schema_type          | PROTOBUF                         |
       | before_hash          |                                  |
       | after_hash           |                                  |
@@ -2425,7 +2425,7 @@ Feature: Protobuf Schema Compatibility
       | target_type          | subject                          |
       | target_id            | proto-edge-4                     |
       | schema_id            |                                  |
-      | version              |                                  |
+      | version              | *                                |
       | schema_type          | PROTOBUF                         |
       | before_hash          |                                  |
       | after_hash           |                                  |
@@ -2473,7 +2473,7 @@ Feature: Protobuf Schema Compatibility
       | target_type          | subject                          |
       | target_id            | proto-edge-5                     |
       | schema_id            |                                  |
-      | version              |                                  |
+      | version              | *                                |
       | schema_type          | PROTOBUF                         |
       | before_hash          |                                  |
       | after_hash           |                                  |
@@ -2525,7 +2525,7 @@ Feature: Protobuf Schema Compatibility
       | target_type          | subject                          |
       | target_id            | proto-edge-6                     |
       | schema_id            |                                  |
-      | version              |                                  |
+      | version              | *                                |
       | schema_type          | PROTOBUF                         |
       | before_hash          |                                  |
       | after_hash           |                                  |
@@ -2679,7 +2679,7 @@ Feature: Protobuf Schema Compatibility
       | target_type          | subject                          |
       | target_id            | proto-err-1                      |
       | schema_id            |                                  |
-      | version              |                                  |
+      | version              | *                                |
       | schema_type          | PROTOBUF                         |
       | before_hash          |                                  |
       | after_hash           |                                  |
@@ -2816,7 +2816,7 @@ Feature: Protobuf Schema Compatibility
       | target_type          | subject                          |
       | target_id            | proto-err-5                      |
       | schema_id            |                                  |
-      | version              |                                  |
+      | version              | *                                |
       | schema_type          | PROTOBUF                         |
       | before_hash          |                                  |
       | after_hash           |                                  |
@@ -2866,7 +2866,7 @@ Feature: Protobuf Schema Compatibility
       | target_type          | subject                          |
       | target_id            | proto-gap-1                      |
       | schema_id            |                                  |
-      | version              |                                  |
+      | version              | *                                |
       | schema_type          | PROTOBUF                         |
       | before_hash          |                                  |
       | after_hash           |                                  |
@@ -3054,7 +3054,7 @@ Feature: Protobuf Schema Compatibility
       | target_type          | subject                          |
       | target_id            | proto-gap-5                      |
       | schema_id            |                                  |
-      | version              |                                  |
+      | version              | *                                |
       | schema_type          | PROTOBUF                         |
       | before_hash          |                                  |
       | after_hash           |                                  |

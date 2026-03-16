@@ -40,7 +40,7 @@ message Msg {
       | target_type        | subject                                        |
       | target_id          | proto-compat-varint-u32                         |
       | schema_id          | *                                              |
-      | version            |                                                |
+      | version            | *                                              |
       | schema_type        | PROTOBUF                                       |
       | before_hash        |                                                |
       | after_hash         | sha256:*                                       |
@@ -90,7 +90,7 @@ message Msg {
       | target_type        | subject                                        |
       | target_id          | proto-compat-varint-i64                         |
       | schema_id          | *                                              |
-      | version            |                                                |
+      | version            | *                                              |
       | schema_type        | PROTOBUF                                       |
       | before_hash        |                                                |
       | after_hash         | sha256:*                                       |
@@ -140,7 +140,7 @@ message Msg {
       | target_type        | subject                                         |
       | target_id          | proto-compat-varint-bool                         |
       | schema_id          | *                                               |
-      | version            |                                                 |
+      | version            | *                                               |
       | schema_type        | PROTOBUF                                        |
       | before_hash        |                                                 |
       | after_hash         | sha256:*                                        |
@@ -198,7 +198,7 @@ message Msg {
       | target_type        | subject                                        |
       | target_id          | proto-compat-enum-int                           |
       | schema_id          | *                                              |
-      | version            |                                                |
+      | version            | *                                              |
       | schema_type        | PROTOBUF                                       |
       | before_hash        |                                                |
       | after_hash         | sha256:*                                       |
@@ -252,7 +252,7 @@ message Msg {
       | target_type        | subject                                        |
       | target_id          | proto-compat-zigzag                             |
       | schema_id          | *                                              |
-      | version            |                                                |
+      | version            | *                                              |
       | schema_type        | PROTOBUF                                       |
       | before_hash        |                                                |
       | after_hash         | sha256:*                                       |
@@ -332,7 +332,7 @@ message Msg {
       | target_type        | subject                                        |
       | target_id          | proto-compat-32bit                              |
       | schema_id          | *                                              |
-      | version            |                                                |
+      | version            | *                                              |
       | schema_type        | PROTOBUF                                       |
       | before_hash        |                                                |
       | after_hash         | sha256:*                                       |
@@ -386,7 +386,7 @@ message Msg {
       | target_type        | subject                                        |
       | target_id          | proto-compat-64bit                              |
       | schema_id          | *                                              |
-      | version            |                                                |
+      | version            | *                                              |
       | schema_type        | PROTOBUF                                       |
       | before_hash        |                                                |
       | after_hash         | sha256:*                                       |
@@ -440,7 +440,7 @@ message Msg {
       | target_type        | subject                                        |
       | target_id          | proto-compat-len-delim                          |
       | schema_id          | *                                              |
-      | version            |                                                |
+      | version            | *                                              |
       | schema_type        | PROTOBUF                                       |
       | before_hash        |                                                |
       | after_hash         | sha256:*                                       |
@@ -499,7 +499,7 @@ message Msg {
       | target_type        | subject                                        |
       | target_id          | proto-compat-oneof-add                          |
       | schema_id          | *                                              |
-      | version            |                                                |
+      | version            | *                                              |
       | schema_type        | PROTOBUF                                       |
       | before_hash        |                                                |
       | after_hash         | sha256:*                                       |
@@ -631,7 +631,7 @@ service Search {
       | target_type        | subject                                        |
       | target_id          | proto-compat-service                            |
       | schema_id          | *                                              |
-      | version            |                                                |
+      | version            | *                                              |
       | schema_type        | PROTOBUF                                       |
       | before_hash        |                                                |
       | after_hash         | sha256:*                                       |
@@ -698,7 +698,7 @@ message Event {
       | target_type        | subject                                        |
       | target_id          | proto-compat-3v-chain                           |
       | schema_id          | *                                              |
-      | version            |                                                |
+      | version            | *                                              |
       | schema_type        | PROTOBUF                                       |
       | before_hash        |                                                |
       | after_hash         | sha256:*                                       |

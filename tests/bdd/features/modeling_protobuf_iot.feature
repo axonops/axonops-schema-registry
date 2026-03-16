@@ -96,7 +96,7 @@ message SensorReading {
       | target_type          | subject                                      |
       | target_id            | iot-sensor                                   |
       | schema_id            | *                                            |
-      | version              |                                              |
+      | version              | *                                            |
       | schema_type          | PROTOBUF                                     |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -152,7 +152,7 @@ message Address {
       | target_type          | subject                                      |
       | target_id            | iot-device                                   |
       | schema_id            | *                                            |
-      | version              |                                              |
+      | version              | *                                            |
       | schema_type          | PROTOBUF                                     |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -213,7 +213,7 @@ message Alert {
       | target_type          | subject                                      |
       | target_id            | iot-alert                                    |
       | schema_id            | *                                            |
-      | version              |                                              |
+      | version              | *                                            |
       | schema_type          | PROTOBUF                                     |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -301,7 +301,7 @@ message Config {
       | target_type          | subject                                      |
       | target_id            | iot-reserved                                 |
       | schema_id            | *                                            |
-      | version              |                                              |
+      | version              | *                                            |
       | schema_type          | PROTOBUF                                     |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -380,7 +380,7 @@ message Gateway {
       | target_type          | subject                                      |
       | target_id            | iot-nested-evo                               |
       | schema_id            | *                                            |
-      | version              |                                              |
+      | version              | *                                            |
       | schema_type          | PROTOBUF                                     |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -462,7 +462,7 @@ message Device {
       | target_type          | subject                                      |
       | target_id            | iot-enum-grow                                |
       | schema_id            | *                                            |
-      | version              |                                              |
+      | version              | *                                            |
       | schema_type          | PROTOBUF                                     |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -514,7 +514,7 @@ message Measurement {
       | target_type          | subject                                      |
       | target_id            | iot-wkt                                      |
       | schema_id            | *                                            |
-      | version              |                                              |
+      | version              | *                                            |
       | schema_type          | PROTOBUF                                     |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |

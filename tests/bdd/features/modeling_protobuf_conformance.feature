@@ -52,7 +52,7 @@ message AllScalars {
       | target_type        | subject                                      |
       | target_id          | proto-conform-scalars                        |
       | schema_id          | *                                            |
-      | version            |                                              |
+      | version            | *                                            |
       | schema_type        | PROTOBUF                                     |
       | before_hash        |                                              |
       | after_hash         | sha256:*                                     |
@@ -97,7 +97,7 @@ message TreeNode {
       | target_type        | subject                                      |
       | target_id          | proto-conform-recursive                      |
       | schema_id          | *                                            |
-      | version            |                                              |
+      | version            | *                                            |
       | schema_type        | PROTOBUF                                     |
       | before_hash        |                                              |
       | after_hash         | sha256:*                                     |
@@ -142,7 +142,7 @@ message RecursiveMap {
       | target_type        | subject                                      |
       | target_id          | proto-conform-recmap                         |
       | schema_id          | *                                            |
-      | version            |                                              |
+      | version            | *                                            |
       | schema_type        | PROTOBUF                                     |
       | before_hash        |                                              |
       | after_hash         | sha256:*                                     |
@@ -191,7 +191,7 @@ message Container {
       | target_type        | subject                                      |
       | target_id          | proto-conform-neg-enum                       |
       | schema_id          | *                                            |
-      | version            |                                              |
+      | version            | *                                            |
       | schema_type        | PROTOBUF                                     |
       | before_hash        |                                              |
       | after_hash         | sha256:*                                     |
@@ -242,7 +242,7 @@ message Container {
       | target_type        | subject                                      |
       | target_id          | proto-conform-alias-enum                     |
       | schema_id          | *                                            |
-      | version            |                                              |
+      | version            | *                                            |
       | schema_type        | PROTOBUF                                     |
       | before_hash        |                                              |
       | after_hash         | sha256:*                                     |
@@ -297,7 +297,7 @@ message AllMapKeys {
       | target_type        | subject                                      |
       | target_id          | proto-conform-map-keys                       |
       | schema_id          | *                                            |
-      | version            |                                              |
+      | version            | *                                            |
       | schema_type        | PROTOBUF                                     |
       | before_hash        |                                              |
       | after_hash         | sha256:*                                     |
@@ -345,7 +345,7 @@ message Registry {
       | target_type        | subject                                      |
       | target_id          | proto-conform-map-msg                        |
       | schema_id          | *                                            |
-      | version            |                                              |
+      | version            | *                                            |
       | schema_type        | PROTOBUF                                     |
       | before_hash        |                                              |
       | after_hash         | sha256:*                                     |
@@ -397,7 +397,7 @@ message MultiOneof {
       | target_type        | subject                                      |
       | target_id          | proto-conform-multi-oneof                    |
       | schema_id          | *                                            |
-      | version            |                                              |
+      | version            | *                                            |
       | schema_type        | PROTOBUF                                     |
       | before_hash        |                                              |
       | after_hash         | sha256:*                                     |
@@ -444,7 +444,7 @@ message WithDefaults {
       | target_type        | subject                                            |
       | target_id          | proto-conform-proto2-defaults                      |
       | schema_id          | *                                                  |
-      | version            |                                                    |
+      | version            | *                                                  |
       | schema_type        | PROTOBUF                                           |
       | before_hash        |                                                    |
       | after_hash         | sha256:*                                           |
@@ -491,7 +491,7 @@ message Config {
       | target_type        | subject                                      |
       | target_id          | proto-conform-reserved                       |
       | schema_id          | *                                            |
-      | version            |                                              |
+      | version            | *                                            |
       | schema_type        | PROTOBUF                                     |
       | before_hash        |                                              |
       | after_hash         | sha256:*                                     |
@@ -533,7 +533,7 @@ message Empty {}
       | target_type        | subject                                      |
       | target_id          | proto-conform-empty                          |
       | schema_id          | *                                            |
-      | version            |                                              |
+      | version            | *                                            |
       | schema_type        | PROTOBUF                                     |
       | before_hash        |                                              |
       | after_hash         | sha256:*                                     |
@@ -579,7 +579,7 @@ message Metrics {
       | target_type        | subject                                      |
       | target_id          | proto-conform-packed                         |
       | schema_id          | *                                            |
-      | version            |                                              |
+      | version            | *                                            |
       | schema_type        | PROTOBUF                                     |
       | before_hash        |                                              |
       | after_hash         | sha256:*                                     |
@@ -630,7 +630,7 @@ message EventRecord {
       | target_type        | subject                                      |
       | target_id          | proto-conform-wkt                            |
       | schema_id          | *                                            |
-      | version            |                                              |
+      | version            | *                                            |
       | schema_type        | PROTOBUF                                     |
       | before_hash        |                                              |
       | after_hash         | sha256:*                                     |
@@ -682,7 +682,7 @@ service SearchService {
       | target_type        | subject                                      |
       | target_id          | proto-conform-service                        |
       | schema_id          | *                                            |
-      | version            |                                              |
+      | version            | *                                            |
       | schema_type        | PROTOBUF                                     |
       | before_hash        |                                              |
       | after_hash         | sha256:*                                     |
@@ -748,7 +748,7 @@ message Event {
       | target_type        | subject                                      |
       | target_id          | proto-conform-dedup-b                        |
       | schema_id          | *                                            |
-      | version            |                                              |
+      | version            | *                                            |
       | schema_type        | PROTOBUF                                     |
       | before_hash        |                                              |
       | after_hash         | sha256:*                                     |
@@ -797,7 +797,7 @@ message Config {
       | target_type        | subject                                      |
       | target_id          | proto-conform-enum-map                       |
       | schema_id          | *                                            |
-      | version            |                                              |
+      | version            | *                                            |
       | schema_type        | PROTOBUF                                     |
       | before_hash        |                                              |
       | after_hash         | sha256:*                                     |
@@ -873,7 +873,7 @@ message User {
       | target_type        | subject                                      |
       | target_id          | proto-conform-optional                       |
       | schema_id          | *                                            |
-      | version            |                                              |
+      | version            | *                                            |
       | schema_type        | PROTOBUF                                     |
       | before_hash        |                                              |
       | after_hash         | sha256:*                                     |
@@ -923,7 +923,7 @@ extend Base {
       | target_type        | subject                                      |
       | target_id          | proto-conform-extensions                     |
       | schema_id          | *                                            |
-      | version            |                                              |
+      | version            | *                                            |
       | schema_type        | PROTOBUF                                     |
       | before_hash        |                                              |
       | after_hash         | sha256:*                                     |
@@ -970,7 +970,7 @@ message SearchResponse {
       | target_type        | subject                                      |
       | target_id          | proto-conform-groups                         |
       | schema_id          | *                                            |
-      | version            |                                              |
+      | version            | *                                            |
       | schema_type        | PROTOBUF                                     |
       | before_hash        |                                              |
       | after_hash         | sha256:*                                     |

@@ -352,7 +352,7 @@ Feature: Configuration and Mode Management Advanced
       | schema_id            |                               |
       | version              |                               |
       | schema_type          |                               |
-      | before_hash          |                               |
+      | before_hash          | *                             |
       | after_hash           |                               |
       | context              | .                              |
       | transport_security   | tls                           |

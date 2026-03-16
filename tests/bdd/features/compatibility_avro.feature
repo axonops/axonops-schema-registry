@@ -31,7 +31,7 @@ Feature: Avro Schema Compatibility
       | target_type          | subject                          |
       | target_id            | avro-back-1                      |
       | schema_id            | *                                |
-      | version              |                                  |
+      | version              | *                                |
       | schema_type          | AVRO                             |
       | before_hash          |                                  |
       | after_hash           | sha256:*                         |
@@ -83,7 +83,7 @@ Feature: Avro Schema Compatibility
       | target_type          | subject                          |
       | target_id            | avro-back-3                      |
       | schema_id            | *                                |
-      | version              |                                  |
+      | version              | *                                |
       | schema_type          | AVRO                             |
       | before_hash          |                                  |
       | after_hash           | sha256:*                         |
@@ -135,7 +135,7 @@ Feature: Avro Schema Compatibility
       | target_type          | subject                          |
       | target_id            | avro-back-5                      |
       | schema_id            | *                                |
-      | version              |                                  |
+      | version              | *                                |
       | schema_type          | AVRO                             |
       | before_hash          |                                  |
       | after_hash           | sha256:*                         |
@@ -187,7 +187,7 @@ Feature: Avro Schema Compatibility
       | target_type          | subject                          |
       | target_id            | avro-back-7                      |
       | schema_id            | *                                |
-      | version              |                                  |
+      | version              | *                                |
       | schema_type          | AVRO                             |
       | before_hash          |                                  |
       | after_hash           | sha256:*                         |
@@ -248,7 +248,7 @@ Feature: Avro Schema Compatibility
       | target_type          | subject                          |
       | target_id            | avro-bt-1                        |
       | schema_id            | *                                |
-      | version              |                                  |
+      | version              | *                                |
       | schema_type          | AVRO                             |
       | before_hash          |                                  |
       | after_hash           | sha256:*                         |
@@ -308,7 +308,7 @@ Feature: Avro Schema Compatibility
       | target_type          | subject                          |
       | target_id            | avro-bt-3                        |
       | schema_id            | *                                |
-      | version              |                                  |
+      | version              | *                                |
       | schema_type          | AVRO                             |
       | before_hash          |                                  |
       | after_hash           | sha256:*                         |
@@ -352,7 +352,7 @@ Feature: Avro Schema Compatibility
       | target_type          | subject                          |
       | target_id            | avro-bt-4                        |
       | schema_id            | *                                |
-      | version              |                                  |
+      | version              | *                                |
       | schema_type          | AVRO                             |
       | before_hash          |                                  |
       | after_hash           | sha256:*                         |
@@ -412,7 +412,7 @@ Feature: Avro Schema Compatibility
       | target_type          | subject                          |
       | target_id            | avro-bt-6                        |
       | schema_id            | *                                |
-      | version              |                                  |
+      | version              | *                                |
       | schema_type          | AVRO                             |
       | before_hash          |                                  |
       | after_hash           | sha256:*                         |
@@ -458,7 +458,7 @@ Feature: Avro Schema Compatibility
       | target_type          | subject                          |
       | target_id            | avro-fwd-1                       |
       | schema_id            | *                                |
-      | version              |                                  |
+      | version              | *                                |
       | schema_type          | AVRO                             |
       | before_hash          |                                  |
       | after_hash           | sha256:*                         |
@@ -510,7 +510,7 @@ Feature: Avro Schema Compatibility
       | target_type          | subject                          |
       | target_id            | avro-fwd-3                       |
       | schema_id            | *                                |
-      | version              |                                  |
+      | version              | *                                |
       | schema_type          | AVRO                             |
       | before_hash          |                                  |
       | after_hash           | sha256:*                         |
@@ -562,7 +562,7 @@ Feature: Avro Schema Compatibility
       | target_type          | subject                          |
       | target_id            | avro-fwd-5                       |
       | schema_id            | *                                |
-      | version              |                                  |
+      | version              | *                                |
       | schema_type          | AVRO                             |
       | before_hash          |                                  |
       | after_hash           | sha256:*                         |
@@ -626,7 +626,7 @@ Feature: Avro Schema Compatibility
       | target_type          | subject                          |
       | target_id            | avro-fwd-8                       |
       | schema_id            | *                                |
-      | version              |                                  |
+      | version              | *                                |
       | schema_type          | AVRO                             |
       | before_hash          |                                  |
       | after_hash           | sha256:*                         |
@@ -675,7 +675,7 @@ Feature: Avro Schema Compatibility
       | target_type          | subject                          |
       | target_id            | avro-ft-1                        |
       | schema_id            | *                                |
-      | version              |                                  |
+      | version              | *                                |
       | schema_type          | AVRO                             |
       | before_hash          |                                  |
       | after_hash           | sha256:*                         |
@@ -752,7 +752,7 @@ Feature: Avro Schema Compatibility
       | target_type          | subject                          |
       | target_id            | avro-ft-4                        |
       | schema_id            | *                                |
-      | version              |                                  |
+      | version              | *                                |
       | schema_type          | AVRO                             |
       | before_hash          |                                  |
       | after_hash           | sha256:*                         |
@@ -813,7 +813,7 @@ Feature: Avro Schema Compatibility
       | target_type          | subject                          |
       | target_id            | avro-full-1                      |
       | schema_id            | *                                |
-      | version              |                                  |
+      | version              | *                                |
       | schema_type          | AVRO                             |
       | before_hash          |                                  |
       | after_hash           | sha256:*                         |
@@ -877,7 +877,7 @@ Feature: Avro Schema Compatibility
       | target_type          | subject                          |
       | target_id            | avro-full-4                      |
       | schema_id            | *                                |
-      | version              |                                  |
+      | version              | *                                |
       | schema_type          | AVRO                             |
       | before_hash          |                                  |
       | after_hash           | sha256:*                         |
@@ -929,7 +929,7 @@ Feature: Avro Schema Compatibility
       | target_type          | subject                          |
       | target_id            | avro-full-6                      |
       | schema_id            | *                                |
-      | version              |                                  |
+      | version              | *                                |
       | schema_type          | AVRO                             |
       | before_hash          |                                  |
       | after_hash           | sha256:*                         |
@@ -969,7 +969,7 @@ Feature: Avro Schema Compatibility
       | target_type          | subject                          |
       | target_id            | avro-full-7                      |
       | schema_id            | *                                |
-      | version              |                                  |
+      | version              | *                                |
       | schema_type          | AVRO                             |
       | before_hash          |                                  |
       | after_hash           | sha256:*                         |
@@ -1018,7 +1018,7 @@ Feature: Avro Schema Compatibility
       | target_type          | subject                          |
       | target_id            | avro-flt-1                       |
       | schema_id            | *                                |
-      | version              |                                  |
+      | version              | *                                |
       | schema_type          | AVRO                             |
       | before_hash          |                                  |
       | after_hash           | sha256:*                         |
@@ -1078,7 +1078,7 @@ Feature: Avro Schema Compatibility
       | target_type          | subject                          |
       | target_id            | avro-flt-3                       |
       | schema_id            | *                                |
-      | version              |                                  |
+      | version              | *                                |
       | schema_type          | AVRO                             |
       | before_hash          |                                  |
       | after_hash           | sha256:*                         |
@@ -1139,7 +1139,7 @@ Feature: Avro Schema Compatibility
       | target_type          | subject                          |
       | target_id            | avro-none-1                      |
       | schema_id            | *                                |
-      | version              |                                  |
+      | version              | *                                |
       | schema_type          | AVRO                             |
       | before_hash          |                                  |
       | after_hash           | sha256:*                         |
@@ -1179,7 +1179,7 @@ Feature: Avro Schema Compatibility
       | target_type          | subject                          |
       | target_id            | avro-none-2                      |
       | schema_id            | *                                |
-      | version              |                                  |
+      | version              | *                                |
       | schema_type          | AVRO                             |
       | before_hash          |                                  |
       | after_hash           | sha256:*                         |
@@ -1224,7 +1224,7 @@ Feature: Avro Schema Compatibility
       | target_type          | subject                          |
       | target_id            | avro-edge-1                      |
       | schema_id            | *                                |
-      | version              |                                  |
+      | version              | *                                |
       | schema_type          | AVRO                             |
       | before_hash          |                                  |
       | after_hash           | sha256:*                         |
@@ -1380,7 +1380,7 @@ Feature: Avro Schema Compatibility
       | target_type          | subject                          |
       | target_id            | avro-err-3                       |
       | schema_id            | *                                |
-      | version              |                                  |
+      | version              | *                                |
       | schema_type          | AVRO                             |
       | before_hash          |                                  |
       | after_hash           | sha256:*                         |
@@ -1458,11 +1458,11 @@ Feature: Avro Schema Compatibility
       | auth_method          |                                  |
       | role                 |                                  |
       | target_type          | mode                             |
-      | target_id            |                                  |
+      | target_id            | _global                          |
       | schema_id            |                                  |
       | version              |                                  |
       | schema_type          |                                  |
-      | before_hash          |                                  |
+      | before_hash          | *                                |
       | after_hash           |                                  |
       | context              | .                                |
       | transport_security   | tls                              |
@@ -1550,7 +1550,7 @@ Feature: Avro Schema Compatibility
       | target_type          | subject                          |
       | target_id            | avro-gap-4                       |
       | schema_id            | *                                |
-      | version              |                                  |
+      | version              | *                                |
       | schema_type          | AVRO                             |
       | before_hash          |                                  |
       | after_hash           | sha256:*                         |
@@ -1602,7 +1602,7 @@ Feature: Avro Schema Compatibility
       | target_type          | subject                          |
       | target_id            | avro-gap-6                       |
       | schema_id            | *                                |
-      | version              |                                  |
+      | version              | *                                |
       | schema_type          | AVRO                             |
       | before_hash          |                                  |
       | after_hash           | sha256:*                         |
@@ -1678,7 +1678,7 @@ Feature: Avro Schema Compatibility
       | target_type          | subject                          |
       | target_id            | avro-gap-10                      |
       | schema_id            | *                                |
-      | version              |                                  |
+      | version              | *                                |
       | schema_type          | AVRO                             |
       | before_hash          |                                  |
       | after_hash           | sha256:*                         |
@@ -1718,7 +1718,7 @@ Feature: Avro Schema Compatibility
       | target_type          | subject                          |
       | target_id            | avro-gap-11                      |
       | schema_id            | *                                |
-      | version              |                                  |
+      | version              | *                                |
       | schema_type          | AVRO                             |
       | before_hash          |                                  |
       | after_hash           | sha256:*                         |

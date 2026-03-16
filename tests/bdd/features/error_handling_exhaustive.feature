@@ -24,7 +24,7 @@ Feature: Error Handling & Edge Cases — Exhaustive (Confluent v8.1.1 Compatibil
       | target_type          | subject                                  |
       | target_id            | err-ex-bad-avro                          |
       | schema_id            |                                          |
-      | version              |                                          |
+      | version              | *                                        |
       | schema_type          |                                          |
       | before_hash          |                                          |
       | after_hash           |                                          |
@@ -60,7 +60,7 @@ Feature: Error Handling & Edge Cases — Exhaustive (Confluent v8.1.1 Compatibil
       | target_type          | subject                                  |
       | target_id            | err-ex-bad-json                          |
       | schema_id            |                                          |
-      | version              |                                          |
+      | version              | *                                        |
       | schema_type          |                                          |
       | before_hash          |                                          |
       | after_hash           |                                          |
@@ -95,7 +95,7 @@ Feature: Error Handling & Edge Cases — Exhaustive (Confluent v8.1.1 Compatibil
       | target_type          | subject                              |
       | target_id            | err-ex-empty                         |
       | schema_id            |                                      |
-      | version              |                                      |
+      | version              | *                                    |
       | schema_type          |                                      |
       | before_hash          |                                      |
       | after_hash           |                                      |
@@ -139,7 +139,7 @@ Feature: Error Handling & Edge Cases — Exhaustive (Confluent v8.1.1 Compatibil
       | target_type          | subject                                  |
       | target_id            | err-ex-ref-nosub                         |
       | schema_id            |                                          |
-      | version              |                                          |
+      | version              | *                                        |
       | schema_type          |                                          |
       | before_hash          |                                          |
       | after_hash           |                                          |
@@ -183,7 +183,7 @@ Feature: Error Handling & Edge Cases — Exhaustive (Confluent v8.1.1 Compatibil
       | target_type          | subject                                   |
       | target_id            | err-ex-ref-badver                         |
       | schema_id            |                                           |
-      | version              |                                           |
+      | version              | *                                         |
       | schema_type          |                                           |
       | before_hash          |                                           |
       | after_hash           |                                           |
@@ -230,7 +230,7 @@ Feature: Error Handling & Edge Cases — Exhaustive (Confluent v8.1.1 Compatibil
       | target_type          | subject                               |
       | target_id            | err-ex-id-s2                          |
       | schema_id            | *                                     |
-      | version              |                                       |
+      | version              | *                                     |
       | schema_type          | AVRO                                  |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -273,7 +273,7 @@ Feature: Error Handling & Edge Cases — Exhaustive (Confluent v8.1.1 Compatibil
       | target_type          | subject                                  |
       | target_id            | err-ex-diffid-s2                         |
       | schema_id            | *                                        |
-      | version              |                                          |
+      | version              | *                                        |
       | schema_type          | AVRO                                     |
       | before_hash          |                                          |
       | after_hash           | sha256:*                                 |
@@ -373,7 +373,7 @@ Feature: Error Handling & Edge Cases — Exhaustive (Confluent v8.1.1 Compatibil
       | target_type          | subject                                   |
       | target_id            | err-40406-sub                             |
       | schema_id            |                                           |
-      | version              |                                           |
+      | version              | *                                         |
       | schema_type          |                                           |
       | before_hash          |                                           |
       | after_hash           |                                           |
@@ -417,7 +417,7 @@ Feature: Error Handling & Edge Cases — Exhaustive (Confluent v8.1.1 Compatibil
       | target_type          | subject                                   |
       | target_id            | err-40406-del                             |
       | schema_id            |                                           |
-      | version              |                                           |
+      | version              | *                                         |
       | schema_type          |                                           |
       | before_hash          |                                           |
       | after_hash           |                                           |
@@ -462,7 +462,7 @@ Feature: Error Handling & Edge Cases — Exhaustive (Confluent v8.1.1 Compatibil
       | target_type          | subject                                   |
       | target_id            | err-40406-raw                             |
       | schema_id            |                                           |
-      | version              |                                           |
+      | version              | *                                         |
       | schema_type          |                                           |
       | before_hash          |                                           |
       | after_hash           |                                           |

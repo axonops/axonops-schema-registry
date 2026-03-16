@@ -25,7 +25,7 @@ Feature: Content-Type Header Handling
       | target_type          | subject                                  |
       | target_id            | ct-reg                                   |
       | schema_id            | *                                        |
-      | version              |                                          |
+      | version              | *                                        |
       | schema_type          | AVRO                                     |
       | before_hash          |                                          |
       | after_hash           | sha256:*                                 |

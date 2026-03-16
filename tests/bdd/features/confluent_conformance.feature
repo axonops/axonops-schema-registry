@@ -85,7 +85,7 @@ Feature: Confluent Conformance
       | target_type          | subject                                      |
       | target_id            | conf-ver-cont                                |
       | schema_id            | *                                            |
-      | version              |                                              |
+      | version              | *                                            |
       | schema_type          | AVRO                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -131,7 +131,7 @@ Feature: Confluent Conformance
       | target_type          | subject                                      |
       | target_id            | conf-ver-reset                               |
       | schema_id            | *                                            |
-      | version              |                                              |
+      | version              | *                                            |
       | schema_type          | AVRO                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -189,7 +189,7 @@ Feature: Confluent Conformance
       | target_type          | subject                                      |
       | target_id            | conf-type-mix                                |
       | schema_id            | *                                            |
-      | version              |                                              |
+      | version              | *                                            |
       | schema_type          |                                              |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -246,7 +246,7 @@ Feature: Confluent Conformance
       | target_type          | subject                                      |
       | target_id            | conf-compat-del                              |
       | schema_id            | *                                            |
-      | version              |                                              |
+      | version              | *                                            |
       | schema_type          | AVRO                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -340,7 +340,7 @@ Feature: Confluent Conformance
       | target_type          | subject                                      |
       | target_id            | conf-canonical                               |
       | schema_id            | *                                            |
-      | version              |                                              |
+      | version              | *                                            |
       | schema_type          | AVRO                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |

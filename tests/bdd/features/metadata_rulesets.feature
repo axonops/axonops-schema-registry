@@ -48,7 +48,7 @@ Feature: Metadata and RuleSets (Data Contracts)
       | target_type          | subject                               |
       | target_id            | meta-test                             |
       | schema_id            | *                                     |
-      | version              |                                       |
+      | version              | *                                     |
       | schema_type          | AVRO                                  |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -105,7 +105,7 @@ Feature: Metadata and RuleSets (Data Contracts)
       | target_type          | subject                               |
       | target_id            | ruleset-test                          |
       | schema_id            | *                                     |
-      | version              |                                       |
+      | version              | *                                     |
       | schema_type          | AVRO                                  |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -165,7 +165,7 @@ Feature: Metadata and RuleSets (Data Contracts)
       | target_type          | subject                               |
       | target_id            | both-meta-rules                       |
       | schema_id            | *                                     |
-      | version              |                                       |
+      | version              | *                                     |
       | schema_type          | AVRO                                  |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -220,7 +220,7 @@ Feature: Metadata and RuleSets (Data Contracts)
       | target_type          | subject                               |
       | target_id            | meta-identity                         |
       | schema_id            | *                                     |
-      | version              |                                       |
+      | version              | *                                     |
       | schema_type          | AVRO                                  |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -268,7 +268,7 @@ Feature: Metadata and RuleSets (Data Contracts)
       | target_type          | subject                               |
       | target_id            | meta-byid                             |
       | schema_id            | *                                     |
-      | version              |                                       |
+      | version              | *                                     |
       | schema_type          | AVRO                                  |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -678,7 +678,7 @@ Feature: Metadata and RuleSets (Data Contracts)
       | target_type          | subject                               |
       | target_id            | no-meta                               |
       | schema_id            | *                                     |
-      | version              |                                       |
+      | version              | *                                     |
       | schema_type          | AVRO                                  |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -736,7 +736,7 @@ Feature: Metadata and RuleSets (Data Contracts)
       | target_type          | subject                               |
       | target_id            | migration-rules                       |
       | schema_id            | *                                     |
-      | version              |                                       |
+      | version              | *                                     |
       | schema_type          | AVRO                                  |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -804,7 +804,7 @@ Feature: Metadata and RuleSets (Data Contracts)
       | target_type          | subject                               |
       | target_id            | meta-empty-test                       |
       | schema_id            | *                                     |
-      | version              |                                       |
+      | version              | *                                     |
       | schema_type          | AVRO                                  |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |
@@ -860,7 +860,7 @@ Feature: Metadata and RuleSets (Data Contracts)
       | target_type          | subject                               |
       | target_id            | meta-latest-test                      |
       | schema_id            | *                                     |
-      | version              |                                       |
+      | version              | *                                     |
       | schema_type          | AVRO                                  |
       | before_hash          |                                       |
       | after_hash           | sha256:*                              |

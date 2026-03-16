@@ -46,7 +46,7 @@ Feature: Wire-Compatible Metrics
       | target_type          | subject                                      |
       | target_id            | metrics-existence-test                       |
       | schema_id            | *                                            |
-      | version              |                                              |
+      | version              | *                                            |
       | schema_type          | AVRO                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -106,7 +106,7 @@ Feature: Wire-Compatible Metrics
       | target_type          | subject                                      |
       | target_id            | metrics-reg-test                             |
       | schema_id            | *                                            |
-      | version              |                                              |
+      | version              | *                                            |
       | schema_type          | AVRO                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -145,7 +145,7 @@ Feature: Wire-Compatible Metrics
       | target_type          | subject                                      |
       | target_id            | metrics-avro-test                            |
       | schema_id            | *                                            |
-      | version              |                                              |
+      | version              | *                                            |
       | schema_type          | AVRO                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -182,7 +182,7 @@ Feature: Wire-Compatible Metrics
       | target_type          | subject                                      |
       | target_id            | metrics-json-test                            |
       | schema_id            | *                                            |
-      | version              |                                              |
+      | version              | *                                            |
       | schema_type          | JSON                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -307,7 +307,7 @@ Feature: Wire-Compatible Metrics
       | target_type          | subject                                      |
       | target_id            | metrics-ver-del                              |
       | schema_id            |                                              |
-      | version              |                                              |
+      | version              | *                                            |
       | schema_type          | AVRO                                         |
       | before_hash          | sha256:*                                     |
       | after_hash           |                                              |
@@ -349,7 +349,7 @@ Feature: Wire-Compatible Metrics
       | target_type          | subject                                      |
       | target_id            | metrics-endpoint-test                        |
       | schema_id            | *                                            |
-      | version              |                                              |
+      | version              | *                                            |
       | schema_type          | AVRO                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |

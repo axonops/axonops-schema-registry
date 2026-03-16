@@ -42,7 +42,7 @@ Feature: Avro Conformance-Inspired Parsing
       | target_type          | subject                                      |
       | target_id            | avro-conform-interop                         |
       | schema_id            | *                                            |
-      | version              |                                              |
+      | version              | *                                            |
       | schema_type          | AVRO                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -85,7 +85,7 @@ Feature: Avro Conformance-Inspired Parsing
       | target_type          | subject                                        |
       | target_id            | avro-conform-deep-nest                         |
       | schema_id            | *                                              |
-      | version              |                                                |
+      | version              | *                                              |
       | schema_type          | AVRO                                           |
       | before_hash          |                                                |
       | after_hash           | sha256:*                                       |
@@ -130,7 +130,7 @@ Feature: Avro Conformance-Inspired Parsing
       | target_type          | subject                                        |
       | target_id            | avro-conform-error-type                        |
       | schema_id            | *                                              |
-      | version              |                                                |
+      | version              | *                                              |
       | schema_type          | AVRO                                           |
       | before_hash          |                                                |
       | after_hash           | sha256:*                                       |
@@ -173,7 +173,7 @@ Feature: Avro Conformance-Inspired Parsing
       | target_type          | subject                                      |
       | target_id            | avro-conform-logical                         |
       | schema_id            | *                                            |
-      | version              |                                              |
+      | version              | *                                            |
       | schema_type          | AVRO                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -226,7 +226,7 @@ Feature: Avro Conformance-Inspired Parsing
       | target_type          | subject                                      |
       | target_id            | avro-conform-order-b                         |
       | schema_id            | *                                            |
-      | version              |                                              |
+      | version              | *                                            |
       | schema_type          | AVRO                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -277,7 +277,7 @@ Feature: Avro Conformance-Inspired Parsing
       | target_type          | subject                                    |
       | target_id            | avro-conform-doc-b                         |
       | schema_id            | *                                          |
-      | version              |                                            |
+      | version              | *                                          |
       | schema_type          | AVRO                                       |
       | before_hash          |                                            |
       | after_hash           | sha256:*                                   |
@@ -323,7 +323,7 @@ Feature: Avro Conformance-Inspired Parsing
       | target_type          | subject                                          |
       | target_id            | avro-conform-enum-order-b                        |
       | schema_id            | *                                                |
-      | version              |                                                  |
+      | version              | *                                                |
       | schema_type          | AVRO                                             |
       | before_hash          |                                                  |
       | after_hash           | sha256:*                                         |
@@ -373,7 +373,7 @@ Feature: Avro Conformance-Inspired Parsing
       | target_type          | subject                                          |
       | target_id            | avro-conform-union-order-b                       |
       | schema_id            | *                                                |
-      | version              |                                                  |
+      | version              | *                                                |
       | schema_type          | AVRO                                             |
       | before_hash          |                                                  |
       | after_hash           | sha256:*                                         |
@@ -423,7 +423,7 @@ Feature: Avro Conformance-Inspired Parsing
       | target_type          | subject                                        |
       | target_id            | avro-conform-default-b                         |
       | schema_id            | *                                              |
-      | version              |                                                |
+      | version              | *                                              |
       | schema_type          | AVRO                                           |
       | before_hash          |                                                |
       | after_hash           | sha256:*                                       |
@@ -473,7 +473,7 @@ Feature: Avro Conformance-Inspired Parsing
       | target_type          | subject                                          |
       | target_id            | avro-conform-all-defaults                        |
       | schema_id            | *                                                |
-      | version              |                                                  |
+      | version              | *                                                |
       | schema_type          | AVRO                                             |
       | before_hash          |                                                  |
       | after_hash           | sha256:*                                         |
@@ -512,7 +512,7 @@ Feature: Avro Conformance-Inspired Parsing
       | target_type          | subject                                        |
       | target_id            | avro-conform-lower-enum                        |
       | schema_id            | *                                              |
-      | version              |                                                |
+      | version              | *                                              |
       | schema_type          | AVRO                                           |
       | before_hash          |                                                |
       | after_hash           | sha256:*                                       |
@@ -554,7 +554,7 @@ Feature: Avro Conformance-Inspired Parsing
       | target_type          | subject                                        |
       | target_id            | avro-conform-inline-ref                        |
       | schema_id            | *                                              |
-      | version              |                                                |
+      | version              | *                                              |
       | schema_type          | AVRO                                           |
       | before_hash          |                                                |
       | after_hash           | sha256:*                                       |
@@ -595,7 +595,7 @@ Feature: Avro Conformance-Inspired Parsing
       | target_type          | subject                                          |
       | target_id            | avro-conform-complex-union                       |
       | schema_id            | *                                                |
-      | version              |                                                  |
+      | version              | *                                                |
       | schema_type          | AVRO                                             |
       | before_hash          |                                                  |
       | after_hash           | sha256:*                                         |
@@ -688,7 +688,7 @@ Feature: Avro Conformance-Inspired Parsing
       | target_type          | subject                                      |
       | target_id            | avro-conform-dedup-b                         |
       | schema_id            | *                                            |
-      | version              |                                              |
+      | version              | *                                            |
       | schema_type          | AVRO                                         |
       | before_hash          |                                              |
       | after_hash           | sha256:*                                     |
@@ -727,7 +727,7 @@ Feature: Avro Conformance-Inspired Parsing
       | target_type          | subject                                          |
       | target_id            | avro-conform-reserved-enum                       |
       | schema_id            | *                                                |
-      | version              |                                                  |
+      | version              | *                                                |
       | schema_type          | AVRO                                             |
       | before_hash          |                                                  |
       | after_hash           | sha256:*                                         |
@@ -772,7 +772,7 @@ Feature: Avro Conformance-Inspired Parsing
       | target_type          | subject                                          |
       | target_id            | avro-conform-enum-aliases                        |
       | schema_id            | *                                                |
-      | version              |                                                  |
+      | version              | *                                                |
       | schema_type          | AVRO                                             |
       | before_hash          |                                                  |
       | after_hash           | sha256:*                                         |
@@ -819,7 +819,7 @@ Feature: Avro Conformance-Inspired Parsing
       | target_type          | subject                                          |
       | target_id            | avro-conform-decimal-fixed                       |
       | schema_id            | *                                                |
-      | version              |                                                  |
+      | version              | *                                                |
       | schema_type          | AVRO                                             |
       | before_hash          |                                                  |
       | after_hash           | sha256:*                                         |

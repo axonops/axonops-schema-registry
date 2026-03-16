@@ -24,7 +24,7 @@ Feature: Response Shapes — Confluent Wire Compatibility
       | target_type          | subject                              |
       | target_id            | resp-reg-only-id                     |
       | schema_id            | *                                    |
-      | version              |                                      |
+      | version              | *                                    |
       | schema_type          | AVRO                                 |
       | before_hash          |                                      |
       | after_hash           | sha256:*                             |
@@ -162,7 +162,7 @@ Feature: Response Shapes — Confluent Wire Compatibility
       | target_type          | subject                           |
       | target_id            | resp-avro-lookup                  |
       | schema_id            |                                   |
-      | version              |                                   |
+      | version              | *                                 |
       | schema_type          |                                   |
       | before_hash          |                                   |
       | after_hash           |                                   |
@@ -212,7 +212,7 @@ Feature: Response Shapes — Confluent Wire Compatibility
       | target_type          | subject                           |
       | target_id            | resp-proto-lookup                 |
       | schema_id            |                                   |
-      | version              |                                   |
+      | version              | *                                 |
       | schema_type          |                                   |
       | before_hash          |                                   |
       | after_hash           |                                   |
@@ -337,11 +337,11 @@ Feature: Response Shapes — Confluent Wire Compatibility
       | auth_method          |                        |
       | role                 |                        |
       | target_type          | mode                   |
-      | target_id            |                        |
+      | target_id            | _global                |
       | schema_id            |                        |
       | version              |                        |
       | schema_type          |                        |
-      | before_hash          |                        |
+      | before_hash          | *                      |
       | after_hash           | sha256:*               |
       | context              | .                      |
       | transport_security   | tls                    |
@@ -476,7 +476,7 @@ Feature: Response Shapes — Confluent Wire Compatibility
       | target_type          | subject                              |
       | target_id            | resp-del-ver                         |
       | schema_id            |                                      |
-      | version              |                                      |
+      | version              | *                                    |
       | schema_type          |                                      |
       | before_hash          |                                      |
       | after_hash           |                                      |
@@ -518,7 +518,7 @@ Feature: Response Shapes — Confluent Wire Compatibility
       | target_type          | subject                               |
       | target_id            | resp-del-ver2                         |
       | schema_id            |                                       |
-      | version              |                                       |
+      | version              | *                                     |
       | schema_type          |                                       |
       | before_hash          |                                       |
       | after_hash           |                                       |

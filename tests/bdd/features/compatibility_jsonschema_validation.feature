@@ -358,7 +358,7 @@ Feature: JSON Schema Validation Compatibility — Exhaustive (Confluent v8.1.1 C
       | target_type          | subject                                  |
       | target_id            | jsv-trans-ok                             |
       | schema_id            |                                          |
-      | version              |                                          |
+      | version              | *                                        |
       | schema_type          | JSON                                     |
       | before_hash          |                                          |
       | after_hash           |                                          |
@@ -403,7 +403,7 @@ Feature: JSON Schema Validation Compatibility — Exhaustive (Confluent v8.1.1 C
       | target_type          | subject                                  |
       | target_id            | jsv-trans-fail                           |
       | schema_id            | *                                        |
-      | version              |                                          |
+      | version              | *                                        |
       | schema_type          | JSON                                     |
       | before_hash          |                                          |
       | after_hash           | sha256:*                                 |
