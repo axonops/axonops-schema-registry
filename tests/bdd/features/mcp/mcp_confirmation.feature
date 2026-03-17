@@ -211,8 +211,8 @@ Feature: MCP Two-Phase Confirmation for Destructive Operations
       | method               | MCP                    |
       | path                 | delete_subject         |
       | status_code          | 0                      |
-      | reason               |                        |
-      | error                |                        |
+      | reason               | internal_error         |
+      | error                | tool returned error    |
       | request_body         |                        |
       | metadata             |                        |
       | timestamp            | *                      |
@@ -263,8 +263,8 @@ Feature: MCP Two-Phase Confirmation for Destructive Operations
       | method               | MCP                    |
       | path                 | delete_subject         |
       | status_code          | 0                      |
-      | reason               |                        |
-      | error                |                        |
+      | reason               | internal_error         |
+      | error                | tool returned error    |
       | request_body         |                        |
       | metadata             |                        |
       | timestamp            | *                      |

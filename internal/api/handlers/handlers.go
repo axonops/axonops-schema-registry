@@ -99,7 +99,9 @@ func (h *Handler) getPreviousSubjectConfig(ctx context.Context, registryCtx, sub
 // For global modes (subject=""), checks the existing global mode.
 func (h *Handler) getPreviousSubjectMode(ctx context.Context, registryCtx, subject string) string {
 	if subject == "" {
-		mode, err := h.registry.GetGlobalMode(ctx, registryCtx)
+		// Use GetGlobalModeDirect which falls back to "READWRITE" when no mode
+		// is explicitly stored, so before_hash always reflects the logical state.
+		mode, err := h.registry.GetGlobalModeDirect(ctx, registryCtx)
 		if err != nil {
 			return ""
 		}

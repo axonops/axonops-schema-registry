@@ -222,7 +222,9 @@ func TestFeatures(t *testing.T) {
 			tc := steps.NewTestContext(registryURL)
 			tc.MetricsURL = metricsURL
 			tc.WebhookURL = webhookURL
-			tc.AuditWatcher = mainAuditWatcher
+			if backend != "confluent" {
+				tc.AuditWatcher = mainAuditWatcher
+			}
 			if auditFetcher != nil {
 				tc.StoredValues["_audit_fetcher"] = auditFetcher
 			}

@@ -430,8 +430,8 @@ Feature: MCP Schema Read Tools
       | method               | MCP                    |
       | path                 | get_schema_by_id       |
       | status_code          | 0                      |
-      | reason               |                        |
-      | error                |                        |
+      | reason               | internal_error         |
+      | error                | tool returned error    |
       | request_body         |                        |
       | metadata             |                        |
       | timestamp            | *                      |

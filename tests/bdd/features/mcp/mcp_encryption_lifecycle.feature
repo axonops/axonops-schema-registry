@@ -663,8 +663,8 @@ Feature: MCP AI Data Modeling — Encryption Lifecycle (KEK/DEK)
       | method               | MCP                    |
       | path                 | create_kek             |
       | status_code          | 0                      |
-      | reason               |                        |
-      | error                |                        |
+      | reason               | internal_error         |
+      | error                | tool returned error    |
       | request_body         |                        |
       | metadata             |                        |
       | timestamp            | *                      |
@@ -696,8 +696,8 @@ Feature: MCP AI Data Modeling — Encryption Lifecycle (KEK/DEK)
       | method               | MCP                    |
       | path                 | get_kek                |
       | status_code          | 0                      |
-      | reason               |                        |
-      | error                |                        |
+      | reason               | internal_error         |
+      | error                | tool returned error    |
       | request_body         |                        |
       | metadata             |                        |
       | timestamp            | *                      |
@@ -735,8 +735,8 @@ Feature: MCP AI Data Modeling — Encryption Lifecycle (KEK/DEK)
       | method               | MCP                    |
       | path                 | create_dek             |
       | status_code          | 0                      |
-      | reason               |                        |
-      | error                |                        |
+      | reason               | internal_error         |
+      | error                | tool returned error    |
       | request_body         |                        |
       | metadata             |                        |
       | timestamp            | *                      |
